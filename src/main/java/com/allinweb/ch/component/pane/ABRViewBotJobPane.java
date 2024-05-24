@@ -15,6 +15,7 @@ import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ExcelWriter;
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -26,21 +27,9 @@ import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.Border;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
@@ -56,6 +45,7 @@ public class ABRViewBotJobPane extends ABRPane {
     Button editBotJobButton;
     Button launchBotJobButton;
     Button saveBotJobButton;
+    CheckBox checkBoxUpdatePriority;
     Button saveAsBotJobButton;
     Button printBotJobButton;
     Button copyBotJobButton;
@@ -89,6 +79,10 @@ public class ABRViewBotJobPane extends ABRPane {
                 "Launch", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.saveBotJobButton = builder.buildButton(
                 "Save", ABRConstants.SPACE_ZERO, "/save.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        this.checkBoxUpdatePriority = new CheckBox("Upd\nPriority");
+        checkBoxUpdatePriority.setWrapText(true);
+        checkBoxUpdatePriority.setPrefWidth(80); // Adjust width as needed
+
         this.saveAsBotJobButton = builder.buildButton(
                 "Save As", ABRConstants.SPACE_ZERO, "/save.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.printBotJobButton = builder.buildButton(
@@ -117,6 +111,18 @@ public class ABRViewBotJobPane extends ABRPane {
                         this.generateExcelButton,
                         this.openExcelFilterPanelButton,
                         this.closeBotJobButton);
+
+        // Create a GridPane
+        GridPane gridPane = new GridPane();
+
+        // Add the ButtonBar to the GridPane and align it at the center
+        gridPane.add(buttonPane, 0, 0);
+        GridPane.setHalignment(buttonPane, javafx.geometry.HPos.CENTER); // Align center
+
+        // Add checkBoxUpdatePriority below saveBotJobButton
+        gridPane.add(checkBoxUpdatePriority, 0, 1);
+        GridPane.setHalignment(checkBoxUpdatePriority, javafx.geometry.HPos.CENTER); // Align center
+
         this.botJobNameLabel = new Label(this.botJob.getName());
         this.botJobName = new TextField(this.botJob.getName());
         this.initComponentUI();
@@ -140,7 +146,7 @@ public class ABRViewBotJobPane extends ABRPane {
         HBox compBox = new HBox(new Node[] {this.uiBlockList, this.componentContainer});
         HBox.setHgrow(this.uiBlockList, Priority.ALWAYS);
         HBox.setHgrow(this.componentContainer, Priority.ALWAYS);
-        this.botJobContainer = new VBox(new Node[] {this.buttonPane, botJobNameGroup, botJobDescriptionGroup, compBox});
+        this.botJobContainer = new VBox(new Node[] {gridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
         AnchorPane.setTopAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setBottomAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setLeftAnchor(this.botJobContainer, ABRConstants.SPACE_M);
@@ -167,6 +173,10 @@ public class ABRViewBotJobPane extends ABRPane {
             this.botJobDescriptionLabel.setText(this.botJobDescription.getText());
             this.botJob.setName(this.botJobNameLabel.getText());
             this.botJob.setDescription(this.botJobDescriptionLabel.getText());
+            if (checkBoxUpdatePriority.isSelected()
+                    && !Strings.isNullOrEmpty(this.botJob.getHomeBanking().getPriority())) {
+                this.botJob.setPriority(this.botJob.getHomeBanking().getPriority());
+            }
             ABRSharedResources.getInstance().updateEntity(this.botJob, BotJobDTO.class);
         });
         this.openScannerButton.setOnMouseClicked((e) -> {

@@ -151,6 +151,10 @@ public class ABRMainPane extends ABRPane {
                                 "Please generate and compile the data of the file excel first before launching the bot job",
                                 ButtonType.OK);
                     }
+
+                    // We need just the ExcelPath
+                    excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "\\";
+
                     String[] command = {
                         "cmd.exe",
                         "/c",

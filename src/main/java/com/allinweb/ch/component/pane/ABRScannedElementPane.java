@@ -65,7 +65,6 @@ public class ABRScannedElementPane extends ABRPane {
     private Button refreshOutputFieldsButton;
     private Button refreshOtherFieldsButton;
     private CheckBox checkBoxAction;
-    private String priority;
 
     // Very important sequence on initiation
     private static ABRPriorities abrPriorities;
@@ -896,6 +895,27 @@ public class ABRScannedElementPane extends ABRPane {
                     case dynamic -> System.out.println(
                             "Default case"); //         Generates Dynamic Action -> Click, Hover, Etc.
                     case jsoup -> System.out.println("Default case");
+                        // OLD CASES
+                        //                    case attribute -> {
+                        //                        String attributeValue = element.getAttribute(priority.getName());
+                        //                        if (attributeValue != null && !attributeValue.isBlank()){
+                        //                            savedReferences.put(priority.getName(),attributeValue);
+                        //                            System.out.println("savedReferences size: " +
+                        // savedReferences.size());
+                        //                        }
+                        //                    }
+                        //                    case xpath -> {
+                        //                        savedReferences.put(priority.getName(),
+                        // ABRWebUtil.extractWebElementXPath(element));
+                        //                        System.out.println("savedReferences size: " + savedReferences.size());
+                        //                    }
+                        //                    case coordinates -> {
+                        //                        Rectangle coordinates = element.getRect();
+                        //                        savedReferences.put(priority.getName(), (coordinates.getX() +
+                        // (coordinates.getWidth()/2)) + "," +
+                        //                                (coordinates.getY() + (coordinates.getHeight()/2)));
+                        //                        System.out.println("savedReferences size: " + savedReferences.size());
+                        //                    }
                 }
             }
         }

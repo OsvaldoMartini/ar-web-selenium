@@ -1,13 +1,13 @@
-//package com.allinweb.ch.tests;
+// package com.allinweb.ch.tests;
 //
-//import javafx.application.Application;
-//import javafx.scene.Scene;
-//import javafx.scene.layout.StackPane;
-//import javafx.scene.web.WebEngine;
-//import javafx.scene.web.WebView;
-//import javafx.stage.Stage;
+// import javafx.application.Application;
+// import javafx.scene.Scene;
+// import javafx.scene.layout.StackPane;
+// import javafx.scene.web.WebEngine;
+// import javafx.scene.web.WebView;
+// import javafx.stage.Stage;
 //
-//public class WebViewExample extends Application {
+// public class WebViewExample extends Application {
 //
 //    @Override
 //    public void start(Stage primaryStage) {
@@ -38,4 +38,4 @@
 //    public static void main(String[] args) {
 //        launch(args);
 //    }
-//}
+// }
