@@ -12,7 +12,8 @@ public enum WebElementAttributeEnum {
     TYPE("type"),
     VALUE("value"),
     ARIA_LABEL("aria-label"),
-    INNER_HTML("innerHTML");
+    INNER_HTML("innerHTML"),
+    HREF("href");
 
     private String value;
 

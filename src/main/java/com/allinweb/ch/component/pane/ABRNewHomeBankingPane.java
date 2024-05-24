@@ -8,6 +8,9 @@ import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.persistence.JobUserDTO;
+import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRPropertyEnum;
+import com.allinweb.ch.util.ABRPropertyManager;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -19,27 +22,28 @@ import java.util.List;
 import java.util.Optional;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 
 public class ABRNewHomeBankingPane extends ABRPane {
 
-    private static final String FILE_NAME =
-            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\user_data.mdb";
-    private static final String FILE_NAME2 =
-            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\database.mdb";
-    private static final String DB_URL_1 =
-            "jdbc:ucanaccess:////D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\user_data.mdb";
-    //    private static final String DB_URL_BANKING =
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+
+    //    private static final String FILE_NAME =
+    //            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\user_data.mdb";
+    //    private static final String FILE_NAME2 =
+    //            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\database.mdb";
+    //    private static final String DB_URL_1 =
+    //            "jdbc:ucanaccess:////D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\user_data.mdb";
+    //    //    private static final String DB_URL_BANKING =
+    //    //
     // "jdbc:ucanaccess://D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\database.mdb;memory=false;newDatabaseVersion=V2010";
-    private static final String DB_URL_2 =
-            "jdbc:ucanaccess://D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\database.mdb";
+    //    private static final String DB_URL_2 =
+    //            "jdbc:ucanaccess://D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\database.mdb";
 
     private Connection conn = null;
     private ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList();
@@ -147,6 +151,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
         GridPane gridPane = new GridPane();
         gridPane.setHgap(10); // Horizontal gap between columns
         gridPane.setVgap(10); // Vertical gap between rows
+        gridPane.setPadding(new Insets(10)); // Padding around the gridPane
 
         // Add components to the grid
         gridPane.add(idLabel, 0, 0);
@@ -165,15 +170,18 @@ public class ABRNewHomeBankingPane extends ABRPane {
         gridPane.add(jobsLabel, 0, 5);
         gridPane.add(jobsField, 1, 5);
 
-        HBox buttonsBox = new HBox(submitButton, updateButton, deleteButton);
+        HBox buttonsBox = new HBox(10, submitButton, updateButton, deleteButton);
         buttonsBox.setAlignment(Pos.CENTER);
-        gridPane.add(buttonsBox, 0, 6, 3, 1);
+        buttonsBox.setSpacing(10); // Horizontal spacing between buttons
+
+        gridPane.add(buttonsBox, 0, 6, 2, 1);
 
         //        gridPane.add(submitButton, 0, 5);
         //        gridPane.add(updateButton, 1, 5);
         //        gridPane.add(deleteButton, 2, 5);
         HBox hBoxGridPane = new HBox(gridPane);
         hBoxGridPane.setAlignment(Pos.CENTER);
+        hBoxGridPane.setSpacing(10); // Horizontal spacing around the gridPane
 
         // Configure TableView
         TableColumn<DatabaseUserDTO, String> idColumn = new TableColumn<>("ID");
@@ -218,8 +226,22 @@ public class ABRNewHomeBankingPane extends ABRPane {
 
         // Create main layout
         //        VBox vbox = new VBox(gridPane, tableView);
-        VBox vbox = new VBox(20, hBoxGridPane, tableView); // Added spacing between GridPane and TableView
-        vbox.setAlignment(Pos.CENTER); // Center-align the VBox content
+
+        // Wrap the tableView in a VBox for more control
+        VBox tableViewContainer = new VBox(tableView);
+        tableViewContainer.setAlignment(Pos.BOTTOM_CENTER);
+        tableViewContainer.setSpacing(10); // Spacing around the tableView
+        tableViewContainer.setPadding(new Insets(10)); // Padding inside the tableView container
+
+        // Create main layout
+        VBox vbox = new VBox(20, hBoxGridPane, tableViewContainer);
+        vbox.setAlignment(Pos.CENTER);
+        vbox.setPadding(new Insets(10)); // Padding around the VBox
+
+        // Adjust VBox properties for better alignment
+        VBox.setVgrow(tableViewContainer, Priority.ALWAYS);
+        //        tableViewContainer.setPrefHeight(300); // Adjust the preferred height as needed
+        tableViewContainer.setPrefWidth(750); // Adjust the preferred height as needed
 
         mainPane = new AnchorPane(vbox);
     }
@@ -295,9 +317,13 @@ public class ABRNewHomeBankingPane extends ABRPane {
     }
 
     private void initializeDatabase() {
-        File dbFile = new File(FILE_NAME2);
+
+        String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+        String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        File dbFile = new File(dbPath + ABRConstants.FILE_NAME_DB);
         if (!dbFile.exists()) {
-            try (Connection conn = DriverManager.getConnection(DB_URL_2 + ";newDatabaseVersion=V2010")) {
+            try (Connection conn = DriverManager.getConnection(dbUrl)) {
                 try (Statement stmt = conn.createStatement()) {
                     String createTableSQL = "CREATE TABLE home_banking (" + "ID AUTOINCREMENT PRIMARY KEY, "
                             + "name TEXT, password TEXT, url TEXT, username TEXT, priority TEXT)";
@@ -314,8 +340,10 @@ public class ABRNewHomeBankingPane extends ABRPane {
 
     private Connection getConnection() {
         if (conn == null) {
+            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+            String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
             try {
-                conn = DriverManager.getConnection(DB_URL_2);
+                conn = DriverManager.getConnection(dbUrl);
             } catch (SQLException e) {
                 e.printStackTrace();
             }

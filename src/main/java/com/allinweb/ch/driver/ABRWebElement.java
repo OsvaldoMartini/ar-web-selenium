@@ -9,7 +9,6 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.util.*;
-import com.allinweb.ch.util.Priority;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
@@ -26,7 +25,6 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
-import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 
@@ -42,6 +40,7 @@ public class ABRWebElement {
     private Integer instructionId;
 
     private String elementId;
+    private WebElement element;
 
     private String xPath;
     private String innerHTML;
@@ -117,28 +116,28 @@ public class ABRWebElement {
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
 
-        if (abrPriorities.getJobId() != null) {
-            for (Priority priority : abrPriorities.getAllPriorityList()) {
-                switch (priority.getPriorityType()) {
-                    case attribute -> {
-                        String attributeValue =
-                                element.getAttribute(priority.getName().get(0));
-                        if (attributeValue != null && !attributeValue.isBlank()) {
-                            savedReferences.put(priority.getName().get(0), attributeValue);
-                        }
-                    }
-                    case xpath -> savedReferences.put(
-                            priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
-                    case coordinates -> {
-                        Rectangle coordinates = element.getRect();
-                        savedReferences.put(
-                                priority.getName().get(0),
-                                (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                                        + (coordinates.getY() + (coordinates.getHeight() / 2)));
-                    }
-                }
-            }
-        }
+        //        if (abrPriorities.getJobId() != null) {
+        //            for (Priority priority : abrPriorities.getAllPriorityList()) {
+        //                switch (priority.getPriorityType()) {
+        //                    case attribute -> {
+        //                        String attributeValue =
+        //                                element.getAttribute(priority.getName().get(0));
+        //                        if (attributeValue != null && !attributeValue.isBlank()) {
+        //                            savedReferences.put(priority.getName().get(0), attributeValue);
+        //                        }
+        //                    }
+        //                    case xpath -> savedReferences.put(
+        //                            priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
+        //                    case coordinates -> {
+        //                        Rectangle coordinates = element.getRect();
+        //                        savedReferences.put(
+        //                                priority.getName().get(0),
+        //                                (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+        //                                        + (coordinates.getY() + (coordinates.getHeight() / 2)));
+        //                    }
+        //                }
+        //            }
+        //        }
 
         String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
         String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
@@ -148,6 +147,7 @@ public class ABRWebElement {
         String idAttributeValue = element.getAttribute(WebElementAttributeEnum.ID.getValue());
         String nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
         String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
+        String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
 
         clickElement.setValue(isClickable(element));
 
@@ -159,6 +159,7 @@ public class ABRWebElement {
         boolean hasName = nameAttributeValue != null && !nameAttributeValue.isBlank();
         boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank();
         boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
+        boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
 
         if (isOption && hasValue) {
             nameLabel.setText(valueAttributeValue);
@@ -181,6 +182,9 @@ public class ABRWebElement {
         } else if (hasId) {
             nameLabel.setText(idAttributeValue);
             nameField.setText(idAttributeValue);
+        } else if (hasHRefFile) {
+            nameLabel.setText(valueHRefFile + " File");
+            nameField.setText(valueHRefFile + " File");
         } else {
             nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
@@ -195,7 +199,7 @@ public class ABRWebElement {
         // this is goign to be done before and match the case
         //        xPath = ABRWebUtil.extractWebElementXPath(element);
         elementId = ((RemoteWebElement) element).getId();
-
+        this.element = element;
         toBeAddedElement.setValue(true);
     }
 
@@ -474,6 +478,22 @@ public class ABRWebElement {
         this.elementId = elementId;
     }
 
+    public WebElement getElement() {
+        return element;
+    }
+
+    public void setElement(WebElement element) {
+        this.element = element;
+    }
+
+    public String getxPath() {
+        return xPath;
+    }
+
+    public void setxPath(String xPath) {
+        this.xPath = xPath;
+    }
+
     public Map<String, String> getSavedReferences() {
         return savedReferences;
     }
@@ -481,4 +501,32 @@ public class ABRWebElement {
     public void setSavedReferences(Map<String, String> savedReferences) {
         this.savedReferences = savedReferences;
     }
+
+    /**
+     * Extracts the file extension from the given string, considering it may be a path.
+     *
+     * @param input The string from which to extract the file extension.
+     * @return The file extension if present and the string is identified as a file, otherwise an empty string.
+     */
+    public static String extractFileExtension(String input) {
+        if (input == null || input.isEmpty()) {
+            return "";
+        }
+
+        // Find the last slash in the string
+        int lastIndexOfSlash = input.lastIndexOf('/');
+
+        // Get the substring after the last slash
+        String lastSegment = lastIndexOfSlash == -1 ? input : input.substring(lastIndexOfSlash + 1);
+
+        // If the last segment contains a period, it is considered a file
+        int lastIndexOfDot = lastSegment.lastIndexOf('.');
+        if (lastIndexOfDot == -1 || lastIndexOfDot == lastSegment.length() - 1) {
+            return "";
+        }
+
+        // Extract the substring after the last period
+        return lastSegment.substring(lastIndexOfDot + 1);
+    }
+
 }

@@ -14,7 +14,7 @@ public enum PriorityTypeEnum {
     ByXPath, //           "//input[@type='text']"
     ExecuteScript, //      "return document.getElementById('search-top')");
     createXPath, //         Generates XPath Recursive tom the Elements Found
-    dynamicElem, //         Generates Dynamic Action -> Click, Hover, Etc.
+    dynamic, //         Generates Dynamic Action -> Click, Hover, Etc.
     jsoup; //                JSOUP  Search Library Experimental
 
     public static PriorityTypeEnum getPriorityType(String priorityType) {
@@ -24,5 +24,10 @@ public enum PriorityTypeEnum {
             }
         }
         throw new EnumConstantNotPresentException(PriorityTypeEnum.class, priorityType);
+    }
+
+    @Override
+    public String toString() {
+        return this.name();
     }
 }

@@ -12,11 +12,10 @@ import com.allinweb.ch.driver.ABRWebElement;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -28,11 +27,14 @@ import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
+import javax.net.ssl.*;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
 public class ABRScannedElementPane extends ABRPane {
@@ -62,6 +64,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Button refreshInputFieldsButton;
     private Button refreshOutputFieldsButton;
     private Button refreshOtherFieldsButton;
+    private CheckBox checkBoxAction;
     private String priority;
 
     // Very important sequence on initiation
@@ -122,7 +125,7 @@ public class ABRScannedElementPane extends ABRPane {
                 "Output Fields", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         refreshOtherFieldsButton = componentBuilder.buildButton(
                 "Other Elements", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
-
+        checkBoxAction = new CheckBox("Enable Click Test (PLEASE RELEASE)");
         webElementObservableList1 = FXCollections.observableArrayList();
         scannedElements1 = new ListView<>(webElementObservableList1);
         scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ABRConstants.SPACE_ZERO);
@@ -172,7 +175,17 @@ public class ABRScannedElementPane extends ABRPane {
 
         buttonsBox
                 .getChildren()
-                .addAll(refreshInputFieldsButton, space1, refreshOutputFieldsButton, space2, refreshOtherFieldsButton);
+                .addAll(
+                        refreshInputFieldsButton,
+                        space1,
+                        refreshOutputFieldsButton,
+                        space2,
+                        refreshOtherFieldsButton,
+                        checkBoxAction);
+
+        // Set the vertical alignment for checkBoxAction to TOP
+        VBox.setMargin(checkBoxAction, new Insets(0, 0, 0, 80)); // Example margin, adjust as needed
+        //        verticalBox.getChildren().addAll(buttonsBox, checkBoxAction);
 
         HBox boxListViews = new HBox();
 
@@ -240,7 +253,7 @@ public class ABRScannedElementPane extends ABRPane {
         webElementObservableList1.clear();
         webElementObservableList2.clear();
         webElementObservableList3.clear();
-        managePrioritiesScan();
+        manageUIScanPriorities();
         manageUIScanInputs();
         manageUIScanClickable();
         manageUIScanOutputs();
@@ -249,22 +262,31 @@ public class ABRScannedElementPane extends ABRPane {
     private void manageUIScanInputs() {
         List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
         for (WebElementTagNameEnum tag : inputTags) {
-            scanABRElementsAsync(By.tagName(tag.getValue()), ABRWebElement::isNotClickable, webElementObservableList1);
+            scanABRElementsAsync(
+                    null, By.tagName(tag.getValue()), ABRWebElement::isNotClickable, webElementObservableList1);
         }
     }
 
     private void manageUIScanClickable() {
         List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
         for (WebElementTagNameEnum tag : clickableTags) {
-            scanABRElementsAsync(By.tagName(tag.getValue()), ABRWebElement::isClickable, webElementObservableList2);
+            scanABRElementsAsync(
+                    null, By.tagName(tag.getValue()), ABRWebElement::isClickable, webElementObservableList2);
         }
     }
 
-    private void managePrioritiesScan() {
+    private void manageUIScanPriorities() {
         String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
         List<WebElement> webElements = managePrioritiesCriteria();
-        managePrioritiesScanJSoup();
-        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
+        //        manageUIScanPrioritiesJSoup();
+        //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
+        try {
+            if (webElements != null) {
+                scanABRElementsAsync(webElements, webElementObservableList3);
+            }
+        } catch (Exception e) {
+            System.out.println("Error " + e.getMessage());
+        }
     }
 
     private void manageUIScanOutputs() {
@@ -273,13 +295,23 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void scanABRElementsAsync(By criteria, ObservableList<ABRWebElement> listToAddElements) {
-        scanABRElementsAsync(criteria, null, listToAddElements);
+        scanABRElementsAsync(null, criteria, null, listToAddElements);
+    }
+
+    private void scanABRElementsAsync(List<WebElement> preElements, ObservableList<ABRWebElement> listToAddElements) {
+        scanABRElementsAsync(preElements, null, null, listToAddElements);
     }
 
     private void scanABRElementsAsync(
-            By criteria, Predicate<ABRWebElement> filterCondition, ObservableList<ABRWebElement> listToAddElements) {
+            List<WebElement> preElements,
+            By criteria,
+            Predicate<ABRWebElement> filterCondition,
+            ObservableList<ABRWebElement> listToAddElements) {
         ABRLogger.getInstance(ABRScannedElementPane.class)
-                .fine("Going to execute the scan asynchronously for " + criteria.toString());
+                .fine("Going to execute the scan asynchronously for " + criteria);
+        ABRLogger.getInstance(ABRScannedElementPane.class)
+                .fine("Going to execute the scan asynchronously for " + criteria);
+
         ProgressBar progressBar = new ProgressBar();
         addNodesToPane(bottomPane, progressBar);
         Task<Void> workingTask = new Task<>() {
@@ -290,7 +322,14 @@ public class ABRScannedElementPane extends ABRPane {
                 try {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine("Starting scan of elements for criteria: " + criteria);
-                    List<WebElement> scannedElementList = abrWebDriver.scan(criteria);
+
+                    List<WebElement> scannedElementList = new ArrayList<>();
+                    if (preElements != null) {
+                        scannedElementList.addAll(preElements);
+                    } else {
+                        scannedElementList = abrWebDriver.scan(criteria);
+                    }
+
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine("Scan of elements for criteria: " + criteria + " ended");
                     ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -303,34 +342,45 @@ public class ABRScannedElementPane extends ABRPane {
                     List<WebElement> scannedElementListReduced = scannedElementList.size() > 50
                             ? new ArrayList<>(scannedElementList.subList(0, 50))
                             : scannedElementList;
+                    List<ABRWebElement> listABRElements = null;
+                    try {
+                        listABRElements = scannedElementListReduced.stream()
+                                .filter(element -> element != null) // Filter out null elements
+                                .map(ABRWebElement::new)
+                                .collect(Collectors.toList());
 
-                    Stream<ABRWebElement> stream =
-                            scannedElementListReduced.stream().map(ABRWebElement::new);
+                    } catch (Exception e) {
+                        System.out.println("Error ABRWebElement creation" + e.getMessage());
+                    }
 
-                    // Saved REferences From Priorities
-                    // Update the savedReferences field for each element in the stream
-                    stream.map(element -> {
-                                // Update the savedReferences field
-                                element.getSavedReferences().put("key", "value");
-                                return element;
-                            })
-                            .forEach(element -> {
-                                // Perform any action you want with the updated ABRWebElement
-                                // For example, print the updated savedReferences field
-                                System.out.println(element.getSavedReferences());
-                            });
+                    if (preElements == null) {
+
+                        // Saved REferences From Priorities
+                        // Update the savedReferences field for each element in the stream
+                        // Iterate over the list to update the savedReferences field
+                        for (ABRWebElement element : listABRElements) {
+                            // Update the savedReferences field
+                            element.getSavedReferences().put("key", "value");
+
+                            // Perform any action you want with the updated ABRWebElement
+                            // For example, print the updated savedReferences field
+                            System.out.println(element.getSavedReferences());
+                        }
+                    }
 
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine("mapping of web elements into ABRWebElements for criteria: " + criteria + " ended");
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .finer("Checking filtering condition != null: " + (filterCondition != null));
-                    if (filterCondition != null) {
-                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting filtering elements");
-                        stream = stream.filter(filterCondition);
-                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Filtering elements ended");
-                    }
+                    //                    if (filterCondition != null) {
+                    //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting
+                    // filtering elements");
+                    //                        stream = stream.filter(filterCondition);
+                    //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Filtering
+                    // elements ended");
+                    //                    }
                     ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting loop to add ABRWebElements");
-                    for (ABRWebElement element : stream.toList()) {
+                    for (ABRWebElement element : listABRElements) {
                         ABRLogger.getInstance(ABRScannedElementPane.class).fine("sending add request to JavaFX thread");
                         ABRLogger.getInstance(ABRScannedElementPane.class)
                                 .finer("sending add request to JavaFX thread for ABRWebElement with xPath: "
@@ -457,7 +507,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void refreshOtherElemBtn() {
         webElementObservableList3.clear();
-        manageUIScanOutputs();
+        manageUIScanPriorities();
     }
 
     private void addScreenTask() {
@@ -535,113 +585,152 @@ public class ABRScannedElementPane extends ABRPane {
 
         EventHandler<MouseEvent> mouseClickedHandler = mouseEvent -> {
             if (mouseEvent.getClickCount() == 2) {
-                ABRLogger.getInstance(ABRScannedElementPane.class)
-                        .info("Double clicked the element: " + abrWebElement.getXPath());
-                ABRLogger.getInstance(ABRScannedElementPane.class).fine("Going to show the confirmation Alert");
-                Alert alert = new Alert(
-                        Alert.AlertType.CONFIRMATION,
-                        "Are you sure you want to add the instruction selected to the bot job?",
-                        ButtonType.YES,
-                        ButtonType.NO);
-                ABRLogger.getInstance(ABRScannedElementPane.class).fine("Confirmation Alert shown. Waiting for result");
-                Optional<ButtonType> result = alert.showAndWait();
-                ABRLogger.getInstance(ABRScannedElementPane.class).finer("result got: " + result.get());
-                if (result.isPresent() && result.get() == ButtonType.YES) {
-                    ABRLogger.getInstance(ABRScannedElementPane.class).info("Clicked on YES");
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Creating Thread");
-                    Task<Void> handleEvent = new Task<>() {
-                        @Override
-                        protected Void call() throws Exception {
-                            ABRLogger.getInstance(Task.class).info("THREAD: Started");
-                            ABRLogger.getInstance(Task.class)
-                                    .fine("THREAD: starting element scan by xpath " + abrWebElement.getXPath());
-                            List<WebElement> elementList = abrWebDriver.scan(By.xpath(abrWebElement.getXPath()));
-                            ABRLogger.getInstance(Task.class)
-                                    .fine("THREAD: scan ended. Detected " + elementList.size() + "element(s)");
-                            ABRLogger.getInstance(Task.class).fine("THREAD: dehighlighting all elements of list");
-                            for (WebElement element : elementList) {
-                                ABRLogger.getInstance(Task.class).finer("THREAD: dehilighting " + element);
-                                abrWebDriver.dehighlightElement(element);
-                                ABRLogger.getInstance(Task.class).finer("THREAD: dehilighted " + element);
-                            }
-                            ABRLogger.getInstance(Task.class).fine("THREAD: fetching instruction list from database");
-                            ObservableList<BlockLoopInstructionDTO> list = ABRSharedResources.getInstance()
-                                    .getEntityList(
-                                            BlockLoopInstructionDTO.class,
-                                            (instr) -> instr.getBlock().getId() == block.getId());
-                            ABRLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
-                            ABRLogger.getInstance(Task.class).fine("THREAD: creating instruction from webelement");
-                            BlockLoopInstructionDTO instruction = abrWebElement.buildBlockLoopInstruction(list.size());
-                            ABRLogger.getInstance(Task.class).fine("THREAD: instruction from webelement created");
-                            ABRLogger.getInstance(Task.class)
-                                    .fine("THREAD: setting block " + block.getId() + " on instruction");
-                            instruction.setBlock(block);
-                            ABRLogger.getInstance(Task.class).fine("THREAD: block " + block.getId() + " set");
-                            ABRLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
-                            ABRSharedResources.getInstance()
-                                    .addEntity(instruction, BlockLoopInstructionDTO.class, () -> {
-                                        ABRLogger.getInstance(Task.class)
-                                                .fine("THREAD: instruction added successfully to database");
-                                        ABRLogger.getInstance(Task.class)
-                                                .fine("THREAD: setting instuctionId " + instruction.getId());
-                                        abrWebElement.setInstructionId(instruction.getId());
-                                        ABRLogger.getInstance(Task.class)
-                                                .fine("THREAD: instuctionId set " + instruction.getId());
-                                        ABRLogger.getInstance(Task.class).fine("THREAD: creating queue for references");
-                                        LinkedBlockingQueue<InstructionReferenceDTO> queue =
-                                                new LinkedBlockingQueue<>();
-                                        for (String key : abrWebElement
-                                                .getSavedReferences()
-                                                .keySet()) {
-                                            ABRLogger.getInstance(Task.class)
-                                                    .finer("THREAD: creating reference " + key);
-                                            InstructionReferenceDTO reference = new InstructionReferenceDTO();
-                                            reference.setReferenceType(key);
-                                            ABRLogger.getInstance(Task.class)
-                                                    .finer("THREAD: setting value of reference: "
-                                                            + abrWebElement
-                                                                    .getSavedReferences()
-                                                                    .get(key));
-                                            reference.setValue(abrWebElement
-                                                    .getSavedReferences()
-                                                    .get(key));
-                                            ABRLogger.getInstance(Task.class).fine("THREAD: reference value set");
-                                            ABRLogger.getInstance(Task.class)
-                                                    .finer("THREAD: setting reference instruction: " + instruction);
-                                            reference.setBlockLoopInstructionDTO(instruction);
-                                            ABRLogger.getInstance(Task.class).fine("THREAD: reference instruction set");
-                                            ABRLogger.getInstance(Task.class).fine("THREAD: adding reference to queue");
-                                            queue.add(reference);
-                                            ABRLogger.getInstance(Task.class).fine("THREAD: reference added to queue");
-                                        }
-                                        ABRLogger.getInstance(Task.class)
-                                                .fine("THREAD: adding " + queue.size() + "queue elements");
-                                        ABRSharedResources.getInstance()
-                                                .addAllEntity(queue, InstructionReferenceDTO.class, () -> {
-                                                    ABRLogger.getInstance(Task.class)
-                                                            .fine(
-                                                                    "THREAD: queue elements added successfully. Showing alert on JAVAFX thread");
-                                                    Platform.runLater(() -> {
-                                                        ABRLogger.getInstance(Task.class)
-                                                                .fine("JAVAFX: showing alert");
-                                                        new ABRAlertScene(
-                                                                Alert.AlertType.INFORMATION,
-                                                                "Instruction Added",
-                                                                "Instruction " + instruction.getName()
-                                                                        + " has been added successfully",
-                                                                ButtonType.OK);
-                                                        ABRLogger.getInstance(Task.class)
-                                                                .fine("JAVAFX: alert shown");
-                                                    });
-                                                });
-                                    });
-                            return null;
+                if (checkBoxAction.isSelected()) {
+                    try {
+                        abrWebElement.setxPath(getXPath(abrWebDriver.getDriver(), abrWebElement.getElement()));
+                        abrWebDriver.dehighlightElement(abrWebElement.getElement());
+
+                        WebElement elementXPath =
+                                abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getXPath()));
+                        if (elementXPath != null) {
+                            elementXPath.click();
                         }
-                    };
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Thread created");
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Before thread execution");
-                    new Thread(handleEvent).start();
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("After thread execution");
+                        //                                abrWebElement.getElement().click();
+                    } catch (Exception e) {
+                        System.out.println("Cannot find the XPath for this Element");
+                    }
+                } else {
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .info("Double clicked the element: " + abrWebElement.getXPath());
+                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Going to show the confirmation Alert");
+                    Alert alert = new Alert(
+                            Alert.AlertType.CONFIRMATION,
+                            "Are you sure you want to add the instruction selected to the bot job?",
+                            ButtonType.YES,
+                            ButtonType.NO);
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine("Confirmation Alert shown. Waiting for result");
+                    Optional<ButtonType> result = alert.showAndWait();
+                    ABRLogger.getInstance(ABRScannedElementPane.class).finer("result got: " + result.get());
+                    if (result.isPresent() && result.get() == ButtonType.YES) {
+                        ABRLogger.getInstance(ABRScannedElementPane.class).info("Clicked on YES");
+                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Creating Thread");
+                        Task<Void> handleEvent = new Task<>() {
+                            @Override
+                            protected Void call() throws Exception {
+                                ABRLogger.getInstance(Task.class).info("THREAD: Started");
+
+                                try {
+                                    abrWebElement.setxPath(
+                                            getXPath(abrWebDriver.getDriver(), abrWebElement.getElement()));
+                                    abrWebDriver.dehighlightElement(abrWebElement.getElement());
+                                } catch (Exception e) {
+                                    System.out.println("Cannot find the XPath for this Element");
+                                }
+
+                                ABRLogger.getInstance(Task.class)
+                                        .fine("THREAD: starting element scan by xpath " + abrWebElement.getXPath());
+                                //                            List<WebElement> elementList =
+                                // abrWebDriver.scan(By.xpath(abrWebElement.getXPath()));
+                                //                            ABRLogger.getInstance(Task.class)
+                                //                                    .fine("THREAD: scan ended. Detected " +
+                                // elementList.size() + "element(s)");
+                                //                            ABRLogger.getInstance(Task.class).fine("THREAD:
+                                // dehighlighting
+                                // all elements of list");
+                                //                            for (WebElement element : elementList) {
+                                //                                ABRLogger.getInstance(Task.class).finer("THREAD:
+                                // dehilighting " + element);
+                                //                                abrWebDriver.dehighlightElement(element);
+                                //                                ABRLogger.getInstance(Task.class).finer("THREAD:
+                                // dehilighted " + element);
+                                //                            }
+                                ABRLogger.getInstance(Task.class)
+                                        .fine("THREAD: fetching instruction list from database");
+                                ObservableList<BlockLoopInstructionDTO> list = ABRSharedResources.getInstance()
+                                        .getEntityList(
+                                                BlockLoopInstructionDTO.class,
+                                                (instr) -> instr.getBlock().getId() == block.getId());
+                                ABRLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
+                                ABRLogger.getInstance(Task.class).fine("THREAD: creating instruction from webelement");
+                                BlockLoopInstructionDTO instruction =
+                                        abrWebElement.buildBlockLoopInstruction(list.size());
+                                ABRLogger.getInstance(Task.class).fine("THREAD: instruction from webelement created");
+                                ABRLogger.getInstance(Task.class)
+                                        .fine("THREAD: setting block " + block.getId() + " on instruction");
+                                instruction.setBlock(block);
+                                ABRLogger.getInstance(Task.class).fine("THREAD: block " + block.getId() + " set");
+                                ABRLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
+                                ABRSharedResources.getInstance()
+                                        .addEntity(instruction, BlockLoopInstructionDTO.class, () -> {
+                                            ABRLogger.getInstance(Task.class)
+                                                    .fine("THREAD: instruction added successfully to database");
+                                            ABRLogger.getInstance(Task.class)
+                                                    .fine("THREAD: setting instuctionId " + instruction.getId());
+                                            abrWebElement.setInstructionId(instruction.getId());
+                                            ABRLogger.getInstance(Task.class)
+                                                    .fine("THREAD: instuctionId set " + instruction.getId());
+                                            ABRLogger.getInstance(Task.class)
+                                                    .fine("THREAD: creating queue for references");
+                                            LinkedBlockingQueue<InstructionReferenceDTO> queue =
+                                                    new LinkedBlockingQueue<>();
+                                            for (String key : abrWebElement
+                                                    .getSavedReferences()
+                                                    .keySet()) {
+                                                ABRLogger.getInstance(Task.class)
+                                                        .finer("THREAD: creating reference " + key);
+                                                InstructionReferenceDTO reference = new InstructionReferenceDTO();
+                                                reference.setReferenceType(key);
+                                                ABRLogger.getInstance(Task.class)
+                                                        .finer("THREAD: setting value of reference: "
+                                                                + abrWebElement
+                                                                        .getSavedReferences()
+                                                                        .get(key));
+                                                reference.setValue(abrWebElement
+                                                        .getSavedReferences()
+                                                        .get(key));
+                                                ABRLogger.getInstance(Task.class)
+                                                        .fine("THREAD: reference value set");
+                                                ABRLogger.getInstance(Task.class)
+                                                        .finer("THREAD: setting reference instruction: " + instruction);
+                                                reference.setBlockLoopInstructionDTO(instruction);
+                                                ABRLogger.getInstance(Task.class)
+                                                        .fine("THREAD: reference instruction set");
+                                                ABRLogger.getInstance(Task.class)
+                                                        .fine("THREAD: adding reference to queue");
+                                                queue.add(reference);
+                                                ABRLogger.getInstance(Task.class)
+                                                        .fine("THREAD: reference added to queue");
+                                            }
+                                            ABRLogger.getInstance(Task.class)
+                                                    .fine("THREAD: adding " + queue.size() + "queue elements");
+                                            ABRSharedResources.getInstance()
+                                                    .addAllEntity(queue, InstructionReferenceDTO.class, () -> {
+                                                        ABRLogger.getInstance(Task.class)
+                                                                .fine(
+                                                                        "THREAD: queue elements added successfully. Showing alert on JAVAFX thread");
+                                                        Platform.runLater(() -> {
+                                                            ABRLogger.getInstance(Task.class)
+                                                                    .fine("JAVAFX: showing alert");
+                                                            new ABRAlertScene(
+                                                                    Alert.AlertType.INFORMATION,
+                                                                    "Instruction Added",
+                                                                    "Instruction " + instruction.getName()
+                                                                            + " has been added successfully",
+                                                                    ButtonType.OK);
+                                                            ABRLogger.getInstance(Task.class)
+                                                                    .fine("JAVAFX: alert shown");
+                                                        });
+                                                    });
+                                        });
+                                return null;
+                            }
+                        };
+                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Thread created");
+                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Before thread execution");
+                        new Thread(handleEvent).start();
+                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("After thread execution");
+                    }
                 }
             }
         };
@@ -657,123 +746,362 @@ public class ABRScannedElementPane extends ABRPane {
 
             // Fetch the HTML content of the page
             Document docJSoup = null;
-            try {
-                docJSoup = Jsoup.connect(botJob.getHomeBanking().getUrl()).get();
-                for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
-                    switch (priority.getPriorityType()) {
-                        case ByXPath -> {
-                            List<String> names = priority.getName();
+            docJSoup = JsoupConnect(botJob.getHomeBanking().getUrl());
+            Set<WebElementWrapper> uniqueElements = new HashSet<>();
+            List<WebElement> finalList = new ArrayList<>();
+            for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
+                PriorityTypeEnum priorityTypeEnum = null;
+                try {
+                    priorityTypeEnum = PriorityTypeEnum.getPriorityType(
+                            priority.getPriorityType().toString());
+                } catch (Exception e) {
+                    System.out.println(String.format("The ENUM: was not defined!"));
+                    continue;
+                }
+                if (priorityTypeEnum == null) {
+                    System.out.println("Define priorities!");
+                    return null;
+                }
+                switch (priorityTypeEnum) {
+                    case ByXPath -> {
+                        List<String> names = priority.getName();
 
-                            Elements elementJSoup = null;
-                            // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
-                            for (String name : names) {
-                                try{
-                                    webElements = abrWebDriver.scan(By.xpath(name));
-                                }catch (Exception e){
-                                    System.out.println(String.format("WebDriver cannot read this format: %s", name));
-                                }
-                                try{
-                                    elementJSoup = docJSoup.select(name);
-                                }catch (Exception e){
-                                    System.out.println(String.format("Jsoup cannot read this format: %s", name));
-                                }
-                            }
-                            // Iterate over the selected links
-                            for (Element link : elementJSoup) {
-                                // Get the URL and text of the link
-                                String url = link.absUrl("href");
-                                String text = link.text();
-
-                                // Print the URL and text
-                                if (Strings.isNullOrEmpty(url)) {
-                                    url = link.attr("href");
-                                }
-
-                                // Check if the text is empty
-                                if (link.text().isEmpty()) {
-                                    // Check for nested elements like SVG
-                                    Element svg = link.selectFirst("svg");
-                                    if (svg != null && svg.selectFirst("use") != null && svg.hasAttr("xlink:href")) {
-                                        String svgHref = svg.selectFirst("use").attr("xlink:href");
-                                        System.out.println(
-                                                "Found SVG with href: " + svgHref + " inside anchor with href: " + url);
-                                        text = svgHref.toString();
-                                    } else if (svg != null) {
-                                        System.out.println(
-                                                "Found anchor with href: " + url + " containing nested SVG.");
-                                        text = svg.toString();
-                                    } else {
-                                        System.out.println(
-                                                "Anchor with href: " + url + " has no text and no nested SVG.");
+                        Elements elementJSoup = null;
+                        // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
+                        for (String name : names) {
+                            try {
+                                webElements = abrWebDriver.scan(By.xpath(name));
+                                // Add elements from the first list to the set
+                                for (WebElement element : webElements) {
+                                    String href = element.getAttribute("href");
+                                    String text = element.getText();
+                                    String uniqueKey = href + text;
+                                    WebElementWrapper wrapper = new WebElementWrapper(href, text, element);
+                                    if (uniqueElements.add(wrapper)) {
+                                        finalList.add(element);
                                     }
-                                } else {
-                                    System.out.println("Anchor with href: " + url + " has text: " + link.text());
                                 }
-                                savedReferences.put(text, url);
+                            } catch (Exception e) {
+                                System.out.println(String.format("WebDriver cannot read this format: %s", name));
                             }
+                            try {
+                                elementJSoup = docJSoup.select(name);
+                                for (Element element : elementJSoup) {
+                                    String href = element.absUrl("href");
+                                    String text = element.text();
+
+                                    // Print the URL and text
+                                    if (Strings.isNullOrEmpty(href)) {
+                                        href = element.attr("href");
+                                    }
+
+                                    // Check if the text is empty
+                                    if (element.text().isEmpty()) {
+                                        // Check for nested elements like SVG
+                                        Element svg = element.selectFirst("svg");
+                                        if (svg != null
+                                                && svg.selectFirst("use") != null
+                                                && svg.hasAttr("xlink:href")) {
+                                            String svgHref =
+                                                    svg.selectFirst("use").attr("xlink:href");
+                                            System.out.println("Found SVG with href: " + svgHref
+                                                    + " inside anchor with href: " + href);
+                                            text = svgHref.toString();
+                                        } else if (svg != null) {
+                                            System.out.println(
+                                                    "Found anchor with href: " + href + " containing nested SVG.");
+                                            text = svg.toString();
+                                        } else {
+                                            System.out.println(
+                                                    "Anchor with href: " + href + " has no text and no nested SVG.");
+                                        }
+                                    }
+
+                                    WebElementWrapper bestMatch = null;
+                                    double highestSimilarity = 0.0;
+
+                                    for (WebElementWrapper wrapper : uniqueElements) {
+                                        double similarity = jaccardSimilarity(text, wrapper.getText());
+                                        if (similarity > highestSimilarity) {
+                                            highestSimilarity = similarity;
+                                            bestMatch = wrapper;
+                                        }
+                                    }
+
+                                    if (bestMatch == null
+                                            || highestSimilarity
+                                                    < 0.8) { // Threshold to add new elements if no close match is
+                                        // found
+                                        // Convert Jsoup Element to Selenium WebElement
+                                        //                WebElement webElement =
+                                        // driver.findElement(By.xpath("//a[contains(text(), '" + text + "')]"));
+                                        WebElementWrapper wrapper = new WebElementWrapper(href, text, null);
+                                        if (uniqueElements.add(wrapper)) {
+                                            finalList.add(wrapper.getWebElement());
+                                        }
+                                        ;
+                                    } else {
+                                        finalList.add(bestMatch.getWebElement());
+                                    }
+                                }
+                            } catch (Exception e) {
+                                System.out.println(String.format("Jsoup cannot read this format: %s", name));
+                            }
+
+                            //                                // Convert unique wrappers back to a list of
+                            // WebElements
+                            //                                for (WebElementWrapper wrapper : uniqueElements) {
+                            //                                    if (wrapper.getWebElement() != null) {
+                            //                                        finalList.add(wrapper.getWebElement());
+                            //                                    } else {
+                            //                                        // Handle Jsoup elements if necessary
+                            //                                    }
+                            //                                }
+                        }
+                        // Iterate over the selected links
+                        //                          savedReferences.put(text, url);
+                        webElements.addAll(finalList);
+                    }
+                    case attribute -> {
+                        try {
+                            webElements = abrWebDriver.scan(By.cssSelector("[" + priority.getName() + "]"));
+                            webElements =
+                                    abrWebDriver.getDriver().findElements(By.xpath("//*[@" + priority.getName() + "]"));
+                            // Add elements from the first list to the set
+                            for (WebElement element : webElements) {
+                                String attributeValue =
+                                        element.getAttribute(priority.getName().get(0));
+                                if (attributeValue != null && !attributeValue.isBlank()) {
+                                    savedReferences.put(priority.getName().get(0), attributeValue);
+                                }
+                            }
+                        } catch (Exception e) {
+                            System.out.println(
+                                    String.format("WebDriver cannot read this format: %s", priority.getName()));
                         }
                     }
+                    case xpath -> System.out.println("xpath case");
+                    case coordinates -> System.out.println("coordinates case");
+                    case ById -> System.out.println("ById case");
+                    case ByClassName -> System.out.println("Default case");
+                    case ByName -> System.out.println("Default case");
+                    case ByTagName -> System.out.println("Default case");
+                    case ByLinkText -> System.out.println("Default case");
+                    case ByPartialLinkText -> System.out.println("Default case");
+                    case ByCssSelector -> System.out.println("Default case"); //      ".nav-menu li";
+                    case ExecuteScript -> System.out.println(
+                            "Default case"); //      "return document.getElementById('search-top')");
+                    case createXPath -> System.out.println(
+                            "Default case"); //         Generates XPath Recursive tom the Elements Found
+                    case dynamic -> System.out.println(
+                            "Default case"); //         Generates Dynamic Action -> Click, Hover, Etc.
+                    case jsoup -> System.out.println("Default case");
                 }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
             }
         }
         return webElements;
     }
 
-    private void managePrioritiesScanJSoup() {
+    private void manageUIScanPrioritiesJSoup() {
 
         if (abrPriorities.getAllPriorityList().size() > 0) {
 
             // Fetch the HTML content of the page
-            Document doc2 = null;
-            try {
-                doc2 = Jsoup.connect(botJob.getHomeBanking().getUrl()).get();
-                for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
-                    switch (priority.getPriorityType()) {
-                        case jsoup -> {
-                            Elements links = doc2.select(priority.getName().get(0));
-                            // Iterate over the selected links
-                            for (Element link : links) {
-                                // Get the URL and text of the link
-                                String url = link.absUrl("href");
-                                String text = link.text();
-                                // Print the URL and text
-                                System.out.println("URL: " + url);
-                                System.out.println("Text: " + text);
-                                // Add the Element to the list
-                                //                        jsoupElements.add(link);
-                                savedReferences.put(text, url);
+            Document docJSoup = null;
+            docJSoup = JsoupConnect(botJob.getHomeBanking().getUrl());
+            for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
+                switch (priority.getPriorityType()) {
+                    case jsoup -> {
+                        Elements links = docJSoup.select(priority.getName().get(0));
+                        // Iterate over the selected links
+                        for (Element link : links) {
+                            // Get the URL and text of the link
+                            String url = link.absUrl("href");
+                            String text = link.text();
+                            // Print the URL and text
+                            System.out.println("URL: " + url);
+                            System.out.println("Text: " + text);
+                            // Add the Element to the list
+                            //                        jsoupElements.add(link);
+                            savedReferences.put(text, url);
 
-                                // Convert the Element to a WebElement and add it to the list
-                                // WebElement webElement = driver.findElementByXPath(link.cssSelector());
-                                // webElements.add(webElement);
-                            }
+                            // Convert the Element to a WebElement and add it to the list
+                            // WebElement webElement = driver.findElementByXPath(link.cssSelector());
+                            // webElements.add(webElement);
                         }
-                        case xpath -> {
-                            Elements links = doc2.select(priority.getName().get(0));
-                            for (Element link : links) {
-                                //                                savedReferences.put(priority.getName(),
-                                //                                        ABRWebUtil.extractWebElementXPath(link));
-                            }
+                    }
+                    case xpath -> {
+                        Elements links = docJSoup.select(priority.getName().get(0));
+                        for (Element link : links) {
+                            //                                savedReferences.put(priority.getName(),
+                            //                                        ABRWebUtil.extractWebElementXPath(link));
                         }
-                        case coordinates -> {
-                            Elements links = doc2.select(priority.getName().get(0));
-                            for (Element link : links) {
-                                //                                Rectangle coordinates = link.getRect();
-                                //                                savedReferences.put(
-                                //                                        priority.getName(),
-                                //                                        (coordinates.getX() + (coordinates.getWidth()
-                                // / 2)) + ","
-                                //                                                + (coordinates.getY() +
-                                // (coordinates.getHeight() / 2)));
-                            }
+                    }
+                    case coordinates -> {
+                        Elements links = docJSoup.select(priority.getName().get(0));
+                        for (Element link : links) {
+                            //                                Rectangle coordinates = link.getRect();
+                            //                                savedReferences.put(
+                            //                                        priority.getName(),
+                            //                                        (coordinates.getX() + (coordinates.getWidth()
+                            // / 2)) + ","
+                            //                                                + (coordinates.getY() +
+                            // (coordinates.getHeight() / 2)));
                         }
                     }
                 }
-            } catch (IOException e) {
-                throw new RuntimeException(e);
             }
         }
+    }
+
+    public static double jaccardSimilarity(String text1, String text2) {
+        Set<Character> set1 = new HashSet<>();
+        for (char c : text1.toCharArray()) {
+            set1.add(c);
+        }
+
+        Set<Character> set2 = new HashSet<>();
+        for (char c : text2.toCharArray()) {
+            set2.add(c);
+        }
+
+        Set<Character> intersection = new HashSet<>(set1);
+        intersection.retainAll(set2);
+
+        Set<Character> union = new HashSet<>(set1);
+        union.addAll(set2);
+
+        return (double) intersection.size() / union.size();
+    }
+
+    //    private static WebElement convertJsoupElementToWebElement(Element jsoupElement, WebDriver driver) {
+    //        // Create a new RemoteWebElement instance and set its properties
+    //        RemoteWebElement webElement = new RemoteWebElement();
+    //        webElement.setParent((RemoteWebElement) driver.findElementByTagName("html")); // Set a dummy parent
+    //        webElement.setId("dummy_id"); // Set a dummy id
+    //        // Simulate the href and text attributes
+    //        webElement.setAttribute("href", jsoupElement.attr("href"));
+    //        webElement.setText(jsoupElement.text());
+    //
+    //        return webElement;
+    //    }
+
+    // Method to get XPath of a WebElement
+    public static String getXPath(WebDriver driver, WebElement element) {
+        return (String) ((JavascriptExecutor) driver)
+                .executeScript(
+                        "function getElementXPath(elt) {" + "    var path = '';"
+                                + "    for (; elt && elt.nodeType == 1; elt = elt.parentNode) {"
+                                + "        var idx = getElementIdx(elt);"
+                                + "        var xname = elt.tagName;"
+                                + "        if (idx > 1) xname += '[' + idx + ']';"
+                                + "        path = '/' + xname + path;"
+                                + "    }"
+                                + "    return path;"
+                                + "}"
+                                + "function getElementIdx(elt) {"
+                                + "    var count = 1;"
+                                + "    for (var sib = elt.previousSibling; sib; sib = sib.previousSibling) {"
+                                + "        if (sib.nodeType == 1 && sib.tagName == elt.tagName) count++;"
+                                + "    }"
+                                + "    return count;"
+                                + "}"
+                                + "return getElementXPath(arguments[0]);",
+                        element);
+    }
+
+    //        return (String) driver.executeScript(
+    //                "function absoluteXPath(element) {" +
+    //                        "var comp, comps = [];" +
+    //                        "var parent = null;" +
+    //                        "var xpath = '';" +
+    //                        "var getPos = function(element) {" +
+    //                        "var position = 1, curNode;" +
+    //                        "if (element.nodeType == Node.ATTRIBUTE_NODE) {" +
+    //                        "return null;" +
+    //                        "}" +
+    //                        "for (curNode = element.previousSibling; curNode; curNode = curNode.previousSibling) {" +
+    //                        "if (curNode.nodeName == element.nodeName) {" +
+    //                        "++position;" +
+    //                        "}" +
+    //                        "}" +
+    //                        "return position;" +
+    //                        "};" +
+    //
+    //                        "if (element instanceof Document) {" +
+    //                        "return '/';" +
+    //                        "}" +
+    //
+    //                        "for (; element && !(element instanceof Document); element = element.nodeType ==
+    // Node.ATTRIBUTE_NODE ? element.ownerElement : element.parentNode) {" +
+    //                        "comp = comps[comps.length] = {};" +
+    //                        "switch (element.nodeType) {" +
+    //                        "case Node.TEXT_NODE:" +
+    //                        "comp.name = 'text()';" +
+    //                        "break;" +
+    //                        "case Node.ATTRIBUTE_NODE:" +
+    //                        "comp.name = '@' + element.nodeName;" +
+    //                        "break;" +
+    //                        "case Node.PROCESSING_INSTRUCTION_NODE:" +
+    //                        "comp.name = 'processing-instruction()';" +
+    //                        "break;" +
+    //                        "case Node.COMMENT_NODE:" +
+    //                        "comp.name = 'comment()';" +
+    //                        "break;" +
+    //                        "case Node.ELEMENT_NODE:" +
+    //                        "comp.name = element.nodeName;" +
+    //                        "break;" +
+    //                        "}" +
+    //                        "comp.position = getPos(element);" +
+    //                        "}" +
+    //
+    //                        "for (var i = comps.length - 1; i >= 0; i--) {" +
+    //                        "comp = comps[i];" +
+    //                        "xpath += '/' + comp.name.toLowerCase();" +
+    //                        "if (comp.position !== null) {" +
+    //                        "xpath += '[' + comp.position + ']';" +
+    //                        "}" +
+    //                        "}" +
+    //
+    //                        "return xpath;" +
+    //
+    //                        "} return absoluteXPath(arguments[0]);", element);
+
+    private Document JsoupConnect(String Url) {
+        try {
+            // Set up an all-trusting trust manager
+            TrustManager[] trustAllCerts = new TrustManager[] {
+                new X509TrustManager() {
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+
+                    public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+
+                    public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+                }
+            };
+
+            // Install the all-trusting trust manager
+            SSLContext sc = SSLContext.getInstance("SSL");
+            sc.init(null, trustAllCerts, new java.security.SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+
+            // Set up a hostname verifier that accepts all hostnames
+            HostnameVerifier allHostsValid = new HostnameVerifier() {
+                public boolean verify(String hostname, SSLSession session) {
+                    return true;
+                }
+            };
+
+            HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
+
+            // Use Jsoup to connect to the URL
+            return Jsoup.connect(Url).get();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

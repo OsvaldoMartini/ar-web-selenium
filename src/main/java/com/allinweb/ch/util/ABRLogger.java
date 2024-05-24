@@ -23,7 +23,7 @@ public class ABRLogger {
             JOptionPane.showMessageDialog(
                     null,
                     "The configuration of the log path has not been set. Please set the configuration for"
-                            + "the log path",
+                            + " the log path",
                     "Log configuration not set",
                     JOptionPane.WARNING_MESSAGE);
         } else {
@@ -42,7 +42,7 @@ public class ABRLogger {
                 JOptionPane.showMessageDialog(
                         null,
                         "An error has occurred during the creation of the logger: Message: " + e.getMessage()
-                                + " Cause:" + e.getCause(),
+                                + " Cause: " + e.getCause(),
                         "Error in the creation of the logger",
                         JOptionPane.ERROR_MESSAGE);
             }
@@ -59,7 +59,7 @@ public class ABRLogger {
         return instance;
     }
 
-    private void setLoggingClass(Class clazz) {
+    private void setLoggingClass(Class<?> clazz) {
         _log = Logger.getLogger(clazz.getName());
         _log.addHandler(handler);
         String logLevel = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.LOG_LEVEL);
@@ -97,31 +97,45 @@ public class ABRLogger {
         }
     }
 
+    private void logWithExtraction(String msg, Level level) {
+        try {
+            // Example extraction logic: log a substring if the message is not null
+            String extractedMsg = (msg != null) ? msg.substring(0, Math.min(msg.length(), 50)) : null;
+            if (extractedMsg == null) {
+                _log.log(level, "The object Logged is null");
+            } else {
+                _log.log(level, extractedMsg);
+            }
+        } catch (Exception e) {
+            _log.log(level, "The object Logged is null");
+        }
+    }
+
     public void info(String msg) {
-        _log.info(msg);
+        logWithExtraction(msg, Level.INFO);
     }
 
     public void warning(String msg) {
-        _log.warning(msg);
+        logWithExtraction(msg, Level.WARNING);
     }
 
     public void severe(String msg) {
-        _log.severe(msg);
+        logWithExtraction(msg, Level.SEVERE);
     }
 
     public void config(String msg) {
-        _log.config(msg);
+        logWithExtraction(msg, Level.CONFIG);
     }
 
     public void fine(String msg) {
-        _log.fine(msg);
+        logWithExtraction(msg, Level.FINE);
     }
 
     public void finer(String msg) {
-        _log.finer(msg);
+        logWithExtraction(msg, Level.FINER);
     }
 
     public void finest(String msg) {
-        _log.finest(msg);
+        logWithExtraction(msg, Level.FINEST);
     }
 }

@@ -5,8 +5,8 @@ import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
 
 public class ABRNewHomeBankingScene extends ABRScene {
-    private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 600D;
+    private static final Double SCENE_HEIGHT = 800D;
+    private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "New Url";
 
     @Override
