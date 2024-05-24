@@ -25,11 +25,10 @@
             <artifactId>jsoup</artifactId>
             <version>1.17.2</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.openjfx/javafx-web -->
         <dependency>
             <groupId>org.openjfx</groupId>
-            <artifactId>javafx-web</artifactId>
-            <version>23-ea+18</version>
+            <artifactId>javafx-controls</artifactId>
+            <version>20</version>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
