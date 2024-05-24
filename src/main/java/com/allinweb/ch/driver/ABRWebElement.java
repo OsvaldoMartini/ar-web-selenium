@@ -528,5 +528,4 @@ public class ABRWebElement {
         // Extract the substring after the last period
         return lastSegment.substring(lastIndexOfDot + 1);
     }
-
 }
