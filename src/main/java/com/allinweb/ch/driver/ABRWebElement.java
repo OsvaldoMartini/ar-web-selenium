@@ -116,28 +116,28 @@ public class ABRWebElement {
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
 
-        //        if (abrPriorities.getJobId() != null) {
-        //            for (Priority priority : abrPriorities.getAllPriorityList()) {
-        //                switch (priority.getPriorityType()) {
-        //                    case attribute -> {
-        //                        String attributeValue =
-        //                                element.getAttribute(priority.getName().get(0));
-        //                        if (attributeValue != null && !attributeValue.isBlank()) {
-        //                            savedReferences.put(priority.getName().get(0), attributeValue);
+        //                if (abrPriorities.getJobId() != null) {
+        //                    for (Priority priority : abrPriorities.getAllPriorityList()) {
+        //                        switch (priority.getPriorityType()) {
+        //                            case attribute -> {
+        //                                String attributeValue =
+        //                                        element.getAttribute(priority.getName().get(0));
+        //                                if (attributeValue != null && !attributeValue.isBlank()) {
+        //                                    savedReferences.put(priority.getName().get(0), attributeValue);
+        //                                }
+        //                            }
+        //                            case xpath -> savedReferences.put(
+        //                                    priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
+        //                            case coordinates -> {
+        //                                Rectangle coordinates = element.getRect();
+        //                                savedReferences.put(
+        //                                        priority.getName().get(0),
+        //                                        (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+        //                                                + (coordinates.getY() + (coordinates.getHeight() / 2)));
+        //                            }
         //                        }
         //                    }
-        //                    case xpath -> savedReferences.put(
-        //                            priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
-        //                    case coordinates -> {
-        //                        Rectangle coordinates = element.getRect();
-        //                        savedReferences.put(
-        //                                priority.getName().get(0),
-        //                                (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-        //                                        + (coordinates.getY() + (coordinates.getHeight() / 2)));
-        //                    }
         //                }
-        //            }
-        //        }
 
         String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
         String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
