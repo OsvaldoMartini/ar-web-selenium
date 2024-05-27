@@ -775,7 +775,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     String href = element.getAttribute("href");
                                     String text = element.getText();
                                     String uniqueKey = href + text;
-                                    WebElementWrapper wrapper = new WebElementWrapper(href, text, element);
+                                    WebElementWrapper wrapper = new WebElementWrapper(name, text, href, element);
                                     if (uniqueElements.add(wrapper)) {
                                         finalList.add(element);
                                     }
@@ -834,7 +834,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         // Convert Jsoup Element to Selenium WebElement
                                         //                WebElement webElement =
                                         // driver.findElement(By.xpath("//a[contains(text(), '" + text + "')]"));
-                                        WebElementWrapper wrapper = new WebElementWrapper(href, text, null);
+                                        WebElementWrapper wrapper = new WebElementWrapper(name, text, href, null);
                                         if (uniqueElements.add(wrapper)) {
                                             finalList.add(wrapper.getWebElement());
                                         }
@@ -856,6 +856,67 @@ public class ABRScannedElementPane extends ABRPane {
                             //                                        // Handle Jsoup elements if necessary
                             //                                    }
                             //                                }
+                        }
+                        // Iterate over the selected links
+                        //                          savedReferences.put(text, url);
+                        webElements.addAll(finalList);
+                    }
+                    case ByLabels -> {
+                        List<String> names = priority.getName();
+
+                        Elements elementJSoup = null;
+                        // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
+                        for (String name : names) {
+
+                            if (name.equalsIgnoreCase("label")) {
+                                try {
+                                    webElements = abrWebDriver.scan(By.tagName(name));
+                                    // Add elements from the first list to the set
+                                    for (WebElement element : webElements) {
+                                        String labelText = element.getText();
+                                        String associatedText = "";
+
+                                        // Get the value of the 'for' attribute
+                                        String forAttribute = element.getAttribute("for");
+                                        if (forAttribute != null) {
+                                            // Find the associated element using the 'for' attribute value
+                                            WebElement associatedElement =
+                                                    abrWebDriver.getDriver().findElement(By.id(forAttribute));
+                                            associatedText = getElementText(associatedElement);
+                                        }
+                                        if (!Strings.isNullOrEmpty(associatedText)) {
+                                            labelText = labelText + "\n" + associatedText;
+                                        }
+
+                                        WebElementWrapper wrapper =
+                                                new WebElementWrapper(name, labelText, null, element);
+                                        if (uniqueElements.add(wrapper)) {
+                                            finalList.add(element);
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    System.out.println(String.format("WebDriver cannot read this format: %s", name));
+                                }
+                            } else {
+                                try {
+                                    webElements = abrWebDriver.scan(By.tagName(name));
+                                    // Add elements from the first list to the set
+                                    for (WebElement element : webElements) {
+                                        String labelText = element.getText();
+
+                                        if (!Strings.isNullOrEmpty(labelText)) {
+
+                                            WebElementWrapper wrapper =
+                                                    new WebElementWrapper(name, labelText, null, element);
+                                            if (uniqueElements.add(wrapper)) {
+                                                finalList.add(element);
+                                            }
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    System.out.println(String.format("WebDriver cannot read this format: %s", name));
+                                }
+                            }
                         }
                         // Iterate over the selected links
                         //                          savedReferences.put(text, url);
@@ -920,58 +981,6 @@ public class ABRScannedElementPane extends ABRPane {
             }
         }
         return webElements;
-    }
-
-    private void manageUIScanPrioritiesJSoup() {
-
-        if (abrPriorities.getAllPriorityList().size() > 0) {
-
-            // Fetch the HTML content of the page
-            Document docJSoup = null;
-            docJSoup = JsoupConnect(botJob.getHomeBanking().getUrl());
-            for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
-                switch (priority.getPriorityType()) {
-                    case jsoup -> {
-                        Elements links = docJSoup.select(priority.getName().get(0));
-                        // Iterate over the selected links
-                        for (Element link : links) {
-                            // Get the URL and text of the link
-                            String url = link.absUrl("href");
-                            String text = link.text();
-                            // Print the URL and text
-                            System.out.println("URL: " + url);
-                            System.out.println("Text: " + text);
-                            // Add the Element to the list
-                            //                        jsoupElements.add(link);
-                            savedReferences.put(text, url);
-
-                            // Convert the Element to a WebElement and add it to the list
-                            // WebElement webElement = driver.findElementByXPath(link.cssSelector());
-                            // webElements.add(webElement);
-                        }
-                    }
-                    case xpath -> {
-                        Elements links = docJSoup.select(priority.getName().get(0));
-                        for (Element link : links) {
-                            //                                savedReferences.put(priority.getName(),
-                            //                                        ABRWebUtil.extractWebElementXPath(link));
-                        }
-                    }
-                    case coordinates -> {
-                        Elements links = docJSoup.select(priority.getName().get(0));
-                        for (Element link : links) {
-                            //                                Rectangle coordinates = link.getRect();
-                            //                                savedReferences.put(
-                            //                                        priority.getName(),
-                            //                                        (coordinates.getX() + (coordinates.getWidth()
-                            // / 2)) + ","
-                            //                                                + (coordinates.getY() +
-                            // (coordinates.getHeight() / 2)));
-                        }
-                    }
-                }
-            }
-        }
     }
 
     public static double jaccardSimilarity(String text1, String text2) {
@@ -1123,5 +1132,25 @@ public class ABRScannedElementPane extends ABRPane {
             e.printStackTrace();
         }
         return null;
+    }
+
+    // Helper method to get the text of an associated element
+    private static String getElementText(WebElement element) {
+        String tagName = element.getTagName();
+
+        switch (tagName.toLowerCase()) {
+            case "input":
+                return element.getAttribute("value");
+            case "textarea":
+                return element.getText();
+            case "select":
+                List<WebElement> selectedOptions = element.findElements(By.cssSelector("option[selected]"));
+                return selectedOptions.stream()
+                        .map(WebElement::getText)
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse("");
+            default:
+                return element.getText();
+        }
     }
 }

@@ -6,13 +6,15 @@ import org.openqa.selenium.WebElement;
 public class WebElementWrapper {
     private String text;
     private String href;
+    private String tagName;
     private WebElement webElement;
 
     // Constructors, getters, setters, etc.
 
-    public WebElementWrapper(String text, String href, WebElement webElement) {
+    public WebElementWrapper(String tagName, String text, String href, WebElement webElement) {
         this.text = text;
         this.href = href;
+        this.tagName = tagName;
         this.webElement = webElement;
     }
 
@@ -30,6 +32,14 @@ public class WebElementWrapper {
 
     public void setHref(String href) {
         this.href = href;
+    }
+
+    public String getTagName() {
+        return tagName;
+    }
+
+    public void setTagName(String tagName) {
+        this.tagName = tagName;
     }
 
     public WebElement getWebElement() {
