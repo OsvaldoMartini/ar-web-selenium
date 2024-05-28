@@ -9,6 +9,7 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.util.*;
+import com.google.common.base.Strings;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
@@ -151,6 +152,9 @@ public class ABRWebElement {
 
         clickElement.setValue(isClickable(element));
 
+        String tagname = element.getTagName();
+        String textLabel = element.getText();
+
         boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
         boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank();
         boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
@@ -160,6 +164,8 @@ public class ABRWebElement {
         boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank();
         boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
         boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
+        boolean hasButton = tagname.equalsIgnoreCase("button") && isClickable();
+        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("p");
 
         if (isOption && hasValue) {
             nameLabel.setText(valueAttributeValue);
@@ -185,6 +191,12 @@ public class ABRWebElement {
         } else if (hasHRefFile) {
             nameLabel.setText(valueHRefFile + " File");
             nameField.setText(valueHRefFile + " File");
+        } else if (hasParagraph) {
+            nameLabel.setText(textLabel);
+            nameField.setText(tagname);
+        } else if (hasButton) {
+            nameLabel.setText(textLabel);
+            nameField.setText(tagname);
         } else {
             nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);

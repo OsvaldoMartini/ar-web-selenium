@@ -19,11 +19,14 @@ public class HomeBankingDTO extends BaseDTO implements Serializable {
     @Column(name = "priority")
     private String priority;
 
+    @Column(name = "searchConfig")
+    private String searchConfig;
+
     @Column(name = "cookies")
     private String cookies;
 
-    @Column(name = "driverState")
-    private String driverState;
+    @Column(name = "driverSession")
+    private String driverSession;
 
     @Column(name = "username")
     private String username;
@@ -68,6 +71,14 @@ public class HomeBankingDTO extends BaseDTO implements Serializable {
         this.priority = priority;
     }
 
+    public String getSearchConfig() {
+        return searchConfig;
+    }
+
+    public void setSearchConfig(String searchConfig) {
+        this.searchConfig = searchConfig;
+    }
+
     public String getCookies() {
         return cookies;
     }
@@ -76,12 +87,12 @@ public class HomeBankingDTO extends BaseDTO implements Serializable {
         this.cookies = cookies;
     }
 
-    public String getDriverState() {
-        return driverState;
+    public String getDriverSession() {
+        return driverSession;
     }
 
-    public void setDriverState(String driverState) {
-        this.driverState = driverState;
+    public void setDriverSession(String driverSession) {
+        this.driverSession = driverSession;
     }
 
     public String getUsername() {

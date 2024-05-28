@@ -11,6 +11,7 @@ import com.allinweb.ch.persistence.JobUserDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
+import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -78,6 +79,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
         Label urlLabel = new Label("Url:");
         Label priorityLabel = new Label("Priority:");
         Label jobsLabel = new Label("Total of Jobs:");
+        Label searchConfigLabel = new Label("Scan Config:");
 
         // Create text fields
         TextField idField = new TextField();
@@ -96,11 +98,18 @@ public class ABRNewHomeBankingPane extends ABRPane {
         jobsField.setPrefHeight(30);
         priorityField.setPrefRowCount(3); // Set preferred row count for the TextArea
 
+        TextArea searchConfigField = new TextArea();
+        searchConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
+
         // Create submit button
         Button submitButton = new Button("Submit");
         submitButton.setOnAction(event -> {
             DatabaseUserDTO user = new DatabaseUserDTO(
-                    null, nameField.getText().trim(), urlField.getText().trim(), priorityField.getText());
+                    null,
+                    nameField.getText().trim(),
+                    urlField.getText().trim(),
+                    priorityField.getText(),
+                    searchConfigField.getText());
 
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
@@ -124,8 +133,8 @@ public class ABRNewHomeBankingPane extends ABRPane {
         Button updateButton = new Button("Update");
         updateButton.setOnAction(event -> {
             String id = idField.getText();
-            DatabaseUserDTO user =
-                    new DatabaseUserDTO(id, nameField.getText(), urlField.getText(), priorityField.getText());
+            DatabaseUserDTO user = new DatabaseUserDTO(
+                    id, nameField.getText(), urlField.getText(), priorityField.getText(), searchConfigField.getText());
             updateUserData(id, user);
             loadUserData();
         });
@@ -170,11 +179,14 @@ public class ABRNewHomeBankingPane extends ABRPane {
         gridPane.add(jobsLabel, 0, 5);
         gridPane.add(jobsField, 1, 5);
 
+        gridPane.add(searchConfigLabel, 0, 6);
+        gridPane.add(searchConfigField, 1, 6, 1, 2); // Span the TextArea over 2 rows
+
         HBox buttonsBox = new HBox(10, submitButton, updateButton, deleteButton);
         buttonsBox.setAlignment(Pos.CENTER);
         buttonsBox.setSpacing(10); // Horizontal spacing between buttons
 
-        gridPane.add(buttonsBox, 0, 6, 2, 1);
+        gridPane.add(buttonsBox, 0, 8, 2, 1);
 
         //        gridPane.add(submitButton, 0, 5);
         //        gridPane.add(updateButton, 1, 5);
@@ -196,10 +208,13 @@ public class ABRNewHomeBankingPane extends ABRPane {
         TableColumn<DatabaseUserDTO, String> urlColumn = new TableColumn<>("Url");
         urlColumn.setCellValueFactory(new PropertyValueFactory<>("url"));
 
-        TableColumn<DatabaseUserDTO, String> priorityColumn = new TableColumn<>("Priority");
+        TableColumn<DatabaseUserDTO, String> priorityColumn = new TableColumn<>("Priority Identifier");
         priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
 
-        tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn, priorityColumn);
+        TableColumn<DatabaseUserDTO, String> searchConfigColumn = new TableColumn<>("Search Config");
+        searchConfigColumn.setCellValueFactory(new PropertyValueFactory<>("searchConfig"));
+
+        tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn, priorityColumn, searchConfigColumn);
         tableView.setItems(databaseList);
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -213,6 +228,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
                 urlField.setText(selectedUser.getUrl());
                 priorityField.setText(selectedUser.getPriority());
                 jobsField.setText(selectedUser.getJobs()); // Update the hidden field
+                searchConfigField.setText(selectedUser.getSearchConfig()); // Update the hidden field
             } else {
                 // If no row is selected, clear the text fields
                 idField.clear();
@@ -220,6 +236,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
                 urlField.clear();
                 priorityField.clear();
                 jobsField.clear();
+                searchConfigField.clear();
                 // Clear other fields as needed
             }
         });
@@ -241,7 +258,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
         // Adjust VBox properties for better alignment
         VBox.setVgrow(tableViewContainer, Priority.ALWAYS);
         //        tableViewContainer.setPrefHeight(300); // Adjust the preferred height as needed
-        tableViewContainer.setPrefWidth(750); // Adjust the preferred height as needed
+        tableViewContainer.setPrefWidth(950); // Adjust the preferred height as needed
 
         mainPane = new AnchorPane(vbox);
     }
@@ -353,10 +370,10 @@ public class ABRNewHomeBankingPane extends ABRPane {
 
     private void loadUserData() {
         databaseList.clear();
-        String selectSQL = " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs,username, password "
+        String selectSQL = " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, username, password "
                 + " FROM home_banking bank "
                 + " left join bot_job bot on bot.home_banking_id = bank.id "
-                + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.username, bank.password ";
+                + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.username, bank.password ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -365,9 +382,10 @@ public class ABRNewHomeBankingPane extends ABRPane {
                 String name = rs.getString("Name");
                 String url = rs.getString("Url");
                 String priority = rs.getString("Priority");
+                String searchConfig = rs.getString("searchConfig");
                 String username = rs.getString("username");
                 String password = rs.getString("password");
-                databaseList.add(new DatabaseUserDTO(id, jobs, name, url, priority, username, password));
+                databaseList.add(new DatabaseUserDTO(id, jobs, name, url, priority, searchConfig, username, password));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -395,11 +413,16 @@ public class ABRNewHomeBankingPane extends ABRPane {
         Integer hashCode = loadNexIdData() + 1;
         //        AlterSeq(hashCode);
         //        Integer hashCode = generateID();
+        String priority = Strings.isNullOrEmpty(user.getPriority()) ? "" : user.getPriority();
+        String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getSearchConfig();
+
         String insertSQL =
-                "INSERT INTO home_banking (ID, Name, Url, priority, username, password) VALUES ( " + hashCode + ","
+                "INSERT INTO home_banking (ID, Name, Url, priority, searchConfig, username, password) VALUES ( "
+                        + hashCode + ","
                         + "'" + user.getName() + "', "
                         + "'" + user.getUrl() + "', "
-                        + "'" + user.getPriority() + "', "
+                        + "'" + priority + "', "
+                        + "'" + searchConfig + "', "
                         + "'" + user.getUsername() + "', "
                         + "'" + user.getPassword() + "')";
         try (Statement stmt = getConnection().createStatement()) {
@@ -413,9 +436,13 @@ public class ABRNewHomeBankingPane extends ABRPane {
     private void updateUserData(String id, DatabaseUserDTO user) {
         try {
             int userId = Integer.parseInt(id);
+
+            String priority = Strings.isNullOrEmpty(user.getPriority()) ? "" : user.getPriority();
+            String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getSearchConfig();
             String updateSQL = "UPDATE home_banking SET Name = '" + user.getName() + "', "
                     + " Url = '" + user.getUrl() + "', "
-                    + " Priority = '" + user.getPriority() + "' "
+                    + " Priority = '" + priority + "', "
+                    + " searchConfig = '" + searchConfig + "' "
                     + " WHERE ID = " + userId;
             try (Statement stmt = getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(updateSQL);

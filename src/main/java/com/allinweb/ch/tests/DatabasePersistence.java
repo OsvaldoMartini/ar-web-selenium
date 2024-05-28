@@ -2,6 +2,7 @@ package com.allinweb.ch.tests;
 
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.persistence.JobUserDTO;
+import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -64,11 +65,18 @@ public class DatabasePersistence extends Application {
         jobsField.setPrefHeight(30);
         priorityField.setPrefRowCount(3); // Set preferred row count for the TextArea
 
+        TextArea searchConfigField = new TextArea();
+        searchConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
+
         // Create submit button
         Button submitButton = new Button("Submit");
         submitButton.setOnAction(event -> {
-            DatabaseUserDTO user =
-                    new DatabaseUserDTO(null, nameField.getText(), urlField.getText(), priorityField.getText());
+            DatabaseUserDTO user = new DatabaseUserDTO(
+                    null,
+                    nameField.getText(),
+                    urlField.getText(),
+                    priorityField.getText(),
+                    searchConfigField.getText());
 
             if (nameExists(nameField.getText())) {
                 showAlert(
@@ -86,8 +94,8 @@ public class DatabasePersistence extends Application {
         Button updateButton = new Button("Update");
         updateButton.setOnAction(event -> {
             String id = idField.getText();
-            DatabaseUserDTO user =
-                    new DatabaseUserDTO(id, nameField.getText(), urlField.getText(), priorityField.getText());
+            DatabaseUserDTO user = new DatabaseUserDTO(
+                    id, nameField.getText(), urlField.getText(), priorityField.getText(), searchConfigField.getText());
             updateUserData(id, user);
             loadUserData();
         });
@@ -157,7 +165,10 @@ public class DatabasePersistence extends Application {
         TableColumn<DatabaseUserDTO, String> priorityColumn = new TableColumn<>("Priority");
         priorityColumn.setCellValueFactory(new PropertyValueFactory<>("priority"));
 
-        tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn, priorityColumn);
+        TableColumn<DatabaseUserDTO, String> searchConfigColumn = new TableColumn<>("Search Config");
+        searchConfigColumn.setCellValueFactory(new PropertyValueFactory<>("searchConfig"));
+
+        tableView.getColumns().addAll(idColumn, jobColumn, nameColumn, urlColumn, priorityColumn, searchConfigColumn);
         tableView.setItems(databaseList);
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -237,9 +248,16 @@ public class DatabasePersistence extends Application {
                 String name = rs.getString("Name");
                 String url = rs.getString("Url");
                 String priority = rs.getString("Priority");
+                if (Strings.isNullOrEmpty(priority) || priority.equalsIgnoreCase("null")) {
+                    priority = "";
+                }
+                String searchConfig = rs.getString("searchConfig");
+                if (Strings.isNullOrEmpty(searchConfig) || searchConfig.equalsIgnoreCase("null")) {
+                    searchConfig = "";
+                }
                 String username = rs.getString("username");
                 String password = rs.getString("password");
-                databaseList.add(new DatabaseUserDTO(id, jobs, name, url, priority, username, password));
+                databaseList.add(new DatabaseUserDTO(id, jobs, name, url, priority, searchConfig, username, password));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -279,10 +297,12 @@ public class DatabasePersistence extends Application {
         //        AlterSeq(hashCode);
         //        Integer hashCode = generateID();
         String insertSQL =
-                "INSERT INTO home_banking (ID, Name, Url, priority, username, password) VALUES ( " + hashCode + ","
+                "INSERT INTO home_banking (ID, Name, Url, priority, searchConfig, username, password) VALUES ( "
+                        + hashCode + ","
                         + "'" + user.getName() + "', "
                         + "'" + user.getUrl() + "', "
                         + "'" + user.getPriority() + "', "
+                        + "'" + user.getSearchConfig() + "', "
                         + "'" + user.getUsername() + "', "
                         + "'" + user.getPassword() + "')";
         try (Statement stmt = getConnection().createStatement()) {
@@ -312,7 +332,8 @@ public class DatabasePersistence extends Application {
             int userId = Integer.parseInt(id);
             String updateSQL = "UPDATE home_banking SET Name = '" + user.getName() + "', "
                     + " Url = '" + user.getUrl() + "', "
-                    + " Priority = '" + user.getPriority() + "' "
+                    + " Priority = '" + user.getPriority() + "', "
+                    + " searchConfig = '" + user.getSearchConfig() + "' "
                     + " WHERE ID = " + userId;
             try (Statement stmt = getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(updateSQL);

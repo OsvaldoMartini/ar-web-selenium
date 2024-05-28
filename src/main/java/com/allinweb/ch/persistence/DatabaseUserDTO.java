@@ -9,25 +9,35 @@ public class DatabaseUserDTO {
     private StringProperty name;
     private StringProperty url;
     private StringProperty priority;
+    private StringProperty searchConfig;
     private StringProperty username;
     private StringProperty password;
 
     public DatabaseUserDTO(
-            String id, String jobs, String name, String url, String priority, String username, String password) {
+            String id,
+            String jobs,
+            String name,
+            String url,
+            String priority,
+            String searchConfig,
+            String username,
+            String password) {
         this.id = new SimpleStringProperty(id);
         this.jobs = new SimpleStringProperty(jobs);
         this.name = new SimpleStringProperty(name);
         this.url = new SimpleStringProperty(url);
         this.priority = new SimpleStringProperty(priority);
+        this.searchConfig = new SimpleStringProperty(searchConfig);
         this.username = new SimpleStringProperty(username);
         this.password = new SimpleStringProperty(password);
     }
 
-    public DatabaseUserDTO(String id, String name, String url, String priority) {
+    public DatabaseUserDTO(String id, String name, String url, String priority, String searchConfig) {
         this.id = new SimpleStringProperty(id);
         this.name = new SimpleStringProperty(name);
         this.url = new SimpleStringProperty(url);
         this.priority = new SimpleStringProperty(priority);
+        this.searchConfig = new SimpleStringProperty(searchConfig);
     }
 
     public String getId() {
@@ -88,6 +98,18 @@ public class DatabaseUserDTO {
 
     public void setPriority(String priority) {
         this.priority.set(priority);
+    }
+
+    public String getSearchConfig() {
+        return searchConfig.get();
+    }
+
+    public StringProperty searchConfigProperty() {
+        return searchConfig;
+    }
+
+    public void setSearchConfig(String searchConfig) {
+        this.searchConfig.set(searchConfig);
     }
 
     public String getUsername() {

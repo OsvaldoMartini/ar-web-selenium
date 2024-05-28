@@ -36,6 +36,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.RemoteWebElement;
 
 public class ABRScannedElementPane extends ABRPane {
 
@@ -81,8 +82,10 @@ public class ABRScannedElementPane extends ABRPane {
             abrPriorities.setJobId(botJob.getId());
             if (botJob.getHomeBanking().getPriority() != null) {
                 abrPriorities.loadPrioritiesFromString(botJob.getHomeBanking().getPriority());
+                abrPriorities.loadSearchElementsConfig(botJob.getHomeBanking().getSearchConfig());
             } else {
                 abrPriorities.loadPriorities();
+                abrPriorities.loadSearchElementsConfig(botJob.getHomeBanking().getSearchConfig());
             }
         }
 
@@ -558,9 +561,18 @@ public class ABRScannedElementPane extends ABRPane {
             Task<Void> handleEvent = new Task<Void>() {
                 @Override
                 protected Void call() throws Exception {
+                    //                    WebElement element =
+                    // abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getXPath()));
+                    //                    if (element != null){
+                    //                        abrWebDriver.highlightElement(abrWebElement.getElement());
+                    //                    }
                     List<WebElement> elementList = abrWebDriver.scan(By.xpath(abrWebElement.getXPath()));
                     for (WebElement element : elementList) {
-                        abrWebDriver.highlightElement(element);
+                        if (((RemoteWebElement) element).getId().equalsIgnoreCase(abrWebElement.getElementId())) {
+                            abrWebDriver.highlightElement(element);
+                        } else {
+                            abrWebDriver.dehighlightElement(element);
+                        }
                     }
                     return null;
                 }
@@ -572,9 +584,17 @@ public class ABRScannedElementPane extends ABRPane {
             Task<Void> handleEvent = new Task<Void>() {
                 @Override
                 protected Void call() throws Exception {
+                    //                    WebElement element =
+                    // abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getXPath()));
+                    //                    if (element != null){
+                    //                        abrWebDriver.dehighlightElement(abrWebElement.getElement());
+                    //                    }
+
                     List<WebElement> elementList = abrWebDriver.scan(By.xpath(abrWebElement.getXPath()));
                     for (WebElement element : elementList) {
-                        abrWebDriver.dehighlightElement(element);
+                        if (((RemoteWebElement) element).getId().equalsIgnoreCase(abrWebElement.getElementId())) {
+                            abrWebDriver.dehighlightElement(element);
+                        }
                     }
                     return null;
                 }
@@ -741,18 +761,22 @@ public class ABRScannedElementPane extends ABRPane {
 
     private List<WebElement> managePrioritiesCriteria() {
         List<WebElement> webElements = new ArrayList<>();
-        if (abrPriorities.getAllPriorityList().size() > 0) {
+        if (abrPriorities.getSearchConfigList() == null) {
+            System.out.println("Is going to Search using \"searchConfigTemplate\"!  Please Add to the DB");
+            return null;
+        }
+        if (abrPriorities.getSearchConfigList().size() > 0) {
 
             // Fetch the HTML content of the page
             Document docJSoup = null;
             docJSoup = JsoupConnect(botJob.getHomeBanking().getUrl());
             Set<WebElementWrapper> uniqueElements = new HashSet<>();
             List<WebElement> finalList = new ArrayList<>();
-            for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
+            for (com.allinweb.ch.util.SearchConfig searchConfig : abrPriorities.getSearchConfigList()) {
                 PriorityTypeEnum priorityTypeEnum = null;
                 try {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
-                            priority.getPriorityType().toString());
+                            searchConfig.getSearchType().toString());
                 } catch (Exception e) {
                     System.out.println(String.format("The ENUM: was not defined!"));
                     continue;
@@ -763,7 +787,7 @@ public class ABRScannedElementPane extends ABRPane {
                 }
                 switch (priorityTypeEnum) {
                     case ByXPath -> {
-                        List<String> names = priority.getName();
+                        List<String> names = searchConfig.getName();
 
                         Elements elementJSoup = null;
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
@@ -860,11 +884,11 @@ public class ABRScannedElementPane extends ABRPane {
                         // Iterate over the selected links
                         //                          savedReferences.put(text, url);
                         webElements.addAll(finalList);
+                        finalList.clear();
                     }
                     case ByLabels -> {
-                        List<String> names = priority.getName();
+                        List<String> names = searchConfig.getName();
 
-                        Elements elementJSoup = null;
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         for (String name : names) {
 
@@ -887,12 +911,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         if (!Strings.isNullOrEmpty(associatedText)) {
                                             labelText = labelText + "\n" + associatedText;
                                         }
-
-                                        WebElementWrapper wrapper =
-                                                new WebElementWrapper(name, labelText, null, element);
-                                        if (uniqueElements.add(wrapper)) {
-                                            finalList.add(element);
-                                        }
+                                        finalList.add(element);
                                     }
                                 } catch (Exception e) {
                                     System.out.println(String.format("WebDriver cannot read this format: %s", name));
@@ -904,13 +923,13 @@ public class ABRScannedElementPane extends ABRPane {
                                     for (WebElement element : webElements) {
                                         String labelText = element.getText();
 
-                                        if (!Strings.isNullOrEmpty(labelText)) {
+                                        if (Strings.isNullOrEmpty(labelText)) {
+                                            labelText = element.findElement(By.xpath("following-sibling::text()"))
+                                                    .getText();
+                                        }
 
-                                            WebElementWrapper wrapper =
-                                                    new WebElementWrapper(name, labelText, null, element);
-                                            if (uniqueElements.add(wrapper)) {
-                                                finalList.add(element);
-                                            }
+                                        if (!Strings.isNullOrEmpty(labelText)) {
+                                            finalList.add(element);
                                         }
                                     }
                                 } catch (Exception e) {
@@ -921,23 +940,25 @@ public class ABRScannedElementPane extends ABRPane {
                         // Iterate over the selected links
                         //                          savedReferences.put(text, url);
                         webElements.addAll(finalList);
+                        finalList.clear();
                     }
                     case attribute -> {
                         try {
-                            webElements = abrWebDriver.scan(By.cssSelector("[" + priority.getName() + "]"));
-                            webElements =
-                                    abrWebDriver.getDriver().findElements(By.xpath("//*[@" + priority.getName() + "]"));
+                            webElements = abrWebDriver.scan(By.cssSelector("[" + searchConfig.getName() + "]"));
+                            webElements = abrWebDriver
+                                    .getDriver()
+                                    .findElements(By.xpath("//*[@" + searchConfig.getName() + "]"));
                             // Add elements from the first list to the set
                             for (WebElement element : webElements) {
-                                String attributeValue =
-                                        element.getAttribute(priority.getName().get(0));
+                                String attributeValue = element.getAttribute(
+                                        searchConfig.getName().get(0));
                                 if (attributeValue != null && !attributeValue.isBlank()) {
-                                    savedReferences.put(priority.getName().get(0), attributeValue);
+                                    savedReferences.put(searchConfig.getName().get(0), attributeValue);
                                 }
                             }
                         } catch (Exception e) {
                             System.out.println(
-                                    String.format("WebDriver cannot read this format: %s", priority.getName()));
+                                    String.format("WebDriver cannot read this format: %s", searchConfig.getName()));
                         }
                     }
                     case xpath -> System.out.println("xpath case");

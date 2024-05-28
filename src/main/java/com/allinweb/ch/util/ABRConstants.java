@@ -18,6 +18,7 @@ public class ABRConstants {
     public static final String DEFAULT_FILENAME_FOR_ABR = "_filtered_for_ABR";
 
     public static final String DEFAULT_VALUE_NO_IDENTIFICATION = "No significant identification found";
+    public static final String TO_IGNORE = "TO IGNORE";
 
     public static final String FOLDER_BIN = "\\bin";
     public static final String FOLDER_LIB = "\\lib";
