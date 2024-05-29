@@ -895,6 +895,7 @@ public class ABRScannedElementPane extends ABRPane {
                             if (name.equalsIgnoreCase("label")) {
                                 try {
                                     webElements = abrWebDriver.scan(By.tagName(name));
+                                    webElements = abrWebDriver.getDriver().findElements(By.tagName(name));
                                     // Add elements from the first list to the set
                                     for (WebElement element : webElements) {
                                         String labelText = element.getText();
@@ -919,16 +920,12 @@ public class ABRScannedElementPane extends ABRPane {
                             } else {
                                 try {
                                     webElements = abrWebDriver.scan(By.tagName(name));
+                                    webElements = abrWebDriver.getDriver().findElements(By.tagName(name));
                                     // Add elements from the first list to the set
                                     for (WebElement element : webElements) {
                                         String labelText = element.getText();
 
-                                        if (Strings.isNullOrEmpty(labelText)) {
-                                            labelText = element.findElement(By.xpath("following-sibling::text()"))
-                                                    .getText();
-                                        }
-
-                                        if (!Strings.isNullOrEmpty(labelText)) {
+                                        if (!labelText.trim().isEmpty()) {
                                             finalList.add(element);
                                         }
                                     }

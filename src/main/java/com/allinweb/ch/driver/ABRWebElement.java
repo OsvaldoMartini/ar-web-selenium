@@ -166,6 +166,8 @@ public class ABRWebElement {
         boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
         boolean hasButton = tagname.equalsIgnoreCase("button") && isClickable();
         boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("p");
+        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("span");
+        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("div");
 
         if (isOption && hasValue) {
             nameLabel.setText(valueAttributeValue);
@@ -195,6 +197,12 @@ public class ABRWebElement {
             nameLabel.setText(textLabel);
             nameField.setText(tagname);
         } else if (hasButton) {
+            nameLabel.setText(textLabel);
+            nameField.setText(tagname);
+        } else if (hasSpan) {
+            nameLabel.setText(textLabel);
+            nameField.setText(tagname);
+        } else if (hasDiv) {
             nameLabel.setText(textLabel);
             nameField.setText(tagname);
         } else {
