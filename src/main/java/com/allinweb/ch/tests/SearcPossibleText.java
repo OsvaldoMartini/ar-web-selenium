@@ -5,8 +5,6 @@ import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.util.ABRConstants;
 import java.util.Collections;
 import java.util.List;
-
-import com.google.common.base.Strings;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -33,7 +31,7 @@ public class SearcPossibleText {
 
         try {
             // Open the desired webpage
-//            driver.get("https://www.ca-nextbank.ch/en/contact"); // Replace with the desired URL
+            //            driver.get("https://www.ca-nextbank.ch/en/contact"); // Replace with the desired URL
             driver.get("https://www.fnz.com/contact"); // Replace with the desired URL
 
             // Find all label elements
@@ -44,7 +42,6 @@ public class SearcPossibleText {
             printElementsText(driver, "div");
             printElementsText(driver, "span");
             printElementsText(driver, "p");
-
 
         } finally {
             // Close the browser
@@ -73,24 +70,25 @@ public class SearcPossibleText {
             boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
             boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank();
             boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
-            boolean hasFormControlName = formControlNameAttributeValue != null && !formControlNameAttributeValue.isBlank();
+            boolean hasFormControlName =
+                    formControlNameAttributeValue != null && !formControlNameAttributeValue.isBlank();
             boolean hasTestId = testIdAttributeValue != null && !testIdAttributeValue.isBlank();
             boolean hasName = nameAttributeValue != null && !nameAttributeValue.isBlank();
             boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank();
             boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
 
-           if (hasFormControlName) {
-               System.out.println("formControlNameAttributeValue: " + formControlNameAttributeValue);
+            if (hasFormControlName) {
+                System.out.println("formControlNameAttributeValue: " + formControlNameAttributeValue);
             } else if (hasTestId) {
-               System.out.println("testIdAttributeValue: " + testIdAttributeValue);
+                System.out.println("testIdAttributeValue: " + testIdAttributeValue);
             } else if (hasName) {
-               System.out.println("nameAttributeValue: " + nameAttributeValue);
+                System.out.println("nameAttributeValue: " + nameAttributeValue);
             } else if (hasAriaLabel) {
-               System.out.println("ariaLabelValue: " + ariaLabelValue);
+                System.out.println("ariaLabelValue: " + ariaLabelValue);
             } else if (isAnchor && hasInnerHTML && !hasInnerHTMLTag) {
-               System.out.println("innerHTMLValue: " + innerHTMLValue);
-           } else if (hasId) {
-               System.out.println("idAttributeValue: " + idAttributeValue);
+                System.out.println("innerHTMLValue: " + innerHTMLValue);
+            } else if (hasId) {
+                System.out.println("idAttributeValue: " + idAttributeValue);
             }
 
             // Get the value of the 'for' attribute
