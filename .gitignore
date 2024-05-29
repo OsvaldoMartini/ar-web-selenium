@@ -56,7 +56,7 @@ Thumbs.db
 configuration.properties
 
 
-*.mdb
+# *.mdb
 
 #local folders
 /java/
