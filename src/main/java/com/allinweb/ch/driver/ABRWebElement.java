@@ -551,4 +551,80 @@ public class ABRWebElement {
         // Extract the substring after the last period
         return lastSegment.substring(lastIndexOfDot + 1);
     }
+
+    // CHATGPT   I want select the correct type of element following these conditions
+    // TODO MORE INTELLIGENT  LOGIC
+    public void selectElementType(WebElement element) {
+        // Check element tag names
+        boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
+        boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
+
+        // Extract various attributes
+        String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
+        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
+        String formControlNameAttributeValue =
+                element.getAttribute(WebElementAttributeEnum.FORM_CONTROL_NAME.getValue());
+        String testIdAttributeValue = element.getAttribute(WebElementAttributeEnum.TEST_ID.getValue());
+        String idAttributeValue = element.getAttribute(WebElementAttributeEnum.ID.getValue());
+        String nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
+        String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
+        String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
+        String tagname = element.getTagName();
+        String textLabel = element.getText();
+
+        // Determine boolean conditions
+        boolean hasButton = tagname.equalsIgnoreCase("button") && isClickable(element) && !textLabel.isBlank();
+        boolean hasAriaLabel = isValidString(ariaLabelValue);
+        boolean hasInnerHTML = isValidString(innerHTMLValue) && !hasButton;
+        boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
+        boolean hasFormControlName = isValidString(formControlNameAttributeValue);
+        boolean hasTestId = isValidString(testIdAttributeValue);
+        boolean hasName = isValidString(nameAttributeValue);
+        boolean hasId = isValidString(idAttributeValue) && !hasButton;
+        boolean hasValue = isValidString(valueAttributeValue);
+        boolean hasHRefFile = isValidString(valueHRefFile);
+        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("p");
+        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("span");
+        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("div");
+
+        // Set nameLabel and nameField based on conditions
+        if (isOption && hasValue) {
+            setElementText(valueAttributeValue, valueAttributeValue);
+        } else if (hasFormControlName) {
+            setElementText(formControlNameAttributeValue, formControlNameAttributeValue);
+        } else if (hasTestId) {
+            setElementText(testIdAttributeValue, testIdAttributeValue);
+        } else if (hasName) {
+            setElementText(nameAttributeValue, nameAttributeValue);
+        } else if (hasAriaLabel) {
+            setElementText(ariaLabelValue, ariaLabelValue);
+        } else if (isAnchor && hasInnerHTML && !hasInnerHTMLTag) {
+            setElementText(innerHTMLValue, innerHTMLValue);
+        } else if (hasId) {
+            setElementText(idAttributeValue, idAttributeValue);
+        } else if (hasHRefFile) {
+            setElementText(valueHRefFile + " File", valueHRefFile + " File");
+        } else if (hasParagraph) {
+            setElementText(textLabel, tagname);
+        } else if (hasButton) {
+            setElementText(textLabel, tagname);
+        } else if (hasSpan) {
+            setElementText(textLabel, tagname);
+        } else if (hasDiv) {
+            setElementText(textLabel, tagname);
+        } else {
+            setElementText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION, ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
+        }
+    }
+
+    // Utility methods for better readability and reusability
+
+    private boolean isValidString(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private void setElementText(String nameLabelText, String nameFieldText) {
+        nameLabel.setText(nameLabelText);
+        nameField.setText(nameFieldText);
+    }
 }
