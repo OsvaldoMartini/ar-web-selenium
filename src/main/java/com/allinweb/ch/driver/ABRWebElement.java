@@ -9,6 +9,7 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.util.*;
+import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -26,6 +27,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
+import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 
@@ -117,28 +119,29 @@ public class ABRWebElement {
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
 
-        //                if (abrPriorities.getJobId() != null) {
-        //                    for (Priority priority : abrPriorities.getAllPriorityList()) {
-        //                        switch (priority.getPriorityType()) {
-        //                            case attribute -> {
-        //                                String attributeValue =
-        //                                        element.getAttribute(priority.getName().get(0));
-        //                                if (attributeValue != null && !attributeValue.isBlank()) {
-        //                                    savedReferences.put(priority.getName().get(0), attributeValue);
-        //                                }
-        //                            }
-        //                            case xpath -> savedReferences.put(
-        //                                    priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
-        //                            case coordinates -> {
-        //                                Rectangle coordinates = element.getRect();
-        //                                savedReferences.put(
-        //                                        priority.getName().get(0),
-        //                                        (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-        //                                                + (coordinates.getY() + (coordinates.getHeight() / 2)));
-        //                            }
-        //                        }
-        //                    }
-        //                }
+        if (abrPriorities.getJobId() != null) {
+            for (Priority priority : abrPriorities.getAllPriorityList()) {
+                switch (priority.getPriorityType()) {
+                    case attribute -> {
+                        String attributeValue =
+                                element.getAttribute(priority.getName().get(0));
+                        if (attributeValue != null && !attributeValue.isBlank()) {
+                            savedReferences.put(priority.getName().get(0), attributeValue);
+                        }
+                    }
+                    case xpath -> savedReferences.put(
+                            priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
+
+                    case coordinates -> {
+                        Rectangle coordinates = element.getRect();
+                        savedReferences.put(
+                                priority.getName().get(0),
+                                (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                                        + (coordinates.getY() + (coordinates.getHeight() / 2)));
+                    }
+                }
+            }
+        }
 
         String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
         String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
@@ -155,16 +158,16 @@ public class ABRWebElement {
         String tagname = element.getTagName();
         String textLabel = element.getText();
 
+        boolean hasButton = tagname.equalsIgnoreCase("button") && isClickable() && !textLabel.isBlank();
         boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
-        boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank();
+        boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank() && !hasButton;
         boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
         boolean hasFormControlName = formControlNameAttributeValue != null && !formControlNameAttributeValue.isBlank();
         boolean hasTestId = testIdAttributeValue != null && !testIdAttributeValue.isBlank();
         boolean hasName = nameAttributeValue != null && !nameAttributeValue.isBlank();
-        boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank();
+        boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank() && !hasButton;
         boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
         boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
-        boolean hasButton = tagname.equalsIgnoreCase("button") && isClickable();
         boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("p");
         boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("span");
         boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("div");

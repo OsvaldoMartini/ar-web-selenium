@@ -12,6 +12,9 @@ import com.allinweb.ch.driver.ABRWebElement;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Predicate;
@@ -24,6 +27,7 @@ import javafx.concurrent.Task;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.control.Alert;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
@@ -32,10 +36,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.remote.RemoteWebElement;
 
 public class ABRScannedElementPane extends ABRPane {
@@ -360,14 +361,17 @@ public class ABRScannedElementPane extends ABRPane {
                         // Saved REferences From Priorities
                         // Update the savedReferences field for each element in the stream
                         // Iterate over the list to update the savedReferences field
-                        for (ABRWebElement element : listABRElements) {
-                            // Update the savedReferences field
-                            element.getSavedReferences().put("key", "value");
-
-                            // Perform any action you want with the updated ABRWebElement
-                            // For example, print the updated savedReferences field
-                            System.out.println(element.getSavedReferences());
+                        //                        for (ABRWebElement element : listABRElements) {
+                        if (listABRElements.size() > 0) {
+                            //
+                            // buildPriorityReferences(listABRElements);
+                            saveReferencesToFile(
+                                    "C:\\Projects\\Martini\\abr-web-selenium\\savedRef.txt", listABRElements);
                         }
+                        // Update the savedReferences field
+                        //                            element.getSavedReferences().put("key", "value");
+
+                        //                        }
                     }
 
                     ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -886,7 +890,7 @@ public class ABRScannedElementPane extends ABRPane {
                         webElements.addAll(finalList);
                         finalList.clear();
                     }
-                    case ByLabels -> {
+                    case ByTagName -> {
                         List<String> names = searchConfig.getName();
 
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
@@ -895,7 +899,6 @@ public class ABRScannedElementPane extends ABRPane {
                             if (name.equalsIgnoreCase("label")) {
                                 try {
                                     webElements = abrWebDriver.scan(By.tagName(name));
-                                    webElements = abrWebDriver.getDriver().findElements(By.tagName(name));
                                     // Add elements from the first list to the set
                                     for (WebElement element : webElements) {
                                         String labelText = element.getText();
@@ -920,7 +923,6 @@ public class ABRScannedElementPane extends ABRPane {
                             } else {
                                 try {
                                     webElements = abrWebDriver.scan(By.tagName(name));
-                                    webElements = abrWebDriver.getDriver().findElements(By.tagName(name));
                                     // Add elements from the first list to the set
                                     for (WebElement element : webElements) {
                                         String labelText = element.getText();
@@ -963,7 +965,7 @@ public class ABRScannedElementPane extends ABRPane {
                     case ById -> System.out.println("ById case");
                     case ByClassName -> System.out.println("Default case");
                     case ByName -> System.out.println("Default case");
-                    case ByTagName -> System.out.println("Default case");
+                    case ByLabels -> System.out.println("Default case");
                     case ByLinkText -> System.out.println("Default case");
                     case ByPartialLinkText -> System.out.println("Default case");
                     case ByCssSelector -> System.out.println("Default case"); //      ".nav-menu li";
@@ -1169,6 +1171,52 @@ public class ABRScannedElementPane extends ABRPane {
                         .orElse("");
             default:
                 return element.getText();
+        }
+    }
+
+    public void saveReferencesToFile(String filePath, List<ABRWebElement> elements) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            for (ABRWebElement element : elements) {
+                Map<String, String> savedReferences = element.getSavedReferences();
+
+                for (Map.Entry<String, String> entry : savedReferences.entrySet()) {
+                    writer.write(entry.getKey() + "=" + entry.getValue());
+                    writer.newLine();
+                }
+            }
+            System.out.println("References saved to " + filePath);
+        } catch (IOException e) {
+            System.err.println("Error writing to file: " + e.getMessage());
+        }
+    }
+
+    private void buildPriorityReferences(List<ABRWebElement> elements) {
+        Map<String, String> references = new HashMap<>();
+        for (ABRWebElement abrElement : elements) {
+            for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
+                switch (priority.getPriorityType()) {
+                    case attribute -> {
+                        String attributeValue = abrElement
+                                .getElement()
+                                .getAttribute(priority.getName().get(0));
+                        if (attributeValue != null && !attributeValue.isBlank()) {
+                            references.put(priority.getName().get(0), attributeValue);
+                        }
+                    }
+                    case xpath -> references.put(
+                            priority.getName().get(0), ABRWebUtil.extractWebElementXPath(abrElement.getElement()));
+
+                    case coordinates -> {
+                        Rectangle coordinates = abrElement.getElement().getRect();
+                        references.put(
+                                priority.getName().get(0),
+                                (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                                        + (coordinates.getY() + (coordinates.getHeight() / 2)));
+                    }
+                }
+            }
+            abrElement.getSavedReferences().putAll(references);
+            references.clear();
         }
     }
 }

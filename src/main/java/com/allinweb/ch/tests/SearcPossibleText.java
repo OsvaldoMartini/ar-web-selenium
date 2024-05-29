@@ -31,8 +31,8 @@ public class SearcPossibleText {
 
         try {
             // Open the desired webpage
-            //            driver.get("https://www.ca-nextbank.ch/en/contact"); // Replace with the desired URL
-            driver.get("https://www.fnz.com/contact"); // Replace with the desired URL
+            driver.get("https://www.ca-nextbank.ch/en/contact"); // Replace with the desired URL
+            //            driver.get("https://www.fnz.com/contact"); // Replace with the desired URL
 
             // Find all label elements
             List<WebElement> labels = driver.findElements(By.tagName("label"));
@@ -42,6 +42,7 @@ public class SearcPossibleText {
             printElementsText(driver, "div");
             printElementsText(driver, "span");
             printElementsText(driver, "p");
+            printElementsText(driver, "button");
 
         } finally {
             // Close the browser

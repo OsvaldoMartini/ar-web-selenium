@@ -225,8 +225,7 @@ public class ABRViewBotJobPane extends ABRPane {
             ABRPropertyManager var10000 = ABRPropertyManager.getInstance();
             String enginePath = var10000.getProperty(ABRPropertyEnum.PATH_ENGINE) + "\\ABR_Web_Engine.jar";
             String var16 = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-            //            String excelPath = var16 + "\\" + this.botJob.getName() + ".xlsx";
-            String excelPath = var16 + "\\"; // + this.botJob.getName() + ".xlsx";
+            String excelPath = var16 + "\\" + this.botJob.getName() + ".xlsx";
             if (!(new File(excelPath)).exists()) {
                 new ABRAlertScene(
                         AlertType.WARNING,

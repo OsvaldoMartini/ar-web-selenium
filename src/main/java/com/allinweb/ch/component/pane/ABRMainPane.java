@@ -152,9 +152,6 @@ public class ABRMainPane extends ABRPane {
                                 ButtonType.OK);
                     }
 
-                    // We need just the ExcelPath
-                    excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "\\";
-
                     String[] command = {
                         "cmd.exe",
                         "/c",

@@ -12,7 +12,7 @@ public enum PriorityTypeEnum {
     ByPartialLinkText,
     ByCssSelector, //      ".nav-menu li";
     ByXPath, //           "//input[@type='text']"
-    ByLabels, //           "//input[@type='text']"
+    ByLabels, //           "ByLabels
     ExecuteScript, //      "return document.getElementById('search-top')");
     createXPath, //         Generates XPath Recursive tom the Elements Found
     dynamic, //         Generates Dynamic Action -> Click, Hover, Etc.
