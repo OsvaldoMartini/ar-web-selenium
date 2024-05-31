@@ -82,6 +82,7 @@ public class ABRViewBotJobPane extends ABRPane {
         this.checkBoxUpdatePriority = new CheckBox("Upd\nPriority");
         checkBoxUpdatePriority.setWrapText(true);
         checkBoxUpdatePriority.setPrefWidth(80); // Adjust width as needed
+        checkBoxUpdatePriority.setVisible(false);
 
         this.saveAsBotJobButton = builder.buildButton(
                 "Save As", ABRConstants.SPACE_ZERO, "/save.png", ABRConstants.SPACE_M, new Insets(5.0D));
@@ -222,10 +223,10 @@ public class ABRViewBotJobPane extends ABRPane {
             (new ABRExportFilterScene(this.botJob)).show();
         });
         this.launchBotJobButton.setOnMouseClicked((e) -> {
-            ABRPropertyManager var10000 = ABRPropertyManager.getInstance();
-            String enginePath = var10000.getProperty(ABRPropertyEnum.PATH_ENGINE) + "\\ABR_Web_Engine.jar";
-            String var16 = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-            String excelPath = var16 + "\\" + this.botJob.getName() + ".xlsx";
+            ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
+            String enginePath = managerProps.getProperty(ABRPropertyEnum.PATH_ENGINE) + "\\ABR_Web_Engine.jar";
+            String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+            excelPath = excelPath + "\\" + this.botJob.getName() + ".xlsx";
             if (!(new File(excelPath)).exists()) {
                 new ABRAlertScene(
                         AlertType.WARNING,

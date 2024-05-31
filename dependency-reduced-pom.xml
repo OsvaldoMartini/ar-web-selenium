@@ -3,8 +3,9 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.example</groupId>
   <artifactId>ABR_Web_Scanner</artifactId>
-  <version>Unknown</version>
+  <version>RELEASE-001</version>
   <build>
+    <finalName>${project.artifactId}</finalName>
     <pluginManagement>
       <plugins>
         <plugin>

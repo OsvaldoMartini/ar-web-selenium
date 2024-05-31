@@ -213,11 +213,20 @@ public class ABRWebElement {
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
         }
 
-        String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
-        String extRefSub = extRef.substring(extRef.indexOf("'") + 1, extRef.length() - 1);
-        // isIdElement.setValue(hasTestId &&
-        // testIdAttributeValue.equals("web-banking-payment-core.payment-details.external-reference"));
-        isIdElement.setValue(hasTestId && testIdAttributeValue.equals(extRefSub));
+        try {
+
+            String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
+            if (extRef != null) {
+                String extRefSub = extRef.substring(extRef.indexOf("'") + 1, extRef.length() - 1);
+                // isIdElement.setValue(hasTestId &&
+                // testIdAttributeValue.equals("web-banking-payment-core.payment-details.external-reference"));
+                isIdElement.setValue(hasTestId && testIdAttributeValue.equals(extRefSub));
+            }
+        } catch (Exception e) {
+            ABRLogger.getInstance(Thread.class)
+                    .finer("an exception has occurred in the thread for extRefSub " + e.getMessage() + " Cause: "
+                            + e.getCause());
+        }
 
         // this is goign to be done before and match the case
         //        xPath = ABRWebUtil.extractWebElementXPath(element);

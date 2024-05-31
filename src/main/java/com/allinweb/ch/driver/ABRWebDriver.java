@@ -32,8 +32,9 @@ public class ABRWebDriver {
                 case ABRConstants.CHROME -> {
                     ChromeOptions options = new ChromeOptions();
                     options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
-                    options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
-                    options.setBinary("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe");
+                    //                    options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
+                    //                    options.setBinary("C:/Program Files
+                    // (x86)/Google/Chrome/Application/chrome.exe");
                     options.setExperimentalOption("useAutomationExtension", false);
                     options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
                     driver = new ChromeDriver(options);

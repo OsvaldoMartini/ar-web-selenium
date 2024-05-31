@@ -140,10 +140,10 @@ public class ABRMainPane extends ABRPane {
             {
                 var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
                 if (selecBotJobDTO != null) {
-                    String enginePath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PATH_ENGINE)
-                            + ABRConstants.DEFAULT_NAME_ENGINE;
-                    String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL)
-                            + "\\" + selecBotJobDTO.getName() + ABRConstants.FILE_FORMAT_EXCEL;
+                    ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
+                    String enginePath = managerProps.getProperty(ABRPropertyEnum.PATH_ENGINE) + "\\ABR_Web_Engine.jar";
+                    String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+                    excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
                     if (!new File(excelPath).exists()) {
                         new ABRAlertScene(
                                 Alert.AlertType.WARNING,
@@ -152,11 +152,10 @@ public class ABRMainPane extends ABRPane {
                                 ButtonType.OK);
                     }
 
-                    String[] command = {
+                    String[] command = new String[] {
                         "cmd.exe",
                         "/c",
-                        "." + ABRConstants.DEFAULT_PATH_JAVA + ABRConstants.FOLDER_BIN
-                                + ABRConstants.DEFAULT_NAME_JAVA_EXECUTABLE,
+                        ".\\java\\bin\\java.exe",
                         "-jar",
                         "\"" + enginePath + "\"",
                         "execute/j",

@@ -3,9 +3,16 @@ package com.allinweb.ch.core;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRCallback;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRPriorities;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
+import com.google.common.base.Strings;
 import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -26,6 +33,16 @@ public class ABRSharedResources {
     private static volatile ABRSharedResources instance;
     private static SessionFactory sessionFactory = null;
     private static Session session = null;
+
+    private Connection conn = null;
+    private List<DatabaseUserDTO> databaseList = new ArrayList<>();
+    // Very important sequence on initiation
+    private static ABRPriorities abrPriorities;
+
+    // Static block to initialize
+    static {
+        abrPriorities = ABRPriorities.getInstance();
+    }
 
     private Map<Class<? extends BaseDTO>, ObservableList<? extends BaseDTO>> entityMap;
 
@@ -267,9 +284,34 @@ public class ABRSharedResources {
         });
         cleanList(InstructionReferenceDTO.class, (ref) -> ref.getBlockLoopInstructionDTO() == null);
         cleanList(SavedInstructionReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionDTO() == null);
+
+        updateDBPriorities();
+    }
+
+    private void updateDBPriorities() {
+        if (abrPriorities.getAllPriorityList() != null) {
+            StringBuilder priorities = new StringBuilder();
+            priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
+            for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
+                priorities.append(priority.getPriorityNumber() + "," + priority.getPriorityType() + ","
+                        + priority.getName().stream().findFirst().get() + System.lineSeparator());
+            }
+
+            StringBuilder searchCriteria = new StringBuilder();
+            searchCriteria.append("#numero priorità, categoria, criterioricerca" + System.lineSeparator());
+            searchCriteria.append("1,ByXPath,//a[@href],a[href]" + System.lineSeparator());
+            searchCriteria.append("2,ByTagName,button,label,div,span,a" + System.lineSeparator());
+
+            updateUserData(priorities.toString(), searchCriteria.toString());
+        }
     }
 
     public void changeDbConnection() {
+        String priorityPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
+        if (priorityPath != null && !priorityPath.isBlank()) {
+            abrPriorities.loadPriorities();
+        }
+
         String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
         if (!dbPath.isBlank()) {
             File dbFolder = new File(dbPath);
@@ -282,5 +324,84 @@ public class ABRSharedResources {
             session = sessionFactory.openSession();
             cacheEntitiesFromDB();
         }
+    }
+
+    private void updateUserData(String priority, String searchConfig) {
+        if (getConnection() != null) {
+
+            loadUserData();
+            for (DatabaseUserDTO userDTO : databaseList) {
+                boolean updateNeeded = false;
+                String updateSQL = "UPDATE home_banking SET ";
+
+                if (Strings.isNullOrEmpty(userDTO.getPriority()) && Strings.isNullOrEmpty(userDTO.getSearchConfig())) {
+                    updateSQL += " Priority = '" + priority + "', " + " searchConfig = '" + searchConfig + "' ";
+                    updateNeeded = true;
+                } else if (Strings.isNullOrEmpty(userDTO.getPriority())) {
+                    updateSQL += " Priority = '" + priority + "'";
+                    updateNeeded = true;
+                } else if (Strings.isNullOrEmpty(userDTO.getSearchConfig())) {
+                    updateSQL += " searchConfig = '" + searchConfig + "'";
+                    updateNeeded = true;
+                }
+                if (updateNeeded) {
+                    int userId = Integer.parseInt(userDTO.getId());
+                    try {
+                        updateSQL += " WHERE ID = " + userId;
+                        try (Statement stmt = getConnection().createStatement()) {
+                            int rowsAffected = stmt.executeUpdate(updateSQL);
+                            if (rowsAffected > 0) {
+                                System.out.println("Data updated successfully.");
+                            } else {
+                                System.out.println("No matching record found to update.");
+                            }
+                        } catch (SQLException e) {
+                            e.printStackTrace();
+                        }
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid ID format.");
+                    }
+                }
+            }
+        }
+    }
+
+    private Connection getConnection() {
+        if (conn == null) {
+            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+            String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            try {
+                conn = DriverManager.getConnection(dbUrl);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return conn;
+    }
+
+    private void loadUserData() {
+        databaseList.clear();
+        String selectSQL = " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, username, password "
+                + " FROM home_banking bank "
+                + " left join bot_job bot on bot.home_banking_id = bank.id "
+                + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.username, bank.password ";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                String id = rs.getString("ID");
+                String jobs = rs.getString("Jobs");
+                String name = rs.getString("Name");
+                String url = rs.getString("Url");
+                String priority = rs.getString("Priority");
+                String searchConfig = rs.getString("searchConfig");
+                String username = rs.getString("username");
+                String password = rs.getString("password");
+                databaseList.add(new DatabaseUserDTO(id, jobs, name, url, priority, searchConfig, username, password));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        //        jobUserList.clear();
+        //        loadBotJobData();
     }
 }

@@ -85,7 +85,7 @@ public class ABRConfigurationPane extends ABRPane {
         AnchorPane.setRightAnchor(title, ABRConstants.SPACE_M);
 
         ButtonBar homeBankingActionGroup = new ButtonBar();
-        addHomeBankingButton = builder.buildButton("Add");
+        addHomeBankingButton = builder.buildButton("Insert / Update / Config Scan");
         homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
         ObservableList<HomeBankingDTO> homeBankingList =

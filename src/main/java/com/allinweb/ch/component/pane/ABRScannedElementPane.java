@@ -362,11 +362,13 @@ public class ABRScannedElementPane extends ABRPane {
                         // Update the savedReferences field for each element in the stream
                         // Iterate over the list to update the savedReferences field
                         //                        for (ABRWebElement element : listABRElements) {
-                        if (listABRElements.size() > 0) {
+
+                        if (listABRElements != null && listABRElements.size() > 0) {
                             //
-                            // buildPriorityReferences(listABRElements);
-                            saveReferencesToFile(
-                                    "C:\\Projects\\Martini\\abr-web-selenium\\savedRef.txt", listABRElements);
+                            // buildPriorityReferences(listABRElements);saveReferencesToFile(
+                            ////
+                            // "C:\\Projects\\Martini\\abr-web-selenium\\savedRef.txt", listABRElements);
+                            //
                         }
                         // Update the savedReferences field
                         //                            element.getSavedReferences().put("key", "value");
@@ -386,25 +388,30 @@ public class ABRScannedElementPane extends ABRPane {
                     // elements ended");
                     //                    }
                     ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting loop to add ABRWebElements");
-                    for (ABRWebElement element : listABRElements) {
-                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("sending add request to JavaFX thread");
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .finer("sending add request to JavaFX thread for ABRWebElement with xPath: "
-                                        + element.getXPath());
-                        Platform.runLater(() -> {
+                    if (listABRElements != null) {
+
+                        for (ABRWebElement element : listABRElements) {
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("JAVAFX Thread: adding element to list");
-                            listToAddElements.add(element);
-                            ABRLogger.getInstance(ABRScannedElementPane.class).fine("JAVAFX Thread: element added");
-                        });
+                                    .fine("sending add request to JavaFX thread");
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .finer("sending add request to JavaFX thread for ABRWebElement with xPath: "
+                                            + element.getXPath());
+                            Platform.runLater(() -> {
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .fine("JAVAFX Thread: adding element to list");
+                                listToAddElements.add(element);
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .fine("JAVAFX Thread: element added");
+                            });
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
+                                            + element.getXPath());
+                            Thread.sleep(100);
+                        }
+                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Loop to add ABRWebElements ended");
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
-                                        + element.getXPath());
-                        Thread.sleep(100);
+                                .fine("sending bar removal request to JAVAFX thread");
                     }
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Loop to add ABRWebElements ended");
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine("sending bar removal request to JAVAFX thread");
                     Platform.runLater(() -> {
                         ABRLogger.getInstance(ABRScannedElementPane.class).fine("JAVAFX Thread: start removing bar");
                         removeNodesFromPane(bottomPane, progressBar);
