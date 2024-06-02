@@ -37,6 +37,7 @@ public class ABRWebElement {
 
     private BooleanProperty clickElement = new SimpleBooleanProperty(false);
     private BooleanProperty editingElement = new SimpleBooleanProperty(false);
+    private BooleanProperty textElement = new SimpleBooleanProperty(false);
     private BooleanProperty toBeAddedElement = new SimpleBooleanProperty(false);
     private BooleanProperty isIdElement = new SimpleBooleanProperty(false);
 
@@ -68,6 +69,7 @@ public class ABRWebElement {
 
     private ImageView clickImage;
     private ImageView insertImage;
+    private ImageView textImage;
 
     // event handlers
     private Map<EventType, List<EventHandler>> eventHandlerMap = new HashMap<>();
@@ -162,15 +164,21 @@ public class ABRWebElement {
         boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
         boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank() && !hasButton;
         boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
-        boolean hasFormControlName = formControlNameAttributeValue != null && !formControlNameAttributeValue.isBlank();
-        boolean hasTestId = testIdAttributeValue != null && !testIdAttributeValue.isBlank();
-        boolean hasName = nameAttributeValue != null && !nameAttributeValue.isBlank();
+        boolean hasFormControlName =
+                formControlNameAttributeValue != null && !formControlNameAttributeValue.isBlank() && !hasButton;
+        boolean hasTestId = testIdAttributeValue != null && !testIdAttributeValue.isBlank() && !hasButton;
+        boolean hasName = nameAttributeValue != null && !nameAttributeValue.isBlank() && !hasButton;
         boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank() && !hasButton;
         boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
         boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
         boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("p");
         boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("span");
         boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("div");
+        boolean hasLabel = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("label");
+
+        if (hasSpan || hasDiv || hasLabel) {
+            textElement.setValue(true);
+        }
 
         if (isOption && hasValue) {
             nameLabel.setText(valueAttributeValue);
@@ -206,6 +214,9 @@ public class ABRWebElement {
             nameLabel.setText(textLabel);
             nameField.setText(tagname);
         } else if (hasDiv) {
+            nameLabel.setText(textLabel);
+            nameField.setText(tagname);
+        } else if (hasLabel) {
             nameLabel.setText(textLabel);
             nameField.setText(tagname);
         } else {
@@ -281,6 +292,7 @@ public class ABRWebElement {
     private void initElementPanel() {
         clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
         insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
+        textImage = componentBuilder.buildImageView(ABRConstants.ICON_TEXT, ABRConstants.SPACE_M);
 
         saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
         saveButton.setMaxHeight(ABRConstants.SPACE_L);
@@ -294,7 +306,7 @@ public class ABRWebElement {
         StackPane nameGroup = new StackPane(nameLabel, nameField);
 
         HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
-        StackPane actionGroup = new StackPane(clickImage, insertImage);
+        StackPane actionGroup = new StackPane(clickImage, insertImage, textImage);
         elementPanel = new HBox(actionGroup, nameFieldsGroup);
         elementPanel.setSpacing(ABRConstants.SPACE_XS);
 
@@ -328,6 +340,7 @@ public class ABRWebElement {
     private void initUIBehaviour() {
         insertImage.visibleProperty().bind(clickElement.not());
         clickImage.visibleProperty().bind(clickElement);
+        textImage.visibleProperty().bind(textElement);
         nameLabel.visibleProperty().bind(editingElement.not());
         nameField.visibleProperty().bind(editingElement);
         saveButton.visibleProperty().bind(editingElement);

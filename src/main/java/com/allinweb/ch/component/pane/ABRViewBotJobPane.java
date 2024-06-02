@@ -79,7 +79,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 "Launch", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.saveBotJobButton = builder.buildButton(
                 "Save", ABRConstants.SPACE_ZERO, "/save.png", ABRConstants.SPACE_M, new Insets(5.0D));
-        this.checkBoxUpdatePriority = new CheckBox("Upd\nPriority");
+        this.checkBoxUpdatePriority = new CheckBox("Upd JOB");
         checkBoxUpdatePriority.setWrapText(true);
         checkBoxUpdatePriority.setPrefWidth(80); // Adjust width as needed
         checkBoxUpdatePriority.setVisible(false);

@@ -63,6 +63,7 @@ public class ABRConstants {
     public static final String ICON_WAIT = "/wait.png";
     public static final String ICON_CLICK = "/click.png";
     public static final String ICON_INSERT = "/input_field.png";
+    public static final String ICON_TEXT = "/text.png";
     public static final String ICON_UP = "/up.png";
     public static final String ICON_DOWN = "/down.png";
     public static final String ICON_CROSS = "/cross.png";
