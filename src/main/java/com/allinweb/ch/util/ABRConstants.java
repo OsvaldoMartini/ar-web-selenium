@@ -103,6 +103,7 @@ public class ABRConstants {
 
     // FILE FORMATS
     public static final String FILE_FORMAT_EXCEL = ".xlsx";
+    public static final String FILE_FORMAT_CSV = ".csv";
     public static final String FILE_FORMAT_LOG = ".log";
 
     // BROWSERS

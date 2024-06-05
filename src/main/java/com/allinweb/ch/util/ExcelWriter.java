@@ -4,8 +4,10 @@ import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.*;
 import java.awt.*;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -32,8 +34,78 @@ public class ExcelWriter {
         if (!excelFolder.exists()) {
             excelFolder.mkdirs();
         }
+        generateUnfilteredCSVFile(botJob);
         generateUnfilteredExcelFile(botJob);
         generateFilteredExcelFile(botJob);
+    }
+
+    private void generateUnfilteredCSVFile(BotJobDTO botJob) {
+        String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
+                + botJob.getName() + ABRConstants.FILE_FORMAT_CSV;
+
+        BufferedWriter bufferedWriter = null;
+        File file = new File(fileName);
+        try {
+            bufferedWriter = new BufferedWriter(new FileWriter(file));
+
+            List<BlockDTO> blockList = botJob.getBlocks();
+
+            Set<String> fieldAddedSet = new HashSet<>();
+
+            for (BlockDTO block : blockList) {
+                String firstRow = "#" + block.getName();
+                bufferedWriter.write(firstRow);
+                bufferedWriter.newLine();
+
+                List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
+                        .getEntityList(
+                                BlockLoopInstructionDTO.class,
+                                Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
+                                (instruction) -> instruction.getBlock().getId() == block.getId()
+                                        && instruction.getActions().contains(ABRConstants.INSERT));
+
+                Integer last = instructionList.size();
+                for (BlockLoopInstructionDTO instruction : instructionList) {
+                    String action = instruction.getActions();
+                    boolean hasReference = action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    if (hasReference) {
+                        String reference = action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
+                        if (!fieldAddedSet.contains(reference)) {
+                            fieldAddedSet.add(reference);
+                            bufferedWriter.write(action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
+                            last--;
+                            if (last > 0) {
+                                bufferedWriter.write(",");
+                            }
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error in CsvFileWriter!");
+            e.printStackTrace();
+        } finally {
+            try {
+                if (bufferedWriter != null) {
+                    bufferedWriter.flush();
+                    bufferedWriter.close();
+                }
+            } catch (IOException e) {
+                System.out.println("Error while flushing/closing bufferedWriter!");
+                e.printStackTrace();
+            }
+        }
+
+        try {
+            Desktop.getDesktop().open(file);
+        } catch (IOException e) {
+            new ABRAlertScene(
+                    Alert.AlertType.ERROR,
+                    "Couldn't open the file",
+                    "The file could not be opened. Reason: " + e,
+                    ButtonType.OK);
+        }
     }
 
     private void generateUnfilteredExcelFile(BotJobDTO botJob) {
@@ -150,6 +222,38 @@ public class ExcelWriter {
             return file.exists();
         } else {
             return false;
+        }
+    }
+
+    public static void writeCsvFile(String fileName, List<BlockDTO> blockDTOList) {
+        FileWriter fileWriter = null;
+
+        try {
+            fileWriter = new FileWriter(fileName);
+
+            // Write the CSV file header
+            fileWriter.append("name");
+            fileWriter.append("\n");
+
+            // Write a new blockDTO object list to the CSV file
+            for (BlockDTO blockDTO : blockDTOList) {
+                fileWriter.append(blockDTO.getName());
+                fileWriter.append("\n");
+            }
+
+            System.out.println("CSV file was created successfully!");
+
+        } catch (Exception e) {
+            System.out.println("Error in CsvFileWriter!");
+            e.printStackTrace();
+        } finally {
+            try {
+                fileWriter.flush();
+                fileWriter.close();
+            } catch (IOException e) {
+                System.out.println("Error while flushing/closing fileWriter!");
+                e.printStackTrace();
+            }
         }
     }
 }

@@ -28,30 +28,36 @@ public class ABRWebDriver {
     public void openDriver(String url) {
         if (driver == null) {
             String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
-            switch (browser) {
-                case ABRConstants.CHROME -> {
-                    ChromeOptions options = new ChromeOptions();
-                    options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
-                    //                    options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
-                    //                    options.setBinary("C:/Program Files
-                    // (x86)/Google/Chrome/Application/chrome.exe");
-                    options.setExperimentalOption("useAutomationExtension", false);
-                    options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
-                    driver = new ChromeDriver(options);
+            try {
+                switch (browser) {
+                    case ABRConstants.CHROME -> {
+                        ChromeOptions options = new ChromeOptions();
+                        options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
+                        options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
+                        //                        options.setBinary("C:/Program Files
+                        // (x86)/Google/Chrome/Application/chrome.exe");
+                        options.setExperimentalOption("useAutomationExtension", false);
+                        options.setExperimentalOption(
+                                "excludeSwitches", Collections.singletonList("enable-automation"));
+                        driver = new ChromeDriver(options);
+                    }
+                    case ABRConstants.EDGE -> {
+                        System.setProperty("webdriver.edge.driver", ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
+                        EdgeOptions options = new EdgeOptions();
+                        // options.setBinary(ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
+                        options.setExperimentalOption("useAutomationExtension", false);
+                        options.setExperimentalOption(
+                                "excludeSwitches", Collections.singletonList("enable-automation"));
+                        driver = new EdgeDriver(options);
+                    }
+                    case ABRConstants.FIREFOX -> {
+                        FirefoxOptions options = new FirefoxOptions();
+                        options.setBinary(ABRConstants.CURRENT_PATH + "\\geckodriver.exe");
+                        driver = new FirefoxDriver(options);
+                    }
                 }
-                case ABRConstants.EDGE -> {
-                    System.setProperty("webdriver.edge.driver", ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
-                    EdgeOptions options = new EdgeOptions();
-                    // options.setBinary(ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
-                    options.setExperimentalOption("useAutomationExtension", false);
-                    options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
-                    driver = new EdgeDriver(options);
-                }
-                case ABRConstants.FIREFOX -> {
-                    FirefoxOptions options = new FirefoxOptions();
-                    options.setBinary(ABRConstants.CURRENT_PATH + "\\geckodriver.exe");
-                    driver = new FirefoxDriver(options);
-                }
+            } catch (Exception e) {
+
             }
         }
         driver.manage().window().maximize();

@@ -128,7 +128,7 @@ public class ABRScannedElementPane extends ABRPane {
                 "Output Fields", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         refreshOtherFieldsButton = componentBuilder.buildButton(
                 "Other Elements", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
-        checkBoxAction = new CheckBox("Enable Click Test (PLEASE RELEASE)");
+        checkBoxAction = new CheckBox("Execute Action\n(RELEASE AFTER USE)");
         webElementObservableList1 = FXCollections.observableArrayList();
         scannedElements1 = new ListView<>(webElementObservableList1);
         scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ABRConstants.SPACE_ZERO);
@@ -1224,6 +1224,62 @@ public class ABRScannedElementPane extends ABRPane {
             }
             abrElement.getSavedReferences().putAll(references);
             references.clear();
+        }
+    }
+
+    private void injectJavaScript(WebDriver driver) {
+        // The JavaScript code to be injected
+        try {
+            // Navigate to the target page
+            driver.get("https://www.ca-nextbank.ch/en/contact");
+
+            // The JavaScript code to be injected
+            String jsCode = "const hint = document.createElement('div');" + "hint.id = 'hint';"
+                    + "hint.className = 'hint';"
+                    + "document.body.appendChild(hint);"
+                    + "const style = document.createElement('style');"
+                    + "style.innerHTML = ` .hint {"
+                    + "  position: absolute;"
+                    + "  background-color: #f9f9f9;"
+                    + "  border: 1px solid #ccc;"
+                    + "  padding: 5px;"
+                    + "  border-radius: 3px;"
+                    + "  display: none;"
+                    + "  z-index: 1000;"
+                    + "} `;"
+                    + "document.head.appendChild(style);"
+                    + "document.body.addEventListener('mouseover', function(event) {"
+                    + "  const target = event.target;"
+                    + "  let hintText = `Tag: ${target.tagName.toLowerCase()}`;"
+                    + "  if (target.type) {"
+                    + "    hintText += `, Type: ${target.type}`;"
+                    + "  }"
+                    + "  if (target.innerText) {"
+                    + "    hintText += `, Text: ${target.innerText}`;"
+                    + "  }"
+                    + "  hint.innerText = hintText;"
+                    + "  hint.style.display = 'block';"
+                    + "  hint.style.left = event.pageX + 'px';"
+                    + "  hint.style.top = event.pageY + 'px';"
+                    + "});"
+                    + "document.body.addEventListener('mousemove', function(event) {"
+                    + "  hint.style.left = event.pageX + 'px';"
+                    + "  hint.style.top = event.pageY + 'px';"
+                    + "});"
+                    + "document.body.addEventListener('mouseout', function() {"
+                    + "  hint.style.display = 'none';"
+                    + "});";
+
+            // Inject the JavaScript code into the page
+            ((JavascriptExecutor) driver).executeScript(jsCode);
+
+            // Allow some time to see the effect
+            Thread.sleep(10000); // Sleep for 10 seconds to observe the result
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            // Close the browser
+            driver.quit();
         }
     }
 }

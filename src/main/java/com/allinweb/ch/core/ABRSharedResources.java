@@ -300,7 +300,7 @@ public class ABRSharedResources {
             StringBuilder searchCriteria = new StringBuilder();
             searchCriteria.append("#numero priorità, categoria, criterioricerca" + System.lineSeparator());
             searchCriteria.append("1,ByXPath,//a[@href],a[href]" + System.lineSeparator());
-            searchCriteria.append("2,ByTagName,button,label,div,span,a" + System.lineSeparator());
+            searchCriteria.append("2,ByTagName,button,label,a" + System.lineSeparator());
 
             updateUserData(priorities.toString(), searchCriteria.toString());
         }
