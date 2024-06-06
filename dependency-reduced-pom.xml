@@ -20,9 +20,14 @@
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-maven-plugin</artifactId>
         <version>0.0.8</version>
-        <configuration>
-          <mainClass>com.allinweb.ch.control.ABRControlPanel</mainClass>
-        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>jlink</goal>
+              <goal>run</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
@@ -99,13 +104,6 @@
           <groupId>org.hamcrest</groupId>
         </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.javafx</groupId>
-      <artifactId>javafx.controls</artifactId>
-      <version>1.0</version>
-      <scope>system</scope>
-      <systemPath>${project.basedir}/lib/javafx.controls.jar</systemPath>
     </dependency>
   </dependencies>
   <properties>
