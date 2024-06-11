@@ -361,7 +361,7 @@ public class ABRScannedElementPane extends ABRPane {
                             .fine("Starting scan of elements for criteria: " + criteria);
 
                     List<WebElement> scannedElementList = new ArrayList<>();
-                    if (preElements != null) {
+                    if (preElements != null && preElements.size() > 0) {
                         scannedElementList.addAll(preElements);
                     } else {
                         scannedElementList = abrWebDriver.scan(criteria);
@@ -806,7 +806,7 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private List<WebElement> managePrioritiesCriteria() {
-        List<WebElement> webElements = new ArrayList<>();
+        List<WebElement> elementsResponse = new ArrayList<>();
         if (abrPriorities.getSearchConfigList() == null) {
             System.out.println("Is going to Search using \"searchConfigTemplate\"!  Please Add to the DB");
             return null;
@@ -818,6 +818,7 @@ public class ABRScannedElementPane extends ABRPane {
             docJSoup = JsoupConnect(botJob.getHomeBanking().getUrl());
             Set<WebElementWrapper> uniqueElements = new HashSet<>();
             List<WebElement> finalList = new ArrayList<>();
+            List<WebElement> searchingElems = new ArrayList<>();
             for (com.allinweb.ch.util.SearchConfig searchConfig : abrPriorities.getSearchConfigList()) {
                 PriorityTypeEnum priorityTypeEnum = null;
                 try {
@@ -834,14 +835,13 @@ public class ABRScannedElementPane extends ABRPane {
                 switch (priorityTypeEnum) {
                     case ByXPath -> {
                         List<String> names = searchConfig.getName();
-
                         Elements elementJSoup = null;
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         for (String name : names) {
                             try {
-                                webElements = abrWebDriver.scan(By.xpath(name));
+                                searchingElems = abrWebDriver.scan(By.xpath(name));
                                 // Add elements from the first list to the set
-                                for (WebElement element : webElements) {
+                                for (WebElement element : searchingElems) {
                                     String href = element.getAttribute("href");
                                     String text = element.getText();
                                     String uniqueKey = href + text;
@@ -918,7 +918,7 @@ public class ABRScannedElementPane extends ABRPane {
                             }
 
                             //                                // Convert unique wrappers back to a list of
-                            // WebElements
+                            // elementsResponse
                             //                                for (WebElementWrapper wrapper : uniqueElements) {
                             //                                    if (wrapper.getWebElement() != null) {
                             //                                        finalList.add(wrapper.getWebElement());
@@ -929,7 +929,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                         // Iterate over the selected links
                         //                          savedReferences.put(text, url);
-                        webElements.addAll(finalList);
+                        elementsResponse.addAll(finalList);
                         finalList.clear();
                     }
                     case ByTagName -> {
@@ -940,9 +940,9 @@ public class ABRScannedElementPane extends ABRPane {
 
                             if (name.equalsIgnoreCase("label")) {
                                 try {
-                                    webElements = abrWebDriver.scan(By.tagName(name));
+                                    searchingElems = abrWebDriver.scan(By.tagName(name));
                                     // Add elements from the first list to the set
-                                    for (WebElement element : webElements) {
+                                    for (WebElement element : searchingElems) {
                                         String labelText = element.getText();
                                         String associatedText = "";
 
@@ -964,9 +964,9 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                             } else if (name.equalsIgnoreCase("input")) {
                                 try {
-                                    webElements = abrWebDriver.scan(By.tagName(name));
+                                    searchingElems = abrWebDriver.scan(By.tagName(name));
                                     // Add elements from the first list to the set
-                                    for (WebElement element : webElements) {
+                                    for (WebElement element : searchingElems) {
                                         String labelText = element.getText();
 
                                         finalList.add(element);
@@ -989,12 +989,15 @@ public class ABRScannedElementPane extends ABRPane {
 
                             // JavaScfript Search
                             if (name.equalsIgnoreCase("input")) {
-                                webElements = searchAllInputs(abrWebDriver.getDriver());
+                                searchingElems = searchAllInputs(abrWebDriver.getDriver());
+                                if (searchingElems != null && searchingElems.size() > 0) {
+                                    finalList.addAll(searchingElems);
+                                }
                             }
                         }
                         // Iterate over the selected links
                         //                          savedReferences.put(text, url);
-                        webElements.addAll(finalList);
+                        elementsResponse.addAll(finalList);
                         finalList.clear();
                     }
                     case attribute -> {
@@ -1003,7 +1006,7 @@ public class ABRScannedElementPane extends ABRPane {
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         for (String name : names) {
                             try {
-                                webElements = abrWebDriver.scan(By.cssSelector("button[" + name + "]"));
+                                searchingElems = abrWebDriver.scan(By.cssSelector("button[" + name + "]"));
                                 //                                List<WebElement> elements2 = webElements =
                                 // abrWebDriver
                                 //                                        .getDriver()
@@ -1011,7 +1014,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 // searchConfig.getName() + "]"));
 
                                 // Add elements from the first list to the set
-                                for (WebElement element : webElements) {
+                                for (WebElement element : searchingElems) {
                                     String testId = element.getAttribute(name);
                                     String labelText = element.getText();
                                     String associatedText = "";
@@ -1037,7 +1040,7 @@ public class ABRScannedElementPane extends ABRPane {
                             }
 
                             try {
-                                webElements = abrWebDriver.scan(By.cssSelector("input[" + name + "]"));
+                                searchingElems = abrWebDriver.scan(By.cssSelector("input[" + name + "]"));
                                 //                                List<WebElement> elements2 = webElements =
                                 // abrWebDriver
                                 //                                        .getDriver()
@@ -1045,7 +1048,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 // searchConfig.getName() + "]"));
 
                                 // Add elements from the first list to the set
-                                for (WebElement element : webElements) {
+                                for (WebElement element : searchingElems) {
                                     String testId = element.getAttribute(name);
                                     String labelText = element.getText();
                                     String associatedText = "";
@@ -1073,7 +1076,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                         // Iterate over the selected links
                         //                          savedReferences.put(text, url);
-                        webElements.addAll(finalList);
+                        elementsResponse.addAll(finalList);
                         finalList.clear();
 
                         //                        try {
@@ -1138,7 +1141,7 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             }
         }
-        return webElements;
+        return elementsResponse;
     }
 
     public static double jaccardSimilarity(String text1, String text2) {
