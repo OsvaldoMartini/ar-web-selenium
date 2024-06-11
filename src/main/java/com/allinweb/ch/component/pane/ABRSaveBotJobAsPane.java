@@ -51,7 +51,7 @@ public class ABRSaveBotJobAsPane extends ABRPane {
         nameField = new TextField();
         descriptionField = new TextField();
 
-        saveButton = new Button("Save");
+        saveButton = new Button("Save  TO DB");
 
         VBox group = new VBox(nameLabel, nameField, descriptionLabel, descriptionField, saveButton);
         group.setAlignment(Pos.CENTER);

@@ -53,20 +53,14 @@ public class ABRMainPane extends ABRPane {
     ListView<BotJobDTO> viewBotJobListView = new ListView<>();
 
     public ABRMainPane() {
-        callIniti();
-    }
-
-    private void callIniti() {
         String pathDB = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-        if (pathDB != null && pathDB.isBlank()) {
+        if (pathDB == null || pathDB.isBlank()) {
             new ABRConfigurationScene().show();
             new ABRAlertScene(
                     Alert.AlertType.WARNING,
                     "Configuration Needed",
                     "Please configure the application before use.",
                     ButtonType.OK);
-        } else {
-            loadConfigDB();
         }
     }
 
@@ -95,8 +89,6 @@ public class ABRMainPane extends ABRPane {
             setProperty(
                     ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(),
                     "test-id='web-banking-payment-core.payment-details.external-reference'");
-
-            callIniti();
         }
     }
 

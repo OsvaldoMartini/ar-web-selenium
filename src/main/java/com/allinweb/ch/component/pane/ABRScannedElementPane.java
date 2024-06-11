@@ -5,6 +5,7 @@ import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.ABRWebElementListCell;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
+import com.allinweb.ch.component.scene.ABRNewHomeBankingScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
@@ -63,10 +64,13 @@ public class ABRScannedElementPane extends ABRPane {
     private Button addWaitButton;
     private Button addCloseActionButton;
     private Button addScreenButton;
+    private Button configureButton;
     private Button refreshInputFieldsButton;
     private Button refreshOutputFieldsButton;
     private Button refreshOtherFieldsButton;
     private CheckBox checkBoxAction;
+    private CheckBox checkActiveHover;
+    private TextField xpathTextField;
 
     // Very important sequence on initiation
     private static ABRPriorities abrPriorities;
@@ -144,7 +148,27 @@ public class ABRScannedElementPane extends ABRPane {
         scannedElements3 = componentBuilder.setAnchorPaneAnchors(scannedElements3, ABRConstants.SPACE_ZERO);
         scannedElements3.setCellFactory(new ABRCellFactory<>(ABRWebElementListCell.class)::call);
 
-        addNodesToPane(topPane, scanButton, addWaitButton, addCloseActionButton, addScreenButton);
+        configureButton = componentBuilder.buildButton(
+                "Config", ABRConstants.SPACE_M, ABRConstants.ICON_CONFIG, ABRConstants.SPACE_M, new Insets(5.0D));
+
+        checkActiveHover = new CheckBox("Identify");
+
+        xpathTextField = new TextField();
+        xpathTextField.setPromptText("Hovered element XPath will appear here");
+
+        HBox buttonBox = new HBox();
+        buttonBox.setSpacing(10);
+        buttonBox
+                .getChildren()
+                .addAll(
+                        scanButton,
+                        addWaitButton,
+                        addCloseActionButton,
+                        addScreenButton,
+                        configureButton,
+                        checkActiveHover,
+                        xpathTextField);
+        addNodesToPane(topPane, buttonBox);
 
         //        addNodesToPane(contentPane, refreshInputFieldsButton, refreshOutputFieldsButton,
         // refreshOtherFieldsButton);
@@ -235,6 +259,8 @@ public class ABRScannedElementPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
+        configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
+        checkActiveHover.setOnMouseClicked(e -> handleHoverCheckClick());
         scanButton.setOnAction(e -> manageUIScan());
         addWaitButton.setOnAction(e -> addWaitTask(30));
         addCloseActionButton.setOnAction(e -> addCloseBrowserTask());
@@ -251,15 +277,23 @@ public class ABRScannedElementPane extends ABRPane {
         manageUIScan();
     }
 
+    private void handleHoverCheckClick() {
+        if (checkActiveHover.isSelected()) {
+            //    periodicThread(abrWebDriver.getDriver());
+            //            injectJavaScript(abrWebDriver.getDriver());
+            injectJumpTab(abrWebDriver.getDriver());
+        }
+    }
+
     private void manageUIScan() {
         ABRLogger.getInstance(ABRScannedElementPane.class).info("General scan triggered");
         webElementObservableList1.clear();
         webElementObservableList2.clear();
         webElementObservableList3.clear();
-        manageUIScanPriorities();
-        manageUIScanInputs();
-        manageUIScanClickable();
-        manageUIScanOutputs();
+        //        manageUIScanPriorities();
+        //        manageUIScanInputs();
+        //        manageUIScanClickable();
+        //        manageUIScanOutputs();
     }
 
     private void manageUIScanInputs() {
@@ -516,6 +550,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void refreshOutputBtn() {
         webElementObservableList2.clear();
         manageUIScanClickable();
+        manageUIScanOutputs();
     }
 
     private void refreshOtherElemBtn() {
@@ -927,20 +962,34 @@ public class ABRScannedElementPane extends ABRPane {
                                 } catch (Exception e) {
                                     System.out.println(String.format("WebDriver cannot read this format: %s", name));
                                 }
-                            } else {
+                            } else if (name.equalsIgnoreCase("input")) {
                                 try {
                                     webElements = abrWebDriver.scan(By.tagName(name));
                                     // Add elements from the first list to the set
                                     for (WebElement element : webElements) {
                                         String labelText = element.getText();
 
-                                        if (!labelText.trim().isEmpty()) {
-                                            finalList.add(element);
+                                        finalList.add(element);
+                                        try {
+                                            // Check if the input element has a placeholder attribute
+                                            String placeholder = element.getAttribute("placeholder");
+                                            if (placeholder != null && !placeholder.isEmpty()) {
+                                                // If the placeholder attribute exists, print its value
+                                                System.out.println("Placeholder: " + placeholder);
+                                            }
+                                        } catch (Exception e) {
+                                            System.out.println(
+                                                    String.format("WebDriver cannot read this format: %s", name));
                                         }
                                     }
                                 } catch (Exception e) {
                                     System.out.println(String.format("WebDriver cannot read this format: %s", name));
                                 }
+                            }
+
+                            // JavaScfript Search
+                            if (name.equalsIgnoreCase("input")) {
+                                webElements = searchAllInputs(abrWebDriver.getDriver());
                             }
                         }
                         // Iterate over the selected links
@@ -949,23 +998,105 @@ public class ABRScannedElementPane extends ABRPane {
                         finalList.clear();
                     }
                     case attribute -> {
-                        try {
-                            webElements = abrWebDriver.scan(By.cssSelector("[" + searchConfig.getName() + "]"));
-                            webElements = abrWebDriver
-                                    .getDriver()
-                                    .findElements(By.xpath("//*[@" + searchConfig.getName() + "]"));
-                            // Add elements from the first list to the set
-                            for (WebElement element : webElements) {
-                                String attributeValue = element.getAttribute(
-                                        searchConfig.getName().get(0));
-                                if (attributeValue != null && !attributeValue.isBlank()) {
-                                    savedReferences.put(searchConfig.getName().get(0), attributeValue);
+                        List<String> names = searchConfig.getName();
+
+                        // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
+                        for (String name : names) {
+                            try {
+                                webElements = abrWebDriver.scan(By.cssSelector("button[" + name + "]"));
+                                //                                List<WebElement> elements2 = webElements =
+                                // abrWebDriver
+                                //                                        .getDriver()
+                                //                                        .findElements(By.xpath("//*[@" +
+                                // searchConfig.getName() + "]"));
+
+                                // Add elements from the first list to the set
+                                for (WebElement element : webElements) {
+                                    String testId = element.getAttribute(name);
+                                    String labelText = element.getText();
+                                    String associatedText = "";
+
+                                    if (Strings.isNullOrEmpty(labelText)) {
+                                        labelText = testId;
+                                    }
+                                    // Get the value of the 'for' attribute
+                                    String forAttribute = element.getAttribute("for");
+                                    if (forAttribute != null) {
+                                        // Find the associated element using the 'for' attribute value
+                                        WebElement associatedElement =
+                                                abrWebDriver.getDriver().findElement(By.id(forAttribute));
+                                        associatedText = getElementText(associatedElement);
+                                    }
+                                    if (!Strings.isNullOrEmpty(associatedText)) {
+                                        labelText = labelText + "\n" + associatedText;
+                                    }
+                                    finalList.add(element);
                                 }
+                            } catch (Exception e) {
+                                System.out.println(String.format("WebDriver cannot read this format: %s", name));
                             }
-                        } catch (Exception e) {
-                            System.out.println(
-                                    String.format("WebDriver cannot read this format: %s", searchConfig.getName()));
+
+                            try {
+                                webElements = abrWebDriver.scan(By.cssSelector("input[" + name + "]"));
+                                //                                List<WebElement> elements2 = webElements =
+                                // abrWebDriver
+                                //                                        .getDriver()
+                                //                                        .findElements(By.xpath("//*[@" +
+                                // searchConfig.getName() + "]"));
+
+                                // Add elements from the first list to the set
+                                for (WebElement element : webElements) {
+                                    String testId = element.getAttribute(name);
+                                    String labelText = element.getText();
+                                    String associatedText = "";
+
+                                    if (Strings.isNullOrEmpty(labelText)) {
+                                        labelText = testId;
+                                    }
+
+                                    // Get the value of the 'for' attribute
+                                    String forAttribute = element.getAttribute("for");
+                                    if (forAttribute != null) {
+                                        // Find the associated element using the 'for' attribute value
+                                        WebElement associatedElement =
+                                                abrWebDriver.getDriver().findElement(By.id(forAttribute));
+                                        associatedText = getElementText(associatedElement);
+                                    }
+                                    if (!Strings.isNullOrEmpty(associatedText)) {
+                                        labelText = labelText + "\n" + associatedText;
+                                    }
+                                    finalList.add(element);
+                                }
+                            } catch (Exception e) {
+                                System.out.println(String.format("WebDriver cannot read this format: %s", name));
+                            }
                         }
+                        // Iterate over the selected links
+                        //                          savedReferences.put(text, url);
+                        webElements.addAll(finalList);
+                        finalList.clear();
+
+                        //                        try {
+                        //                            webElements = abrWebDriver.scan(By.cssSelector("[" +
+                        // searchConfig.getName() + "]"));
+                        //                            webElements = abrWebDriver
+                        //                                    .getDriver()
+                        //                                    .findElements(By.xpath("//*[@" + searchConfig.getName() +
+                        // "]"));
+                        //                            // Add elements from the first list to the set
+                        //                            for (WebElement element : webElements) {
+                        //                                String attributeValue = element.getAttribute(
+                        //                                        searchConfig.getName().get(0));
+                        //                                if (attributeValue != null && !attributeValue.isBlank()) {
+                        //                                    savedReferences.put(searchConfig.getName().get(0),
+                        // attributeValue);
+                        //                                }
+                        //                            }
+                        //                        } catch (Exception e) {
+                        //                            System.out.println(
+                        //                                    String.format("WebDriver cannot read this format: %s",
+                        // searchConfig.getName()));
+                        //                        }
                     }
                     case xpath -> System.out.println("xpath case");
                     case coordinates -> System.out.println("coordinates case");
@@ -1231,44 +1362,78 @@ public class ABRScannedElementPane extends ABRPane {
         // The JavaScript code to be injected
         try {
             // Navigate to the target page
-            driver.get("https://www.ca-nextbank.ch/en/contact");
+            //            driver.get("https://www.ca-nextbank.ch/en/contact");
 
             // The JavaScript code to be injected
-            String jsCode = "const hint = document.createElement('div');" + "hint.id = 'hint';"
-                    + "hint.className = 'hint';"
-                    + "document.body.appendChild(hint);"
-                    + "const style = document.createElement('style');"
-                    + "style.innerHTML = ` .hint {"
-                    + "  position: absolute;"
-                    + "  background-color: #f9f9f9;"
-                    + "  border: 1px solid #ccc;"
-                    + "  padding: 5px;"
-                    + "  border-radius: 3px;"
-                    + "  display: none;"
-                    + "  z-index: 1000;"
-                    + "} `;"
-                    + "document.head.appendChild(style);"
-                    + "document.body.addEventListener('mouseover', function(event) {"
-                    + "  const target = event.target;"
-                    + "  let hintText = `Tag: ${target.tagName.toLowerCase()}`;"
-                    + "  if (target.type) {"
-                    + "    hintText += `, Type: ${target.type}`;"
-                    + "  }"
-                    + "  if (target.innerText) {"
-                    + "    hintText += `, Text: ${target.innerText}`;"
-                    + "  }"
-                    + "  hint.innerText = hintText;"
-                    + "  hint.style.display = 'block';"
-                    + "  hint.style.left = event.pageX + 'px';"
-                    + "  hint.style.top = event.pageY + 'px';"
-                    + "});"
-                    + "document.body.addEventListener('mousemove', function(event) {"
-                    + "  hint.style.left = event.pageX + 'px';"
-                    + "  hint.style.top = event.pageY + 'px';"
-                    + "});"
-                    + "document.body.addEventListener('mouseout', function() {"
-                    + "  hint.style.display = 'none';"
-                    + "});";
+            //            String jsCode = "const hint = document.createElement('div');" + "hint.id = 'hint';"
+            //                    + "hint.className = 'hint';"
+            //                    + "document.body.appendChild(hint);"
+            //                    + "const style = document.createElement('style');"
+            //                    + "style.innerHTML = ` .hint {"
+            //                    + "  position: absolute;"
+            //                    + "  background-color: #f9f9f9;"
+            //                    + "  border: 1px solid #ccc;"
+            //                    + "  padding: 5px;"
+            //                    + "  border-radius: 3px;"
+            //                    + "  display: none;"
+            //                    + "  z-index: 1000;"
+            //                    + "} `;"
+            //                    + "document.head.appendChild(style);"
+            //                    + "document.body.addEventListener('mouseover', function(event) {"
+            //                    + "  const target = event.target;"
+            //                    + "  let hintText = `Tag: ${target.tagName.toLowerCase()}`;"
+            //                    + "  if (target.type) {"
+            //                    + "    hintText += `, Type: ${target.type}`;"
+            //                    + "  }"
+            //                    + "  if (target.innerText) {"
+            //                    + "    hintText += `, Text: ${target.innerText}`;"
+            //                    + "  }"
+            //                    + "  hint.innerText = hintText;"
+            //                    + "  hint.style.display = 'block';"
+            //                    + "  hint.style.left = event.pageX + 'px';"
+            //                    + "  hint.style.top = event.pageY + 'px';"
+            //                    + "});"
+            //                    + "document.body.addEventListener('mousemove', function(event) {"
+            //                    + "  hint.style.left = event.pageX + 'px';"
+            //                    + "  hint.style.top = event.pageY + 'px';"
+            //                    + "});"
+            //                    + "document.body.addEventListener('mouseout', function() {"
+            //                    + "  hint.style.display = 'none';"
+            //                    + "});";
+
+            // JavaScript code to add and remove tooltip functionality
+            String jsCode = "(function() {" + "    var tooltip = document.createElement('div');"
+                    + "    tooltip.style.position = 'absolute';"
+                    + "    tooltip.style.backgroundColor = 'black';"
+                    + "    tooltip.style.color = 'white';"
+                    + "    tooltip.style.padding = '5px';"
+                    + "    tooltip.style.borderRadius = '3px';"
+                    + "    tooltip.style.display = 'none';"
+                    + "    tooltip.style.zIndex = '1000';"
+                    + "    document.body.appendChild(tooltip);"
+                    + "    function showTooltip(event) {"
+                    + "        var tagName = event.target.tagName.toLowerCase();"
+                    + "        tooltip.textContent = tagName;"
+                    + "        tooltip.style.left = event.pageX + 'px';"
+                    + "        tooltip.style.top = (event.pageY + 15) + 'px';"
+                    + "        tooltip.style.display = 'block';"
+                    + "    }"
+                    + "    function hideTooltip() {"
+                    + "        tooltip.style.display = 'none';"
+                    + "    }"
+                    + "    var mouseOverListener = showTooltip;"
+                    + "    var mouseOutListener = hideTooltip;"
+                    + "    window.addTooltipListeners = function() {"
+                    + "        document.addEventListener('mouseover', mouseOverListener);"
+                    + "        document.addEventListener('mouseout', mouseOutListener);"
+                    + "    };"
+                    + "    window.removeTooltipListeners = function() {"
+                    + "        document.removeEventListener('mouseover', mouseOverListener);"
+                    + "        document.removeEventListener('mouseout', mouseOutListener);"
+                    + "        tooltip.style.display = 'none';"
+                    + "    };"
+                    + "    addTooltipListeners();"
+                    + "})();";
 
             // Inject the JavaScript code into the page
             ((JavascriptExecutor) driver).executeScript(jsCode);
@@ -1281,5 +1446,142 @@ public class ABRScannedElementPane extends ABRPane {
             // Close the browser
             driver.quit();
         }
+    }
+
+    private void periodicThread(WebDriver driver) {
+        // JavaScript code to inject
+        //        String jsCode = "(function() {" +
+        //                "    var tooltip = document.createElement('div');" +
+        //                "    tooltip.style.position = 'absolute';" +
+        //                "    tooltip.style.backgroundColor = 'black';" +
+        //                "    tooltip.style.color = 'white';" +
+        //                "    tooltip.style.padding = '5px';" +
+        //                "    tooltip.style.borderRadius = '3px';" +
+        //                "    tooltip.style.display = 'none';" +
+        //                "    tooltip.style.zIndex = '1000';" +
+        //                "    document.body.appendChild(tooltip);" +
+        //                "    function getXPath(element) {" +
+        //                "        if (element.id !== '') {" +
+        //                "            return 'id(\"' + element.id + '\")';" +
+        //                "        }" +
+        //                "        if (element === document.body) {" +
+        //                "            return element.tagName;" +
+        //                "        }" +
+        //                "        var ix = 0;" +
+        //                "        var siblings = element.parentNode.childNodes;" +
+        //                "        for (var i = 0; i < siblings.length; i++) {" +
+        //                "            var sibling = siblings[i];" +
+        //                "            if (sibling === element) {" +
+        //                "                return getXPath(element.parentNode) + '/' + element.tagName + '[' + (ix + 1)
+        // + ']';" +
+        //                "            }" +
+        //                "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {" +
+        //                "                ix++;" +
+        //                "            }" +
+        //                "        }" +
+        //                "        return '';" +
+        //                "    }" +
+        //                "    function showTooltip(event) {" +
+        //                "        var tagName = event.target.tagName.toLowerCase();" +
+        //                "        var xpath = getXPath(event.target);" +
+        //                "        tooltip.textContent = tagName;" +
+        //                "        tooltip.style.left = event.pageX + 'px';" +
+        //                "        tooltip.style.top = (event.pageY + 15) + 'px';" +
+        //                "        tooltip.style.display = 'block';" +
+        //                "        window.currentXPath = xpath;" +
+        //                "    }" +
+        //                "    function hideTooltip() {" +
+        //                "        tooltip.style.display = 'none';" +
+        //                "    }" +
+        //                "    document.addEventListener('mouseover', showTooltip);" +
+        //                "    document.addEventListener('mouseout', hideTooltip);" +
+        //                "})();";
+
+        // JavaScript code to inject
+        String jsCode = "(function() {" + "    var tooltip = document.createElement('div');"
+                + "    tooltip.style.position = 'absolute';"
+                + "    tooltip.style.backgroundColor = 'black';"
+                + "    tooltip.style.color = 'white';"
+                + "    tooltip.style.padding = '5px';"
+                + "    tooltip.style.borderRadius = '3px';"
+                + "    tooltip.style.display = 'none';"
+                + "    tooltip.style.zIndex = '1000';"
+                + "    document.body.appendChild(tooltip);"
+                + "    function getXPath(element) {"
+                + "        if (element.id !== '') {"
+                + "            return 'id(\"' + element.id + '\")';"
+                + "        }"
+                + "        if (element === document.body) {"
+                + "            return element.tagName;"
+                + "        }"
+                + "        var ix = 0;"
+                + "        var siblings = element.parentNode.childNodes;"
+                + "        for (var i = 0; i < siblings.length; i++) {"
+                + "            var sibling = siblings[i];"
+                + "            if (sibling === element) {"
+                + "                return getXPath(element.parentNode) + '/' + element.tagName + '[' + (ix + 1) + ']';"
+                + "            }"
+                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
+                + "                ix++;"
+                + "            }"
+                + "        }"
+                + "        return '';"
+                + "    }"
+                + "    function showTooltip(event) {"
+                + "        var tagName = event.target.tagName.toLowerCase();"
+                + "        tooltip.textContent = tagName;"
+                + "        tooltip.style.left = event.pageX + 'px';"
+                + "        tooltip.style.top = (event.pageY + 15) + 'px';"
+                + "        tooltip.style.display = 'block';"
+                + "    }"
+                + "    function hideTooltip() {"
+                + "        tooltip.style.display = 'none';"
+                + "    }"
+                + "    function handleClick(event) {"
+                + "        var xpath = getXPath(event.target);"
+                + "        window.currentXPath = xpath;"
+                + "    }"
+                + "    document.addEventListener('mouseover', showTooltip);"
+                + "    document.addEventListener('mouseout', hideTooltip);"
+                + "    document.addEventListener('click', handleClick);"
+                + "})();";
+
+        // Inject the JavaScript into the webpage
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        jsExecutor.executeScript(jsCode);
+
+        // Start a thread to periodically check the XPath value and update the TextField
+        new Thread(() -> {
+                    while (true) {
+                        String currentXPath = (String) jsExecutor.executeScript("return window.currentXPath;");
+                        Platform.runLater(() -> xpathTextField.setText(currentXPath));
+                        try {
+                            Thread.sleep(500); // Check every 500 milliseconds
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                })
+                .start();
+    }
+
+    public void injectJumpTab(WebDriver driver) {
+
+        ((JavascriptExecutor) driver)
+                .executeScript("var inputs = document.getElementsByTagName('input');"
+                        + "for (var i = 0; i < inputs.length; i++) {"
+                        + "    inputs[i].scrollIntoView();"
+                        + "}");
+    }
+
+    public List<WebElement> searchAllInputs(WebDriver driver) {
+        // Execute JavaScript to find all input elements
+        String script = "var inputs = document.getElementsByTagName('input');" + "return inputs;";
+        List<WebElement> inputElements = (List<WebElement>) ((JavascriptExecutor) driver).executeScript(script);
+
+        // Print the number of input elements found
+        System.out.println("Number of input elements: " + inputElements.size());
+
+        return inputElements;
     }
 }

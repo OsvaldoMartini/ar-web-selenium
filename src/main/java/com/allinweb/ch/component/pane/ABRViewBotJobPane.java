@@ -9,6 +9,7 @@ import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
+import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.util.ABRConstants;
@@ -41,6 +42,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private BotJobDTO botJob;
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
     Button refreshButton;
+    Button addWaitButton;
     Button openScannerButton;
     Button editBotJobButton;
     Button launchBotJobButton;
@@ -69,6 +71,8 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIComponents() {
+        this.addWaitButton = builder.buildButton(
+                "Add Wait", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
         this.refreshButton = builder.buildButton(
                 "Refresh", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.openScannerButton = builder.buildButton(
@@ -104,6 +108,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 .addAll(
                         refreshButton,
                         this.openScannerButton,
+                        this.addWaitButton,
                         this.editBotJobButton,
                         this.launchBotJobButton,
                         this.saveBotJobButton,
@@ -155,6 +160,7 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIBehaviour() {
+        addWaitButton.setOnAction(e -> addWaitTask(30));
         refreshButton.setOnMouseClicked(e -> {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
@@ -369,5 +375,44 @@ public class ABRViewBotJobPane extends ABRPane {
 
     public BotJobDTO getBotJobDTO() {
         return this.botJob;
+    }
+
+    private void addWaitTask(Integer secondsToWait) {
+        Alert alert = new Alert(
+                Alert.AlertType.CONFIRMATION,
+                "Are you sure you want to add a wait of 30 seconds to the botjob?",
+                ButtonType.YES,
+                ButtonType.NO);
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.YES) {
+            Task<Void> waitTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    List<BlockLoopInstructionDTO> instructionList =
+                            botJob.getBlocks().get(0).getBlockLoopInstructions();
+                    BlockLoopInstructionDTO waitInstruction = new BlockLoopInstructionDTO();
+                    waitInstruction.setName("Wait " + secondsToWait + "second(s)");
+                    waitInstruction.setDescription("Waiting action");
+                    waitInstruction.setEncrypted(false);
+                    waitInstruction.setInstructionOrderNumber(instructionList.size());
+                    waitInstruction.setOptional(false);
+                    waitInstruction.setActions(ABRConstants.HOLD);
+                    waitInstruction.setOnHoldSeconds(secondsToWait);
+                    waitInstruction.setBlock(botJob.getBlocks().get(0));
+                    waitInstruction.setExportToABR(false);
+                    ABRSharedResources.getInstance()
+                            .addEntity(
+                                    waitInstruction,
+                                    BlockLoopInstructionDTO.class,
+                                    () -> new ABRAlertScene(
+                                            Alert.AlertType.INFORMATION,
+                                            "Instruction Added",
+                                            "Instruction Wait 30 second(s) has been added successfully",
+                                            ButtonType.OK));
+                    return null;
+                }
+            };
+            new Thread(waitTask).start();
+        }
     }
 }
