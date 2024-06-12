@@ -10,3 +10,21 @@
     // Param Config for Debugging
     -c "C:/ABRWeb/ABRWeb.config"
 ```
+
+
+
+        // Find elements with ID containing 'mat-input'
+//
+List<WebElement> elements = driver.findElements(By.xpath("//*[contains(@id, 'mat-input')]"));
+// Find elements with ID starting with 'mat-input'
+List<WebElement> elements = driver.findElements(By.cssSelector("[id^='mat-input']"));
+
+
+        // Iterate through the elements and print their IDs
+        for (WebElement element : elements) {
+            System.out.println("Element ID: " + element.getAttribute("id"));
+        }
+
+        // Close the driver
+        driver.quit();
+    }
