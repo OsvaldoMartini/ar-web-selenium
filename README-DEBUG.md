@@ -28,3 +28,18 @@ List<WebElement> elements = driver.findElements(By.cssSelector("[id^='mat-input'
         // Close the driver
         driver.quit();
     }
+	
+	
+	#numero priorità, categoria, identificativo
+1,attribute,id
+2,xpath,xpath
+3,coordinates,coordinates
+
+	
+	#numero priorità, categoria, criterioricerca
+1,ByXPath,//a[@href],a[href]
+2,ByAttribute,test-id
+3,ByChained,By.tagName:button,By.className:mdc-button
+4,ByTagName,button,label,a
+5,ByTagName,input
+	
