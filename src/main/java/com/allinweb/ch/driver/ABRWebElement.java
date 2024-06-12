@@ -81,7 +81,8 @@ public class ABRWebElement {
         abrPriorities = ABRPriorities.getInstance();
     }
 
-    public ABRWebElement(WebElement element) {
+    public ABRWebElement(WebElement element, int jobId) {
+        abrPriorities.setJobId(jobId);
         initFromWebElement(element);
     }
 

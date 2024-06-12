@@ -69,14 +69,6 @@
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.12</version>
         </dependency>
-        <dependency>
-            <groupId>com.javafx</groupId>
-            <artifactId>javafx.controls</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/javafx.controls.jar</systemPath>
-        </dependency>
-
     </dependencies>
 
     <build>

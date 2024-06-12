@@ -13,6 +13,8 @@ public class DatabaseUserDTO {
     private StringProperty username;
     private StringProperty password;
 
+    public DatabaseUserDTO() {}
+
     public DatabaseUserDTO(
             String id,
             String jobs,

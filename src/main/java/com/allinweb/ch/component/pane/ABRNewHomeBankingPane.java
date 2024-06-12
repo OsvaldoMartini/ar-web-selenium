@@ -156,6 +156,26 @@ public class ABRNewHomeBankingPane extends ABRPane {
             loadUserData();
         });
 
+        Button templateButton = new Button("Template");
+        templateButton.setOnAction(event -> {
+            StringBuilder priorities = new StringBuilder();
+            priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
+            priorities.append("1,attribute,test-id" + System.lineSeparator());
+            priorities.append("2,xpath,xpath" + System.lineSeparator());
+            priorities.append("3,coordinates,coordinates" + System.lineSeparator());
+            priorityField.setText(priorities.toString());
+
+            StringBuilder searchCriteria = new StringBuilder();
+            searchCriteria.append("#numero priorità, categoria, criterioricerca" + System.lineSeparator());
+            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
+            searchCriteria.append("2,ByChained,By.tagName:input" + System.lineSeparator());
+            searchCriteria.append("3,ByChained,By.tagName:button" + System.lineSeparator());
+            searchCriteria.append("4,ByTagName,button,label,a" + System.lineSeparator());
+            searchCriteria.append("5,ByTagName,input" + System.lineSeparator());
+            searchConfigField.setText(searchCriteria.toString());
+            loadUserData();
+        });
+
         // Create layout and add components
         GridPane gridPane = new GridPane();
         gridPane.setHgap(10); // Horizontal gap between columns
@@ -182,7 +202,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
         gridPane.add(searchConfigLabel, 0, 6);
         gridPane.add(searchConfigField, 1, 6, 1, 2); // Span the TextArea over 2 rows
 
-        HBox buttonsBox = new HBox(10, submitButton, updateButton, deleteButton);
+        HBox buttonsBox = new HBox(10, submitButton, updateButton, deleteButton, templateButton);
         buttonsBox.setAlignment(Pos.CENTER);
         buttonsBox.setSpacing(10); // Horizontal spacing between buttons
 
@@ -452,7 +472,13 @@ public class ABRNewHomeBankingPane extends ABRPane {
                     System.out.println("No matching record found to update.");
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                showAlert(
+                        Alert.AlertType.ERROR,
+                        "MAX CARACTERES LIMIT FOR ACCESS",
+                        String.format(
+                                "This '%s' \n cannot be updated with same name.\nError: %s",
+                                searchConfig, e.getMessage()));
+                return;
             }
         } catch (NumberFormatException e) {
             System.out.println("Invalid ID format.");

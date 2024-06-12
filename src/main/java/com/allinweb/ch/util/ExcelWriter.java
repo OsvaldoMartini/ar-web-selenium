@@ -34,7 +34,7 @@ public class ExcelWriter {
         if (!excelFolder.exists()) {
             excelFolder.mkdirs();
         }
-        generateUnfilteredCSVFile(botJob);
+        //        generateUnfilteredCSVFile(botJob);
         generateUnfilteredExcelFile(botJob);
         generateFilteredExcelFile(botJob);
     }

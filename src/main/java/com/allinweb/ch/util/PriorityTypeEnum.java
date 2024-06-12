@@ -2,12 +2,15 @@ package com.allinweb.ch.util;
 
 public enum PriorityTypeEnum {
     attribute,
+    ByAttribute, // NEW
     xpath,
     coordinates,
     ById,
     ByClassName,
     ByName,
     ByTagName,
+
+    ByChained,
     ByLinkText,
     ByPartialLinkText,
     ByCssSelector, //      ".nav-menu li";

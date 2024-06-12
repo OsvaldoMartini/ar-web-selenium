@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.ABRWebElementListCell;
@@ -11,13 +12,21 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.driver.ABRWebElement;
 import com.allinweb.ch.persistence.*;
+import com.allinweb.ch.readersAndWriters.ExcelReader;
+import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.*;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.*;
+import java.util.Date;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
@@ -33,18 +42,41 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javax.net.ssl.*;
+import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.RemoteWebElement;
+import org.openqa.selenium.support.pagefactory.ByChained;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Wait;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ABRScannedElementPane extends ABRPane {
+    private Connection conn = null;
 
+    private static Wait<WebDriver> waitForPage;
+    private static Wait<WebDriver> waitForAction;
+    private boolean justCalledRefreshPage = false;
+
+    private static File baseLogFile = null;
+    private static SimpleDateFormat dateFormatter;
+
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final int MIN_LENGTH = 3;
+    private static final int MAX_LENGTH = 30;
+    private static final Random RANDOM = new Random();
+
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
     private static final Double LIST_VIEW_WIDTH = 350D;
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
+
+    private DatabaseUserDTO databaseUserDto;
 
     private ABRWebDriver abrWebDriver;
     private BotJobDTO botJob;
@@ -65,6 +97,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Button addCloseActionButton;
     private Button addScreenButton;
     private Button configureButton;
+    private Button launchBotJobButton;
     private Button refreshInputFieldsButton;
     private Button refreshOutputFieldsButton;
     private Button refreshOtherFieldsButton;
@@ -151,6 +184,9 @@ public class ABRScannedElementPane extends ABRPane {
         configureButton = componentBuilder.buildButton(
                 "Config", ABRConstants.SPACE_M, ABRConstants.ICON_CONFIG, ABRConstants.SPACE_M, new Insets(5.0D));
 
+        launchBotJobButton = componentBuilder.buildButton(
+                "Launch Test", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
+
         checkActiveHover = new CheckBox("Identify");
 
         xpathTextField = new TextField();
@@ -166,8 +202,7 @@ public class ABRScannedElementPane extends ABRPane {
                         addCloseActionButton,
                         addScreenButton,
                         configureButton,
-                        checkActiveHover,
-                        xpathTextField);
+                        launchBotJobButton);
         addNodesToPane(topPane, buttonBox);
 
         //        addNodesToPane(contentPane, refreshInputFieldsButton, refreshOutputFieldsButton,
@@ -259,7 +294,9 @@ public class ABRScannedElementPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
+        //        configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
         configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
+        launchBotJobButton.setOnMouseClicked(e -> executeJob());
         checkActiveHover.setOnMouseClicked(e -> handleHoverCheckClick());
         scanButton.setOnAction(e -> manageUIScan());
         addWaitButton.setOnAction(e -> addWaitTask(30));
@@ -274,7 +311,7 @@ public class ABRScannedElementPane extends ABRPane {
         scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
         scannedElements3.getItems().addListener(this::addBehaviourToAddedElements);
 
-        manageUIScan();
+        //        manageUIScan();
     }
 
     private void handleHoverCheckClick() {
@@ -290,10 +327,10 @@ public class ABRScannedElementPane extends ABRPane {
         webElementObservableList1.clear();
         webElementObservableList2.clear();
         webElementObservableList3.clear();
-        //        manageUIScanPriorities();
-        //        manageUIScanInputs();
-        //        manageUIScanClickable();
-        //        manageUIScanOutputs();
+        manageUIScanPriorities();
+        manageUIScanInputs();
+        manageUIScanClickable();
+        manageUIScanOutputs();
     }
 
     private void manageUIScanInputs() {
@@ -318,7 +355,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        manageUIScanPrioritiesJSoup();
         //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
         try {
-            if (webElements != null) {
+            if (webElements != null && webElements.size() > 0) {
                 scanABRElementsAsync(webElements, webElementObservableList3);
             }
         } catch (Exception e) {
@@ -363,96 +400,102 @@ public class ABRScannedElementPane extends ABRPane {
                     List<WebElement> scannedElementList = new ArrayList<>();
                     if (preElements != null && preElements.size() > 0) {
                         scannedElementList.addAll(preElements);
-                    } else {
+                    } else if (criteria != null) {
                         scannedElementList = abrWebDriver.scan(criteria);
                     }
 
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine("Scan of elements for criteria: " + criteria + " ended");
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .finer("list of scanned elements has " + scannedElementList.size() + " elements");
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine("Starting mapping of web elements into ABRWebElements for criteria: " + criteria);
-
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine("Reduces to the Limit of ABRWebElements : " + 50);
-                    List<WebElement> scannedElementListReduced = scannedElementList.size() > 50
-                            ? new ArrayList<>(scannedElementList.subList(0, 50))
-                            : scannedElementList;
-                    List<ABRWebElement> listABRElements = null;
-                    try {
-                        listABRElements = scannedElementListReduced.stream()
-                                .filter(element -> element != null) // Filter out null elements
-                                .map(ABRWebElement::new)
-                                .collect(Collectors.toList());
-
-                    } catch (Exception e) {
-                        System.out.println("Error ABRWebElement creation" + e.getMessage());
-                    }
-
-                    if (preElements == null) {
-
-                        // Saved REferences From Priorities
-                        // Update the savedReferences field for each element in the stream
-                        // Iterate over the list to update the savedReferences field
-                        //                        for (ABRWebElement element : listABRElements) {
-
-                        if (listABRElements != null && listABRElements.size() > 0) {
-                            //
-                            // buildPriorityReferences(listABRElements);saveReferencesToFile(
-                            ////
-                            // "C:\\Projects\\Martini\\abr-web-selenium\\savedRef.txt", listABRElements);
-                            //
-                        }
-                        // Update the savedReferences field
-                        //                            element.getSavedReferences().put("key", "value");
-
-                        //                        }
-                    }
-
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine("mapping of web elements into ABRWebElements for criteria: " + criteria + " ended");
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .finer("Checking filtering condition != null: " + (filterCondition != null));
-                    //                    if (filterCondition != null) {
-                    //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting
-                    // filtering elements");
-                    //                        stream = stream.filter(filterCondition);
-                    //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Filtering
-                    // elements ended");
-                    //                    }
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting loop to add ABRWebElements");
-                    if (listABRElements != null) {
-
-                        for (ABRWebElement element : listABRElements) {
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("sending add request to JavaFX thread");
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .finer("sending add request to JavaFX thread for ABRWebElement with xPath: "
-                                            + element.getXPath());
-                            Platform.runLater(() -> {
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .fine("JAVAFX Thread: adding element to list");
-                                listToAddElements.add(element);
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .fine("JAVAFX Thread: element added");
-                            });
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
-                                            + element.getXPath());
-                            Thread.sleep(100);
-                        }
-                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Loop to add ABRWebElements ended");
+                    if (scannedElementList != null && scannedElementList.size() > 0) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine("sending bar removal request to JAVAFX thread");
+                                .fine("Scan of elements for criteria: " + criteria + " ended");
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .finer("list of scanned elements has " + scannedElementList.size() + " elements");
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .fine("Starting mapping of web elements into ABRWebElements for criteria: " + criteria);
+
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .fine("Reduces to the Limit of ABRWebElements : " + 50);
+                        List<WebElement> scannedElementListReduced = scannedElementList.size() > 50
+                                ? new ArrayList<>(scannedElementList.subList(0, 50))
+                                : scannedElementList;
+                        List<ABRWebElement> listABRElements = null;
+                        try {
+                            listABRElements = scannedElementListReduced.stream()
+                                    .filter(element -> element != null) // Filter out null elements
+                                    .map(element -> new ABRWebElement(element, botJob.getId()))
+                                    .collect(Collectors.toList());
+
+                        } catch (Exception e) {
+                            System.out.println("Error ABRWebElement creation" + e.getMessage());
+                        }
+
+                        if (preElements == null) {
+
+                            // Saved REferences From Priorities
+                            // Update the savedReferences field for each element in the stream
+                            // Iterate over the list to update the savedReferences field
+                            //                        for (ABRWebElement element : listABRElements) {
+
+                            if (listABRElements != null && listABRElements.size() > 0) {
+                                //
+                                // buildPriorityReferences(listABRElements);saveReferencesToFile(
+                                ////
+                                // "C:\\Projects\\Martini\\abr-web-selenium\\savedRef.txt", listABRElements);
+                                //
+                            }
+                            // Update the savedReferences field
+                            //                            element.getSavedReferences().put("key", "value");
+
+                            //                        }
+                        }
+
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .fine("mapping of web elements into ABRWebElements for criteria: " + criteria
+                                        + " ended");
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .finer("Checking filtering condition != null: " + (filterCondition != null));
+                        //                    if (filterCondition != null) {
+                        //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting
+                        // filtering elements");
+                        //                        stream = stream.filter(filterCondition);
+                        //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Filtering
+                        // elements ended");
+                        //                    }
+                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting loop to add ABRWebElements");
+                        if (listABRElements != null) {
+
+                            for (ABRWebElement element : listABRElements) {
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .fine("sending add request to JavaFX thread");
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .finer("sending add request to JavaFX thread for ABRWebElement with xPath: "
+                                                + element.getXPath());
+                                Platform.runLater(() -> {
+                                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                                            .fine("JAVAFX Thread: adding element to list");
+                                    listToAddElements.add(element);
+                                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                                            .fine("JAVAFX Thread: element added");
+                                });
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
+                                                + element.getXPath());
+                                Thread.sleep(100);
+                            }
+                            ABRLogger.getInstance(ABRScannedElementPane.class).fine("Loop to add ABRWebElements ended");
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine("sending bar removal request to JAVAFX thread");
+                        }
+                        Platform.runLater(() -> {
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine("JAVAFX Thread: start removing bar");
+                            removeNodesFromPane(bottomPane, progressBar);
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine("JAVAFX Thread: removing bar ended");
+                        });
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .fine("bar removal request to JAVAFX thread ended");
                     }
-                    Platform.runLater(() -> {
-                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("JAVAFX Thread: start removing bar");
-                        removeNodesFromPane(bottomPane, progressBar);
-                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("JAVAFX Thread: removing bar ended");
-                    });
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine("bar removal request to JAVAFX thread ended");
+
                 } catch (Exception e) {
                     ABRLogger.getInstance(Thread.class)
                             .severe("an exception has occurred in the thread for criteria " + criteria + ": Message: "
@@ -806,6 +849,10 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private List<WebElement> managePrioritiesCriteria() {
+        // Gets Alwasy the Latest info form DB
+        loadUserData(botJob.getHomeBanking().getId());
+        abrPriorities.loadSearchElementsConfig(databaseUserDto.getSearchConfig());
+
         List<WebElement> elementsResponse = new ArrayList<>();
         if (abrPriorities.getSearchConfigList() == null) {
             System.out.println("Is going to Search using \"searchConfigTemplate\"!  Please Add to the DB");
@@ -1000,7 +1047,13 @@ public class ABRScannedElementPane extends ABRPane {
                         elementsResponse.addAll(finalList);
                         finalList.clear();
                     }
-                    case attribute -> {
+                    case ByAttribute -> {
+                        //                        String attributeValue =
+                        //                                element.getAttribute(priority.getName().get(0));
+                        //                        if (attributeValue != null && !attributeValue.isBlank()) {
+                        //                            savedReferences.put(priority.getName().get(0), attributeValue);
+                        //                        }
+
                         List<String> names = searchConfig.getName();
 
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
@@ -1074,6 +1127,64 @@ public class ABRScannedElementPane extends ABRPane {
                                 System.out.println(String.format("WebDriver cannot read this format: %s", name));
                             }
                         }
+                        // Iterate over the selected links
+                        //                          savedReferences.put(text, url);
+                        elementsResponse.addAll(finalList);
+                        finalList.clear();
+
+                        //                        try {
+                        //                            webElements = abrWebDriver.scan(By.cssSelector("[" +
+                        // searchConfig.getName() + "]"));
+                        //                            webElements = abrWebDriver
+                        //                                    .getDriver()
+                        //                                    .findElements(By.xpath("//*[@" + searchConfig.getName() +
+                        // "]"));
+                        //                            // Add elements from the first list to the set
+                        //                            for (WebElement element : webElements) {
+                        //                                String attributeValue = element.getAttribute(
+                        //                                        searchConfig.getName().get(0));
+                        //                                if (attributeValue != null && !attributeValue.isBlank()) {
+                        //                                    savedReferences.put(searchConfig.getName().get(0),
+                        // attributeValue);
+                        //                                }
+                        //                            }
+                        //                        } catch (Exception e) {
+                        //                            System.out.println(
+                        //                                    String.format("WebDriver cannot read this format: %s",
+                        // searchConfig.getName()));
+                        //                        }
+                    }
+                    case ByChained -> {
+                        String input = String.join(",", searchConfig.getName());
+                        //                        String input = "By.tagName:input,By.id:id_Start,By.className:blabla";
+
+                        // Parse the input string and create By objects
+                        By[] locators = parseLocators(input);
+
+                        // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
+                        try {
+                            searchingElems = abrWebDriver.getDriver().findElements(new ByChained(locators));
+                            for (WebElement element : searchingElems) {
+                                String labelText = element.getText();
+                                String associatedText = "";
+
+                                // Get the value of the 'for' attribute
+                                String forAttribute = element.getAttribute("for");
+                                if (forAttribute != null) {
+                                    // Find the associated element using the 'for' attribute value
+                                    WebElement associatedElement =
+                                            abrWebDriver.getDriver().findElement(By.id(forAttribute));
+                                    associatedText = getElementText(associatedElement);
+                                }
+                                if (!Strings.isNullOrEmpty(associatedText)) {
+                                    labelText = labelText + "\n" + associatedText;
+                                }
+                                finalList.add(element);
+                            }
+                        } catch (Exception e) {
+                            System.out.println("WebDriver cannot read this format");
+                        }
+
                         // Iterate over the selected links
                         //                          savedReferences.put(text, url);
                         elementsResponse.addAll(finalList);
@@ -1586,5 +1697,899 @@ public class ABRScannedElementPane extends ABRPane {
         System.out.println("Number of input elements: " + inputElements.size());
 
         return inputElements;
+    }
+
+    private static By[] parseLocators(String input) {
+        // Split the input string by commas to get individual locator strings
+        String[] locatorStrings = input.split(",");
+
+        // List to hold the By objects
+        List<By> byList = new ArrayList<>();
+
+        // Loop through each locator string
+        for (String locatorString : locatorStrings) {
+            // Split each locator string by colon to separate the type and value
+            String[] parts = locatorString.split(":");
+
+            // Get the type and value
+            String type = parts[0].replace("By.", "").toUpperCase();
+            String value = parts[1];
+
+            // Create the By object based on the type
+            switch (LocatorType.valueOf(type)) {
+                case TAGNAME:
+                    byList.add(By.tagName(value));
+                    break;
+                case ID:
+                    byList.add(By.id(value));
+                    break;
+                case CLASSNAME:
+                    byList.add(By.className(value));
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported locator type: " + type);
+            }
+        }
+
+        // Convert the list to an array and return
+        return byList.toArray(new By[0]);
+    }
+
+    public enum LocatorType {
+        TAGNAME,
+        ID,
+        CLASSNAME
+    }
+
+    private void loadUserData(int bankId) {
+        String selectSQL = " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, username, password "
+                + " FROM home_banking bank "
+                + " left join bot_job bot on bot.home_banking_id = bank.id "
+                + " WHERE bank.id = " + bankId
+                + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.username, bank.password ";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                String id = rs.getString("ID");
+                String jobs = rs.getString("Jobs");
+                String name = rs.getString("Name");
+                String url = rs.getString("Url");
+                String priority = rs.getString("Priority");
+                String searchConfig = rs.getString("searchConfig");
+                String username = rs.getString("username");
+                String password = rs.getString("password");
+                databaseUserDto = new DatabaseUserDTO(id, jobs, name, url, priority, searchConfig, username, password);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        //        jobUserList.clear();
+        //        loadBotJobData();
+    }
+
+    private Connection getConnection() {
+        if (conn == null) {
+            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+            String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            try {
+                conn = DriverManager.getConnection(dbUrl);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return conn;
+    }
+
+    private void executeJob() {
+        if (waitForPage == null) {
+            String updateTimeout =
+                    ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+            String interactionTimeout =
+                    ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+            waitForPage =
+                    new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
+            waitForAction = new WebDriverWait(
+                    abrWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
+        }
+
+        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
+        String enginePath = managerProps.getProperty(ABRPropertyEnum.PATH_ENGINE) + "\\ABR_Web_Engine.jar";
+        String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+        excelPath = excelPath + "\\" + this.botJob.getName() + ".xlsx";
+        if (!(new File(excelPath)).exists()) {
+            new ABRAlertScene(
+                    Alert.AlertType.WARNING,
+                    "Missing file excel",
+                    "Please generate and compile the data of the file excel first before launching the bot job",
+                    new ButtonType[] {ButtonType.OK});
+        }
+
+        Labels.initializeLabelsInSpecLang("en");
+        Properties labelsValue = Labels.labelsValue;
+
+        ExcelReader excelReader = new ExcelReader();
+        ExtractedData extractedData = null;
+        try {
+            extractedData = excelReader.extractData(excelPath, botJob);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (extractedData.getErrorMessage() != null) {
+            //				showAlert("Excel Data File", "Warning: Excel File exist" , "Fields in the excel not matching the
+            // botjob requirements");
+            System.out.println("Fields in the excel not matching the botjob requirements");
+        }
+
+        Set<String> blockClickables = botJob.getBlocks().stream()
+                .map(BlockDTO::getBlockLoopInstructions)
+                .reduce((identity, accumulated) -> {
+                    accumulated.addAll(identity);
+                    return accumulated;
+                })
+                .get()
+                .stream()
+                .map(BlockLoopInstructionDTO::getActions)
+                .filter(action -> action.contains(Constants.CLICK))
+                .collect(Collectors.toSet());
+
+        String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
+        //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
+
+        String baseLogString = botJob.getName() + Constants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
+        printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+
+        boolean success = true;
+        long botJobStartTime = System.nanoTime();
+        long totalExecutionTime = 0;
+        String lastInstructionExecuted = "No istruction executed yet";
+        short status;
+
+        if (extractedData.getNumberOfDataRows() > 0) {
+            for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
+                List<BlockDTO> blockList = botJob.getBlocks();
+                for (int j = 0; success && j < blockList.size(); j++) {
+                    for (BlockLoopInstructionDTO currentInstruction :
+                            blockList.get(j).getBlockLoopInstructions()) {
+                        long currentInstructionStartTime = System.nanoTime();
+                        File logFileForSingleExcel = excelReader.createLogFile(excelPath);
+                        Map<String, String> data = extractedData.getRowFieldValues(i);
+                        try {
+                            lastInstructionExecuted = currentInstruction.getName()
+                                    + Constants.BLANK_STRING
+                                    + currentInstruction.getPath();
+                            performActions(data, currentInstruction);
+                            long currentInstructionEndTime = System.nanoTime();
+
+                            totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
+                            System.out.println("SUCCESSFUL INSTRUCTION on element: " + lastInstructionExecuted);
+
+                        } catch (Throwable t) {
+                            success = false;
+                            if (currentInstruction.isOptional()) {
+                                long currentInstructionEndTime = System.nanoTime();
+                                System.err.println(
+                                        "FAILED OPTIONAL INSTRUCTION on element: " + lastInstructionExecuted);
+                            } else {
+                                long currentInstructionEndTime = System.nanoTime();
+                                System.out.println(
+                                        "FAILED MANDATORY INSTRUCTION on element: " + lastInstructionExecuted);
+                            }
+                            throw new RuntimeException(t);
+                        }
+                        printLog(generateTimestamp(), logFileForSingleExcel, data, success);
+                    }
+                }
+            }
+        } else {
+            List<BlockDTO> blockList = botJob.getBlocks();
+
+            // Creating Dynamic Data if Default is Null
+            Map<String, String> dataDynamic = new HashMap<>();
+            for (BlockDTO blockDTO : blockList) {
+                for (BlockLoopInstructionDTO currentInstruction : blockDTO.getBlockLoopInstructions()) {
+                    if (currentInstruction.getDefaultValue() == null) {
+                        String[] arr = UtilsMethods.splitIfContains(
+                                currentInstruction.getActions(), Constants.ACTION_SPECIFICATIONS_SPLITTER);
+                        if (arr.length > 1) {
+                            String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+                            insertRandomName(dataDynamic, dataFieldName);
+                        }
+                    }
+                }
+            }
+            for (int j = 0; success && j < blockList.size(); j++) {
+                for (BlockLoopInstructionDTO currentInstruction :
+                        blockList.get(j).getBlockLoopInstructions()) {
+                    long currentInstructionStartTime = System.nanoTime();
+                    File logFileForSingleExcel = excelReader.createLogFile(excelPath);
+                    try {
+                        lastInstructionExecuted =
+                                currentInstruction.getName() + Constants.BLANK_STRING + currentInstruction.getPath();
+                        performActions(dataDynamic, currentInstruction);
+                        long currentInstructionEndTime = System.nanoTime();
+                        totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
+                        System.out.println("SUCCESSFUL INSTRUCTION on element: " + lastInstructionExecuted);
+
+                    } catch (Throwable t) {
+                        success = false;
+                        if (currentInstruction.isOptional()) {
+                            long currentInstructionEndTime = System.nanoTime();
+                            System.err.println("FAILED OPTIONAL INSTRUCTION on element: " + lastInstructionExecuted);
+                        } else {
+                            long currentInstructionEndTime = System.nanoTime();
+                            System.out.println("FAILED MANDATORY INSTRUCTION on element: " + lastInstructionExecuted);
+                        }
+
+                        throw new RuntimeException(t);
+                    }
+                    printLog(generateTimestamp(), logFileForSingleExcel, dataDynamic, success);
+                }
+            }
+        }
+
+        if (totalExecutionTime == 0) {}
+
+        // PRINT END BASE LOG//
+        if (success) {
+            baseLogString = botJob.getName()
+                    + Constants.FIELDS_SEPARATOR
+                    + labelsValue.getProperty(Labels.END)
+                    + Constants.FIELDS_SEPARATOR
+                    + labelsValue.getProperty(Labels.OK);
+        } else {
+            baseLogString = botJob.getName()
+                    + Constants.FIELDS_SEPARATOR
+                    + labelsValue.getProperty(Labels.END)
+                    + Constants.FIELDS_SEPARATOR
+                    + labelsValue.getProperty(Labels.KO)
+                    + lastInstructionExecuted;
+        }
+        printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+    }
+
+    private static void printBaseLog(File logFile, String timeStamp, String msg) {
+        String resultMsg;
+        String log = String.join(Constants.FIELDS_SEPARATOR, timeStamp, msg);
+
+        try {
+            FileWriter fileWriter = new FileWriter(logFile, true);
+            fileWriter.write(log + System.lineSeparator());
+            fileWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static String generateTimestamp() {
+        Date date = new Date();
+        dateFormatter = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+        return dateFormatter.format(date);
+    }
+
+    private static void printLog(String timeStamp, File logFile, Map<String, String> data, boolean result) {
+        String resultMsg = result ? Constants.SUCCESS : Constants.FAIL;
+        String log = String.join(Constants.FIELDS_SEPARATOR, data.toString(), timeStamp, resultMsg);
+
+        try {
+            FileWriter fileWriter = new FileWriter(logFile, true);
+            fileWriter.write(log + System.lineSeparator());
+            fileWriter.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void insertRandomName(Map<String, String> map, String key) {
+        String randomName = generateRandomName();
+        map.put(key, randomName);
+    }
+
+    public static String generateRandomName() {
+        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
+        StringBuilder nameBuilder = new StringBuilder(length);
+
+        for (int i = 0; i < length; i++) {
+            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
+            nameBuilder.append(randomChar);
+        }
+
+        return nameBuilder.toString();
+    }
+
+    public void performActions(Map<String, String> data, BlockLoopInstructionDTO instruction) throws Exception {
+        WebElement instructionElement = null;
+        String[] actions = instruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
+
+        if (!StringUtils.isBlank(instruction.getPath())) {
+            instructionElement = locateElement(instruction, data);
+        }
+
+        if (instructionElement != null) {
+            for (String action : actions) {
+                switch (String.valueOf(action.charAt(0))) {
+                    case Constants.VISUALIZE:
+                        scrollToElement(instructionElement);
+                        break;
+                    case Constants.CLICK:
+                        clickElement(instructionElement);
+                        break;
+                    case Constants.INSERT:
+                        insertInElement(instructionElement, data, action, instruction);
+                        break;
+                    case Constants.LIST_OPERATION:
+                        listOperation(instruction, data);
+                        break;
+                    case Constants.HOLD:
+                        onHoldForSeconds(instruction);
+                        break;
+                    case Constants.REFRESH:
+                        refreshPage();
+                        break;
+                    case Constants.QUIT:
+                        quit(0);
+                        break;
+                    case Constants.EXTRACT:
+                        insertValueFieldNameInExcel(instructionElement, instruction, action);
+                        break;
+                    case Constants.SCREEN:
+                        break;
+                }
+                onHoldForSeconds(null);
+            }
+        } else {
+            executeActionsAtInstructionCoordinates(instruction, data);
+            onHoldForSeconds(null);
+        }
+    }
+
+    private WebElement locateElement(BlockLoopInstructionDTO instruction, Map<String, String> data) throws Exception {
+
+        String instructionPath = instruction.getPath();
+        String tagName = null;
+        try {
+            tagName = removeTrailingSlash(instructionPath);
+            tagName = extractTagName(instructionPath);
+        } catch (Exception e) {
+            System.out.println("Error trying to get tagName" + e.getMessage());
+        }
+        List<InstructionReferenceDTO> instructionReferenceList = instruction.getInstructionReferenceDTOList();
+
+        waitPage();
+
+        // If Not Loaded get if the JobId Changed
+        if (abrPriorities.getJobId() == null) {
+            abrPriorities.setJobId(instruction.getBlock().getBotJob().getId());
+            if (instruction.getBlock().getBotJob().getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(
+                        instruction.getBlock().getBotJob().getPriority());
+            } else {
+                abrPriorities.loadPriorities();
+            }
+        } else if (abrPriorities.getJobId()
+                != instruction.getBlock().getBotJob().getId()) {
+            abrPriorities.setJobId(instruction.getBlock().getBotJob().getId());
+            if (instruction.getBlock().getBotJob().getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(
+                        instruction.getBlock().getBotJob().getPriority());
+            } else {
+                abrPriorities.loadPriorities();
+            }
+        }
+
+        List<com.allinweb.ch.util.Priority> priorityList = abrPriorities.getAllPriorityList();
+        if (abrPriorities.getAllPriorityList().size() > 0) {
+
+            //            if (instruction.getActionCustomMaxWaitSec() > 5) {
+            //                instruction.setActionCustomMaxWaitSec(5);
+            //            }
+            WebElement elementFound = null;
+            //            for (int i = 0; i < priorityList.size() && elementFound == null; i++) {
+            for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
+                if (elementFound != null) {
+                    break;
+                }
+
+                PriorityTypeEnum priorityTypeEnum = null;
+                try {
+                    priorityTypeEnum = PriorityTypeEnum.getPriorityType(
+                            priority.getPriorityType().toString());
+                } catch (Exception e) {
+                    System.out.println(String.format("The ENUM: was not defined!"));
+                    continue;
+                }
+                if (priorityTypeEnum == null) {
+                    System.out.println("Define priorities!");
+                    return null;
+                }
+
+                //            Optional<InstructionReferenceDTO> reference = instructionReferenceList.stream()
+                //                    .filter(ref -> ref.getReferenceType().equals(priority.getName()))
+                //                    .findFirst();
+
+                // Find the first matching instruction reference
+                Optional<InstructionReferenceDTO> instructionReference = instructionReferenceList.stream()
+                        .filter(reference ->
+                                priority.getPriorityType().toString().equalsIgnoreCase(reference.getReferenceType()))
+                        .findFirst();
+
+                // Print or process the first matching instruction reference
+                instructionReference.ifPresent((f) -> System.out.println(String.format(
+                        "Search for %s   Type:  %s   Value: %s",
+                        priority.getName(), f.getReferenceType(), f.getValue())));
+
+                if (instructionReference.isPresent()) {
+                    List<By> criterias = null;
+                    switch (priority.getPriorityType()) {
+                        case xpath -> criterias = Arrays.asList(
+                                new By[] {By.xpath(instructionReference.get().getValue())});
+                        case attribute -> criterias = convertToCriteriaList(
+                                tagName,
+                                priority.getName(),
+                                instructionReference.get().getValue());
+                            //                                criteria = By.cssSelector(tagName + "[" +
+                            // priority.getName() + "='" + instructionReference.get().getValue() + "']");
+                        case coordinates -> {} // System.out.println("coordinates case");
+                        case ById -> {} // System.out.println("ById case");
+                        case ByClassName -> {} // System.out.println("Default case");
+                        case ByName -> {} // System.out.println("Default case");
+                        case ByTagName -> {} // System.out.println("Default case");
+                        case ByLinkText -> {} // System.out.println("Default case");
+                        case ByPartialLinkText -> {} // System.out.println("Default case");
+                        case ByCssSelector -> {} // System.out.println("Default case"); //      ".nav-menu li";
+                        case ExecuteScript -> {} // System.out.println("Default case"); //      "return
+                            // document.getElementById('search-top')");
+                        case createXPath -> {} // System.out.println("Default case"); //         Generates XPath
+                            // Recursive tom the Elements Found
+                        case dynamic -> {} // System.out.println("Default case"); //         Generates Dynamic Action ->
+                            // Click, Hover, Etc.
+                        case jsoup -> {} // System.out.println("Default case");
+                    }
+
+                    // Actualy here is Calling the Actions
+                    if (criterias != null) {
+
+                        for (By criteria : criterias) {
+                            List<WebElement> foundElementList =
+                                    abrWebDriver.getDriver().findElements(criteria);
+
+                            //                            try {
+                            //                                elementFound = scroolUntilFindElement(criteria);
+                            //                            } catch (Exception e) {
+                            //                                e.printStackTrace();
+                            //                            }
+                            //                            if (elementFound != null) {
+                            //                                break;
+                            //                            }
+                            if (foundElementList != null && foundElementList.size() > 0) {
+                                if (justCalledRefreshPage) {
+                                    justCalledRefreshPage = false;
+                                    try {
+                                        waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                                    } catch (Exception e) {
+                                        System.out.println("Could not fin the element");
+                                    }
+                                } else if (instruction.getActionCustomMaxWaitSec() != null) {
+                                    try {
+
+                                        new WebDriverWait(
+                                                        abrWebDriver.getDriver(),
+                                                        Duration.ofSeconds(instruction.getActionCustomMaxWaitSec()))
+                                                .until(ExpectedConditions.presenceOfElementLocated(criteria));
+                                    } catch (Exception e) {
+                                        System.out.println("Could not fin the element");
+                                    }
+                                } else {
+                                    try {
+
+                                        waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                                    } catch (Exception e) {
+                                        System.out.println("Could not fin the element");
+                                    }
+                                }
+                                int k = 0;
+                                //                            MAYBE THIS SHOUL BE NOT NECESSARY  USE UNIQUE ID   OR
+                                // SESSION  SAVED TO GET THE SAME XPATHORELEMENT
+                                while (elementFound == null && k < foundElementList.size()) {
+                                    String xpath = ABRWebUtil.extractXPath(
+                                            foundElementList.get(k).toString());
+                                    Optional<InstructionReferenceDTO> xpathReference = instructionReferenceList.stream()
+                                            .filter(ref ->
+                                                    ref.getReferenceType().equals(PriorityTypeEnum.xpath.name()))
+                                            .findFirst();
+                                    if (xpathReference.isPresent()
+                                            && xpath.equals(xpathReference.get().getValue())) {
+                                        elementFound = foundElementList.get(k);
+                                        break;
+                                    }
+                                    k++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return elementFound;
+        } else {
+            return null;
+        }
+    }
+
+    private void insertValueFieldNameInExcel(WebElement element, BlockLoopInstructionDTO instruction, String action) {
+        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
+        if (innerHTMLValue.contains("<div")) {
+            int lastIndexOfDiv = innerHTMLValue.lastIndexOf("<div");
+            innerHTMLValue = innerHTMLValue.substring(lastIndexOfDiv + 1);
+            int firstIndexOfOpenTag = innerHTMLValue.indexOf("<");
+            int firstIndexOfCloseTag = innerHTMLValue.indexOf(">");
+            innerHTMLValue = innerHTMLValue.substring(firstIndexOfCloseTag + 1, firstIndexOfOpenTag);
+        }
+        String fieldName = null;
+        String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+        if (arr.length > 1) {
+            fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+        }
+
+        BotJobDTO botJob = instruction.getBlock().getBotJob();
+        new ExcelWriter(botJob).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
+    }
+
+    private void listOperation(BlockLoopInstructionDTO instructionDTO, Map<String, String> data) {
+
+        /*
+        TODO: Da rivedere, attualmente non del tutto funzionante
+        Complex instruction string interpretation:
+        [       0       ||       1      ||       2         ||    3    ||        4       ||  5   ||            6                ]
+        [backward_button||forward_button||list_elements_tag||condition||expected_results||action||sub_element_on_execute_action]
+        */
+        List<ComplexInstructionDTO> complexInstructionDTOS = instructionDTO.getComplexInstrucions();
+        String[] complexActionParts =
+                complexInstructionDTOS.get(0).getInstruction().split(Constants.COMPLEX_INSTRUCTION_SEPARATOR);
+        List<WebElement> webElementList;
+        WebElement forwardButton;
+        WebElement backwardButton;
+        boolean shouldContinue = true;
+
+        boolean existNextPage;
+        do {
+            waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+            backwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[0]));
+            forwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[1]));
+            webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+
+            WebElement element;
+            WebElement reasonWebElement;
+            for (int i = 0; i < 5; i++) {
+
+                if (i != 0) {
+                    waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+                    webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+                }
+
+                element = webElementList.get(i);
+                try {
+                    Thread.sleep(1000);
+
+                    reasonWebElement = element.findElement(
+                            By.xpath(".//div[@class='payments-table-field reason ng-star-inserted']"));
+                    if (!UtilsMethods.testFixedCheck(reasonWebElement.getText())) {
+                        continue;
+                    }
+
+                    clickElement(element.findElement(
+                            By.xpath(".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
+                    clickElement(
+                            abrWebDriver
+                                    .getDriver()
+                                    .findElement(
+                                            By.xpath(
+                                                    ".//button[@test-id='web-banking-payment-core.payment-ctx-action.payment-action-VIEW']")));
+
+                    Thread.sleep(1000);
+                    clickElement(abrWebDriver
+                            .getDriver()
+                            .findElement(By.xpath(
+                                    ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
+
+                    Thread.sleep(1000);
+                    clickElement(
+                            abrWebDriver
+                                    .getDriver()
+                                    .findElement(
+                                            By.xpath(
+                                                    ".//avq-breadcrumb[@test-id='web-banking-portal.pages.payments-overview.breadcrumb']")));
+                } catch (Exception e) {
+                    System.out.println("Impossible execute operation on this element: " + element.toString());
+                }
+            }
+
+            try {
+                scrollToElement(forwardButton);
+                clickElement(forwardButton);
+                existNextPage = true;
+            } catch (Exception e) {
+                existNextPage = false;
+            }
+
+        } while (existNextPage && shouldContinue);
+    }
+
+    private void insertInElement(
+            WebElement element,
+            Map<String, String> data,
+            String singleInstruction,
+            BlockLoopInstructionDTO instructionDTO)
+            throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        if (data != null) {
+            String[] arr = UtilsMethods.splitIfContains(singleInstruction, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+            if (arr.length > 1) {
+                String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+
+                String value = data.get(dataFieldName);
+                if (instructionDTO.isEncrypted()) {
+                    value = CryptationAlgorithm.decrypt(value);
+                }
+
+                if (value != null) {
+                    element.sendKeys(value);
+                    element.sendKeys(Keys.TAB);
+
+                } else {
+                    element.sendKeys(UtilsMethods.generateRandomID(10));
+                    element.sendKeys(Keys.TAB);
+                }
+            }
+        } else if (instructionDTO.getDefaultValue() != null) {
+            String defaultValue = instructionDTO.getDefaultValue();
+            if (instructionDTO.isEncrypted()) {
+                defaultValue = CryptationAlgorithm.decrypt(defaultValue);
+            }
+            element.sendKeys(defaultValue);
+        }
+    }
+
+    private void scrollToElement(WebElement element) throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        ((JavascriptExecutor) abrWebDriver.getDriver()).executeScript("arguments[0].scrollIntoView(true);", element);
+    }
+
+    private void clickElement(WebElement element) throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        if (!element.isEnabled()) {
+            // throw new TimeoutException();
+        }
+        waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+            ((JavascriptExecutor) abrWebDriver.getDriver())
+                    .executeScript("arguments[0].scrollIntoView(true);", element);
+            return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+        }));
+        try {
+            element.click();
+        } catch (ElementClickInterceptedException e) {
+            JavascriptExecutor jse = (JavascriptExecutor) abrWebDriver.getDriver();
+            jse.executeScript("arguments[0].click()", element);
+        }
+    }
+
+    private synchronized void onHoldForSeconds(BlockLoopInstructionDTO instruction) throws Exception {
+        if (instruction != null) {
+            Integer instructionSeconds = instruction.getOnHoldSeconds();
+            if (instructionSeconds != null && instructionSeconds > 0) {
+                wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, instructionSeconds));
+            } else {
+                String stopSeconds =
+                        ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
+                wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, Integer.parseInt(stopSeconds)));
+            }
+        } else {
+            wait(400);
+        }
+    }
+
+    private void refreshPage() {
+        abrWebDriver.getDriver().navigate().refresh();
+        justCalledRefreshPage = true;
+    }
+
+    private void waitPage() {
+        waitForPage.until(driver -> ((JavascriptExecutor) abrWebDriver.getDriver())
+                .executeScript("return document.readyState")
+                .equals("complete"));
+    }
+
+    private long fromSecondsToMilliseconds(TimeUnit timeUnit, int units) throws Exception {
+        long milliseconds;
+
+        switch (timeUnit) {
+            case SECONDS:
+                milliseconds = units * 1000L;
+                break;
+
+            case MINUTES:
+                milliseconds = units * 1000L * 60L;
+                break;
+
+            default:
+                throw new Exception("time unit: " + timeUnit.name() + " is not available for this operation");
+        }
+        return milliseconds;
+    }
+
+    public void quit(int status) {
+        abrWebDriver.getDriver().quit();
+        if (status > 0) {
+            System.exit(status);
+        }
+    }
+
+    private void executeActionsAtInstructionCoordinates(BlockLoopInstructionDTO instruction, Map<String, String> data)
+            throws Exception {
+
+        List<com.allinweb.ch.util.Priority> priorityList = ABRPriorities.getAllPriorityList();
+        Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
+                .filter(p -> p.getPriorityType() == PriorityTypeEnum.coordinates)
+                .findFirst();
+        if (priority.isPresent()) {
+            List<InstructionReferenceDTO> instructionReferenceList = instruction.getInstructionReferenceDTOList();
+            Optional<InstructionReferenceDTO> reference = instructionReferenceList.stream()
+                    .filter(ref -> ref.getReferenceType().equals(priority.get().getName()))
+                    .findFirst();
+            int x = 0;
+            int y = 0;
+            int xCoord = 0;
+            int yCoord = 0;
+            if (reference.isPresent()) {
+                String[] coordinates = reference.get().getValue().split(ABRConstants.FIELDS_SEPARATOR);
+                x = Integer.parseInt(coordinates[0]);
+                y = Integer.parseInt(coordinates[1]);
+                int maxHeight =
+                        abrWebDriver.getDriver().manage().window().getSize().getHeight();
+                int maxWidth =
+                        abrWebDriver.getDriver().manage().window().getSize().getWidth();
+                int offsetY = y - maxHeight;
+                int offsetX = x - maxWidth;
+                xCoord = x > maxWidth ? x - offsetX : x;
+                yCoord = y > maxHeight ? y - offsetY : y;
+            }
+            String[] actions = instruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
+            for (String action : actions) {
+                switch (String.valueOf(action.charAt(0))) {
+                    case Constants.VISUALIZE:
+                        scrollToCoordinates(x, y);
+                        break;
+                    case Constants.CLICK:
+                        scrollToCoordinates(x, y);
+                        onHoldForSeconds(null);
+                        clickAtCoordinates(xCoord, yCoord);
+                        break;
+                    case Constants.INSERT:
+                        scrollToCoordinates(x, y);
+                        onHoldForSeconds(null);
+                        clickAtCoordinates(xCoord, yCoord);
+                        onHoldForSeconds(null);
+                        typeCharacters(instruction, action, data);
+                        break;
+                    case Constants.HOLD:
+                        onHoldForSeconds(instruction);
+                        break;
+                    case Constants.REFRESH:
+                        refreshPage();
+                        break;
+                    case Constants.QUIT:
+                        quit(0);
+                        break;
+                    case Constants.SCREEN:
+                        // screenshot();
+                        break;
+                    case Constants.EXTRACT:
+                        break;
+                    case Constants.LIST_OPERATION:
+                }
+                onHoldForSeconds(null);
+            }
+        }
+    }
+
+    private void scrollToCoordinates(int x, int y) {
+        int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
+        int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
+        int offsetY = y - maxHeight;
+        int offsetX = x - maxWidth;
+        if (offsetX > 0 || offsetY > 0) {
+            String script = "function getScrollableParent(element){\n" + "    console.log(\"finding\");"
+                    + "    let value = window.getComputedStyle(element).overflowY;\n"
+                    + "    if(value !== \"scroll\" && value !== \"auto\"){\n"
+                    + "        return getScrollableParent(element.parentNode);\n"
+                    + "    }\n"
+                    + "    return element;\n"
+                    + "}\n"
+                    + "getScrollableParent(document.elementFromPoint("
+                    + (maxWidth / 2) + "," + (maxHeight / 2)
+                    + ")).scrollTo(" + Math.max(offsetX, 0) + "," + Math.max(offsetY, 0) + ");" + "return true;";
+            new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(10))
+                    .until((item) -> (Boolean) ((JavascriptExecutor) abrWebDriver.getDriver()).executeScript(script));
+        }
+    }
+
+    private void clickAtCoordinates(int x, int y) {
+        /*
+        String script = "function createCircle(x, y, diameter) {\n" +
+                "    const randomColor = Math.floor(Math.random()*16777215).toString(16);\n" +
+                "\n" +
+                "    return `\n" +
+                "    <svg style='height:100%;width:100%;position:absolute;top:0;z-index:9999'><circle\n" +
+                "        cx=\"${x}\"\n" +
+                "      cy=\"${y}\"\n" +
+                "      r=\"${diameter/2}\"\n" +
+                "      fill=\"#${randomColor}\"\n" +
+                "    ></circle></svg>\n" +
+                "  `;\n" +
+                "}\n" +
+                "\n" +
+                "function pri(ev){\n" +
+                "    console.log(ev);\n" +
+                "    document.body.innerHTML += createCircle(ev.pageX,ev.pageY,10);\n" +
+                "}\n" +
+                "\n" +
+                "window.addEventListener(\"click\", pri);";
+        ((JavascriptExecutor)driver).executeScript(script);
+         */
+        new Actions(abrWebDriver.getDriver()).moveToLocation(x, y).click().perform();
+    }
+
+    private void typeCharacters(BlockLoopInstructionDTO instruction, String action, Map<String, String> data) {
+        String value = null;
+        if (data != null) {
+            String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+            if (arr.length > 1) {
+                String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+                value = data.get(dataFieldName);
+            }
+        } else {
+            value = instruction.getDefaultValue();
+        }
+        if (instruction.isEncrypted()) {
+            value = CryptationAlgorithm.decrypt(value);
+        }
+        new Actions(abrWebDriver.getDriver()).sendKeys(value).perform();
+    }
+
+    public static String removeTrailingSlash(String xPath) {
+        if (xPath != null && xPath.endsWith("/")) {
+            return xPath.substring(0, xPath.length() - 1);
+        }
+        return xPath;
+    }
+
+    public static String extractTagName(String xPath) {
+        // Find the position of the last '/'
+        int lastSlashIndex = xPath.lastIndexOf("/");
+
+        // Extract the substring after the last '/'
+        String lastSegment = xPath.substring(lastSlashIndex + 1);
+
+        // If the last segment contains '[', extract the tag name before it
+        int bracketIndex = lastSegment.indexOf("[");
+        if (bracketIndex != -1) {
+            return lastSegment.substring(0, bracketIndex);
+        }
+
+        // Return the last segment as the tag name
+        return lastSegment;
+    }
+
+    public static List<By> convertToCriteriaList(String tagName, List<String> priorityToSearch, String someXPath) {
+        // Split the string by commas and trim any leading/trailing whitespace from each element
+        List<By> criteriaList = new ArrayList<>();
+
+        for (String priority : priorityToSearch) {
+            priority = priority.trim();
+            // Create the By.cssSelector object and add it to the list
+            By criteria = By.cssSelector(tagName + "[" + priority + "='" + someXPath + "']");
+            criteriaList.add(criteria);
+        }
+
+        return criteriaList;
     }
 }
