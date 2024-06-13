@@ -54,6 +54,9 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     private BlockDTO blockDTO;
 
     @Transient
+    private Boolean executed;
+
+    @Transient
     private String priority;
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
@@ -204,5 +207,13 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     public void setPriority(String priority) {
         this.priority = priority;
+    }
+
+    public Boolean getExecuted() {
+        return executed;
+    }
+
+    public void setExecuted(Boolean executed) {
+        this.executed = executed;
     }
 }

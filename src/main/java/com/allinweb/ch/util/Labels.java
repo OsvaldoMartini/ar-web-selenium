@@ -16,7 +16,7 @@ public class Labels {
         try {
             labelsValue.load(ClassLoader.getSystemResourceAsStream(labelsFileName));
         } catch (Exception e) {
-            e.printStackTrace();
+            e.getMessage();
             //            System.exit(1);
         }
     }

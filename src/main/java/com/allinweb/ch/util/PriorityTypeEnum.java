@@ -9,7 +9,6 @@ public enum PriorityTypeEnum {
     ByClassName,
     ByName,
     ByTagName,
-
     ByChained,
     ByLinkText,
     ByPartialLinkText,

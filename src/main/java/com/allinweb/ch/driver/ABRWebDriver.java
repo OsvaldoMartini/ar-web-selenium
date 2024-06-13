@@ -2,13 +2,21 @@ package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
+import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
+import com.google.common.base.Strings;
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javax.swing.*;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -19,6 +27,8 @@ import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.logging.LogType;
+import org.openqa.selenium.logging.LoggingPreferences;
 
 public class ABRWebDriver {
 
@@ -26,41 +36,144 @@ public class ABRWebDriver {
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
 
     public void openDriver(String url) {
+        ABRLogger.getInstance(ABRWebDriver.class).fine("Going to call WebDriver for \n" + url);
+
+        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
+        String webDriverPath = managerProps.getProperty(ABRPropertyEnum.PATH_WEBDRIVER);
+
+        if (Strings.isNullOrEmpty(webDriverPath)) {
+            ABRLogger.getInstance(ABRWebDriver.class).fine("URL IS EMPTY");
+            //            JOptionPane.showMessageDialog(
+            //                    null,
+            //                    "An error has occurred PATH_WEBDRIVER is NULL",
+            //                    "Error in WebDriver PATH",
+            //                    JOptionPane.ERROR_MESSAGE);
+        }
+
         if (driver == null) {
             String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
+            String logFolder = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG);
             try {
                 switch (browser) {
                     case ABRConstants.CHROME -> {
+                        //                        String driverPath = webDriverPath + "\\chrome.exe";
+                        if (!(new File(webDriverPath)).exists()) {
+                            ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                            //                            new ABRAlertScene(
+                            //                                    Alert.AlertType.WARNING,
+                            //                                    "Missing file Web Driver",
+                            //                                    "Please verify the WebDriver File  first before
+                            // launching the bot job\n"
+                            //                                            + driverPath,
+                            //                                    new ButtonType[] {ButtonType.OK});
+                        }
+
+                        System.setProperty("webdriver.chrome.verboseLogging", "true");
+                        System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
+                        
                         ChromeOptions options = new ChromeOptions();
-                        options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
-                        options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
-                        options.setBinary("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe");
+                        //                        options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
+                        options.setBinary(webDriverPath);
+                        //                        options.setBinary("C:/Program
+                        // Files/Google/Chrome/Application/chrome.exe");
+                        //                        options.setBinary("C:/Program Files
+                        // (x86)/Google/Chrome/Application/chrome.exe");
                         options.setExperimentalOption("useAutomationExtension", false);
                         options.setExperimentalOption(
                                 "excludeSwitches", Collections.singletonList("enable-automation"));
                         driver = new ChromeDriver(options);
                     }
                     case ABRConstants.EDGE -> {
-                        System.setProperty("webdriver.edge.driver", ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
+                        //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
+                        if (!(new File(webDriverPath)).exists()) {
+                            ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                            new ABRAlertScene(
+                                    Alert.AlertType.WARNING,
+                                    "Missing file excel",
+                                    "Please generate and compile the data of the file excel first before launching the bot job",
+                                    new ButtonType[] {ButtonType.OK});
+                        }
+                        // Set path to Edge WebDriver executable
+                        System.setProperty("webdriver.edge.driver", webDriverPath);
+
+                        // Define EdgeOptions and LoggingPreferences
                         EdgeOptions options = new EdgeOptions();
-                        // options.setBinary(ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
-                        options.setExperimentalOption("useAutomationExtension", false);
-                        options.setExperimentalOption(
-                                "excludeSwitches", Collections.singletonList("enable-automation"));
+                        // Create LoggingPreferences object
+                        LoggingPreferences logs = new LoggingPreferences();
+                        logs.enable(LogType.BROWSER, Level.ALL); // Enable browser logs
+                        // Set the path where you want to save the log file
+                        String logFilePath =  logFolder + "_edge_browser.log"; // Replace with your desired log file path
+                        // Specify the logging preferences
+                        logs.enable(LogType.BROWSER, Level.ALL);
+                        options.setCapability("ms:edgeOptions", "{verbose: true, loggingPrefs: {" +
+                                "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
+                        
+                        
+
+                        //                        EdgeOptions options = new EdgeOptions();
+                        //                        // options.setBinary(ABRConstants.CURRENT_PATH +
+                        // "\\msedgedriver.exe");
+                        //                        options.setBinary(driverPath);
+                        //                        options.setExperimentalOption("useAutomationExtension", false);
+                        //                        options.setExperimentalOption(
+                        //                                "excludeSwitches",
+                        // Collections.singletonList("enable-automation"));
+                        //                        driver = new EdgeDriver(options);
+                        // Initialize EdgeDriver with EdgeOptions
                         driver = new EdgeDriver(options);
                     }
                     case ABRConstants.FIREFOX -> {
+                        //                        String driverPath = webDriverPath + "\\geckodriver.exe";
+                        if (!(new File(webDriverPath)).exists()) {
+                            ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                            //                            new ABRAlertScene(
+                            //                                    Alert.AlertType.WARNING,
+                            //                                    "Missing file Web Driver",
+                            //                                    "Please verify the WebDriver File  first before
+                            // launching the bot job\n"
+                            //                                            + driverPath,
+                            //                                    new ButtonType[] {ButtonType.OK});
+                        }
                         FirefoxOptions options = new FirefoxOptions();
-                        options.setBinary(ABRConstants.CURRENT_PATH + "\\geckodriver.exe");
+                        //                        options.setBinary(ABRConstants.CURRENT_PATH + "\\geckodriver.exe");
+                        options.setBinary(webDriverPath);
                         driver = new FirefoxDriver(options);
                     }
                 }
             } catch (Exception e) {
-
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .severe("An error has occurred during WebDriver Load " + e.getMessage());
+                JOptionPane.showMessageDialog(
+                        null,
+                        "An error has occurred during WebDriver Load: \nError:" + e.getMessage() + "\nCause: "
+                                + e.getCause(),
+                        "Error in WebDriver Load",
+                        JOptionPane.ERROR_MESSAGE);
             }
         }
         driver.manage().window().maximize();
-        driver.get(url);
+        if (Strings.isNullOrEmpty(url)) {
+            ABRLogger.getInstance(ABRWebDriver.class).fine("URL IS EMPTY");
+            //            JOptionPane.showMessageDialog(
+            //                    null,
+            //                    "An error has occurred during WebDriver Load: \nError:  URL IE NULL",
+            //                    "Error in WebDriver Load",
+            //                    JOptionPane.ERROR_MESSAGE);
+        }
+
+        try {
+            driver.get(url);
+
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .fine("An error has occurred during driver.get(url) Load " + e.getMessage());
+            JOptionPane.showMessageDialog(
+                    null,
+                    "An error has occurred during WebDriver Load: \nError:" + e.getMessage() + " Cause: "
+                            + e.getCause(),
+                    "Error in WebDriver Load",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     public List<WebElement> scan(By byRule) {

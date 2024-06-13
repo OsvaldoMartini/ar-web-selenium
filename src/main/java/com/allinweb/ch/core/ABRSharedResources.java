@@ -299,10 +299,14 @@ public class ABRSharedResources {
             }
 
             StringBuilder searchCriteria = new StringBuilder();
-            searchCriteria.append("#numero priorità, categoria, criterioricerca" + System.lineSeparator());
-            searchCriteria.append("1,ByXPath,//a[@href],a[href]" + System.lineSeparator());
-            searchCriteria.append("2,ByTagName,button,label,a" + System.lineSeparator());
-
+            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
+            searchCriteria.append(
+                    "2,ByChained,By.tagName:input,By.className:mat-mdc-input-element" + System.lineSeparator());
+            searchCriteria.append(
+                    "3,ByChained,By.xpath://*[contains(@idCOMMA \"mat-input\")]" + System.lineSeparator());
+            searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
+            searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
+            searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" + System.lineSeparator());
             updateUserData(priorities.toString(), searchCriteria.toString());
         }
     }

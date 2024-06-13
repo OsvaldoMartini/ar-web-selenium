@@ -1,5 +1,6 @@
 package com.allinweb.ch.util;
 
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -98,9 +99,15 @@ public class ABRLogger {
     }
 
     private void logWithExtraction(String msg, Level level) {
+        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
+        int maxSizeLog = 1000;
+        if (Strings.isNullOrEmpty(managerProps.getProperty(ABRPropertyEnum.MAX_LOG_SIZE))) {
+            maxSizeLog = Integer.parseInt(managerProps.getProperty(ABRPropertyEnum.MAX_LOG_SIZE));
+        }
+
         try {
             // Example extraction logic: log a substring if the message is not null
-            String extractedMsg = (msg != null) ? msg.substring(0, Math.min(msg.length(), 50)) : null;
+            String extractedMsg = (msg != null) ? msg.substring(0, Math.min(msg.length(), maxSizeLog)) : null;
             if (extractedMsg == null) {
                 _log.log(level, "The object Logged is null");
             } else {

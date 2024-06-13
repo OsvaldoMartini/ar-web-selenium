@@ -8,11 +8,13 @@ import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ExcelWriter;
@@ -36,13 +38,15 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import javax.swing.*;
 
 public class ABRViewBotJobPane extends ABRPane {
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private BotJobDTO botJob;
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
     Button refreshButton;
-    Button addWaitButton;
+    Button addWaitButton30;
+    Button addWaitButton15;
     Button openScannerButton;
     Button editBotJobButton;
     Button launchBotJobButton;
@@ -71,8 +75,10 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIComponents() {
-        this.addWaitButton = builder.buildButton(
-                "Add Wait", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+        this.addWaitButton30 = builder.buildButton(
+                "30s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+        this.addWaitButton15 = builder.buildButton(
+                "15s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
         this.refreshButton = builder.buildButton(
                 "Refresh", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.openScannerButton = builder.buildButton(
@@ -108,7 +114,8 @@ public class ABRViewBotJobPane extends ABRPane {
                 .addAll(
                         refreshButton,
                         this.openScannerButton,
-                        this.addWaitButton,
+                        this.addWaitButton30,
+                        this.addWaitButton15,
                         this.editBotJobButton,
                         this.launchBotJobButton,
                         this.saveBotJobButton,
@@ -160,7 +167,8 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIBehaviour() {
-        addWaitButton.setOnAction(e -> addWaitTask(30));
+        addWaitButton30.setOnAction(e -> addWaitTask(30));
+        addWaitButton15.setOnAction(e -> addWaitTask(15));
         refreshButton.setOnMouseClicked(e -> {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
@@ -187,14 +195,27 @@ public class ABRViewBotJobPane extends ABRPane {
             ABRSharedResources.getInstance().updateEntity(this.botJob, BotJobDTO.class);
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
-            (new ABRScannedElementScene(
-                            this.botJob.getHomeBanking().getPriority(),
-                            this.botJob.getId(),
-                            this.botJob.getBlocks() != null
-                                    ? this.botJob.getBlocks().get(0).getId()
-                                    : 0))
-                    .show();
+            ABRLogger.getInstance(ABRWebDriver.class).fine("Calling openScannerButton");
+
+            try {
+                (new ABRScannedElementScene(
+                                this.botJob.getHomeBanking().getPriority(),
+                                this.botJob.getId(),
+                                this.botJob.getBlocks() != null
+                                        ? this.botJob.getBlocks().get(0).getId()
+                                        : 0))
+                        .show();
+            } catch (Exception ex) {
+//                ABRLogger.getInstance(ABRWebDriver.class).severe("ERROR Calling openScannerButton\n" + ex.getMessage());
+                //                JOptionPane.showMessageDialog(
+                //                        null,
+                //                        "An error has occurred Calling SCAN: \nError:" + ex.getMessage() + " Cause: "
+                // + ex.getCause(),
+                //                        "Error calling in SCAN",
+                //                        JOptionPane.ERROR_MESSAGE);
+            }
         });
+        
         this.generateExcelButton.setOnMouseClicked((e) -> {
             BotJobDTO botJobUpdated =
                     (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJob.getId());
@@ -380,7 +401,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private void addWaitTask(Integer secondsToWait) {
         Alert alert = new Alert(
                 Alert.AlertType.CONFIRMATION,
-                "Are you sure you want to add a wait of 30 seconds to the botjob?",
+                "Are you sure you want to add a wait of " + secondsToWait + " seconds to the botjob?",
                 ButtonType.YES,
                 ButtonType.NO);
         Optional<ButtonType> result = alert.showAndWait();
@@ -407,7 +428,8 @@ public class ABRViewBotJobPane extends ABRPane {
                                     () -> new ABRAlertScene(
                                             Alert.AlertType.INFORMATION,
                                             "Instruction Added",
-                                            "Instruction Wait 30 second(s) has been added successfully",
+                                            "Instruction Wait " + secondsToWait
+                                                    + " second(s) has been added successfully",
                                             ButtonType.OK));
                     return null;
                 }

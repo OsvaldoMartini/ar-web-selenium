@@ -11,35 +11,36 @@
     -c "C:/ABRWeb/ABRWeb.config"
 ```
 
+##  CSS Selectors
+```text
+Access Does Not Accept *[contains(@idCOMMA 'mat-input')]
 
 
-        // Find elements with ID containing 'mat-input'
-//
-List<WebElement> elements = driver.findElements(By.xpath("//*[contains(@id, 'mat-input')]"));
-// Find elements with ID starting with 'mat-input'
-List<WebElement> elements = driver.findElements(By.cssSelector("[id^='mat-input']"));
+Use  "" Instead
 
+    *[contains(@idCOMMA \"mat-input\")]
 
-        // Iterate through the elements and print their IDs
-        for (WebElement element : elements) {
-            System.out.println("Element ID: " + element.getAttribute("id"));
-        }
+Example:
+ //Search Criteria
+        #numero priorità, categoria, criterioricerca
+        1,ByAttribute,test-id
+        2,ByChained,By.tagName:input,By.className:mat-mdc-input-element
+        3,ByChained,By.xpath://*[contains(@idCOMMA "mat-input")]
+        4,ByTagName,button
+        5,ByChained,By.cssSelector:[id^="mat-input"]
+        6,ByChained,By.cssSelector:[id*="mat-input"]
 
-        // Close the driver
-        driver.quit();
-    }
-	
-	
-	#numero priorità, categoria, identificativo
-1,attribute,id
-2,xpath,xpath
-3,coordinates,coordinates
-
-	
-	#numero priorità, categoria, criterioricerca
-1,ByXPath,//a[@href],a[href]
-2,ByAttribute,test-id
-3,ByChained,By.tagName:button,By.className:mdc-button
-4,ByTagName,button,label,a
-5,ByTagName,input
-	
+        //Others
+        1,ByXPath,//a[@href],a[href]
+        2,ByAttribute,test-id
+        3,ByChained,By.tagName:button,By.className:mdc-button
+        4,ByTagName,button,label,a
+        5,ByTagName,input
+```
+ ## Priorities Example
+```text
+    #numero priorità, categoria, identificativo
+    1,attribute,test-id
+    2,xpath,xpath
+    3,coordinates,coordinates
+```	
