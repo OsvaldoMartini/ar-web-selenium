@@ -206,7 +206,8 @@ public class ABRViewBotJobPane extends ABRPane {
                                         : 0))
                         .show();
             } catch (Exception ex) {
-//                ABRLogger.getInstance(ABRWebDriver.class).severe("ERROR Calling openScannerButton\n" + ex.getMessage());
+                //                ABRLogger.getInstance(ABRWebDriver.class).severe("ERROR Calling openScannerButton\n" +
+                // ex.getMessage());
                 //                JOptionPane.showMessageDialog(
                 //                        null,
                 //                        "An error has occurred Calling SCAN: \nError:" + ex.getMessage() + " Cause: "
@@ -215,7 +216,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 //                        JOptionPane.ERROR_MESSAGE);
             }
         });
-        
+
         this.generateExcelButton.setOnMouseClicked((e) -> {
             BotJobDTO botJobUpdated =
                     (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJob.getId());

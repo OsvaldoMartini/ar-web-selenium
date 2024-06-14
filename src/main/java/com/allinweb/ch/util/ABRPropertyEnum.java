@@ -12,6 +12,7 @@ public enum ABRPropertyEnum {
     PATH_WEBDRIVER("path_web_driver"),
     LOG_LEVEL("log_level"),
     MAX_LOG_SIZE("max_log_size"),
+    REDUCE_SEARCH_CRITERIA("reduce_search_criteria"),
     BROWSER("browser"),
     WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC("page_update_timeout_sec"),
     WEBDRIVER_INTERACTION_TIMEOUT_SEC("interaction_timeout_sec"),

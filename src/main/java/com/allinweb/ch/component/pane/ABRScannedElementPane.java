@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Date;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
@@ -117,18 +118,25 @@ public class ABRScannedElementPane extends ABRPane {
     private CheckBox checkBoxAction;
     private CheckBox checkActiveHover;
     private TextField xpathTextField;
+    private TextField coordinatesTextField;
+
+    private Boolean periodicActivated = false;
 
     // Very important sequence on initiation
     private static ABRPriorities abrPriorities;
     private static Map<String, String> savedReferences;
+    private static int reduceSearchCriteria;
+    private static ABRPropertyManager managerProps;
     // Static block to initialize
     static {
         abrPriorities = ABRPriorities.getInstance();
         savedReferences = new HashMap<>();
+        managerProps = ABRPropertyManager.getInstance();
     }
 
     public ABRScannedElementPane(String priority, BotJobDTO botJob, BlockDTO block, ABRWebDriver abrWebDriver) {
         super();
+
         ABRLogger.getInstance(ABRWebDriver.class).fine("Calling ABRScannedElementPane");
 
         if ((botJob != null && abrPriorities.getJobId() == null) || (abrPriorities.getJobId() != botJob.getId())) {
@@ -217,6 +225,8 @@ public class ABRScannedElementPane extends ABRPane {
         alertToShow.initModality(Modality.APPLICATION_MODAL);
         // Set the content of the alert
         alertToShow.getDialogPane().setContent(stackPane);
+        // Create a single-threaded executor service
+        executorService = Executors.newSingleThreadExecutor();
         // Create a timeline to update the countdown
         timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
             remainingSeconds--;
@@ -232,6 +242,9 @@ public class ABRScannedElementPane extends ABRPane {
         xpathTextField = new TextField();
         xpathTextField.setPromptText("Hovered element XPath will appear here");
 
+        coordinatesTextField = new TextField();
+        coordinatesTextField.setPromptText("Hovered element Coordinates will appear here");
+
         HBox buttonBox = new HBox();
         buttonBox.setSpacing(10);
         buttonBox
@@ -242,7 +255,10 @@ public class ABRScannedElementPane extends ABRPane {
                         addCloseActionButton,
                         addScreenButton,
                         configureButton,
-                        launchBotJobButton);
+                        launchBotJobButton,
+                        checkActiveHover,
+                        xpathTextField,
+                        coordinatesTextField);
         addNodesToPane(topPane, buttonBox);
 
         //        addNodesToPane(contentPane, refreshInputFieldsButton, refreshOutputFieldsButton,
@@ -334,6 +350,17 @@ public class ABRScannedElementPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
+        try {
+            reduceSearchCriteria =
+                    !Strings.isNullOrEmpty(managerProps.getProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA))
+                            ? Integer.parseInt(managerProps.getProperty(ABRPropertyEnum.MAX_LOG_SIZE))
+                            : 20;
+        } catch (Exception ex) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .fine("REDUCE_SEARCH_CRITERIA is Empty -> Setting REDUCE_SEARCH_CRITERIA to Max 20elements");
+            reduceSearchCriteria = 20;
+        }
+
         //        configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
         configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
         launchBotJobButton.setOnMouseClicked(e -> {
@@ -364,10 +391,13 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void handleHoverCheckClick() {
         if (checkActiveHover.isSelected()) {
-            //    periodicThread(abrWebDriver.getDriver());
+            periodicThread(abrWebDriver.getDriver());
             //            injectJavaScript(abrWebDriver.getDriver());
-            injectJumpTab(abrWebDriver.getDriver());
+            //            injectJumpTab(abrWebDriver.getDriver());
+        } else {
+            revertInjectedChanges(abrWebDriver.getDriver());
         }
+        periodicActivated = checkActiveHover.isSelected();
     }
 
     private void manageUIScan() {
@@ -378,7 +408,7 @@ public class ABRScannedElementPane extends ABRPane {
         manageUIScanPriorities();
         manageUIScanInputs();
         manageUIScanClickable();
-        manageUIScanOutputs();
+        //        manageUIScanOutputs();
     }
 
     private void manageUIScanInputs() {
@@ -413,7 +443,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void manageUIScanOutputs() {
         String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
-        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
+        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2);
     }
 
     private void scanABRElementsAsync(By criteria, ObservableList<ABRWebElement> listToAddElements) {
@@ -429,18 +459,12 @@ public class ABRScannedElementPane extends ABRPane {
             By criteria,
             Predicate<ABRWebElement> filterCondition,
             ObservableList<ABRWebElement> listToAddElements) {
-        ABRLogger.getInstance(ABRScannedElementPane.class)
-                .fine("Going to execute the scan asynchronously for " + criteria);
-        ABRLogger.getInstance(ABRScannedElementPane.class)
-                .fine("Going to execute the scan asynchronously for " + criteria);
 
         ProgressBar progressBar = new ProgressBar();
         addNodesToPane(bottomPane, progressBar);
         Task<Void> workingTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                ABRLogger.getInstance(ABRScannedElementPane.class)
-                        .fine("Scan thread executed for criteria: " + criteria);
                 try {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine("Starting scan of elements for criteria: " + criteria);
@@ -454,16 +478,13 @@ public class ABRScannedElementPane extends ABRPane {
 
                     if (scannedElementList != null && scannedElementList.size() > 0) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine("Scan of elements for criteria: " + criteria + " ended");
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .finer("list of scanned elements has " + scannedElementList.size() + " elements");
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine("Starting mapping of web elements into ABRWebElements for criteria: " + criteria);
+                                .finer("list of scanned elements has " + scannedElementList.size()
+                                        + " elements for Search Criteria " + criteria);
 
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine("Reduces to the Limit of ABRWebElements : " + 50);
-                        List<WebElement> scannedElementListReduced = scannedElementList.size() > 50
-                                ? new ArrayList<>(scannedElementList.subList(0, 50))
+                                .fine("Reduces to the Limit of ABRWebElements : " + reduceSearchCriteria);
+                        List<WebElement> scannedElementListReduced = scannedElementList.size() > reduceSearchCriteria
+                                ? new ArrayList<>(scannedElementList.subList(0, reduceSearchCriteria))
                                 : scannedElementList;
                         List<ABRWebElement> listABRElements = null;
                         try {
@@ -472,8 +493,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     .map(element -> new ABRWebElement(element, botJob.getId()))
                                     .collect(Collectors.toList());
 
-                        } catch (Exception e) {
-                            System.out.println("Error ABRWebElement creation" + e.getMessage());
+                        } finally {
+
                         }
 
                         if (preElements == null) {
@@ -496,11 +517,6 @@ public class ABRScannedElementPane extends ABRPane {
                             //                        }
                         }
 
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine("mapping of web elements into ABRWebElements for criteria: " + criteria
-                                        + " ended");
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .finer("Checking filtering condition != null: " + (filterCondition != null));
                         //                    if (filterCondition != null) {
                         //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting
                         // filtering elements");
@@ -508,40 +524,21 @@ public class ABRScannedElementPane extends ABRPane {
                         //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Filtering
                         // elements ended");
                         //                    }
-                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting loop to add ABRWebElements");
                         if (listABRElements != null) {
 
                             for (ABRWebElement element : listABRElements) {
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .fine("sending add request to JavaFX thread");
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .finer("sending add request to JavaFX thread for ABRWebElement with xPath: "
-                                                + element.getXPath());
                                 Platform.runLater(() -> {
-                                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                                            .fine("JAVAFX Thread: adding element to list");
                                     listToAddElements.add(element);
                                     ABRLogger.getInstance(ABRScannedElementPane.class)
-                                            .fine("JAVAFX Thread: element added");
+                                            .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
+                                                    + element.getXPath());
                                 });
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
-                                                + element.getXPath());
                                 Thread.sleep(100);
                             }
-                            ABRLogger.getInstance(ABRScannedElementPane.class).fine("Loop to add ABRWebElements ended");
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("sending bar removal request to JAVAFX thread");
                         }
                         Platform.runLater(() -> {
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("JAVAFX Thread: start removing bar");
                             removeNodesFromPane(bottomPane, progressBar);
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("JAVAFX Thread: removing bar ended");
                         });
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine("bar removal request to JAVAFX thread ended");
                     }
 
                 } catch (Exception e) {
@@ -1661,6 +1658,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         // JavaScript code to inject
         String jsCode = "(function() {" + "    var tooltip = document.createElement('div');"
+                + "    tooltip.id = 'Martini-Is-Awesome';"
                 + "    tooltip.style.position = 'absolute';"
                 + "    tooltip.style.backgroundColor = 'black';"
                 + "    tooltip.style.color = 'white';"
@@ -1691,7 +1689,8 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    }"
                 + "    function showTooltip(event) {"
                 + "        var tagName = event.target.tagName.toLowerCase();"
-                + "        tooltip.textContent = tagName;"
+                + "        var coords = event.target.getBoundingClientRect();"
+                + "        tooltip.textContent = tagName + ' Coordinates: (' + coords.left + ', ' + coords.top + ')';"
                 + "        tooltip.style.left = event.pageX + 'px';"
                 + "        tooltip.style.top = (event.pageY + 15) + 'px';"
                 + "        tooltip.style.display = 'block';"
@@ -1701,7 +1700,9 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    }"
                 + "    function handleClick(event) {"
                 + "        var xpath = getXPath(event.target);"
-                + "        window.currentXPath = xpath;"
+                + "        var coords = event.target.getBoundingClientRect();"
+                + "        window.currentXPath = coords;"
+                + "        window.coordinates = xpath;"
                 + "    }"
                 + "    document.addEventListener('mouseover', showTooltip);"
                 + "    document.addEventListener('mouseout', hideTooltip);"
@@ -1714,7 +1715,21 @@ public class ABRScannedElementPane extends ABRPane {
 
         // Start a thread to periodically check the XPath value and update the TextField
         new Thread(() -> {
-                    while (true) {
+                    while (periodicActivated) {
+                        String coordinates = (String) jsExecutor.executeScript("return window.coordinates;");
+                        Platform.runLater(() -> coordinatesTextField.setText(coordinates));
+                        try {
+                            Thread.sleep(500); // Check every 500 milliseconds
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                })
+                .start();
+
+        // Start a thread to periodically check the XPath value and update the TextField
+        new Thread(() -> {
+                    while (periodicActivated) {
                         String currentXPath = (String) jsExecutor.executeScript("return window.currentXPath;");
                         Platform.runLater(() -> xpathTextField.setText(currentXPath));
                         try {
@@ -1725,6 +1740,17 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                 })
                 .start();
+    }
+
+    private static void revertInjectedChanges(WebDriver driver) {
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+
+        // Remove the injected element
+        jsExecutor.executeScript(
+                "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
+
+        // Reset the background color
+        //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
     }
 
     public void injectJumpTab(WebDriver driver) {

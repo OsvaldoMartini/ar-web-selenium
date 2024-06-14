@@ -1,8 +1,10 @@
 package com.allinweb.ch.core;
 
+import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRCallback;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPriorities;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
@@ -130,11 +132,22 @@ public class ABRSharedResources {
     public <T extends BaseDTO> void addEntity(T entity, Class<T> clazz, ABRCallback callback) {
         Task<Void> executionTask = new Task<>() {
             @Override
-            protected Void call() throws Exception {
-                new Repository(session).write(entity);
-                getEntityList(clazz).add(entity);
-                if (callback != null) {
-                    callback.execute();
+            protected Void call() {
+                try {
+                    new Repository(session).write(entity);
+                    getEntityList(clazz).add(entity);
+                    if (callback != null) {
+                        callback.execute();
+                    }
+                } catch (NullPointerException e) {
+                    // Handle NullPointer exception
+                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
+                } catch (UnsupportedOperationException e) {
+                    // Handle UnsupportedOperation exception
+                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
+                } catch (Exception e) {
+                    // Handle any other exceptions
+                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
                 }
                 return null;
             }

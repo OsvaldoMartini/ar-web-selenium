@@ -70,15 +70,20 @@ public class ABRWebDriver {
 
                         System.setProperty("webdriver.chrome.verboseLogging", "true");
                         System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
-                        
+
                         ChromeOptions options = new ChromeOptions();
+
                         //                        options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
                         options.setBinary(webDriverPath);
-                        //                        options.setBinary("C:/Program
+                        //                                                options.setBinary("C:/Program
                         // Files/Google/Chrome/Application/chrome.exe");
                         //                        options.setBinary("C:/Program Files
                         // (x86)/Google/Chrome/Application/chrome.exe");
-                        options.setExperimentalOption("useAutomationExtension", false);
+                        //                        options.addArguments("headless");
+                        //                        options.addArguments("--disable-infobars");
+                        //                        options.addArguments("--disable-dev-shm-usage");
+                        //                        options.addArguments("--no-sandbox");
+                        //                        options.addArguments("--remote-debugging-port=9222");
                         options.setExperimentalOption(
                                 "excludeSwitches", Collections.singletonList("enable-automation"));
                         driver = new ChromeDriver(options);
@@ -102,13 +107,12 @@ public class ABRWebDriver {
                         LoggingPreferences logs = new LoggingPreferences();
                         logs.enable(LogType.BROWSER, Level.ALL); // Enable browser logs
                         // Set the path where you want to save the log file
-                        String logFilePath =  logFolder + "_edge_browser.log"; // Replace with your desired log file path
+                        String logFilePath = logFolder + "_edge_browser.log"; // Replace with your desired log file path
                         // Specify the logging preferences
                         logs.enable(LogType.BROWSER, Level.ALL);
-                        options.setCapability("ms:edgeOptions", "{verbose: true, loggingPrefs: {" +
-                                "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
-                        
-                        
+                        options.setCapability(
+                                "ms:edgeOptions",
+                                "{verbose: true, loggingPrefs: {" + "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
 
                         //                        EdgeOptions options = new EdgeOptions();
                         //                        // options.setBinary(ABRConstants.CURRENT_PATH +

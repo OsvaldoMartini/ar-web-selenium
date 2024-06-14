@@ -139,7 +139,7 @@ public class ABRMainPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
-        newBotJobButton.setOnMouseClicked(e -> new ABRNewBotJobScene().show());
+        newBotJobButton.setOnMouseClicked(e -> new ABRNewBotJobScene(viewBotJobListView).show());
 
         /*viewBotJobButton.setOnMouseClicked(
                 e -> new ABRViewBotJobListScene().show()

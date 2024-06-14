@@ -33,6 +33,7 @@ public class ABRConfigurationPane extends ABRPane {
     // Label pathExtRefLabel; //Added by morandi 15-04
     Label pathLogLabel;
     Label sizeLogLabel;
+    Label reduceSearchCriteriaLabel;
     Label pathJavaLabel;
     Label pathDBLabel;
     Label pathReportLabel;
@@ -46,6 +47,7 @@ public class ABRConfigurationPane extends ABRPane {
     // TextField pathExtRef; //Added by morandi 15-04
     TextField pathLog;
     TextField sizeLog;
+    TextField reduceSearchCriteria;
     TextField pathJava;
     TextField pathDB;
     TextField pathReport;
@@ -115,29 +117,38 @@ public class ABRConfigurationPane extends ABRPane {
         pathLogButton = createPathButton();
         sizeLogLabel = new Label("Max Size Log");
         sizeLog = createPathTextField(ABRPropertyEnum.MAX_LOG_SIZE);
+        reduceSearchCriteriaLabel = new Label("Limit Max Search");
+        reduceSearchCriteria = createPathTextField(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA);
         GridPane gridPaneLog = new GridPane();
         //        gridPaneLog.setVgap(10);
         gridPaneLog.setHgap(10);
         // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
         ColumnConstraints col1 = new ColumnConstraints();
-        col1.setPercentWidth(80);
+        col1.setPercentWidth(65);
 
         ColumnConstraints col2 = new ColumnConstraints();
         col2.setPercentWidth(15);
+
         ColumnConstraints col3 = new ColumnConstraints();
-        col3.setPercentWidth(5);
-        gridPaneLog.getColumnConstraints().addAll(col1, col2, col3);
+        col3.setPercentWidth(15);
+
+        ColumnConstraints col4 = new ColumnConstraints();
+        col4.setPercentWidth(5);
+
+        gridPaneLog.getColumnConstraints().addAll(col1, col2, col3, col4);
 
         // Add labels in the first row
         gridPaneLog.add(pathLogLabel, 0, 0);
         gridPaneLog.add(sizeLogLabel, 1, 0);
+        gridPaneLog.add(reduceSearchCriteriaLabel, 2, 0);
 
         // Add text fields in the second row
         gridPaneLog.add(pathLog, 0, 1);
         gridPaneLog.add(sizeLog, 1, 1);
+        gridPaneLog.add(reduceSearchCriteria, 2, 1);
 
         // Add button in the second row, third column
-        gridPaneLog.add(pathLogButton, 2, 1);
+        gridPaneLog.add(pathLogButton, 3, 1);
 
         // Set margin for pathLogButton to create spacing from right border
         GridPane.setMargin(pathLogButton, new Insets(0, 0, 0, 5));
@@ -297,6 +308,8 @@ public class ABRConfigurationPane extends ABRPane {
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.MAX_LOG_SIZE.getValue(), sizeLog.getText());
             ABRPropertyManager.getInstance()
+                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearchCriteria.getText());
+            ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
             ABRPropertyManager.getInstance()
@@ -315,6 +328,8 @@ public class ABRConfigurationPane extends ABRPane {
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), pathExcel.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.MAX_LOG_SIZE.getValue(), sizeLog.getText());
+            ABRPropertyManager.getInstance()
+                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearchCriteria.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
