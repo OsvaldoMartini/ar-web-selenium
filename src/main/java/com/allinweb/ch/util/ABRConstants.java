@@ -73,6 +73,7 @@ public class ABRConstants {
     public static final String ICON_DOCS = "/docs.png";
     public static final String ICON_CUBES = "/Cubes.png";
     public static final String ICON_SCREEN = "/screen.png";
+    public static final String ICON_TICK = "/tick.png";
 
     // ACTION CODES
     public static final String VISUALIZE = "V";

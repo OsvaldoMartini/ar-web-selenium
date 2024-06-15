@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
+import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.ABRWebElementListCell;
@@ -108,19 +109,29 @@ public class ABRScannedElementPane extends ABRPane {
     private ListView<ABRWebElement> scannedElements3;
     private Button scanButton;
     private Button addWaitButton;
+    private Button addElement;
     private Button addCloseActionButton;
     private Button addScreenButton;
     private Button configureButton;
     private Button launchBotJobButton;
+    private Button searchWithIdsButton;
+    private Button searchWithNamesButton;
+    private Button searchWithoutIdsAndNamesBtn;
     private Button refreshInputFieldsButton;
     private Button refreshOutputFieldsButton;
     private Button refreshOtherFieldsButton;
     private CheckBox checkBoxAction;
     private CheckBox checkActiveHover;
+    private CheckBox checkClickElement;
+    private CheckBox checkInputText;
     private TextField xpathTextField;
-    private TextField coordinatesTextField;
 
     private Boolean periodicActivated = false;
+
+    private Boolean idAttributeFirst = false;
+    private Boolean nameAttributeFirst = false;
+    private Boolean withoutNameAndId = false;
+    Map<String, WebElement> mapAdvanced = new HashMap<>();
 
     // Very important sequence on initiation
     private static ABRPriorities abrPriorities;
@@ -174,6 +185,9 @@ public class ABRScannedElementPane extends ABRPane {
                 "Scan", ABRConstants.SPACE_L, ABRConstants.ICON_SEARCH, ABRConstants.SPACE_M, new Insets(5));
         addWaitButton = componentBuilder.buildButton(
                 "Add Wait", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+        addElement = componentBuilder.buildButton(
+                "Add Element", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_M, new Insets(5));
+
         addCloseActionButton = componentBuilder.buildButton(
                 "Add Close Browser",
                 ABRConstants.SPACE_L,
@@ -182,6 +196,17 @@ public class ABRScannedElementPane extends ABRPane {
                 new Insets(5));
         addScreenButton = componentBuilder.buildButton(
                 "Add Screenshot", ABRConstants.SPACE_L, ABRConstants.ICON_SCREEN, ABRConstants.SPACE_M, new Insets(5));
+        searchWithIdsButton = componentBuilder.buildButton(
+                "With IDs", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        searchWithNamesButton = componentBuilder.buildButton(
+                "With Names", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        searchWithoutIdsAndNamesBtn = componentBuilder.buildButton(
+                "Input/Buttons (No IDs/Names)",
+                ABRConstants.SPACE_ZERO,
+                "/refresh.png",
+                ABRConstants.SPACE_M,
+                new Insets(5.0D));
+
         refreshInputFieldsButton = componentBuilder.buildButton(
                 "Input Fields", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         refreshOutputFieldsButton = componentBuilder.buildButton(
@@ -189,7 +214,12 @@ public class ABRScannedElementPane extends ABRPane {
         refreshOtherFieldsButton = componentBuilder.buildButton(
                 "Other Elements", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         checkBoxAction = new CheckBox("Execute Action\n(RELEASE AFTER USE)");
+        checkClickElement = new CheckBox("For Click");
+        checkClickElement.setSelected(true);
+        checkInputText = new CheckBox("For Input");
+
         webElementObservableList1 = FXCollections.observableArrayList();
+
         scannedElements1 = new ListView<>(webElementObservableList1);
         scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ABRConstants.SPACE_ZERO);
         scannedElements1.setCellFactory(new ABRCellFactory<>(ABRWebElementListCell.class)::call);
@@ -242,68 +272,44 @@ public class ABRScannedElementPane extends ABRPane {
         xpathTextField = new TextField();
         xpathTextField.setPromptText("Hovered element XPath will appear here");
 
-        coordinatesTextField = new TextField();
-        coordinatesTextField.setPromptText("Hovered element Coordinates will appear here");
+        // Create a GridPane
+        GridPane gridPaneTop = new GridPane();
+        gridPaneTop.setPadding(new Insets(10));
+        gridPaneTop.setHgap(10); // Set horizontal gap between columns
 
-        HBox buttonBox = new HBox();
-        buttonBox.setSpacing(10);
-        buttonBox
-                .getChildren()
-                .addAll(
-                        scanButton,
-                        addWaitButton,
-                        addCloseActionButton,
-                        addScreenButton,
-                        configureButton,
-                        launchBotJobButton,
-                        checkActiveHover,
-                        xpathTextField,
-                        coordinatesTextField);
-        addNodesToPane(topPane, buttonBox);
+        // Add buttons and checkbox to the GridPane
+        gridPaneTop.add(scanButton, 0, 0);
+        gridPaneTop.add(addWaitButton, 1, 0);
+        gridPaneTop.add(addCloseActionButton, 2, 0);
+        gridPaneTop.add(addScreenButton, 3, 0);
+        gridPaneTop.add(configureButton, 4, 0);
+        gridPaneTop.add(launchBotJobButton, 5, 0);
+        gridPaneTop.add(checkActiveHover, 6, 0);
+        gridPaneTop.add(xpathTextField, 7, 0);
+        gridPaneTop.add(addElement, 8, 0);
 
-        //        addNodesToPane(contentPane, refreshInputFieldsButton, refreshOutputFieldsButton,
-        // refreshOtherFieldsButton);
-        // Set the layout constraints for the buttonscreate
-        //        AnchorPane.setTopAnchor(refreshInputFieldsButton, topPane.getBoundsInLocal().getHeight());
-        //        AnchorPane.setTopAnchor(refreshOutputFieldsButton, topPane.getBoundsInLocal().getHeight());
-        //        AnchorPane.setTopAnchor(refreshOtherFieldsButton, topPane.getBoundsInLocal().getHeight());
-        //        AnchorPane.setLeftAnchor(refreshOutputFieldsButton, 300D);
-        //        AnchorPane.setLeftAnchor(refreshOtherFieldsButton, 600D);
+        VBox vBox = new VBox();
+        vBox.getChildren().addAll(checkClickElement, checkInputText);
+        //        vBox.setSpacing(6); // Adjust spacing between CheckBoxes
+        gridPaneTop.add(vBox, 9, 0);
 
-        //        AnchorPane.setLeftAnchor(refreshInputFieldsButton, 30D);
+        addNodesToPane(topPane, gridPaneTop);
 
         VBox verticalBox = new VBox();
 
-        HBox buttonsBox = new HBox();
-        //        buttonsBox.setSpacing(300);
+        // Create a GridPane
+        GridPane gridPane = new GridPane();
+        gridPane.setPadding(new Insets(10));
+        gridPane.setHgap(10); // Set horizontal gap between columns
 
-        Region space1 = new Region();
-        Region space2 = new Region();
-
-        HBox.setMargin(refreshInputFieldsButton, new Insets(0, 0, 0, 100));
-        HBox.setMargin(refreshOtherFieldsButton, new Insets(0, 100, 0, 0));
-
-        HBox.setHgrow(space1, Priority.ALWAYS);
-        HBox.setHgrow(space2, Priority.ALWAYS);
-
-        // Set Hgrow for each ListView to make them equally distributed
-        //        crefreshInputFieldsButton, Priority.ALWAYS);
-        //        HBox.setHgrow(refreshOutputFieldsButton, Priority.ALWAYS);
-        //        HBox.setHgrow(refreshOtherFieldsButton, Priority.ALWAYS);
-
-        buttonsBox
-                .getChildren()
-                .addAll(
-                        refreshInputFieldsButton,
-                        space1,
-                        refreshOutputFieldsButton,
-                        space2,
-                        refreshOtherFieldsButton,
-                        checkBoxAction);
-
-        // Set the vertical alignment for checkBoxAction to TOP
-        VBox.setMargin(checkBoxAction, new Insets(0, 0, 0, 80)); // Example margin, adjust as needed
-        //        verticalBox.getChildren().addAll(buttonsBox, checkBoxAction);
+        // Add buttons and checkbox to the GridPane
+        gridPane.add(refreshInputFieldsButton, 0, 0);
+        gridPane.add(searchWithIdsButton, 1, 0);
+        gridPane.add(searchWithNamesButton, 2, 0);
+        gridPane.add(searchWithoutIdsAndNamesBtn, 3, 0);
+        gridPane.add(refreshOutputFieldsButton, 4, 0);
+        gridPane.add(refreshOtherFieldsButton, 5, 0);
+        gridPane.add(checkBoxAction, 6, 0);
 
         HBox boxListViews = new HBox();
 
@@ -311,12 +317,6 @@ public class ABRScannedElementPane extends ABRPane {
         scannedElements1.prefHeightProperty().bind(contentPane.heightProperty());
         scannedElements2.prefHeightProperty().bind(contentPane.heightProperty());
         scannedElements3.prefHeightProperty().bind(contentPane.heightProperty());
-        //        scannedElements1.setPrefHeight(contentPane.heightProperty().getValue() -
-        // bottomPane.heightProperty().getValue());
-        //        scannedElements2.setPrefHeight(contentPane.heightProperty().getValue() -
-        // bottomPane.heightProperty().getValue());
-        //        scannedElements3.setPrefHeight(contentPane.heightProperty().getValue() -
-        // bottomPane.heightProperty().getValue());
 
         boxListViews.setSpacing(5);
 
@@ -327,25 +327,12 @@ public class ABRScannedElementPane extends ABRPane {
 
         boxListViews.getChildren().addAll(scannedElements1, scannedElements2, scannedElements3);
 
-        verticalBox.getChildren().addAll(buttonsBox, boxListViews, bottomPane);
-        //        contentPane.getChildren().addAll(scannedElements1, scannedElements2, scannedElements3);
+        verticalBox.getChildren().addAll(gridPane, boxListViews, bottomPane);
         contentPane.getChildren().addAll(verticalBox);
 
         scannedElements1.setPrefWidth(LIST_VIEW_WIDTH);
         scannedElements2.setPrefWidth(LIST_VIEW_WIDTH);
         scannedElements3.setPrefWidth(LIST_VIEW_WIDTH);
-
-        //        boxListViews.setAlignment(Pos.BOTTOM_CENTER);
-        // Set the layout constraints for the ListViews
-        //        AnchorPane.setTopAnchor(boxListViews, 30D);
-        //        AnchorPane.setLeftAnchor(boxListViews, 0D);
-
-        //        AnchorPane.setTopAnchor(scannedElements1, 30D);
-        //        AnchorPane.setLeftAnchor(scannedElements1, 0D);
-        //        AnchorPane.setTopAnchor(scannedElements2, 30D);
-        //        AnchorPane.setLeftAnchor(scannedElements2, scannedElements1.getPrefWidth());
-        //        AnchorPane.setTopAnchor(scannedElements3, 30D);
-        //        AnchorPane.setLeftAnchor(scannedElements3, scannedElements1.getPrefWidth() * 2);
     }
 
     @Override
@@ -373,20 +360,145 @@ public class ABRScannedElementPane extends ABRPane {
             recallJob();
         });
         checkActiveHover.setOnMouseClicked(e -> handleHoverCheckClick());
+        checkClickElement.setOnAction(event -> {
+            if (checkClickElement.isSelected()) {
+                checkInputText.setSelected(false);
+            } else {
+                checkInputText.setSelected(true);
+            }
+        });
+
+        checkInputText.setOnAction(event -> {
+            if (checkInputText.isSelected()) {
+                checkClickElement.setSelected(false);
+            } else {
+                checkClickElement.setSelected(true);
+            }
+        });
         scanButton.setOnAction(e -> manageUIScan());
         addWaitButton.setOnAction(e -> addWaitTask(30));
+        addElement.setOnAction(e -> addNewElement());
         addCloseActionButton.setOnAction(e -> addCloseBrowserTask());
         addScreenButton.setOnAction(e -> addScreenTask());
 
         refreshInputFieldsButton.setOnAction(e -> refreshInputBtn());
         refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn());
         refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn());
+        searchWithIdsButton.setOnAction(e -> refreshWithIdsBtn());
+        searchWithNamesButton.setOnAction(e -> refreshWithNamesBtn());
+        searchWithoutIdsAndNamesBtn.setOnAction(e -> refreshWithoutIdsAndNamesBtn());
 
         scannedElements1.getItems().addListener(this::addBehaviourToAddedElements);
         scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
         scannedElements3.getItems().addListener(this::addBehaviourToAddedElements);
 
         //        manageUIScan();
+    }
+
+    private void addNewElement() {
+        String text = xpathTextField.getText();
+        // Find the index of '(' and ')' to extract id and coordinates
+        // Check if input1 starts with "id(" or "name("
+        if (text.startsWith("id(")) {
+            extractComponents(text, "id");
+        } else if (text.startsWith("name(")) {
+            extractComponents(text, "name");
+        } else {
+            System.out.println("Input format not recognized for input1.");
+        }
+    }
+
+    private void extractComponents(String input, String type) {
+        // Find the index of '(' and ')' to extract id or name and coordinates
+        try {
+
+            int indexOfOpenParenthesis = input.indexOf('(');
+            int indexOfCloseParenthesis = input.indexOf(')');
+
+            if (indexOfOpenParenthesis != -1 && indexOfCloseParenthesis != -1) {
+                // Extract id or name between '(' and ')'
+                String idOrName = input.substring(type.length() + 2, indexOfCloseParenthesis - 1);
+
+                input = input.substring(indexOfCloseParenthesis + 1);
+                indexOfOpenParenthesis = input.indexOf('(');
+                indexOfCloseParenthesis = input.indexOf(')');
+                String coordinates = input.substring(indexOfOpenParenthesis + 1, indexOfCloseParenthesis);
+
+                // Split coordinates into coordLeft and coordRight based on comma
+                String[] coords = coordinates.split(",");
+                if (coords.length == 2) {
+                    String coordLeft = coords[0].trim();
+                    String coordRight = coords[1].trim();
+
+                    // Print or use the extracted values
+                    System.out.println("Type: " + type);
+                    System.out.println("Id/Name: " + idOrName);
+                    System.out.println("CoordLeft: " + coordLeft);
+                    System.out.println("CoordRight: " + coordRight);
+                    WebElement element = null;
+                    if (type.equalsIgnoreCase("id")) {
+                        element = abrWebDriver.getDriver().findElement(By.id(idOrName));
+                    } else if (type.equalsIgnoreCase("name")) {
+                        element = abrWebDriver.getDriver().findElement(By.name(idOrName));
+                    }
+                    if (element != null) {
+
+                        Boolean clickable = isClickable(element);
+
+                        checkClickElement.setSelected(clickable);
+                        checkInputText.setSelected(!clickable);
+
+                        if (checkClickElement.isSelected()) {
+                            ABRWebElement abrWebElement =
+                                    new ABRWebElement(element, WebElementTagNameEnum.BUTTON, type, botJob.getId());
+                            if (abrWebElement != null) {
+                                webElementObservableList3.add(abrWebElement);
+                            }
+                        } else if (checkInputText.isSelected()) {
+                            ABRWebElement abrWebElement =
+                                    new ABRWebElement(element, WebElementTagNameEnum.INPUT, type, botJob.getId());
+                            if (abrWebElement != null) {
+                                webElementObservableList3.add(abrWebElement);
+                            }
+                        }
+                    }
+
+                } else {
+                    ABRLogger.getInstance(ABRScannedElementPane.class).severe("Coordinates format not valid.");
+                }
+            } else {
+                ABRLogger.getInstance(ABRScannedElementPane.class).severe("Input format not recognized.");
+            }
+        } catch (Exception ex) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe("Error Attempt to create a Dynamic Element\n" + ex.getMessage());
+        }
+    }
+
+    private boolean isClickable(WebElement element) {
+        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
+        boolean isClickableTag =
+                clickableTags.stream().anyMatch(t -> t.getValue().equals(element.getTagName()));
+        List<WebElementAttributeTypeValueEnum> clickableValues = WebElementAttributeTypeValueEnum.getClickableValues();
+        boolean isClickableValue = clickableValues.stream()
+                .anyMatch(v -> v.getValue().equals(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
+        boolean isInputTag = element.getTagName().equals(WebElementTagNameEnum.INPUT.getValue());
+        return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
+    }
+
+    private void refreshWithoutIdsAndNamesBtn() {
+        webElementObservableList1.clear();
+        manageUIScanWithoudNameAndId();
+    }
+
+    private void refreshWithNamesBtn() {
+        webElementObservableList1.clear();
+        manageUIScanAtributeNameFirst();
+    }
+
+    private void refreshWithIdsBtn() {
+        webElementObservableList1.clear();
+        manageUIScanIdsFirst();
     }
 
     private void handleHoverCheckClick() {
@@ -397,6 +509,9 @@ public class ABRScannedElementPane extends ABRPane {
         } else {
             revertInjectedChanges(abrWebDriver.getDriver());
         }
+        checkClickElement.setDisable(checkActiveHover.isSelected());
+        checkInputText.setDisable(checkActiveHover.isSelected());
+        addElement.setDisable(checkActiveHover.isSelected());
         periodicActivated = checkActiveHover.isSelected();
     }
 
@@ -405,17 +520,43 @@ public class ABRScannedElementPane extends ABRPane {
         webElementObservableList1.clear();
         webElementObservableList2.clear();
         webElementObservableList3.clear();
+        manageUIScanIdsFirst();
+        manageUIScanAtributeNameFirst();
+        manageUIScanWithoudNameAndId();
+
         manageUIScanPriorities();
         manageUIScanInputs();
         manageUIScanClickable();
         //        manageUIScanOutputs();
     }
 
+    private void manageUIScanWithoudNameAndId() {
+        idAttributeFirst = false;
+        nameAttributeFirst = false;
+        withoutNameAndId = true;
+        scanABRElementsAsync(null, null, null, webElementObservableList1, "input");
+        scanABRElementsAsync(null, null, null, webElementObservableList1, "button");
+    }
+
+    private void manageUIScanAtributeNameFirst() {
+        idAttributeFirst = false;
+        nameAttributeFirst = true;
+        withoutNameAndId = false;
+        scanABRElementsAsync(null, null, null, webElementObservableList1, "name");
+    }
+
+    private void manageUIScanIdsFirst() {
+        idAttributeFirst = true;
+        nameAttributeFirst = false;
+        withoutNameAndId = false;
+        scanABRElementsAsync(null, null, null, webElementObservableList1, "id");
+    }
+
     private void manageUIScanInputs() {
         List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
         for (WebElementTagNameEnum tag : inputTags) {
             scanABRElementsAsync(
-                    null, By.tagName(tag.getValue()), ABRWebElement::isNotClickable, webElementObservableList1);
+                    null, By.tagName(tag.getValue()), ABRWebElement::isNotClickable, webElementObservableList1, null);
         }
     }
 
@@ -423,18 +564,17 @@ public class ABRScannedElementPane extends ABRPane {
         List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
         for (WebElementTagNameEnum tag : clickableTags) {
             scanABRElementsAsync(
-                    null, By.tagName(tag.getValue()), ABRWebElement::isClickable, webElementObservableList2);
+                    null, By.tagName(tag.getValue()), ABRWebElement::isClickable, webElementObservableList2, null);
         }
     }
 
     private void manageUIScanPriorities() {
-        String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
         List<WebElement> webElements = managePrioritiesCriteria();
         //        manageUIScanPrioritiesJSoup();
         //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
         try {
             if (webElements != null && webElements.size() > 0) {
-                scanABRElementsAsync(webElements, webElementObservableList3);
+                scanABRElementsAsync(webElements, null, null, webElementObservableList3, null);
             }
         } catch (Exception e) {
             System.out.println("Error " + e.getMessage());
@@ -447,48 +587,77 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void scanABRElementsAsync(By criteria, ObservableList<ABRWebElement> listToAddElements) {
-        scanABRElementsAsync(null, criteria, null, listToAddElements);
+        scanABRElementsAsync(null, criteria, null, listToAddElements, null);
     }
 
-    private void scanABRElementsAsync(List<WebElement> preElements, ObservableList<ABRWebElement> listToAddElements) {
-        scanABRElementsAsync(preElements, null, null, listToAddElements);
+    private void scanABRElementsAsync(
+            List<WebElement> preElements,
+            ObservableList<ABRWebElement> listToAddElements,
+            Boolean idsFirst,
+            Boolean namesFirst) {
+        scanABRElementsAsync(preElements, null, null, listToAddElements, null);
     }
 
     private void scanABRElementsAsync(
             List<WebElement> preElements,
             By criteria,
             Predicate<ABRWebElement> filterCondition,
-            ObservableList<ABRWebElement> listToAddElements) {
+            ObservableList<ABRWebElement> listToAddElements,
+            String elementType) {
 
         ProgressBar progressBar = new ProgressBar();
         addNodesToPane(bottomPane, progressBar);
         Task<Void> workingTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
+                List<ABRWebElement> listABRElements = null;
+
+                // Separation between creation of ABR Elements
                 try {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine("Starting scan of elements for criteria: " + criteria);
 
                     List<WebElement> scannedElementList = new ArrayList<>();
-                    if (preElements != null && preElements.size() > 0) {
+
+                    if (idAttributeFirst || nameAttributeFirst) {
+                        mapAdvanced = findElementsWithXPath(abrWebDriver.getDriver(), elementType);
+                        listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
+                    } else if (withoutNameAndId) {
+                        mapAdvanced = findElementsWithoutIdOrName(abrWebDriver.getDriver(), elementType);
+                        listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
+                    } else if (preElements != null && preElements.size() > 0) {
                         scannedElementList.addAll(preElements);
                     } else if (criteria != null) {
                         scannedElementList = abrWebDriver.scan(criteria);
                     }
+                    if (listABRElements != null && listABRElements.size() > 0) {
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .finer("list of Advanced Scanner elements has " + listABRElements.size());
+                    }
+
+                    // Reset these
+                    idAttributeFirst = false;
+                    nameAttributeFirst = false;
+                    withoutNameAndId = false;
 
                     if (scannedElementList != null && scannedElementList.size() > 0) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
                                 .finer("list of scanned elements has " + scannedElementList.size()
                                         + " elements for Search Criteria " + criteria);
+                        if (scannedElementList.size() > reduceSearchCriteria) {
 
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine("Reduces to the Limit of ABRWebElements : " + reduceSearchCriteria);
-                        List<WebElement> scannedElementListReduced = scannedElementList.size() > reduceSearchCriteria
-                                ? new ArrayList<>(scannedElementList.subList(0, reduceSearchCriteria))
-                                : scannedElementList;
-                        List<ABRWebElement> listABRElements = null;
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine("Reduces to the Limit of ABRWebElements : " + reduceSearchCriteria);
+                            List<WebElement> scannedElementListReduced =
+                                    scannedElementList.size() > reduceSearchCriteria
+                                            ? new ArrayList<>(scannedElementList.subList(0, reduceSearchCriteria))
+                                            : scannedElementList;
+                            scannedElementList.clear();
+                            scannedElementList.addAll(scannedElementListReduced);
+                            scannedElementListReduced.clear();
+                        }
                         try {
-                            listABRElements = scannedElementListReduced.stream()
+                            listABRElements = scannedElementList.stream()
                                     .filter(element -> element != null) // Filter out null elements
                                     .map(element -> new ABRWebElement(element, botJob.getId()))
                                     .collect(Collectors.toList());
@@ -496,56 +665,30 @@ public class ABRScannedElementPane extends ABRPane {
                         } finally {
 
                         }
-
-                        if (preElements == null) {
-
-                            // Saved REferences From Priorities
-                            // Update the savedReferences field for each element in the stream
-                            // Iterate over the list to update the savedReferences field
-                            //                        for (ABRWebElement element : listABRElements) {
-
-                            if (listABRElements != null && listABRElements.size() > 0) {
-                                //
-                                // buildPriorityReferences(listABRElements);saveReferencesToFile(
-                                ////
-                                // "C:\\Projects\\Martini\\abr-web-selenium\\savedRef.txt", listABRElements);
-                                //
-                            }
-                            // Update the savedReferences field
-                            //                            element.getSavedReferences().put("key", "value");
-
-                            //                        }
-                        }
-
-                        //                    if (filterCondition != null) {
-                        //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Starting
-                        // filtering elements");
-                        //                        stream = stream.filter(filterCondition);
-                        //                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Filtering
-                        // elements ended");
-                        //                    }
-                        if (listABRElements != null) {
-
-                            for (ABRWebElement element : listABRElements) {
-                                Platform.runLater(() -> {
-                                    listToAddElements.add(element);
-                                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                                            .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
-                                                    + element.getXPath());
-                                });
-                                Thread.sleep(100);
-                            }
-                        }
-                        Platform.runLater(() -> {
-                            removeNodesFromPane(bottomPane, progressBar);
-                        });
                     }
 
                 } catch (Exception e) {
                     ABRLogger.getInstance(Thread.class)
-                            .severe("an exception has occurred in the thread for criteria " + criteria + ": Message: "
-                                    + e.getMessage() + " Cause: " + e.getCause());
+                            .severe(String.format(
+                                    "An exception has occurred\n%s \nCause: %s", e.getMessage(), e.getCause()));
                 }
+
+                // After Creation of ABR Elements - > Update View List
+                if (listABRElements != null) {
+                    for (ABRWebElement element : listABRElements) {
+                        Platform.runLater(() -> {
+                            listToAddElements.add(element);
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
+                                            + element.getXPath());
+                        });
+                        Thread.sleep(100);
+                    }
+                }
+                Platform.runLater(() -> {
+                    removeNodesFromPane(bottomPane, progressBar);
+                });
+
                 return null;
             }
         };
@@ -773,16 +916,17 @@ public class ABRScannedElementPane extends ABRPane {
                             protected Void call() throws Exception {
                                 ABRLogger.getInstance(Task.class).info("THREAD: Started");
 
-                                try {
-                                    abrWebElement.setxPath(
-                                            getXPath(abrWebDriver.getDriver(), abrWebElement.getElement()));
-                                    abrWebDriver.dehighlightElement(abrWebElement.getElement());
-                                } catch (Exception e) {
-                                    System.out.println("Cannot find the XPath for this Element");
+                                if (Strings.isNullOrEmpty(abrWebElement.getXPath())) {
+                                    try {
+                                        abrWebElement.setxPath(
+                                                getXPath(abrWebDriver.getDriver(), abrWebElement.getElement()));
+                                        abrWebDriver.dehighlightElement(abrWebElement.getElement());
+                                    } catch (Exception e) {
+                                        ABRLogger.getInstance(Task.class)
+                                                .severe("Cannot find the XPath for this Element ");
+                                    }
                                 }
 
-                                ABRLogger.getInstance(Task.class)
-                                        .fine("THREAD: starting element scan by xpath " + abrWebElement.getXPath());
                                 //                            List<WebElement> elementList =
                                 // abrWebDriver.scan(By.xpath(abrWebElement.getXPath()));
                                 //                            ABRLogger.getInstance(Task.class)
@@ -805,76 +949,47 @@ public class ABRScannedElementPane extends ABRPane {
                                                 BlockLoopInstructionDTO.class,
                                                 (instr) -> instr.getBlock().getId() == block.getId());
                                 ABRLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
-                                ABRLogger.getInstance(Task.class).fine("THREAD: creating instruction from webelement");
                                 BlockLoopInstructionDTO instruction =
                                         abrWebElement.buildBlockLoopInstruction(list.size());
-                                ABRLogger.getInstance(Task.class).fine("THREAD: instruction from webelement created");
-                                ABRLogger.getInstance(Task.class)
-                                        .fine("THREAD: setting block " + block.getId() + " on instruction");
                                 instruction.setBlock(block);
-                                ABRLogger.getInstance(Task.class).fine("THREAD: block " + block.getId() + " set");
                                 ABRLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
                                 ABRSharedResources.getInstance()
                                         .addEntity(instruction, BlockLoopInstructionDTO.class, () -> {
-                                            ABRLogger.getInstance(Task.class)
-                                                    .fine("THREAD: instruction added successfully to database");
-                                            ABRLogger.getInstance(Task.class)
-                                                    .fine("THREAD: setting instuctionId " + instruction.getId());
                                             abrWebElement.setInstructionId(instruction.getId());
-                                            ABRLogger.getInstance(Task.class)
-                                                    .fine("THREAD: instuctionId set " + instruction.getId());
-                                            ABRLogger.getInstance(Task.class)
-                                                    .fine("THREAD: creating queue for references");
                                             LinkedBlockingQueue<InstructionReferenceDTO> queue =
                                                     new LinkedBlockingQueue<>();
                                             for (String key : abrWebElement
                                                     .getSavedReferences()
                                                     .keySet()) {
-                                                ABRLogger.getInstance(Task.class)
-                                                        .finer("THREAD: creating reference " + key);
                                                 InstructionReferenceDTO reference = new InstructionReferenceDTO();
                                                 reference.setReferenceType(key);
-                                                ABRLogger.getInstance(Task.class)
-                                                        .finer("THREAD: setting value of reference: "
-                                                                + abrWebElement
-                                                                        .getSavedReferences()
-                                                                        .get(key));
                                                 reference.setValue(abrWebElement
                                                         .getSavedReferences()
                                                         .get(key));
-                                                ABRLogger.getInstance(Task.class)
-                                                        .fine("THREAD: reference value set");
-                                                ABRLogger.getInstance(Task.class)
-                                                        .finer("THREAD: setting reference instruction: " + instruction);
                                                 reference.setBlockLoopInstructionDTO(instruction);
-                                                ABRLogger.getInstance(Task.class)
-                                                        .fine("THREAD: reference instruction set");
-                                                ABRLogger.getInstance(Task.class)
-                                                        .fine("THREAD: adding reference to queue");
                                                 queue.add(reference);
                                                 ABRLogger.getInstance(Task.class)
                                                         .fine("THREAD: reference added to queue");
                                             }
                                             ABRLogger.getInstance(Task.class)
-                                                    .fine("THREAD: adding " + queue.size() + "queue elements");
-                                            ABRSharedResources.getInstance()
-                                                    .addAllEntity(queue, InstructionReferenceDTO.class, () -> {
-                                                        ABRLogger.getInstance(Task.class)
-                                                                .fine(
-                                                                        "THREAD: queue elements added successfully. Showing alert on JAVAFX thread");
-                                                        Platform.runLater(() -> {
-                                                            ABRLogger.getInstance(Task.class)
-                                                                    .fine("JAVAFX: showing alert");
-                                                            new ABRAlertScene(
-                                                                    Alert.AlertType.INFORMATION,
-                                                                    "Instruction Added",
-                                                                    "Instruction " + instruction.getName()
-                                                                            + " has been added successfully",
-                                                                    ButtonType.OK);
-                                                            ABRLogger.getInstance(Task.class)
-                                                                    .fine("JAVAFX: alert shown");
+                                                    .fine("THREAD: adding " + queue.size() + "Instruction elements");
+                                            try {
+                                                ABRSharedResources.getInstance()
+                                                        .addAllEntity(queue, InstructionReferenceDTO.class, () -> {
+                                                            Platform.runLater(() -> {
+                                                                new ABRAlertScene(
+                                                                        Alert.AlertType.INFORMATION,
+                                                                        "Instruction Added",
+                                                                        "Instruction " + instruction.getName()
+                                                                                + " has been added successfully",
+                                                                        ButtonType.OK);
+                                                            });
                                                         });
-                                                    });
+
+                                            } catch (Exception ex) {
+                                                ABRLogger.getInstance(Task.class)
+                                                        .severe("Error Adding Instruction elements");
+                                            }
                                         });
                                 return null;
                             }
@@ -1690,7 +1805,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    function showTooltip(event) {"
                 + "        var tagName = event.target.tagName.toLowerCase();"
                 + "        var coords = event.target.getBoundingClientRect();"
-                + "        tooltip.textContent = tagName + ' Coordinates: (' + coords.left + ', ' + coords.top + ')';"
+                + "        tooltip.textContent = tagName + '-Coordinates:(' + coords.left + ',' + coords.top + ')';"
                 + "        tooltip.style.left = event.pageX + 'px';"
                 + "        tooltip.style.top = (event.pageY + 15) + 'px';"
                 + "        tooltip.style.display = 'block';"
@@ -1700,10 +1815,9 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    }"
                 + "    function handleClick(event) {"
                 + "        var xpath = getXPath(event.target);"
-                + "        var coords = event.target.getBoundingClientRect();"
-                + "        window.currentXPath = coords;"
-                + "        window.coordinates = xpath;"
+                + "        window.currentXPath = xpath + '-' + tooltip.textContent;"
                 + "    }"
+                + "    window.currentXPath = '';"
                 + "    document.addEventListener('mouseover', showTooltip);"
                 + "    document.addEventListener('mouseout', hideTooltip);"
                 + "    document.addEventListener('click', handleClick);"
@@ -1716,22 +1830,10 @@ public class ABRScannedElementPane extends ABRPane {
         // Start a thread to periodically check the XPath value and update the TextField
         new Thread(() -> {
                     while (periodicActivated) {
-                        String coordinates = (String) jsExecutor.executeScript("return window.coordinates;");
-                        Platform.runLater(() -> coordinatesTextField.setText(coordinates));
-                        try {
-                            Thread.sleep(500); // Check every 500 milliseconds
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                })
-                .start();
-
-        // Start a thread to periodically check the XPath value and update the TextField
-        new Thread(() -> {
-                    while (periodicActivated) {
                         String currentXPath = (String) jsExecutor.executeScript("return window.currentXPath;");
-                        Platform.runLater(() -> xpathTextField.setText(currentXPath));
+                        if (currentXPath != null && !currentXPath.isEmpty()) {
+                            Platform.runLater(() -> xpathTextField.setText(currentXPath));
+                        }
                         try {
                             Thread.sleep(500); // Check every 500 milliseconds
                         } catch (InterruptedException e) {
@@ -2142,7 +2244,7 @@ public class ABRScannedElementPane extends ABRPane {
             instructionElement = locateElement(instruction, data);
         }
         String result = "";
-        if (instructionElement != null) {
+        if (instructionElement != null || actions[0].equals(Constants.HOLD)) {
 
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
@@ -2759,5 +2861,147 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         return criteriaList;
+    }
+
+    public List<ABRWebElement> createAdvancedABRElement(Map<String, WebElement> mapAdvanced, String attribute) {
+        List<ABRWebElement> listABRElements = new ArrayList<>();
+        if (!mapAdvanced.isEmpty()) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .fine(String.format("Advance Search Element with total of %s elements", mapAdvanced.size()));
+
+            for (Map.Entry<String, WebElement> entry : mapAdvanced.entrySet()) {
+                WebElement element = entry.getValue();
+                String xpath = entry.getKey();
+                String attributeValue = element.getAttribute(attribute);
+                System.out.println("ABR Element Creation ->  Tag: " + element.getTagName() + ", " + attribute + ": "
+                        + attributeValue + ", XPath: " + xpath);
+
+                try {
+                    listABRElements.add(new ABRWebElement(entry, attribute, botJob.getId()));
+                } catch (Exception ex) {
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine(String.format(
+                                    "Error attempt to create Advance Element  attribute: %s xPath: ",
+                                    attributeValue, xpath));
+                }
+            }
+        }
+        return listABRElements;
+    }
+
+    /**
+     * Finds all elements with the specified attribute and returns a map with their XPaths as keys.
+     *
+     * @param driver the WebDriver instance
+     * @param attribute the attribute to find elements by (e.g., "id" or "name")
+     * @return a map where keys are XPaths of elements and values are WebElements
+     */
+    private static Map<String, WebElement> findElementsWithXPath(WebDriver driver, String attribute) {
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        List<WebElement> elements = (List<WebElement>)
+                jsExecutor.executeScript("return Array.from(document.querySelectorAll('[" + attribute + "]'));");
+        Map<String, WebElement> elementMap = new HashMap<>();
+        for (WebElement element : elements) {
+            String xpath = getElementXPath(driver, element);
+            elementMap.put(xpath, element);
+        }
+        return elementMap;
+    }
+
+    /**
+     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
+     *
+     * @param driver the WebDriver instance
+     * @param tagName the tag name of the elements to find (e.g., "input", "button")
+     * @return a map where keys are XPaths of elements and values are WebElements
+     */
+    private static Map<String, WebElement> findElementsWithoutIdOrName(WebDriver driver, String tagName) {
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        List<WebElement> elements = (List<WebElement>) jsExecutor.executeScript(
+                "return Array.from(document.querySelectorAll('" + tagName + ":not([id]):not([name])'));");
+        Map<String, WebElement> elementMap = new HashMap<>();
+        for (WebElement element : elements) {
+            String xpath = getElementXPath(driver, element);
+            elementMap.put(xpath, element);
+        }
+        return elementMap;
+    }
+
+    /**
+     * Prints out the elements, their specified attribute, and their XPath.
+     *
+     * @param elements a map where keys are XPaths of elements and values are WebElements
+     * @param attribute the attribute to print
+     */
+    private static void printElementsWithAttributeAndXPath(Map<String, WebElement> elements, String attribute) {
+        for (Map.Entry<String, WebElement> entry : elements.entrySet()) {
+            WebElement element = entry.getValue();
+            String xpath = entry.getKey();
+            String attributeValue = element.getAttribute(attribute);
+            System.out.println(
+                    "Tag: " + element.getTagName() + ", " + attribute + ": " + attributeValue + ", XPath: " + xpath);
+        }
+    }
+
+    /**
+     * Constructs the XPath of a given WebElement.
+     *
+     * @param driver the WebDriver instance
+     * @param element the WebElement to construct the XPath for
+     * @return the XPath of the element
+     */
+    private static String getElementXPath(WebDriver driver, WebElement element) {
+        return (String) ((JavascriptExecutor) driver)
+                .executeScript(
+                        "function absoluteXPath(element) {" + "    var comp, comps = [];"
+                                + "    var parent = null;"
+                                + "    var xpath = '';"
+                                + "    var getPos = function(element) {"
+                                + "        var position = 1, curNode;"
+                                + "        if (element.nodeType == Node.ATTRIBUTE_NODE) {"
+                                + "            return null;"
+                                + "        }"
+                                + "        for (curNode = element.previousSibling; curNode; curNode = curNode.previousSibling) {"
+                                + "            if (curNode.nodeName == element.nodeName) {"
+                                + "                ++position;"
+                                + "            }"
+                                + "        }"
+                                + "        return position;"
+                                + "    };"
+                                + "    if (element instanceof Document) {"
+                                + "        return '/';"
+                                + "    }"
+                                + "    for (; element && !(element instanceof Document); element = element.nodeType == Node.ATTRIBUTE_NODE ? element.ownerElement : element.parentNode) {"
+                                + "        comp = comps[comps.length] = {};"
+                                + "        switch (element.nodeType) {"
+                                + "            case Node.TEXT_NODE:"
+                                + "                comp.name = 'text()';"
+                                + "                break;"
+                                + "            case Node.ATTRIBUTE_NODE:"
+                                + "                comp.name = '@' + element.nodeName;"
+                                + "                break;"
+                                + "            case Node.PROCESSING_INSTRUCTION_NODE:"
+                                + "                comp.name = 'processing-instruction()';"
+                                + "                break;"
+                                + "            case Node.COMMENT_NODE:"
+                                + "                comp.name = 'comment()';"
+                                + "                break;"
+                                + "            case Node.ELEMENT_NODE:"
+                                + "                comp.name = element.nodeName;"
+                                + "                break;"
+                                + "        }"
+                                + "        comp.position = getPos(element);"
+                                + "    }"
+                                + "    for (var i = comps.length - 1; i >= 0; i--) {"
+                                + "        comp = comps[i];"
+                                + "        xpath += '/' + comp.name.toLowerCase();"
+                                + "        if (comp.position !== null) {"
+                                + "            xpath += '[' + comp.position + ']';"
+                                + "        }"
+                                + "    }"
+                                + "    return xpath;"
+                                + "}"
+                                + "return absoluteXPath(arguments[0]);",
+                        element);
     }
 }

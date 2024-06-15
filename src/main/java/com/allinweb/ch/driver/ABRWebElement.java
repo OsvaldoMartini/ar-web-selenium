@@ -47,6 +47,9 @@ public class ABRWebElement {
     private WebElement element;
 
     private String xPath;
+    private String attributeValue;
+    private WebElementTagNameEnum typeTag;
+
     private String innerHTML;
 
     private Map<String, String> savedReferences = new HashMap<>();
@@ -86,6 +89,21 @@ public class ABRWebElement {
         initFromWebElement(element);
     }
 
+    public ABRWebElement(WebElement element, WebElementTagNameEnum tagEnum, String attribute, int jobId) {
+        abrPriorities.setJobId(jobId);
+        this.typeTag = tagEnum;
+        this.attributeValue = element.getAttribute(attribute);
+        initFromWebElement(element);
+    }
+
+    public ABRWebElement(Map.Entry<String, WebElement> entry, String attribute, int jobId) {
+        abrPriorities.setJobId(jobId);
+        WebElement element = entry.getValue();
+        this.xPath = entry.getKey();
+        this.attributeValue = element.getAttribute(attribute);
+        initFromWebElement(element);
+    }
+
     public ABRWebElement(WebElement element, String priority) {
         updatePriorities(priority, null);
         initFromWebElement(element);
@@ -121,8 +139,7 @@ public class ABRWebElement {
         initUI();
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
-
-        if (abrPriorities.getJobId() != null) {
+        if (Strings.isNullOrEmpty(xPath) && abrPriorities.getJobId() != null && Strings.isNullOrEmpty(attributeValue)) {
             for (Priority priority : abrPriorities.getAllPriorityList()) {
                 switch (priority.getPriorityType()) {
                     case attribute -> {
@@ -144,6 +161,29 @@ public class ABRWebElement {
                     }
                 }
             }
+        } else {
+            if (!Strings.isNullOrEmpty(attributeValue)) {
+                savedReferences.put("attribute", attributeValue);
+            }
+
+            if (!Strings.isNullOrEmpty(xPath)) {
+                savedReferences.put("xpath", xPath);
+            } else { // In case of Dynamic Creation
+                savedReferences.put("xpath", ABRWebUtil.extractWebElementXPath(element));
+            }
+
+            Rectangle coordinates = element.getRect();
+            savedReferences.put(
+                    "coordinates",
+                    (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                            + (coordinates.getY() + (coordinates.getHeight() / 2)));
+        }
+        if (typeTag != null) {
+            if (typeTag.equals(WebElementTagNameEnum.INPUT) || typeTag.equals(WebElementTagNameEnum.BUTTON)) {
+                clickElement.setValue(true);
+            }
+        } else {
+            clickElement.setValue(isClickable(element));
         }
 
         String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
@@ -156,12 +196,10 @@ public class ABRWebElement {
         String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
         String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
 
-        clickElement.setValue(isClickable(element));
-
-        String tagname = element.getTagName();
+        String tagName = element.getTagName();
         String textLabel = element.getText();
 
-        boolean hasButton = tagname.equalsIgnoreCase("button") && isClickable() && !textLabel.isBlank();
+        boolean hasButton = tagName.equalsIgnoreCase("button") && isClickable() && !textLabel.isBlank();
         boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
         boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank() && !hasButton;
         boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
@@ -172,10 +210,10 @@ public class ABRWebElement {
         boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank() && !hasButton;
         boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
         boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
-        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("p");
-        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("span");
-        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("div");
-        boolean hasLabel = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("label");
+        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("p");
+        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("span");
+        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("div");
+        boolean hasLabel = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("label");
 
         if (hasSpan || hasDiv || hasLabel) {
             textElement.setValue(true);
@@ -207,19 +245,19 @@ public class ABRWebElement {
             nameField.setText(valueHRefFile + " File");
         } else if (hasParagraph) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagname);
+            nameField.setText(tagName);
         } else if (hasButton) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagname);
+            nameField.setText(tagName);
         } else if (hasSpan) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagname);
+            nameField.setText(tagName);
         } else if (hasDiv) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagname);
+            nameField.setText(tagName);
         } else if (hasLabel) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagname);
+            nameField.setText(tagName);
         } else {
             nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
