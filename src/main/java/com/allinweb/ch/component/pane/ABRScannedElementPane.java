@@ -1823,6 +1823,10 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    document.addEventListener('mouseover', showTooltip);"
                 + "    document.addEventListener('mouseout', hideTooltip);"
                 + "    document.addEventListener('click', handleClick);"
+                + "    window.removeClickListener = function() {" 
+                + "        console.log('removeClickListener');"
+                + "        document.removeEventListener('click', handleClick);"
+                + "    };"
                 + "})();";
 
         // Inject the JavaScript into the webpage
@@ -1852,6 +1856,10 @@ public class ABRScannedElementPane extends ABRPane {
         // Remove the injected element
         jsExecutor.executeScript(
                 "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
+
+        jsExecutor.executeScript(
+                "window.removeClickListener();");
+
 
         // Reset the background color
         //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
