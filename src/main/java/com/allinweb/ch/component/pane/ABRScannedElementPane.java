@@ -100,6 +100,7 @@ public class ABRScannedElementPane extends ABRPane {
     // UI COMPONENTS
     private HBox topPane;
     private HBox bottomPane;
+    private ProgressBar progressBar;
     private AnchorPane contentPane;
     private ObservableList<ABRWebElement> webElementObservableList1;
     private ObservableList<ABRWebElement> webElementObservableList2;
@@ -272,7 +273,10 @@ public class ABRScannedElementPane extends ABRPane {
         xpathTextField = new TextField();
         xpathTextField.setPromptText("Hovered element XPath will appear here");
 
-        // Create a GridPane
+        //Starting the View
+
+
+        // Create a GridPane for the top section
         GridPane gridPaneTop = new GridPane();
         gridPaneTop.setPadding(new Insets(10));
         gridPaneTop.setHgap(10); // Set horizontal gap between columns
@@ -290,14 +294,17 @@ public class ABRScannedElementPane extends ABRPane {
 
         VBox vBox = new VBox();
         vBox.getChildren().addAll(checkClickElement, checkInputText);
-        //        vBox.setSpacing(6); // Adjust spacing between CheckBoxes
+        vBox.setSpacing(6); // Adjust spacing between CheckBoxes
         gridPaneTop.add(vBox, 9, 0);
 
-        addNodesToPane(topPane, gridPaneTop);
+        topPane.getChildren().add(gridPaneTop); // Add gridPaneTop to topPane
 
         VBox verticalBox = new VBox();
+        verticalBox.setSpacing(10);
+        verticalBox.setPadding(new Insets(10));
+        VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
-        // Create a GridPane
+        // Create a GridPane for the middle section
         GridPane gridPane = new GridPane();
         gridPane.setPadding(new Insets(10));
         gridPane.setHgap(10); // Set horizontal gap between columns
@@ -313,10 +320,10 @@ public class ABRScannedElementPane extends ABRPane {
 
         HBox boxListViews = new HBox();
 
-        // Bind the  height of ListViews to the heigh of the HBox
-        scannedElements1.prefHeightProperty().bind(contentPane.heightProperty());
-        scannedElements2.prefHeightProperty().bind(contentPane.heightProperty());
-        scannedElements3.prefHeightProperty().bind(contentPane.heightProperty());
+        // Bind the height of ListViews to the height of the HBox
+        scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
+        scannedElements2.prefHeightProperty().bind(boxListViews.heightProperty());
+        scannedElements3.prefHeightProperty().bind(boxListViews.heightProperty());
 
         boxListViews.setSpacing(5);
 
@@ -327,12 +334,27 @@ public class ABRScannedElementPane extends ABRPane {
 
         boxListViews.getChildren().addAll(scannedElements1, scannedElements2, scannedElements3);
 
-        verticalBox.getChildren().addAll(gridPane, boxListViews, bottomPane);
-        contentPane.getChildren().addAll(verticalBox);
+        VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
-        scannedElements1.setPrefWidth(LIST_VIEW_WIDTH);
-        scannedElements2.setPrefWidth(LIST_VIEW_WIDTH);
-        scannedElements3.setPrefWidth(LIST_VIEW_WIDTH);
+        verticalBox.getChildren().addAll(gridPane, boxListViews, bottomPane);
+        VBox.setVgrow(verticalBox, Priority.ALWAYS);
+
+        // Create and add ProgressBar to the bottomPane
+        ProgressBar progressBar = new ProgressBar();
+        VBox.setVgrow(bottomPane, Priority.NEVER);
+
+        // Use AnchorPane to anchor components
+        AnchorPane.setTopAnchor(topPane, 0.0);
+        AnchorPane.setLeftAnchor(topPane, 0.0);
+        AnchorPane.setRightAnchor(topPane, 0.0);
+
+        AnchorPane.setTopAnchor(verticalBox, 0.0);
+        AnchorPane.setBottomAnchor(verticalBox, 0.0);
+        AnchorPane.setLeftAnchor(verticalBox, 0.0);
+        AnchorPane.setRightAnchor(verticalBox, 0.0);
+
+        contentPane.getChildren().addAll(topPane, verticalBox);
+
     }
 
     @Override
@@ -605,8 +627,6 @@ public class ABRScannedElementPane extends ABRPane {
             ObservableList<ABRWebElement> listToAddElements,
             String elementType) {
 
-        ProgressBar progressBar = new ProgressBar();
-        addNodesToPane(bottomPane, progressBar);
         Task<Void> workingTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
