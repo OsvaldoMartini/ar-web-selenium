@@ -110,7 +110,7 @@ public class ABRScannedElementPane extends ABRPane {
     private ListView<ABRWebElement> scannedElements3;
     private Button scanButton;
     private Button addWaitButton;
-    private Button addElement;
+    private Button addNewElement;
     private Button addCloseActionButton;
     private Button addScreenButton;
     private Button configureButton;
@@ -186,7 +186,7 @@ public class ABRScannedElementPane extends ABRPane {
                 "Scan", ABRConstants.SPACE_L, ABRConstants.ICON_SEARCH, ABRConstants.SPACE_M, new Insets(5));
         addWaitButton = componentBuilder.buildButton(
                 "Add Wait", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
-        addElement = componentBuilder.buildButton(
+        addNewElement = componentBuilder.buildButton(
                 "Add Element", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_M, new Insets(5));
 
         addCloseActionButton = componentBuilder.buildButton(
@@ -290,7 +290,7 @@ public class ABRScannedElementPane extends ABRPane {
         gridPaneTop.add(launchBotJobButton, 5, 0);
         gridPaneTop.add(checkActiveHover, 6, 0);
         gridPaneTop.add(xpathTextField, 7, 0);
-        gridPaneTop.add(addElement, 8, 0);
+        gridPaneTop.add(addNewElement, 8, 0);
 
         VBox vBox = new VBox();
         vBox.getChildren().addAll(checkClickElement, checkInputText);
@@ -399,7 +399,7 @@ public class ABRScannedElementPane extends ABRPane {
         });
         scanButton.setOnAction(e -> manageUIScan());
         addWaitButton.setOnAction(e -> addWaitTask(30));
-        addElement.setOnAction(e -> addNewElement());
+        addNewElement.setOnAction(e -> addNewElement());
         addCloseActionButton.setOnAction(e -> addCloseBrowserTask());
         addScreenButton.setOnAction(e -> addScreenTask());
 
@@ -533,7 +533,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
         checkClickElement.setDisable(checkActiveHover.isSelected());
         checkInputText.setDisable(checkActiveHover.isSelected());
-        addElement.setDisable(checkActiveHover.isSelected());
+        addNewElement.setDisable(checkActiveHover.isSelected());
         periodicActivated = checkActiveHover.isSelected();
     }
 
@@ -608,23 +608,23 @@ public class ABRScannedElementPane extends ABRPane {
         scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2);
     }
 
-    private void scanABRElementsAsync(By criteria, ObservableList<ABRWebElement> listToAddElements) {
-        scanABRElementsAsync(null, criteria, null, listToAddElements, null);
+    private void scanABRElementsAsync(By criteria, ObservableList<ABRWebElement> listToaddNewElements) {
+        scanABRElementsAsync(null, criteria, null, listToaddNewElements, null);
     }
 
     private void scanABRElementsAsync(
             List<WebElement> preElements,
-            ObservableList<ABRWebElement> listToAddElements,
+            ObservableList<ABRWebElement> listToaddNewElements,
             Boolean idsFirst,
             Boolean namesFirst) {
-        scanABRElementsAsync(preElements, null, null, listToAddElements, null);
+        scanABRElementsAsync(preElements, null, null, listToaddNewElements, null);
     }
 
     private void scanABRElementsAsync(
             List<WebElement> preElements,
             By criteria,
             Predicate<ABRWebElement> filterCondition,
-            ObservableList<ABRWebElement> listToAddElements,
+            ObservableList<ABRWebElement> listToaddNewElements,
             String elementType) {
 
         Task<Void> workingTask = new Task<>() {
@@ -697,7 +697,7 @@ public class ABRScannedElementPane extends ABRPane {
                 if (listABRElements != null) {
                     for (ABRWebElement element : listABRElements) {
                         Platform.runLater(() -> {
-                            listToAddElements.add(element);
+                            listToaddNewElements.add(element);
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
                                             + element.getXPath());
@@ -1837,7 +1837,9 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        event.preventDefault(); " 
                 + "        event.stopPropagation(); "
                 + "        var xpath = getXPath(event.target);"
-                + "        window.currentXPath = xpath + '-' + tooltip.textContent;"
+                + "        window.currentXPath = xpath;"
+                + "        window.cords = coords;"
+                + "        window.tagName = tagName;"
                 + "    }"
                 + "    window.currentXPath = '';"
                 + "    document.addEventListener('mouseover', showTooltip);"
@@ -1858,7 +1860,23 @@ public class ABRScannedElementPane extends ABRPane {
                     while (periodicActivated) {
                         String currentXPath = (String) jsExecutor.executeScript("return window.currentXPath;");
                         if (currentXPath != null && !currentXPath.isEmpty()) {
-                            Platform.runLater(() -> xpathTextField.setText(currentXPath));
+                            Platform.runLater(() -> {
+                                xpathTextField.setText(currentXPath);
+
+
+                                String text = xpathTextField.getText();
+                                // Find the index of '(' and ')' to extract id and coordinates
+                                // Check if input1 starts with "id(" or "name("
+                                if (text.startsWith("id(")) {
+                                    extractComponents(text, "id");
+                                } else if (text.startsWith("name(")) {
+                                    extractComponents(text, "name");
+                                } else {
+                                    System.out.println("Input format not recognized for input1.");
+                                }
+                                
+                                
+                            });
                         }
                         try {
                             Thread.sleep(500); // Check every 500 milliseconds

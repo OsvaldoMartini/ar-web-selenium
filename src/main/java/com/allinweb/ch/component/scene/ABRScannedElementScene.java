@@ -12,7 +12,7 @@ import javafx.stage.Stage;
 public class ABRScannedElementScene extends ABRScene {
 
     private static final Double SCENE_HEIGHT = 650D;
-    private static final Double SCENE_WIDTH = 1080D;
+    private static final Double SCENE_WIDTH = 1280D;
     private static final String TITLE = "Scanner Tool";
 
     private ABRWebDriver abrWebDriver;
