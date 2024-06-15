@@ -1814,6 +1814,8 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        tooltip.style.display = 'none';"
                 + "    }"
                 + "    function handleClick(event) {"
+                + "        event.preventDefault(); " 
+                + "        event.stopPropagation(); "
                 + "        var xpath = getXPath(event.target);"
                 + "        window.currentXPath = xpath + '-' + tooltip.textContent;"
                 + "    }"
