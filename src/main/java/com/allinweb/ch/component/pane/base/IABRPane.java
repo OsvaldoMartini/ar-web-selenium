@@ -22,9 +22,11 @@ public interface IABRPane {
      */
     void initUIBehaviour();
 
-    void addNodesToPane(Pane panel, Node... toAdd);
+    default void addNodesToPane(Pane panel, Node... toAdd) {}
 
-    void clearPane(Pane panel);
+    default void clearPane(Pane panel) {}
 
-    void removeNodesFromPane(Pane panel, Node... toRemove);
+    default void removeNodesFromPane(Pane panel, Node... toRemove) {}
+
+    default void removeNodesFromPane(Pane bottomPane) {}
 }

@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javax.swing.*;
-import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -178,13 +177,6 @@ public class ABRWebDriver {
                     "Error in WebDriver Load",
                     JOptionPane.ERROR_MESSAGE);
         }
-    }
-
-    public List<WebElement> scan(By byRule) {
-        if (driver == null) {
-            throw new ABRWebDriverNotStartedException();
-        }
-        return driver.findElements(byRule);
     }
 
     public void highlightElement(WebElement element) {

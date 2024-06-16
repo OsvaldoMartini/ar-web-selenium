@@ -141,4 +141,7 @@ public class ABRMoveBlockPane extends ABRPane {
             stage.close();
         });
     }
+
+    @Override
+    public void start(Stage stage) throws Exception {}
 }

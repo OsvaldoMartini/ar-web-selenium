@@ -1,5 +1,6 @@
 package com.allinweb.ch.tests;
 
+import com.allinweb.ch.util.ABRPropertyEnum;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -75,9 +76,4 @@ public class GridPaneExampleLOG extends Application {
         // Mock implementation for button action
         return button;
     }
-}
-
-// Mock Enum to make this code compile
-enum ABRPropertyEnum {
-    FOLDER_PATH_LOG
 }

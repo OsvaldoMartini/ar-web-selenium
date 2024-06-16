@@ -1,7 +1,11 @@
 package com.allinweb.ch.component.pane.base;
 
+import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.util.ABRLogger;
+import javafx.application.Application;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
+import javafx.stage.Stage;
 
 /***
  * This abstract class is the default class to be extended by other ABRPanes created.
@@ -11,7 +15,7 @@ import javafx.scene.layout.Pane;
  * Attention: Modifying this class can cause major breaks in the code so edit only if you know what you are doing
  * and vastly analyzed the solution
  */
-public abstract class ABRPane implements IABRPane {
+public abstract class ABRPane extends Application implements IABRPane {
 
     // This is the pane that will be created by the extending class
     private Pane pane;
@@ -69,5 +73,21 @@ public abstract class ABRPane implements IABRPane {
     @Override
     public final void removeNodesFromPane(Pane panel, Node... toRemove) {
         panel.getChildren().removeAll(toRemove);
+    }
+
+    @Override
+    public void removeNodesFromPane(Pane bottomPane) {
+        if (bottomPane.getChildren().size() > 0) {
+            bottomPane
+                    .getChildren()
+                    .remove(bottomPane
+                            .getChildren()
+                            .get(bottomPane.getChildren().size() - 1));
+        }
+    }
+
+    @Override
+    public void start(Stage stage) throws Exception {
+        ABRLogger.getInstance(ABRWebDriver.class).severe("start from ABRPane");
     }
 }

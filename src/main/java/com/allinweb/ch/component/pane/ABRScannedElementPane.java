@@ -28,6 +28,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Date;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,12 +44,17 @@ import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
+import javafx.geometry.VPos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javax.net.ssl.*;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
@@ -64,7 +70,12 @@ import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ABRScannedElementPane extends ABRPane {
+    private ABRPane abrPane;
+
     private Connection conn = null;
+
+    private ExecutorService executorService = Executors.newCachedThreadPool();
+    private static SearchReturn searchReturn = new SearchReturn();
 
     private static Wait<WebDriver> waitForPage;
     private static Wait<WebDriver> waitForAction;
@@ -86,7 +97,6 @@ public class ABRScannedElementPane extends ABRPane {
     private static final int SECONDS = 10; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;
     private Timeline timeline;
-    private ExecutorService executorService;
     private Alert alertToShow;
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
@@ -125,8 +135,15 @@ public class ABRScannedElementPane extends ABRPane {
     private CheckBox checkActiveHover;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
-    private TextField xpathTextField;
 
+    private Label xpathTextFieldLabel;
+    private Label tagNameTextFieldLabel;
+    private Label coordsTextFieldLabel;
+
+    private TextField xpathTextField;
+    private TextField tagNameTextField;
+    private TextField coordsTextField;
+    private String xpathTextPrevious = "";
     private Boolean periodicActivated = false;
 
     private Boolean idAttributeFirst = false;
@@ -214,7 +231,7 @@ public class ABRScannedElementPane extends ABRPane {
                 "Output Fields", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         refreshOtherFieldsButton = componentBuilder.buildButton(
                 "Other Elements", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
-        checkBoxAction = new CheckBox("Execute Action\n(RELEASE AFTER USE)");
+        checkBoxAction = new CheckBox("Test Action\n(RELEASE AFTER USE)");
         checkClickElement = new CheckBox("For Click");
         checkClickElement.setSelected(true);
         checkInputText = new CheckBox("For Input");
@@ -270,91 +287,168 @@ public class ABRScannedElementPane extends ABRPane {
 
         checkActiveHover = new CheckBox("Identify");
 
+        xpathTextFieldLabel = new Label("XPath Found");
+        tagNameTextFieldLabel = new Label("Tag Name");
+        coordsTextFieldLabel = new Label("Coordinates");
+
         xpathTextField = new TextField();
-        xpathTextField.setPromptText("Hovered element XPath will appear here");
+        xpathTextField.setPromptText("XPath");
+        tagNameTextField = new TextField();
+        tagNameTextField.setPromptText("Tag Name");
+        coordsTextField = new TextField();
+        coordsTextField.setPromptText("Coordinates");
+        try {
+            // Starting the View
 
-        //Starting the View
+            // Create a GridPane for the top section
+            GridPane gridPaneTop = new GridPane();
+            gridPaneTop.setPadding(new Insets(10));
+            gridPaneTop.setHgap(10); // Set horizontal gap between columns
 
+            // Add buttons and checkbox to the GridPane
+            gridPaneTop.add(scanButton, 0, 0);
+            gridPaneTop.add(addWaitButton, 1, 0);
+            gridPaneTop.add(addCloseActionButton, 2, 0);
+            gridPaneTop.add(addScreenButton, 3, 0);
+            //        gridPaneTop.add(configureButton, 4, 0);
+            //        gridPaneTop.add(launchBotJobButton, 5, 0);
+            //        gridPaneTop.add(checkActiveHover, 6, 0);
+            //        gridPaneTop.add(addNewElement, 7, 0);
+            //        gridPaneTop.add(xpathTextField, 8, 0);
 
-        // Create a GridPane for the top section
-        GridPane gridPaneTop = new GridPane();
-        gridPaneTop.setPadding(new Insets(10));
-        gridPaneTop.setHgap(10); // Set horizontal gap between columns
+            VBox vBoxCheckBox = new VBox();
+            vBoxCheckBox.getChildren().addAll(checkClickElement, checkInputText);
+            vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
+            //        gridPaneTop.add(vBox, 9, 0);
 
-        // Add buttons and checkbox to the GridPane
-        gridPaneTop.add(scanButton, 0, 0);
-        gridPaneTop.add(addWaitButton, 1, 0);
-        gridPaneTop.add(addCloseActionButton, 2, 0);
-        gridPaneTop.add(addScreenButton, 3, 0);
-        gridPaneTop.add(configureButton, 4, 0);
-        gridPaneTop.add(launchBotJobButton, 5, 0);
-        gridPaneTop.add(checkActiveHover, 6, 0);
-        gridPaneTop.add(xpathTextField, 7, 0);
-        gridPaneTop.add(addNewElement, 8, 0);
+            topPane.getChildren().add(gridPaneTop); // Add gridPaneTop to topPane
 
-        VBox vBox = new VBox();
-        vBox.getChildren().addAll(checkClickElement, checkInputText);
-        vBox.setSpacing(6); // Adjust spacing between CheckBoxes
-        gridPaneTop.add(vBox, 9, 0);
+            VBox verticalBox = new VBox();
+            verticalBox.setSpacing(10);
+            verticalBox.setPadding(new Insets(10));
+            VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
-        topPane.getChildren().add(gridPaneTop); // Add gridPaneTop to topPane
+            // Create a GridPane for the middle section
+            GridPane gridPane = new GridPane();
+            gridPane.setPadding(new Insets(10));
+            gridPane.setHgap(10); // Set horizontal gap between columns
 
-        VBox verticalBox = new VBox();
-        verticalBox.setSpacing(10);
-        verticalBox.setPadding(new Insets(10));
-        VBox.setVgrow(verticalBox, Priority.ALWAYS);
+            // Add buttons and checkbox to the GridPane
+            gridPane.add(refreshInputFieldsButton, 0, 0);
+            gridPane.add(searchWithIdsButton, 1, 0);
+            gridPane.add(searchWithNamesButton, 2, 0);
+            gridPane.add(searchWithoutIdsAndNamesBtn, 3, 0);
+            gridPane.add(refreshOutputFieldsButton, 4, 0);
+            gridPane.add(refreshOtherFieldsButton, 5, 0);
+            //        gridPane.add(checkBoxAction, 6, 0);
+            //        gridPane.add(tagNameTextField, 7, 0);
+            //        gridPane.add(coordsTextField, 8, 0);
 
-        // Create a GridPane for the middle section
-        GridPane gridPane = new GridPane();
-        gridPane.setPadding(new Insets(10));
-        gridPane.setHgap(10); // Set horizontal gap between columns
+            // Create the VBox for TextFields
+            VBox textFieldVBox = new VBox();
+            textFieldVBox.setSpacing(6); // Adjust spacing between TextFields
+            textFieldVBox
+                    .getChildren()
+                    .addAll(
+                            checkActiveHover,
+                            xpathTextFieldLabel,
+                            xpathTextField,
+                            tagNameTextFieldLabel,
+                            tagNameTextField,
+                            coordsTextFieldLabel,
+                            coordsTextField,
+                            vBoxCheckBox,
+                            addNewElement,
+                            createCustomSeparator(Color.DARKBLUE, 2),
+                            createSpacer(),
+                            checkBoxAction,
+                            createSpacer(),
+                            createCustomSeparator(Color.DARKBLUE, 2),
+                            launchBotJobButton,
+                            configureButton);
 
-        // Add buttons and checkbox to the GridPane
-        gridPane.add(refreshInputFieldsButton, 0, 0);
-        gridPane.add(searchWithIdsButton, 1, 0);
-        gridPane.add(searchWithNamesButton, 2, 0);
-        gridPane.add(searchWithoutIdsAndNamesBtn, 3, 0);
-        gridPane.add(refreshOutputFieldsButton, 4, 0);
-        gridPane.add(refreshOtherFieldsButton, 5, 0);
-        gridPane.add(checkBoxAction, 6, 0);
+            // Bind button widths to VBox width
+            addNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
+            launchBotJobButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
+            configureButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
 
-        HBox boxListViews = new HBox();
+            HBox boxListViews = new HBox();
 
-        // Bind the height of ListViews to the height of the HBox
-        scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
-        scannedElements2.prefHeightProperty().bind(boxListViews.heightProperty());
-        scannedElements3.prefHeightProperty().bind(boxListViews.heightProperty());
+            // Bind the height of ListViews to the height of the HBox
+            scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
+            scannedElements2.prefHeightProperty().bind(boxListViews.heightProperty());
+            scannedElements3.prefHeightProperty().bind(boxListViews.heightProperty());
 
-        boxListViews.setSpacing(5);
+            boxListViews.setSpacing(5);
 
-        // Set Hgrow for each ListView to make them equally distributed
-        HBox.setHgrow(scannedElements1, Priority.ALWAYS);
-        HBox.setHgrow(scannedElements2, Priority.ALWAYS);
-        HBox.setHgrow(scannedElements3, Priority.ALWAYS);
+            // Set Hgrow for each ListView to make them equally distributed
+            HBox.setHgrow(scannedElements1, Priority.ALWAYS);
+            HBox.setHgrow(scannedElements2, Priority.ALWAYS);
+            HBox.setHgrow(scannedElements3, Priority.ALWAYS);
 
-        boxListViews.getChildren().addAll(scannedElements1, scannedElements2, scannedElements3);
+            boxListViews.getChildren().addAll(scannedElements1, scannedElements2, scannedElements3, textFieldVBox);
 
-        VBox.setVgrow(boxListViews, Priority.ALWAYS);
+            VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
-        verticalBox.getChildren().addAll(gridPane, boxListViews, bottomPane);
-        VBox.setVgrow(verticalBox, Priority.ALWAYS);
+            verticalBox.getChildren().addAll(gridPane, boxListViews, bottomPane);
+            VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
-        // Create and add ProgressBar to the bottomPane
-        ProgressBar progressBar = new ProgressBar();
-        VBox.setVgrow(bottomPane, Priority.NEVER);
+            VBox.setVgrow(bottomPane, Priority.NEVER);
 
-        // Use AnchorPane to anchor components
-        AnchorPane.setTopAnchor(topPane, 0.0);
-        AnchorPane.setLeftAnchor(topPane, 0.0);
-        AnchorPane.setRightAnchor(topPane, 0.0);
+            // Use AnchorPane to anchor components
+            AnchorPane.setTopAnchor(topPane, 0.0);
+            AnchorPane.setLeftAnchor(topPane, 0.0);
+            AnchorPane.setRightAnchor(topPane, 0.0);
 
-        AnchorPane.setTopAnchor(verticalBox, 0.0);
-        AnchorPane.setBottomAnchor(verticalBox, 0.0);
-        AnchorPane.setLeftAnchor(verticalBox, 0.0);
-        AnchorPane.setRightAnchor(verticalBox, 0.0);
+            AnchorPane.setTopAnchor(verticalBox, 0.0);
+            AnchorPane.setBottomAnchor(verticalBox, 0.0);
+            AnchorPane.setLeftAnchor(verticalBox, 0.0);
+            AnchorPane.setRightAnchor(verticalBox, 0.0);
 
-        contentPane.getChildren().addAll(topPane, verticalBox);
+            contentPane.getChildren().addAll(topPane, verticalBox);
 
+            // Add a listener to the children list of bottomPane
+            bottomPane.getChildren().addListener((ListChangeListener<Node>) change -> {
+                while (change.next()) {
+                    if (change.wasAdded()) {
+                        for (Node node : change.getAddedSubList()) {
+                            scheduleRemoval(bottomPane, node, 300); // Schedule removal for the newly added node
+                        }
+                    }
+                }
+            });
+        } catch (Exception ex) {
+            ABRLogger.getInstance(ABRScannedElementPane.class).fine("Error using Separator line\n" + ex);
+        }
+    }
+
+    private Node createSpacer() {
+        // Create a Region as a spacer
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS); // Make spacer expand vertically
+        return spacer;
+    }
+
+    // Method to create a custom separator with specified color and width
+    private Separator createCustomSeparator(Color color, double width) {
+        Separator separator = new Separator();
+        separator.setOrientation(Orientation.HORIZONTAL);
+        separator.setValignment(VPos.CENTER); // Extend the line horizontally
+        separator.setPrefHeight(2); // Default height
+        separator.setStyle("-fx-background-color: " + color.toString().replace("0x", "#") + ";");
+        return separator;
+    }
+
+    private void scheduleRemoval(HBox bottomPane, Node node, int delayMillis) {
+        executorService.execute(() -> {
+            try {
+                TimeUnit.MILLISECONDS.sleep(delayMillis); // Wait for the specified delay
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            Platform.runLater(
+                    () -> bottomPane.getChildren().remove(node)); // Remove the node on the JavaFX Application Thread
+        });
     }
 
     @Override
@@ -399,7 +493,11 @@ public class ABRScannedElementPane extends ABRPane {
         });
         scanButton.setOnAction(e -> manageUIScan());
         addWaitButton.setOnAction(e -> addWaitTask(30));
-        addNewElement.setOnAction(e -> addNewElement());
+        addNewElement.setOnAction(e -> {
+            if (searchReturn.getElement() != null) {
+                insertNewElement();
+            }
+        });
         addCloseActionButton.setOnAction(e -> addCloseBrowserTask());
         addScreenButton.setOnAction(e -> addScreenTask());
 
@@ -417,84 +515,144 @@ public class ABRScannedElementPane extends ABRPane {
         //        manageUIScan();
     }
 
-    private void addNewElement() {
+    private void preReadElement() {
         String text = xpathTextField.getText();
+        xpathTextPrevious = text;
         // Find the index of '(' and ')' to extract id and coordinates
         // Check if input1 starts with "id(" or "name("
         if (text.startsWith("id(")) {
-            extractComponents(text, "id");
+            extractValidateDynamic(text, "id");
         } else if (text.startsWith("name(")) {
-            extractComponents(text, "name");
+            extractValidateDynamic(text, "name");
         } else {
-            System.out.println("Input format not recognized for input1.");
+            extractValidateDynamic(text, "xpath");
         }
     }
 
-    private void extractComponents(String input, String type) {
-        // Find the index of '(' and ')' to extract id or name and coordinates
-        try {
+    private void insertNewElement() {
+        if (searchReturn != null) {
 
-            int indexOfOpenParenthesis = input.indexOf('(');
-            int indexOfCloseParenthesis = input.indexOf(')');
-
-            if (indexOfOpenParenthesis != -1 && indexOfCloseParenthesis != -1) {
-                // Extract id or name between '(' and ')'
-                String idOrName = input.substring(type.length() + 2, indexOfCloseParenthesis - 1);
-
-                input = input.substring(indexOfCloseParenthesis + 1);
-                indexOfOpenParenthesis = input.indexOf('(');
-                indexOfCloseParenthesis = input.indexOf(')');
-                String coordinates = input.substring(indexOfOpenParenthesis + 1, indexOfCloseParenthesis);
-
-                // Split coordinates into coordLeft and coordRight based on comma
-                String[] coords = coordinates.split(",");
-                if (coords.length == 2) {
-                    String coordLeft = coords[0].trim();
-                    String coordRight = coords[1].trim();
-
-                    // Print or use the extracted values
-                    System.out.println("Type: " + type);
-                    System.out.println("Id/Name: " + idOrName);
-                    System.out.println("CoordLeft: " + coordLeft);
-                    System.out.println("CoordRight: " + coordRight);
+            try {
+                if (searchReturn.getElement() == null) {
                     WebElement element = null;
-                    if (type.equalsIgnoreCase("id")) {
-                        element = abrWebDriver.getDriver().findElement(By.id(idOrName));
-                    } else if (type.equalsIgnoreCase("name")) {
-                        element = abrWebDriver.getDriver().findElement(By.name(idOrName));
+                    if (searchReturn.getAttributeType().equalsIgnoreCase("id")) {
+                        element = abrWebDriver.getDriver().findElement(By.id(searchReturn.getAttributeValue()));
+                    } else if (searchReturn.getAttributeType().equalsIgnoreCase("name")) {
+                        element = abrWebDriver.getDriver().findElement(By.name(searchReturn.getAttributeValue()));
+                    } else {
+                        element = abrWebDriver.getDriver().findElement(By.xpath("//" + searchReturn.getCurrentXPath()));
                     }
-                    if (element != null) {
+                    searchReturn.setElement(element);
+                }
+                if (searchReturn.getElement() != null) {
 
-                        Boolean clickable = isClickable(element);
+                    // Last Moment to Be Change by the User
+                    if (checkClickElement.isSelected()) {
+                        this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                    } else if (checkInputText.isSelected()) {
+                        this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                    }
 
-                        checkClickElement.setSelected(clickable);
-                        checkInputText.setSelected(!clickable);
-
-                        if (checkClickElement.isSelected()) {
-                            ABRWebElement abrWebElement =
-                                    new ABRWebElement(element, WebElementTagNameEnum.BUTTON, type, botJob.getId());
-                            if (abrWebElement != null) {
-                                webElementObservableList3.add(abrWebElement);
-                            }
-                        } else if (checkInputText.isSelected()) {
-                            ABRWebElement abrWebElement =
-                                    new ABRWebElement(element, WebElementTagNameEnum.INPUT, type, botJob.getId());
-                            if (abrWebElement != null) {
-                                webElementObservableList3.add(abrWebElement);
-                            }
-                        }
+                    ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
+                    if (abrWebElement != null) {
+                        webElementObservableList3.add(abrWebElement);
                     }
 
                 } else {
-                    ABRLogger.getInstance(ABRScannedElementPane.class).severe("Coordinates format not valid.");
+                    ABRLogger.getInstance(ABRScannedElementPane.class).severe("Could not find the Web Element!");
                 }
-            } else {
-                ABRLogger.getInstance(ABRScannedElementPane.class).severe("Input format not recognized.");
+
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ABRScannedElementPane.class)
+                        .severe("Error Attempt to create a Dynamic Element\n" + ex.getMessage());
             }
-        } catch (Exception ex) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
-                    .severe("Error Attempt to create a Dynamic Element\n" + ex.getMessage());
         }
+    }
+
+    private SearchReturn extractValidateDynamic(String input, String type) {
+
+        if (!Strings.isNullOrEmpty(input)) {
+
+            // Find the index of '(' and ')' to extract id or name
+            int indexOfOpenParenthesis = input.indexOf('(');
+            int indexOfCloseParenthesis = input.indexOf(')');
+
+            String idOrNameorXPath = null;
+
+            // Reset Previous Values
+            searchReturn.setAttributeType("");
+            searchReturn.setAttributeValue("");
+            searchReturn.setCoords("");
+            searchReturn.setCurrentXPath("");
+            searchReturn.setElement(null);
+            searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
+
+            if (indexOfOpenParenthesis != -1 && indexOfCloseParenthesis != -1) {
+                idOrNameorXPath = input.substring(type.length() + 2, indexOfCloseParenthesis - 1);
+                searchReturn.setAttributeValue(idOrNameorXPath);
+            } else {
+                idOrNameorXPath = xpathTextField.getText();
+                searchReturn.setCurrentXPath(idOrNameorXPath);
+            }
+            // Extract id or name between '(' and ')'
+            String tagName = tagNameTextField.getText();
+            String coordinates = coordsTextField.getText();
+
+            searchReturn.setCoords(coordsTextField.getText());
+            searchReturn.setAttributeType(type);
+
+            // Split coordinates into coordLeft and coordRight based on comma
+            String[] coords = coordinates.split(",");
+            if (coords.length == 2) {
+                String coordLeft = coords[0].trim();
+                String coordRight = coords[1].trim();
+
+                // Print or use the extracted values
+                System.out.println("Type: " + tagName);
+                System.out.println("Id/Name: " + idOrNameorXPath);
+                System.out.println("CoordLeft: " + coordLeft);
+                System.out.println("CoordRight: " + coordRight);
+
+                WebElement element = null;
+                if (type.equalsIgnoreCase("id")) {
+                    element = abrWebDriver.getDriver().findElement(By.id(idOrNameorXPath));
+                } else if (type.equalsIgnoreCase("name")) {
+                    element = abrWebDriver.getDriver().findElement(By.name(idOrNameorXPath));
+                } else {
+                    element = abrWebDriver.getDriver().findElement(By.xpath("//" + idOrNameorXPath));
+                }
+                if (element != null) {
+
+                    searchReturn.setElement(element);
+                    // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
+                    if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
+                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                    } else {
+                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                    }
+
+                    Boolean clickable = isClickable(element);
+                    Platform.runLater(() -> {
+                        checkClickElement.setSelected(clickable);
+                        checkInputText.setSelected(!clickable);
+                    });
+
+                    return searchReturn;
+                } else {
+                    return null;
+                }
+
+            } else {
+                ABRLogger.getInstance(ABRScannedElementPane.class).severe("Coordinates format not valid.");
+            }
+        }
+
+        return null;
     }
 
     private boolean isClickable(WebElement element) {
@@ -556,8 +714,17 @@ public class ABRScannedElementPane extends ABRPane {
         idAttributeFirst = false;
         nameAttributeFirst = false;
         withoutNameAndId = true;
+        addProgressBar();
         scanABRElementsAsync(null, null, null, webElementObservableList1, "input");
+        addProgressBar();
         scanABRElementsAsync(null, null, null, webElementObservableList1, "button");
+    }
+
+    private void addProgressBar() {
+        if (bottomPane.getChildren().size() < 20) {
+            progressBar = new ProgressBar();
+            bottomPane.getChildren().add(progressBar);
+        }
     }
 
     private void manageUIScanAtributeNameFirst() {
@@ -577,6 +744,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void manageUIScanInputs() {
         List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
         for (WebElementTagNameEnum tag : inputTags) {
+            addProgressBar();
             scanABRElementsAsync(
                     null, By.tagName(tag.getValue()), ABRWebElement::isNotClickable, webElementObservableList1, null);
         }
@@ -585,6 +753,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void manageUIScanClickable() {
         List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
         for (WebElementTagNameEnum tag : clickableTags) {
+            addProgressBar();
             scanABRElementsAsync(
                     null, By.tagName(tag.getValue()), ABRWebElement::isClickable, webElementObservableList2, null);
         }
@@ -596,6 +765,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
         try {
             if (webElements != null && webElements.size() > 0) {
+                addProgressBar();
                 scanABRElementsAsync(webElements, null, null, webElementObservableList3, null);
             }
         } catch (Exception e) {
@@ -605,6 +775,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void manageUIScanOutputs() {
         String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
+        addProgressBar();
         scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2);
     }
 
@@ -614,107 +785,242 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void scanABRElementsAsync(
             List<WebElement> preElements,
-            ObservableList<ABRWebElement> listToaddNewElements,
-            Boolean idsFirst,
-            Boolean namesFirst) {
-        scanABRElementsAsync(preElements, null, null, listToaddNewElements, null);
-    }
-
-    private void scanABRElementsAsync(
-            List<WebElement> preElements,
             By criteria,
             Predicate<ABRWebElement> filterCondition,
             ObservableList<ABRWebElement> listToaddNewElements,
             String elementType) {
 
-        Task<Void> workingTask = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                List<ABRWebElement> listABRElements = null;
+        //        Task<Void> workingTask = new Task<>() {
+        //            @Override
+        //            protected Void call()  {
+        //                List<ABRWebElement> listABRElements = null;
+        //
+        //                // Separation between creation of ABR Elements
+        //                try {
+        //                    ABRLogger.getInstance(ABRScannedElementPane.class)
+        //                            .fine("Starting scan of elements for criteria: " + criteria);
+        //
+        //                    List<WebElement> scannedElementList = new ArrayList<>();
+        //
+        //                    if (idAttributeFirst || nameAttributeFirst) {
+        //                        mapAdvanced = findElementsWithXPath(abrWebDriver.getDriver(), elementType);
+        //                        listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
+        //                    } else if (withoutNameAndId) {
+        //                        mapAdvanced = findElementsWithoutIdOrName(abrWebDriver.getDriver(), elementType);
+        //                        listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
+        //                    } else if (preElements != null && preElements.size() > 0) {
+        //                        scannedElementList.addAll(preElements);
+        //                    } else if (criteria != null) {
+        //                        scannedElementList = abrWebDriver.getDriver().findElements(criteria);
+        //                    }
+        //                    if (listABRElements != null && listABRElements.size() > 0) {
+        //                        ABRLogger.getInstance(ABRScannedElementPane.class)
+        //                                .finer("list of Advanced Scanner elements has " + listABRElements.size());
+        //                    }
+        //
+        //                    // Reset these
+        //                    idAttributeFirst = false;
+        //                    nameAttributeFirst = false;
+        //                    withoutNameAndId = false;
+        //
+        //                    if (scannedElementList != null && scannedElementList.size() > 0) {
+        //                        ABRLogger.getInstance(ABRScannedElementPane.class)
+        //                                .finer("list of scanned elements has " + scannedElementList.size()
+        //                                        + " elements for Search Criteria " + criteria);
+        //                        if (scannedElementList.size() > reduceSearchCriteria) {
+        //
+        //                            ABRLogger.getInstance(ABRScannedElementPane.class)
+        //                                    .fine("Reduces to the Limit of ABRWebElements : " + reduceSearchCriteria);
+        //                            List<WebElement> scannedElementListReduced =
+        //                                    scannedElementList.size() > reduceSearchCriteria
+        //                                            ? new ArrayList<>(scannedElementList.subList(0,
+        // reduceSearchCriteria))
+        //                                            : scannedElementList;
+        //                            scannedElementList.clear();
+        //                            scannedElementList.addAll(scannedElementListReduced);
+        //                            scannedElementListReduced.clear();
+        //                        }
+        //                        try {
+        //                            listABRElements = scannedElementList.stream()
+        //                                    .filter(element -> element != null) // Filter out null elements
+        //                                    .map(element -> new ABRWebElement(element, botJob.getId()))
+        //                                    .collect(Collectors.toList());
+        //
+        //                        } finally {
+        //
+        //                        }
+        //                    }
+        //
+        //                } catch (Exception e) {
+        //                    ABRLogger.getInstance(Thread.class)
+        //                            .severe(String.format(
+        //                                    "An exception has occurred\n%s \nCause: %s", e.getMessage(),
+        // e.getCause()));
+        //                }
+        //
+        //                // After Creation of ABR Elements - > Update View List
+        //                if (listABRElements != null) {
+        //                    for (ABRWebElement element : listABRElements) {
+        //                        if (bottomPane.getChildren().size() < 20) {
+        //                            addMultipleProgressBars(bottomPane, 1);
+        //                        }
+        //                        Platform.runLater(() -> {
+        //                            listToaddNewElements.add(element);
+        //                            ABRLogger.getInstance(ABRScannedElementPane.class)
+        //                                    .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
+        //                                            + element.getXPath());
+        //                        });
+        //                    }
+        //                }
+        //                Platform.runLater(() -> {
+        //                    Node node  = bottomPane
+        //                            .getChildren().get(
+        //                                    bottomPane.getChildren().size() - 1);
+        //                    bottomPane.getChildren().remove(node);
+        //                });
+        //                return null;
+        //            }
+        //        };
 
-                // Separation between creation of ABR Elements
-                try {
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine("Starting scan of elements for criteria: " + criteria);
+        // Simulate async task completion with CompletableFuture
+        CompletableFuture<Void> future = CompletableFuture.runAsync(
+                () -> {
+                    List<ABRWebElement> listABRElements = null;
 
-                    List<WebElement> scannedElementList = new ArrayList<>();
-
-                    if (idAttributeFirst || nameAttributeFirst) {
-                        mapAdvanced = findElementsWithXPath(abrWebDriver.getDriver(), elementType);
-                        listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
-                    } else if (withoutNameAndId) {
-                        mapAdvanced = findElementsWithoutIdOrName(abrWebDriver.getDriver(), elementType);
-                        listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
-                    } else if (preElements != null && preElements.size() > 0) {
-                        scannedElementList.addAll(preElements);
-                    } else if (criteria != null) {
-                        scannedElementList = abrWebDriver.scan(criteria);
-                    }
-                    if (listABRElements != null && listABRElements.size() > 0) {
+                    // Separation between creation of ABR Elements
+                    try {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .finer("list of Advanced Scanner elements has " + listABRElements.size());
-                    }
+                                .fine("Starting scan of elements for criteria: " + criteria);
 
-                    // Reset these
-                    idAttributeFirst = false;
-                    nameAttributeFirst = false;
-                    withoutNameAndId = false;
+                        List<WebElement> scannedElementList = new ArrayList<>();
 
-                    if (scannedElementList != null && scannedElementList.size() > 0) {
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .finer("list of scanned elements has " + scannedElementList.size()
-                                        + " elements for Search Criteria " + criteria);
-                        if (scannedElementList.size() > reduceSearchCriteria) {
-
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("Reduces to the Limit of ABRWebElements : " + reduceSearchCriteria);
-                            List<WebElement> scannedElementListReduced =
-                                    scannedElementList.size() > reduceSearchCriteria
-                                            ? new ArrayList<>(scannedElementList.subList(0, reduceSearchCriteria))
-                                            : scannedElementList;
-                            scannedElementList.clear();
-                            scannedElementList.addAll(scannedElementListReduced);
-                            scannedElementListReduced.clear();
+                        if (idAttributeFirst || nameAttributeFirst) {
+                            mapAdvanced = findElementsWithXPath(abrWebDriver.getDriver(), elementType);
+                            listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
+                        } else if (withoutNameAndId) {
+                            mapAdvanced = findElementsWithoutIdOrName(abrWebDriver.getDriver(), elementType);
+                            listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
+                        } else if (preElements != null && preElements.size() > 0) {
+                            scannedElementList.addAll(preElements);
+                        } else if (criteria != null) {
+                            scannedElementList = abrWebDriver.getDriver().findElements(criteria);
                         }
-                        try {
-                            listABRElements = scannedElementList.stream()
-                                    .filter(element -> element != null) // Filter out null elements
-                                    .map(element -> new ABRWebElement(element, botJob.getId()))
-                                    .collect(Collectors.toList());
+                        if (listABRElements != null && listABRElements.size() > 0) {
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .finer("list of Advanced Scanner elements has " + listABRElements.size());
+                        }
 
-                        } finally {
+                        // Reset these
+                        idAttributeFirst = false;
+                        nameAttributeFirst = false;
+                        withoutNameAndId = false;
 
+                        if (scannedElementList != null && scannedElementList.size() > 0) {
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .finer("list of scanned elements has " + scannedElementList.size()
+                                            + " elements for Search Criteria " + criteria);
+                            if (scannedElementList.size() > reduceSearchCriteria) {
+
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .fine("Reduces to the Limit of ABRWebElements : " + reduceSearchCriteria);
+                                List<WebElement> scannedElementListReduced =
+                                        scannedElementList.size() > reduceSearchCriteria
+                                                ? new ArrayList<>(scannedElementList.subList(0, reduceSearchCriteria))
+                                                : scannedElementList;
+                                scannedElementList.clear();
+                                scannedElementList.addAll(scannedElementListReduced);
+                                scannedElementListReduced.clear();
+                            }
+                            try {
+                                listABRElements = scannedElementList.stream()
+                                        .filter(element -> element != null) // Filter out null elements
+                                        .map(element -> new ABRWebElement(element, botJob.getId()))
+                                        .collect(Collectors.toList());
+
+                            } finally {
+
+                            }
+                        }
+
+                    } catch (Exception e) {
+                        shutDownExecutorService();
+                        Thread.currentThread().interrupt();
+                    }
+
+                    // After Creation of ABR Elements - > Update View List
+                    if (listABRElements != null) {
+                        for (ABRWebElement element : listABRElements) {
+                            Platform.runLater(() -> {
+                                listToaddNewElements.add(element);
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
+                                                + element.getXPath());
+                            });
                         }
                     }
+                    Platform.runLater(() -> {
+                        Node node = bottomPane
+                                .getChildren()
+                                .get(bottomPane.getChildren().size() - 1);
+                        bottomPane.getChildren().remove(node);
+                    });
+                },
+                executorService);
 
-                } catch (Exception e) {
-                    ABRLogger.getInstance(Thread.class)
-                            .severe(String.format(
-                                    "An exception has occurred\n%s \nCause: %s", e.getMessage(), e.getCause()));
-                }
+        //        progressBar.progressProperty().bind(workingTask.workDoneProperty());
+        //        ABRLogger.getInstance(ABRScannedElementPane.class).fine("starting scanning thread for " + criteria);
+        //        new Thread(workingTask).start();
 
-                // After Creation of ABR Elements - > Update View List
-                if (listABRElements != null) {
-                    for (ABRWebElement element : listABRElements) {
-                        Platform.runLater(() -> {
-                            listToaddNewElements.add(element);
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
-                                            + element.getXPath());
-                        });
-                        Thread.sleep(100);
-                    }
-                }
+        // Handle completion of the CompletableFuture to remove the ProgressBar
+        future.handle((result, ex) -> {
+            if (ex != null) {
                 Platform.runLater(() -> {
-                    removeNodesFromPane(bottomPane, progressBar);
+                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Removing ProgressBar");
+                    bottomPane
+                            .getChildren()
+                            .remove(bottomPane
+                                    .getChildren()
+                                    .get(bottomPane.getChildren().size() - 1));
                 });
-
-                return null;
             }
-        };
-        progressBar.progressProperty().bind(workingTask.workDoneProperty());
-        ABRLogger.getInstance(ABRScannedElementPane.class).fine("starting scanning thread for " + criteria);
-        new Thread(workingTask).start();
+            return result;
+        });
+
+        // Force complete the future exceptionally on error
+        future.exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
+        });
+
+        // Handle completion of the CompletableFuture to remove the ProgressBar
+        future.thenRun(() -> {
+            Platform.runLater(() -> {
+                ABRLogger.getInstance(ABRScannedElementPane.class).fine("Removing ProgressBar");
+                bottomPane
+                        .getChildren()
+                        .remove(bottomPane
+                                .getChildren()
+                                .get(bottomPane.getChildren().size() - 1));
+            });
+        });
+
+        //        new Thread(workingTask).start();
+    }
+
+    private void shutDownExecutorService() {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    System.err.println("ExecutorService did not terminate");
+                    ABRLogger.getInstance(ABRWebDriver.class).severe("ExecutorService did not terminate");
+                }
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void addWaitTask(Integer secondsToWait) {
@@ -855,15 +1161,11 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void addBehaviourToAbrWebElement(ABRWebElement abrWebElement) {
         EventHandler<MouseEvent> mouseEnteredHandler = mouseEvent -> {
-            Task<Void> handleEvent = new Task<Void>() {
+            Task<Void> handleEvent = new Task<>() {
                 @Override
-                protected Void call() throws Exception {
-                    //                    WebElement element =
-                    // abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getXPath()));
-                    //                    if (element != null){
-                    //                        abrWebDriver.highlightElement(abrWebElement.getElement());
-                    //                    }
-                    List<WebElement> elementList = abrWebDriver.scan(By.xpath(abrWebElement.getXPath()));
+                protected Void call() {
+                    List<WebElement> elementList =
+                            abrWebDriver.getDriver().findElements(By.xpath(abrWebElement.getXPath()));
                     for (WebElement element : elementList) {
                         if (((RemoteWebElement) element).getId().equalsIgnoreCase(abrWebElement.getElementId())) {
                             abrWebDriver.highlightElement(element);
@@ -887,7 +1189,8 @@ public class ABRScannedElementPane extends ABRPane {
                     //                        abrWebDriver.dehighlightElement(abrWebElement.getElement());
                     //                    }
 
-                    List<WebElement> elementList = abrWebDriver.scan(By.xpath(abrWebElement.getXPath()));
+                    List<WebElement> elementList =
+                            abrWebDriver.getDriver().findElements((By.xpath(abrWebElement.getXPath())));
                     for (WebElement element : elementList) {
                         if (((RemoteWebElement) element).getId().equalsIgnoreCase(abrWebElement.getElementId())) {
                             abrWebDriver.dehighlightElement(element);
@@ -948,7 +1251,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
 
                                 //                            List<WebElement> elementList =
-                                // abrWebDriver.scan(By.xpath(abrWebElement.getXPath()));
+                                // abrWebDriver.getDriver().findElements((By.xpath(abrWebElement.getXPath()));
                                 //                            ABRLogger.getInstance(Task.class)
                                 //                                    .fine("THREAD: scan ended. Detected " +
                                 // elementList.size() + "element(s)");
@@ -1066,7 +1369,7 @@ public class ABRScannedElementPane extends ABRPane {
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         for (String name : names) {
                             try {
-                                searchingElems = abrWebDriver.scan(By.xpath(name));
+                                searchingElems = abrWebDriver.getDriver().findElements((By.xpath(name)));
                                 // Add elements from the first list to the set
                                 for (WebElement element : searchingElems) {
                                     String href = element.getAttribute("href");
@@ -1167,7 +1470,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             if (name.equalsIgnoreCase("label")) {
                                 try {
-                                    searchingElems = abrWebDriver.scan(By.tagName(name));
+                                    searchingElems = abrWebDriver.getDriver().findElements((By.tagName(name)));
                                     // Add elements from the first list to the set
                                     for (WebElement element : searchingElems) {
                                         String labelText = element.getText();
@@ -1191,7 +1494,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                             } else if (name.equalsIgnoreCase("input")) {
                                 try {
-                                    searchingElems = abrWebDriver.scan(By.tagName(name));
+                                    searchingElems = abrWebDriver.getDriver().findElements((By.tagName(name)));
                                     // Add elements from the first list to the set
                                     for (WebElement element : searchingElems) {
                                         String labelText = element.getText();
@@ -1239,7 +1542,8 @@ public class ABRScannedElementPane extends ABRPane {
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         for (String name : names) {
                             try {
-                                searchingElems = abrWebDriver.scan(By.cssSelector("button[" + name + "]"));
+                                searchingElems =
+                                        abrWebDriver.getDriver().findElements((By.cssSelector("button[" + name + "]")));
                                 //                                List<WebElement> elements2 = webElements =
                                 // abrWebDriver
                                 //                                        .getDriver()
@@ -1273,7 +1577,8 @@ public class ABRScannedElementPane extends ABRPane {
                             }
 
                             try {
-                                searchingElems = abrWebDriver.scan(By.cssSelector("input[" + name + "]"));
+                                searchingElems =
+                                        abrWebDriver.getDriver().findElements((By.cssSelector("input[" + name + "]")));
                                 //                                List<WebElement> elements2 = webElements =
                                 // abrWebDriver
                                 //                                        .getDriver()
@@ -1313,7 +1618,8 @@ public class ABRScannedElementPane extends ABRPane {
                         finalList.clear();
 
                         //                        try {
-                        //                            webElements = abrWebDriver.scan(By.cssSelector("[" +
+                        //                            webElements =
+                        // abrWebDriver.getDriver().findElements((By.cssSelector("[" +
                         // searchConfig.getName() + "]"));
                         //                            webElements = abrWebDriver
                         //                                    .getDriver()
@@ -1371,7 +1677,8 @@ public class ABRScannedElementPane extends ABRPane {
                         finalList.clear();
 
                         //                        try {
-                        //                            webElements = abrWebDriver.scan(By.cssSelector("[" +
+                        //                            webElements =
+                        // abrWebDriver.getDriver().findElements((By.cssSelector("[" +
                         // searchConfig.getName() + "]"));
                         //                            webElements = abrWebDriver
                         //                                    .getDriver()
@@ -1795,12 +2102,16 @@ public class ABRScannedElementPane extends ABRPane {
         String jsCode = "(function() {" + "    var tooltip = document.createElement('div');"
                 + "    tooltip.id = 'Martini-Is-Awesome';"
                 + "    tooltip.style.position = 'absolute';"
-                + "    tooltip.style.backgroundColor = 'black';"
-                + "    tooltip.style.color = 'white';"
-                + "    tooltip.style.padding = '5px';"
-                + "    tooltip.style.borderRadius = '3px';"
+                + "    tooltip.style.backgroundColor = 'lightorange';"
+                + "    tooltip.style.border = '1px solid #ccc';"
+                + "    tooltip.style.padding = '10px';"
+                + "    tooltip.style.borderRadius = '5px';"
+                + "    tooltip.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';"
+                + "    tooltip.style.fontFamily = 'Arial, sans-serif';"
+                + "    tooltip.style.fontSize = '14px';"
+                + "    tooltip.style.color = '#333';"
+                + "    tooltip.style.zIndex = '5000';"
                 + "    tooltip.style.display = 'none';"
-                + "    tooltip.style.zIndex = '1000';"
                 + "    document.body.appendChild(tooltip);"
                 + "    function getXPath(element) {"
                 + "        if (element.id !== '') {"
@@ -1823,9 +2134,10 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        return '';"
                 + "    }"
                 + "    function showTooltip(event) {"
-                + "        var tagName = event.target.tagName.toLowerCase();"
-                + "        var coords = event.target.getBoundingClientRect();"
-                + "        tooltip.textContent = tagName + '-Coordinates:(' + coords.left + ',' + coords.top + ')';"
+                + "        window.tagNameTemp = event.target.tagName.toLowerCase();"
+                + "        window.coordsTemp = event.target.getBoundingClientRect();"
+                + "        window.coordsTemp = window.coordsTemp.left + ',' + window.coordsTemp.top;"
+                + "        tooltip.textContent = window.tagNameTemp + '-Coordinates:(' + window.coordsTemp + ')';"
                 + "        tooltip.style.left = event.pageX + 'px';"
                 + "        tooltip.style.top = (event.pageY + 15) + 'px';"
                 + "        tooltip.style.display = 'block';"
@@ -1834,18 +2146,23 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        tooltip.style.display = 'none';"
                 + "    }"
                 + "    function handleClick(event) {"
-                + "        event.preventDefault(); " 
+                + "        event.preventDefault(); "
                 + "        event.stopPropagation(); "
                 + "        var xpath = getXPath(event.target);"
                 + "        window.currentXPath = xpath;"
-                + "        window.cords = coords;"
-                + "        window.tagName = tagName;"
+                + "        window.tagName = event.target.tagName.toLowerCase();"
+                + "        window.coords = event.target.getBoundingClientRect();"
+                + "        window.coords = window.coords.left + ',' + window.coords.top;"
                 + "    }"
                 + "    window.currentXPath = '';"
+                + "    window.tagName = '';"
+                + "    window.coords = '';"
+                + "    window.tagNameTemp = '';"
+                + "    window.coordsTemp = '';"
                 + "    document.addEventListener('mouseover', showTooltip);"
                 + "    document.addEventListener('mouseout', hideTooltip);"
                 + "    document.addEventListener('click', handleClick);"
-                + "    window.removeClickListener = function() {" 
+                + "    window.removeClickListener = function() {"
                 + "        console.log('removeClickListener');"
                 + "        document.removeEventListener('click', handleClick);"
                 + "    };"
@@ -1858,30 +2175,38 @@ public class ABRScannedElementPane extends ABRPane {
         // Start a thread to periodically check the XPath value and update the TextField
         new Thread(() -> {
                     while (periodicActivated) {
-                        String currentXPath = (String) jsExecutor.executeScript("return window.currentXPath;");
-                        if (currentXPath != null && !currentXPath.isEmpty()) {
+                        //                        String currentXPath = (String) jsExecutor.executeScript("return
+                        // window.currentXPath;");
+
+                        String currentXPath;
+                        String coords;
+                        String tagName;
+
+                        // Execute JavaScript to construct and return a custom object
+                        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
+                                jsExecutor.executeScript(
+                                        "var obj = { currentXPath: window.currentXPath, tagName: window.tagName, coords: window.coords }; return obj;");
+
+                        // Convert the LinkedHashMap to a Java Map (if necessary)
+                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
+
+                        if (linkedHashMap != null) {
                             Platform.runLater(() -> {
-                                xpathTextField.setText(currentXPath);
-
-
-                                String text = xpathTextField.getText();
-                                // Find the index of '(' and ')' to extract id and coordinates
-                                // Check if input1 starts with "id(" or "name("
-                                if (text.startsWith("id(")) {
-                                    extractComponents(text, "id");
-                                } else if (text.startsWith("name(")) {
-                                    extractComponents(text, "name");
-                                } else {
-                                    System.out.println("Input format not recognized for input1.");
+                                xpathTextField.setText((String) resultMap.get("currentXPath"));
+                                tagNameTextField.setText((String) resultMap.get("tagName"));
+                                coordsTextField.setText((String) resultMap.get("coords"));
+                                if (!Strings.isNullOrEmpty(xpathTextField.getText())
+                                        && !xpathTextPrevious.equalsIgnoreCase(xpathTextField.getText())) {
+                                    preReadElement();
                                 }
-                                
-                                
                             });
                         }
                         try {
                             Thread.sleep(500); // Check every 500 milliseconds
                         } catch (InterruptedException e) {
-                            e.printStackTrace();
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine(String.format(
+                                            "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
                         }
                     }
                 })
@@ -1895,9 +2220,7 @@ public class ABRScannedElementPane extends ABRPane {
         jsExecutor.executeScript(
                 "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
 
-        jsExecutor.executeScript(
-                "window.removeClickListener();");
-
+        jsExecutor.executeScript("window.removeClickListener();");
 
         // Reset the background color
         //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
@@ -3051,5 +3374,28 @@ public class ABRScannedElementPane extends ABRPane {
                                 + "}"
                                 + "return absoluteXPath(arguments[0]);",
                         element);
+    }
+
+    @Override
+    public void start(Stage stage) throws Exception {
+        ABRLogger.getInstance(ABRWebDriver.class).severe("start from ABRScannedElementPane");
+    }
+
+    @Override
+    public void stop() throws Exception {
+        // Cleanup tasks when the application stops
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    System.err.println("ExecutorService did not terminate");
+                    ABRLogger.getInstance(ABRWebDriver.class).severe("ExecutorService did not terminate");
+                }
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }

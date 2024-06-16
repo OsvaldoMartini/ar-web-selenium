@@ -20,7 +20,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-public class DesignCorrection extends Application {
+public class DesignCorrection_2 extends Application {
 
     // Define your UI elements
     private ExecutorService executorService;
@@ -43,6 +43,8 @@ public class DesignCorrection extends Application {
     Button refreshOutputFieldsButton = new Button("Refresh Output Fields");
     Button refreshOtherFieldsButton = new Button("Refresh Other Fields");
     CheckBox checkBoxAction = new CheckBox("Action");
+    TextField tagNameTextField = new TextField();
+    TextField coordsTextField = new TextField();
     ListView<String> scannedElements1 = new ListView<>();
     ListView<String> scannedElements2 = new ListView<>();
     ListView<String> scannedElements3 = new ListView<>();
@@ -110,7 +112,12 @@ public class DesignCorrection extends Application {
         HBox.setHgrow(scannedElements2, Priority.ALWAYS);
         HBox.setHgrow(scannedElements3, Priority.ALWAYS);
 
-        boxListViews.getChildren().addAll(scannedElements1, scannedElements2, scannedElements3);
+        // Create the VBox for TextFields
+        VBox textFieldVBox = new VBox();
+        textFieldVBox.setSpacing(6); // Adjust spacing between TextFields
+        textFieldVBox.getChildren().addAll(xpathTextField, tagNameTextField, coordsTextField);
+
+        boxListViews.getChildren().addAll(scannedElements1, scannedElements2, scannedElements3, textFieldVBox);
 
         VBox.setVgrow(boxListViews, Priority.ALWAYS);
 

@@ -8,6 +8,7 @@ import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
+import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
@@ -48,7 +49,8 @@ public class ABRWebElement {
 
     private String xPath;
     private String attributeValue;
-    private WebElementTagNameEnum typeTag;
+    private String attributeType;
+    private WebElementTagNameEnum forceTagEnum;
 
     private String innerHTML;
 
@@ -89,11 +91,13 @@ public class ABRWebElement {
         initFromWebElement(element);
     }
 
-    public ABRWebElement(WebElement element, WebElementTagNameEnum tagEnum, String attribute, int jobId) {
+    public ABRWebElement(SearchReturn searchReturn, int jobId) {
         abrPriorities.setJobId(jobId);
-        this.typeTag = tagEnum;
-        this.attributeValue = element.getAttribute(attribute);
-        initFromWebElement(element);
+        this.forceTagEnum = searchReturn.getForceTypeEnum();
+        this.attributeValue = searchReturn.getAttributeValue();
+        this.attributeType = searchReturn.getAttributeType();
+        //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
+        initFromWebElement(searchReturn.getElement());
     }
 
     public ABRWebElement(Map.Entry<String, WebElement> entry, String attribute, int jobId) {
@@ -178,10 +182,15 @@ public class ABRWebElement {
                     (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
                             + (coordinates.getY() + (coordinates.getHeight() / 2)));
         }
-        if (typeTag != null) {
-            if (typeTag.equals(WebElementTagNameEnum.INPUT) || typeTag.equals(WebElementTagNameEnum.BUTTON)) {
+        if (forceTagEnum != null) {
+            if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
+                // OR BUTTON SOMETHING CLICKABLE
                 clickElement.setValue(true);
+            } else {
+                // OR INPUT SOMETHING IMPUTABLE
+                clickElement.setValue(false);
             }
+
         } else {
             clickElement.setValue(isClickable(element));
         }
