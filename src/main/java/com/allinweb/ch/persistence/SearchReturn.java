@@ -6,6 +6,7 @@ import org.openqa.selenium.WebElement;
 public class SearchReturn {
     String currentXPath;
     String absolutXPath;
+    String customXPath;
     String xPathWorkedFirst;
     String coords;
     String attribId;
@@ -62,6 +63,14 @@ public class SearchReturn {
 
     public void setAbsolutXPath(String absolutXPath) {
         this.absolutXPath = absolutXPath;
+    }
+
+    public String getCustomXPath() {
+        return customXPath;
+    }
+
+    public void setCustomXPath(String customXPath) {
+        this.customXPath = customXPath;
     }
 
     public String getCoords() {

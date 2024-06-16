@@ -33,11 +33,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -53,7 +56,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.net.ssl.*;
 import org.apache.commons.lang3.StringUtils;
@@ -69,8 +71,9 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import static javafx.util.Duration.seconds;
+
 public class ABRScannedElementPane extends ABRPane {
-    private ABRPane abrPane;
 
     private Connection conn = null;
 
@@ -98,7 +101,7 @@ public class ABRScannedElementPane extends ABRPane {
     private static final int SECONDS = 10; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;
     private Timeline timeline;
-    private Alert alertToShow;
+//    private Alert alertToShow;
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
@@ -145,6 +148,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
 
+    private TextField countdownTextField;
     private TextField attribIdTextField;
     private TextField attribNameTextField;
     private TextField xpathTextField;
@@ -267,32 +271,27 @@ public class ABRScannedElementPane extends ABRPane {
         launchBotJobButton = componentBuilder.buildButton(
                 "Launch Test", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
 
-        // Create a label to display the countdown
-        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
-        countdownLabel.setStyle("-fx-font-size: 24px;");
-
-        // Create a stack pane to hold the label
-        StackPane stackPane = new StackPane(countdownLabel);
-        stackPane.setPadding(new Insets(20));
-
-        // Create a dialog for the alert
-        alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Countdown Alert");
-        alertToShow.setHeaderText(null);
-        alertToShow.initModality(Modality.APPLICATION_MODAL);
-        // Set the content of the alert
-        alertToShow.getDialogPane().setContent(stackPane);
+        countdownTextField = new TextField(String.valueOf(remainingSeconds));
+        countdownTextField.setStyle("-fx-font-size: 24px;");
+        countdownTextField.setEditable(false);
+        
+//        // Create a label to display the countdown
+//        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
+//        countdownLabel.setStyle("-fx-font-size: 24px;");
+//
+//        // Create a stack pane to hold the label
+//        StackPane stackPane = new StackPane(countdownLabel);
+//        stackPane.setPadding(new Insets(20));
+//
+//        // Create a dialog for the alert
+//        alertToShow = new Alert(Alert.AlertType.INFORMATION);
+//        alertToShow.setTitle("Countdown Alert");
+//        alertToShow.setHeaderText(null);
+//        alertToShow.initModality(Modality.APPLICATION_MODAL);
+//        // Set the content of the alert
+//        alertToShow.getDialogPane().setContent(stackPane);
         // Create a single-threaded executor service
-        executorService = Executors.newSingleThreadExecutor();
-        // Create a timeline to update the countdown
-        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
-            remainingSeconds--;
-            countdownLabel.setText(String.valueOf(remainingSeconds));
-            if (remainingSeconds <= 0) {
-                timeline.stop(); // Stop the timeline when countdown finishes
-                alertToShow.close(); // Close the alert dialog
-            }
-        }));
+        
 
         checkActiveHover = new CheckBox("Identify");
 
@@ -390,6 +389,7 @@ public class ABRScannedElementPane extends ABRPane {
                             addNewElement,
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacer(),
+                            countdownTextField,
                             checkBoxAction,
                             createSpacer(),
                             createCustomSeparator(Color.DARKBLUE, 2),
@@ -446,6 +446,18 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                 }
             });
+
+
+            // Add a listener to the TextField's text property (not typically used for countdown)
+//            countdownTextField.textProperty().addListener(new ChangeListener<String>() {
+//                @Override
+//                public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+//                    // Handle any changes to the text (though this is not typically used for countdown)
+//                    System.out.println("TextField text changed: " + newValue);
+//                }
+//            });
+            
+            
         } catch (Exception ex) {
             ABRLogger.getInstance(ABRScannedElementPane.class).fine("Error using Separator line\n" + ex);
         }
@@ -546,19 +558,12 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void insertNewElement() {
         if (searchReturn != null) {
-
             try {
                 if (searchReturn.getElement() == null) {
-                    WebElement element = null;
-                    if (searchReturn.getAttributeType().equalsIgnoreCase("id")) {
-                        element = abrWebDriver.getDriver().findElement(By.id(searchReturn.getAttributeValue()));
-                    } else if (searchReturn.getAttributeType().equalsIgnoreCase("name")) {
-                        element = abrWebDriver.getDriver().findElement(By.name(searchReturn.getAttributeValue()));
-                    } else {
-                        element = abrWebDriver.getDriver().findElement(By.xpath("//" + searchReturn.getCurrentXPath()));
-                    }
-                    searchReturn.setElement(element);
+                    // First  Search for xPath
+                    searchWebElementSequence();
                 }
+
                 if (searchReturn.getElement() != null) {
 
                     // Last Moment to Be Change by the User
@@ -597,10 +602,67 @@ public class ABRScannedElementPane extends ABRPane {
         searchReturn.setCoords("");
         searchReturn.setCurrentXPath(xpathTextField.getText());
         searchReturn.setAbsolutXPath(absolutXPathTextField.getText());
+        searchReturn.setCustomXPath(customXPathTextField.getText());
         searchReturn.setElement(null);
         searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
 
         // First  Search for xPath
+        searchWebElementSequence();
+
+        if (searchReturn.getElement() != null) {
+            // Extract id or name between '(' and ')'
+            String tagName = originalTagNameField.getText();
+            String coordinates = coordsTextField.getText();
+            searchReturn.setCoords(coordsTextField.getText());
+
+            // Split coordinates into coordLeft and coordRight based on comma
+            String[] coords = coordinates.split(",");
+            if (coords.length == 2) {
+                String coordLeft = coords[0].trim();
+                String coordRight = coords[1].trim();
+
+                // Print or use the extracted values
+                System.out.println("Tag Name: " + searchReturn.getOriginalTagName());
+                System.out.println("Id: " + searchReturn.getAttribId());
+                System.out.println("Name: " + searchReturn.getAttribName());
+                System.out.println("xPath: " + searchReturn.getCurrentXPath());
+                System.out.println("Absolut xPath: " + searchReturn.getAbsolutXPath());
+                System.out.println("Custom xPath: " + searchReturn.getCustomXPath());
+                System.out.println("CoordLeft: " + coordLeft);
+                System.out.println("CoordRight: " + coordRight);
+
+                // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
+                if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())
+                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
+                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
+                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+                    searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                } else {
+                    searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                }
+
+                Boolean clickable = isClickable(searchReturn.getElement());
+                Platform.runLater(() -> {
+                    checkClickElement.setSelected(clickable);
+                    checkInputText.setSelected(!clickable);
+                });
+
+                return searchReturn;
+            } else {
+                return null;
+            }
+
+        } else {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe("Could not find any Web Elementwith XPath/Id/Attributes values.");
+        }
+
+        return null;
+    }
+
+    private WebElement searchWebElementSequence() {
         WebElement element = null;
         if (!Strings.isNullOrEmpty(searchReturn.getCurrentXPath())) {
             if (element == null) {
@@ -608,7 +670,8 @@ public class ABRScannedElementPane extends ABRPane {
                     element = abrWebDriver.getDriver().findElement(By.xpath("//" + searchReturn.getCurrentXPath()));
                     if (element != null) {
                         searchReturn.setElement(element);
-                        searchReturn.setxPathWorkedFirst(Constants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+                        searchReturn.setxPathWorkedFirst(
+                                Constants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -618,12 +681,13 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             }
             if (element == null) {
-               try {
+                try {
                     element = abrWebDriver.getDriver().findElement(By.xpath(searchReturn.getAbsolutXPath()));
-                   if (element != null) {
-                       searchReturn.setElement(element);
-                       searchReturn.setxPathWorkedFirst(Constants.ABSOLUT_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
-                   }
+                    if (element != null) {
+                        searchReturn.setElement(element);
+                        searchReturn.setxPathWorkedFirst(
+                                Constants.ABSOLUT_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+                    }
                 } catch (Exception e) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine(String.format(
@@ -632,100 +696,40 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             }
 
-            if (element == null && searchReturn.getAttribId().startsWith("id(")) {
-
-                String input = searchReturn.getAttribId();
-                // Find the index of '(' and ')' to extract id or name
-                int indexOfOpenParenthesis = input.indexOf('(');
-                int indexOfCloseParenthesis = input.indexOf(')');
-                String idOrName;
-                if (indexOfOpenParenthesis != -1 && indexOfCloseParenthesis != -1) {
-                    idOrName = input.substring("id".length() + 2, indexOfCloseParenthesis - 1);
-                    searchReturn.setAttributeType("id");
-                    searchReturn.setAttributeValue(idOrName);
+            //            if (searchReturn.getCurrentXPath().startsWith("id(")) {
+            if (!Strings.isNullOrEmpty(searchReturn.getAttribId())) {
+                searchReturn.setAttributeType("id");
+                searchReturn.setAttributeValue(searchReturn.getAttribId());
+                if (searchReturn.getElement() == null) {
                     try {
-                        element = abrWebDriver.getDriver().findElement(By.id(idOrName));
+                        element = abrWebDriver.getDriver().findElement(By.id(searchReturn.getAttribId()));
                         if (element != null) {
                             searchReturn.setElement(element);
                         }
                     } catch (Exception e) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine(String.format("Cannot locate a Web Element with ID: \n%s", idOrName));
+                                .fine(String.format(
+                                        "Cannot locate a Web Element with ID: \n%s", searchReturn.getAttribId()));
                     }
                 }
-            } else if (element == null && searchReturn.getAttribId().startsWith("name(")) {
-                String input = searchReturn.getAttribId();
-                // Find the index of '(' and ')' to extract id or name
-                int indexOfOpenParenthesis = input.indexOf('(');
-                int indexOfCloseParenthesis = input.indexOf(')');
-                String idOrName;
-                if (indexOfOpenParenthesis != -1 && indexOfCloseParenthesis != -1) {
-                    idOrName = input.substring("name".length() + 2, indexOfCloseParenthesis - 1);
-                    searchReturn.setAttributeType("name");
-                    searchReturn.setAttributeValue(idOrName);
+
+            } else if (!Strings.isNullOrEmpty(searchReturn.getAttribName())) {
+                searchReturn.setAttributeType("name");
+                if (searchReturn.getElement() == null) {
                     try {
-                        element = abrWebDriver.getDriver().findElement(By.name(idOrName));
+                        element = abrWebDriver.getDriver().findElement(By.name(searchReturn.getAttribName()));
                         if (element != null) {
                             searchReturn.setElement(element);
                         }
                     } catch (Exception e) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine(String.format("Cannot locate a Web Element with Name: \n%s", idOrName));
+                                .fine(String.format(
+                                        "Cannot locate a Web Element with Name: \n%s", searchReturn.getAttribName()));
                     }
                 }
-            }
-
-            if (searchReturn.getElement() != null) {
-                // Extract id or name between '(' and ')'
-                String tagName = originalTagNameField.getText();
-                String coordinates = coordsTextField.getText();
-                searchReturn.setCoords(coordsTextField.getText());
-
-                // Split coordinates into coordLeft and coordRight based on comma
-                String[] coords = coordinates.split(",");
-                if (coords.length == 2) {
-                    String coordLeft = coords[0].trim();
-                    String coordRight = coords[1].trim();
-
-                    // Print or use the extracted values
-                    System.out.println("Tag Name: " + searchReturn.getOriginalTagName());
-                    System.out.println("Id: " + searchReturn.getAttribId());
-                    System.out.println("Name: " + searchReturn.getAttribName());
-                    System.out.println("xPath: " + searchReturn.getCurrentXPath());
-                    System.out.println("Absolut xPath: " + searchReturn.getAbsolutXPath());
-                    System.out.println("Main Search: " + searchReturn.getAttributeType());
-                    System.out.println("CoordLeft: " + coordLeft);
-                    System.out.println("CoordRight: " + coordRight);
-
-                    // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
-                    if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
-                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
-                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())
-                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
-                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
-                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
-                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
-                    } else {
-                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
-                    }
-
-                    Boolean clickable = isClickable(element);
-                    Platform.runLater(() -> {
-                        checkClickElement.setSelected(clickable);
-                        checkInputText.setSelected(!clickable);
-                    });
-
-                    return searchReturn;
-                } else {
-                    return null;
-                }
-
-            } else {
-                ABRLogger.getInstance(ABRScannedElementPane.class).severe("Coordinates format not valid.");
             }
         }
-
-        return null;
+        return element;
     }
 
     private boolean isClickable(WebElement element) {
@@ -2205,20 +2209,17 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        return '';"
                 + "    }"
                 + "    function getMartiniXPath(element) {"
-                + "        if (element.id !== '') {"
-                + "            return 'id(\"' + element.id + '\")';"
-                + "        }"
                 + "        if (element === document.body) {"
-                + "            return element.tagName.toLowerCase();"
+                + "            return '/html/body';"
                 + "        }"
                 + "        var ix = 0;"
-                + "        var siblings = element.parentNode.childNodes;"
+                + "        var siblings = element.parentNode ? element.parentNode.childNodes : [];"
                 + "        for (var i = 0; i < siblings.length; i++) {"
                 + "            var sibling = siblings[i];"
-                + "            if (sibling === element) {"
-                + "                return getMartiniXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';"
-                + "            }"
                 + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
+                + "                if (sibling === element) {"
+                + "                    return getMartiniXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';"
+                + "                }"
                 + "                ix++;"
                 + "            }"
                 + "        }"
@@ -2787,18 +2788,60 @@ public class ABRScannedElementPane extends ABRPane {
     private void executeAlert(BlockLoopInstructionDTO instruction) {
         // Execute the countdown in a separate thread
         if (instruction != null) {
-            Integer instructionSeconds = instruction.getOnHoldSeconds();
-            executorService.execute(() -> {
-                timeline.setCycleCount(instructionSeconds); // Run for SECONDS seconds
-                timeline.play(); // Start the timeline
+//            Integer instructionSeconds = instruction.getOnHoldSeconds();
+//            AtomicInteger initialSeconds = new AtomicInteger(instructionSeconds);
+//
+//            // Initialize Timeline for countdown
+//            timeline = new Timeline(new KeyFrame(seconds(1), event -> {
+//                initialSeconds.getAndDecrement();
+//                // Update TextField on JavaFX Application Thread
+//                Platform.runLater(() -> countdownTextField.setText(String.valueOf(initialSeconds.get())));
+//
+//                if (initialSeconds.get() <= 0) {
+//                    timeline.stop();
+//                    // Optionally, handle countdown completion here
+//                }
+//            }));
+//            timeline.setCycleCount(instructionSeconds); // Set the number of cycles
+//
+//            // Start the timeline
+//            timeline.play();
+        }
+        
+        
+//        if (instruction != null) {
+//            Integer instructionSeconds = instruction.getOnHoldSeconds();
+//            executorService.execute(() -> {
+//                timeline.setCycleCount(instructionSeconds); // Run for SECONDS seconds
+//                timeline.play(); // Start the timeline
+//
+//                // Show the alert on the JavaFX Application Thread
+////                javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
+//            });
+//        }
+//        if (executorService != null) {
+//            executorService.shutdown();
+//        }
 
-                // Show the alert on the JavaFX Application Thread
-                javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
-            });
-        }
-        if (executorService != null) {
-            executorService.shutdown();
-        }
+//        if (instruction != null) {
+//            Integer instructionSeconds = instruction.getOnHoldSeconds();
+//            AtomicInteger initialSeconds = new AtomicInteger(instructionSeconds);
+//
+//            // Initialize Timeline for countdown
+//            timeline = new Timeline(new KeyFrame(seconds(1), event -> {
+//                initialSeconds.getAndDecrement();
+//                countdownTextField.setText(String.valueOf(initialSeconds.get()));
+//                if (initialSeconds.get() <= 0) {
+//                    timeline.stop();
+//                    // Optionally, handle countdown completion here
+//                }
+//            }));
+//            timeline.setCycleCount(instructionSeconds); // Set the number of cycles
+//
+//            // Start the timeline
+//            timeline.play();
+//        }
+//        
     }
 
     private WebElement locateElement(BlockLoopInstructionDTO instruction, Map<String, String> data) throws Exception {
@@ -2866,25 +2909,33 @@ public class ABRScannedElementPane extends ABRPane {
                 //                    .findFirst();
 
                 // Find the first matching instruction reference
-                Optional<InstructionReferenceDTO> instructionReference = instructionReferenceList.stream()
+                Optional<InstructionReferenceDTO> instructionReference =  instructionReferenceList.stream()
                         .filter(reference ->
-                                priority.getPriorityType().toString().equalsIgnoreCase(reference.getReferenceType()))
-                        .findFirst();
-
+                                priority.getName().stream()
+                                        .anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType()))
+                        )
+                        .findFirst();              
                 // Print or process the first matching instruction reference
-                instructionReference.ifPresent((f) -> System.out.println(String.format(
-                        "Search for %s   Type:  %s   Value: %s",
-                        priority.getName(), f.getReferenceType(), f.getValue())));
+                if (instructionReference.isPresent()) {
 
+                    System.out.println(String.format(
+                            "Search for %s   Type:  %s   Value: %s",
+                            priority.getName(),
+                            instructionReference.get().getReferenceType(),
+                            instructionReference.get().getValue()));
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine(String.format(
+                                    "Search for %s   Type:  %s   Value: %s",
+                                    priority.getName(),
+                                    instructionReference.get().getReferenceType(),
+                                    instructionReference.get().getValue()));
+                }
                 if (instructionReference.isPresent()) {
                     List<By> criterias = null;
                     switch (priority.getPriorityType()) {
-                        case xpath -> criterias = Arrays.asList(
-                                new By[] {By.xpath(instructionReference.get().getValue())});
-                        case attribute -> criterias = convertToCriteriaList(
-                                tagName,
-                                priority.getName(),
-                                instructionReference.get().getValue());
+                        case xpath -> criterias = Arrays.asList(new By[] {By.xpath(instructionReference.get().getValue())});
+                        case attribute -> criterias =
+                                convertToCriteriaList(tagName, priority.getName(), instructionReference.get().getValue());
                             //                                criteria = By.cssSelector(tagName + "[" +
                             // priority.getName() + "='" + instructionReference.get().getValue() + "']");
                         case coordinates -> {} // System.out.println("coordinates case");
@@ -2948,19 +2999,22 @@ public class ABRScannedElementPane extends ABRPane {
                                 int k = 0;
                                 //                            MAYBE THIS SHOUL BE NOT NECESSARY  USE UNIQUE ID   OR
                                 // SESSION  SAVED TO GET THE SAME XPATHORELEMENT
+                                if (foundElementList.size() > 1) {
                                 while (elementFound == null && k < foundElementList.size()) {
                                     String xpath = ABRWebUtil.extractXPath(
                                             foundElementList.get(k).toString());
-                                    Optional<InstructionReferenceDTO> xpathReference = instructionReferenceList.stream()
-                                            .filter(ref ->
-                                                    ref.getReferenceType().equals(PriorityTypeEnum.xpath.name()))
-                                            .findFirst();
-                                    if (xpathReference.isPresent()
-                                            && xpath.equals(xpathReference.get().getValue())) {
+                             
+                                    // Second Verification for XPath Found
+                                    if (instructionReference.isPresent()
+                                            && xpath.equals(instructionReference.get().getValue())) {
                                         elementFound = foundElementList.get(k);
                                         break;
                                     }
                                     k++;
+
+                                }
+                                }else {
+                                    elementFound = foundElementList.get(0);
                                 }
                             }
                         }

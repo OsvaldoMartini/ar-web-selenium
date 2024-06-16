@@ -47,9 +47,9 @@ public class ABRWebElement {
     private String elementId;
     private WebElement element;
 
+    private SearchReturn searchReturn;
     private String xPath;
     private String attributeValue;
-    private String attributeType;
     private WebElementTagNameEnum forceTagEnum;
 
     private String innerHTML;
@@ -93,9 +93,9 @@ public class ABRWebElement {
 
     public ABRWebElement(SearchReturn searchReturn, int jobId) {
         abrPriorities.setJobId(jobId);
+        this.searchReturn = searchReturn;
         this.forceTagEnum = searchReturn.getForceTypeEnum();
         this.attributeValue = searchReturn.getAttributeValue();
-        this.attributeType = searchReturn.getAttributeType();
         //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
         initFromWebElement(searchReturn.getElement());
     }
@@ -143,7 +143,7 @@ public class ABRWebElement {
         initUI();
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
-        if (Strings.isNullOrEmpty(xPath) && abrPriorities.getJobId() != null && Strings.isNullOrEmpty(attributeValue)) {
+        if (searchReturn.getElement() == null && Strings.isNullOrEmpty(xPath) && abrPriorities.getJobId() != null) {
             for (Priority priority : abrPriorities.getAllPriorityList()) {
                 switch (priority.getPriorityType()) {
                     case attribute -> {
@@ -166,12 +166,32 @@ public class ABRWebElement {
                 }
             }
         } else {
-            if (!Strings.isNullOrEmpty(attributeValue)) {
-                savedReferences.put("attribute", attributeValue);
-            }
+            // Most Important to find any kind of element
 
-            if (!Strings.isNullOrEmpty(xPath)) {
-                savedReferences.put("xpath", xPath);
+            if (searchReturn.getxPathWorkedFirst().equals(Constants.ABSOLUT_XPATH)) {
+                savedReferences.put(
+                        "absolutXPath",
+                        searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
+                savedReferences.put(
+                        "currentXPath",
+                        searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
+                savedReferences.put(
+                        "customXPath",
+                        searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+            } else if (searchReturn.getxPathWorkedFirst().equals(Constants.REGULAR_XPATH)) {
+                savedReferences.put(
+                        "currentXPath",
+                        searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
+                savedReferences.put(
+                        "absolutXPath",
+                        searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
+                savedReferences.put(
+                        "customXPath",
+                        searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+            } else if (!Strings.isNullOrEmpty(xPath)) {
+                savedReferences.put("xpath", searchReturn.getCurrentXPath());
+            } else if (!Strings.isNullOrEmpty(attributeValue)) {
+                savedReferences.put("attribute", attributeValue);
             } else { // In case of Dynamic Creation
                 savedReferences.put("xpath", ABRWebUtil.extractWebElementXPath(element));
             }
