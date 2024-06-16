@@ -84,6 +84,8 @@ public class ABRScannedElementPane extends ABRPane {
     private static File baseLogFile = null;
     private static SimpleDateFormat dateFormatter;
 
+    private static JavascriptExecutor jsExecutor;
+
     private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final int MIN_LENGTH = 3;
     private static final int MAX_LENGTH = 30;
@@ -92,7 +94,6 @@ public class ABRScannedElementPane extends ABRPane {
 
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-    private static final Double LIST_VIEW_WIDTH = 350D;
 
     private static final int SECONDS = 10; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;
@@ -136,12 +137,20 @@ public class ABRScannedElementPane extends ABRPane {
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
 
+    private Label attribIdTextFieldLabel;
+    private Label attribNameTextFieldLabel;
     private Label xpathTextFieldLabel;
-    private Label tagNameTextFieldLabel;
+    private Label currentAbsoluteXPathLabel;
+    private Label currentCustomXPathLabel;
+    private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
 
+    private TextField attribIdTextField;
+    private TextField attribNameTextField;
     private TextField xpathTextField;
-    private TextField tagNameTextField;
+    private TextField absolutXPathTextField;
+    private TextField customXPathTextField;
+    private TextField originalTagNameField;
     private TextField coordsTextField;
     private String xpathTextPrevious = "";
     private Boolean periodicActivated = false;
@@ -287,14 +296,26 @@ public class ABRScannedElementPane extends ABRPane {
 
         checkActiveHover = new CheckBox("Identify");
 
-        xpathTextFieldLabel = new Label("XPath Found");
-        tagNameTextFieldLabel = new Label("Tag Name");
+        attribIdTextFieldLabel = new Label("Attrib Id Found");
+        attribNameTextFieldLabel = new Label("Attrib Name Found");
+        xpathTextFieldLabel = new Label("XPath");
+        currentAbsoluteXPathLabel = new Label("Absolut XPath");
+        currentCustomXPathLabel = new Label("Custom XPath");
+        originalTagNameLabel = new Label("Tag Name");
         coordsTextFieldLabel = new Label("Coordinates");
 
+        attribIdTextField = new TextField();
+        attribIdTextField.setPromptText("Attrib Id");
+        attribNameTextField = new TextField();
+        attribNameTextField.setPromptText("Attrib Name");
         xpathTextField = new TextField();
         xpathTextField.setPromptText("XPath");
-        tagNameTextField = new TextField();
-        tagNameTextField.setPromptText("Tag Name");
+        absolutXPathTextField = new TextField();
+        absolutXPathTextField.setPromptText("Absolut XPath");
+        customXPathTextField = new TextField();
+        customXPathTextField.setPromptText("Custom XPath");
+        originalTagNameField = new TextField();
+        originalTagNameField.setPromptText("Tag Name");
         coordsTextField = new TextField();
         coordsTextField.setPromptText("Coordinates");
         try {
@@ -341,7 +362,7 @@ public class ABRScannedElementPane extends ABRPane {
             gridPane.add(refreshOutputFieldsButton, 4, 0);
             gridPane.add(refreshOtherFieldsButton, 5, 0);
             //        gridPane.add(checkBoxAction, 6, 0);
-            //        gridPane.add(tagNameTextField, 7, 0);
+            //        gridPane.add(originalTagNameField, 7, 0);
             //        gridPane.add(coordsTextField, 8, 0);
 
             // Create the VBox for TextFields
@@ -351,10 +372,18 @@ public class ABRScannedElementPane extends ABRPane {
                     .getChildren()
                     .addAll(
                             checkActiveHover,
+                            attribIdTextFieldLabel,
+                            attribIdTextField,
+                            attribNameTextFieldLabel,
+                            attribNameTextField,
                             xpathTextFieldLabel,
                             xpathTextField,
-                            tagNameTextFieldLabel,
-                            tagNameTextField,
+                            currentAbsoluteXPathLabel,
+                            absolutXPathTextField,
+                            currentCustomXPathLabel,
+                            customXPathTextField,
+                            originalTagNameLabel,
+                            originalTagNameField,
                             coordsTextFieldLabel,
                             coordsTextField,
                             vBoxCheckBox,
@@ -515,20 +544,6 @@ public class ABRScannedElementPane extends ABRPane {
         //        manageUIScan();
     }
 
-    private void preReadElement() {
-        String text = xpathTextField.getText();
-        xpathTextPrevious = text;
-        // Find the index of '(' and ')' to extract id and coordinates
-        // Check if input1 starts with "id(" or "name("
-        if (text.startsWith("id(")) {
-            extractValidateDynamic(text, "id");
-        } else if (text.startsWith("name(")) {
-            extractValidateDynamic(text, "name");
-        } else {
-            extractValidateDynamic(text, "xpath");
-        }
-    }
-
     private void insertNewElement() {
         if (searchReturn != null) {
 
@@ -569,61 +584,119 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private SearchReturn extractValidateDynamic(String input, String type) {
+    private SearchReturn extractValidateDynamic() {
 
-        if (!Strings.isNullOrEmpty(input)) {
+        xpathTextPrevious = absolutXPathTextField.getText();
 
-            // Find the index of '(' and ')' to extract id or name
-            int indexOfOpenParenthesis = input.indexOf('(');
-            int indexOfCloseParenthesis = input.indexOf(')');
+        // Reset Previous Values
+        searchReturn.setAttribId(attribIdTextField.getText());
+        searchReturn.setAttribName(attribNameTextField.getText());
+        searchReturn.setOriginalTagName(originalTagNameField.getText());
+        searchReturn.setAttributeType("");
+        searchReturn.setAttributeValue("");
+        searchReturn.setCoords("");
+        searchReturn.setCurrentXPath(xpathTextField.getText());
+        searchReturn.setAbsolutXPath(absolutXPathTextField.getText());
+        searchReturn.setElement(null);
+        searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
 
-            String idOrNameorXPath = null;
-
-            // Reset Previous Values
-            searchReturn.setAttributeType("");
-            searchReturn.setAttributeValue("");
-            searchReturn.setCoords("");
-            searchReturn.setCurrentXPath("");
-            searchReturn.setElement(null);
-            searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
-
-            if (indexOfOpenParenthesis != -1 && indexOfCloseParenthesis != -1) {
-                idOrNameorXPath = input.substring(type.length() + 2, indexOfCloseParenthesis - 1);
-                searchReturn.setAttributeValue(idOrNameorXPath);
-            } else {
-                idOrNameorXPath = xpathTextField.getText();
-                searchReturn.setCurrentXPath(idOrNameorXPath);
-            }
-            // Extract id or name between '(' and ')'
-            String tagName = tagNameTextField.getText();
-            String coordinates = coordsTextField.getText();
-
-            searchReturn.setCoords(coordsTextField.getText());
-            searchReturn.setAttributeType(type);
-
-            // Split coordinates into coordLeft and coordRight based on comma
-            String[] coords = coordinates.split(",");
-            if (coords.length == 2) {
-                String coordLeft = coords[0].trim();
-                String coordRight = coords[1].trim();
-
-                // Print or use the extracted values
-                System.out.println("Type: " + tagName);
-                System.out.println("Id/Name: " + idOrNameorXPath);
-                System.out.println("CoordLeft: " + coordLeft);
-                System.out.println("CoordRight: " + coordRight);
-
-                WebElement element = null;
-                if (type.equalsIgnoreCase("id")) {
-                    element = abrWebDriver.getDriver().findElement(By.id(idOrNameorXPath));
-                } else if (type.equalsIgnoreCase("name")) {
-                    element = abrWebDriver.getDriver().findElement(By.name(idOrNameorXPath));
-                } else {
-                    element = abrWebDriver.getDriver().findElement(By.xpath("//" + idOrNameorXPath));
+        // First  Search for xPath
+        WebElement element = null;
+        if (!Strings.isNullOrEmpty(searchReturn.getCurrentXPath())) {
+            if (element == null) {
+                try {
+                    element = abrWebDriver.getDriver().findElement(By.xpath("//" + searchReturn.getCurrentXPath()));
+                    if (element != null) {
+                        searchReturn.setElement(element);
+                        searchReturn.setxPathWorkedFirst(Constants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+                    }
+                } catch (Exception e) {
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine(String.format(
+                                    "Cannot locate anWeb Element with Regular XPath\n%s",
+                                    searchReturn.getCurrentXPath()));
                 }
-                if (element != null) {
+            }
+            if (element == null) {
+               try {
+                    element = abrWebDriver.getDriver().findElement(By.xpath(searchReturn.getAbsolutXPath()));
+                   if (element != null) {
+                       searchReturn.setElement(element);
+                       searchReturn.setxPathWorkedFirst(Constants.ABSOLUT_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+                   }
+                } catch (Exception e) {
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine(String.format(
+                                    "Cannot locate anWeb Element with Absolut XPath\n%s",
+                                    searchReturn.getAbsolutXPath()));
+                }
+            }
 
-                    searchReturn.setElement(element);
+            if (element == null && searchReturn.getAttribId().startsWith("id(")) {
+
+                String input = searchReturn.getAttribId();
+                // Find the index of '(' and ')' to extract id or name
+                int indexOfOpenParenthesis = input.indexOf('(');
+                int indexOfCloseParenthesis = input.indexOf(')');
+                String idOrName;
+                if (indexOfOpenParenthesis != -1 && indexOfCloseParenthesis != -1) {
+                    idOrName = input.substring("id".length() + 2, indexOfCloseParenthesis - 1);
+                    searchReturn.setAttributeType("id");
+                    searchReturn.setAttributeValue(idOrName);
+                    try {
+                        element = abrWebDriver.getDriver().findElement(By.id(idOrName));
+                        if (element != null) {
+                            searchReturn.setElement(element);
+                        }
+                    } catch (Exception e) {
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .fine(String.format("Cannot locate a Web Element with ID: \n%s", idOrName));
+                    }
+                }
+            } else if (element == null && searchReturn.getAttribId().startsWith("name(")) {
+                String input = searchReturn.getAttribId();
+                // Find the index of '(' and ')' to extract id or name
+                int indexOfOpenParenthesis = input.indexOf('(');
+                int indexOfCloseParenthesis = input.indexOf(')');
+                String idOrName;
+                if (indexOfOpenParenthesis != -1 && indexOfCloseParenthesis != -1) {
+                    idOrName = input.substring("name".length() + 2, indexOfCloseParenthesis - 1);
+                    searchReturn.setAttributeType("name");
+                    searchReturn.setAttributeValue(idOrName);
+                    try {
+                        element = abrWebDriver.getDriver().findElement(By.name(idOrName));
+                        if (element != null) {
+                            searchReturn.setElement(element);
+                        }
+                    } catch (Exception e) {
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .fine(String.format("Cannot locate a Web Element with Name: \n%s", idOrName));
+                    }
+                }
+            }
+
+            if (searchReturn.getElement() != null) {
+                // Extract id or name between '(' and ')'
+                String tagName = originalTagNameField.getText();
+                String coordinates = coordsTextField.getText();
+                searchReturn.setCoords(coordsTextField.getText());
+
+                // Split coordinates into coordLeft and coordRight based on comma
+                String[] coords = coordinates.split(",");
+                if (coords.length == 2) {
+                    String coordLeft = coords[0].trim();
+                    String coordRight = coords[1].trim();
+
+                    // Print or use the extracted values
+                    System.out.println("Tag Name: " + searchReturn.getOriginalTagName());
+                    System.out.println("Id: " + searchReturn.getAttribId());
+                    System.out.println("Name: " + searchReturn.getAttribName());
+                    System.out.println("xPath: " + searchReturn.getCurrentXPath());
+                    System.out.println("Absolut xPath: " + searchReturn.getAbsolutXPath());
+                    System.out.println("Main Search: " + searchReturn.getAttributeType());
+                    System.out.println("CoordLeft: " + coordLeft);
+                    System.out.println("CoordRight: " + coordRight);
+
                     // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
                     if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
@@ -2099,10 +2172,11 @@ public class ABRScannedElementPane extends ABRPane {
         //                "})();";
 
         // JavaScript code to inject
-        String jsCode = "(function() {" + "    var tooltip = document.createElement('div');"
+        String jsCode = "(function() {"
+                + "    var tooltip = document.createElement('div');"
                 + "    tooltip.id = 'Martini-Is-Awesome';"
                 + "    tooltip.style.position = 'absolute';"
-                + "    tooltip.style.backgroundColor = 'lightorange';"
+                + "    tooltip.style.backgroundColor = 'rgba(255, 165, 0, 0.9)';" // Slightly opaque light orange
                 + "    tooltip.style.border = '1px solid #ccc';"
                 + "    tooltip.style.padding = '10px';"
                 + "    tooltip.style.borderRadius = '5px';"
@@ -2110,22 +2184,19 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    tooltip.style.fontFamily = 'Arial, sans-serif';"
                 + "    tooltip.style.fontSize = '14px';"
                 + "    tooltip.style.color = '#333';"
-                + "    tooltip.style.zIndex = '5000';"
+                + "    tooltip.style.zIndex = '10000';" // Higher z-index
                 + "    tooltip.style.display = 'none';"
                 + "    document.body.appendChild(tooltip);"
-                + "    function getXPath(element) {"
-                + "        if (element.id !== '') {"
-                + "            return 'id(\"' + element.id + '\")';"
-                + "        }"
+                + "    function getMartiniAbsoluteXPath(element) {"
                 + "        if (element === document.body) {"
-                + "            return element.tagName;"
+                + "            return '/html/' + element.tagName.toLowerCase();"
                 + "        }"
                 + "        var ix = 0;"
                 + "        var siblings = element.parentNode.childNodes;"
                 + "        for (var i = 0; i < siblings.length; i++) {"
                 + "            var sibling = siblings[i];"
                 + "            if (sibling === element) {"
-                + "                return getXPath(element.parentNode) + '/' + element.tagName + '[' + (ix + 1) + ']';"
+                + "                return getMartiniAbsoluteXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';"
                 + "            }"
                 + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
                 + "                ix++;"
@@ -2133,7 +2204,52 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        }"
                 + "        return '';"
                 + "    }"
-                + "    function showTooltip(event) {"
+                + "    function getMartiniXPath(element) {"
+                + "        if (element.id !== '') {"
+                + "            return 'id(\"' + element.id + '\")';"
+                + "        }"
+                + "        if (element === document.body) {"
+                + "            return element.tagName.toLowerCase();"
+                + "        }"
+                + "        var ix = 0;"
+                + "        var siblings = element.parentNode.childNodes;"
+                + "        for (var i = 0; i < siblings.length; i++) {"
+                + "            var sibling = siblings[i];"
+                + "            if (sibling === element) {"
+                + "                return getMartiniXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';"
+                + "            }"
+                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
+                + "                ix++;"
+                + "            }"
+                + "        }"
+                + "        return '';"
+                + "    }"
+                + "    function getMartiniCustomXPath(element) {"
+                + "        if (element === document.body) {"
+                + "            return '/html/' + element.tagName.toLowerCase();"
+                + "        }"
+                + "        var className = element.className.split(' ').filter(function(cls) { return !/\\d/.test(cls); }).join('.');"
+                + "        var tagName = element.tagName.toLowerCase();"
+                + "        var ix = 0;"
+                + "        var siblings = element.parentNode.childNodes;"
+                + "        for (var i = 0; i < siblings.length; i++) {"
+                + "            var sibling = siblings[i];"
+                + "            if (sibling === element) {"
+                + "                var path = getMartiniCustomXPath(element.parentNode) + '/' + tagName;"
+                + "                if (className) {"
+                + "                    path += '[contains(@class, \"' + className + '\")]';"
+                + "                } else {"
+                + "                    path += '[' + (ix + 1) + ']';"
+                + "                }"
+                + "                return path;"
+                + "            }"
+                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
+                + "                ix++;"
+                + "            }"
+                + "        }"
+                + "        return '';"
+                + "    }"
+                + "    function showMartiniTooltip(event) {"
                 + "        window.tagNameTemp = event.target.tagName.toLowerCase();"
                 + "        window.coordsTemp = event.target.getBoundingClientRect();"
                 + "        window.coordsTemp = window.coordsTemp.left + ',' + window.coordsTemp.top;"
@@ -2142,34 +2258,46 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        tooltip.style.top = (event.pageY + 15) + 'px';"
                 + "        tooltip.style.display = 'block';"
                 + "    }"
-                + "    function hideTooltip() {"
+                + "    function hideMartiniTooltip() {"
                 + "        tooltip.style.display = 'none';"
                 + "    }"
-                + "    function handleClick(event) {"
+                + "    function handleMartiniClick(event) {"
                 + "        event.preventDefault(); "
                 + "        event.stopPropagation(); "
-                + "        var xpath = getXPath(event.target);"
+                + "        var xpath = getMartiniXPath(event.target);"
+                + "        var absoluteXPath = getMartiniAbsoluteXPath(event.target);"
+                + "        var customXPath = getMartiniCustomXPath(event.target);"
                 + "        window.currentXPath = xpath;"
+                + "        window.currentAbsoluteXPath = absoluteXPath;"
+                + "        window.currentXPath = xpath;"
+                + "        window.currentCustomXPath = customXPath;"
+                + "        window.attribId = event.target.id || '';"
+                + "        window.attribName = event.target.name || '';"
                 + "        window.tagName = event.target.tagName.toLowerCase();"
                 + "        window.coords = event.target.getBoundingClientRect();"
                 + "        window.coords = window.coords.left + ',' + window.coords.top;"
                 + "    }"
                 + "    window.currentXPath = '';"
+                + "    window.currentAbsoluteXPath = '';"
+                + "    window.currentCustomXPath = '';"
+                + "    window.attribId = '';"
+                + "    window.attribName = '';"
                 + "    window.tagName = '';"
                 + "    window.coords = '';"
                 + "    window.tagNameTemp = '';"
                 + "    window.coordsTemp = '';"
-                + "    document.addEventListener('mouseover', showTooltip);"
-                + "    document.addEventListener('mouseout', hideTooltip);"
-                + "    document.addEventListener('click', handleClick);"
+                + "    document.addEventListener('mouseover', showMartiniTooltip);"
+                + "    document.addEventListener('mouseout', hideMartiniTooltip);"
+                + "    document.addEventListener('click', handleMartiniClick);"
                 + "    window.removeClickListener = function() {"
-                + "        console.log('removeClickListener');"
-                + "        document.removeEventListener('click', handleClick);"
+                + "        document.removeEventListener('click', showMartiniTooltip);"
+                + "        document.removeEventListener('click', hideMartiniTooltip);"
+                + "        document.removeEventListener('click', handleMartiniClick);"
                 + "    };"
                 + "})();";
 
         // Inject the JavaScript into the webpage
-        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        jsExecutor = (JavascriptExecutor) driver;
         jsExecutor.executeScript(jsCode);
 
         // Start a thread to periodically check the XPath value and update the TextField
@@ -2178,26 +2306,26 @@ public class ABRScannedElementPane extends ABRPane {
                         //                        String currentXPath = (String) jsExecutor.executeScript("return
                         // window.currentXPath;");
 
-                        String currentXPath;
-                        String coords;
-                        String tagName;
-
                         // Execute JavaScript to construct and return a custom object
                         LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
                                 jsExecutor.executeScript(
-                                        "var obj = { currentXPath: window.currentXPath, tagName: window.tagName, coords: window.coords }; return obj;");
+                                        "var obj = { attribId: window.attribId, attribName: window.attribName, currentCustomXPath: window.currentCustomXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords }; return obj;");
 
                         // Convert the LinkedHashMap to a Java Map (if necessary)
                         Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
 
                         if (linkedHashMap != null) {
                             Platform.runLater(() -> {
+                                attribIdTextField.setText((String) resultMap.get("attribId"));
+                                attribNameTextField.setText((String) resultMap.get("attribName"));
                                 xpathTextField.setText((String) resultMap.get("currentXPath"));
-                                tagNameTextField.setText((String) resultMap.get("tagName"));
+                                absolutXPathTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
+                                customXPathTextField.setText((String) resultMap.get("currentCustomXPath"));
+                                originalTagNameField.setText((String) resultMap.get("tagName"));
                                 coordsTextField.setText((String) resultMap.get("coords"));
-                                if (!Strings.isNullOrEmpty(xpathTextField.getText())
-                                        && !xpathTextPrevious.equalsIgnoreCase(xpathTextField.getText())) {
-                                    preReadElement();
+                                if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
+                                        && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
+                                    extractValidateDynamic();
                                 }
                             });
                         }
@@ -2213,8 +2341,8 @@ public class ABRScannedElementPane extends ABRPane {
                 .start();
     }
 
-    private static void revertInjectedChanges(WebDriver driver) {
-        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+    private void revertInjectedChanges(WebDriver driver) {
+        jsExecutor = (JavascriptExecutor) driver;
 
         // Remove the injected element
         jsExecutor.executeScript(
@@ -3267,8 +3395,8 @@ public class ABRScannedElementPane extends ABRPane {
      * @param attribute the attribute to find elements by (e.g., "id" or "name")
      * @return a map where keys are XPaths of elements and values are WebElements
      */
-    private static Map<String, WebElement> findElementsWithXPath(WebDriver driver, String attribute) {
-        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+    private Map<String, WebElement> findElementsWithXPath(WebDriver driver, String attribute) {
+        jsExecutor = (JavascriptExecutor) driver;
         List<WebElement> elements = (List<WebElement>)
                 jsExecutor.executeScript("return Array.from(document.querySelectorAll('[" + attribute + "]'));");
         Map<String, WebElement> elementMap = new HashMap<>();
@@ -3287,7 +3415,7 @@ public class ABRScannedElementPane extends ABRPane {
      * @return a map where keys are XPaths of elements and values are WebElements
      */
     private static Map<String, WebElement> findElementsWithoutIdOrName(WebDriver driver, String tagName) {
-        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        jsExecutor = (JavascriptExecutor) driver;
         List<WebElement> elements = (List<WebElement>) jsExecutor.executeScript(
                 "return Array.from(document.querySelectorAll('" + tagName + ":not([id]):not([name])'));");
         Map<String, WebElement> elementMap = new HashMap<>();

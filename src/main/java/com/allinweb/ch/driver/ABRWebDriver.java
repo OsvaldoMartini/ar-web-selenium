@@ -67,8 +67,9 @@ public class ABRWebDriver {
                             //                                    new ButtonType[] {ButtonType.OK});
                         }
 
-                        System.setProperty("webdriver.chrome.verboseLogging", "true");
-                        System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
+                        //                        System.setProperty("webdriver.chrome.verboseLogging", "true");
+                        //                        System.setProperty("webdriver.chrome.logfile", logFolder +
+                        // "\\_chrome_browser.log");
 
                         ChromeOptions options = new ChromeOptions();
 
@@ -112,30 +113,12 @@ public class ABRWebDriver {
                         options.setCapability(
                                 "ms:edgeOptions",
                                 "{verbose: true, loggingPrefs: {" + "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
-
-                        //                        EdgeOptions options = new EdgeOptions();
-                        //                        // options.setBinary(ABRConstants.CURRENT_PATH +
-                        // "\\msedgedriver.exe");
-                        //                        options.setBinary(driverPath);
-                        //                        options.setExperimentalOption("useAutomationExtension", false);
-                        //                        options.setExperimentalOption(
-                        //                                "excludeSwitches",
-                        // Collections.singletonList("enable-automation"));
-                        //                        driver = new EdgeDriver(options);
-                        // Initialize EdgeDriver with EdgeOptions
                         driver = new EdgeDriver(options);
                     }
                     case ABRConstants.FIREFOX -> {
                         //                        String driverPath = webDriverPath + "\\geckodriver.exe";
                         if (!(new File(webDriverPath)).exists()) {
                             ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
-                            //                            new ABRAlertScene(
-                            //                                    Alert.AlertType.WARNING,
-                            //                                    "Missing file Web Driver",
-                            //                                    "Please verify the WebDriver File  first before
-                            // launching the bot job\n"
-                            //                                            + driverPath,
-                            //                                    new ButtonType[] {ButtonType.OK});
                         }
                         FirefoxOptions options = new FirefoxOptions();
                         //                        options.setBinary(ABRConstants.CURRENT_PATH + "\\geckodriver.exe");

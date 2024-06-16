@@ -41,6 +41,8 @@ public class Constants {
     public static final String FAIL = "KO";
     public static final String PATH_SEPARATOR = "\\";
     public static final String COMPLEX_INSTRUCTION_SEPARATOR = "\\|\\|";
+    public static final String ABSOLUT_XPATH = "ABSOLUT_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+    public static final String REGULAR_XPATH = "REGULAR_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
 
     public static final String FILE_FORMAT = ".xlsx";
 

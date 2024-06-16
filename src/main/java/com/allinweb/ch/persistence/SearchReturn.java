@@ -5,11 +5,48 @@ import org.openqa.selenium.WebElement;
 
 public class SearchReturn {
     String currentXPath;
+    String absolutXPath;
+    String xPathWorkedFirst;
     String coords;
+    String attribId;
+    String attribName;
     String attributeType;
     String attributeValue;
+    String originalTagName;
     WebElementTagNameEnum forceTypeEnum;
     WebElement element;
+
+    public String getAttribId() {
+        return attribId;
+    }
+
+    public void setAttribId(String attribId) {
+        this.attribId = attribId;
+    }
+
+    public String getAttribName() {
+        return attribName;
+    }
+
+    public void setAttribName(String attribName) {
+        this.attribName = attribName;
+    }
+
+    public String getOriginalTagName() {
+        return originalTagName;
+    }
+
+    public void setOriginalTagName(String originalTagName) {
+        this.originalTagName = originalTagName;
+    }
+
+    public String getxPathWorkedFirst() {
+        return xPathWorkedFirst;
+    }
+
+    public void setxPathWorkedFirst(String xPathWorkedFirst) {
+        this.xPathWorkedFirst = xPathWorkedFirst;
+    }
 
     public String getCurrentXPath() {
         return currentXPath;
@@ -17,6 +54,14 @@ public class SearchReturn {
 
     public void setCurrentXPath(String currentXPath) {
         this.currentXPath = currentXPath;
+    }
+
+    public String getAbsolutXPath() {
+        return absolutXPath;
+    }
+
+    public void setAbsolutXPath(String absolutXPath) {
+        this.absolutXPath = absolutXPath;
     }
 
     public String getCoords() {
