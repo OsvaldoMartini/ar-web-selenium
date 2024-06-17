@@ -33,14 +33,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -71,8 +66,6 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import static javafx.util.Duration.seconds;
-
 public class ABRScannedElementPane extends ABRPane {
 
     private Connection conn = null;
@@ -98,11 +91,6 @@ public class ABRScannedElementPane extends ABRPane {
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
-    private static final int SECONDS = 10; // Total seconds for the countdown
-    private int remainingSeconds = SECONDS;
-    private Timeline timeline;
-//    private Alert alertToShow;
-
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
     private DatabaseUserDTO databaseUserDto;
@@ -114,6 +102,7 @@ public class ABRScannedElementPane extends ABRPane {
     // UI COMPONENTS
     private HBox topPane;
     private HBox bottomPane;
+    private HBox bottomPaneTime;
     private ProgressBar progressBar;
     private AnchorPane contentPane;
     private ObservableList<ABRWebElement> webElementObservableList1;
@@ -208,7 +197,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         topPane = componentBuilder.createTopPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
         bottomPane = componentBuilder.createBottomPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
-
+        bottomPaneTime = componentBuilder.createBottomPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
         contentPane =
                 componentBuilder.createContentPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_XL, ABRConstants.SPACE_SM);
 
@@ -271,27 +260,9 @@ public class ABRScannedElementPane extends ABRPane {
         launchBotJobButton = componentBuilder.buildButton(
                 "Launch Test", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
 
-        countdownTextField = new TextField(String.valueOf(remainingSeconds));
+        countdownTextField = new TextField("10");
         countdownTextField.setStyle("-fx-font-size: 24px;");
         countdownTextField.setEditable(false);
-        
-//        // Create a label to display the countdown
-//        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
-//        countdownLabel.setStyle("-fx-font-size: 24px;");
-//
-//        // Create a stack pane to hold the label
-//        StackPane stackPane = new StackPane(countdownLabel);
-//        stackPane.setPadding(new Insets(20));
-//
-//        // Create a dialog for the alert
-//        alertToShow = new Alert(Alert.AlertType.INFORMATION);
-//        alertToShow.setTitle("Countdown Alert");
-//        alertToShow.setHeaderText(null);
-//        alertToShow.initModality(Modality.APPLICATION_MODAL);
-//        // Set the content of the alert
-//        alertToShow.getDialogPane().setContent(stackPane);
-        // Create a single-threaded executor service
-        
 
         checkActiveHover = new CheckBox("Identify");
 
@@ -419,10 +390,11 @@ public class ABRScannedElementPane extends ABRPane {
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
-            verticalBox.getChildren().addAll(gridPane, boxListViews, bottomPane);
+            verticalBox.getChildren().addAll(gridPane, boxListViews, bottomPane, bottomPaneTime);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
             VBox.setVgrow(bottomPane, Priority.NEVER);
+            VBox.setVgrow(bottomPaneTime, Priority.NEVER);
 
             // Use AnchorPane to anchor components
             AnchorPane.setTopAnchor(topPane, 0.0);
@@ -447,17 +419,16 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             });
 
+            bottomPaneTime.getChildren().addListener((ListChangeListener<Node>) change -> {
+                while (change.next()) {
+                    if (change.wasAdded()) {
+                        for (Node node : change.getAddedSubList()) {
+                            scheduleRemoval(bottomPaneTime, node, 300); // Schedule removal for the newly added node
+                        }
+                    }
+                }
+            });
 
-            // Add a listener to the TextField's text property (not typically used for countdown)
-//            countdownTextField.textProperty().addListener(new ChangeListener<String>() {
-//                @Override
-//                public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
-//                    // Handle any changes to the text (though this is not typically used for countdown)
-//                    System.out.println("TextField text changed: " + newValue);
-//                }
-//            });
-            
-            
         } catch (Exception ex) {
             ABRLogger.getInstance(ABRScannedElementPane.class).fine("Error using Separator line\n" + ex);
         }
@@ -867,98 +838,6 @@ public class ABRScannedElementPane extends ABRPane {
             ObservableList<ABRWebElement> listToaddNewElements,
             String elementType) {
 
-        //        Task<Void> workingTask = new Task<>() {
-        //            @Override
-        //            protected Void call()  {
-        //                List<ABRWebElement> listABRElements = null;
-        //
-        //                // Separation between creation of ABR Elements
-        //                try {
-        //                    ABRLogger.getInstance(ABRScannedElementPane.class)
-        //                            .fine("Starting scan of elements for criteria: " + criteria);
-        //
-        //                    List<WebElement> scannedElementList = new ArrayList<>();
-        //
-        //                    if (idAttributeFirst || nameAttributeFirst) {
-        //                        mapAdvanced = findElementsWithXPath(abrWebDriver.getDriver(), elementType);
-        //                        listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
-        //                    } else if (withoutNameAndId) {
-        //                        mapAdvanced = findElementsWithoutIdOrName(abrWebDriver.getDriver(), elementType);
-        //                        listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
-        //                    } else if (preElements != null && preElements.size() > 0) {
-        //                        scannedElementList.addAll(preElements);
-        //                    } else if (criteria != null) {
-        //                        scannedElementList = abrWebDriver.getDriver().findElements(criteria);
-        //                    }
-        //                    if (listABRElements != null && listABRElements.size() > 0) {
-        //                        ABRLogger.getInstance(ABRScannedElementPane.class)
-        //                                .finer("list of Advanced Scanner elements has " + listABRElements.size());
-        //                    }
-        //
-        //                    // Reset these
-        //                    idAttributeFirst = false;
-        //                    nameAttributeFirst = false;
-        //                    withoutNameAndId = false;
-        //
-        //                    if (scannedElementList != null && scannedElementList.size() > 0) {
-        //                        ABRLogger.getInstance(ABRScannedElementPane.class)
-        //                                .finer("list of scanned elements has " + scannedElementList.size()
-        //                                        + " elements for Search Criteria " + criteria);
-        //                        if (scannedElementList.size() > reduceSearchCriteria) {
-        //
-        //                            ABRLogger.getInstance(ABRScannedElementPane.class)
-        //                                    .fine("Reduces to the Limit of ABRWebElements : " + reduceSearchCriteria);
-        //                            List<WebElement> scannedElementListReduced =
-        //                                    scannedElementList.size() > reduceSearchCriteria
-        //                                            ? new ArrayList<>(scannedElementList.subList(0,
-        // reduceSearchCriteria))
-        //                                            : scannedElementList;
-        //                            scannedElementList.clear();
-        //                            scannedElementList.addAll(scannedElementListReduced);
-        //                            scannedElementListReduced.clear();
-        //                        }
-        //                        try {
-        //                            listABRElements = scannedElementList.stream()
-        //                                    .filter(element -> element != null) // Filter out null elements
-        //                                    .map(element -> new ABRWebElement(element, botJob.getId()))
-        //                                    .collect(Collectors.toList());
-        //
-        //                        } finally {
-        //
-        //                        }
-        //                    }
-        //
-        //                } catch (Exception e) {
-        //                    ABRLogger.getInstance(Thread.class)
-        //                            .severe(String.format(
-        //                                    "An exception has occurred\n%s \nCause: %s", e.getMessage(),
-        // e.getCause()));
-        //                }
-        //
-        //                // After Creation of ABR Elements - > Update View List
-        //                if (listABRElements != null) {
-        //                    for (ABRWebElement element : listABRElements) {
-        //                        if (bottomPane.getChildren().size() < 20) {
-        //                            addMultipleProgressBars(bottomPane, 1);
-        //                        }
-        //                        Platform.runLater(() -> {
-        //                            listToaddNewElements.add(element);
-        //                            ABRLogger.getInstance(ABRScannedElementPane.class)
-        //                                    .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
-        //                                            + element.getXPath());
-        //                        });
-        //                    }
-        //                }
-        //                Platform.runLater(() -> {
-        //                    Node node  = bottomPane
-        //                            .getChildren().get(
-        //                                    bottomPane.getChildren().size() - 1);
-        //                    bottomPane.getChildren().remove(node);
-        //                });
-        //                return null;
-        //            }
-        //        };
-
         // Simulate async task completion with CompletableFuture
         CompletableFuture<Void> future = CompletableFuture.runAsync(
                 () -> {
@@ -1097,6 +976,7 @@ public class ABRScannedElementPane extends ABRPane {
         } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
+            ABRLogger.getInstance(ABRWebDriver.class).severe("ExecutorService did not terminate\n" + e.getMessage());
         }
     }
 
@@ -2263,20 +2143,22 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        tooltip.style.display = 'none';"
                 + "    }"
                 + "    function handleMartiniClick(event) {"
-                + "        event.preventDefault(); "
-                + "        event.stopPropagation(); "
-                + "        var xpath = getMartiniXPath(event.target);"
-                + "        var absoluteXPath = getMartiniAbsoluteXPath(event.target);"
-                + "        var customXPath = getMartiniCustomXPath(event.target);"
-                + "        window.currentXPath = xpath;"
-                + "        window.currentAbsoluteXPath = absoluteXPath;"
-                + "        window.currentXPath = xpath;"
-                + "        window.currentCustomXPath = customXPath;"
-                + "        window.attribId = event.target.id || '';"
-                + "        window.attribName = event.target.name || '';"
-                + "        window.tagName = event.target.tagName.toLowerCase();"
-                + "        window.coords = event.target.getBoundingClientRect();"
-                + "        window.coords = window.coords.left + ',' + window.coords.top;"
+                + "        if (event.ctrlKey) { "
+                + "          event.preventDefault(); "
+                + "          event.stopPropagation(); "
+                + "          var xpath = getMartiniXPath(event.target);"
+                + "          var absoluteXPath = getMartiniAbsoluteXPath(event.target);"
+                + "          var customXPath = getMartiniCustomXPath(event.target);"
+                + "          window.currentXPath = xpath;"
+                + "          window.currentAbsoluteXPath = absoluteXPath;"
+                + "          window.currentXPath = xpath;"
+                + "          window.currentCustomXPath = customXPath;"
+                + "          window.attribId = event.target.id || '';"
+                + "          window.attribName = event.target.name || '';"
+                + "          window.tagName = event.target.tagName.toLowerCase();"
+                + "          window.coords = event.target.getBoundingClientRect();"
+                + "          window.coords = window.coords.left + ',' + window.coords.top;"
+                + "        } "
                 + "    }"
                 + "    window.currentXPath = '';"
                 + "    window.currentAbsoluteXPath = '';"
@@ -2788,60 +2670,12 @@ public class ABRScannedElementPane extends ABRPane {
     private void executeAlert(BlockLoopInstructionDTO instruction) {
         // Execute the countdown in a separate thread
         if (instruction != null) {
-//            Integer instructionSeconds = instruction.getOnHoldSeconds();
-//            AtomicInteger initialSeconds = new AtomicInteger(instructionSeconds);
-//
-//            // Initialize Timeline for countdown
-//            timeline = new Timeline(new KeyFrame(seconds(1), event -> {
-//                initialSeconds.getAndDecrement();
-//                // Update TextField on JavaFX Application Thread
-//                Platform.runLater(() -> countdownTextField.setText(String.valueOf(initialSeconds.get())));
-//
-//                if (initialSeconds.get() <= 0) {
-//                    timeline.stop();
-//                    // Optionally, handle countdown completion here
-//                }
-//            }));
-//            timeline.setCycleCount(instructionSeconds); // Set the number of cycles
-//
-//            // Start the timeline
-//            timeline.play();
+            Integer instructionSeconds = instruction.getOnHoldSeconds();
+            for (int x = 1; x < instructionSeconds; x++) {
+                ProgressBar progress = new ProgressBar();
+                bottomPaneTime.getChildren().add(progress);
+            }
         }
-        
-        
-//        if (instruction != null) {
-//            Integer instructionSeconds = instruction.getOnHoldSeconds();
-//            executorService.execute(() -> {
-//                timeline.setCycleCount(instructionSeconds); // Run for SECONDS seconds
-//                timeline.play(); // Start the timeline
-//
-//                // Show the alert on the JavaFX Application Thread
-////                javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
-//            });
-//        }
-//        if (executorService != null) {
-//            executorService.shutdown();
-//        }
-
-//        if (instruction != null) {
-//            Integer instructionSeconds = instruction.getOnHoldSeconds();
-//            AtomicInteger initialSeconds = new AtomicInteger(instructionSeconds);
-//
-//            // Initialize Timeline for countdown
-//            timeline = new Timeline(new KeyFrame(seconds(1), event -> {
-//                initialSeconds.getAndDecrement();
-//                countdownTextField.setText(String.valueOf(initialSeconds.get()));
-//                if (initialSeconds.get() <= 0) {
-//                    timeline.stop();
-//                    // Optionally, handle countdown completion here
-//                }
-//            }));
-//            timeline.setCycleCount(instructionSeconds); // Set the number of cycles
-//
-//            // Start the timeline
-//            timeline.play();
-//        }
-//        
     }
 
     private WebElement locateElement(BlockLoopInstructionDTO instruction, Map<String, String> data) throws Exception {
@@ -2909,12 +2743,10 @@ public class ABRScannedElementPane extends ABRPane {
                 //                    .findFirst();
 
                 // Find the first matching instruction reference
-                Optional<InstructionReferenceDTO> instructionReference =  instructionReferenceList.stream()
-                        .filter(reference ->
-                                priority.getName().stream()
-                                        .anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType()))
-                        )
-                        .findFirst();              
+                Optional<InstructionReferenceDTO> instructionReference = instructionReferenceList.stream()
+                        .filter(reference -> priority.getName().stream()
+                                .anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType())))
+                        .findFirst();
                 // Print or process the first matching instruction reference
                 if (instructionReference.isPresent()) {
 
@@ -2933,9 +2765,12 @@ public class ABRScannedElementPane extends ABRPane {
                 if (instructionReference.isPresent()) {
                     List<By> criterias = null;
                     switch (priority.getPriorityType()) {
-                        case xpath -> criterias = Arrays.asList(new By[] {By.xpath(instructionReference.get().getValue())});
-                        case attribute -> criterias =
-                                convertToCriteriaList(tagName, priority.getName(), instructionReference.get().getValue());
+                        case xpath -> criterias = Arrays.asList(
+                                new By[] {By.xpath(instructionReference.get().getValue())});
+                        case attribute -> criterias = convertToCriteriaList(
+                                tagName,
+                                priority.getName(),
+                                instructionReference.get().getValue());
                             //                                criteria = By.cssSelector(tagName + "[" +
                             // priority.getName() + "='" + instructionReference.get().getValue() + "']");
                         case coordinates -> {} // System.out.println("coordinates case");
@@ -3000,20 +2835,21 @@ public class ABRScannedElementPane extends ABRPane {
                                 //                            MAYBE THIS SHOUL BE NOT NECESSARY  USE UNIQUE ID   OR
                                 // SESSION  SAVED TO GET THE SAME XPATHORELEMENT
                                 if (foundElementList.size() > 1) {
-                                while (elementFound == null && k < foundElementList.size()) {
-                                    String xpath = ABRWebUtil.extractXPath(
-                                            foundElementList.get(k).toString());
-                             
-                                    // Second Verification for XPath Found
-                                    if (instructionReference.isPresent()
-                                            && xpath.equals(instructionReference.get().getValue())) {
-                                        elementFound = foundElementList.get(k);
-                                        break;
-                                    }
-                                    k++;
+                                    while (elementFound == null && k < foundElementList.size()) {
+                                        String xpath = ABRWebUtil.extractXPath(
+                                                foundElementList.get(k).toString());
 
-                                }
-                                }else {
+                                        // Second Verification for XPath Found
+                                        if (instructionReference.isPresent()
+                                                && xpath.equals(instructionReference
+                                                        .get()
+                                                        .getValue())) {
+                                            elementFound = foundElementList.get(k);
+                                            break;
+                                        }
+                                        k++;
+                                    }
+                                } else {
                                     elementFound = foundElementList.get(0);
                                 }
                             }

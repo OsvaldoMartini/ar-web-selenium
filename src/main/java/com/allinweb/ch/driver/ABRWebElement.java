@@ -143,76 +143,84 @@ public class ABRWebElement {
         initUI();
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
-        if (searchReturn.getElement() == null && Strings.isNullOrEmpty(xPath) && abrPriorities.getJobId() != null) {
-            for (Priority priority : abrPriorities.getAllPriorityList()) {
-                switch (priority.getPriorityType()) {
-                    case attribute -> {
-                        String attributeValue =
-                                element.getAttribute(priority.getName().get(0));
-                        if (attributeValue != null && !attributeValue.isBlank()) {
-                            savedReferences.put(priority.getName().get(0), attributeValue);
+        try {
+
+
+            if (searchReturn == null && Strings.isNullOrEmpty(xPath) && abrPriorities.getJobId() != null) {
+                for (Priority priority : abrPriorities.getAllPriorityList()) {
+                    switch (priority.getPriorityType()) {
+                        case attribute -> {
+                            String attributeValue =
+                                    element.getAttribute(priority.getName().get(0));
+                            if (attributeValue != null && !attributeValue.isBlank()) {
+                                savedReferences.put(priority.getName().get(0), attributeValue);
+                            }
+                        }
+                        case xpath -> savedReferences.put(
+                                priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
+
+                        case coordinates -> {
+                            Rectangle coordinates = element.getRect();
+                            savedReferences.put(
+                                    priority.getName().get(0),
+                                    (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                                            + (coordinates.getY() + (coordinates.getHeight() / 2)));
                         }
                     }
-                    case xpath -> savedReferences.put(
-                            priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
-
-                    case coordinates -> {
-                        Rectangle coordinates = element.getRect();
-                        savedReferences.put(
-                                priority.getName().get(0),
-                                (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                                        + (coordinates.getY() + (coordinates.getHeight() / 2)));
-                    }
                 }
-            }
-        } else {
-            // Most Important to find any kind of element
-
-            if (searchReturn.getxPathWorkedFirst().equals(Constants.ABSOLUT_XPATH)) {
-                savedReferences.put(
-                        "absolutXPath",
-                        searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
-                savedReferences.put(
-                        "currentXPath",
-                        searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
-                savedReferences.put(
-                        "customXPath",
-                        searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-            } else if (searchReturn.getxPathWorkedFirst().equals(Constants.REGULAR_XPATH)) {
-                savedReferences.put(
-                        "currentXPath",
-                        searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
-                savedReferences.put(
-                        "absolutXPath",
-                        searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
-                savedReferences.put(
-                        "customXPath",
-                        searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-            } else if (!Strings.isNullOrEmpty(xPath)) {
-                savedReferences.put("xpath", searchReturn.getCurrentXPath());
-            } else if (!Strings.isNullOrEmpty(attributeValue)) {
-                savedReferences.put("attribute", attributeValue);
-            } else { // In case of Dynamic Creation
-                savedReferences.put("xpath", ABRWebUtil.extractWebElementXPath(element));
-            }
-
-            Rectangle coordinates = element.getRect();
-            savedReferences.put(
-                    "coordinates",
-                    (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                            + (coordinates.getY() + (coordinates.getHeight() / 2)));
-        }
-        if (forceTagEnum != null) {
-            if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
-                // OR BUTTON SOMETHING CLICKABLE
-                clickElement.setValue(true);
             } else {
-                // OR INPUT SOMETHING IMPUTABLE
-                clickElement.setValue(false);
-            }
+                // Most Important to find any kind of element
 
-        } else {
-            clickElement.setValue(isClickable(element));
+                if (searchReturn.getxPathWorkedFirst().equals(Constants.ABSOLUT_XPATH)) {
+                    savedReferences.put(
+                            "absolutXPath",
+                            searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
+                    savedReferences.put(
+                            "currentXPath",
+                            searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
+                    savedReferences.put(
+                            "customXPath",
+                            searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+                } else if (searchReturn.getxPathWorkedFirst().equals(Constants.REGULAR_XPATH)) {
+                    savedReferences.put(
+                            "currentXPath",
+                            searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
+                    savedReferences.put(
+                            "absolutXPath",
+                            searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
+                    savedReferences.put(
+                            "customXPath",
+                            searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+                } else if (!Strings.isNullOrEmpty(xPath)) {
+                    savedReferences.put("xpath", searchReturn.getCurrentXPath());
+                } else if (!Strings.isNullOrEmpty(attributeValue)) {
+                    savedReferences.put("attribute", attributeValue);
+                } else { // In case of Dynamic Creation
+                    savedReferences.put("xpath", ABRWebUtil.extractWebElementXPath(element));
+                }
+
+                Rectangle coordinates = element.getRect();
+                savedReferences.put(
+                        "coordinates",
+                        (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                                + (coordinates.getY() + (coordinates.getHeight() / 2)));
+            }
+            if (forceTagEnum != null) {
+                if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
+                    // OR BUTTON SOMETHING CLICKABLE
+                    clickElement.setValue(true);
+                } else {
+                    // OR INPUT SOMETHING IMPUTABLE
+                    clickElement.setValue(false);
+                }
+
+            } else {
+                clickElement.setValue(isClickable(element));
+            }
+        }catch(Exception ex){
+            ABRLogger.getInstance(Thread.class)
+                    .finer("An exception has occurred creation of Web Element\n " + ex.getMessage() + " Cause: "
+                            + ex.getCause());   
         }
 
         String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
