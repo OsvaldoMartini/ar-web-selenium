@@ -739,7 +739,8 @@ public class ABRScannedElementPane extends ABRPane {
         }
         checkClickElement.setDisable(checkActiveHover.isSelected());
         checkInputText.setDisable(checkActiveHover.isSelected());
-        addNewElement.setDisable(checkActiveHover.isSelected());
+//        addNewElement.setDisable(checkActiveHover.isSelected());
+        launchBotJobButton.setDisable(checkActiveHover.isSelected());
         periodicActivated = checkActiveHover.isSelected();
     }
 
@@ -2008,59 +2009,11 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void periodicThread(WebDriver driver) {
         // JavaScript code to inject
-        //        String jsCode = "(function() {" +
-        //                "    var tooltip = document.createElement('div');" +
-        //                "    tooltip.style.position = 'absolute';" +
-        //                "    tooltip.style.backgroundColor = 'black';" +
-        //                "    tooltip.style.color = 'white';" +
-        //                "    tooltip.style.padding = '5px';" +
-        //                "    tooltip.style.borderRadius = '3px';" +
-        //                "    tooltip.style.display = 'none';" +
-        //                "    tooltip.style.zIndex = '1000';" +
-        //                "    document.body.appendChild(tooltip);" +
-        //                "    function getXPath(element) {" +
-        //                "        if (element.id !== '') {" +
-        //                "            return 'id(\"' + element.id + '\")';" +
-        //                "        }" +
-        //                "        if (element === document.body) {" +
-        //                "            return element.tagName;" +
-        //                "        }" +
-        //                "        var ix = 0;" +
-        //                "        var siblings = element.parentNode.childNodes;" +
-        //                "        for (var i = 0; i < siblings.length; i++) {" +
-        //                "            var sibling = siblings[i];" +
-        //                "            if (sibling === element) {" +
-        //                "                return getXPath(element.parentNode) + '/' + element.tagName + '[' + (ix + 1)
-        // + ']';" +
-        //                "            }" +
-        //                "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {" +
-        //                "                ix++;" +
-        //                "            }" +
-        //                "        }" +
-        //                "        return '';" +
-        //                "    }" +
-        //                "    function showTooltip(event) {" +
-        //                "        var tagName = event.target.tagName.toLowerCase();" +
-        //                "        var xpath = getXPath(event.target);" +
-        //                "        tooltip.textContent = tagName;" +
-        //                "        tooltip.style.left = event.pageX + 'px';" +
-        //                "        tooltip.style.top = (event.pageY + 15) + 'px';" +
-        //                "        tooltip.style.display = 'block';" +
-        //                "        window.currentXPath = xpath;" +
-        //                "    }" +
-        //                "    function hideTooltip() {" +
-        //                "        tooltip.style.display = 'none';" +
-        //                "    }" +
-        //                "    document.addEventListener('mouseover', showTooltip);" +
-        //                "    document.addEventListener('mouseout', hideTooltip);" +
-        //                "})();";
-
-        // JavaScript code to inject
         String jsCode = "(function() {"
                 + "    var tooltip = document.createElement('div');"
                 + "    tooltip.id = 'Martini-Is-Awesome';"
                 + "    tooltip.style.position = 'absolute';"
-                + "    tooltip.style.backgroundColor = 'rgba(255, 165, 0, 0.9)';" // Slightly opaque light orange
+                + "    tooltip.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';" // Slightly opaque light orange
                 + "    tooltip.style.border = '1px solid #ccc';"
                 + "    tooltip.style.padding = '10px';"
                 + "    tooltip.style.borderRadius = '5px';"
@@ -2151,7 +2104,9 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    function handleMartiniClick(event) {"
                 + "          event.preventDefault(); "
                 + "          event.stopPropagation(); "
+                + "          tooltip.style.display = 'none';"
                 + "          var elementBelowTooltip = document.elementFromPoint(event.clientX, event.clientY);"
+                + "          tooltip.style.display = 'block';"
                 + "          console.log(elementBelowTooltip);"
                 + "          var xpath = getMartiniXPath(elementBelowTooltip);"
                 + "          var absoluteXPath = getMartiniAbsoluteXPath(elementBelowTooltip);"
