@@ -44,3 +44,39 @@ Example:
     2,xpath,xpath
     3,coordinates,coordinates
 ```	
+
+
+## WebDrive Options
+```text
+   # Type : First Arg : Second Arg
+
+    proxy:proxy_address:proxy_port
+    #browser_log:active
+    #argument:--disable-infobars
+    #argument:--disable-dev-shm-usage
+    #argument:--no-sandbox
+    #systemProps:webdriver.chrome.logfile:logFolder
+    #systemProps:webdriver.chrome.verboseLogging:true
+    #experimentalOption:excludeSwitches,Collections.singletonList('enable-automation');
+```
+
+## Example Proxy Edge
+```bash
+     System.setProperty("webdriver.edge.driver", "path/to/msedgedriver.exe");
+
+        // Proxy details
+        String proxyAddress = "proxy_address:proxy_port";
+
+        // Configure proxy settings
+        Proxy proxy = new Proxy();
+        proxy.setHttpProxy(proxyAddress)
+             .setFtpProxy(proxyAddress)
+             .setSslProxy(proxyAddress);
+
+        // Configure Edge options
+        EdgeOptions options = new EdgeOptions();
+        options.setProxy(proxy);
+
+        // Initialize the WebDriver with the options
+        WebDriver driver = new EdgeDriver(options);
+```

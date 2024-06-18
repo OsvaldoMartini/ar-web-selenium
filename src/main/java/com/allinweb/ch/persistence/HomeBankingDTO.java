@@ -22,6 +22,9 @@ public class HomeBankingDTO extends BaseDTO implements Serializable {
     @Column(name = "searchConfig")
     private String searchConfig;
 
+    @Column(name = "optionsConfig")
+    private String optionsConfig;
+
     @Column(name = "cookies")
     private String cookies;
 
@@ -77,6 +80,14 @@ public class HomeBankingDTO extends BaseDTO implements Serializable {
 
     public void setSearchConfig(String searchConfig) {
         this.searchConfig = searchConfig;
+    }
+
+    public String getOptionsConfig() {
+        return optionsConfig;
+    }
+
+    public void setOptionsConfig(String optionsConfig) {
+        this.optionsConfig = optionsConfig;
     }
 
     public String getCookies() {

@@ -145,7 +145,6 @@ public class ABRWebElement {
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
         try {
 
-
             if (searchReturn == null && Strings.isNullOrEmpty(xPath) && abrPriorities.getJobId() != null) {
                 for (Priority priority : abrPriorities.getAllPriorityList()) {
                     switch (priority.getPriorityType()) {
@@ -217,10 +216,10 @@ public class ABRWebElement {
             } else {
                 clickElement.setValue(isClickable(element));
             }
-        }catch(Exception ex){
+        } catch (Exception ex) {
             ABRLogger.getInstance(Thread.class)
                     .finer("An exception has occurred creation of Web Element\n " + ex.getMessage() + " Cause: "
-                            + ex.getCause());   
+                            + ex.getCause());
         }
 
         String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());

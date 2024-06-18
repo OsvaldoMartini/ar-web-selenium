@@ -78,6 +78,7 @@ public class ABRPropertyManager {
                 setProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
                 setProperty(ABRPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(), "60");
                 setProperty(ABRPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS.getValue(), "15");
+
                 setProperty(
                         ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(),
                         "test-id='web-banking-payment-core.payment-details.external-reference'");

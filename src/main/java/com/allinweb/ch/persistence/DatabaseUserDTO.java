@@ -10,6 +10,7 @@ public class DatabaseUserDTO {
     private StringProperty url;
     private StringProperty priority;
     private StringProperty searchConfig;
+    private StringProperty optionsConfig;
     private StringProperty username;
     private StringProperty password;
 
@@ -22,6 +23,7 @@ public class DatabaseUserDTO {
             String url,
             String priority,
             String searchConfig,
+            String optionsConfig,
             String username,
             String password) {
         this.id = new SimpleStringProperty(id);
@@ -30,16 +32,19 @@ public class DatabaseUserDTO {
         this.url = new SimpleStringProperty(url);
         this.priority = new SimpleStringProperty(priority);
         this.searchConfig = new SimpleStringProperty(searchConfig);
+        this.optionsConfig = new SimpleStringProperty(optionsConfig);
         this.username = new SimpleStringProperty(username);
         this.password = new SimpleStringProperty(password);
     }
 
-    public DatabaseUserDTO(String id, String name, String url, String priority, String searchConfig) {
+    public DatabaseUserDTO(
+            String id, String name, String url, String priority, String searchConfig, String optionsConfig) {
         this.id = new SimpleStringProperty(id);
         this.name = new SimpleStringProperty(name);
         this.url = new SimpleStringProperty(url);
         this.priority = new SimpleStringProperty(priority);
         this.searchConfig = new SimpleStringProperty(searchConfig);
+        this.optionsConfig = new SimpleStringProperty(optionsConfig);
     }
 
     public String getId() {
@@ -112,6 +117,18 @@ public class DatabaseUserDTO {
 
     public void setSearchConfig(String searchConfig) {
         this.searchConfig.set(searchConfig);
+    }
+
+    public String getOptionsConfig() {
+        return optionsConfig.get();
+    }
+
+    public StringProperty optionsConfigProperty() {
+        return optionsConfig;
+    }
+
+    public void setOptionsConfig(String optionsConfig) {
+        this.optionsConfig.set(optionsConfig);
     }
 
     public String getUsername() {

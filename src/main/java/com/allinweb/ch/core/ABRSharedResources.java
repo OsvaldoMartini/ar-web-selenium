@@ -320,7 +320,25 @@ public class ABRSharedResources {
             searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
             searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
             searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" + System.lineSeparator());
-            updateUserData(priorities.toString(), searchCriteria.toString());
+
+            // Proxy Example
+            String proxyAddress = "#proxy:proxy_address:proxy_port";
+            String browserLog = "#browser_log:active";
+            String argument1 = "#argument:--disable-infobars";
+            String argument2 = "#argument:--disable-dev-shm-usage";
+            String argument3 = "#argument:--no-sandbox";
+            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
+            String systemProps2 = "#systemProps:webdriver.chrome.verboseLogging:true";
+            StringBuilder optionsConfig = new StringBuilder();
+            optionsConfig.append(proxyAddress + System.lineSeparator());
+            optionsConfig.append(browserLog + System.lineSeparator());
+            optionsConfig.append(argument1 + System.lineSeparator());
+            optionsConfig.append(argument2 + System.lineSeparator());
+            optionsConfig.append(argument3 + System.lineSeparator());
+            optionsConfig.append(systemProps1 + System.lineSeparator());
+            optionsConfig.append(systemProps2 + System.lineSeparator());
+
+            updateUserData(priorities.toString(), searchCriteria.toString(), optionsConfig.toString());
         }
     }
 
@@ -348,15 +366,18 @@ public class ABRSharedResources {
         }
     }
 
-    private void updateUserData(String priority, String searchConfig) {
+    private void updateUserData(String priority, String searchConfig, String optionsConfig) {
         if (getConnection() != null) {
             loadUserData();
             for (DatabaseUserDTO userDTO : databaseList) {
                 boolean updateNeeded = false;
                 String updateSQL = "UPDATE home_banking SET ";
 
-                if (Strings.isNullOrEmpty(userDTO.getPriority()) && Strings.isNullOrEmpty(userDTO.getSearchConfig())) {
-                    updateSQL += " Priority = '" + priority + "', " + " searchConfig = '" + searchConfig + "' ";
+                if (Strings.isNullOrEmpty(userDTO.getPriority())
+                        && Strings.isNullOrEmpty(userDTO.getSearchConfig())
+                        && Strings.isNullOrEmpty(userDTO.getOptionsConfig())) {
+                    updateSQL += " Priority = '" + priority + "', " + " searchConfig = '" + searchConfig + "' " + "', "
+                            + " optionsConfig = '" + optionsConfig + "' ";
                     updateNeeded = true;
                 } else if (Strings.isNullOrEmpty(userDTO.getPriority())) {
                     updateSQL += " Priority = '" + priority + "'";
@@ -364,7 +385,11 @@ public class ABRSharedResources {
                 } else if (Strings.isNullOrEmpty(userDTO.getSearchConfig())) {
                     updateSQL += " searchConfig = '" + searchConfig + "'";
                     updateNeeded = true;
+                } else if (Strings.isNullOrEmpty(userDTO.getOptionsConfig())) {
+                    updateSQL += " optionsConfig = '" + optionsConfig + "'";
+                    updateNeeded = true;
                 }
+
                 if (updateNeeded) {
                     int userId = Integer.parseInt(userDTO.getId());
                     try {
@@ -402,10 +427,11 @@ public class ABRSharedResources {
 
     private void loadUserData() {
         databaseList.clear();
-        String selectSQL = " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, username, password "
-                + " FROM home_banking bank "
-                + " left join bot_job bot on bot.home_banking_id = bank.id "
-                + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.username, bank.password ";
+        String selectSQL =
+                " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, optionsConfig, username, password "
+                        + " FROM home_banking bank "
+                        + " left join bot_job bot on bot.home_banking_id = bank.id "
+                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.optionsConfig, bank.username, bank.password ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -415,9 +441,11 @@ public class ABRSharedResources {
                 String url = rs.getString("Url");
                 String priority = rs.getString("Priority");
                 String searchConfig = rs.getString("searchConfig");
+                String optionsConfig = rs.getString("optionsConfig");
                 String username = rs.getString("username");
                 String password = rs.getString("password");
-                databaseList.add(new DatabaseUserDTO(id, jobs, name, url, priority, searchConfig, username, password));
+                databaseList.add(new DatabaseUserDTO(
+                        id, jobs, name, url, priority, searchConfig, optionsConfig, username, password));
             }
         } catch (SQLException e) {
             e.printStackTrace();

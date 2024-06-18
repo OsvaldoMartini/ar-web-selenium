@@ -193,7 +193,9 @@ public class ABRScannedElementPane extends ABRPane {
 
     @Override
     public void initUIComponents() {
-        abrWebDriver.openDriver(botJob.getHomeBanking().getUrl());
+        abrWebDriver.openDriver(
+                botJob.getHomeBanking().getUrl(),
+                botJob.getHomeBanking().getOptionsConfig().toString());
 
         topPane = componentBuilder.createTopPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
         bottomPane = componentBuilder.createBottomPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
@@ -739,7 +741,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
         checkClickElement.setDisable(checkActiveHover.isSelected());
         checkInputText.setDisable(checkActiveHover.isSelected());
-//        addNewElement.setDisable(checkActiveHover.isSelected());
+        //        addNewElement.setDisable(checkActiveHover.isSelected());
         launchBotJobButton.setDisable(checkActiveHover.isSelected());
         periodicActivated = checkActiveHover.isSelected();
     }
@@ -2131,11 +2133,11 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    window.tagNameTemp = '';"
                 + "    window.coordsTemp = '';"
                 + "    document.addEventListener('mouseover', showMartiniTooltip);"
-//                + "    document.addEventListener('mouseout', hideMartiniTooltip);"
+                //                + "    document.addEventListener('mouseout', hideMartiniTooltip);"
                 + "    document.addEventListener('click', handleMartiniClick);"
                 + "    window.removeClickListener = function() {"
                 + "        document.removeEventListener('mouseover', showMartiniTooltip);"
-//                + "        document.removeEventListener('mouseout', hideMartiniTooltip);"
+                //                + "        document.removeEventListener('mouseout', hideMartiniTooltip);"
                 + "        document.removeEventListener('click', handleMartiniClick);"
                 + "    };"
                 + "})();";
@@ -2274,11 +2276,12 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void loadUserData(int bankId) {
-        String selectSQL = " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, username, password "
-                + " FROM home_banking bank "
-                + " left join bot_job bot on bot.home_banking_id = bank.id "
-                + " WHERE bank.id = " + bankId
-                + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.username, bank.password ";
+        String selectSQL =
+                " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, optionsConfig, username, password "
+                        + " FROM home_banking bank "
+                        + " left join bot_job bot on bot.home_banking_id = bank.id "
+                        + " WHERE bank.id = " + bankId
+                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.optionsConfig, bank.username, bank.password ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -2288,9 +2291,11 @@ public class ABRScannedElementPane extends ABRPane {
                 String url = rs.getString("Url");
                 String priority = rs.getString("Priority");
                 String searchConfig = rs.getString("searchConfig");
+                String optionsConfig = rs.getString("optionsConfig");
                 String username = rs.getString("username");
                 String password = rs.getString("password");
-                databaseUserDto = new DatabaseUserDTO(id, jobs, name, url, priority, searchConfig, username, password);
+                databaseUserDto = new DatabaseUserDTO(
+                        id, jobs, name, url, priority, searchConfig, optionsConfig, username, password);
             }
         } catch (SQLException e) {
             e.printStackTrace();

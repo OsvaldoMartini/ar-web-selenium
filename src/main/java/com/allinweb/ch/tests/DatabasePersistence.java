@@ -68,6 +68,9 @@ public class DatabasePersistence extends Application {
         TextArea searchConfigField = new TextArea();
         searchConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
 
+        TextArea optionsConfigField = new TextArea();
+        optionsConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
+
         // Create submit button
         Button submitButton = new Button("Submit");
         submitButton.setOnAction(event -> {
@@ -76,7 +79,8 @@ public class DatabasePersistence extends Application {
                     nameField.getText(),
                     urlField.getText(),
                     priorityField.getText(),
-                    searchConfigField.getText());
+                    searchConfigField.getText(),
+                    optionsConfigField.getText());
 
             if (nameExists(nameField.getText())) {
                 showAlert(
@@ -95,7 +99,12 @@ public class DatabasePersistence extends Application {
         updateButton.setOnAction(event -> {
             String id = idField.getText();
             DatabaseUserDTO user = new DatabaseUserDTO(
-                    id, nameField.getText(), urlField.getText(), priorityField.getText(), searchConfigField.getText());
+                    id,
+                    nameField.getText(),
+                    urlField.getText(),
+                    priorityField.getText(),
+                    searchConfigField.getText(),
+                    optionsConfigField.getPromptText());
             updateUserData(id, user);
             loadUserData();
         });
@@ -255,9 +264,15 @@ public class DatabasePersistence extends Application {
                 if (Strings.isNullOrEmpty(searchConfig) || searchConfig.equalsIgnoreCase("null")) {
                     searchConfig = "";
                 }
+                String optionsConfig = rs.getString("optionsConfig");
+                if (Strings.isNullOrEmpty(optionsConfig) || searchConfig.equalsIgnoreCase("null")) {
+                    searchConfig = "";
+                }
+
                 String username = rs.getString("username");
                 String password = rs.getString("password");
-                databaseList.add(new DatabaseUserDTO(id, jobs, name, url, priority, searchConfig, username, password));
+                databaseList.add(new DatabaseUserDTO(
+                        id, jobs, name, url, priority, searchConfig, optionsConfig, username, password));
             }
         } catch (SQLException e) {
             e.printStackTrace();

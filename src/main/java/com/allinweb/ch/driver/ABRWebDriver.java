@@ -10,7 +10,6 @@ import com.allinweb.ch.util.ABRPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
@@ -18,6 +17,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javax.swing.*;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -34,7 +34,34 @@ public class ABRWebDriver {
     private WebDriver driver = null;
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
 
-    public void openDriver(String url) {
+    public static String identifyLineSeparator(String text) {
+        if (text.contains("\r\n")) {
+            return "\r\n"; // Windows style
+        } else if (text.contains("\n")) {
+            return "\n"; // Unix/Linux style
+        } else if (text.contains("\r")) {
+            return "\r"; // Old Mac style
+        }
+        return System.lineSeparator(); // Default line separator if none found
+    }
+
+    public void openDriver(String url, String optionsConfig) {
+
+        String lineSeparator = identifyLineSeparator(optionsConfig);
+
+        // Split the text into lines using the detected line separator
+        String[] optionsConfigLines = new String[0];
+        try {
+
+            optionsConfigLines = optionsConfig.split(lineSeparator);
+            for (String line : optionsConfigLines) {
+                ABRLogger.getInstance(ABRWebDriver.class).fine("WebDriver config: \n" + line);
+                System.out.println(line);
+            }
+        } catch (Exception ex) {
+            ABRLogger.getInstance(ABRWebDriver.class).severe("Erro WebDriver config Options : \n" + ex.getMessage());
+        }
+
         ABRLogger.getInstance(ABRWebDriver.class).fine("Going to call WebDriver for \n" + url);
 
         ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
@@ -58,35 +85,19 @@ public class ABRWebDriver {
                         //                        String driverPath = webDriverPath + "\\chrome.exe";
                         if (!(new File(webDriverPath)).exists()) {
                             ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
-                            //                            new ABRAlertScene(
-                            //                                    Alert.AlertType.WARNING,
-                            //                                    "Missing file Web Driver",
-                            //                                    "Please verify the WebDriver File  first before
-                            // launching the bot job\n"
-                            //                                            + driverPath,
-                            //                                    new ButtonType[] {ButtonType.OK});
                         }
 
-                        //                        System.setProperty("webdriver.chrome.verboseLogging", "true");
-                        //                        System.setProperty("webdriver.chrome.logfile", logFolder +
                         // "\\_chrome_browser.log");
 
-                        ChromeOptions options = new ChromeOptions();
+                        System.setProperty("webdriver.chrome.driver", webDriverPath);
 
-                        //                        options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
-                        options.setBinary(webDriverPath);
-                        //                                                options.setBinary("C:/Program
-                        // Files/Google/Chrome/Application/chrome.exe");
-                        //                        options.setBinary("C:/Program Files
-                        // (x86)/Google/Chrome/Application/chrome.exe");
-                        //                        options.addArguments("headless");
-                        //                        options.addArguments("--disable-infobars");
-                        //                        options.addArguments("--disable-dev-shm-usage");
-                        //                        options.addArguments("--no-sandbox");
-                        //                        options.addArguments("--remote-debugging-port=9222");
-                        options.setExperimentalOption(
-                                "excludeSwitches", Collections.singletonList("enable-automation"));
-                        driver = new ChromeDriver(options);
+                        ChromeOptions optionsChrome = buildOptionsChrome(optionsConfigLines, logFolder);
+
+                        if (optionsChrome != null) {
+                            driver = new ChromeDriver(optionsChrome);
+                        } else {
+                            driver = new ChromeDriver();
+                        }
                     }
                     case ABRConstants.EDGE -> {
                         //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
@@ -101,28 +112,23 @@ public class ABRWebDriver {
                         // Set path to Edge WebDriver executable
                         System.setProperty("webdriver.edge.driver", webDriverPath);
 
-                        // Define EdgeOptions and LoggingPreferences
-                        EdgeOptions options = new EdgeOptions();
-                        // Create LoggingPreferences object
-                        LoggingPreferences logs = new LoggingPreferences();
-                        logs.enable(LogType.BROWSER, Level.ALL); // Enable browser logs
-                        // Set the path where you want to save the log file
-                        String logFilePath = logFolder + "_edge_browser.log"; // Replace with your desired log file path
-                        // Specify the logging preferences
-                        logs.enable(LogType.BROWSER, Level.ALL);
-                        options.setCapability(
-                                "ms:edgeOptions",
-                                "{verbose: true, loggingPrefs: {" + "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
-                        driver = new EdgeDriver(options);
+                        // Configure Edge options
+                        EdgeOptions options = buildOptionsEdge(optionsConfigLines, logFolder);
+
+                        if (options != null) {
+                            driver = new EdgeDriver(options);
+                        } else {
+                            driver = new EdgeDriver();
+                        }
                     }
                     case ABRConstants.FIREFOX -> {
                         //                        String driverPath = webDriverPath + "\\geckodriver.exe";
                         if (!(new File(webDriverPath)).exists()) {
                             ABRLogger.getInstance(ABRWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
                         }
+                        System.setProperty("webdriver.gecko.driver", webDriverPath);
                         FirefoxOptions options = new FirefoxOptions();
-                        //                        options.setBinary(ABRConstants.CURRENT_PATH + "\\geckodriver.exe");
-                        options.setBinary(webDriverPath);
+                        //                      options.setBinary(webDriverPath);
                         driver = new FirefoxDriver(options);
                     }
                 }
@@ -160,6 +166,116 @@ public class ABRWebDriver {
                     "Error in WebDriver Load",
                     JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private EdgeOptions buildOptionsEdge(String[] optionsConfigLines, String logFolder) {
+        EdgeOptions optionsEdge = new EdgeOptions();
+        // Options Config
+        for (String line : optionsConfigLines) {
+            if (line.startsWith("#")) {
+                ABRLogger.getInstance(ABRWebDriver.class).fine("COMMENTED OPTIONS: " + line);
+                continue;
+            }
+
+            ABRLogger.getInstance(ABRWebDriver.class).fine("WebDriver config: \n" + line);
+            String[] config = line.split(":");
+            if (config.length > 1) {
+                if (config[0].equalsIgnoreCase("proxy")) {
+
+                    if (config.length > 2) {
+                        // Proxy details
+                        //  String proxyAddress = "proxy_address:proxy_port";
+                        String proxyAddress = String.format("%s:%s", config[1], config[2]);
+
+                        // Configure proxy settings
+                        Proxy proxy = new Proxy();
+                        proxy.setHttpProxy(proxyAddress)
+                                .setFtpProxy(proxyAddress)
+                                .setSslProxy(proxyAddress);
+
+                        optionsEdge.setProxy(proxy);
+                    } else {
+                        ABRLogger.getInstance(ABRWebDriver.class)
+                                .severe("Error Check Options Config for Proxy is wrong");
+                    }
+                } else if (config[0].equalsIgnoreCase("browser_log")) {
+
+                    // Create LoggingPreferences object
+                    LoggingPreferences logs = new LoggingPreferences();
+                    logs.enable(LogType.BROWSER, Level.ALL); // Enable browser logs
+                    // Set the path where you want to save the log file
+                    String logFilePath = logFolder + "_edge_browser.log"; // Replace with your desired log file path
+                    // Specify the logging preferences
+                    logs.enable(LogType.BROWSER, Level.ALL);
+                    optionsEdge.setCapability(
+                            "ms:edgeOptions",
+                            "{verbose: true, loggingPrefs: {" + "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
+                } else if (config[0].equalsIgnoreCase("argument")) {
+                    optionsEdge.addArguments(config[1]);
+                    //                        options.addArguments("--disable-infobars");
+                    //                        options.addArguments("--disable-dev-shm-usage");
+                    //                        options.addArguments("--no-sandbox");
+                    //                        options.addArguments("--remote-debugging-port=9222");
+                    //                        optionsChrome.setExperimentalOption(
+                    //                                "excludeSwitches",
+                    // Collections.singletonList("enable-automation"));
+                    //
+                }
+            }
+        }
+        return optionsEdge;
+    }
+
+    private ChromeOptions buildOptionsChrome(String[] optionsConfigLines, String logFolder) {
+        ChromeOptions optionsChrome = new ChromeOptions();
+        // Options Config
+        for (String line : optionsConfigLines) {
+            if (line.startsWith("#")) {
+                ABRLogger.getInstance(ABRWebDriver.class).fine("COMMENTED OPTIONS: " + line);
+                continue;
+            }
+
+            ABRLogger.getInstance(ABRWebDriver.class).fine("WebDriver config: \n" + line);
+            String[] config = line.split(":");
+            if (config.length > 1) {
+                if (config[0].equalsIgnoreCase("proxy")) {
+
+                    if (config.length > 2) {
+                        // Proxy details
+                        //  String proxyAddress = "proxy_address:proxy_port";
+                        String proxyAddress = String.format("%s:%s", config[1], config[2]);
+
+                        // Configure proxy settings
+                        Proxy proxy = new Proxy();
+                        proxy.setHttpProxy(proxyAddress)
+                                .setFtpProxy(proxyAddress)
+                                .setSslProxy(proxyAddress);
+
+                        optionsChrome.setProxy(proxy);
+                    } else {
+                        ABRLogger.getInstance(ABRWebDriver.class)
+                                .severe("Error Check Options Config for Proxy is wrong");
+                    }
+                } else if (config[0].equalsIgnoreCase("browser_log")) {
+
+                    // Create LoggingPreferences object
+                    System.setProperty("webdriver.chrome.verboseLogging", "true");
+                    System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
+                } else if (config[0].equalsIgnoreCase("argument")) {
+
+                    optionsChrome.addArguments(config[1]);
+                    //                        options.addArguments("--disable-infobars");
+                    //                        options.addArguments("--disable-dev-shm-usage");
+                    //                        options.addArguments("--no-sandbox");
+                    //                        options.addArguments("--remote-debugging-port=9222");
+                    //                        optionsChrome.setExperimentalOption(
+                    //                                "excludeSwitches",
+                    // Collections.singletonList("enable-automation"));
+                    //
+                }
+            }
+        }
+        return optionsChrome;
     }
 
     public void highlightElement(WebElement element) {
