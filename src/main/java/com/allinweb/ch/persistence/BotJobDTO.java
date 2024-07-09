@@ -24,7 +24,7 @@ public class BotJobDTO extends BaseDTO implements Serializable {
     @JoinColumn(name = "home_banking_id")
     private HomeBankingDTO homeBankingDTO;
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @OrderBy("block_order_number ASC")
     @JoinColumn(name = "bot_job_id")
     private List<BlockDTO> blockDTOS = new ArrayList<>();

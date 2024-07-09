@@ -25,7 +25,7 @@ public class BlockDTO extends BaseDTO {
     @JoinColumn(name = "bot_job_id")
     private BotJobDTO botJobDTO;
 
-    @OneToMany(cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @OrderBy("instruction_order_number ASC")
     @JoinColumn(name = "block_id")
     private List<BlockLoopInstructionDTO> blockLoopInstructionDTOS = new ArrayList<>();

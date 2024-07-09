@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.scene;
 
-
 import com.allinweb.ch.component.pane.ABRElementValuePane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;

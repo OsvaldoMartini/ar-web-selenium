@@ -520,7 +520,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
         configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
         launchBotJobButton.setOnMouseClicked(e -> {
-            loadBotJob(botJob);
+            //            loadBotJob(botJob);
 
             // Set all instructions' executed field to false
             botJob.getBlocks().stream()
@@ -531,7 +531,7 @@ public class ABRScannedElementPane extends ABRPane {
         });
 
         recallJobButton.setOnMouseClicked(e -> {
-            loadBotJob(botJob);
+            //            loadBotJob(botJob);
             recallJob();
         });
         checkActiveHover.setOnMouseClicked(e -> handleHoverCheckClick());
@@ -797,10 +797,11 @@ public class ABRScannedElementPane extends ABRPane {
         } else {
             revertInjectedChanges(abrWebDriver.getDriver());
         }
-//        checkClickElement.setDisable(checkActiveHover.isSelected());
-//        checkInputText.setDisable(checkActiveHover.isSelected());
+        //        checkClickElement.setDisable(checkActiveHover.isSelected());
+        //        checkInputText.setDisable(checkActiveHover.isSelected());
         //        addNewElement.setDisable(checkActiveHover.isSelected());
         launchBotJobButton.setDisable(checkActiveHover.isSelected());
+        recallJobButton.setDisable(checkActiveHover.isSelected());
         periodicActivated = checkActiveHover.isSelected();
     }
 
