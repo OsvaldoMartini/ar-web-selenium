@@ -64,7 +64,7 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @JoinColumn(name = "block_loop_instruction_id")
     private List<ComplexInstructionDTO> complexInstructionDTOList;
 
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinColumn(name = "block_loop_instruction_id")
     private List<InstructionReferenceDTO> instructionReferenceDTOList;
 
