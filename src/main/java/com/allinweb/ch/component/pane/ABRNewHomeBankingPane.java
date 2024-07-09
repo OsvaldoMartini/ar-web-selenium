@@ -34,6 +34,15 @@ public class ABRNewHomeBankingPane extends ABRPane {
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
+    // Postgres
+    private static final boolean POSTGRES_DB = true;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+
     //    private static final String FILE_NAME =
     //            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\user_data.mdb";
     //    private static final String FILE_NAME2 =
@@ -70,8 +79,10 @@ public class ABRNewHomeBankingPane extends ABRPane {
     @Override
     public void initUIComponents() {
 
-        // Initialize database
-        initializeDatabase();
+        // Initialize database IF IS ACCESS TO BE USED
+        if (!POSTGRES_DB) {
+            initializeDatabase();
+        }
         loadUserData();
         // Create labels
         Label idLabel = new Label("ID:");
@@ -84,25 +95,30 @@ public class ABRNewHomeBankingPane extends ABRPane {
         // Create text fields
         TextField idField = new TextField();
         idField.setEditable(false);
-        idField.setStyle("-fx-control-inner-background: FFDA33; -fx-pref-width: 50px;");
+        idField.setStyle("-fx-control-inner-background: D3D3D3; -fx-pref-width: 50px;");
         //        idField.setPrefWidth(200); // Set the preferred width
         idField.setPrefHeight(30);
         TextField nameField = new TextField();
+        nameField.setStyle("-fx-control-inner-background: FFDA33;");
         nameField.requestFocus();
         TextField urlField = new TextField();
+        urlField.setStyle("-fx-control-inner-background: FFDA33;");
         TextArea priorityField = new TextArea();
+        priorityField.setStyle("-fx-control-inner-background: FFDA33;");
         TextField jobsField = new TextField(); // Hidden field
         jobsField.setEditable(false);
-        jobsField.setStyle("-fx-control-inner-background: FFDA33;");
+        jobsField.setStyle("-fx-control-inner-background: D3D3D3;");
         jobsField.setPrefWidth(50); // Set the preferred width
         jobsField.setPrefHeight(30);
         priorityField.setPrefRowCount(3); // Set preferred row count for the TextArea
 
         TextArea searchConfigField = new TextArea();
         searchConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
+        searchConfigField.setStyle("-fx-control-inner-background: FFDA33;");
 
         TextArea optionsConfigField = new TextArea();
         optionsConfigField.setPrefRowCount(3); // Set preferred row count for the TextArea
+        optionsConfigField.setStyle("-fx-control-inner-background: FFDA33;");
 
         // Create submit button
         Button submitButton = new Button("Submit");
@@ -169,9 +185,10 @@ public class ABRNewHomeBankingPane extends ABRPane {
         templateButton.setOnAction(event -> {
             StringBuilder priorities = new StringBuilder();
             priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
-            priorities.append("1,attribute,test-id" + System.lineSeparator());
-            priorities.append("2,xpath,xpath" + System.lineSeparator());
+            priorities.append("1,xpath,absolutXPath" + System.lineSeparator());
+            priorities.append("2,xpath,currentXPath" + System.lineSeparator());
             priorities.append("3,coordinates,coordinates" + System.lineSeparator());
+            priorities.append("4,attribute,test-id" + System.lineSeparator());
             priorityField.setText(priorities.toString());
 
             StringBuilder searchCriteria = new StringBuilder();
@@ -431,25 +448,38 @@ public class ABRNewHomeBankingPane extends ABRPane {
     }
 
     private Connection getConnection() {
-        if (conn == null) {
-            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-            String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-            try {
-                conn = DriverManager.getConnection(dbUrl);
-            } catch (SQLException e) {
-                e.printStackTrace();
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                try {
+                    conn = DriverManager.getConnection(dbUrl);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
             }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
         }
-        return conn;
     }
 
     private void loadUserData() {
         databaseList.clear();
         String selectSQL =
-                " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, optionsConfig, username, password "
+                " SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
                         + " FROM home_banking bank "
                         + " left join bot_job bot on bot.home_banking_id = bank.id "
-                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.optionsConfig, bank.username, bank.password ";
+                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -493,14 +523,16 @@ public class ABRNewHomeBankingPane extends ABRPane {
         //        Integer hashCode = generateID();
         String priority = Strings.isNullOrEmpty(user.getPriority()) ? "" : user.getPriority();
         String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getSearchConfig();
+        String optionsConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getOptionsConfig();
 
         String insertSQL =
-                "INSERT INTO home_banking (ID, Name, Url, priority, searchConfig, username, password) VALUES ( "
+                "INSERT INTO home_banking (ID, Name, Url, priority, search_config, options_config, username, password) VALUES ( "
                         + hashCode + ","
                         + "'" + user.getName() + "', "
                         + "'" + user.getUrl() + "', "
                         + "'" + priority + "', "
                         + "'" + searchConfig + "', "
+                        + "'" + optionsConfig + "', "
                         + "'" + user.getUsername() + "', "
                         + "'" + user.getPassword() + "')";
         try (Statement stmt = getConnection().createStatement()) {

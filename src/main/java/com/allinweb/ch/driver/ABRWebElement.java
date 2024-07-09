@@ -28,6 +28,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
+import org.openqa.selenium.By;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
@@ -235,6 +236,18 @@ public class ABRWebElement {
         String tagName = element.getTagName();
         String textLabel = element.getText();
 
+        if (Strings.isNullOrEmpty(textLabel)) {
+            textLabel = extractAllText(element);
+        }
+
+        if (Strings.isNullOrEmpty(textLabel)) {
+            textLabel = getTextRecursively(element);
+        }
+
+        if (Strings.isNullOrEmpty(textLabel)) {
+            textLabel = getTextRecursivelyByParent(element);
+        }
+
         boolean hasButton = tagName.equalsIgnoreCase("button") && isClickable() && !textLabel.isBlank();
         boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
         boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank() && !hasButton;
@@ -255,7 +268,10 @@ public class ABRWebElement {
             textElement.setValue(true);
         }
 
-        if (isOption && hasValue) {
+        if (!Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
+            nameLabel.setText(searchReturn.getDefinedName());
+            nameField.setText(searchReturn.getDefinedName());
+        } else if (isOption && hasValue) {
             nameLabel.setText(valueAttributeValue);
             nameField.setText(valueAttributeValue);
         } else if (hasFormControlName) {
@@ -723,5 +739,87 @@ public class ABRWebElement {
     private void setElementText(String nameLabelText, String nameFieldText) {
         nameLabel.setText(nameLabelText);
         nameField.setText(nameFieldText);
+    }
+
+    // Recursive method to find text or placeholder text
+    public static String getTextRecursively(WebElement element) {
+        String text = element.getText();
+        if (!text.isEmpty()) {
+            return text;
+        }
+
+        // Check if the element is an input field and look for placeholder
+        if (element.getTagName().equals("input") || element.getTagName().equals("textarea")) {
+            String placeholder = element.getAttribute("placeholder");
+            if (placeholder != null && !placeholder.isEmpty()) {
+                return placeholder;
+            }
+        }
+
+        // Recursively search child elements for text
+        List<WebElement> children = element.findElements(By.xpath("./*"));
+        for (WebElement child : children) {
+            String childText = getTextRecursively(child);
+            if (!childText.isEmpty()) {
+                return childText;
+            }
+        }
+
+        return "";
+    }
+
+    // Recursive method to find text or placeholder text
+    public static String getTextRecursivelyByParent(WebElement element) {
+        // Check if the element has text
+        String text = element.getText();
+        if (!text.isEmpty()) {
+            return text;
+        }
+
+        // Check if the element is an input field or textarea and look for placeholder
+        if (element.getTagName().equals("input") || element.getTagName().equals("textarea")) {
+            String placeholder = element.getAttribute("placeholder");
+            if (placeholder != null && !placeholder.isEmpty()) {
+                return placeholder;
+            }
+        }
+
+        // Recursively check parent element
+        WebElement parent = element.findElement(By.xpath(".."));
+        if (parent != null && !parent.getTagName().equals("html")) {
+            return getTextRecursively(parent);
+        }
+
+        // If no text is found, return empty string
+        return "";
+    }
+
+    // Recursive method to extract all text content
+    public static String extractAllText(WebElement element) {
+        StringBuilder textContent = new StringBuilder();
+        extractTextRecursively(element, textContent);
+        return textContent.toString().trim();
+    }
+
+    private static void extractTextRecursively(WebElement element, StringBuilder textContent) {
+        // Get the text content of the current element
+        String text = element.getText();
+        if (!text.isEmpty()) {
+            textContent.append(text).append(" ");
+        }
+
+        // Get the placeholder if the element is an input or textarea
+        if (element.getTagName().equals("input") || element.getTagName().equals("textarea")) {
+            String placeholder = element.getAttribute("placeholder");
+            if (placeholder != null && !placeholder.isEmpty()) {
+                textContent.append(placeholder).append(" ");
+            }
+        }
+
+        // Recursively extract text from child elements
+        List<WebElement> children = element.findElements(By.xpath("./*"));
+        for (WebElement child : children) {
+            extractTextRecursively(child, textContent);
+        }
     }
 }

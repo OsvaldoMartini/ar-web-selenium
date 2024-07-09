@@ -218,7 +218,7 @@ public class ABRConfigurationPane extends ABRPane {
         AnchorPane.setLeftAnchor(pathGroup, ABRConstants.SPACE_M);
         AnchorPane.setRightAnchor(pathGroup, ABRConstants.SPACE_M);
 
-        saveButton = builder.buildButton("Save to DB");
+        saveButton = builder.buildButton("Reload Configs");
         saveButton.setMaxHeight(ABRConstants.SPACE_L);
         AnchorPane.setTopAnchor(
                 saveButton,

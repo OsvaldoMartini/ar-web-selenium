@@ -14,6 +14,7 @@ public class SearchReturn {
     String attributeType;
     String attributeValue;
     String originalTagName;
+    String definedName;
     WebElementTagNameEnum forceTypeEnum;
     WebElement element;
 
@@ -39,6 +40,14 @@ public class SearchReturn {
 
     public void setOriginalTagName(String originalTagName) {
         this.originalTagName = originalTagName;
+    }
+
+    public String getDefinedName() {
+        return definedName;
+    }
+
+    public void setDefinedName(String definedName) {
+        this.definedName = definedName;
     }
 
     public String getxPathWorkedFirst() {

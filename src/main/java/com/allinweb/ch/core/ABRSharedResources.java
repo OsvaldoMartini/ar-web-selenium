@@ -32,6 +32,15 @@ public class ABRSharedResources {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
     private static final String lock = "locked";
 
+    // Postgres
+    private static final boolean POSTGRES_DB = true;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+
     private static volatile ABRSharedResources instance;
     private static SessionFactory sessionFactory = null;
     private static Session session = null;
@@ -351,17 +360,32 @@ public class ABRSharedResources {
                 abrPriorities.loadPriorities();
             }
 
-            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-            if (!dbPath.isBlank()) {
-                File dbFolder = new File(dbPath);
-                dbFolder.mkdirs();
-                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            if (POSTGRES_DB) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
                 sessionFactory = new Configuration()
                         .configure()
                         .setProperty("hibernate.connection.url", dbUrl)
+                        .setProperty("hibernate.connection.username", USERNAME)
+                        .setProperty("hibernate.connection.password", PASSWORD)
+                        .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
+                        .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
                         .buildSessionFactory();
                 session = sessionFactory.openSession();
                 cacheEntitiesFromDB();
+            } else {
+
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                if (!dbPath.isBlank()) {
+                    File dbFolder = new File(dbPath);
+                    dbFolder.mkdirs();
+                    String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                    sessionFactory = new Configuration()
+                            .configure()
+                            .setProperty("hibernate.connection.url", dbUrl)
+                            .buildSessionFactory();
+                    session = sessionFactory.openSession();
+                    cacheEntitiesFromDB();
+                }
             }
         }
     }
@@ -377,16 +401,16 @@ public class ABRSharedResources {
                         && Strings.isNullOrEmpty(userDTO.getSearchConfig())
                         && Strings.isNullOrEmpty(userDTO.getOptionsConfig())) {
                     updateSQL += " Priority = '" + priority + "', " + " searchConfig = '" + searchConfig + "' " + "', "
-                            + " optionsConfig = '" + optionsConfig + "' ";
+                            + " options_config = '" + optionsConfig + "' ";
                     updateNeeded = true;
                 } else if (Strings.isNullOrEmpty(userDTO.getPriority())) {
                     updateSQL += " Priority = '" + priority + "'";
                     updateNeeded = true;
                 } else if (Strings.isNullOrEmpty(userDTO.getSearchConfig())) {
-                    updateSQL += " searchConfig = '" + searchConfig + "'";
+                    updateSQL += " search_config = '" + searchConfig + "'";
                     updateNeeded = true;
                 } else if (Strings.isNullOrEmpty(userDTO.getOptionsConfig())) {
-                    updateSQL += " optionsConfig = '" + optionsConfig + "'";
+                    updateSQL += " options_config = '" + optionsConfig + "'";
                     updateNeeded = true;
                 }
 
@@ -413,25 +437,38 @@ public class ABRSharedResources {
     }
 
     private Connection getConnection() {
-        if (conn == null) {
-            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-            String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-            try {
-                conn = DriverManager.getConnection(dbUrl);
-            } catch (SQLException e) {
-                e.printStackTrace();
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                try {
+                    conn = DriverManager.getConnection(dbUrl);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
             }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
         }
-        return conn;
     }
 
     private void loadUserData() {
         databaseList.clear();
         String selectSQL =
-                " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, optionsConfig, username, password "
+                " SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
                         + " FROM home_banking bank "
                         + " left join bot_job bot on bot.home_banking_id = bank.id "
-                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.optionsConfig, bank.username, bank.password ";
+                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {

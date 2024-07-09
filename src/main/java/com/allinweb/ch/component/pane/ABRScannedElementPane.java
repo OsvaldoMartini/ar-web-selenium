@@ -91,6 +91,15 @@ public class ABRScannedElementPane extends ABRPane {
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
+    // Postgres
+    private static final boolean POSTGRES_DB = true;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
     private DatabaseUserDTO databaseUserDto;
@@ -118,6 +127,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Button addScreenButton;
     private Button configureButton;
     private Button launchBotJobButton;
+    private Button recallJobButton;
     private Button searchWithIdsButton;
     private Button searchWithNamesButton;
     private Button searchWithoutIdsAndNamesBtn;
@@ -129,6 +139,7 @@ public class ABRScannedElementPane extends ABRPane {
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
 
+    private Label defineNameLabel;
     private Label attribIdTextFieldLabel;
     private Label attribNameTextFieldLabel;
     private Label xpathTextFieldLabel;
@@ -137,6 +148,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
 
+    private TextField defineNameField;
     private TextField countdownTextField;
     private TextField attribIdTextField;
     private TextField attribNameTextField;
@@ -151,6 +163,9 @@ public class ABRScannedElementPane extends ABRPane {
     private Boolean idAttributeFirst = false;
     private Boolean nameAttributeFirst = false;
     private Boolean withoutNameAndId = false;
+
+    List<BlockLoopInstructionDTO> instructionsExecuted = new ArrayList<>();
+
     Map<String, WebElement> mapAdvanced = new HashMap<>();
 
     // Very important sequence on initiation
@@ -261,12 +276,16 @@ public class ABRScannedElementPane extends ABRPane {
 
         launchBotJobButton = componentBuilder.buildButton(
                 "Launch Test", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        recallJobButton = componentBuilder.buildButton(
+                "Re-Call", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
 
         countdownTextField = new TextField("10");
         countdownTextField.setStyle("-fx-font-size: 24px;");
         countdownTextField.setEditable(false);
 
         checkActiveHover = new CheckBox("Identify");
+
+        defineNameLabel = new Label("DEFINE ELEMENT NAME");
 
         attribIdTextFieldLabel = new Label("Attrib Id Found");
         attribNameTextFieldLabel = new Label("Attrib Name Found");
@@ -275,6 +294,9 @@ public class ABRScannedElementPane extends ABRPane {
         currentCustomXPathLabel = new Label("Custom XPath");
         originalTagNameLabel = new Label("Tag Name");
         coordsTextFieldLabel = new Label("Coordinates");
+
+        defineNameField = new TextField();
+        defineNameField.setPromptText("DEFINE A NAME");
 
         attribIdTextField = new TextField();
         attribIdTextField.setPromptText("Attrib Id");
@@ -337,6 +359,13 @@ public class ABRScannedElementPane extends ABRPane {
             //        gridPane.add(originalTagNameField, 7, 0);
             //        gridPane.add(coordsTextField, 8, 0);
 
+            // Create an HBox to hold launchBotJobButton and recallJobButton
+            HBox hBoxLaunchButon = new HBox();
+            hBoxLaunchButon.setSpacing(10); // Optional: adjust spacing between buttons
+
+            // Add buttons to the HBox
+            hBoxLaunchButon.getChildren().addAll(launchBotJobButton, recallJobButton);
+
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
             textFieldVBox.setSpacing(6); // Adjust spacing between TextFields
@@ -344,6 +373,8 @@ public class ABRScannedElementPane extends ABRPane {
                     .getChildren()
                     .addAll(
                             checkActiveHover,
+                            defineNameLabel,
+                            defineNameField,
                             attribIdTextFieldLabel,
                             attribIdTextField,
                             attribNameTextFieldLabel,
@@ -366,13 +397,21 @@ public class ABRScannedElementPane extends ABRPane {
                             checkBoxAction,
                             createSpacer(),
                             createCustomSeparator(Color.DARKBLUE, 2),
-                            launchBotJobButton,
+                            hBoxLaunchButon,
                             configureButton);
 
             // Bind button widths to VBox width
             addNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
-            launchBotJobButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
+            //            launchBotJobButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
+            // Bind the widths of the buttons to percentages of the HBox width
             configureButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
+
+            // Fix the widths to 70% and 30% of the HBox width
+            hBoxLaunchButon.widthProperty().addListener((obs, oldVal, newVal) -> {
+                double totalWidth = newVal.doubleValue();
+                launchBotJobButton.setMaxWidth(totalWidth * 0.7);
+                recallJobButton.setMaxWidth(totalWidth * 0.3);
+            });
 
             HBox boxListViews = new HBox();
 
@@ -481,12 +520,18 @@ public class ABRScannedElementPane extends ABRPane {
         //        configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
         configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
         launchBotJobButton.setOnMouseClicked(e -> {
+            loadBotJob(botJob);
 
             // Set all instructions' executed field to false
             botJob.getBlocks().stream()
                     .flatMap(block -> block.getBlockLoopInstructions().stream())
                     .forEach(instruction -> instruction.setExecuted(false));
 
+            recallJob();
+        });
+
+        recallJobButton.setOnMouseClicked(e -> {
+            loadBotJob(botJob);
             recallJob();
         });
         checkActiveHover.setOnMouseClicked(e -> handleHoverCheckClick());
@@ -530,7 +575,20 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void insertNewElement() {
+
+        if (Strings.isNullOrEmpty(defineNameField.getText())) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("MANDATORY FIELD");
+            alert.setHeaderText("Define the Element Name");
+            alert.setContentText("Element name must be defined!");
+            alert.showAndWait();
+            return;
+        }
+
         if (searchReturn != null) {
+
+            searchReturn.setDefinedName(defineNameField.getText());
+
             try {
                 if (searchReturn.getElement() == null) {
                     // First  Search for xPath
@@ -739,8 +797,8 @@ public class ABRScannedElementPane extends ABRPane {
         } else {
             revertInjectedChanges(abrWebDriver.getDriver());
         }
-        checkClickElement.setDisable(checkActiveHover.isSelected());
-        checkInputText.setDisable(checkActiveHover.isSelected());
+//        checkClickElement.setDisable(checkActiveHover.isSelected());
+//        checkInputText.setDisable(checkActiveHover.isSelected());
         //        addNewElement.setDisable(checkActiveHover.isSelected());
         launchBotJobButton.setDisable(checkActiveHover.isSelected());
         periodicActivated = checkActiveHover.isSelected();
@@ -2292,8 +2350,8 @@ public class ABRScannedElementPane extends ABRPane {
                 String priority = rs.getString("Priority");
                 String searchConfig = rs.getString("searchConfig");
                 String optionsConfig = rs.getString("optionsConfig");
-                String username = rs.getString("username");
-                String password = rs.getString("password");
+                String username = rs.getString("postgres");
+                String password = rs.getString("martini");
                 databaseUserDto = new DatabaseUserDTO(
                         id, jobs, name, url, priority, searchConfig, optionsConfig, username, password);
             }
@@ -2304,17 +2362,111 @@ public class ABRScannedElementPane extends ABRPane {
         //        loadBotJobData();
     }
 
-    private Connection getConnection() {
-        if (conn == null) {
-            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-            String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-            try {
-                conn = DriverManager.getConnection(dbUrl);
-            } catch (SQLException e) {
-                e.printStackTrace();
+    private void loadBotJob(BotJobDTO botJob) {
+        String selectSQL =
+                " SELECT bot.ID botId, bot.Name botName, blk.ID blockId, blk.Name blockName, blk.block_order_number, "
+                        + " blockInstr.id blockInstrId, blockInstr.instruction_order_number instructionOrderNumber, blockInstr.actions, "
+                        + " instr.id instId, instr.reference_type, instr.value"
+                        + " FROM instruction_reference instr "
+                        + " join block_loop_instruction blockInstr on blockInstr.id = instr.block_loop_instruction_id"
+                        + " join bot_job bot on bot.id = " + botJob.getId()
+                        + " join block blk on blk.bot_job_id = bot.id "
+                        + " order by blockInstr.id, blockInstr.instruction_order_number, instr.id";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+
+            List<InstructionReferenceDTO> instructions = new ArrayList<>();
+
+            while (rs.next()) {
+                String botId = rs.getString("botId");
+                String botName = rs.getString("botName");
+                String blockId = rs.getString("blockId");
+                String blockName = rs.getString("blockName");
+                String blockOrderNumber = rs.getString("block_order_number");
+
+                String blockInstrId = rs.getString("blockInstrId");
+                String instructionOrderNumber = rs.getString("instructionOrderNumber");
+                String actions = rs.getString("actions");
+
+                String instId = rs.getString("instId");
+                String referenceType = rs.getString("reference_type");
+                String value = rs.getString("value");
+
+                if (botJob.getId() == Integer.parseInt(botId)) {
+                    for (BlockDTO block : botJob.getBlocks()) {
+                        if (block.getId() == Integer.parseInt(blockId)) {
+                            boolean exist = false;
+                            for (BlockLoopInstructionDTO blockInstruction : block.getBlockLoopInstructions()) {
+                                if (blockInstruction.getId() == Integer.parseInt(blockInstrId)) {
+                                    for (InstructionReferenceDTO instructionReference :
+                                            blockInstruction.getInstructionReferenceDTOList()) {
+                                        if (instructionReference.getId() == Integer.parseInt(instId)
+                                                && instructionReference
+                                                        .getReferenceType()
+                                                        .equalsIgnoreCase(referenceType)
+                                                && instructionReference
+                                                        .getValue()
+                                                        .equalsIgnoreCase(value)) {
+                                            exist = true;
+                                            break;
+                                        }
+                                    }
+                                    if (!exist) {
+                                        InstructionReferenceDTO inst = new InstructionReferenceDTO();
+                                        inst.setId(Integer.parseInt(instId));
+                                        inst.setReferenceType(referenceType);
+                                        inst.setValue(value);
+                                        instructions.add(inst);
+                                        break;
+                                    }
+                                }
+                                if (exist) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                //                System.out.println(String.format(
+                //                        "%s  %s  %s  %s  %s   %s   %s   %s",
+                //                        botId, botName, blockId, blockName, blockOrderNumber, referenceType, value));
+
+                //               databaseUserDto = new DatabaseUserDTO(
+                //                        id, jobs, name, url, priority, searchConfig, optionsConfig, username,
+                // password);
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        return conn;
+        //        jobUserList.clear();
+        //        loadBotJobData();
+    }
+
+    private Connection getConnection() {
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                try {
+                    conn = DriverManager.getConnection(dbUrl);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        }
     }
 
     private void recallJob() {
@@ -2404,7 +2556,7 @@ public class ABRScannedElementPane extends ABRPane {
         boolean success = true;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
-        String lastInstructionExecuted = "No istruction executed yet";
+        String lastInstructionExecuted = "No instruction executed yet";
         String resultAcions = "";
         Map<String, String> dataExcel = null;
 
@@ -2412,13 +2564,18 @@ public class ABRScannedElementPane extends ABRPane {
             for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
                 List<BlockDTO> blockList = botJob.getBlocks();
                 for (int j = 0; success && j < blockList.size(); j++) {
-                    for (BlockLoopInstructionDTO currentInstruction :
-                            blockList.get(j).getBlockLoopInstructions()) {
+
+                    // Call the method to get the filtered list
+                    List<BlockLoopInstructionDTO> unexecutedInstructions = getUnexecutedInstructions(
+                            instructionsExecuted, blockList.get(j).getBlockLoopInstructions());
+
+                    for (BlockLoopInstructionDTO currentInstruction : unexecutedInstructions) {
                         if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
 
                             long currentInstructionStartTime = System.nanoTime();
                             File logFileForSingleExcel = excelReader.createLogFile(excelPath);
                             dataExcel = extractedData.getRowFieldValues(i);
+
                             try {
                                 lastInstructionExecuted = currentInstruction.getName()
                                         + Constants.BLANK_STRING
@@ -2429,6 +2586,14 @@ public class ABRScannedElementPane extends ABRPane {
                                 System.out.println("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
                                         + lastInstructionExecuted);
                                 currentInstruction.setExecuted(true);
+
+                                // Assuming currentInstruction and instructionsExecuted are already defined
+                                if (currentInstruction != null
+                                        && instructionsExecuted.stream()
+                                                .noneMatch(instruction -> instruction.getInstructionOrderNumber()
+                                                        == currentInstruction.getInstructionOrderNumber())) {
+                                    instructionsExecuted.add(currentInstruction);
+                                }
                                 success = true;
                             } catch (Throwable t) {
                                 success = false;
@@ -2463,8 +2628,13 @@ public class ABRScannedElementPane extends ABRPane {
 
             // Creating Dynamic Data if Default is Null
             Map<String, String> dataDynamic = new HashMap<>();
-            for (BlockDTO blockDTO : blockList) {
-                for (BlockLoopInstructionDTO currentInstruction : blockDTO.getBlockLoopInstructions()) {
+            for (int j = 0; success && j < blockList.size(); j++) {
+
+                // Call the method to get the filtered list
+                List<BlockLoopInstructionDTO> unexecutedInstructions = getUnexecutedInstructions(
+                        instructionsExecuted, blockList.get(j).getBlockLoopInstructions());
+
+                for (BlockLoopInstructionDTO currentInstruction : unexecutedInstructions) {
                     if (currentInstruction.getDefaultValue() == null) {
                         String[] arr = UtilsMethods.splitIfContains(
                                 currentInstruction.getActions(), Constants.ACTION_SPECIFICATIONS_SPLITTER);
@@ -2476,8 +2646,11 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             }
             for (int j = 0; success && j < blockList.size(); j++) {
-                for (BlockLoopInstructionDTO currentInstruction :
-                        blockList.get(j).getBlockLoopInstructions()) {
+
+                // Call the method to get the filtered list
+                List<BlockLoopInstructionDTO> unexecutedInstructions = getUnexecutedInstructions(
+                        instructionsExecuted, blockList.get(j).getBlockLoopInstructions());
+                for (BlockLoopInstructionDTO currentInstruction : unexecutedInstructions) {
                     long currentInstructionStartTime = System.nanoTime();
                     File logFileForSingleExcel = excelReader.createLogFile(excelPath);
                     try {
@@ -2533,6 +2706,21 @@ public class ABRScannedElementPane extends ABRPane {
                     + lastInstructionExecuted;
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+    }
+
+    public static List<BlockLoopInstructionDTO> getUnexecutedInstructions(
+            List<BlockLoopInstructionDTO> instructionsExecuted, List<BlockLoopInstructionDTO> otherList) {
+        // Create a set of instructionOrderNumbers from instructionsExecuted
+        Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
+                .map(BlockLoopInstructionDTO::getInstructionOrderNumber)
+                .collect(Collectors.toSet());
+
+        // Filter the otherList to get instructions where executed is false and not in executedInstructionOrderNumbers
+        return otherList.stream()
+                .filter(instruction -> instruction.getExecuted() != null && !instruction.getExecuted())
+                //                .filter(instruction ->
+                // !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
+                .collect(Collectors.toList());
     }
 
     private static void printBaseLog(File logFile, String timeStamp, String msg) {
@@ -2609,17 +2797,19 @@ public class ABRScannedElementPane extends ABRPane {
                         listOperation(instruction, data);
                         break;
                     case Constants.HOLD:
-                        executeAlert(instruction);
-                        onHoldForSeconds(instruction);
+                        //                        executeAlert(instruction);
+                        result = onHoldForSeconds(instruction);
                         break;
                     case Constants.REFRESH:
                         refreshPage();
+                        result = "refreshPage-->";
                         break;
                     case Constants.QUIT:
                         quit(0);
                         break;
                     case Constants.EXTRACT:
-                        insertValueFieldNameInExcel(instructionElement, instruction, action);
+                        result = "insertValueFieldNameInExcel-->"
+                                + insertValueFieldNameInExcel(instructionElement, instruction, action);
                         break;
                     case Constants.SCREEN:
                         break;
@@ -2829,7 +3019,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private void insertValueFieldNameInExcel(WebElement element, BlockLoopInstructionDTO instruction, String action) {
+    private String insertValueFieldNameInExcel(WebElement element, BlockLoopInstructionDTO instruction, String action) {
         String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
         if (innerHTMLValue.contains("<div")) {
             int lastIndexOfDiv = innerHTMLValue.lastIndexOf("<div");
@@ -2846,6 +3036,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         BotJobDTO botJob = instruction.getBlock().getBotJob();
         new ExcelWriter(botJob).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
+        return action + " fieldName " + fieldName;
     }
 
     private void listOperation(BlockLoopInstructionDTO instructionDTO, Map<String, String> data) {
@@ -2997,18 +3188,21 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private synchronized void onHoldForSeconds(BlockLoopInstructionDTO instruction) throws Exception {
+    private synchronized String onHoldForSeconds(BlockLoopInstructionDTO instruction) throws Exception {
         if (instruction != null) {
             Integer instructionSeconds = instruction.getOnHoldSeconds();
             if (instructionSeconds != null && instructionSeconds > 0) {
                 wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, instructionSeconds));
+                return "HOLD" + "->" + instructionSeconds + " seconds";
             } else {
                 String stopSeconds =
                         ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS);
                 wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, Integer.parseInt(stopSeconds)));
+                return "HOLD" + "->" + stopSeconds + " seconds";
             }
         } else {
             wait(400);
+            return "HOLD" + "->" + "400 milliseconds";
         }
     }
 

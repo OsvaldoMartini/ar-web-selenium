@@ -22,6 +22,31 @@ Use  "" Instead
 
 Example:
  //Search Criteria
+ 
+        // PRIORITY FOR ENGINE FIND ELEMENT
+        #numero priorità, categoria, identificativo
+        1,xpath,absolutXPath
+        2,xpath,currentXPath
+        3,coordinates,coordinates
+        4,attribute,test-id
+ 
+        // SEARCH TERMS
+        1,ByAttribute,test-id
+        2,ByChained,By.tagName:input,By.className:mat-mdc-input-element
+        3,ByChained,By.xpath://*[contains(@idCOMMA "mat-input")]
+        4,ByTagName,input
+        5,ByTagName,button
+        6,ByChained,By.cssSelector:[id^="mat-input"]
+ 
+        // WEB DRIVER POSSIBLE CONFIGS
+        #proxy:proxy_address:proxy_port
+        #argument:--disable-infobars
+        #argument:--disable-dev-shm-usage
+        #argument:--no-sandbox
+        #systemProps:webdriver.chrome.logfile:logFolder
+        #systemProps:webdriver.chrome.verboseLogging:true
+ 
+        //EXTRA PARAMS & MISC
         #numero priorità, categoria, criterioricerca
         1,ByAttribute,test-id
         2,ByChained,By.tagName:input,By.className:mat-mdc-input-element
@@ -43,8 +68,15 @@ Example:
     1,attribute,test-id
     2,xpath,xpath
     3,coordinates,coordinates
-```	
+```
 
+## Search element terms
+```text
+   #numero priorità, categoria, identificativo
+   1,ByXPath,//a[@href],a[href]
+   2,ByLabels,label,spam,div,p
+   3,attribute,martini-id
+```	
 
 ## WebDrive Options
 ```text

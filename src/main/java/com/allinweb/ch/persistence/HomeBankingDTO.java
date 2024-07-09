@@ -19,10 +19,10 @@ public class HomeBankingDTO extends BaseDTO implements Serializable {
     @Column(name = "priority")
     private String priority;
 
-    @Column(name = "searchConfig")
+    @Column(name = "search_config")
     private String searchConfig;
 
-    @Column(name = "optionsConfig")
+    @Column(name = "options_config")
     private String optionsConfig;
 
     @Column(name = "cookies")

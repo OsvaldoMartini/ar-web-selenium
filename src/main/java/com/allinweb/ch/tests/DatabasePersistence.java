@@ -8,6 +8,7 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
@@ -36,10 +37,21 @@ public class DatabasePersistence extends Application {
     private ObservableList<JobUserDTO> jobUserList = FXCollections.observableArrayList();
     private TableView<DatabaseUserDTO> tableView = new TableView<>();
 
+    // Postgres
+    private static final boolean POSTGRES_DB = true;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+
     @Override
     public void start(Stage primaryStage) {
-        // Initialize database
-        initializeDatabase();
+        // Initialize database IF IS ACCESS TO BE USED
+        if (!POSTGRES_DB) {
+            initializeDatabase();
+        }
         loadUserData();
         // Create labels
         Label idLabel = new Label("ID:");
@@ -51,10 +63,11 @@ public class DatabasePersistence extends Application {
         // Create text fields
         TextField idField = new TextField();
         idField.setEditable(false);
-        idField.setStyle("-fx-control-inner-background: FFDA33; -fx-pref-width: 50px;");
+        idField.setStyle("-fx-control-inner-background: #D3D3D3; -fx-pref-width: 50px;");
         //        idField.setPrefWidth(200); // Set the preferred width
         idField.setPrefHeight(30);
         TextField nameField = new TextField();
+        nameField.setStyle("-fx-control-inner-background: FFDA33; -fx-pref-width: 50px;");
         nameField.requestFocus();
         TextField urlField = new TextField();
         TextArea priorityField = new TextArea();
@@ -212,6 +225,9 @@ public class DatabasePersistence extends Application {
         primaryStage.setTitle("Home Banking Data Persistence");
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        // Request focus on the nameField after the scene is shown
+        Platform.runLater(() -> nameField.requestFocus());
     }
 
     private void initializeDatabase() {
@@ -232,15 +248,29 @@ public class DatabasePersistence extends Application {
         }
     }
 
+    // Simple connection for tests
     private Connection getConnection() {
-        if (conn == null) {
-            try {
-                conn = DriverManager.getConnection(DB_URL_2);
-            } catch (SQLException e) {
-                e.printStackTrace();
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                try {
+                    conn = DriverManager.getConnection(DB_URL_2);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
             }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
         }
-        return conn;
     }
 
     private void loadUserData() {
