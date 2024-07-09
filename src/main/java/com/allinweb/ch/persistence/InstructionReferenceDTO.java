@@ -16,7 +16,7 @@ public class InstructionReferenceDTO extends BaseDTO {
     @Column(name = "value", length = 1000)
     private String value;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "block_loop_instruction_id")
     private BlockLoopInstructionDTO blockLoopInstructionDTO;
 
