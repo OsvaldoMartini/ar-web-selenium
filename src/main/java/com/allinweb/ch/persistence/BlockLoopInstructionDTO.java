@@ -1,5 +1,6 @@
 package com.allinweb.ch.persistence;
 
+import com.allinweb.ch.core.ABRSharedResources;
 import java.util.List;
 import javax.persistence.*;
 
@@ -215,5 +216,12 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     public void setExecuted(Boolean executed) {
         this.executed = executed;
+    }
+
+    public void reloadInstructionReferenceDTOList() {
+        this.instructionReferenceDTOList = ABRSharedResources.getInstance()
+                .getEntityList(
+                        InstructionReferenceDTO.class,
+                        reference -> reference.getBlockLoopInstructionDTO().getId() == this.getId());
     }
 }

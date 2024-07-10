@@ -108,6 +108,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 "Filter", ABRConstants.SPACE_ZERO, "/list.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.closeBotJobButton = builder.buildButton(
                 "Close", ABRConstants.SPACE_ZERO, "/cross.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        // Create the primary button bar
         this.buttonPane = new ButtonBar();
         this.buttonPane
                 .getButtons()
@@ -117,36 +118,64 @@ public class ABRViewBotJobPane extends ABRPane {
                         this.addWaitButton30,
                         this.addWaitButton15,
                         this.editBotJobButton,
-                        this.launchBotJobButton,
-                        this.saveBotJobButton,
-                        this.saveAsBotJobButton,
-                        this.openExcelFileButton,
-                        this.generateExcelButton,
-                        this.openExcelFilterPanelButton,
-                        this.closeBotJobButton);
+                        this.launchBotJobButton);
 
-        // Create a GridPane
+// Create a new HBox for the buttons to be placed below
+        HBox lowerButtonPane = new HBox(10); // Spacing of 10 between buttons
+        lowerButtonPane.getChildren().addAll(
+                this.saveBotJobButton,
+                this.saveAsBotJobButton,
+                this.openExcelFileButton,
+                this.generateExcelButton,
+                this.openExcelFilterPanelButton,
+                this.closeBotJobButton);
+
+// Center the buttons in the lower HBox
+        lowerButtonPane.setAlignment(Pos.CENTER);
+
+// Create a VBox to contain both the primary button bar and the lower HBox
+        VBox leftButtonPane = new VBox(10); // Spacing of 10 between the button bars
+        leftButtonPane.getChildren().addAll(buttonPane, lowerButtonPane);
+        leftButtonPane.setAlignment(Pos.CENTER_LEFT); // Left align the VBox
+
+// Create a new VBox for the right side with setValue and getValue buttons
+        Button setValueButton = builder.buildButton(
+                "Set Value", ABRConstants.SPACE_ZERO, "/setvalue.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        Button getValueButton = builder.buildButton(
+                "Get Value", ABRConstants.SPACE_ZERO, "/getvalue.png", ABRConstants.SPACE_M, new Insets(5.0D));
+
+        VBox rightButtonPane = new VBox(10); // Spacing of 10 between buttons
+        rightButtonPane.getChildren().addAll(setValueButton, getValueButton);
+        rightButtonPane.setAlignment(Pos.CENTER_RIGHT); // Right align the VBox
+
+// Create an HBox to contain both left and right button panes
+        HBox combinedButtonPane = new HBox(50); // Spacing of 50 between left and right panes
+        combinedButtonPane.getChildren().addAll(leftButtonPane, rightButtonPane);
+        combinedButtonPane.setAlignment(Pos.CENTER); // Center align the HBox
+
+// Create a GridPane
         GridPane gridPane = new GridPane();
 
-        // Add the ButtonBar to the GridPane and align it at the center
-        gridPane.add(buttonPane, 0, 0);
-        GridPane.setHalignment(buttonPane, javafx.geometry.HPos.CENTER); // Align center
+// Add the combinedButtonPane to the GridPane and align it at the center
+        gridPane.add(combinedButtonPane, 0, 0);
+        GridPane.setHalignment(combinedButtonPane, javafx.geometry.HPos.CENTER); // Align center
 
-        // Add checkBoxUpdatePriority below saveBotJobButton
+// Add checkBoxUpdatePriority below saveBotJobButton
         gridPane.add(checkBoxUpdatePriority, 0, 1);
         GridPane.setHalignment(checkBoxUpdatePriority, javafx.geometry.HPos.CENTER); // Align center
 
+// Other UI components
         this.botJobNameLabel = new Label(this.botJob.getName());
         this.botJobName = new TextField(this.botJob.getName());
         this.initComponentUI();
         StackPane botJobNameGroup =
-                new StackPane(new Node[] {this.botJobNameLabel, this.botJobName, this.componentButton});
+                new StackPane(new Node[]{this.botJobNameLabel, this.botJobName, this.componentButton});
         StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
         StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
         this.botJobDescriptionLabel = new Label(this.botJob.getDescription());
         this.botJobDescription = new TextField(this.botJob.getDescription());
         StackPane botJobDescriptionGroup =
-                new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescription});
+                new StackPane(new Node[]{this.botJobDescriptionLabel, this.botJobDescription});
         ObservableList<BlockDTO> blockDTOObservableList = ABRSharedResources.getInstance()
                 .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId());
         this.uiBlockList = new ListView<>(blockDTOObservableList);
@@ -156,10 +185,10 @@ public class ABRViewBotJobPane extends ABRPane {
         this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
         this.uiBlockList.setPrefHeight(900.0D);
         this.uiBlockList.setBorder((Border) null);
-        HBox compBox = new HBox(new Node[] {this.uiBlockList, this.componentContainer});
+        HBox compBox = new HBox(new Node[]{this.uiBlockList, this.componentContainer});
         HBox.setHgrow(this.uiBlockList, Priority.ALWAYS);
         HBox.setHgrow(this.componentContainer, Priority.ALWAYS);
-        this.botJobContainer = new VBox(new Node[] {gridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
+        this.botJobContainer = new VBox(new Node[]{gridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
         AnchorPane.setTopAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setBottomAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setLeftAnchor(this.botJobContainer, ABRConstants.SPACE_M);

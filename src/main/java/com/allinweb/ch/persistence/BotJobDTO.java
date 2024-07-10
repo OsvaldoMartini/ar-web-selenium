@@ -1,6 +1,9 @@
 package com.allinweb.ch.persistence;
 
 import com.allinweb.ch.core.ABRSharedResources;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,10 +27,16 @@ public class BotJobDTO extends BaseDTO implements Serializable {
     @JoinColumn(name = "home_banking_id")
     private HomeBankingDTO homeBankingDTO;
 
-    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @OrderBy("block_order_number ASC")
     @JoinColumn(name = "bot_job_id")
+    @Fetch(FetchMode.SUBSELECT)
     private List<BlockDTO> blockDTOS = new ArrayList<>();
+
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "bot_job_id")
+    @Fetch(FetchMode.SUBSELECT)
+    private List<VariableDTO> variableDTOS = new ArrayList<>();
 
     public BotJobDTO() {
         super();
@@ -81,5 +90,15 @@ public class BotJobDTO extends BaseDTO implements Serializable {
 
     public void setBlocks(List<BlockDTO> blockDTOS) {
         this.blockDTOS = blockDTOS;
+    }
+
+    public List<VariableDTO> getVariables() {
+        return ABRSharedResources.getInstance()
+                .getEntityList(
+                        VariableDTO.class, variable -> variable.getBotJob().getId() == this.getId());
+    }
+
+    public void setVariables(List<VariableDTO> variableDTOS) {
+        this.variableDTOS = variableDTOS;
     }
 }

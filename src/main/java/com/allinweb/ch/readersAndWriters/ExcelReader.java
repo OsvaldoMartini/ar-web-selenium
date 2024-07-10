@@ -1,14 +1,14 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.BotJobDTO;
+import com.allinweb.ch.component.model.dto.BlockLoadDTO;
+import com.allinweb.ch.component.model.dto.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.Constants;
 import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.poi.ss.usermodel.Cell;
@@ -27,26 +27,26 @@ public class ExcelReader {
 
     public ExcelReader() {}
 
-    public ExtractedData extractData(String paymentsFilePath, BotJobDTO botJob) throws Exception {
+    public ExtractedData extractData(String paymentsFilePath, List<BlockLoadDTO> blockLoadDTOs) throws Exception {
 
         // getting first Excel sheet
         XSSFWorkbook workbook = new XSSFWorkbook(new File(paymentsFilePath));
         Sheet firstSheet = workbook.getSheetAt(0);
 
-        if (botJob == null) {
+        if (blockLoadDTOs == null) {
             throw new Exception("botJob not found");
         }
 
         Row fieldNamesRow = firstSheet.getRow(EXCEL_DATA_COLUMN_INTESTATION_ROW);
-        Set<String> blockFields = botJob.getBlocks().stream()
-                .map(BlockDTO::getBlockLoopInstructions)
+        Set<String> blockFields = blockLoadDTOs.stream()
+                .map(BlockLoadDTO::getBlockLoopInstructionLoadDTOS)
                 .reduce((identity, accumulated) -> {
                     accumulated.addAll(identity);
                     return accumulated;
                 })
                 .get()
                 .stream()
-                .map(BlockLoopInstructionDTO::getActions)
+                .map(BlockLoopInstructionLoadDTO::getActions)
                 .filter(action ->
                         action.contains(Constants.INSERT) && action.contains(Constants.ACTION_SPECIFICATIONS_SPLITTER))
                 .map(action -> action.split(Constants.ACTION_SPECIFICATIONS_SPLITTER)[1])

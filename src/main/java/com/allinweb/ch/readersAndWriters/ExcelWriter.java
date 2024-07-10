@@ -1,7 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.util.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -29,22 +28,21 @@ public class ExcelWriter {
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
+    private String botJobName;
 
-    private final BotJobDTO botJob;
-
-    public ExcelWriter(BotJobDTO botJob) {
-        this.botJob = botJob;
-        boolean exist = ManagedExcel.checkIfExcelExist(botJob.getName(), "excel");
+    public ExcelWriter(String botJobName) {
+        botJobName = botJobName;
+        boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
-        managedExcelMap.put("excel", new ManagedExcel(botJob.getName(), "excel", !exist));
-        managedExcelMap.put("report", new ManagedExcel(botJob.getName() + " (" + now + ")", "report", true));
+        managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
+        managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
     }
 
     public ExcelChain withPurpose(String purpose) {
-        return new ExcelChain(managedExcelMap.get(purpose), botJob);
+        return new ExcelChain(managedExcelMap.get(purpose), botJobName);
     }
 
-    public record ExcelChain(ManagedExcel managedExcel, BotJobDTO botJob) {
+    public record ExcelChain(ManagedExcel managedExcel, String botJobName) {
 
         public void insertValueFieldName(String fieldName, String value) {
             managedExcel
@@ -57,7 +55,7 @@ public class ExcelWriter {
         public void insertReportHead() {
             managedExcel
                     .onSheet(0)
-                    .insertValueAtCoordinates(botJob().getName(), 0, 0)
+                    .insertValueAtCoordinates(botJobName, 0, 0)
                     .insertValueAtCoordinates(LocalDateTime.now().format(FORMAT_DATE_AND_TIME), 0, 1)
                     .setFontStyleOfLastRow(true, false, false, (short) 14);
             managedExcel.save();

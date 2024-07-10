@@ -5,6 +5,11 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.ABRWebElementListCell;
+import com.allinweb.ch.component.model.dto.BlockLoadDTO;
+import com.allinweb.ch.component.model.dto.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.dto.BotJobLoadDTO;
+import com.allinweb.ch.component.model.dto.ComplexInstructionLoadDTO;
+import com.allinweb.ch.component.model.dto.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRNewHomeBankingScene;
@@ -108,6 +113,8 @@ public class ABRScannedElementPane extends ABRPane {
     private BotJobDTO botJob;
     private BlockDTO block;
 
+    private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
+
     // UI COMPONENTS
     private HBox topPane;
     private HBox bottomPane;
@@ -121,7 +128,8 @@ public class ABRScannedElementPane extends ABRPane {
     private ListView<ABRWebElement> scannedElements2;
     private ListView<ABRWebElement> scannedElements3;
     private Button scanButton;
-    private Button addWaitButton;
+    private Button addWaitButton30;
+    private Button addWaitButton15;
     private Button addNewElement;
     private Button addCloseActionButton;
     private Button addScreenButton;
@@ -164,7 +172,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Boolean nameAttributeFirst = false;
     private Boolean withoutNameAndId = false;
 
-    List<BlockLoopInstructionDTO> instructionsExecuted = new ArrayList<>();
+    List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
 
     Map<String, WebElement> mapAdvanced = new HashMap<>();
 
@@ -220,8 +228,12 @@ public class ABRScannedElementPane extends ABRPane {
 
         scanButton = componentBuilder.buildButton(
                 "Scan", ABRConstants.SPACE_L, ABRConstants.ICON_SEARCH, ABRConstants.SPACE_M, new Insets(5));
-        addWaitButton = componentBuilder.buildButton(
-                "Add Wait", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+        addWaitButton30 = componentBuilder.buildButton(
+                "30s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+
+        addWaitButton15 = componentBuilder.buildButton(
+                "15s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+
         addNewElement = componentBuilder.buildButton(
                 "Add Element", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_M, new Insets(5));
 
@@ -322,9 +334,10 @@ public class ABRScannedElementPane extends ABRPane {
 
             // Add buttons and checkbox to the GridPane
             gridPaneTop.add(scanButton, 0, 0);
-            gridPaneTop.add(addWaitButton, 1, 0);
-            gridPaneTop.add(addCloseActionButton, 2, 0);
-            gridPaneTop.add(addScreenButton, 3, 0);
+            gridPaneTop.add(addWaitButton30, 1, 0);
+            gridPaneTop.add(addWaitButton15, 2, 0);
+            gridPaneTop.add(addCloseActionButton, 3, 0);
+            gridPaneTop.add(addScreenButton, 4, 0);
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
             //        gridPaneTop.add(checkActiveHover, 6, 0);
@@ -520,18 +533,21 @@ public class ABRScannedElementPane extends ABRPane {
         //        configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
         configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
         launchBotJobButton.setOnMouseClicked(e -> {
-            //            loadBotJob(botJob);
+            //                        loadBotJob(botJob);
+            loadBlockAll(botJob);
+            instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
-            botJob.getBlocks().stream()
-                    .flatMap(block -> block.getBlockLoopInstructions().stream())
+            botLoadJobs.get(0).getBlockLoadDTOList().stream()
+                    .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())
                     .forEach(instruction -> instruction.setExecuted(false));
 
             recallJob();
         });
 
         recallJobButton.setOnMouseClicked(e -> {
-            //            loadBotJob(botJob);
+            loadBlockAll(botJob);
+            // loadBotJob(botJob);
             recallJob();
         });
         checkActiveHover.setOnMouseClicked(e -> handleHoverCheckClick());
@@ -551,7 +567,8 @@ public class ABRScannedElementPane extends ABRPane {
             }
         });
         scanButton.setOnAction(e -> manageUIScan());
-        addWaitButton.setOnAction(e -> addWaitTask(30));
+        addWaitButton30.setOnAction(e -> addWaitTask(30));
+        addWaitButton15.setOnAction(e -> addWaitTask(15));
         addNewElement.setOnAction(e -> {
             if (searchReturn.getElement() != null) {
                 insertNewElement();
@@ -622,6 +639,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private SearchReturn extractValidateDynamic() {
 
+        defineNameField.setText("");
         xpathTextPrevious = absolutXPathTextField.getText();
 
         // Reset Previous Values
@@ -801,7 +819,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        checkInputText.setDisable(checkActiveHover.isSelected());
         //        addNewElement.setDisable(checkActiveHover.isSelected());
         launchBotJobButton.setDisable(checkActiveHover.isSelected());
-        recallJobButton.setDisable(checkActiveHover.isSelected());
+        //        recallJobButton.setDisable(checkActiveHover.isSelected());
         periodicActivated = checkActiveHover.isSelected();
     }
 
@@ -2444,6 +2462,97 @@ public class ABRScannedElementPane extends ABRPane {
         //        loadBotJobData();
     }
 
+    private void loadBlockAll(BotJobDTO botJob) {
+        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
+                + "b.id AS block_id, b.block_order_number, b.name AS block_name, "
+                + "b.description AS block_description, b.type_id, "
+                + "bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
+                + "bli.actions, bli.name AS instruction_name, bli.path, bli.description AS instruction_description, "
+                + "bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
+                + "bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
+                + "irl.reference_type, irl.value "
+                + "FROM bot_job bj "
+                + "LEFT JOIN block b ON b.bot_job_id = bj.id "
+                + "LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id "
+                + "LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
+                + "ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
+
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+
+            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
+            Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
+            Map<Integer, BlockLoopInstructionLoadDTO> instructionMap = new HashMap<>();
+
+            botLoadJobs.clear();
+
+            while (rs.next()) {
+                int botJobId = rs.getInt("bot_job_id");
+                BotJobLoadDTO botJobDTO = botJobMap.get(botJobId);
+
+                if (botJobDTO == null) {
+                    botJobDTO = new BotJobLoadDTO();
+                    botJobDTO.setId(botJobId);
+                    botJobDTO.setName(rs.getString("bot_job_name"));
+                    botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+                    botJobMap.put(botJobId, botJobDTO);
+                    botLoadJobs.add(botJobDTO);
+                }
+
+                int blockId = rs.getInt("block_id");
+                BlockLoadDTO blockDTO = blockMap.get(blockId);
+
+                if (blockDTO == null) {
+                    blockDTO = new BlockLoadDTO();
+                    blockDTO.setId(blockId);
+                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+                    blockDTO.setName(rs.getString("block_name"));
+                    blockDTO.setDescription(rs.getString("block_description"));
+                    blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setBotJobLoadDTO(botJobDTO);
+
+                    blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
+                    botJobDTO.getBlockLoadDTOList().add(blockDTO);
+                    blockMap.put(blockId, blockDTO);
+                }
+
+                int instructionId = rs.getInt("block_loop_instruction_id");
+                BlockLoopInstructionLoadDTO instruction = instructionMap.get(instructionId);
+
+                if (instruction == null) {
+                    instruction = new BlockLoopInstructionLoadDTO();
+                    instruction.setId(instructionId);
+                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                    instruction.setActions(rs.getString("actions"));
+                    instruction.setName(rs.getString("instruction_name"));
+                    instruction.setPath(rs.getString("path"));
+                    instruction.setDescription(rs.getString("instruction_description"));
+                    instruction.setOptional(rs.getInt("optional"));
+                    instruction.setBlockMarked(rs.getBoolean("block_marked"));
+                    instruction.setDefault_val(rs.getString("default_val"));
+                    instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                    instruction.setEncrypted(rs.getInt("encrypted"));
+                    instruction.setExportToABR(rs.getInt("export_to_abr"));
+
+                    instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
+                    blockDTO.getBlockLoopInstructionLoadDTOS().add(instruction);
+                    instructionMap.put(instructionId, instruction);
+                }
+
+                String referenceType = rs.getString("reference_type");
+                if (referenceType != null) {
+                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+                    reference.setReferenceType(referenceType);
+                    reference.setValue(rs.getString("value"));
+                    instruction.getInstructionReferenceLoadDTOList().add(reference);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     private Connection getConnection() {
         if (!POSTGRES_DB) {
             if (conn == null) {
@@ -2473,8 +2582,8 @@ public class ABRScannedElementPane extends ABRPane {
     private void recallJob() {
         executeJob();
         // Review if Has Not Executed Instructions
-        boolean hasUnexecutedInstructions = botJob.getBlocks().stream()
-                .flatMap(block -> block.getBlockLoopInstructions().stream())
+        boolean hasUnexecutedInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
+                .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())
                 .anyMatch(instruction -> instruction.getExecuted() == null || !instruction.getExecuted());
 
         if (hasUnexecutedInstructions) {
@@ -2509,9 +2618,11 @@ public class ABRScannedElementPane extends ABRPane {
             e.printStackTrace();
         }
 
-        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
+        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+
+        //        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
         String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-        excelPath = excelPath + "\\" + this.botJob.getName() + ".xlsx";
+        excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobLoadDTO().getName() + ".xlsx";
         if (!(new File(excelPath)).exists()) {
             new ABRAlertScene(
                     Alert.AlertType.WARNING,
@@ -2526,7 +2637,7 @@ public class ABRScannedElementPane extends ABRPane {
         ExcelReader excelReader = new ExcelReader();
         ExtractedData extractedData = null;
         try {
-            extractedData = excelReader.extractData(excelPath, botJob);
+            extractedData = excelReader.extractData(excelPath, blocksLoaded);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -2536,22 +2647,24 @@ public class ABRScannedElementPane extends ABRPane {
             System.out.println("Fields in the excel not matching the botjob requirements");
         }
 
-        Set<String> blockClickables = botJob.getBlocks().stream()
-                .map(BlockDTO::getBlockLoopInstructions)
-                .reduce((identity, accumulated) -> {
-                    accumulated.addAll(identity);
-                    return accumulated;
-                })
-                .get()
-                .stream()
-                .map(BlockLoopInstructionDTO::getActions)
-                .filter(action -> action.contains(Constants.CLICK))
-                .collect(Collectors.toSet());
+        //        Set<String> blockClickables = blocksLoaded.stream()
+        //                .map(BlockLoadDTO::getBlockLoopInstructionLoadDTOS)
+        //                .reduce((identity, accumulated) -> {
+        //                    accumulated.addAll(identity);
+        //                    return accumulated;
+        //                })
+        //                .get()
+        //                .stream()
+        //                .map(BlockLoopInstructionLoadDTO::getActions)
+        //                .filter(action -> action.contains(Constants.CLICK))
+        //                .collect(Collectors.toSet());
 
         //        String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
         //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
 
-        String baseLogString = botJob.getName() + Constants.FIELDS_SEPARATOR + labelsValue.getProperty(Labels.START);
+        String baseLogString = blocksLoaded.get(0).getBotJobLoadDTO().getName()
+                + Constants.FIELDS_SEPARATOR
+                + labelsValue.getProperty(Labels.START);
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
         boolean success = true;
@@ -2561,16 +2674,18 @@ public class ABRScannedElementPane extends ABRPane {
         String resultAcions = "";
         Map<String, String> dataExcel = null;
 
+        int botJobId = blocksLoaded.get(0).getBotJobLoadDTO().getId();
+
         if (extractedData.getNumberOfDataRows() > 0) {
             for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
-                List<BlockDTO> blockList = botJob.getBlocks();
+                List<BlockLoadDTO> blockList = blocksLoaded;
                 for (int j = 0; success && j < blockList.size(); j++) {
 
                     // Call the method to get the filtered list
-                    List<BlockLoopInstructionDTO> unexecutedInstructions = getUnexecutedInstructions(
-                            instructionsExecuted, blockList.get(j).getBlockLoopInstructions());
+                    List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
+                            instructionsExecuted, blockList.get(j).getBlockLoopInstructionLoadDTOS());
 
-                    for (BlockLoopInstructionDTO currentInstruction : unexecutedInstructions) {
+                    for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                         if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
 
                             long currentInstructionStartTime = System.nanoTime();
@@ -2581,7 +2696,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 lastInstructionExecuted = currentInstruction.getName()
                                         + Constants.BLANK_STRING
                                         + currentInstruction.getPath();
-                                resultAcions = performActions(dataExcel, currentInstruction);
+                                resultAcions = performActions(dataExcel, currentInstruction, botJobId);
                                 long currentInstructionEndTime = System.nanoTime();
                                 totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
                                 System.out.println("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
@@ -2625,17 +2740,17 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             }
         } else { //  if dataExel is NULL
-            List<BlockDTO> blockList = botJob.getBlocks();
+            List<BlockLoadDTO> blockList = blocksLoaded;
 
             // Creating Dynamic Data if Default is Null
             Map<String, String> dataDynamic = new HashMap<>();
             for (int j = 0; success && j < blockList.size(); j++) {
 
                 // Call the method to get the filtered list
-                List<BlockLoopInstructionDTO> unexecutedInstructions = getUnexecutedInstructions(
-                        instructionsExecuted, blockList.get(j).getBlockLoopInstructions());
+                List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
+                        instructionsExecuted, blockList.get(j).getBlockLoopInstructionLoadDTOS());
 
-                for (BlockLoopInstructionDTO currentInstruction : unexecutedInstructions) {
+                for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                     if (currentInstruction.getDefaultValue() == null) {
                         String[] arr = UtilsMethods.splitIfContains(
                                 currentInstruction.getActions(), Constants.ACTION_SPECIFICATIONS_SPLITTER);
@@ -2649,15 +2764,16 @@ public class ABRScannedElementPane extends ABRPane {
             for (int j = 0; success && j < blockList.size(); j++) {
 
                 // Call the method to get the filtered list
-                List<BlockLoopInstructionDTO> unexecutedInstructions = getUnexecutedInstructions(
-                        instructionsExecuted, blockList.get(j).getBlockLoopInstructions());
-                for (BlockLoopInstructionDTO currentInstruction : unexecutedInstructions) {
+                List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
+                        instructionsExecuted, blockList.get(j).getBlockLoopInstructionLoadDTOS());
+
+                for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                     long currentInstructionStartTime = System.nanoTime();
                     File logFileForSingleExcel = excelReader.createLogFile(excelPath);
                     try {
                         lastInstructionExecuted =
                                 currentInstruction.getName() + Constants.BLANK_STRING + currentInstruction.getPath();
-                        resultAcions = performActions(dataDynamic, currentInstruction);
+                        resultAcions = performActions(dataDynamic, currentInstruction, botJobId);
                         long currentInstructionEndTime = System.nanoTime();
                         totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
                         System.out.println("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
@@ -2693,13 +2809,13 @@ public class ABRScannedElementPane extends ABRPane {
 
         // PRINT END BASE LOG//
         if (success) {
-            baseLogString = botJob.getName()
+            baseLogString = blocksLoaded.get(0).getBotJobLoadDTO().getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
         } else {
-            baseLogString = botJob.getName()
+            baseLogString = blocksLoaded.get(0).getBotJobLoadDTO().getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
                     + Constants.FIELDS_SEPARATOR
@@ -2709,18 +2825,19 @@ public class ABRScannedElementPane extends ABRPane {
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
     }
 
-    public static List<BlockLoopInstructionDTO> getUnexecutedInstructions(
-            List<BlockLoopInstructionDTO> instructionsExecuted, List<BlockLoopInstructionDTO> otherList) {
+    public static List<BlockLoopInstructionLoadDTO> getUnexecutedInstructions(
+            List<BlockLoopInstructionLoadDTO> instructionsExecuted, List<BlockLoopInstructionLoadDTO> otherList) {
         // Create a set of instructionOrderNumbers from instructionsExecuted
         Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
-                .map(BlockLoopInstructionDTO::getInstructionOrderNumber)
+                .map(BlockLoopInstructionLoadDTO::getInstructionOrderNumber)
                 .collect(Collectors.toSet());
 
         // Filter the otherList to get instructions where executed is false and not in executedInstructionOrderNumbers
         return otherList.stream()
-                .filter(instruction -> instruction.getExecuted() != null && !instruction.getExecuted())
-                //                .filter(instruction ->
-                // !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
+                //                .filter(instruction -> instruction.getExecuted() != null &&
+                // !instruction.getExecuted())
+                .filter(instruction ->
+                        !executedInstructionOrderNumbers.contains(instruction.getInstructionOrderNumber()))
                 .collect(Collectors.toList());
     }
 
@@ -2773,12 +2890,13 @@ public class ABRScannedElementPane extends ABRPane {
         return nameBuilder.toString();
     }
 
-    public String performActions(Map<String, String> data, BlockLoopInstructionDTO instruction) throws Exception {
+    public String performActions(Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId)
+            throws Exception {
         WebElement instructionElement = null;
         String[] actions = instruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
 
         if (!StringUtils.isBlank(instruction.getPath())) {
-            instructionElement = locateElement(instruction, data);
+            instructionElement = locateElement(instruction, data, botJobId);
         }
         String result = "";
         if (instructionElement != null || actions[0].equals(Constants.HOLD)) {
@@ -2789,7 +2907,8 @@ public class ABRScannedElementPane extends ABRPane {
                         scrollToElement(instructionElement);
                         break;
                     case Constants.CLICK:
-                        result = "clickElement -->" + clickElement(instructionElement);
+                        result = "clickElement --> " + instruction.getName() + " --> "
+                                + clickElement(instructionElement);
                         break;
                     case Constants.INSERT:
                         result = insertInElement(instructionElement, data, action, instruction);
@@ -2803,14 +2922,18 @@ public class ABRScannedElementPane extends ABRPane {
                         break;
                     case Constants.REFRESH:
                         refreshPage();
-                        result = "refreshPage-->";
+                        result = "refreshPage";
                         break;
                     case Constants.QUIT:
                         quit(0);
                         break;
                     case Constants.EXTRACT:
                         result = "insertValueFieldNameInExcel-->"
-                                + insertValueFieldNameInExcel(instructionElement, instruction, action);
+                                + insertValueFieldNameInExcel(
+                                        instructionElement,
+                                        instruction,
+                                        action,
+                                        botLoadJobs.get(0).getName());
                         break;
                     case Constants.SCREEN:
                         break;
@@ -2835,7 +2958,8 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private WebElement locateElement(BlockLoopInstructionDTO instruction, Map<String, String> data) throws Exception {
+    private WebElement locateElement(BlockLoopInstructionLoadDTO instruction, Map<String, String> data, int botJobId)
+            throws Exception {
 
         String instructionPath = instruction.getPath();
         String tagName = null;
@@ -2845,25 +2969,22 @@ public class ABRScannedElementPane extends ABRPane {
         } catch (Exception e) {
             System.out.println("Error trying to get tagName" + e.getMessage());
         }
-        List<InstructionReferenceDTO> instructionReferenceList = instruction.getInstructionReferenceDTOList();
+        List<InstructionReferenceLoadDTO> instructionReferenceList = instruction.getInstructionReferenceLoadDTOList();
 
         waitPage();
 
         // If Not Loaded get if the JobId Changed
         if (abrPriorities.getJobId() == null) {
-            abrPriorities.setJobId(instruction.getBlock().getBotJob().getId());
-            if (instruction.getBlock().getBotJob().getPriority() != null) {
-                abrPriorities.loadPrioritiesFromString(
-                        instruction.getBlock().getBotJob().getPriority());
+            abrPriorities.setJobId(botJobId);
+            if (instruction.getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(instruction.getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
-        } else if (abrPriorities.getJobId()
-                != instruction.getBlock().getBotJob().getId()) {
-            abrPriorities.setJobId(instruction.getBlock().getBotJob().getId());
-            if (instruction.getBlock().getBotJob().getPriority() != null) {
-                abrPriorities.loadPrioritiesFromString(
-                        instruction.getBlock().getBotJob().getPriority());
+        } else if (abrPriorities.getJobId() != botJobId) {
+            abrPriorities.setJobId(botJobId);
+            if (instruction.getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(instruction.getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
@@ -2900,7 +3021,7 @@ public class ABRScannedElementPane extends ABRPane {
                 //                    .findFirst();
 
                 // Find the first matching instruction reference
-                Optional<InstructionReferenceDTO> instructionReference = instructionReferenceList.stream()
+                Optional<InstructionReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
                         .filter(reference -> priority.getName().stream()
                                 .anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType())))
                         .findFirst();
@@ -3020,7 +3141,8 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private String insertValueFieldNameInExcel(WebElement element, BlockLoopInstructionDTO instruction, String action) {
+    private String insertValueFieldNameInExcel(
+            WebElement element, BlockLoopInstructionLoadDTO instruction, String action, String botJobName) {
         String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
         if (innerHTMLValue.contains("<div")) {
             int lastIndexOfDiv = innerHTMLValue.lastIndexOf("<div");
@@ -3035,12 +3157,11 @@ public class ABRScannedElementPane extends ABRPane {
             fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
-        BotJobDTO botJob = instruction.getBlock().getBotJob();
-        new ExcelWriter(botJob).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
+        new ExcelWriter(botJobName).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
         return action + " fieldName " + fieldName;
     }
 
-    private void listOperation(BlockLoopInstructionDTO instructionDTO, Map<String, String> data) {
+    private void listOperation(BlockLoopInstructionLoadDTO instructionDTO, Map<String, String> data) {
 
         /*
         TODO: Da rivedere, attualmente non del tutto funzionante
@@ -3048,7 +3169,7 @@ public class ABRScannedElementPane extends ABRPane {
         [       0       ||       1      ||       2         ||    3    ||        4       ||  5   ||            6                ]
         [backward_button||forward_button||list_elements_tag||condition||expected_results||action||sub_element_on_execute_action]
         */
-        List<ComplexInstructionDTO> complexInstructionDTOS = instructionDTO.getComplexInstrucions();
+        List<ComplexInstructionLoadDTO> complexInstructionDTOS = instructionDTO.getComplexInstructionLoadDTOList();
         String[] complexActionParts =
                 complexInstructionDTOS.get(0).getInstruction().split(Constants.COMPLEX_INSTRUCTION_SEPARATOR);
         List<WebElement> webElementList;
@@ -3124,7 +3245,7 @@ public class ABRScannedElementPane extends ABRPane {
             WebElement element,
             Map<String, String> data,
             String singleInstruction,
-            BlockLoopInstructionDTO instructionDTO)
+            BlockLoopInstructionLoadDTO instructionDTO)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         waitForAction.until(ExpectedConditions.visibilityOf(element));
@@ -3189,7 +3310,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private synchronized String onHoldForSeconds(BlockLoopInstructionDTO instruction) throws Exception {
+    private synchronized String onHoldForSeconds(BlockLoopInstructionLoadDTO instruction) throws Exception {
         if (instruction != null) {
             Integer instructionSeconds = instruction.getOnHoldSeconds();
             if (instructionSeconds != null && instructionSeconds > 0) {
@@ -3243,16 +3364,17 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private void executeActionsAtInstructionCoordinates(BlockLoopInstructionDTO instruction, Map<String, String> data)
-            throws Exception {
+    private void executeActionsAtInstructionCoordinates(
+            BlockLoopInstructionLoadDTO instruction, Map<String, String> data) throws Exception {
 
         List<com.allinweb.ch.util.Priority> priorityList = ABRPriorities.getAllPriorityList();
         Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
                 .filter(p -> p.getPriorityType() == PriorityTypeEnum.coordinates)
                 .findFirst();
         if (priority.isPresent()) {
-            List<InstructionReferenceDTO> instructionReferenceList = instruction.getInstructionReferenceDTOList();
-            Optional<InstructionReferenceDTO> reference = instructionReferenceList.stream()
+            List<InstructionReferenceLoadDTO> instructionReferenceList =
+                    instruction.getInstructionReferenceLoadDTOList();
+            Optional<InstructionReferenceLoadDTO> reference = instructionReferenceList.stream()
                     .filter(ref -> ref.getReferenceType().equals(priority.get().getName()))
                     .findFirst();
             int x = 0;
@@ -3358,7 +3480,7 @@ public class ABRScannedElementPane extends ABRPane {
         new Actions(abrWebDriver.getDriver()).moveToLocation(x, y).click().perform();
     }
 
-    private void typeCharacters(BlockLoopInstructionDTO instruction, String action, Map<String, String> data) {
+    private void typeCharacters(BlockLoopInstructionLoadDTO instruction, String action, Map<String, String> data) {
         String value = null;
         if (data != null) {
             String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);

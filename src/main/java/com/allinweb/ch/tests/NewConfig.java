@@ -47,7 +47,7 @@ public class NewConfig extends Application {
         Label optionsConfigLabel = new Label("WebDriver Options:");
         optionsConfigField = new TextField();
 
-        Button submitButton = new Button("Submit");
+        Button submitButton = new Button("Insert");
         Button updateButton = new Button("Update");
         Button deleteButton = new Button("Delete");
         Button templateButton = new Button("Template");
