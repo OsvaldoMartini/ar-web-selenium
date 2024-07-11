@@ -74,7 +74,7 @@ public class ABRElementValuePane extends ABRPane {
             initializeDatabase();
         }
         loadUserData();
-       
+
         // Create labels
         Label idLabel = new Label("ID:");
         Label nameLabel = new Label("Name:");
