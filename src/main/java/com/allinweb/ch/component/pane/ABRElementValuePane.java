@@ -54,6 +54,14 @@ public class ABRElementValuePane extends ABRPane {
 
     private Pane mainPane;
 
+    TextField idField;
+    TextField nameField;
+    TextField usedVarsField;
+    CheckBox stringCheckBox;
+    CheckBox numericCheckBox;
+    Button updateButton;
+    Button deleteButton;
+
     private boolean isNewState = false;
 
     public ABRElementValuePane(ListView<BotJobDTO> viewVariablesListView, int botJobId) {
@@ -68,7 +76,6 @@ public class ABRElementValuePane extends ABRPane {
 
     @Override
     public void initUIComponents() {
-
         // Initialize database IF IS ACCESS TO BE USED
         if (!POSTGRES_DB) {
             initializeDatabase();
@@ -82,42 +89,57 @@ public class ABRElementValuePane extends ABRPane {
         Label jobsLabel = new Label("Used Variables:");
 
         // Create text fields
-        TextField idField = new TextField();
+        idField = new TextField();
         idField.setEditable(false);
         idField.setStyle("-fx-control-inner-background: D3D3D3; -fx-pref-width: 50px;");
-        //        idField.setPrefWidth(200); // Set the preferred width
         idField.setPrefHeight(30);
 
-        TextField nameField = new TextField();
+        nameField = new TextField();
         nameField.setStyle("-fx-control-inner-background: FFDA33;");
         nameField.requestFocus();
 
-        TextField typeField = new TextField();
-        typeField.setStyle("-fx-control-inner-background: FFDA33;");
-
-        TextField usedVarsField = new TextField(); // Hidden field
+        usedVarsField = new TextField();
         usedVarsField.setEditable(false);
         usedVarsField.setStyle("-fx-control-inner-background: D3D3D3;");
-        usedVarsField.setPrefWidth(50); // Set the preferred width
+        usedVarsField.setPrefWidth(50);
         usedVarsField.setPrefHeight(30);
+
+        // Create checkboxes for type selection
+        stringCheckBox = new CheckBox("$String");
+        numericCheckBox = new CheckBox("#Numeric");
+
+        // Ensure only one checkbox can be selected at a time
+        stringCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+                numericCheckBox.setSelected(false);
+            }
+        });
+
+        numericCheckBox.selectedProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue) {
+                stringCheckBox.setSelected(false);
+            }
+        });
 
         // Create submit button
         Button submitButton = new Button("Insert");
         submitButton.setOnAction(event -> {
-            VariableUserDTO user = new VariableUserDTO(
-                    null, nameField.getText().trim(), typeField.getText().trim(), String.valueOf(botJobId));
+            String selectedType =
+                    stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
+
+            VariableUserDTO user =
+                    new VariableUserDTO(null, nameField.getText().trim(), selectedType, String.valueOf(botJobId));
 
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
                         Alert.AlertType.ERROR,
-                        "Env Name Alread Existe",
-                        String.format("This '%s' cannot be inserted with same name.\n", nameField.getText()));
+                        "Env Name Already Exists",
+                        String.format("This '%s' cannot be inserted with the same name.\n", nameField.getText()));
                 return;
             }
 
-            if (nameField.getText().trim().isEmpty()
-                    || typeField.getText().trim().isEmpty()) {
-                showAlert(Alert.AlertType.ERROR, "Name and URL Cannot be Empty", "Name and URL Cannot be Empty");
+            if (nameField.getText().trim().isEmpty() || selectedType.isEmpty()) {
+                showAlert(Alert.AlertType.ERROR, "Name and Type Cannot be Empty", "Name and Type Cannot be Empty");
                 return;
             }
 
@@ -126,16 +148,20 @@ public class ABRElementValuePane extends ABRPane {
         });
 
         // Create update button
-        Button updateButton = new Button("Update");
+        updateButton = new Button("Update");
         updateButton.setOnAction(event -> {
             String id = idField.getText();
-            VariableUserDTO user =
-                    new VariableUserDTO(id, nameField.getText(), typeField.getText(), String.valueOf(botJobId));
+            String selectedType =
+                    stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
+
+            VariableUserDTO user = new VariableUserDTO(id, nameField.getText(), selectedType, String.valueOf(botJobId));
             updateUserData(id, user);
             loadUserData();
         });
+        updateButton.setDisable(true);
 
-        Button deleteButton = new Button("Delete");
+        // Create delete button
+        deleteButton = new Button("Delete");
         deleteButton.setOnAction(event -> {
             String id = idField.getText();
             if (Integer.parseInt(usedVarsField.getText()) > 0) {
@@ -151,6 +177,7 @@ public class ABRElementValuePane extends ABRPane {
             deleteUserData(id);
             loadUserData();
         });
+        deleteButton.setDisable(true);
 
         // Create layout and add components
         GridPane gridPane = new GridPane();
@@ -166,7 +193,8 @@ public class ABRElementValuePane extends ABRPane {
         gridPane.add(nameField, 1, 1);
 
         gridPane.add(typeLabel, 0, 2);
-        gridPane.add(typeField, 1, 2);
+        HBox typeBox = new HBox(10, stringCheckBox, numericCheckBox); // Create an HBox to hold the checkboxes
+        gridPane.add(typeBox, 1, 2);
 
         gridPane.add(jobsLabel, 0, 5);
         gridPane.add(usedVarsField, 1, 5);
@@ -202,15 +230,22 @@ public class ABRElementValuePane extends ABRPane {
 
                 // Set the values of the selected row to the text fields
                 idField.setText(selectedUser.getId());
-                typeField.setText(selectedUser.getType());
                 nameField.setText(selectedUser.getName());
                 usedVarsField.setText(selectedUser.getUsedVars()); // Update the hidden field
+
+                // Update the checkboxes based on the selected user's type
+                if (selectedUser.getType().equals("$String")) {
+                    stringCheckBox.setSelected(true);
+                    numericCheckBox.setSelected(false);
+                } else if (selectedUser.getType().equals("#Numeric")) {
+                    stringCheckBox.setSelected(false);
+                    numericCheckBox.setSelected(true);
+                }
+                deleteButton.setDisable(false);
+                updateButton.setDisable(false);
             } else {
-                // If no row is selected, clear the text fields
-                idField.clear();
-                typeField.clear();
-                nameField.clear();
-                // Clear other fields as needed
+                // If no row is selected, clear the text fields and checkboxes
+                clearData();
             }
         });
 
@@ -229,13 +264,21 @@ public class ABRElementValuePane extends ABRPane {
         VBox.setVgrow(tableViewContainer, Priority.ALWAYS);
 
         // Use AnchorPane to ensure the VBox resizes with the window
-        //        AnchorPane mainPane = new AnchorPane(vbox);
-
         mainPane = new AnchorPane(vbox);
         AnchorPane.setTopAnchor(vbox, 0.0);
         AnchorPane.setBottomAnchor(vbox, 0.0);
         AnchorPane.setLeftAnchor(vbox, 0.0);
         AnchorPane.setRightAnchor(vbox, 0.0);
+    }
+
+    private void clearData() {
+        idField.clear();
+        nameField.clear();
+        usedVarsField.clear();
+        stringCheckBox.setSelected(false);
+        numericCheckBox.setSelected(false);
+        deleteButton.setDisable(true);
+        updateButton.setDisable(true);
     }
 
     private List<BankingDTO> loadFromDB() {

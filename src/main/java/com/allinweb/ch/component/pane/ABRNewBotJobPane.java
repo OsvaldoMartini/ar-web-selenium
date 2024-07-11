@@ -65,12 +65,10 @@ public class ABRNewBotJobPane extends ABRPane {
 
     @Override
     public void initUIComponents() {
-        // Create a single-threaded executor service
-        executorService = Executors.newSingleThreadExecutor();
-
         // Create a label to display the countdown
         Label countdownLabel = new Label(String.valueOf(remainingSeconds));
         countdownLabel.setStyle("-fx-font-size: 24px;");
+        countdownLabel.setVisible(false);
         // Create a stack pane to hold the label
         StackPane stackPane = new StackPane(countdownLabel);
         stackPane.setPadding(new Insets(20));
@@ -149,6 +147,7 @@ public class ABRNewBotJobPane extends ABRPane {
         // Looping through the ListView items
         List<BotJobDTO> items = viewBotJobListView.getItems();
         boolean existName = items.stream().anyMatch(f -> f.getName().equalsIgnoreCase(botJobName.getText()));
+        executorService = Executors.newSingleThreadExecutor();
 
         if (existName) {
             alertToShow.setTitle("Duplicate Name");
@@ -178,6 +177,7 @@ public class ABRNewBotJobPane extends ABRPane {
         }
 
         if (executorService != null) {
+            remainingSeconds = SECONDS;
             executorService.shutdown();
         }
         if (!existName && !Strings.isNullOrEmpty(homeBankingChoiceBox.getValue().toString())) {
