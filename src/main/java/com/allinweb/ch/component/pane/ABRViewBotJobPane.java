@@ -13,6 +13,7 @@ import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -21,6 +22,11 @@ import com.allinweb.ch.util.ExcelWriter;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.Iterator;
 import java.util.List;
@@ -41,6 +47,22 @@ import javafx.stage.Stage;
 import javax.swing.*;
 
 public class ABRViewBotJobPane extends ABRPane {
+
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+
+    // Postgres
+    private static final boolean POSTGRES_DB = true;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+
+    private Connection conn = null;
+    private List<VariableUserDTO> variablesList = new ArrayList<>();
+
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private BotJobDTO botJob;
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
@@ -59,6 +81,11 @@ public class ABRViewBotJobPane extends ABRPane {
     Button generateExcelButton;
     Button openExcelFilterPanelButton;
     Button closeBotJobButton;
+
+    Button setValueButton;
+    Button getValueButton;
+    Button variablesButton;
+
     ButtonBar buttonPane;
     Label botJobNameLabel;
     Label botJobDescriptionLabel;
@@ -69,6 +96,7 @@ public class ABRViewBotJobPane extends ABRPane {
     Button componentButton;
     VBox componentContainer;
     ListView<SavedBlocksDTO> componentList;
+    ListView<BotJobDTO> viewVariablesListView;
 
     public ABRViewBotJobPane(BotJobDTO botJob) {
         this.botJob = botJob;
@@ -108,74 +136,108 @@ public class ABRViewBotJobPane extends ABRPane {
                 "Filter", ABRConstants.SPACE_ZERO, "/list.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.closeBotJobButton = builder.buildButton(
                 "Close", ABRConstants.SPACE_ZERO, "/cross.png", ABRConstants.SPACE_M, new Insets(5.0D));
-        // Create the primary button bar
-        this.buttonPane = new ButtonBar();
-        this.buttonPane
-                .getButtons()
-                .addAll(
-                        refreshButton,
-                        this.openScannerButton,
-                        this.addWaitButton30,
-                        this.addWaitButton15,
-                        this.editBotJobButton,
-                        this.launchBotJobButton);
+        // Create a GridPane for the left side buttons
+        GridPane leftGridPane = new GridPane();
+        leftGridPane.setVgap(10); // Vertical spacing between elements
+        leftGridPane.setHgap(10); // Horizontal spacing between elements
 
-// Create a new HBox for the buttons to be placed below
-        HBox lowerButtonPane = new HBox(10); // Spacing of 10 between buttons
-        lowerButtonPane.getChildren().addAll(
-                this.saveBotJobButton,
-                this.saveAsBotJobButton,
-                this.openExcelFileButton,
-                this.generateExcelButton,
-                this.openExcelFilterPanelButton,
-                this.closeBotJobButton);
+        // Define a uniform width for the buttons
+        double buttonWidth = 100;
 
-// Center the buttons in the lower HBox
-        lowerButtonPane.setAlignment(Pos.CENTER);
+        // Add the top row of buttons
+        refreshButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(refreshButton, 0, 0);
 
-// Create a VBox to contain both the primary button bar and the lower HBox
-        VBox leftButtonPane = new VBox(10); // Spacing of 10 between the button bars
-        leftButtonPane.getChildren().addAll(buttonPane, lowerButtonPane);
-        leftButtonPane.setAlignment(Pos.CENTER_LEFT); // Left align the VBox
+        openScannerButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(openScannerButton, 1, 0);
 
-// Create a new VBox for the right side with setValue and getValue buttons
-        Button setValueButton = builder.buildButton(
-                "Set Value", ABRConstants.SPACE_ZERO, "/setvalue.png", ABRConstants.SPACE_M, new Insets(5.0D));
-        Button getValueButton = builder.buildButton(
-                "Get Value", ABRConstants.SPACE_ZERO, "/getvalue.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        addWaitButton30.setPrefWidth(buttonWidth);
+        leftGridPane.add(addWaitButton30, 2, 0);
 
-        VBox rightButtonPane = new VBox(10); // Spacing of 10 between buttons
-        rightButtonPane.getChildren().addAll(setValueButton, getValueButton);
-        rightButtonPane.setAlignment(Pos.CENTER_RIGHT); // Right align the VBox
+        addWaitButton15.setPrefWidth(buttonWidth);
+        leftGridPane.add(addWaitButton15, 3, 0);
 
-// Create an HBox to contain both left and right button panes
-        HBox combinedButtonPane = new HBox(50); // Spacing of 50 between left and right panes
-        combinedButtonPane.getChildren().addAll(leftButtonPane, rightButtonPane);
-        combinedButtonPane.setAlignment(Pos.CENTER); // Center align the HBox
+        editBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(editBotJobButton, 4, 0);
 
-// Create a GridPane
-        GridPane gridPane = new GridPane();
+        launchBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(launchBotJobButton, 5, 0);
 
-// Add the combinedButtonPane to the GridPane and align it at the center
-        gridPane.add(combinedButtonPane, 0, 0);
-        GridPane.setHalignment(combinedButtonPane, javafx.geometry.HPos.CENTER); // Align center
+        // Add the bottom row of buttons
+        saveBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(saveBotJobButton, 0, 1);
 
-// Add checkBoxUpdatePriority below saveBotJobButton
-        gridPane.add(checkBoxUpdatePriority, 0, 1);
+        saveAsBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(saveAsBotJobButton, 1, 1);
+
+        openExcelFileButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(openExcelFileButton, 2, 1);
+
+        generateExcelButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(generateExcelButton, 3, 1);
+
+        openExcelFilterPanelButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(openExcelFilterPanelButton, 4, 1);
+
+        // Center the buttons
+        for (Node node : leftGridPane.getChildren()) {
+            GridPane.setHalignment(node, javafx.geometry.HPos.CENTER);
+        }
+
+        // Create a GridPane for the right side buttons
+        GridPane rightGridPane = new GridPane();
+        rightGridPane.setVgap(10); // Vertical spacing between elements
+        rightGridPane.setHgap(10); // Horizontal spacing between elements
+
+        // Add the right side buttons
+        setValueButton = builder.buildButton(
+                "Set Value", ABRConstants.SPACE_ZERO, "/setvalueBtn.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        setValueButton.setPrefWidth(buttonWidth);
+        rightGridPane.add(setValueButton, 0, 0);
+
+        getValueButton = builder.buildButton(
+                "Get Value", ABRConstants.SPACE_ZERO, "/getvalueBtn.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        getValueButton.setPrefWidth(buttonWidth);
+        rightGridPane.add(getValueButton, 0, 1);
+
+        variablesButton = builder.buildButton(
+                "Variables", ABRConstants.SPACE_ZERO, "/variables.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        variablesButton.setPrefWidth(buttonWidth);
+
+        rightGridPane.add(variablesButton, 2, 1);
+
+        closeBotJobButton.setPrefWidth(buttonWidth);
+        rightGridPane.add(closeBotJobButton, 5, 1);
+
+        // Center the buttons
+        for (Node node : rightGridPane.getChildren()) {
+            GridPane.setHalignment(node, javafx.geometry.HPos.CENTER);
+        }
+
+        // Create a main GridPane to hold both left and right GridPanes
+        GridPane mainGridPane = new GridPane();
+        mainGridPane.setHgap(50); // Horizontal spacing between left and right GridPanes
+        mainGridPane.add(leftGridPane, 0, 0);
+        mainGridPane.add(rightGridPane, 1, 0);
+
+        // Add checkBoxUpdatePriority below the buttons in leftGridPane
+        leftGridPane.add(checkBoxUpdatePriority, 0, 2, 8, 1); // Span across 8 columns
         GridPane.setHalignment(checkBoxUpdatePriority, javafx.geometry.HPos.CENTER); // Align center
 
-// Other UI components
+        // Other UI components
         this.botJobNameLabel = new Label(this.botJob.getName());
         this.botJobName = new TextField(this.botJob.getName());
+
         this.initComponentUI();
+
         StackPane botJobNameGroup =
-                new StackPane(new Node[]{this.botJobNameLabel, this.botJobName, this.componentButton});
+                new StackPane(new Node[] {this.botJobNameLabel, this.botJobName, this.componentButton});
         StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
         StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
         this.botJobDescriptionLabel = new Label(this.botJob.getDescription());
         this.botJobDescription = new TextField(this.botJob.getDescription());
         StackPane botJobDescriptionGroup =
-                new StackPane(new Node[]{this.botJobDescriptionLabel, this.botJobDescription});
+                new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescription});
         ObservableList<BlockDTO> blockDTOObservableList = ABRSharedResources.getInstance()
                 .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId());
         this.uiBlockList = new ListView<>(blockDTOObservableList);
@@ -185,10 +247,10 @@ public class ABRViewBotJobPane extends ABRPane {
         this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
         this.uiBlockList.setPrefHeight(900.0D);
         this.uiBlockList.setBorder((Border) null);
-        HBox compBox = new HBox(new Node[]{this.uiBlockList, this.componentContainer});
+        HBox compBox = new HBox(new Node[] {this.uiBlockList, this.componentContainer});
         HBox.setHgrow(this.uiBlockList, Priority.ALWAYS);
         HBox.setHgrow(this.componentContainer, Priority.ALWAYS);
-        this.botJobContainer = new VBox(new Node[]{gridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
+        this.botJobContainer = new VBox(new Node[] {mainGridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
         AnchorPane.setTopAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setBottomAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setLeftAnchor(this.botJobContainer, ABRConstants.SPACE_M);
@@ -196,6 +258,9 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIBehaviour() {
+        this.variablesButton.setOnMouseClicked(
+                (e) -> new ABRElementValueScene(viewVariablesListView, this.botJob.getId()).show());
+
         addWaitButton30.setOnAction(e -> addWaitTask(30));
         addWaitButton15.setOnAction(e -> addWaitTask(15));
         refreshButton.setOnMouseClicked(e -> {
@@ -370,6 +435,12 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     private void initComponentUI() {
+        // Initialize database IF IS ACCESS TO BE USED
+        if (!POSTGRES_DB) {
+            initializeDatabase();
+        }
+        loadUserData();
+
         this.componentButton = builder.buildButton(
                 "",
                 ABRConstants.SPACE_L,
@@ -466,5 +537,77 @@ public class ABRViewBotJobPane extends ABRPane {
             };
             new Thread(waitTask).start();
         }
+    }
+
+    private void initializeDatabase() {
+
+        String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+        String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+        File dbFile = new File(dbPath + ABRConstants.FILE_NAME_DB);
+        if (!dbFile.exists()) {
+            try (Connection conn = DriverManager.getConnection(dbUrl)) {
+                try (Statement stmt = conn.createStatement()) {
+                    String createTableSQL = "CREATE TABLE home_banking (" + "ID AUTOINCREMENT PRIMARY KEY, "
+                            + "name TEXT, password TEXT, url TEXT, username TEXT, priority TEXT)";
+                    stmt.executeUpdate(createTableSQL);
+                }
+                System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
+        }
+    }
+
+    private Connection getConnection() {
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                try {
+                    conn = DriverManager.getConnection(dbUrl);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        }
+    }
+
+    private void loadUserData() {
+        variablesList.clear();
+        String selectSQL = " SELECT vars.id, vars.name, vars.type, bot_job_id, COUNT(blk.variable_id) UsedVars "
+                + " FROM variable vars "
+                + " left join block_loop_instruction blk on blk.variable_id = vars.id "
+                + " where bot_job_id = " + this.botJob.getId()
+                + " group by vars.id, vars.Name, vars.type ";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                String id = rs.getString("ID");
+                String name = rs.getString("name");
+                String type = rs.getString("type");
+                String botJobId = rs.getString("bot_job_id");
+                String usedVars = rs.getString("UsedVars");
+                variablesList.add(new VariableUserDTO(id, name, type, botJobId, usedVars));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        //        jobUserList.clear();
+        //        loadBotJobData();
     }
 }

@@ -1,13 +1,12 @@
 package com.allinweb.ch.persistence;
 
 import com.allinweb.ch.core.ABRSharedResources;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 @Entity
 @Table(name = "bot_job")

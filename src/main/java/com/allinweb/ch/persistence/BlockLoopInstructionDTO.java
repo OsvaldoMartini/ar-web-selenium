@@ -60,6 +60,9 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Transient
     private String priority;
 
+    @Column(name = "variable_id")
+    private Integer variableId;
+
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @OrderBy("orderNumber ASC")
     @JoinColumn(name = "block_loop_instruction_id")
@@ -223,5 +226,13 @@ public class BlockLoopInstructionDTO extends BaseDTO {
                 .getEntityList(
                         InstructionReferenceDTO.class,
                         reference -> reference.getBlockLoopInstructionDTO().getId() == this.getId());
+    }
+
+    public Integer getVariableId() {
+        return variableId;
+    }
+
+    public void setVariableId(Integer variableId) {
+        this.variableId = variableId;
     }
 }

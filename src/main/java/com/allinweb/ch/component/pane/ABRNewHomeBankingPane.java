@@ -121,7 +121,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
         optionsConfigField.setStyle("-fx-control-inner-background: FFDA33;");
 
         // Create submit button
-        Button submitButton = new Button("Submit");
+        Button submitButton = new Button("Insert");
         submitButton.setOnAction(event -> {
             DatabaseUserDTO user = new DatabaseUserDTO(
                     null,
