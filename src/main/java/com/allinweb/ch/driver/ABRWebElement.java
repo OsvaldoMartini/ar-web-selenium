@@ -9,6 +9,7 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
+import com.allinweb.ch.persistence.VariableDTO;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
@@ -17,6 +18,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.event.EventHandler;
@@ -25,6 +27,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
@@ -72,6 +75,11 @@ public class ABRWebElement {
     private Button moreOptionsButton;
     private Button saveButton;
     private Button deleteButton;
+    private HBox setValueBox;
+    private HBox getValueBox;
+    private HBox variablesBox;
+
+    private ComboBox<VBox> comboBox;
 
     private ImageView clickImage;
     private ImageView insertImage;
@@ -418,8 +426,47 @@ public class ABRWebElement {
         deleteButton = componentBuilder.buildButton(
                 "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
 
+        // Load the CSS file
+        String css = this.getClass().getResource("/combobox.css").toExternalForm();
+        // Create HBoxes for each image and label
+        setValueBox =
+                createImageWithLabel(ABRConstants.ICON_SET_VALUE, "set value to variable", this::handleSetValue);
+        getValueBox =
+                createImageWithLabel(ABRConstants.ICON_GET_VALUE, "get value from element", this::handleGetValue);
+        variablesBox =
+                createImageWithLabel(ABRConstants.ICON_VARIABLES, "define variables", this::handleVariables);
+
+        // Apply CSS class to HBoxes
+        setValueBox.getStyleClass().add("hbox-hover");
+        getValueBox.getStyleClass().add("hbox-hover");
+        variablesBox.getStyleClass().add("hbox-hover");
+
+        // Create a VBox for the clickable images
+        VBox componentsVBox = new VBox(10, variablesBox, setValueBox, getValueBox);
+        componentsVBox.setAlignment(Pos.CENTER);
+
+        // Create a ComboBox and add the VBox to it
+        // Create data for the ListView
+        ObservableList<String> items = FXCollections.observableArrayList("a", "b", "c");
+        
+        comboBox = new ComboBox<>(FXCollections.observableArrayList(componentsVBox));
+        comboBox.setPrefWidth(250); // Adjust width to fit the text "components"
+
+        // Set the text of the ComboBox to "components"
+        comboBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(VBox item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? "components" : null);
+            }
+        });
+        comboBox.setPromptText("components");
+
+        // Add the stylesheet to the ComboBox
+        comboBox.getStylesheets().add(css);
+
         blockButton.setPrefWidth(ABRConstants.SPACE_L);
-        actionPanel = new HBox(blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
+        actionPanel = new HBox(comboBox, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
         actionPanel.setSpacing(ABRConstants.SPACE_XS);
         actionPanel.setAlignment(Pos.CENTER_RIGHT);
 
@@ -439,6 +486,7 @@ public class ABRWebElement {
         blockButton.visibleProperty().bind(toBeAddedElement.not());
         moveDownButton.visibleProperty().bind(toBeAddedElement.not());
         deleteButton.visibleProperty().bind(toBeAddedElement.not());
+        comboBox.visibleProperty().bind(toBeAddedElement.not());
 
         moreOptionsButton.setOnAction(e -> editingElement.setValue(!editingElement.getValue()));
         this.blockButton.setOnAction((e) -> {
@@ -512,6 +560,24 @@ public class ABRWebElement {
                                         ButtonType.OK));
             });
         });
+
+        comboBox.setOnAction(e -> {
+            BlockLoopInstructionDTO instruction =
+                    ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
+            int instructionIndex = instruction.getInstructionOrderNumber();
+            BlockDTO block = instruction.getBlock();
+//            if (block.getBotJob().getVariables() != null) {
+//                List<VariableDTO> variables = block.getBotJob().getVariables();
+//                System.out.println(String.format(
+//                        "Block Variables: %s InstructionId: %s  instructionIndex: %s Command: %s",
+//                        variables.size(), instructionId, instructionIndex, e.toString()));
+//            } else {
+                System.out.println(String.format(
+                        "Block Name: %s InstructionId: %s  instructionIndex: %s Command: %s",
+                        block.getName(), instructionId, instructionIndex, e.toString()));
+//            }
+        });
+
         EventHandler<MouseEvent> mouseEventEventHandler = mouseEvent -> {
             editingElement.setValue(false);
         };
@@ -821,5 +887,42 @@ public class ABRWebElement {
         for (WebElement child : children) {
             extractTextRecursively(child, textContent);
         }
+    }
+
+    // Handler methods for the images
+    private void handleSetValue() {
+        // Your set value logic here
+        System.out.println("handleSetValue");
+    }
+
+    private void handleGetValue() {
+        // Your get value logic here
+        System.out.println("handleGetValue");
+    }
+
+    private void handleVariables() {
+        // Your variables logic here
+        System.out.println("handleVariables");
+    }
+
+    private HBox createImageWithLabel(String iconPath, String labelText, Runnable action) {
+        ImageView imageView = new ImageView(new Image(iconPath));
+        imageView.setFitWidth(24); // Set the width for icon size
+        imageView.setFitHeight(24); // Set the height for icon size
+        imageView.setPreserveRatio(true);
+
+        Label label = new Label(labelText);
+        label.getStyleClass().add("label"); // Add the label style class
+        // Add hover effect using CSS
+        label.setStyle("-fx-cursor: hand;");
+        label.setOnMouseEntered(e -> label.setStyle("-fx-cursor: hand; -fx-opacity: 0.7;"));
+        label.setOnMouseExited(e -> label.setStyle("-fx-cursor: hand; -fx-opacity: 1;"));
+        label.setOnMouseClicked(e -> action.run());
+
+        HBox hBox = new HBox(10, imageView, label);
+        hBox.setAlignment(Pos.CENTER_LEFT);
+        hBox.setOnMouseClicked(e -> action.run());
+
+        return hBox;
     }
 }

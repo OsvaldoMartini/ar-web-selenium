@@ -39,12 +39,9 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -191,30 +188,7 @@ public class ABRViewBotJobPane extends ABRPane {
         rightGridPane.setVgap(10); // Vertical spacing between elements
         rightGridPane.setHgap(10); // Horizontal spacing between elements
 
-        // Create clickable images for setValue, getValue, and variables
-        ImageView setValueImageView = createClickableImageView(ABRConstants.ICON_SET_VALUE, this::handleSetValue);
-        ImageView getValueImageView = createClickableImageView(ABRConstants.ICON_GET_VALUE, this::handleGetValue);
-        ImageView variablesImageView = createClickableImageView(ABRConstants.ICON_VARIABLES, this::handleVariables);
-
-        // Create a VBox for the clickable images
-        VBox componentsVBox = new VBox(10, variablesImageView, setValueImageView, getValueImageView);
-        componentsVBox.setAlignment(Pos.CENTER);
-
-        // Create a ComboBox and add the VBox to it
-        ComboBox<VBox> comboBox = new ComboBox<>(FXCollections.observableArrayList(componentsVBox));
-        comboBox.setPrefWidth(100); // Adjust width to fit the text "components"
-
-        // Set the text of the ComboBox to "components"
-        comboBox.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(VBox item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty ? "components" : null);
-            }
-        });
-        comboBox.setPromptText("components");
-
-        rightGridPane.add(comboBox, 0, 0);
+        //        rightGridPane.add(comboBox, 0, 0);
 
         closeBotJobButton.setPrefWidth(buttonWidth);
         rightGridPane.add(closeBotJobButton, 5, 1);
@@ -248,8 +222,12 @@ public class ABRViewBotJobPane extends ABRPane {
         this.botJobDescription = new TextField(this.botJob.getDescription());
         StackPane botJobDescriptionGroup =
                 new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescription});
-        ObservableList<BlockDTO> blockDTOObservableList = ABRSharedResources.getInstance()
-                .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId());
+
+        ObservableList<BlockDTO> blockDTOObservableList =
+                FXCollections.observableArrayList(ABRSharedResources.getInstance()
+                        .getEntityList(
+                                BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId()));
+
         this.uiBlockList = new ListView<>(blockDTOObservableList);
 
         uiBlockList.setCellFactory(new ABRCellFactory<>(BlockListCell.class)::call);
@@ -257,6 +235,7 @@ public class ABRViewBotJobPane extends ABRPane {
         this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
         this.uiBlockList.setPrefHeight(900.0D);
         this.uiBlockList.setBorder(null);
+
         HBox compBox = new HBox(new Node[] {this.uiBlockList, this.componentContainer});
         HBox.setHgrow(this.uiBlockList, Priority.ALWAYS);
         HBox.setHgrow(this.componentContainer, Priority.ALWAYS);
@@ -265,6 +244,9 @@ public class ABRViewBotJobPane extends ABRPane {
         AnchorPane.setBottomAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setLeftAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setRightAnchor(this.botJobContainer, ABRConstants.SPACE_M);
+
+        // Add the stylesheet to the scene
+        //        mainGridPane.getStylesheets().add(css);
     }
 
     public void initUIBehaviour() {
@@ -616,35 +598,5 @@ public class ABRViewBotJobPane extends ABRPane {
         }
         //        jobUserList.clear();
         //        loadBotJobData();
-    }
-
-    // Handler methods for the images
-    private void handleSetValue() {
-        // Your set value logic here
-    }
-
-    private void handleGetValue() {
-        // Your get value logic here
-    }
-
-    private void handleVariables() {
-        // Your variables logic here
-    }
-
-    private ImageView createClickableImageView(String iconPath, Runnable action) {
-        ImageView imageView = new ImageView(new Image(iconPath));
-        imageView.setFitWidth(24); // Set the width for icon size
-        imageView.setFitHeight(24); // Set the height for icon size
-        imageView.setPreserveRatio(true);
-
-        // Add hover effect using CSS
-        imageView.setStyle("-fx-cursor: hand;");
-        imageView.setOnMouseEntered(e -> imageView.setStyle("-fx-cursor: hand; -fx-opacity: 0.7;"));
-        imageView.setOnMouseExited(e -> imageView.setStyle("-fx-cursor: hand; -fx-opacity: 1;"));
-
-        // Set the action on click
-        imageView.setOnMouseClicked(e -> action.run());
-
-        return imageView;
     }
 }

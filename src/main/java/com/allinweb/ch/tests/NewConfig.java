@@ -1,7 +1,7 @@
 package com.allinweb.ch.tests;
 
+import com.allinweb.ch.persistence.DatabaseUserDTO;
 import javafx.application.Application;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -55,9 +55,25 @@ public class NewConfig extends Application {
         // Dummy data for testing
         ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList(
                 new DatabaseUserDTO(
-                        "1", "Job1", "Name1", "http://example1.com", "Priority1", "SearchConfig1", "OptionsConfig1"),
+                        "1",
+                        "Job1",
+                        "Name1",
+                        "http://example1.com",
+                        "Priority1",
+                        "SearchConfig1",
+                        "OptionsConfig1",
+                        "martini",
+                        "123"),
                 new DatabaseUserDTO(
-                        "2", "Job2", "Name2", "http://example2.com", "Priority2", "SearchConfig2", "OptionsConfig2"));
+                        "2",
+                        "Job2",
+                        "Name2",
+                        "http://example2.com",
+                        "Priority2",
+                        "SearchConfig2",
+                        "OptionsConfig2",
+                        "martini",
+                        "123"));
 
         // Create layout and add components
         GridPane gridPane = new GridPane();
@@ -182,53 +198,53 @@ public class NewConfig extends Application {
         launch(args);
     }
 }
-
-// Dummy DatabaseUserDTO class for demonstration
-class DatabaseUserDTO {
-    private final SimpleStringProperty id, jobs, name, url, priority, searchConfig, optionsConfig;
-
-    public DatabaseUserDTO(
-            String id,
-            String jobs,
-            String name,
-            String url,
-            String priority,
-            String searchConfig,
-            String optionsConfig) {
-        this.id = new SimpleStringProperty(id);
-        this.jobs = new SimpleStringProperty(jobs);
-        this.name = new SimpleStringProperty(name);
-        this.url = new SimpleStringProperty(url);
-        this.priority = new SimpleStringProperty(priority);
-        this.searchConfig = new SimpleStringProperty(searchConfig);
-        this.optionsConfig = new SimpleStringProperty(optionsConfig);
-    }
-
-    public String getId() {
-        return id.get();
-    }
-
-    public String getJobs() {
-        return jobs.get();
-    }
-
-    public String getName() {
-        return name.get();
-    }
-
-    public String getUrl() {
-        return url.get();
-    }
-
-    public String getPriority() {
-        return priority.get();
-    }
-
-    public String getSearchConfig() {
-        return searchConfig.get();
-    }
-
-    public String getOptionsConfig() {
-        return optionsConfig.get();
-    }
-}
+//
+//// Dummy DatabaseUserDTO class for demonstration
+// class DatabaseUserDTO {
+//    private final SimpleStringProperty id, jobs, name, url, priority, searchConfig, optionsConfig;
+//
+//    public DatabaseUserDTO(
+//            String id,
+//            String jobs,
+//            String name,
+//            String url,
+//            String priority,
+//            String searchConfig,
+//            String optionsConfig) {
+//        this.id = new SimpleStringProperty(id);
+//        this.jobs = new SimpleStringProperty(jobs);
+//        this.name = new SimpleStringProperty(name);
+//        this.url = new SimpleStringProperty(url);
+//        this.priority = new SimpleStringProperty(priority);
+//        this.searchConfig = new SimpleStringProperty(searchConfig);
+//        this.optionsConfig = new SimpleStringProperty(optionsConfig);
+//    }
+//
+//    public String getId() {
+//        return id.get();
+//    }
+//
+//    public String getJobs() {
+//        return jobs.get();
+//    }
+//
+//    public String getName() {
+//        return name.get();
+//    }
+//
+//    public String getUrl() {
+//        return url.get();
+//    }
+//
+//    public String getPriority() {
+//        return priority.get();
+//    }
+//
+//    public String getSearchConfig() {
+//        return searchConfig.get();
+//    }
+//
+//    public String getOptionsConfig() {
+//        return optionsConfig.get();
+//    }
+// }
