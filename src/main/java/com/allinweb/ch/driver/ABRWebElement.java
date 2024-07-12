@@ -9,7 +9,6 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
-import com.allinweb.ch.persistence.VariableDTO;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
@@ -429,12 +428,9 @@ public class ABRWebElement {
         // Load the CSS file
         String css = this.getClass().getResource("/combobox.css").toExternalForm();
         // Create HBoxes for each image and label
-        setValueBox =
-                createImageWithLabel(ABRConstants.ICON_SET_VALUE, "set value to variable", this::handleSetValue);
-        getValueBox =
-                createImageWithLabel(ABRConstants.ICON_GET_VALUE, "get value from element", this::handleGetValue);
-        variablesBox =
-                createImageWithLabel(ABRConstants.ICON_VARIABLES, "define variables", this::handleVariables);
+        setValueBox = createImageWithLabel(ABRConstants.ICON_SET_VALUE, "set value to variable", this::handleSetValue);
+        getValueBox = createImageWithLabel(ABRConstants.ICON_GET_VALUE, "get value from element", this::handleGetValue);
+        variablesBox = createImageWithLabel(ABRConstants.ICON_VARIABLES, "define variables", this::handleVariables);
 
         // Apply CSS class to HBoxes
         setValueBox.getStyleClass().add("hbox-hover");
@@ -445,14 +441,15 @@ public class ABRWebElement {
         VBox componentsVBox = new VBox(10, variablesBox, setValueBox, getValueBox);
         componentsVBox.setAlignment(Pos.CENTER);
 
-
         // Create sample items and their corresponding graphics (VBox)
         ItemWithGraphic[] items = {
-                new ItemWithGraphic("a", createImageWithLabel(ABRConstants.ICON_SET_VALUE_BTN, "Item A", this::handleSetValue)),
-                new ItemWithGraphic("b", createImageWithLabel(ABRConstants.ICON_GET_VALUE_BTN, "Item B", this::handleGetValue)),
-                new ItemWithGraphic("c", createImageWithLabel(ABRConstants.ICON_VARIABLES, "Item C", this::handleVariables))
+            new ItemWithGraphic(
+                    "a", createImageWithLabel(ABRConstants.ICON_SET_VALUE_BTN, "Item A", this::handleSetValue)),
+            new ItemWithGraphic(
+                    "b", createImageWithLabel(ABRConstants.ICON_GET_VALUE_BTN, "Item B", this::handleGetValue)),
+            new ItemWithGraphic("c", createImageWithLabel(ABRConstants.ICON_VARIABLES, "Item C", this::handleVariables))
         };
-        
+
         comboBox = new ComboBox<>(FXCollections.observableArrayList(items));
 
         comboBox.setPrefWidth(150); // Adjust width to fit the text "components"
@@ -469,7 +466,8 @@ public class ABRWebElement {
                 if (empty || item == null) {
                     setText(null);
                 } else {
-                    setText(item.getItem()); // Display text of the selected item
+                    //                    setText(item.getItem()); // Display text of the selected item
+                    setGraphic(item.getGraphic()); // Display graphic (VBox) of the selected item
                 }
             }
         });
@@ -481,7 +479,7 @@ public class ABRWebElement {
                     setText(null);
                     setGraphic(null);
                 } else {
-                    setText(item.getItem()); // Display text of the item in the list
+                    //                    setText(item.getItem()); // Display text of the item in the list
                     setGraphic(item.getGraphic()); // Display graphic (VBox) of the item in the list
                 }
             }
@@ -593,16 +591,16 @@ public class ABRWebElement {
                     ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
             int instructionIndex = instruction.getInstructionOrderNumber();
             BlockDTO block = instruction.getBlock();
-//            if (block.getBotJob().getVariables() != null) {
-//                List<VariableDTO> variables = block.getBotJob().getVariables();
-//                System.out.println(String.format(
-//                        "Block Variables: %s InstructionId: %s  instructionIndex: %s Command: %s",
-//                        variables.size(), instructionId, instructionIndex, e.toString()));
-//            } else {
-                System.out.println(String.format(
-                        "Block Name: %s InstructionId: %s  instructionIndex: %s Command: %s",
-                        block.getName(), instructionId, instructionIndex, comboBox.getValue().item));
-//            }
+            //            if (block.getBotJob().getVariables() != null) {
+            //                List<VariableDTO> variables = block.getBotJob().getVariables();
+            //                System.out.println(String.format(
+            //                        "Block Variables: %s InstructionId: %s  instructionIndex: %s Command: %s",
+            //                        variables.size(), instructionId, instructionIndex, e.toString()));
+            //            } else {
+            System.out.println(String.format(
+                    "Block Name: %s InstructionId: %s  instructionIndex: %s Command: %s",
+                    block.getName(), instructionId, instructionIndex, comboBox.getValue().item));
+            //            }
         });
 
         EventHandler<MouseEvent> mouseEventEventHandler = mouseEvent -> {
@@ -956,7 +954,7 @@ public class ABRWebElement {
     public static class ItemWithGraphic {
         private String item;
         private HBox graphic;
- 
+
         public ItemWithGraphic(String item, HBox graphic) {
             this.item = item;
             this.graphic = graphic;
@@ -969,9 +967,5 @@ public class ABRWebElement {
         public HBox getGraphic() {
             return graphic;
         }
-        
     }
-
 }
-
-
