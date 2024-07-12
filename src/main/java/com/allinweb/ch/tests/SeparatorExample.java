@@ -20,8 +20,8 @@ public class SeparatorExample extends Application {
         // Create UI elements
         CheckBox checkActiveHover = new CheckBox("Active Hover");
 
-        Label xpathTextFieldLabel = new Label("XPath:");
-        TextField xpathTextField = new TextField();
+        Label currentXPathLabel = new Label("XPath:");
+        TextField currentXPathTextField = new TextField();
 
         Label tagNameTextFieldLabel = new Label("Tag Name:");
         TextField tagNameTextField = new TextField();
@@ -52,8 +52,8 @@ public class SeparatorExample extends Application {
                 .getChildren()
                 .addAll(
                         checkActiveHover,
-                        xpathTextFieldLabel,
-                        xpathTextField,
+                        currentXPathLabel,
+                        currentXPathTextField,
                         tagNameTextFieldLabel,
                         tagNameTextField,
                         coordsTextFieldLabel,

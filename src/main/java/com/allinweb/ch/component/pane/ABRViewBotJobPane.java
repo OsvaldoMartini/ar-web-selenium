@@ -191,17 +191,29 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Add the right side buttons
         setValueButton = builder.buildButton(
-                "Set Value", ABRConstants.SPACE_ZERO, "/setvalueBtn.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Set Value",
+                ABRConstants.SPACE_ZERO,
+                ABRConstants.ICON_SET_VALUE_BTN,
+                ABRConstants.SPACE_M,
+                new Insets(5.0D));
         setValueButton.setPrefWidth(buttonWidth);
         rightGridPane.add(setValueButton, 0, 0);
 
         getValueButton = builder.buildButton(
-                "Get Value", ABRConstants.SPACE_ZERO, "/getvalueBtn.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Get Value",
+                ABRConstants.SPACE_ZERO,
+                ABRConstants.ICON_GET_VALUE_BTN,
+                ABRConstants.SPACE_M,
+                new Insets(5.0D));
         getValueButton.setPrefWidth(buttonWidth);
         rightGridPane.add(getValueButton, 0, 1);
 
         variablesButton = builder.buildButton(
-                "Variables", ABRConstants.SPACE_ZERO, "/variables.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Variables",
+                ABRConstants.SPACE_ZERO,
+                ABRConstants.ICON_VARIABLES,
+                ABRConstants.SPACE_M,
+                new Insets(5.0D));
         variablesButton.setPrefWidth(buttonWidth);
 
         rightGridPane.add(variablesButton, 2, 1);

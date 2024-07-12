@@ -1,6 +1,8 @@
 package com.allinweb.ch.control;
 
+import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import java.util.Objects;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -55,12 +57,17 @@ public class ABRComponentBuilder {
     }
 
     public ImageView buildImageView(String source, Double size) {
-        ImageView image =
-                new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(source))));
-        image.setFitHeight(size);
-        image.setFitWidth(size);
-        image.setPreserveRatio(true);
-        return image;
+        try {
+            ImageView image =
+                    new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(source))));
+            image.setFitHeight(size);
+            image.setFitWidth(size);
+            image.setPreserveRatio(true);
+            return image;
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class).severe("BuildImageView\n" + e);
+        }
+        return null;
     }
 
     public Button buildButton(String text) {

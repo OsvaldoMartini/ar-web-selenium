@@ -40,6 +40,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -56,6 +58,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.net.ssl.*;
 import org.apache.commons.lang3.StringUtils;
@@ -75,7 +78,12 @@ public class ABRScannedElementPane extends ABRPane {
 
     private Connection conn = null;
 
-    private ExecutorService executorService = Executors.newCachedThreadPool();
+    private ExecutorService executorService;
+    private static final int SECONDS = 3; // Total seconds for the countdown
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private Alert alertToShow;
+
     private static SearchReturn searchReturn = new SearchReturn();
 
     private static Wait<WebDriver> waitForPage;
@@ -130,6 +138,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Button scanButton;
     private Button addWaitButton30;
     private Button addWaitButton15;
+    private Button addWaitButton5;
     private Button addNewElement;
     private Button addCloseActionButton;
     private Button addScreenButton;
@@ -150,17 +159,17 @@ public class ABRScannedElementPane extends ABRPane {
     private Label defineNameLabel;
     private Label attribIdTextFieldLabel;
     private Label attribNameTextFieldLabel;
-    private Label xpathTextFieldLabel;
+    private Label currentXPathLabel;
     private Label currentAbsoluteXPathLabel;
-    private Label currentCustomXPathLabel;
+    private Label customXPathLabel;
     private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
 
     private TextField defineNameField;
-    private TextField countdownTextField;
+    private TextArea countdownTextField;
     private TextField attribIdTextField;
     private TextField attribNameTextField;
-    private TextField xpathTextField;
+    private TextField currentXPathTextField;
     private TextField absolutXPathTextField;
     private TextField customXPathTextField;
     private TextField originalTagNameField;
@@ -216,6 +225,30 @@ public class ABRScannedElementPane extends ABRPane {
 
     @Override
     public void initUIComponents() {
+        // Create a label to display the countdown
+        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
+        countdownLabel.setStyle("-fx-font-size: 24px;");
+        //        countdownLabel.setVisible(false);
+        // Create a stack pane to hold the label
+        StackPane stackPane = new StackPane(countdownLabel);
+        stackPane.setPadding(new Insets(20));
+        // Create a dialog for the alert
+        alertToShow = new Alert(Alert.AlertType.INFORMATION);
+        alertToShow.setTitle("Countdown Alert");
+        alertToShow.setHeaderText("Count Down");
+        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        // Set the content of the alert
+        alertToShow.getDialogPane().setContent(stackPane);
+        // Create a timeline to update the countdown
+        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
+            remainingSeconds--;
+            countdownLabel.setText(String.valueOf(remainingSeconds));
+            if (remainingSeconds <= 0) {
+                timeline.stop(); // Stop the timeline when countdown finishes
+                alertToShow.close(); // Close the alert dialog
+            }
+        }));
+
         abrWebDriver.openDriver(
                 botJob.getHomeBanking().getUrl(),
                 botJob.getHomeBanking().getOptionsConfig().toString());
@@ -233,6 +266,9 @@ public class ABRScannedElementPane extends ABRPane {
 
         addWaitButton15 = componentBuilder.buildButton(
                 "15s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+
+        addWaitButton5 = componentBuilder.buildButton(
+                "5s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
 
         addNewElement = componentBuilder.buildButton(
                 "Add Element", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_M, new Insets(5));
@@ -291,8 +327,8 @@ public class ABRScannedElementPane extends ABRPane {
         recallJobButton = componentBuilder.buildButton(
                 "Re-Call", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
 
-        countdownTextField = new TextField("10");
-        countdownTextField.setStyle("-fx-font-size: 24px;");
+        countdownTextField = new TextArea("10");
+        countdownTextField.setStyle("-fx-font-size: 18px; -fx-text-fill: blue;");
         countdownTextField.setEditable(false);
 
         checkActiveHover = new CheckBox("Identify");
@@ -301,9 +337,9 @@ public class ABRScannedElementPane extends ABRPane {
 
         attribIdTextFieldLabel = new Label("Attrib Id Found");
         attribNameTextFieldLabel = new Label("Attrib Name Found");
-        xpathTextFieldLabel = new Label("XPath");
+        currentXPathLabel = new Label("XPath");
         currentAbsoluteXPathLabel = new Label("Absolut XPath");
-        currentCustomXPathLabel = new Label("Custom XPath");
+        customXPathLabel = new Label("Custom XPath");
         originalTagNameLabel = new Label("Tag Name");
         coordsTextFieldLabel = new Label("Coordinates");
 
@@ -314,8 +350,8 @@ public class ABRScannedElementPane extends ABRPane {
         attribIdTextField.setPromptText("Attrib Id");
         attribNameTextField = new TextField();
         attribNameTextField.setPromptText("Attrib Name");
-        xpathTextField = new TextField();
-        xpathTextField.setPromptText("XPath");
+        currentXPathTextField = new TextField();
+        currentXPathTextField.setPromptText("XPath");
         absolutXPathTextField = new TextField();
         absolutXPathTextField.setPromptText("Absolut XPath");
         customXPathTextField = new TextField();
@@ -336,13 +372,14 @@ public class ABRScannedElementPane extends ABRPane {
             gridPaneTop.add(scanButton, 0, 0);
             gridPaneTop.add(addWaitButton30, 1, 0);
             gridPaneTop.add(addWaitButton15, 2, 0);
-            gridPaneTop.add(addCloseActionButton, 3, 0);
-            gridPaneTop.add(addScreenButton, 4, 0);
+            gridPaneTop.add(addWaitButton5, 3, 0);
+            gridPaneTop.add(addCloseActionButton, 4, 0);
+            gridPaneTop.add(addScreenButton, 5, 0);
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
             //        gridPaneTop.add(checkActiveHover, 6, 0);
             //        gridPaneTop.add(addNewElement, 7, 0);
-            //        gridPaneTop.add(xpathTextField, 8, 0);
+            //        gridPaneTop.add(currentXPathTextField, 8, 0);
 
             VBox vBoxCheckBox = new VBox();
             vBoxCheckBox.getChildren().addAll(checkClickElement, checkInputText);
@@ -392,11 +429,11 @@ public class ABRScannedElementPane extends ABRPane {
                             attribIdTextField,
                             attribNameTextFieldLabel,
                             attribNameTextField,
-                            xpathTextFieldLabel,
-                            xpathTextField,
+                            currentXPathLabel,
+                            currentXPathTextField,
                             currentAbsoluteXPathLabel,
                             absolutXPathTextField,
-                            currentCustomXPathLabel,
+                            customXPathLabel,
                             customXPathTextField,
                             originalTagNameLabel,
                             originalTagNameField,
@@ -417,6 +454,7 @@ public class ABRScannedElementPane extends ABRPane {
             addNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
             //            launchBotJobButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
             // Bind the widths of the buttons to percentages of the HBox width
+            countdownTextField.maxWidthProperty().bind(textFieldVBox.widthProperty());
             configureButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
 
             // Fix the widths to 70% and 30% of the HBox width
@@ -506,6 +544,8 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void scheduleRemoval(HBox bottomPane, Node node, int delayMillis) {
+        executorService = Executors.newCachedThreadPool();
+
         executorService.execute(() -> {
             try {
                 TimeUnit.MILLISECONDS.sleep(delayMillis); // Wait for the specified delay
@@ -515,6 +555,11 @@ public class ABRScannedElementPane extends ABRPane {
             Platform.runLater(
                     () -> bottomPane.getChildren().remove(node)); // Remove the node on the JavaFX Application Thread
         });
+
+        if (executorService != null) {
+            remainingSeconds = SECONDS;
+            executorService.shutdown();
+        }
     }
 
     @Override
@@ -569,6 +614,7 @@ public class ABRScannedElementPane extends ABRPane {
         scanButton.setOnAction(e -> manageUIScan());
         addWaitButton30.setOnAction(e -> addWaitTask(30));
         addWaitButton15.setOnAction(e -> addWaitTask(15));
+        addWaitButton5.setOnAction(e -> addWaitTask(5));
         addNewElement.setOnAction(e -> {
             if (searchReturn.getElement() != null) {
                 insertNewElement();
@@ -649,7 +695,7 @@ public class ABRScannedElementPane extends ABRPane {
         searchReturn.setAttributeType("");
         searchReturn.setAttributeValue("");
         searchReturn.setCoords("");
-        searchReturn.setCurrentXPath(xpathTextField.getText());
+        searchReturn.setCurrentXPath(currentXPathTextField.getText());
         searchReturn.setAbsolutXPath(absolutXPathTextField.getText());
         searchReturn.setCustomXPath(customXPathTextField.getText());
         searchReturn.setElement(null);
@@ -1063,7 +1109,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void addWaitTask(Integer secondsToWait) {
         Alert alert = new Alert(
                 Alert.AlertType.CONFIRMATION,
-                "Are you sure you want to add a wait of 30 seconds to the botjob?",
+                "Are you sure you want to add a wait of "+ secondsToWait +" seconds to the botjob?",
                 ButtonType.YES,
                 ButtonType.NO);
         Optional<ButtonType> result = alert.showAndWait();
@@ -2192,8 +2238,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "          var customXPath = getMartiniCustomXPath(elementBelowTooltip);"
                 + "          window.currentXPath = xpath;"
                 + "          window.currentAbsoluteXPath = absoluteXPath;"
-                + "          window.currentXPath = xpath;"
-                + "          window.currentCustomXPath = customXPath;"
+                + "          window.customXPath = customXPath;"
                 + "          window.attribId = elementBelowTooltip.id || '';"
                 + "          window.attribName = elementBelowTooltip.name || '';"
                 + "          window.tagName = elementBelowTooltip.tagName.toLowerCase();"
@@ -2202,7 +2247,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    }"
                 + "    window.currentXPath = '';"
                 + "    window.currentAbsoluteXPath = '';"
-                + "    window.currentCustomXPath = '';"
+                + "    window.customXPath = '';"
                 + "    window.attribId = '';"
                 + "    window.attribName = '';"
                 + "    window.tagName = '';"
@@ -2232,7 +2277,7 @@ public class ABRScannedElementPane extends ABRPane {
                         // Execute JavaScript to construct and return a custom object
                         LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
                                 jsExecutor.executeScript(
-                                        "var obj = { attribId: window.attribId, attribName: window.attribName, currentCustomXPath: window.currentCustomXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords }; return obj;");
+                                        "var obj = { attribId: window.attribId, attribName: window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords }; return obj;");
 
                         // Convert the LinkedHashMap to a Java Map (if necessary)
                         Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
@@ -2241,9 +2286,9 @@ public class ABRScannedElementPane extends ABRPane {
                             Platform.runLater(() -> {
                                 attribIdTextField.setText((String) resultMap.get("attribId"));
                                 attribNameTextField.setText((String) resultMap.get("attribName"));
-                                xpathTextField.setText((String) resultMap.get("currentXPath"));
+                                currentXPathTextField.setText((String) resultMap.get("currentXPath"));
                                 absolutXPathTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
-                                customXPathTextField.setText((String) resultMap.get("currentCustomXPath"));
+                                customXPathTextField.setText((String) resultMap.get("customXPath"));
                                 originalTagNameField.setText((String) resultMap.get("tagName"));
                                 coordsTextField.setText((String) resultMap.get("coords"));
                                 if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
@@ -2599,7 +2644,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private void executeJob() {
+    private boolean executeJob() {
         if (waitForPage == null) {
             String updateTimeout =
                     ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
@@ -2675,6 +2720,8 @@ public class ABRScannedElementPane extends ABRPane {
         Map<String, String> dataExcel = null;
 
         int botJobId = blocksLoaded.get(0).getBotJobLoadDTO().getId();
+        
+        clearFields();
 
         if (extractedData.getNumberOfDataRows() > 0) {
             for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
@@ -2692,6 +2739,8 @@ public class ABRScannedElementPane extends ABRPane {
                             File logFileForSingleExcel = excelReader.createLogFile(excelPath);
                             dataExcel = extractedData.getRowFieldValues(i);
 
+                            fillUpCurretLocators(currentInstruction);
+
                             try {
                                 lastInstructionExecuted = currentInstruction.getName()
                                         + Constants.BLANK_STRING
@@ -2701,16 +2750,21 @@ public class ABRScannedElementPane extends ABRPane {
                                 totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
                                 System.out.println("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
                                         + lastInstructionExecuted);
-                                currentInstruction.setExecuted(true);
+                                if (resultAcions != null) {
+                                    currentInstruction.setExecuted(true);
 
-                                // Assuming currentInstruction and instructionsExecuted are already defined
-                                if (currentInstruction != null
-                                        && instructionsExecuted.stream()
-                                                .noneMatch(instruction -> instruction.getInstructionOrderNumber()
-                                                        == currentInstruction.getInstructionOrderNumber())) {
-                                    instructionsExecuted.add(currentInstruction);
+                                    // Assuming currentInstruction and instructionsExecuted are already defined
+                                    if (currentInstruction != null
+                                            && instructionsExecuted.stream()
+                                                    .noneMatch(instruction -> instruction.getInstructionOrderNumber()
+                                                            == currentInstruction.getInstructionOrderNumber())) {
+                                        instructionsExecuted.add(currentInstruction);
+                                    }
+                                    success = true;
+                                } else {
+                                    resultAcions = "Failled to Execute -> " + currentInstruction.getName();
+                                    success = false;
                                 }
-                                success = true;
                             } catch (Throwable t) {
                                 success = false;
                                 currentInstruction.setExecuted(false);
@@ -2735,6 +2789,12 @@ public class ABRScannedElementPane extends ABRPane {
                                 //                            throw new RuntimeException(t);
                             }
                             printLog(generateTimestamp(), logFileForSingleExcel, resultAcions, success);
+                            if (!success) {
+                                countdownTextField.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+                                countdownTextField.setText(
+                                        resultAcions + "\nincrease the Waiting time or\ncheck the xPath/CSS Locators");
+                                return false;
+                            }
                         }
                     }
                 }
@@ -2774,12 +2834,17 @@ public class ABRScannedElementPane extends ABRPane {
                         lastInstructionExecuted =
                                 currentInstruction.getName() + Constants.BLANK_STRING + currentInstruction.getPath();
                         resultAcions = performActions(dataDynamic, currentInstruction, botJobId);
-                        long currentInstructionEndTime = System.nanoTime();
-                        totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
-                        System.out.println("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
-                                + lastInstructionExecuted);
-                        currentInstruction.setExecuted(true);
-                        success = true;
+                        if (resultAcions != null) {
+                            long currentInstructionEndTime = System.nanoTime();
+                            totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
+                            System.out.println("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
+                                    + lastInstructionExecuted);
+                            currentInstruction.setExecuted(true);
+                            success = true;
+                        } else {
+                            resultAcions = "Failled to Execute -> " + currentInstruction.getName();
+                            success = false;
+                        }
                     } catch (Throwable t) {
                         success = false;
                         currentInstruction.setExecuted(false);
@@ -2823,6 +2888,37 @@ public class ABRScannedElementPane extends ABRPane {
                     + lastInstructionExecuted;
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+        return true;
+    }
+
+    private void clearFields() {
+        absolutXPathTextField.setText("");
+        currentXPathTextField.setText("");
+        coordsTextField.setText("");
+        customXPathTextField.setText("");
+        countdownTextField.setText("10");
+        countdownTextField.setStyle("-fx-font-size: 18px; -fx-text-fill: blue;");
+    }
+
+    private void fillUpCurretLocators(BlockLoopInstructionLoadDTO currentInstruction) {
+        for (InstructionReferenceLoadDTO reference : currentInstruction.getInstructionReferenceLoadDTOList()) {
+            switch (reference.getReferenceType()) {
+                case "absolutXPath":
+                    absolutXPathTextField.setText(reference.getValue());
+                    break;
+                case "currentXPath":
+                    currentXPathTextField.setText(reference.getValue());
+                    break;
+                case "coords":
+                    coordsTextField.setText(reference.getValue());
+                    break;
+                case "customXPath":
+                    customXPathTextField.setText(reference.getValue());
+                    break;
+                default:
+                    System.out.println("Unknown reference type: " + reference.getReferenceType());
+            }
+        }
     }
 
     public static List<BlockLoopInstructionLoadDTO> getUnexecutedInstructions(
@@ -2898,7 +2994,7 @@ public class ABRScannedElementPane extends ABRPane {
         if (!StringUtils.isBlank(instruction.getPath())) {
             instructionElement = locateElement(instruction, data, botJobId);
         }
-        String result = "";
+        String result = null;
         if (instructionElement != null || actions[0].equals(Constants.HOLD)) {
 
             for (String action : actions) {
@@ -2940,10 +3036,11 @@ public class ABRScannedElementPane extends ABRPane {
                 }
                 onHoldForSeconds(null);
             }
-        } else {
-            executeActionsAtInstructionCoordinates(instruction, data);
-            onHoldForSeconds(null);
         }
+        //        } else {
+        //            executeActionsAtInstructionCoordinates(instruction, data);
+        //            onHoldForSeconds(null);
+        //        }
         return result;
     }
 

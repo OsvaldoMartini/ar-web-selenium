@@ -32,7 +32,7 @@ public class DesignCorrection extends Application {
     Button configureButton = new Button("Configure");
     Button launchBotJobButton = new Button("Launch Bot Job");
     CheckBox checkActiveHover = new CheckBox("Active Hover");
-    TextField xpathTextField = new TextField();
+    TextField currentXPathTextField = new TextField();
     Button addElement = new Button("Add Element");
     CheckBox checkClickElement = new CheckBox("Click Element");
     CheckBox checkInputText = new CheckBox("Input Text");
@@ -67,7 +67,7 @@ public class DesignCorrection extends Application {
         gridPaneTop.add(configureButton, 4, 0);
         gridPaneTop.add(launchBotJobButton, 5, 0);
         gridPaneTop.add(checkActiveHover, 6, 0);
-        gridPaneTop.add(xpathTextField, 7, 0);
+        gridPaneTop.add(currentXPathTextField, 7, 0);
         gridPaneTop.add(addElement, 8, 0);
 
         VBox vBox = new VBox();

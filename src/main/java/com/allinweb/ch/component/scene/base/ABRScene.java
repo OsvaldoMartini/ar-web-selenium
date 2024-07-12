@@ -1,7 +1,9 @@
 package com.allinweb.ch.component.scene.base;
 
 import com.allinweb.ch.component.pane.base.IABRPane;
+import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import java.util.Objects;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -10,7 +12,7 @@ import javafx.stage.Stage;
 
 public abstract class ABRScene implements IABRScene {
 
-    private final Image icon;
+    private Image icon = null;
 
     private Stage stage = null;
     private Scene scene = null;
@@ -30,17 +32,21 @@ public abstract class ABRScene implements IABRScene {
             stage = new Stage();
             setStageBehaviour(stage);
         } catch (IllegalStateException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRWebDriver.class).severe("ABRScene (1) IllegalStateException\n" + e);
             try {
                 Platform.runLater(() -> {
                     stage = new Stage();
                     setStageBehaviour(stage);
                 });
             } catch (IllegalStateException ex) {
-                ex.printStackTrace();
+                ABRLogger.getInstance(ABRWebDriver.class).severe("ABRScene (2) IllegalStateException\n" + ex);
             }
         }
-        icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream(ABRConstants.ICON_APPLICATION)));
+        try {
+            icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream(ABRConstants.ICON_APPLICATION)));
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class).severe("ABRScene\n" + e);
+        }
     }
 
     public void createScene() {

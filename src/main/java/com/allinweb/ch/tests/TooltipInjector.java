@@ -16,7 +16,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 public class TooltipInjector extends Application {
 
     private WebDriver driver;
-    private TextField xpathTextField;
+    private TextField currentXPathTextField;
 
     public static void main(String[] args) {
         launch(args);
@@ -89,9 +89,9 @@ public class TooltipInjector extends Application {
 
         // Set up the JavaFX UI
         VBox root = new VBox();
-        xpathTextField = new TextField();
-        xpathTextField.setPromptText("Clicked element XPath will appear here");
-        root.getChildren().add(xpathTextField);
+        currentXPathTextField = new TextField();
+        currentXPathTextField.setPromptText("Clicked element XPath will appear here");
+        root.getChildren().add(currentXPathTextField);
 
         Scene scene = new Scene(root, 400, 200);
         primaryStage.setTitle("XPath Tooltip Injector");
@@ -102,7 +102,7 @@ public class TooltipInjector extends Application {
         new Thread(() -> {
                     while (true) {
                         String currentXPath = (String) jsExecutor.executeScript("return window.currentXPath;");
-                        Platform.runLater(() -> xpathTextField.setText(currentXPath));
+                        Platform.runLater(() -> currentXPathTextField.setText(currentXPath));
                         try {
                             Thread.sleep(500); // Check every 500 milliseconds
                         } catch (InterruptedException e) {
