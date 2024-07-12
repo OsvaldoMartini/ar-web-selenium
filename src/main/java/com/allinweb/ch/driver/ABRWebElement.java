@@ -79,7 +79,7 @@ public class ABRWebElement {
     private HBox getValueBox;
     private HBox variablesBox;
 
-    private ComboBox<VBox> comboBox;
+    private ComboBox<ItemWithGraphic> comboBox;
 
     private ImageView clickImage;
     private ImageView insertImage;
@@ -445,21 +445,48 @@ public class ABRWebElement {
         VBox componentsVBox = new VBox(10, variablesBox, setValueBox, getValueBox);
         componentsVBox.setAlignment(Pos.CENTER);
 
-        // Create a ComboBox and add the VBox to it
-        // Create data for the ListView
-        ObservableList<String> items = FXCollections.observableArrayList("a", "b", "c");
-        
-        comboBox = new ComboBox<>(FXCollections.observableArrayList(componentsVBox));
-        comboBox.setPrefWidth(250); // Adjust width to fit the text "components"
 
-        // Set the text of the ComboBox to "components"
+        // Create sample items and their corresponding graphics (VBox)
+        ItemWithGraphic[] items = {
+                new ItemWithGraphic("a", createImageWithLabel(ABRConstants.ICON_SET_VALUE_BTN, "Item A", this::handleSetValue)),
+                new ItemWithGraphic("b", createImageWithLabel(ABRConstants.ICON_GET_VALUE_BTN, "Item B", this::handleGetValue)),
+                new ItemWithGraphic("c", createImageWithLabel(ABRConstants.ICON_VARIABLES, "Item C", this::handleVariables))
+        };
+        
+        comboBox = new ComboBox<>(FXCollections.observableArrayList(items));
+
+        comboBox.setPrefWidth(150); // Adjust width to fit the text "components"
+
+        // Set initial selected index to 1 (second item)
+        if (items.length > 1) {
+            comboBox.setValue(items[1]);
+        }
+        // Set cell factory to customize display
         comboBox.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(VBox item, boolean empty) {
+            protected void updateItem(ItemWithGraphic item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty ? "components" : null);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(item.getItem()); // Display text of the selected item
+                }
             }
         });
+        comboBox.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ItemWithGraphic item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    setText(item.getItem()); // Display text of the item in the list
+                    setGraphic(item.getGraphic()); // Display graphic (VBox) of the item in the list
+                }
+            }
+        });
+        // Set the text of the ComboBox to "components"
         comboBox.setPromptText("components");
 
         // Add the stylesheet to the ComboBox
@@ -574,7 +601,7 @@ public class ABRWebElement {
 //            } else {
                 System.out.println(String.format(
                         "Block Name: %s InstructionId: %s  instructionIndex: %s Command: %s",
-                        block.getName(), instructionId, instructionIndex, e.toString()));
+                        block.getName(), instructionId, instructionIndex, comboBox.getValue().item));
 //            }
         });
 
@@ -925,4 +952,26 @@ public class ABRWebElement {
 
         return hBox;
     }
+
+    public static class ItemWithGraphic {
+        private String item;
+        private HBox graphic;
+ 
+        public ItemWithGraphic(String item, HBox graphic) {
+            this.item = item;
+            this.graphic = graphic;
+        }
+
+        public String getItem() {
+            return item;
+        }
+
+        public HBox getGraphic() {
+            return graphic;
+        }
+        
+    }
+
 }
+
+
