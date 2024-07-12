@@ -39,13 +39,18 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
-import javax.swing.*;
 
 public class ABRViewBotJobPane extends ABRPane {
 
@@ -83,12 +88,6 @@ public class ABRViewBotJobPane extends ABRPane {
     Button openExcelFilterPanelButton;
     Button closeBotJobButton;
 
-    ComboBox<VBox> comboBox;
-    Button setValueButton;
-    Button getValueButton;
-    Button variablesButton;
-
-    ButtonBar buttonPane;
     Label botJobNameLabel;
     Label botJobDescriptionLabel;
     TextField botJobName;
@@ -192,38 +191,18 @@ public class ABRViewBotJobPane extends ABRPane {
         rightGridPane.setVgap(10); // Vertical spacing between elements
         rightGridPane.setHgap(10); // Horizontal spacing between elements
 
-        // Create the setValue and getValue buttons
-        setValueButton = builder.buildButton(
-                "Set Value",
-                ABRConstants.SPACE_ZERO,
-                ABRConstants.ICON_SET_VALUE,
-                ABRConstants.SPACE_M,
-                new Insets(5.0D));
-        setValueButton.setPrefWidth(buttonWidth);
+        // Create clickable images for setValue, getValue, and variables
+        ImageView setValueImageView = createClickableImageView(ABRConstants.ICON_SET_VALUE, this::handleSetValue);
+        ImageView getValueImageView = createClickableImageView(ABRConstants.ICON_GET_VALUE, this::handleGetValue);
+        ImageView variablesImageView = createClickableImageView(ABRConstants.ICON_VARIABLES, this::handleVariables);
 
-        getValueButton = builder.buildButton(
-                "Get Value",
-                ABRConstants.SPACE_ZERO,
-                ABRConstants.ICON_GET_VALUE,
-                ABRConstants.SPACE_M,
-                new Insets(5.0D));
-        getValueButton.setPrefWidth(buttonWidth);
-
-        // Create the variables button
-        variablesButton = builder.buildButton(
-                "Variables",
-                ABRConstants.SPACE_ZERO,
-                ABRConstants.ICON_VARIABLES,
-                ABRConstants.SPACE_M,
-                new Insets(5.0D));
-        variablesButton.setPrefWidth(buttonWidth);
-
-        // Create a VBox for the variables, setValue, and getValue buttons
-        VBox componentsVBox = new VBox(10, variablesButton, setValueButton, getValueButton);
+        // Create a VBox for the clickable images
+        VBox componentsVBox = new VBox(10, variablesImageView, setValueImageView, getValueImageView);
+        componentsVBox.setAlignment(Pos.CENTER);
 
         // Create a ComboBox and add the VBox to it
-        comboBox = new ComboBox<>(FXCollections.observableArrayList(componentsVBox));
-        comboBox.setPrefWidth(150); // Adjust width to fit the text "components"
+        ComboBox<VBox> comboBox = new ComboBox<>(FXCollections.observableArrayList(componentsVBox));
+        comboBox.setPrefWidth(100); // Adjust width to fit the text "components"
 
         // Set the text of the ComboBox to "components"
         comboBox.setButtonCell(new ListCell<>() {
@@ -289,9 +268,6 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIBehaviour() {
-        this.variablesButton.setOnMouseClicked(
-                (e) -> new ABRElementValueScene(viewVariablesListView, this.botJob.getId()).show());
-
         addWaitButton30.setOnAction(e -> addWaitTask(30));
         addWaitButton15.setOnAction(e -> addWaitTask(15));
         refreshButton.setOnMouseClicked(e -> {
@@ -640,5 +616,35 @@ public class ABRViewBotJobPane extends ABRPane {
         }
         //        jobUserList.clear();
         //        loadBotJobData();
+    }
+
+    // Handler methods for the images
+    private void handleSetValue() {
+        // Your set value logic here
+    }
+
+    private void handleGetValue() {
+        // Your get value logic here
+    }
+
+    private void handleVariables() {
+        // Your variables logic here
+    }
+
+    private ImageView createClickableImageView(String iconPath, Runnable action) {
+        ImageView imageView = new ImageView(new Image(iconPath));
+        imageView.setFitWidth(24); // Set the width for icon size
+        imageView.setFitHeight(24); // Set the height for icon size
+        imageView.setPreserveRatio(true);
+
+        // Add hover effect using CSS
+        imageView.setStyle("-fx-cursor: hand;");
+        imageView.setOnMouseEntered(e -> imageView.setStyle("-fx-cursor: hand; -fx-opacity: 0.7;"));
+        imageView.setOnMouseExited(e -> imageView.setStyle("-fx-cursor: hand; -fx-opacity: 1;"));
+
+        // Set the action on click
+        imageView.setOnMouseClicked(e -> action.run());
+
+        return imageView;
     }
 }

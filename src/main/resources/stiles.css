@@ -1,0 +1,12 @@
+.combo-box {
+    -fx-background-color: white;
+}
+
+.combo-box:hover {
+    -fx-background-color: white; /* Ensure the background stays white on hover */
+}
+
+.image-view:hover {
+    -fx-opacity: 0.7; /* Adjust opacity on hover */
+    -fx-cursor: hand; /* Change cursor to hand on hover */
+}
