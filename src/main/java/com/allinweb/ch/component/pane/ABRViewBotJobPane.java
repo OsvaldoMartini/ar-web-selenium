@@ -31,6 +31,7 @@ import java.util.*;
 import java.util.Iterator;
 import java.util.List;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -82,6 +83,7 @@ public class ABRViewBotJobPane extends ABRPane {
     Button openExcelFilterPanelButton;
     Button closeBotJobButton;
 
+    ComboBox<VBox> comboBox;
     Button setValueButton;
     Button getValueButton;
     Button variablesButton;
@@ -136,6 +138,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 "Filter", ABRConstants.SPACE_ZERO, "/list.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.closeBotJobButton = builder.buildButton(
                 "Close", ABRConstants.SPACE_ZERO, "/cross.png", ABRConstants.SPACE_M, new Insets(5.0D));
+
         // Create a GridPane for the left side buttons
         GridPane leftGridPane = new GridPane();
         leftGridPane.setVgap(10); // Vertical spacing between elements
@@ -189,25 +192,24 @@ public class ABRViewBotJobPane extends ABRPane {
         rightGridPane.setVgap(10); // Vertical spacing between elements
         rightGridPane.setHgap(10); // Horizontal spacing between elements
 
-        // Add the right side buttons
+        // Create the setValue and getValue buttons
         setValueButton = builder.buildButton(
                 "Set Value",
                 ABRConstants.SPACE_ZERO,
-                ABRConstants.ICON_SET_VALUE_BTN,
+                ABRConstants.ICON_SET_VALUE,
                 ABRConstants.SPACE_M,
                 new Insets(5.0D));
         setValueButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(setValueButton, 0, 0);
 
         getValueButton = builder.buildButton(
                 "Get Value",
                 ABRConstants.SPACE_ZERO,
-                ABRConstants.ICON_GET_VALUE_BTN,
+                ABRConstants.ICON_GET_VALUE,
                 ABRConstants.SPACE_M,
                 new Insets(5.0D));
         getValueButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(getValueButton, 0, 1);
 
+        // Create the variables button
         variablesButton = builder.buildButton(
                 "Variables",
                 ABRConstants.SPACE_ZERO,
@@ -216,7 +218,24 @@ public class ABRViewBotJobPane extends ABRPane {
                 new Insets(5.0D));
         variablesButton.setPrefWidth(buttonWidth);
 
-        rightGridPane.add(variablesButton, 2, 1);
+        // Create a VBox for the variables, setValue, and getValue buttons
+        VBox componentsVBox = new VBox(10, variablesButton, setValueButton, getValueButton);
+
+        // Create a ComboBox and add the VBox to it
+        comboBox = new ComboBox<>(FXCollections.observableArrayList(componentsVBox));
+        comboBox.setPrefWidth(150); // Adjust width to fit the text "components"
+
+        // Set the text of the ComboBox to "components"
+        comboBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(VBox item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty ? "components" : null);
+            }
+        });
+        comboBox.setPromptText("components");
+
+        rightGridPane.add(comboBox, 0, 0);
 
         closeBotJobButton.setPrefWidth(buttonWidth);
         rightGridPane.add(closeBotJobButton, 5, 1);
@@ -258,7 +277,7 @@ public class ABRViewBotJobPane extends ABRPane {
         this.uiBlockList.setMaxHeight(Double.MAX_VALUE);
         this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
         this.uiBlockList.setPrefHeight(900.0D);
-        this.uiBlockList.setBorder((Border) null);
+        this.uiBlockList.setBorder(null);
         HBox compBox = new HBox(new Node[] {this.uiBlockList, this.componentContainer});
         HBox.setHgrow(this.uiBlockList, Priority.ALWAYS);
         HBox.setHgrow(this.componentContainer, Priority.ALWAYS);

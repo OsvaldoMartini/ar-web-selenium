@@ -65,7 +65,8 @@ public class ABRComponentBuilder {
             image.setPreserveRatio(true);
             return image;
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe("BuildImageView\n" + e);
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
         }
         return null;
     }

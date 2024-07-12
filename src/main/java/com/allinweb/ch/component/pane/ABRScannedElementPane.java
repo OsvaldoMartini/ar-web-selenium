@@ -865,7 +865,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        checkInputText.setDisable(checkActiveHover.isSelected());
         //        addNewElement.setDisable(checkActiveHover.isSelected());
         launchBotJobButton.setDisable(checkActiveHover.isSelected());
-        //        recallJobButton.setDisable(checkActiveHover.isSelected());
+        recallJobButton.setDisable(checkActiveHover.isSelected());
         periodicActivated = checkActiveHover.isSelected();
     }
 
@@ -1109,7 +1109,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void addWaitTask(Integer secondsToWait) {
         Alert alert = new Alert(
                 Alert.AlertType.CONFIRMATION,
-                "Are you sure you want to add a wait of "+ secondsToWait +" seconds to the botjob?",
+                "Are you sure you want to add a wait of " + secondsToWait + " seconds to the botjob?",
                 ButtonType.YES,
                 ButtonType.NO);
         Optional<ButtonType> result = alert.showAndWait();
@@ -2720,7 +2720,7 @@ public class ABRScannedElementPane extends ABRPane {
         Map<String, String> dataExcel = null;
 
         int botJobId = blocksLoaded.get(0).getBotJobLoadDTO().getId();
-        
+
         clearFields();
 
         if (extractedData.getNumberOfDataRows() > 0) {
