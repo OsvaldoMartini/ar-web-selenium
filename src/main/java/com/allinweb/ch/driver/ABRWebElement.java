@@ -379,7 +379,7 @@ public class ABRWebElement {
             nameLabel.setText(actionReference[1]);
             nameField.setText(actionReference[1]);
         }
-        
+
         if (actionReference[0].equals(ABRConstants.CLICK)) {
             clickElement.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.INSERT)) {
@@ -433,7 +433,8 @@ public class ABRWebElement {
         StackPane nameGroup = new StackPane(nameLabel, nameField);
 
         HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
-        StackPane actionGroup = new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
+        StackPane actionGroup =
+                new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
         elementPanel = new HBox(actionGroup, nameFieldsGroup);
         elementPanel.setSpacing(ABRConstants.SPACE_XS);
 
@@ -536,8 +537,6 @@ public class ABRWebElement {
         checkImage.visibleProperty().bind(checkValueElem);
 
         holdImage.visibleProperty().bind(holdValueElem);
-        
-
 
         nameLabel.visibleProperty().bind(editingElement.not());
         nameField.visibleProperty().bind(editingElement);
