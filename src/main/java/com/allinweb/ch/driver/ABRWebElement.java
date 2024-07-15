@@ -30,6 +30,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
@@ -78,7 +79,8 @@ public class ABRWebElement {
     private HBox getValueBox;
     private HBox variablesBox;
 
-    private ComboBox<ItemWithGraphic> comboBox;
+    private ComboBox<ComboBoxItem> comboBox;
+    private ObservableList<ComboBoxItem> items;
 
     private ImageView clickImage;
     private ImageView insertImage;
@@ -149,6 +151,7 @@ public class ABRWebElement {
 
     private void initFromWebElement(WebElement element) {
         initUI();
+
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
         try {
@@ -425,70 +428,60 @@ public class ABRWebElement {
         deleteButton = componentBuilder.buildButton(
                 "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
 
-        // Load the CSS file
-        String css = this.getClass().getResource("/combobox.css").toExternalForm();
-        // Create HBoxes for each image and label
-        setValueBox = createImageWithLabel(ABRConstants.ICON_SET_VALUE, "set value to variable", this::handleSetValue);
-        getValueBox = createImageWithLabel(ABRConstants.ICON_GET_VALUE, "get value from element", this::handleGetValue);
-        variablesBox = createImageWithLabel(ABRConstants.ICON_VARIABLES, "define variables", this::handleVariables);
+        // Initialize items with images and text
+        items = FXCollections.observableArrayList(
+                new ComboBoxItem("nothing", new Image(ABRConstants.ICON_BLANK)),
+                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
+                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)));
 
-        // Apply CSS class to HBoxes
-        setValueBox.getStyleClass().add("hbox-hover");
-        getValueBox.getStyleClass().add("hbox-hover");
-        variablesBox.getStyleClass().add("hbox-hover");
+        // Create ComboBox
+        comboBox = new ComboBox<>(items);
+        comboBox.setPrefWidth(150); // Set preferred width of ComboBox
 
-        // Create a VBox for the clickable images
-        VBox componentsVBox = new VBox(10, variablesBox, setValueBox, getValueBox);
-        componentsVBox.setAlignment(Pos.CENTER);
-
-        // Create sample items and their corresponding graphics (VBox)
-        ItemWithGraphic[] items = {
-            new ItemWithGraphic(
-                    "a", createImageWithLabel(ABRConstants.ICON_SET_VALUE_BTN, "Item A", this::handleSetValue)),
-            new ItemWithGraphic(
-                    "b", createImageWithLabel(ABRConstants.ICON_GET_VALUE_BTN, "Item B", this::handleGetValue)),
-            new ItemWithGraphic("c", createImageWithLabel(ABRConstants.ICON_VARIABLES, "Item C", this::handleVariables))
-        };
-
-        comboBox = new ComboBox<>(FXCollections.observableArrayList(items));
-
-        comboBox.setPrefWidth(150); // Adjust width to fit the text "components"
-
-        // Set initial selected index to 1 (second item)
-        if (items.length > 1) {
-            comboBox.setValue(items[1]);
-        }
-        // Set cell factory to customize display
+        // Set cell factory to display images and text
         comboBox.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ItemWithGraphic item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                } else {
-                    //                    setText(item.getItem()); // Display text of the selected item
-                    setGraphic(item.getGraphic()); // Display graphic (VBox) of the selected item
-                }
-            }
-        });
-        comboBox.setCellFactory(param -> new ListCell<>() {
-            @Override
-            protected void updateItem(ItemWithGraphic item, boolean empty) {
+            protected void updateItem(ComboBoxItem item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
                     setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
                 } else {
-                    //                    setText(item.getItem()); // Display text of the item in the list
-                    setGraphic(item.getGraphic()); // Display graphic (VBox) of the item in the list
+                    setText(item.getText());
+                    ImageView imageView = new ImageView(item.getImage());
+                    imageView.setFitWidth(20); // Set the width for icon size
+                    imageView.setFitHeight(20); // Set the height for icon size
+                    imageView.setPreserveRatio(true);
+                    setGraphic(imageView);
+                    setTextFill(Color.BLACK); // Ensure text is black
                 }
             }
         });
-        // Set the text of the ComboBox to "components"
-        comboBox.setPromptText("components");
 
-        // Add the stylesheet to the ComboBox
-        comboBox.getStylesheets().add(css);
+        comboBox.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxItem item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    ImageView imageView = new ImageView(item.getImage());
+                    imageView.setFitWidth(20); // Set the width for icon size
+                    imageView.setFitHeight(20); // Set the height for icon size
+                    imageView.setPreserveRatio(true);
+                    setGraphic(imageView);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
 
         blockButton.setPrefWidth(ABRConstants.SPACE_L);
         actionPanel = new HBox(comboBox, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
@@ -597,10 +590,10 @@ public class ABRWebElement {
             //                        "Block Variables: %s InstructionId: %s  instructionIndex: %s Command: %s",
             //                        variables.size(), instructionId, instructionIndex, e.toString()));
             //            } else {
-            System.out.println(String.format(
-                    "Block Name: %s InstructionId: %s  instructionIndex: %s Command: %s",
-                    block.getName(), instructionId, instructionIndex, comboBox.getValue().item));
-            //            }
+            //            System.out.println(String.format(
+            //                    "Block Name: %s InstructionId: %s  instructionIndex: %s Command: %s",
+            //                    block.getName(), instructionId, instructionIndex, comboBox.getValue().item));
+            //            //            }
         });
 
         EventHandler<MouseEvent> mouseEventEventHandler = mouseEvent -> {
@@ -914,58 +907,27 @@ public class ABRWebElement {
         }
     }
 
-    // Handler methods for the images
-    private void handleSetValue() {
-        // Your set value logic here
-        System.out.println("handleSetValue");
-    }
+    // Helper class to hold text and image
+    private static class ComboBoxItem {
+        private final String text;
+        private final Image image;
 
-    private void handleGetValue() {
-        // Your get value logic here
-        System.out.println("handleGetValue");
-    }
-
-    private void handleVariables() {
-        // Your variables logic here
-        System.out.println("handleVariables");
-    }
-
-    private HBox createImageWithLabel(String iconPath, String labelText, Runnable action) {
-        ImageView imageView = new ImageView(new Image(iconPath));
-        imageView.setFitWidth(24); // Set the width for icon size
-        imageView.setFitHeight(24); // Set the height for icon size
-        imageView.setPreserveRatio(true);
-
-        Label label = new Label(labelText);
-        label.getStyleClass().add("label"); // Add the label style class
-        // Add hover effect using CSS
-        label.setStyle("-fx-cursor: hand;");
-        label.setOnMouseEntered(e -> label.setStyle("-fx-cursor: hand; -fx-opacity: 0.7;"));
-        label.setOnMouseExited(e -> label.setStyle("-fx-cursor: hand; -fx-opacity: 1;"));
-        label.setOnMouseClicked(e -> action.run());
-
-        HBox hBox = new HBox(10, imageView, label);
-        hBox.setAlignment(Pos.CENTER_LEFT);
-        hBox.setOnMouseClicked(e -> action.run());
-
-        return hBox;
-    }
-
-    public static class ItemWithGraphic {
-        private String item;
-        private HBox graphic;
-
-        public ItemWithGraphic(String item, HBox graphic) {
-            this.item = item;
-            this.graphic = graphic;
+        public ComboBoxItem(String text, Image image) {
+            this.text = text;
+            this.image = image;
         }
 
-        public String getItem() {
-            return item;
+        public String getText() {
+            return text;
         }
 
-        public HBox getGraphic() {
-            return graphic;
+        public Image getImage() {
+            return image;
         }
+    }
+
+    private Image createImage(String iconPath) {
+        Image imageView = new Image(iconPath);
+        return imageView;
     }
 }
