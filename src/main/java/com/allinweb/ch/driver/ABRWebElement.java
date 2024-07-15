@@ -23,7 +23,6 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -41,6 +40,10 @@ public class ABRWebElement {
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
     private BooleanProperty clickElement = new SimpleBooleanProperty(false);
+    private BooleanProperty setValueElem = new SimpleBooleanProperty(false);
+    private BooleanProperty getValueElem = new SimpleBooleanProperty(false);
+    private BooleanProperty checkValueElem = new SimpleBooleanProperty(false);
+    private BooleanProperty holdValueElem = new SimpleBooleanProperty(false);
     private BooleanProperty editingElement = new SimpleBooleanProperty(false);
     private BooleanProperty textElement = new SimpleBooleanProperty(false);
     private BooleanProperty toBeAddedElement = new SimpleBooleanProperty(false);
@@ -82,6 +85,9 @@ public class ABRWebElement {
     private ImageView clickImage;
     private ImageView insertImage;
     private ImageView textImage;
+    private ImageView setImage;
+    private ImageView getImage;
+    private ImageView checkImage;
 
     // event handlers
     private Map<EventType, List<EventHandler>> eventHandlerMap = new HashMap<>();
@@ -216,6 +222,12 @@ public class ABRWebElement {
                 if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
                     // OR BUTTON SOMETHING CLICKABLE
                     clickElement.setValue(true);
+                } else if (forceTagEnum.equals(WebElementTagNameEnum.SET)) {
+                    setValueElem.setValue(true);
+                } else if (forceTagEnum.equals(WebElementTagNameEnum.GET)) {
+                    getValueElem.setValue(true);
+                } else if (forceTagEnum.equals(WebElementTagNameEnum.CK)) {
+                    checkValueElem.setValue(true);
                 } else {
                     // OR INPUT SOMETHING IMPUTABLE
                     clickElement.setValue(false);
@@ -366,8 +378,20 @@ public class ABRWebElement {
             nameLabel.setText(actionReference[1]);
             nameField.setText(actionReference[1]);
         }
-        boolean isClickAction = actionReference[0].equals(ABRConstants.CLICK);
-        clickElement.setValue(isClickAction);
+        
+        if (actionReference[0].equals(ABRConstants.CLICK)) {
+            clickElement.setValue(true);
+        } else if (actionReference[0].equals(ABRConstants.INSERT)) {
+            textElement.setValue(true);
+        } else if (actionReference[0].equals(ABRConstants.SET_VALUE)) {
+            setValueElem.setValue(true);
+        } else if (actionReference[0].equals(ABRConstants.GET_VALUE)) {
+            getValueElem.setValue(true);
+        } else if (actionReference[0].equals(ABRConstants.CHECK_VALUE)) {
+            checkValueElem.setValue(true);
+        } else if (actionReference[0].equals(ABRConstants.HOLD)) {
+            checkValueElem.setValue(true);
+        }
         toBeAddedElement.setValue(false);
     }
 
@@ -391,6 +415,9 @@ public class ABRWebElement {
         clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
         insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
         textImage = componentBuilder.buildImageView(ABRConstants.ICON_TEXT, ABRConstants.SPACE_M);
+        setImage = componentBuilder.buildImageView(ABRConstants.ICON_SET_VALUE_BTN, ABRConstants.SPACE_M);
+        getImage = componentBuilder.buildImageView(ABRConstants.ICON_GET_VALUE_BTN, ABRConstants.SPACE_M);
+        checkImage = componentBuilder.buildImageView(ABRConstants.ICON_CHECK, ABRConstants.SPACE_M);
 
         saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
         saveButton.setMaxHeight(ABRConstants.SPACE_L);
@@ -404,7 +431,7 @@ public class ABRWebElement {
         StackPane nameGroup = new StackPane(nameLabel, nameField);
 
         HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
-        StackPane actionGroup = new StackPane(clickImage, insertImage, textImage);
+        StackPane actionGroup = new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage);
         elementPanel = new HBox(actionGroup, nameFieldsGroup);
         elementPanel.setSpacing(ABRConstants.SPACE_XS);
 
@@ -485,9 +512,10 @@ public class ABRWebElement {
         descriptionLabel.setTextFill(Color.BLACK); // Ensure text is black
 
         blockButton.setPrefWidth(ABRConstants.SPACE_L);
-        actionPanel = new HBox(descriptionLabel, comboBox, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
-        actionPanel.setSpacing(ABRConstants.SPACE_XS);
-        actionPanel.setAlignment(Pos.CENTER_RIGHT);
+        actionPanel = new HBox(
+                descriptionLabel, comboBox, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
+        //        actionPanel.setSpacing(ABRConstants.SPACE_XS);
+        //        actionPanel.setAlignment(Pos.CENTER_RIGHT);
 
         AnchorPane.setTopAnchor(actionPanel, ABRConstants.SPACE_XS);
         AnchorPane.setBottomAnchor(actionPanel, ABRConstants.SPACE_XS);
@@ -496,11 +524,20 @@ public class ABRWebElement {
 
     private void initUIBehaviour() {
         insertImage.visibleProperty().bind(clickElement.not());
+        //
         clickImage.visibleProperty().bind(clickElement);
+
         textImage.visibleProperty().bind(textElement);
+
+        setImage.visibleProperty().bind(setValueElem);
+        getImage.visibleProperty().bind(getValueElem);
+        checkImage.visibleProperty().bind(checkValueElem);
+
+
         nameLabel.visibleProperty().bind(editingElement.not());
         nameField.visibleProperty().bind(editingElement);
         saveButton.visibleProperty().bind(editingElement);
+
         moveUpButton.visibleProperty().bind(toBeAddedElement.not());
         blockButton.visibleProperty().bind(toBeAddedElement.not());
         moveDownButton.visibleProperty().bind(toBeAddedElement.not());

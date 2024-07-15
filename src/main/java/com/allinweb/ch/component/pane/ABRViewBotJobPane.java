@@ -562,17 +562,20 @@ public class ABRViewBotJobPane extends ABRPane {
             }
 
             if (comboBox.getValue().getText().equalsIgnoreCase("setValue")) {
-                addInstruction("SetValue",  "          "
-                        + comboBoxVars.getValue().substring(1).toLowerCase() + ":"
-                        + comboBoxVars.getValue().toUpperCase());
+                addInstruction(
+                        "SetValue",
+                        comboBoxVars.getValue().substring(1).toLowerCase() + ":"
+                                + comboBoxVars.getValue().toUpperCase());
             } else if (comboBox.getValue().getText().equalsIgnoreCase("getValue")) {
-                addInstruction("GetValue",  "          "
-                        + comboBoxVars.getValue().substring(1).toLowerCase() + ":"
-                        + comboBoxVars.getValue().toUpperCase());
+                addInstruction(
+                        "GetValue",
+                        comboBoxVars.getValue().substring(1).toLowerCase() + ":"
+                                + comboBoxVars.getValue().toUpperCase());
             } else if (comboBox.getValue().getText().equalsIgnoreCase("check")) {
-                addInstruction("Check",  "          "
-                        + comboBoxVars.getValue().substring(1).toLowerCase() + ":"
-                        + comboBoxVars.getValue().toUpperCase());
+                addInstruction(
+                        "Check",
+                        comboBoxVars.getValue().substring(1).toLowerCase() + ":"
+                                + comboBoxVars.getValue().toUpperCase());
             }
         });
 

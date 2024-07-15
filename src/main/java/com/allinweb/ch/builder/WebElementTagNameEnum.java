@@ -16,7 +16,10 @@ public enum WebElementTagNameEnum {
     OPTION("option"),
     MAT_SELECT("mat-select"),
     MAT_OPTION("mat-option"),
-    MAT_EXPANSION_PANEL("mat-expansion-panel");
+    MAT_EXPANSION_PANEL("mat-expansion-panel"),
+    SET("set"),
+    GET("get"),
+    CK("ck");
 
     private String value;
 
