@@ -88,6 +88,7 @@ public class ABRWebElement {
     private ImageView setImage;
     private ImageView getImage;
     private ImageView checkImage;
+    private ImageView holdImage;
 
     // event handlers
     private Map<EventType, List<EventHandler>> eventHandlerMap = new HashMap<>();
@@ -390,7 +391,7 @@ public class ABRWebElement {
         } else if (actionReference[0].equals(ABRConstants.CHECK_VALUE)) {
             checkValueElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.HOLD)) {
-            checkValueElem.setValue(true);
+            holdValueElem.setValue(true);
         }
         toBeAddedElement.setValue(false);
     }
@@ -418,6 +419,7 @@ public class ABRWebElement {
         setImage = componentBuilder.buildImageView(ABRConstants.ICON_SET_VALUE_BTN, ABRConstants.SPACE_M);
         getImage = componentBuilder.buildImageView(ABRConstants.ICON_GET_VALUE_BTN, ABRConstants.SPACE_M);
         checkImage = componentBuilder.buildImageView(ABRConstants.ICON_CHECK, ABRConstants.SPACE_M);
+        holdImage = componentBuilder.buildImageView(ABRConstants.ICON_WAIT, ABRConstants.SPACE_M);
 
         saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
         saveButton.setMaxHeight(ABRConstants.SPACE_L);
@@ -431,7 +433,7 @@ public class ABRWebElement {
         StackPane nameGroup = new StackPane(nameLabel, nameField);
 
         HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
-        StackPane actionGroup = new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage);
+        StackPane actionGroup = new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
         elementPanel = new HBox(actionGroup, nameFieldsGroup);
         elementPanel.setSpacing(ABRConstants.SPACE_XS);
 
@@ -532,6 +534,9 @@ public class ABRWebElement {
         setImage.visibleProperty().bind(setValueElem);
         getImage.visibleProperty().bind(getValueElem);
         checkImage.visibleProperty().bind(checkValueElem);
+
+        holdImage.visibleProperty().bind(holdValueElem);
+        
 
 
         nameLabel.visibleProperty().bind(editingElement.not());
