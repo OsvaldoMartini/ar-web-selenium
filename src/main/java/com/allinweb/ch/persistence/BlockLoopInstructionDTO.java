@@ -26,7 +26,7 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "path", length = 1000)
     private String path;
 
-    @Column(name = "description")
+    @Column(name = "description", length = 1000)
     private String description;
 
     @Column(name = "optional")

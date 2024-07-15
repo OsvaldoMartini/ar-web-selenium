@@ -26,7 +26,7 @@ public class ComboBoxImageExample extends Application {
     public void start(Stage primaryStage) {
         // Initialize items with images and text
         items = FXCollections.observableArrayList(
-                new ComboBoxItem("nothing", new Image(ABRConstants.ICON_BLANK)),
+                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
                 new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
                 new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)));
 

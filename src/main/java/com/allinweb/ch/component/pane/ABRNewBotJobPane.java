@@ -150,6 +150,7 @@ public class ABRNewBotJobPane extends ABRPane {
         executorService = Executors.newSingleThreadExecutor();
 
         if (existName) {
+            alertToShow.setAlertType(Alert.AlertType.ERROR);
             alertToShow.setTitle("Duplicate Name");
             alertToShow.setHeaderText(String.format("The name already exist! %s", botJobName.getText()));
 

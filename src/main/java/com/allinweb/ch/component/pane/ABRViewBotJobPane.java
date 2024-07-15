@@ -31,7 +31,11 @@ import java.sql.Statement;
 import java.util.*;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -51,6 +55,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 public class ABRViewBotJobPane extends ABRPane {
@@ -105,7 +110,12 @@ public class ABRViewBotJobPane extends ABRPane {
     Button componentButton;
     VBox componentContainer;
     ListView<SavedBlocksDTO> componentList;
-    ListView<BotJobDTO> viewVariablesListView;
+
+    private static final int SECONDS = 3; // Total seconds for the countdown
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private ExecutorService executorService;
+    private Alert alertToShow;
 
     public ABRViewBotJobPane(BotJobDTO botJob) {
         this.botJob = botJob;
@@ -117,6 +127,30 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIComponents() {
+        // Create a label to display the countdown
+        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
+        countdownLabel.setStyle("-fx-font-size: 24px;");
+        countdownLabel.setVisible(false);
+        // Create a stack pane to hold the label
+        StackPane stackPane = new StackPane(countdownLabel);
+        stackPane.setPadding(new Insets(20));
+        // Create a dialog for the alert
+        alertToShow = new Alert(Alert.AlertType.INFORMATION);
+        alertToShow.setTitle("Countdown Alert");
+        alertToShow.setHeaderText("Count Down");
+        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        // Set the content of the alert
+        alertToShow.getDialogPane().setContent(stackPane);
+        // Create a timeline to update the countdown
+        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
+            remainingSeconds--;
+            countdownLabel.setText(String.valueOf(remainingSeconds));
+            if (remainingSeconds <= 0) {
+                timeline.stop(); // Stop the timeline when countdown finishes
+                alertToShow.close(); // Close the alert dialog
+            }
+        }));
+
         this.addWaitButton30 = builder.buildButton(
                 "30s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
         this.addWaitButton15 = builder.buildButton(
@@ -153,7 +187,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Initialize items with images and text
         items = FXCollections.observableArrayList(
-                new ComboBoxItem("nothing", new Image(ABRConstants.ICON_BLANK)),
+                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
                 new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
                 new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
                 new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
@@ -163,7 +197,7 @@ public class ABRViewBotJobPane extends ABRPane {
         comboBox.setPrefWidth(120); // Set preferred width of ComboBox
         comboBox = new ComboBox<>(items);
         comboBox.getSelectionModel().selectFirst();
-        
+
         // Set cell factory to display images and text
         comboBox.setButtonCell(new ListCell<>() {
             @Override
@@ -210,13 +244,17 @@ public class ABRViewBotJobPane extends ABRPane {
         });
 
         // Initialize items with images and text
-        List<String> variablesNames =
-                variablesList.stream().map(variable -> variable.getName()).collect(Collectors.toList());
-        itemsVars = FXCollections.observableArrayList(variablesNames);
 
+        itemsVars = FXCollections.observableArrayList();
+        itemsVars.add("variables");
+        List<String> variablesNames = variablesList.stream()
+                .map(variable -> variable.getType().substring(0, 1) + variable.getName())
+                .collect(Collectors.toList());
+        itemsVars.addAll(variablesNames);
         // Create ComboBox
         comboBoxVars = new ComboBox<>(itemsVars);
         comboBoxVars.setPrefWidth(120); // Set preferred width of ComboBox
+        comboBoxVars.getSelectionModel().selectFirst();
 
         this.variablesButton = builder.buildButton(
                 "Variables",
@@ -505,17 +543,37 @@ public class ABRViewBotJobPane extends ABRPane {
             elementValueScene.showModal();
             loadJobVariables();
             itemsVars.clear();
-            itemsVars.addAll(variablesList.stream().map(variable -> variable.getName()).collect(Collectors.toList()));
+            itemsVars.add("variables");
+            itemsVars.addAll(variablesList.stream()
+                    .map(variable -> variable.getType().substring(0, 1) + variable.getName())
+                    .collect(Collectors.toList()));
+            // Set ComboBox to first item
+            comboBoxVars.getSelectionModel().selectFirst();
         });
 
         this.addInstructionButton.setOnMouseClicked((e) -> {
-            if (comboBox.getValue().getText().equalsIgnoreCase("setValue")){
-                addInstruction("setValue");
-            }else if (comboBox.getValue().getText().equalsIgnoreCase("getValue")){
-                addInstruction("getValue");
-            }else if( comboBox.getValue().getText().equalsIgnoreCase("check")){
-                addInstruction("check");
-            } 
+            // Check if the current selected index is greater than the first index
+            if (comboBoxVars.getSelectionModel().getSelectedIndex() < 1) {
+                showAlert("Select the Variable", "Select the Variable to apply!");
+                return;
+            } else if (comboBox.getSelectionModel().getSelectedIndex() < 1) {
+                showAlert("Select the Instruction", "Select the Instruction to apply!");
+                return;
+            }
+
+            if (comboBox.getValue().getText().equalsIgnoreCase("setValue")) {
+                addInstruction("SetValue",  "          "
+                        + comboBoxVars.getValue().substring(1).toLowerCase() + ":"
+                        + comboBoxVars.getValue().toUpperCase());
+            } else if (comboBox.getValue().getText().equalsIgnoreCase("getValue")) {
+                addInstruction("GetValue",  "          "
+                        + comboBoxVars.getValue().substring(1).toLowerCase() + ":"
+                        + comboBoxVars.getValue().toUpperCase());
+            } else if (comboBox.getValue().getText().equalsIgnoreCase("check")) {
+                addInstruction("Check",  "          "
+                        + comboBoxVars.getValue().substring(1).toLowerCase() + ":"
+                        + comboBoxVars.getValue().toUpperCase());
+            }
         });
 
         this.openExcelFileButton.setOnMouseClicked((e) -> {
@@ -536,6 +594,26 @@ public class ABRViewBotJobPane extends ABRPane {
                 this.componentContainer.setManaged(true);
             }
         });
+    }
+
+    private void showAlert(String title, String content) {
+        executorService = Executors.newSingleThreadExecutor();
+        alertToShow.setAlertType(AlertType.ERROR);
+        alertToShow.setTitle(title);
+        alertToShow.setHeaderText(content);
+
+        executorService.execute(() -> {
+            timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
+            timeline.play(); // Start the timeline
+
+            // Show the alert on the JavaFX Application Thread
+            javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
+        });
+
+        if (executorService != null) {
+            remainingSeconds = SECONDS;
+            executorService.shutdown();
+        }
     }
 
     public Pane getPaneReference() {
@@ -643,7 +721,7 @@ public class ABRViewBotJobPane extends ABRPane {
         }
     }
 
-    private void addInstruction(String name) {
+    private void addInstruction(String name, String description) {
         Alert alert = new Alert(
                 Alert.AlertType.CONFIRMATION,
                 "Are you sure you want to add a " + name + " to the botjob?",
@@ -658,7 +736,7 @@ public class ABRViewBotJobPane extends ABRPane {
                             botJob.getBlocks().get(0).getBlockLoopInstructions();
                     BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
                     instruction.setName(name);
-                    instruction.setDescription(name);
+                    instruction.setDescription(description);
                     instruction.setEncrypted(false);
                     instruction.setInstructionOrderNumber(instructionList.size());
                     instruction.setOptional(false);

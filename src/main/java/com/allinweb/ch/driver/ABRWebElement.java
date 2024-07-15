@@ -427,7 +427,7 @@ public class ABRWebElement {
 
         // Initialize items with images and text
         items = FXCollections.observableArrayList(
-                new ComboBoxItem("nothing", new Image(ABRConstants.ICON_BLANK)),
+                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
                 new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
                 new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)));
 
@@ -480,8 +480,12 @@ public class ABRWebElement {
             }
         });
 
+        // Create description label
+        Label descriptionLabel = new Label("Select Action:");
+        descriptionLabel.setTextFill(Color.BLACK); // Ensure text is black
+
         blockButton.setPrefWidth(ABRConstants.SPACE_L);
-        actionPanel = new HBox(comboBox, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
+        actionPanel = new HBox(descriptionLabel, comboBox, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
         actionPanel.setSpacing(ABRConstants.SPACE_XS);
         actionPanel.setAlignment(Pos.CENTER_RIGHT);
 
@@ -902,10 +906,5 @@ public class ABRWebElement {
         for (WebElement child : children) {
             extractTextRecursively(child, textContent);
         }
-    }
-
-    private Image createImage(String iconPath) {
-        Image imageView = new Image(iconPath);
-        return imageView;
     }
 }
