@@ -904,25 +904,6 @@ public class ABRWebElement {
         }
     }
 
-    // Helper class to hold text and image
-    private static class ComboBoxItem {
-        private final String text;
-        private final Image image;
-
-        public ComboBoxItem(String text, Image image) {
-            this.text = text;
-            this.image = image;
-        }
-
-        public String getText() {
-            return text;
-        }
-
-        public Image getImage() {
-            return image;
-        }
-    }
-
     private Image createImage(String iconPath) {
         Image imageView = new Image(iconPath);
         return imageView;

@@ -18,6 +18,7 @@ import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ComboBoxItem;
 import com.allinweb.ch.util.ExcelWriter;
 import com.google.common.base.Strings;
 import java.io.File;
@@ -30,6 +31,7 @@ import java.sql.Statement;
 import java.util.*;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -42,6 +44,8 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -66,6 +70,11 @@ public class ABRViewBotJobPane extends ABRPane {
     private Connection conn = null;
     private List<VariableUserDTO> variablesList = new ArrayList<>();
 
+    private ComboBox<ComboBoxItem> comboBox;
+    private ObservableList<ComboBoxItem> items;
+    private ComboBox<String> comboBoxVars;
+    private ObservableList<String> itemsVars;
+
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private BotJobDTO botJob;
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
@@ -84,6 +93,7 @@ public class ABRViewBotJobPane extends ABRPane {
     Button generateExcelButton;
     Button openExcelFilterPanelButton;
     Button variablesButton;
+    Button addInstructionButton;
     Button closeBotJobButton;
 
     Label botJobNameLabel;
@@ -99,6 +109,11 @@ public class ABRViewBotJobPane extends ABRPane {
 
     public ABRViewBotJobPane(BotJobDTO botJob) {
         this.botJob = botJob;
+        // Initialize database IF IS ACCESS TO BE USED
+        if (!POSTGRES_DB) {
+            initializeDatabase();
+        }
+        loadJobVariables();
     }
 
     public void initUIComponents() {
@@ -135,12 +150,83 @@ public class ABRViewBotJobPane extends ABRPane {
                 "Filter", ABRConstants.SPACE_ZERO, ABRConstants.ICON_LIST, ABRConstants.SPACE_M, new Insets(5.0D));
         this.closeBotJobButton = builder.buildButton(
                 "Close", ABRConstants.SPACE_ZERO, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, new Insets(5.0D));
+
+        // Initialize items with images and text
+        items = FXCollections.observableArrayList(
+                new ComboBoxItem("nothing", new Image(ABRConstants.ICON_BLANK)),
+                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
+                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
+                new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
+
+        // Create ComboBox
+        comboBox = new ComboBox<>(items);
+        comboBox.setPrefWidth(120); // Set preferred width of ComboBox
+        comboBox = new ComboBox<>(items);
+        comboBox.getSelectionModel().selectFirst();
+        
+        // Set cell factory to display images and text
+        comboBox.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxItem item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    ImageView imageView = new ImageView(item.getImage());
+                    imageView.setFitWidth(20); // Set the width for icon size
+                    imageView.setFitHeight(20); // Set the height for icon size
+                    imageView.setPreserveRatio(true);
+                    setGraphic(imageView);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+
+        comboBox.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxItem item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    ImageView imageView = new ImageView(item.getImage());
+                    imageView.setFitWidth(20); // Set the width for icon size
+                    imageView.setFitHeight(20); // Set the height for icon size
+                    imageView.setPreserveRatio(true);
+                    setGraphic(imageView);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+
+        // Initialize items with images and text
+        List<String> variablesNames =
+                variablesList.stream().map(variable -> variable.getName()).collect(Collectors.toList());
+        itemsVars = FXCollections.observableArrayList(variablesNames);
+
+        // Create ComboBox
+        comboBoxVars = new ComboBox<>(itemsVars);
+        comboBoxVars.setPrefWidth(120); // Set preferred width of ComboBox
+
         this.variablesButton = builder.buildButton(
                 "Variables",
                 ABRConstants.SPACE_ZERO,
                 ABRConstants.ICON_VARIABLES,
                 ABRConstants.SPACE_M,
                 new Insets(5.0D));
+
+        this.addInstructionButton = builder.buildButton(
+                "New Step", ABRConstants.SPACE_ZERO, ABRConstants.ICON_STEP, ABRConstants.SPACE_M, new Insets(5.0D));
 
         // Create a GridPane for the left side buttons
         GridPane leftGridPane = new GridPane();
@@ -197,11 +283,17 @@ public class ABRViewBotJobPane extends ABRPane {
 
         //        rightGridPane.add(comboBox, 0, 0);
 
+        rightGridPane.add(comboBox, 0, 0);
+        rightGridPane.add(comboBoxVars, 1, 0);
+
+        addInstructionButton.setPrefWidth(buttonWidth);
+        rightGridPane.add(addInstructionButton, 2, 0);
+
         variablesButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(variablesButton, 4, 1);
+        rightGridPane.add(variablesButton, 0, 1);
 
         closeBotJobButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(closeBotJobButton, 5, 1);
+        rightGridPane.add(closeBotJobButton, 2, 1);
 
         // Center the buttons
         for (Node node : rightGridPane.getChildren()) {
@@ -407,8 +499,24 @@ public class ABRViewBotJobPane extends ABRPane {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
         });
-        this.variablesButton.setOnMouseClicked(
-                (e) -> new ABRElementValueScene(this.botJob.getId()).show());
+        this.variablesButton.setOnMouseClicked((e) -> {
+            // Example usage
+            ABRElementValueScene elementValueScene = new ABRElementValueScene(this.botJob.getId());
+            elementValueScene.showModal();
+            loadJobVariables();
+            itemsVars.clear();
+            itemsVars.addAll(variablesList.stream().map(variable -> variable.getName()).collect(Collectors.toList()));
+        });
+
+        this.addInstructionButton.setOnMouseClicked((e) -> {
+            if (comboBox.getValue().getText().equalsIgnoreCase("setValue")){
+                addInstruction("setValue");
+            }else if (comboBox.getValue().getText().equalsIgnoreCase("getValue")){
+                addInstruction("getValue");
+            }else if( comboBox.getValue().getText().equalsIgnoreCase("check")){
+                addInstruction("check");
+            } 
+        });
 
         this.openExcelFileButton.setOnMouseClicked((e) -> {
             try {
@@ -437,12 +545,6 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     private void initComponentUI() {
-        // Initialize database IF IS ACCESS TO BE USED
-        if (!POSTGRES_DB) {
-            initializeDatabase();
-        }
-        loadJobVariables();
-
         this.componentButton = builder.buildButton(
                 "",
                 ABRConstants.SPACE_L,
@@ -533,6 +635,51 @@ public class ABRViewBotJobPane extends ABRPane {
                                             "Instruction Added",
                                             "Instruction Wait " + secondsToWait
                                                     + " second(s) has been added successfully",
+                                            ButtonType.OK));
+                    return null;
+                }
+            };
+            new Thread(waitTask).start();
+        }
+    }
+
+    private void addInstruction(String name) {
+        Alert alert = new Alert(
+                Alert.AlertType.CONFIRMATION,
+                "Are you sure you want to add a " + name + " to the botjob?",
+                ButtonType.YES,
+                ButtonType.NO);
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.YES) {
+            Task<Void> waitTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    List<BlockLoopInstructionDTO> instructionList =
+                            botJob.getBlocks().get(0).getBlockLoopInstructions();
+                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+                    instruction.setName(name);
+                    instruction.setDescription(name);
+                    instruction.setEncrypted(false);
+                    instruction.setInstructionOrderNumber(instructionList.size());
+                    instruction.setOptional(false);
+                    if (name.equalsIgnoreCase("setValue")) {
+                        instruction.setActions(ABRConstants.SET_VALUE);
+                    } else if (name.equalsIgnoreCase("getValue")) {
+                        instruction.setActions(ABRConstants.GET_VALUE);
+                    } else if (name.equalsIgnoreCase("check")) {
+                        instruction.setActions(ABRConstants.CHECK_VALUE);
+                    }
+                    instruction.setOnHoldSeconds(1);
+                    instruction.setBlock(botJob.getBlocks().get(0));
+                    instruction.setExportToABR(false);
+                    ABRSharedResources.getInstance()
+                            .addEntity(
+                                    instruction,
+                                    BlockLoopInstructionDTO.class,
+                                    () -> new ABRAlertScene(
+                                            Alert.AlertType.INFORMATION,
+                                            "Instruction Added",
+                                            "Instruction " + instruction.getName() + " has been added successfully",
                                             ButtonType.OK));
                     return null;
                 }

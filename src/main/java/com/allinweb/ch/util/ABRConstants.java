@@ -74,6 +74,7 @@ public class ABRConstants {
     public static final String ICON_GET_VALUE_BTN = "/getValueBtn.png";
     public static final String ICON_VARIABLES = "/variables.png";
     public static final String ICON_CHECK = "/check.png";
+    public static final String ICON_STEP = "/step.png";
     public static final String ICON_BLANK = "/blank.png";
     public static final String ICON_MOVE = "/move.png";
     public static final String ICON_ARROWLEFT = "/ArrowLeft.png";
@@ -93,6 +94,9 @@ public class ABRConstants {
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";
     public static final String EXTRACT = "E";
+    public static final String SET_VALUE = "SET";
+    public static final String GET_VALUE = "GET";
+    public static final String CHECK_VALUE = "CK";
     public static final String FIND_ALL_CHILD_ELEMENTS = ".//*";
 
     // ACTION SYNTAX

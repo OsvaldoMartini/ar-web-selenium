@@ -3,8 +3,9 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ABRElementValuePane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
-import com.allinweb.ch.persistence.BotJobDTO;
-import javafx.scene.control.ListView;
+import javafx.scene.Scene;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 public class ABRElementValueScene extends ABRScene {
 
@@ -36,5 +37,17 @@ public class ABRElementValueScene extends ABRScene {
     @Override
     public String getTitle() {
         return TITLE;
+    }
+
+    public void showModal() {
+        Stage modalStage = new Stage();
+        IABRPane pane = buildPane();
+        if (pane != null) {
+            Scene scene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+            modalStage.setScene(scene);
+            modalStage.setTitle(getTitle());
+            modalStage.initModality(Modality.APPLICATION_MODAL); // Make it modal
+            modalStage.showAndWait(); // Block until this window is closed
+        }
     }
 }
