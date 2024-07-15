@@ -75,9 +75,6 @@ public class ABRWebElement {
     private Button moreOptionsButton;
     private Button saveButton;
     private Button deleteButton;
-    private HBox setValueBox;
-    private HBox getValueBox;
-    private HBox variablesBox;
 
     private ComboBox<ComboBoxItem> comboBox;
     private ObservableList<ComboBoxItem> items;

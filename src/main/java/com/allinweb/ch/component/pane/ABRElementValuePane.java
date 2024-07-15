@@ -64,8 +64,7 @@ public class ABRElementValuePane extends ABRPane {
 
     private boolean isNewState = false;
 
-    public ABRElementValuePane(ListView<BotJobDTO> viewVariablesListView, int botJobId) {
-        this.viewVariablesListView = viewVariablesListView;
+    public ABRElementValuePane(int botJobId) {
         this.botJobId = botJobId;
     }
 

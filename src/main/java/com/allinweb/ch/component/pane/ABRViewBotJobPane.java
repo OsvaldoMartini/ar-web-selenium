@@ -83,6 +83,7 @@ public class ABRViewBotJobPane extends ABRPane {
     Button openExcelFileButton;
     Button generateExcelButton;
     Button openExcelFilterPanelButton;
+    Button variablesButton;
     Button closeBotJobButton;
 
     Label botJobNameLabel;
@@ -114,26 +115,32 @@ public class ABRViewBotJobPane extends ABRPane {
         this.launchBotJobButton = builder.buildButton(
                 "Launch", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.saveBotJobButton = builder.buildButton(
-                "Save", ABRConstants.SPACE_ZERO, "/save.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Save", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, new Insets(5.0D));
         this.checkBoxUpdatePriority = new CheckBox("Upd JOB");
         checkBoxUpdatePriority.setWrapText(true);
         checkBoxUpdatePriority.setPrefWidth(80); // Adjust width as needed
         checkBoxUpdatePriority.setVisible(false);
 
         this.saveAsBotJobButton = builder.buildButton(
-                "Save As", ABRConstants.SPACE_ZERO, "/save.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Save As", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, new Insets(5.0D));
         this.printBotJobButton = builder.buildButton(
-                "Print", ABRConstants.SPACE_ZERO, "/print.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Print", ABRConstants.SPACE_ZERO, ABRConstants.ICON_PRINT, ABRConstants.SPACE_M, new Insets(5.0D));
         this.copyBotJobButton = builder.buildButton(
-                "Copy", ABRConstants.SPACE_ZERO, "/copy.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Copy", ABRConstants.SPACE_ZERO, ABRConstants.ICON_COPY, ABRConstants.SPACE_M, new Insets(5.0D));
         this.openExcelFileButton = builder.buildButton(
-                "Excel File", ABRConstants.SPACE_ZERO, "/excel.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Excel File", ABRConstants.SPACE_ZERO, ABRConstants.ICON_EXCEL, ABRConstants.SPACE_M, new Insets(5.0D));
         this.generateExcelButton = builder.buildButton(
-                "Generate", ABRConstants.SPACE_ZERO, "/excel.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Generate", ABRConstants.SPACE_ZERO, ABRConstants.ICON_EXCEL, ABRConstants.SPACE_M, new Insets(5.0D));
         this.openExcelFilterPanelButton = builder.buildButton(
-                "Filter", ABRConstants.SPACE_ZERO, "/list.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Filter", ABRConstants.SPACE_ZERO, ABRConstants.ICON_LIST, ABRConstants.SPACE_M, new Insets(5.0D));
         this.closeBotJobButton = builder.buildButton(
-                "Close", ABRConstants.SPACE_ZERO, "/cross.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Close", ABRConstants.SPACE_ZERO, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, new Insets(5.0D));
+        this.variablesButton = builder.buildButton(
+                "Variables",
+                ABRConstants.SPACE_ZERO,
+                ABRConstants.ICON_VARIABLES,
+                ABRConstants.SPACE_M,
+                new Insets(5.0D));
 
         // Create a GridPane for the left side buttons
         GridPane leftGridPane = new GridPane();
@@ -189,6 +196,9 @@ public class ABRViewBotJobPane extends ABRPane {
         rightGridPane.setHgap(10); // Horizontal spacing between elements
 
         //        rightGridPane.add(comboBox, 0, 0);
+
+        variablesButton.setPrefWidth(buttonWidth);
+        rightGridPane.add(variablesButton, 4, 1);
 
         closeBotJobButton.setPrefWidth(buttonWidth);
         rightGridPane.add(closeBotJobButton, 5, 1);
@@ -397,6 +407,9 @@ public class ABRViewBotJobPane extends ABRPane {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
         });
+        this.variablesButton.setOnMouseClicked(
+                (e) -> new ABRElementValueScene(this.botJob.getId()).show());
+
         this.openExcelFileButton.setOnMouseClicked((e) -> {
             try {
                 String excelFilePath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
@@ -428,7 +441,7 @@ public class ABRViewBotJobPane extends ABRPane {
         if (!POSTGRES_DB) {
             initializeDatabase();
         }
-        loadUserData();
+        loadJobVariables();
 
         this.componentButton = builder.buildButton(
                 "",
@@ -576,7 +589,7 @@ public class ABRViewBotJobPane extends ABRPane {
         }
     }
 
-    private void loadUserData() {
+    private void loadJobVariables() {
         variablesList.clear();
         String selectSQL = " SELECT vars.id, vars.name, vars.type, bot_job_id, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "

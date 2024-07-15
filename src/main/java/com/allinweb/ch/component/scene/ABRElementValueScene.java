@@ -11,18 +11,16 @@ public class ABRElementValueScene extends ABRScene {
     private static final Double SCENE_HEIGHT = 400D;
     private static final Double SCENE_WIDTH = 300D;
     private static final String TITLE = "New Variables";
-    private ListView<BotJobDTO> viewBotJobListView;
     private int botJobId;
 
-    public ABRElementValueScene(ListView<BotJobDTO> viewBotJobListView, int botJobId) {
+    public ABRElementValueScene(int botJobId) {
         super();
-        this.viewBotJobListView = viewBotJobListView;
         this.botJobId = botJobId;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRElementValuePane(viewBotJobListView, botJobId);
+        return new ABRElementValuePane(botJobId);
     }
 
     @Override
