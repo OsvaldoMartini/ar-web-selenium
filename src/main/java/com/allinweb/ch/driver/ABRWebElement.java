@@ -17,12 +17,15 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -48,6 +51,7 @@ public class ABRWebElement {
     private BooleanProperty textElement = new SimpleBooleanProperty(false);
     private BooleanProperty toBeAddedElement = new SimpleBooleanProperty(false);
     private BooleanProperty isIdElement = new SimpleBooleanProperty(false);
+    private StringProperty[] descriptionElement = new StringProperty[10]; // Array with 10 elements
 
     private Integer instructionId;
 
@@ -69,6 +73,8 @@ public class ABRWebElement {
     private HBox actionPanel;
 
     private Label nameLabel;
+    private Label descriptionLabel1;
+    private Label descriptionLabel2;
 
     private TextField nameField;
 
@@ -334,7 +340,6 @@ public class ABRWebElement {
             nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
         }
-
         try {
 
             String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
@@ -369,7 +374,26 @@ public class ABRWebElement {
     }
 
     private void initFromBlockLoopInstruction(BlockLoopInstructionDTO instruction) {
+
+        // Split the description string
+        String[] descriptionArray = instruction.getDescription().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+
+        // Initialize the descriptions array with the length of the descriptionArray
+        descriptionElement = new StringProperty[descriptionArray.length];
+
+        // Convert each string to a StringProperty
+        for (int i = 0; i < descriptionArray.length; i++) {
+            descriptionElement[i] = new SimpleStringProperty(descriptionArray[i]);
+        }
+        
+        // Initialize items with images and text
+        items = FXCollections.observableArrayList(
+                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
+                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
+                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)));
+
         initUI();
+   
         instructionId = instruction.getId();
         nameLabel.setText(instruction.getName());
         nameField.setText(instruction.getName());
@@ -394,6 +418,8 @@ public class ABRWebElement {
             holdValueElem.setValue(true);
         }
         toBeAddedElement.setValue(false);
+
+   
     }
 
     private void initUI() {
@@ -416,8 +442,8 @@ public class ABRWebElement {
         clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
         insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
         textImage = componentBuilder.buildImageView(ABRConstants.ICON_TEXT, ABRConstants.SPACE_M);
-        setImage = componentBuilder.buildImageView(ABRConstants.ICON_SET_VALUE_BTN, ABRConstants.SPACE_M);
-        getImage = componentBuilder.buildImageView(ABRConstants.ICON_GET_VALUE_BTN, ABRConstants.SPACE_M);
+        setImage = componentBuilder.buildImageView(ABRConstants.ICON_SET_VALUE, ABRConstants.SPACE_M);
+        getImage = componentBuilder.buildImageView(ABRConstants.ICON_GET_VALUE, ABRConstants.SPACE_M);
         checkImage = componentBuilder.buildImageView(ABRConstants.ICON_CHECK, ABRConstants.SPACE_M);
         holdImage = componentBuilder.buildImageView(ABRConstants.ICON_WAIT, ABRConstants.SPACE_M);
 
@@ -454,12 +480,6 @@ public class ABRWebElement {
                 "", ABRConstants.SPACE_L, ABRConstants.ICON_DOWN, ABRConstants.SPACE_M, Insets.EMPTY);
         deleteButton = componentBuilder.buildButton(
                 "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
-
-        // Initialize items with images and text
-        items = FXCollections.observableArrayList(
-                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
-                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
-                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)));
 
         // Create ComboBox
         comboBox = new ComboBox<>(items);
@@ -511,15 +531,55 @@ public class ABRWebElement {
         });
 
         // Create description label
-        Label descriptionLabel = new Label("Select Action:");
-        descriptionLabel.setTextFill(Color.BLACK); // Ensure text is black
+        if (descriptionElement != null && descriptionElement.length > 1) {
+            
+            if (descriptionElement.length > 1) {
+                descriptionLabel1 = new Label(descriptionElement[0].get()+":");
+                descriptionLabel1.setTextFill(Color.BLUE);
+                descriptionLabel2 = new Label(descriptionElement[1].get());
+                descriptionLabel2.setTextFill(Color.ORANGE);
 
-        blockButton.setPrefWidth(ABRConstants.SPACE_L);
-        actionPanel = new HBox(
-                descriptionLabel, comboBox, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
-        //        actionPanel.setSpacing(ABRConstants.SPACE_XS);
-        //        actionPanel.setAlignment(Pos.CENTER_RIGHT);
+                // Optionally, you can set additional styles or properties
+                descriptionLabel1.setStyle("-fx-font-size: 14px;"); // Example of setting font size
+                descriptionLabel1.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
+                descriptionLabel2.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
 
+                blockButton.setPrefWidth(ABRConstants.SPACE_L);
+                actionPanel = new HBox(
+                        descriptionLabel1,
+                        descriptionLabel2,
+                        comboBox,
+                        blockButton,
+                        moveUpButton,
+                        moveDownButton,
+                        moreOptionsButton,
+                        deleteButton);
+
+            }else {
+                descriptionLabel1 = new Label(descriptionElement[0].get());
+                descriptionLabel1.setTextFill(Color.BLUE);
+                blockButton.setPrefWidth(ABRConstants.SPACE_L);
+                actionPanel = new HBox(
+                        descriptionLabel1,
+                        comboBox,
+                        blockButton,
+                        moveUpButton,
+                        moveDownButton,
+                        moreOptionsButton,
+                        deleteButton);
+
+                // Optionally, you can set additional styles or properties
+                descriptionLabel1.setStyle("-fx-font-size: 14px;"); // Example of setting font size
+                descriptionLabel1.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
+            }
+
+        } else {
+            blockButton.setPrefWidth(ABRConstants.SPACE_L);
+            actionPanel =
+                    new HBox(comboBox, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
+        }
+        actionPanel.setSpacing(ABRConstants.SPACE_XS);
+        actionPanel.setAlignment(Pos.CENTER_RIGHT);
         AnchorPane.setTopAnchor(actionPanel, ABRConstants.SPACE_XS);
         AnchorPane.setBottomAnchor(actionPanel, ABRConstants.SPACE_XS);
         AnchorPane.setRightAnchor(actionPanel, ABRConstants.SPACE_XS);
@@ -541,6 +601,8 @@ public class ABRWebElement {
         nameLabel.visibleProperty().bind(editingElement.not());
         nameField.visibleProperty().bind(editingElement);
         saveButton.visibleProperty().bind(editingElement);
+        
+//        descriptionLabel.setText(descriptionElement.getValue());
 
         moveUpButton.visibleProperty().bind(toBeAddedElement.not());
         blockButton.visibleProperty().bind(toBeAddedElement.not());
