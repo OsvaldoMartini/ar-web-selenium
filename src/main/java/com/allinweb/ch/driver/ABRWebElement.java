@@ -388,9 +388,8 @@ public class ABRWebElement {
 
         // Initialize items with images and text
         items = FXCollections.observableArrayList(
-                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
-                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
-                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)));
+                new ComboBoxItem("=", new Image(ABRConstants.ICON_EQUAL)),
+                new ComboBoxItem(">", new Image(ABRConstants.ICON_GREATER)));
 
         initUI();
 
