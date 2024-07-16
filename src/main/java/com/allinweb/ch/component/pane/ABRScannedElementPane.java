@@ -964,6 +964,8 @@ public class ABRScannedElementPane extends ABRPane {
             ObservableList<ABRWebElement> listToaddNewElements,
             String elementType) {
 
+        executorService = Executors.newCachedThreadPool();
+
         // Simulate async task completion with CompletableFuture
         CompletableFuture<Void> future = CompletableFuture.runAsync(
                 () -> {
@@ -1049,6 +1051,9 @@ public class ABRScannedElementPane extends ABRPane {
                 },
                 executorService);
 
+        if (executorService != null) {
+            executorService.shutdown();
+        }
         //        progressBar.progressProperty().bind(workingTask.workDoneProperty());
         //        ABRLogger.getInstance(ABRScannedElementPane.class).fine("starting scanning thread for " + criteria);
         //        new Thread(workingTask).start();
@@ -2399,11 +2404,11 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void loadUserData(int bankId) {
         String selectSQL =
-                " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs, searchConfig, optionsConfig, username, password "
-                        + " FROM home_banking bank "
-                        + " left join bot_job bot on bot.home_banking_id = bank.id "
+                "SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
+                        + "                         FROM home_banking bank "
+                        + "                         left join bot_job bot on bot.home_banking_id = bank.id "
                         + " WHERE bank.id = " + bankId
-                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.searchConfig, bank.optionsConfig, bank.username, bank.password ";
+                        + "                         group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -2414,8 +2419,8 @@ public class ABRScannedElementPane extends ABRPane {
                 String priority = rs.getString("Priority");
                 String searchConfig = rs.getString("searchConfig");
                 String optionsConfig = rs.getString("optionsConfig");
-                String username = rs.getString("postgres");
-                String password = rs.getString("martini");
+                String username = rs.getString("username");
+                String password = rs.getString("password");
                 databaseUserDto = new DatabaseUserDTO(
                         id, jobs, name, url, priority, searchConfig, optionsConfig, username, password);
             }
@@ -2509,18 +2514,19 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void loadBlockAll(BotJobDTO botJob) {
         String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
-                + "b.id AS block_id, b.block_order_number, b.name AS block_name, "
-                + "b.description AS block_description, b.type_id, "
-                + "bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
-                + "bli.actions, bli.name AS instruction_name, bli.path, bli.description AS instruction_description, "
-                + "bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
-                + "bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
-                + "irl.reference_type, irl.value "
-                + "FROM bot_job bj "
-                + "LEFT JOIN block b ON b.bot_job_id = bj.id "
-                + "LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id "
-                + "LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
-                + "ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
+                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
+                + " b.description AS block_description, b.type_id, "
+                + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
+                + " bli.actions, bli.name AS instruction_name, bli.path, bli.description AS instruction_description, "
+                + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
+                + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
+                + " irl.reference_type, irl.value "
+                + " FROM bot_job bj "
+                + " LEFT JOIN block b ON b.bot_job_id = bj.id "
+                + " LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id "
+                + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
+                + " where bot_job_id = " + botJob.getId()
+                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
 
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
@@ -3650,8 +3656,8 @@ public class ABRScannedElementPane extends ABRPane {
                 } catch (Exception ex) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine(String.format(
-                                    "Error attempt to create Advance Element  attribute: %s xPath: ",
-                                    attributeValue, xpath));
+                                    "Error attempt to create Advance Element  attribute: %s xPath: %s\nError: %s",
+                                    attributeValue, xpath, ex.getMessage()));
                 }
             }
         }

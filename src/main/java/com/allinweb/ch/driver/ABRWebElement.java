@@ -166,7 +166,7 @@ public class ABRWebElement {
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
         try {
 
-            if (searchReturn == null && Strings.isNullOrEmpty(xPath) && abrPriorities.getJobId() != null) {
+            if (searchReturn == null && abrPriorities.getJobId() != null) {
                 for (Priority priority : abrPriorities.getAllPriorityList()) {
                     switch (priority.getPriorityType()) {
                         case attribute -> {
@@ -176,8 +176,14 @@ public class ABRWebElement {
                                 savedReferences.put(priority.getName().get(0), attributeValue);
                             }
                         }
-                        case xpath -> savedReferences.put(
-                                priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
+                        case xpath -> {
+                            if (Strings.isNullOrEmpty(xPath)) {
+                                savedReferences.put(
+                                        priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
+                            } else {
+                                savedReferences.put(priority.getName().get(0), xPath);
+                            }
+                        }
 
                         case coordinates -> {
                             Rectangle coordinates = element.getRect();
@@ -191,7 +197,7 @@ public class ABRWebElement {
             } else {
                 // Most Important to find any kind of element
 
-                if (searchReturn.getxPathWorkedFirst().equals(Constants.ABSOLUT_XPATH)) {
+                if (searchReturn != null && searchReturn.getxPathWorkedFirst().equals(Constants.ABSOLUT_XPATH)) {
                     savedReferences.put(
                             "absolutXPath",
                             searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -211,7 +217,7 @@ public class ABRWebElement {
                     savedReferences.put(
                             "customXPath",
                             searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (!Strings.isNullOrEmpty(xPath)) {
+                } else if (searchReturn != null && !Strings.isNullOrEmpty(xPath)) {
                     savedReferences.put("xpath", searchReturn.getCurrentXPath());
                 } else if (!Strings.isNullOrEmpty(attributeValue)) {
                     savedReferences.put("attribute", attributeValue);
@@ -294,7 +300,7 @@ public class ABRWebElement {
             textElement.setValue(true);
         }
 
-        if (!Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
+        if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
             nameLabel.setText(searchReturn.getDefinedName());
             nameField.setText(searchReturn.getDefinedName());
         } else if (isOption && hasValue) {

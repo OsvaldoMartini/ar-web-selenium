@@ -275,10 +275,11 @@ public class DatabasePersistence extends Application {
 
     private void loadUserData() {
         databaseList.clear();
-        String selectSQL = " SELECT ID, Name, Url, priority, COUNT(bot.ID) Jobs,username, password "
-                + " FROM home_banking bank "
-                + " left join bot_job bot on bot.home_banking_id = bank.id "
-                + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.username, bank.password ";
+        String selectSQL =
+                " SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
+                        + " FROM home_banking bank "
+                        + " left join bot_job bot on bot.home_banking_id = bank.id "
+                        + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
