@@ -64,7 +64,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -819,11 +819,12 @@ public class ABRViewBotJobPane extends ABRPane {
 
     private void loadJobVariables() {
         variablesList.clear();
-        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, bot_job_id, COUNT(blk.variable_id) UsedVars "
-                + " FROM variable vars "
-                + " left join block_loop_instruction blk on blk.variable_id = vars.id "
-                + " where bot_job_id = " + this.botJob.getId()
-                + " group by vars.id, vars.type, vars.name, vars.value ";
+        String selectSQL =
+                " SELECT vars.id, vars.type, vars.name, vars.value, bot_job_id, COUNT(blk.variable_id) UsedVars "
+                        + " FROM variable vars "
+                        + " left join block_loop_instruction blk on blk.variable_id = vars.id "
+                        + " where bot_job_id = " + this.botJob.getId()
+                        + " group by vars.id, vars.type, vars.name, vars.value ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {

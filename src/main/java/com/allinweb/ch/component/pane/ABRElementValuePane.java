@@ -6,7 +6,6 @@ import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.HomeBankingDTO;
-import com.allinweb.ch.persistence.JobUserDTO;
 import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -34,7 +33,7 @@ public class ABRElementValuePane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
