@@ -44,9 +44,7 @@ public class ABRElementValuePane extends ABRPane {
 
     private Connection conn = null;
     private ObservableList<VariableUserDTO> databaseList = FXCollections.observableArrayList();
-    private ObservableList<JobUserDTO> jobUserList = FXCollections.observableArrayList();
     private TableView<VariableUserDTO> tableView = new TableView<>();
-    private ListView<BotJobDTO> viewVariablesListView;
     private int botJobId;
 
     private List<BankingDTO> dtoList;
@@ -56,6 +54,7 @@ public class ABRElementValuePane extends ABRPane {
 
     TextField idField;
     TextField nameField;
+    TextField valueField;
     TextField usedVarsField;
     CheckBox stringCheckBox;
     CheckBox numericCheckBox;
@@ -85,6 +84,7 @@ public class ABRElementValuePane extends ABRPane {
         Label idLabel = new Label("ID:");
         Label nameLabel = new Label("Name:");
         Label typeLabel = new Label("Type");
+        Label valueLabel = new Label("Value");
         Label jobsLabel = new Label("Used Variables:");
 
         // Create text fields
@@ -96,6 +96,10 @@ public class ABRElementValuePane extends ABRPane {
         nameField = new TextField();
         nameField.setStyle("-fx-control-inner-background: FFDA33;");
         nameField.requestFocus();
+
+        valueField = new TextField();
+        valueField.setStyle("-fx-control-inner-background: FFDA33;");
+        valueField.requestFocus();
 
         usedVarsField = new TextField();
         usedVarsField.setEditable(false);
@@ -126,8 +130,8 @@ public class ABRElementValuePane extends ABRPane {
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
-            VariableUserDTO user =
-                    new VariableUserDTO(null, nameField.getText().trim(), selectedType, String.valueOf(botJobId));
+            VariableUserDTO user = new VariableUserDTO(
+                    null, selectedType, nameField.getText().trim(), valueField.getText(), String.valueOf(botJobId));
 
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
@@ -153,7 +157,8 @@ public class ABRElementValuePane extends ABRPane {
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
-            VariableUserDTO user = new VariableUserDTO(id, nameField.getText(), selectedType, String.valueOf(botJobId));
+            VariableUserDTO user = new VariableUserDTO(
+                    id, selectedType, nameField.getText(), valueField.getText(), String.valueOf(botJobId));
             updateUserData(id, user);
             loadUserData();
         });
@@ -191,12 +196,15 @@ public class ABRElementValuePane extends ABRPane {
         gridPane.add(nameLabel, 0, 1);
         gridPane.add(nameField, 1, 1);
 
-        gridPane.add(typeLabel, 0, 2);
-        HBox typeBox = new HBox(10, stringCheckBox, numericCheckBox); // Create an HBox to hold the checkboxes
-        gridPane.add(typeBox, 1, 2);
+        gridPane.add(valueLabel, 0, 2);
+        gridPane.add(valueField, 1, 2);
 
-        gridPane.add(jobsLabel, 0, 5);
-        gridPane.add(usedVarsField, 1, 5);
+        gridPane.add(typeLabel, 0, 3);
+        HBox typeBox = new HBox(10, stringCheckBox, numericCheckBox); // Create an HBox to hold the checkboxes
+        gridPane.add(typeBox, 1, 3);
+
+        gridPane.add(jobsLabel, 0, 6);
+        gridPane.add(usedVarsField, 1, 6);
 
         HBox buttonsBox = new HBox(10, submitButton, updateButton, deleteButton);
         buttonsBox.setAlignment(Pos.CENTER);
@@ -219,7 +227,10 @@ public class ABRElementValuePane extends ABRPane {
         TableColumn<VariableUserDTO, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
 
-        tableView.getColumns().addAll(idColumn, typeColumn, nameColumn);
+        TableColumn<VariableUserDTO, String> valueColumn = new TableColumn<>("Value");
+        valueColumn.setCellValueFactory(new PropertyValueFactory<>("value"));
+
+        tableView.getColumns().addAll(idColumn, typeColumn, nameColumn, valueColumn);
         tableView.setItems(databaseList);
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
@@ -230,6 +241,7 @@ public class ABRElementValuePane extends ABRPane {
                 // Set the values of the selected row to the text fields
                 idField.setText(selectedUser.getId());
                 nameField.setText(selectedUser.getName());
+                valueField.setText(selectedUser.getValue());
                 usedVarsField.setText(selectedUser.getUsedVars()); // Update the hidden field
 
                 // Update the checkboxes based on the selected user's type
@@ -273,6 +285,7 @@ public class ABRElementValuePane extends ABRPane {
     private void clearData() {
         idField.clear();
         nameField.clear();
+        valueField.clear();
         usedVarsField.clear();
         stringCheckBox.setSelected(false);
         numericCheckBox.setSelected(false);
@@ -341,15 +354,6 @@ public class ABRElementValuePane extends ABRPane {
         return false;
     }
 
-    private List<BankingDTO> createSampleData() {
-        List<BankingDTO> dataList = new ArrayList<>();
-        // Assuming you have a constructor in BankingDT0
-        for (int i = 0; i < 10; i++) {
-            dataList.add(new BankingDTO(i + 1, "Name " + i, "URL " + i, "Priority " + i, 5, new ArrayList<>()));
-        }
-        return dataList;
-    }
-
     private void initializeDatabase() {
 
         String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
@@ -400,20 +404,22 @@ public class ABRElementValuePane extends ABRPane {
 
     private void loadUserData() {
         databaseList.clear();
-        String selectSQL = " SELECT vars.id, vars.name, vars.type, bot_job_id, COUNT(blk.variable_id) UsedVars "
-                + " FROM variable vars "
-                + " left join block_loop_instruction blk on blk.variable_id = vars.id "
-                + " where bot_job_id = " + botJobId
-                + " group by vars.id, vars.Name, vars.type ";
+        String selectSQL =
+                " SELECT vars.id, vars.type, vars.name, vars.value, bot_job_id, COUNT(blk.variable_id) UsedVars "
+                        + " FROM variable vars "
+                        + " left join block_loop_instruction blk on blk.variable_id = vars.id "
+                        + " where bot_job_id = " + botJobId
+                        + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
-                String name = rs.getString("name");
                 String type = rs.getString("type");
+                String name = rs.getString("name");
+                String value = rs.getString("value");
                 String botJobId = rs.getString("bot_job_id");
                 String usedVars = rs.getString("UsedVars");
-                databaseList.add(new VariableUserDTO(id, name, type, botJobId, usedVars));
+                databaseList.add(new VariableUserDTO(id, type, name, value, botJobId, usedVars));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -442,10 +448,11 @@ public class ABRElementValuePane extends ABRPane {
         //        AlterSeq(hashCode);
         //        Integer hashCode = generateID();
 
-        String insertSQL = "INSERT INTO variable (ID, type, Name, bot_job_id) VALUES ( "
+        String insertSQL = "INSERT INTO variable (ID, type, Name, Value, bot_job_id) VALUES ( "
                 + hashCode + ","
                 + "'" + user.getType() + "', "
                 + "'" + user.getName() + "', "
+                + "'" + user.getValue() + "', "
                 + "'" + user.getBotJobId() + "')";
         try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
@@ -460,7 +467,8 @@ public class ABRElementValuePane extends ABRPane {
             int userId = Integer.parseInt(id);
 
             String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
-                    + " type = '" + user.getType() + "' "
+                    + " type = '" + user.getType() + "', "
+                    + " value = '" + user.getValue() + "' "
                     + " WHERE ID = " + userId;
             try (Statement stmt = getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(updateSQL);

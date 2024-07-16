@@ -385,7 +385,7 @@ public class ABRWebElement {
         for (int i = 0; i < descriptionArray.length; i++) {
             descriptionElement[i] = new SimpleStringProperty(descriptionArray[i]);
         }
-        
+
         // Initialize items with images and text
         items = FXCollections.observableArrayList(
                 new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
@@ -393,7 +393,7 @@ public class ABRWebElement {
                 new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)));
 
         initUI();
-   
+
         instructionId = instruction.getId();
         nameLabel.setText(instruction.getName());
         nameField.setText(instruction.getName());
@@ -418,8 +418,6 @@ public class ABRWebElement {
             holdValueElem.setValue(true);
         }
         toBeAddedElement.setValue(false);
-
-   
     }
 
     private void initUI() {
@@ -532,9 +530,9 @@ public class ABRWebElement {
 
         // Create description label
         if (descriptionElement != null && descriptionElement.length > 1) {
-            
+
             if (descriptionElement.length > 1) {
-                descriptionLabel1 = new Label(descriptionElement[0].get()+":");
+                descriptionLabel1 = new Label(descriptionElement[0].get() + ": ");
                 descriptionLabel1.setTextFill(Color.BLUE);
                 descriptionLabel2 = new Label(descriptionElement[1].get());
                 descriptionLabel2.setTextFill(Color.ORANGE);
@@ -555,7 +553,7 @@ public class ABRWebElement {
                         moreOptionsButton,
                         deleteButton);
 
-            }else {
+            } else {
                 descriptionLabel1 = new Label(descriptionElement[0].get());
                 descriptionLabel1.setTextFill(Color.BLUE);
                 blockButton.setPrefWidth(ABRConstants.SPACE_L);
@@ -601,8 +599,8 @@ public class ABRWebElement {
         nameLabel.visibleProperty().bind(editingElement.not());
         nameField.visibleProperty().bind(editingElement);
         saveButton.visibleProperty().bind(editingElement);
-        
-//        descriptionLabel.setText(descriptionElement.getValue());
+
+        //        descriptionLabel.setText(descriptionElement.getValue());
 
         moveUpButton.visibleProperty().bind(toBeAddedElement.not());
         blockButton.visibleProperty().bind(toBeAddedElement.not());

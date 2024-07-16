@@ -7,23 +7,26 @@ public class VariableUserDTO {
     private StringProperty id;
     private StringProperty type;
     private StringProperty name;
+    private StringProperty value;
     private StringProperty botJobId;
     private StringProperty usedVars;
 
     public VariableUserDTO() {}
 
-    public VariableUserDTO(String id, String type, String name, String botJobId, String usedVars) {
+    public VariableUserDTO(String id, String type, String name, String value, String botJobId, String usedVars) {
         this.id = new SimpleStringProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
+        this.value = new SimpleStringProperty(value);
         this.botJobId = new SimpleStringProperty(botJobId);
         this.usedVars = new SimpleStringProperty(usedVars);
     }
 
-    public VariableUserDTO(String id, String type, String name, String botJobId) {
+    public VariableUserDTO(String id, String type, String name, String value, String botJobId) {
         this.id = new SimpleStringProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
+        this.value = new SimpleStringProperty(value);
         this.botJobId = new SimpleStringProperty(botJobId);
     }
 
@@ -61,6 +64,18 @@ public class VariableUserDTO {
 
     public void setName(String name) {
         this.name.set(name);
+    }
+
+    public String getValue() {
+        return value.get();
+    }
+
+    public StringProperty valueProperty() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value.set(value);
     }
 
     public String getBotJobId() {

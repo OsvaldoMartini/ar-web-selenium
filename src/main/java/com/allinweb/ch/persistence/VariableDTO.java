@@ -14,6 +14,9 @@ public class VariableDTO extends BaseDTO {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "value")
+    private String value;
+
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bot_job_id")
     private BotJobDTO botJobDTO;
@@ -53,6 +56,14 @@ public class VariableDTO extends BaseDTO {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getValue() {
+        return value;
+    }
+
+    public void setValue(String value) {
+        this.value = value;
     }
 
     public BotJobDTO getBotJob() {

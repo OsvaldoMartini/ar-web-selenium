@@ -819,20 +819,21 @@ public class ABRViewBotJobPane extends ABRPane {
 
     private void loadJobVariables() {
         variablesList.clear();
-        String selectSQL = " SELECT vars.id, vars.name, vars.type, bot_job_id, COUNT(blk.variable_id) UsedVars "
+        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, bot_job_id, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "
                 + " left join block_loop_instruction blk on blk.variable_id = vars.id "
                 + " where bot_job_id = " + this.botJob.getId()
-                + " group by vars.id, vars.Name, vars.type ";
+                + " group by vars.id, vars.type, vars.name, vars.value ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
-                String name = rs.getString("name");
                 String type = rs.getString("type");
+                String name = rs.getString("name");
+                String value = rs.getString("value");
                 String botJobId = rs.getString("bot_job_id");
                 String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(id, name, type, botJobId, usedVars));
+                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, usedVars));
             }
         } catch (SQLException e) {
             e.printStackTrace();
