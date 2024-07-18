@@ -18,7 +18,6 @@ import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
-import com.allinweb.ch.util.ComboBoxItem;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ExcelWriter;
 import com.google.common.base.Strings;
@@ -49,8 +48,6 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -76,11 +73,8 @@ public class ABRViewBotJobPane extends ABRPane {
     private Connection conn = null;
     private ObservableList<VariableUserDTO> variablesList;
 
-    private ComboBox<ComboBoxItem> comboBoxInstruc;
-    private ObservableList<ComboBoxItem> itemsInstructions;
-
     private ComboBox<ComboBoxVars> comboBoxVars;
-    private ObservableList<ComboBoxVars> variablesItems;
+    private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private BotJobDTO botJob;
@@ -100,7 +94,6 @@ public class ABRViewBotJobPane extends ABRPane {
     Button generateExcelButton;
     Button openExcelFilterPanelButton;
     Button variablesButton;
-    Button addInstructionButton;
     Button closeBotJobButton;
 
     Label botJobNameLabel;
@@ -188,22 +181,21 @@ public class ABRViewBotJobPane extends ABRPane {
         this.closeBotJobButton = builder.buildButton(
                 "Close", ABRConstants.SPACE_ZERO, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, new Insets(5.0D));
 
-        // Initialize items with images and text
-        itemsInstructions = FXCollections.observableArrayList(
-                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
-                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
-                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
-                new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
+        variablesItems.add(new ComboBoxVars("variables", -1, ""));
 
+        List<ComboBoxVars> variablesNames = variablesList.stream()
+                .map(variable -> new ComboBoxVars(
+                        variable.getType().substring(0, 1) + variable.getName(),
+                        variable.getInstructionId(),
+                        variable.getValue()))
+                .collect(Collectors.toList());
+        variablesItems.addAll(variablesNames);
         // Create ComboBox
-        comboBoxInstruc = new ComboBox<>(itemsInstructions);
-        comboBoxInstruc.setPrefWidth(120); // Set preferred width of ComboBox
-        comboBoxInstruc.getSelectionModel().selectFirst();
-
+        comboBoxVars = new ComboBox<>(variablesItems);
         // Set cell factory to display images and text
-        comboBoxInstruc.setButtonCell(new ListCell<>() {
+        comboBoxVars.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxItem item, boolean empty) {
+            protected void updateItem(ComboBoxVars item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
@@ -211,19 +203,14 @@ public class ABRViewBotJobPane extends ABRPane {
                     setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
-                    ImageView imageView = new ImageView(item.getImage());
-                    imageView.setFitWidth(20); // Set the width for icon size
-                    imageView.setFitHeight(20); // Set the height for icon size
-                    imageView.setPreserveRatio(true);
-                    setGraphic(imageView);
                     setTextFill(Color.BLACK); // Ensure text is black
                 }
             }
         });
 
-        comboBoxInstruc.setCellFactory(param -> new ListCell<>() {
+        comboBoxVars.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxItem item, boolean empty) {
+            protected void updateItem(ComboBoxVars item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
@@ -231,11 +218,6 @@ public class ABRViewBotJobPane extends ABRPane {
                     setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
-                    ImageView imageView = new ImageView(item.getImage());
-                    imageView.setFitWidth(20); // Set the width for icon size
-                    imageView.setFitHeight(20); // Set the height for icon size
-                    imageView.setPreserveRatio(true);
-                    setGraphic(imageView);
                     setTextFill(Color.BLACK); // Ensure text is black
                 }
 
@@ -244,25 +226,6 @@ public class ABRViewBotJobPane extends ABRPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-
-        // Initialize items with images and text
-
-        variablesItems = FXCollections.observableArrayList();
-        variablesItems.add(new ComboBoxVars("variables", -1, ""));
-
-        itemsInstructions = FXCollections.observableArrayList(
-                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
-                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
-                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
-                new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
-
-        List<ComboBoxVars> variablesNames = variablesList.stream()
-                .map(variable -> new ComboBoxVars(variable.getName(), variable.getInstructionId(), variable.getValue()))
-                .collect(Collectors.toList());
-        variablesItems.addAll(variablesNames);
-        // Create ComboBox
-        comboBoxVars = new ComboBox<>(variablesItems);
-        comboBoxVars.setPrefWidth(120); // Set preferred width of ComboBox
         comboBoxVars.getSelectionModel().selectFirst();
 
         this.variablesButton = builder.buildButton(
@@ -271,9 +234,6 @@ public class ABRViewBotJobPane extends ABRPane {
                 ABRConstants.ICON_VARIABLES,
                 ABRConstants.SPACE_M,
                 new Insets(5.0D));
-
-        this.addInstructionButton = builder.buildButton(
-                "New Step", ABRConstants.SPACE_ZERO, ABRConstants.ICON_STEP, ABRConstants.SPACE_M, new Insets(5.0D));
 
         // Create a GridPane for the left side buttons
         GridPane leftGridPane = new GridPane();
@@ -328,19 +288,12 @@ public class ABRViewBotJobPane extends ABRPane {
         rightGridPane.setVgap(10); // Vertical spacing between elements
         rightGridPane.setHgap(10); // Horizontal spacing between elements
 
-        //        rightGridPane.add(comboBoxInstruc, 0, 0);
-
-        rightGridPane.add(comboBoxInstruc, 0, 0);
+        variablesButton.setPrefWidth(buttonWidth);
+        rightGridPane.add(variablesButton, 0, 0);
         rightGridPane.add(comboBoxVars, 1, 0);
 
-        addInstructionButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(addInstructionButton, 2, 0);
-
-        variablesButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(variablesButton, 0, 1);
-
         closeBotJobButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(closeBotJobButton, 2, 1);
+        rightGridPane.add(closeBotJobButton, 2, 2);
 
         // Center the buttons
         for (Node node : rightGridPane.getChildren()) {
@@ -563,37 +516,6 @@ public class ABRViewBotJobPane extends ABRPane {
             variablesItems.addAll(variablesNames);
             // Set ComboBox to first item
             comboBoxVars.getSelectionModel().selectFirst();
-        });
-
-        this.addInstructionButton.setOnMouseClicked((e) -> {
-            // Check if the current selected index is greater than the first index
-            if (comboBoxVars.getSelectionModel().getSelectedIndex() < 1) {
-                showAlert("Select the Variable", "Select the Variable to apply!");
-                return;
-            } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 1) {
-                showAlert("Select the Instruction", "Select the Instruction to apply!");
-                return;
-            }
-
-            if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("setValue")) {
-                addInstruction(
-                        "SetValue",
-                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
-                                + comboBoxVars.getValue().getText().toUpperCase(),
-                        comboBoxVars.getValue().getVarId());
-            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
-                addInstruction(
-                        "GetValue",
-                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
-                                + comboBoxVars.getValue().getText().toUpperCase(),
-                        comboBoxVars.getValue().getVarId());
-            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("check")) {
-                addInstruction(
-                        "Check",
-                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
-                                + comboBoxVars.getValue().getText().toUpperCase(),
-                        comboBoxVars.getValue().getVarId());
-            }
         });
 
         this.openExcelFileButton.setOnMouseClicked((e) -> {
