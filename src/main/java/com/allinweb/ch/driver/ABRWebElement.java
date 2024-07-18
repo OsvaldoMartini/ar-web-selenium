@@ -116,6 +116,7 @@ public class ABRWebElement {
     private Label nameLabel;
     private Label operationLabel1;
     private Label operationLabel2;
+    private Label operationLabel3;
     private Label spaceLabel;
 
     private TextField nameField;
@@ -133,8 +134,8 @@ public class ABRWebElement {
     private ComboBox<ComboBoxItem> comboBoxInstruc;
     private ObservableList<ComboBoxItem> itemsInstructions;
 
-    private ComboBox<ComboBoxItem> comboBoxOperator;
-    private ObservableList<ComboBoxItem> operatorsItems;
+    private ComboBox<ComboBoxOperator> comboBoxOperator;
+    private ObservableList<ComboBoxOperator> operatorsItems;
 
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
@@ -479,8 +480,8 @@ public class ABRWebElement {
 
         // Initialize items with images and text
         operatorsItems = FXCollections.observableArrayList(
-                new ComboBoxItem("Equals", new Image(ABRConstants.ICON_EQUAL)),
-                new ComboBoxItem("Greater", new Image(ABRConstants.ICON_GREATER)));
+                new ComboBoxOperator("Equals", new Image(ABRConstants.ICON_EQUAL), "="),
+                new ComboBoxOperator("Greater", new Image(ABRConstants.ICON_GREATER), ">"));
 
         if (!actionReference[0].equals(ABRConstants.CHECK_VALUE)
                 && !actionReference[0].equals(ABRConstants.SET_VALUE)
@@ -608,7 +609,7 @@ public class ABRWebElement {
             // Set cell factory to display images and text
             comboBoxOperator.setButtonCell(new ListCell<>() {
                 @Override
-                protected void updateItem(ComboBoxItem item, boolean empty) {
+                protected void updateItem(ComboBoxOperator item, boolean empty) {
                     super.updateItem(item, empty);
                     if (empty || item == null) {
                         setText(null);
@@ -617,8 +618,8 @@ public class ABRWebElement {
                     } else {
                         setText(item.getText());
                         ImageView imageView = new ImageView(item.getImage());
-                        imageView.setFitWidth(20); // Set the width for icon size
-                        imageView.setFitHeight(20); // Set the height for icon size
+                        imageView.setFitWidth(15); // Set the width for icon size
+                        imageView.setFitHeight(15); // Set the height for icon size
                         imageView.setPreserveRatio(true);
                         setGraphic(imageView);
                         setTextFill(Color.BLACK); // Ensure text is black
@@ -628,7 +629,7 @@ public class ABRWebElement {
 
             comboBoxOperator.setCellFactory(param -> new ListCell<>() {
                 @Override
-                protected void updateItem(ComboBoxItem item, boolean empty) {
+                protected void updateItem(ComboBoxOperator item, boolean empty) {
                     super.updateItem(item, empty);
                     if (empty || item == null) {
                         setText(null);
@@ -637,8 +638,8 @@ public class ABRWebElement {
                     } else {
                         setText(item.getText());
                         ImageView imageView = new ImageView(item.getImage());
-                        imageView.setFitWidth(20); // Set the width for icon size
-                        imageView.setFitHeight(20); // Set the height for icon size
+                        imageView.setFitWidth(15); // Set the width for icon size
+                        imageView.setFitHeight(15); // Set the height for icon size
                         imageView.setPreserveRatio(true);
                         setGraphic(imageView);
                         setTextFill(Color.BLACK); // Ensure text is black
@@ -735,13 +736,24 @@ public class ABRWebElement {
 
                 operationLabel1 = new Label(operationsElement[0].get() + complement);
                 operationLabel1.setTextFill(Color.BLUE);
-                operationLabel2 = new Label(operationsElement[1].get());
-                operationLabel2.setTextFill(Color.ORANGE);
+
+                if (isCheckValidator) {
+                    operationLabel2 = new Label(operationsElement[1].get());
+                    operationLabel2.setTextFill(Color.ORANGE);
+                    operationLabel3 = new Label(operationsElement[2].get());
+                    operationLabel3.setTextFill(Color.BLUE);
+                    operationLabel3.setStyle("-fx-font-size: 14px;");
+                    operationLabel3.setStyle("-fx-font-weight: bold;");
+                } else {
+                    operationLabel2 = new Label(operationsElement[1].get());
+                    operationLabel2.setTextFill(Color.ORANGE);
+                }
 
                 // Optionally, you can set additional styles or properties
-                operationLabel1.setStyle("-fx-font-size: 14px;"); // Example of setting font size
-                operationLabel1.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
-                operationLabel2.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
+                operationLabel1.setStyle("-fx-font-size: 14px;");
+                operationLabel1.setStyle("-fx-font-weight: bold;");
+                operationLabel2.setStyle("-fx-font-size: 14px;");
+                operationLabel2.setStyle("-fx-font-weight: bold;");
 
                 blockButton.setPrefWidth(ABRConstants.SPACE_L);
                 if (isCheckValidator) {
@@ -749,10 +761,11 @@ public class ABRWebElement {
                             .getChildren()
                             .addAll(
                                     operationLabel1,
-                                    comboBoxOperator,
                                     operationLabel2,
+                                    operationLabel3,
                                     spaceLabel,
                                     variableBox,
+                                    comboBoxOperator,
                                     blockButton,
                                     moveUpButton,
                                     moveDownButton,
@@ -805,8 +818,8 @@ public class ABRWebElement {
                 }
 
                 // Optionally, you can set additional styles or properties
-                operationLabel1.setStyle("-fx-font-size: 14px;"); // Example of setting font size
-                operationLabel1.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
+                operationLabel1.setStyle("-fx-font-size: 14px;");
+                operationLabel1.setStyle("-fx-font-weight: bold;");
             }
 
         } else {
@@ -995,7 +1008,7 @@ public class ABRWebElement {
                 addInstruction(
                         "SetValue",
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
-                                + comboBoxVars.getValue().getText().toUpperCase(),
+                                + comboBoxVars.getValue().getValue(),
                         comboBoxVars.getValue().getVarId());
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
                 addInstruction(
@@ -1006,8 +1019,8 @@ public class ABRWebElement {
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("check")) {
                 addInstruction(
                         "Check",
-                        comboBoxVars.getValue().getText().substring(1).toLowerCase()
-                                + comboBoxOperator.getValue().getText()
+                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
+                                + comboBoxOperator.getValue().getOperator() + ":"
                                 + comboBoxVars.getValue().getValue(),
                         comboBoxVars.getValue().getVarId());
             }
