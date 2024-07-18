@@ -609,59 +609,63 @@ public class ABRWebElement {
             comboBoxOperator.getSelectionModel().selectFirst();
         }
 
+        variablesItems.add(new ComboBoxVars("variables", -1));
         if (variablesList != null && variablesList.size() > 0) {
             List<ComboBoxVars> variablesNames = variablesList.stream()
                     .map(variable -> new ComboBoxVars(
                             variable.getType().substring(0, 1) + variable.getName(), variable.getInstructionId()))
                     .collect(Collectors.toList());
-
-            variablesItems.add(new ComboBoxVars("variables", -1));
             variablesItems.addAll(variablesNames);
-            comboBoxVars = new ComboBox<>(variablesItems);
-            // Set cell factory to display images and text
-            comboBoxVars.setButtonCell(new ListCell<>() {
-                @Override
-                protected void updateItem(ComboBoxVars item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                        setTextFill(Color.BLACK); // Ensure text is black
-                    } else {
-                        setText(item.getText());
-                        setTextFill(Color.BLACK); // Ensure text is black
-                    }
-                }
-            });
-
-            comboBoxVars.setCellFactory(param -> new ListCell<>() {
-                @Override
-                protected void updateItem(ComboBoxVars item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                        setTextFill(Color.BLACK); // Ensure text is black
-                    } else {
-                        setText(item.getText());
-                        setTextFill(Color.BLACK); // Ensure text is black
-                    }
-
-                    // Add hover effect
-                    setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
-                    setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
-                }
-            });
-            comboBoxVars.getSelectionModel().selectFirst();
         }
+        comboBoxVars = new ComboBox<>(variablesItems);
+        // Set cell factory to display images and text
+        comboBoxVars.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+
+        comboBoxVars.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+        comboBoxVars.getSelectionModel().selectFirst();
 
         // Create description label
-        HBox xBox = new HBox();
+        actionPanel = new HBox();
         HBox variableBox = new HBox();
+        variableBox.getChildren().addAll(comboBoxInstruc, addInstructionButton, comboBoxVars, variableButton);
         if (variablesItems != null && variablesItems.size() > 1) {
-            variableBox.getChildren().addAll(comboBoxInstruc, addInstructionButton, comboBoxVars, variableButton);
+            comboBoxInstruc.setVisible(true);
+            addInstructionButton.setVisible(true);
+            comboBoxVars.setDisable(false);
         } else {
-            variableBox.getChildren().addAll(variableButton);
+            comboBoxInstruc.setVisible(false);
+            addInstructionButton.setVisible(false);
+            comboBoxVars.setDisable(true);
         }
         if (operationsElement != null && operationsElement.length > 1) {
 
@@ -678,7 +682,7 @@ public class ABRWebElement {
 
                 blockButton.setPrefWidth(ABRConstants.SPACE_L);
                 if (comboBoxOperator != null) {
-                    xBox.getChildren()
+                    actionPanel.getChildren()
                             .addAll(
                                     operationLabel1,
                                     operationLabel2,
@@ -690,7 +694,7 @@ public class ABRWebElement {
                                     moreOptionsButton,
                                     deleteButton);
                 } else {
-                    xBox.getChildren()
+                    actionPanel.getChildren()
                             .addAll(
                                     operationLabel1,
                                     operationLabel2,
@@ -708,7 +712,7 @@ public class ABRWebElement {
                 blockButton.setPrefWidth(ABRConstants.SPACE_L);
 
                 if (comboBoxOperator != null) {
-                    xBox.getChildren()
+                    actionPanel.getChildren()
                             .addAll(
                                     operationLabel1,
                                     comboBoxOperator,
@@ -719,7 +723,7 @@ public class ABRWebElement {
                                     moreOptionsButton,
                                     deleteButton);
                 } else {
-                    xBox.getChildren()
+                    actionPanel.getChildren()
                             .addAll(
                                     operationLabel1,
                                     variableBox,
@@ -738,7 +742,7 @@ public class ABRWebElement {
         } else {
             blockButton.setPrefWidth(ABRConstants.SPACE_L);
             if (comboBoxOperator != null) {
-                xBox.getChildren()
+                actionPanel.getChildren()
                         .addAll(
                                 comboBoxOperator,
                                 variableBox,
@@ -748,7 +752,7 @@ public class ABRWebElement {
                                 moreOptionsButton,
                                 deleteButton);
             } else {
-                xBox.getChildren()
+                actionPanel.getChildren()
                         .addAll(
                                 variableBox,
                                 blockButton,
@@ -759,7 +763,6 @@ public class ABRWebElement {
             }
         }
 
-        actionPanel = xBox;
         actionPanel.setSpacing(ABRConstants.SPACE_XS);
         actionPanel.setAlignment(Pos.CENTER_RIGHT);
         AnchorPane.setTopAnchor(actionPanel, ABRConstants.SPACE_XS);
@@ -906,9 +909,15 @@ public class ABRWebElement {
                 // Set ComboBox to first item
                 comboBoxVars.getSelectionModel().selectFirst();
 
-//                defineButtonsGrid();
-//
-//                graphicRepresentation = new AnchorPane(elementPanel, actionPanel);
+                if (variablesItems.size() > 1) {
+                    comboBoxInstruc.setVisible(true);
+                    addInstructionButton.setVisible(true);
+                    comboBoxVars.setDisable(false);
+                }else{
+                    comboBoxInstruc.setVisible(false);
+                    addInstructionButton.setVisible(false);
+                    comboBoxVars.setDisable(true);
+                }
                 
             }
         });
