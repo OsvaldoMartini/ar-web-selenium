@@ -4,10 +4,12 @@ package com.allinweb.ch.util;
 public class ComboBoxVars {
     private final String text;
     private final Integer varId;
+    private final String value;
 
-    public ComboBoxVars(String text, Integer varId) {
+    public ComboBoxVars(String text, Integer varId, String value) {
         this.text = text;
         this.varId = varId;
+        this.value = value;
     }
 
     public String getText() {
@@ -16,5 +18,9 @@ public class ComboBoxVars {
 
     public Integer getVarId() {
         return varId;
+    }
+
+    public String getValue() {
+        return value;
     }
 }

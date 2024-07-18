@@ -248,7 +248,7 @@ public class ABRViewBotJobPane extends ABRPane {
         // Initialize items with images and text
 
         variablesItems = FXCollections.observableArrayList();
-        variablesItems.add(new ComboBoxVars("variables", -1));
+        variablesItems.add(new ComboBoxVars("variables", -1, ""));
 
         itemsInstructions = FXCollections.observableArrayList(
                 new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
@@ -257,7 +257,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
 
         List<ComboBoxVars> variablesNames = variablesList.stream()
-                .map(variable -> new ComboBoxVars(variable.getName(), variable.getInstructionId()))
+                .map(variable -> new ComboBoxVars(variable.getName(), variable.getInstructionId(), variable.getValue()))
                 .collect(Collectors.toList());
         variablesItems.addAll(variablesNames);
         // Create ComboBox
@@ -552,11 +552,13 @@ public class ABRViewBotJobPane extends ABRPane {
             elementValueScene.showModal();
             loadJobVariables();
             variablesItems.clear();
-            variablesItems.add(new ComboBoxVars("Variables", -1));
+            variablesItems.add(new ComboBoxVars("Variables", -1, ""));
 
             List<ComboBoxVars> variablesNames = variablesList.stream()
                     .map(variable -> new ComboBoxVars(
-                            variable.getType().substring(0, 1) + variable.getName(), variable.getInstructionId()))
+                            variable.getType().substring(0, 1) + variable.getName(),
+                            variable.getInstructionId(),
+                            variable.getValue()))
                     .collect(Collectors.toList());
             variablesItems.addAll(variablesNames);
             // Set ComboBox to first item
@@ -839,10 +841,10 @@ public class ABRViewBotJobPane extends ABRPane {
                 + " FROM variable vars "
                 + " left join block_loop_instruction blk on blk.variable_id = vars.id "
                 + " where bot_job_id = " + this.botJob.getId()
-//                + " and  block_loop_instruction_id = " + instructionId
+                //                + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = getConnection().createStatement();
-             ResultSet rs = stmt.executeQuery(selectSQL)) {
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
                 String type = rs.getString("type");
