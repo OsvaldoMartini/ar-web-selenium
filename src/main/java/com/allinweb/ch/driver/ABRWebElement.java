@@ -4,14 +4,21 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.scene.ABRAlertScene;
+import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
+import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
@@ -40,9 +47,22 @@ import org.openqa.selenium.remote.RemoteWebElement;
 
 public class ABRWebElement {
 
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+
+    private static final boolean POSTGRES_DB = true;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+    private Connection conn = null;
+
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
     private BooleanProperty clickElement = new SimpleBooleanProperty(false);
+    private BooleanProperty varButtonElem = new SimpleBooleanProperty(false);
     private BooleanProperty setValueElem = new SimpleBooleanProperty(false);
     private BooleanProperty getValueElem = new SimpleBooleanProperty(false);
     private BooleanProperty checkValueElem = new SimpleBooleanProperty(false);
@@ -51,9 +71,11 @@ public class ABRWebElement {
     private BooleanProperty textElement = new SimpleBooleanProperty(false);
     private BooleanProperty toBeAddedElement = new SimpleBooleanProperty(false);
     private BooleanProperty isIdElement = new SimpleBooleanProperty(false);
-    private StringProperty[] descriptionElement = new StringProperty[0];
+    private StringProperty[] operationsElement = new StringProperty[0];
 
     private Integer instructionId;
+    private Integer botJobId;
+    private String instructionName;
 
     private String elementId;
     private WebElement element;
@@ -72,9 +94,13 @@ public class ABRWebElement {
     private HBox elementPanel;
     private HBox actionPanel;
 
+    private StackPane nameGroup;
+    private HBox nameFieldsGroup;
+    private StackPane actionGroup;
+
     private Label nameLabel;
-    private Label descriptionLabel1;
-    private Label descriptionLabel2;
+    private Label operationLabel1;
+    private Label operationLabel2;
 
     private TextField nameField;
 
@@ -84,9 +110,19 @@ public class ABRWebElement {
     private Button moreOptionsButton;
     private Button saveButton;
     private Button deleteButton;
+    private Button variableButton;
+    private Button addInstructionButton;
+
+    private ComboBox<ComboBoxItem> comboBoxInstruc;
+    private ObservableList<ComboBoxItem> itemsInstructions;
 
     private ComboBox<ComboBoxItem> comboBoxOperator;
-    private ObservableList<ComboBoxItem> opetarotItems;
+    private ObservableList<ComboBoxItem> operatorsItems;
+
+    private ComboBox<ComboBoxVars> comboBoxVars;
+    private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
+
+    private List<VariableUserDTO> variablesList = new ArrayList<>();
 
     private ImageView clickImage;
     private ImageView insertImage;
@@ -134,22 +170,23 @@ public class ABRWebElement {
     }
 
     public ABRWebElement(BlockLoopInstructionDTO instruction) {
+        botJobId = instruction.getBlock().getBotJob().getId();
         updatePriorities(null, instruction);
         initFromBlockLoopInstruction(instruction);
     }
 
     private void updatePriorities(String priority, BlockLoopInstructionDTO instruction) {
+        botJobId = instruction.getBlock().getBotJob().getId();
         if (abrPriorities.getJobId() == null) {
-            abrPriorities.setJobId(instruction.getBlock().getBotJob().getId());
+            abrPriorities.setJobId(botJobId);
             if (instruction.getBlock().getBotJob().getHomeBanking().getPriority() != null) {
                 abrPriorities.loadPrioritiesFromString(
                         instruction.getBlock().getBotJob().getHomeBanking().getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
-        } else if (abrPriorities.getJobId()
-                != instruction.getBlock().getBotJob().getId()) {
-            abrPriorities.setJobId(instruction.getBlock().getBotJob().getId());
+        } else if (abrPriorities.getJobId() != botJobId) {
+            abrPriorities.setJobId(botJobId);
             if (instruction.getBlock().getBotJob().getHomeBanking().getPriority() != null) {
                 abrPriorities.loadPrioritiesFromString(
                         instruction.getBlock().getBotJob().getHomeBanking().getPriority());
@@ -235,6 +272,7 @@ public class ABRWebElement {
                 if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
                     // OR BUTTON SOMETHING CLICKABLE
                     clickElement.setValue(true);
+                    varButtonElem.setValue(true);
                 } else if (forceTagEnum.equals(WebElementTagNameEnum.SET)) {
                     setValueElem.setValue(true);
                 } else if (forceTagEnum.equals(WebElementTagNameEnum.GET)) {
@@ -244,6 +282,7 @@ public class ABRWebElement {
                 } else {
                     // OR INPUT SOMETHING IMPUTABLE
                     clickElement.setValue(false);
+                    varButtonElem.setValue(true);
                 }
 
             } else {
@@ -385,24 +424,39 @@ public class ABRWebElement {
         String[] descriptionArray = instruction.getDescription().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
 
         // Initialize the descriptions array with the length of the descriptionArray
-        descriptionElement = new StringProperty[descriptionArray.length];
+        operationsElement = new StringProperty[descriptionArray.length];
 
         // Convert each string to a StringProperty
         for (int i = 0; i < descriptionArray.length; i++) {
-            descriptionElement[i] = new SimpleStringProperty(descriptionArray[i]);
+            operationsElement[i] = new SimpleStringProperty(descriptionArray[i]);
         }
         String[] actionReference = instruction.getActions().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
 
         if (actionReference[0].equals(ABRConstants.CHECK_VALUE)) {
             // Initialize items with images and text
-            opetarotItems = FXCollections.observableArrayList(
+            operatorsItems = FXCollections.observableArrayList(
                     new ComboBoxItem("Equals", new Image(ABRConstants.ICON_EQUAL)),
                     new ComboBoxItem("Greater>", new Image(ABRConstants.ICON_GREATER)));
         }
 
-        initUI();
+        if (!actionReference[0].equals(ABRConstants.CHECK_VALUE)
+                && !actionReference[0].equals(ABRConstants.SET_VALUE)
+                && !actionReference[0].equals(ABRConstants.GET_VALUE)) {
+            // Initialize items with images and text
+            itemsInstructions = FXCollections.observableArrayList(
+                    new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
+                    new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
+                    new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
+                    new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
+        }
 
         instructionId = instruction.getId();
+        instructionName = instruction.getName();
+
+        loadJobVariables();
+
+        initUI();
+
         nameLabel.setText(instruction.getName());
         nameField.setText(instruction.getName());
         xPath = instruction.getPath();
@@ -413,8 +467,10 @@ public class ABRWebElement {
 
         if (actionReference[0].equals(ABRConstants.CLICK)) {
             clickElement.setValue(true);
+            varButtonElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.INSERT)) {
             textElement.setValue(true);
+            varButtonElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.SET_VALUE)) {
             setValueElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.GET_VALUE)) {
@@ -423,6 +479,8 @@ public class ABRWebElement {
             checkValueElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.HOLD)) {
             holdValueElem.setValue(true);
+        } else {
+            varButtonElem.setValue(true);
         }
 
         toBeAddedElement.setValue(false);
@@ -435,7 +493,8 @@ public class ABRWebElement {
 
     private void initUIComponents() {
         initElementPanel();
-        initActionPanel();
+        initButtonsGrid();
+        defineButtonsGrid();
 
         graphicRepresentation = new AnchorPane(elementPanel, actionPanel);
 
@@ -444,52 +503,63 @@ public class ABRWebElement {
         // graphicRepresentation.backgroundProperty().setValue(Background.fill(Color.WHITE));
     }
 
-    private void initElementPanel() {
-        clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
-        insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
-        textImage = componentBuilder.buildImageView(ABRConstants.ICON_TEXT, ABRConstants.SPACE_M);
-        setImage = componentBuilder.buildImageView(ABRConstants.ICON_SET_VALUE, ABRConstants.SPACE_M);
-        getImage = componentBuilder.buildImageView(ABRConstants.ICON_GET_VALUE, ABRConstants.SPACE_M);
-        checkImage = componentBuilder.buildImageView(ABRConstants.ICON_CHECK, ABRConstants.SPACE_M);
-        holdImage = componentBuilder.buildImageView(ABRConstants.ICON_WAIT, ABRConstants.SPACE_M);
+    private void defineButtonsGrid() {
+        // Create ComboBox Instructions
+        if (itemsInstructions != null && itemsInstructions.size() > 0) {
 
-        saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
-        saveButton.setMaxHeight(ABRConstants.SPACE_L);
+            comboBoxInstruc = new ComboBox<>(itemsInstructions);
+            comboBoxInstruc.setPrefWidth(120); // Set preferred width of ComboBox
 
-        nameField = new TextField();
-        nameField.setMaxHeight(ABRConstants.SPACE_L);
+            // Set cell factory to display images and text
+            comboBoxInstruc.setButtonCell(new ListCell<>() {
+                @Override
+                protected void updateItem(ComboBoxItem item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setGraphic(null);
+                        setTextFill(Color.BLACK); // Ensure text is black
+                    } else {
+                        setText(item.getText());
+                        ImageView imageView = new ImageView(item.getImage());
+                        imageView.setFitWidth(20); // Set the width for icon size
+                        imageView.setFitHeight(20); // Set the height for icon size
+                        imageView.setPreserveRatio(true);
+                        setGraphic(imageView);
+                        setTextFill(Color.BLACK); // Ensure text is black
+                    }
+                }
+            });
 
-        nameLabel = new Label();
-        nameLabel.setMaxHeight(ABRConstants.SPACE_L);
+            comboBoxInstruc.setCellFactory(param -> new ListCell<>() {
+                @Override
+                protected void updateItem(ComboBoxItem item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setGraphic(null);
+                        setTextFill(Color.BLACK); // Ensure text is black
+                    } else {
+                        setText(item.getText());
+                        ImageView imageView = new ImageView(item.getImage());
+                        imageView.setFitWidth(20); // Set the width for icon size
+                        imageView.setFitHeight(20); // Set the height for icon size
+                        imageView.setPreserveRatio(true);
+                        setGraphic(imageView);
+                        setTextFill(Color.BLACK); // Ensure text is black
+                    }
 
-        StackPane nameGroup = new StackPane(nameLabel, nameField);
+                    // Add hover effect
+                    setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                    setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+                }
+            });
+            comboBoxInstruc.getSelectionModel().selectFirst();
+        }
 
-        HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
-        StackPane actionGroup =
-                new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
-        elementPanel = new HBox(actionGroup, nameFieldsGroup);
-        elementPanel.setSpacing(ABRConstants.SPACE_XS);
-
-        AnchorPane.setLeftAnchor(elementPanel, ABRConstants.SPACE_XS);
-        AnchorPane.setTopAnchor(elementPanel, ABRConstants.SPACE_XS);
-        AnchorPane.setBottomAnchor(elementPanel, ABRConstants.SPACE_XS);
-    }
-
-    private void initActionPanel() {
-        moreOptionsButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_EDIT, ABRConstants.SPACE_M, Insets.EMPTY);
-        blockButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_BLOCK, ABRConstants.SPACE_M, Insets.EMPTY);
-        moveUpButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_UP, ABRConstants.SPACE_M, Insets.EMPTY);
-        moveDownButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_DOWN, ABRConstants.SPACE_M, Insets.EMPTY);
-        deleteButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
-
-        // Create ComboBox
-        if (opetarotItems != null && opetarotItems.size() > 0) {
-            comboBoxOperator = new ComboBox<>(opetarotItems);
+        // Create ComboBox Operators
+        if (operatorsItems != null && operatorsItems.size() > 0) {
+            comboBoxOperator = new ComboBox<>(operatorsItems);
             comboBoxOperator.setPrefWidth(50);
 
             // Set cell factory to display images and text
@@ -539,85 +609,250 @@ public class ABRWebElement {
             comboBoxOperator.getSelectionModel().selectFirst();
         }
 
-        // Create description label
-        if (descriptionElement != null && descriptionElement.length > 1) {
+        if (variablesList != null && variablesList.size() > 0) {
+            List<ComboBoxVars> variablesNames = variablesList.stream()
+                    .map(variable -> new ComboBoxVars(
+                            variable.getType().substring(0, 1) + variable.getName(), variable.getInstructionId()))
+                    .collect(Collectors.toList());
 
-            if (descriptionElement.length > 1) {
-                descriptionLabel1 = new Label(descriptionElement[0].get() + ": ");
-                descriptionLabel1.setTextFill(Color.BLUE);
-                descriptionLabel2 = new Label(descriptionElement[1].get());
-                descriptionLabel2.setTextFill(Color.ORANGE);
+            variablesItems.add(new ComboBoxVars("variables", -1));
+            variablesItems.addAll(variablesNames);
+            comboBoxVars = new ComboBox<>(variablesItems);
+            // Set cell factory to display images and text
+            comboBoxVars.setButtonCell(new ListCell<>() {
+                @Override
+                protected void updateItem(ComboBoxVars item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setGraphic(null);
+                        setTextFill(Color.BLACK); // Ensure text is black
+                    } else {
+                        setText(item.getText());
+                        setTextFill(Color.BLACK); // Ensure text is black
+                    }
+                }
+            });
+
+            comboBoxVars.setCellFactory(param -> new ListCell<>() {
+                @Override
+                protected void updateItem(ComboBoxVars item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty || item == null) {
+                        setText(null);
+                        setGraphic(null);
+                        setTextFill(Color.BLACK); // Ensure text is black
+                    } else {
+                        setText(item.getText());
+                        setTextFill(Color.BLACK); // Ensure text is black
+                    }
+
+                    // Add hover effect
+                    setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                    setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+                }
+            });
+            comboBoxVars.getSelectionModel().selectFirst();
+        }
+
+        // Create description label
+        HBox xBox = new HBox();
+        HBox variableBox = new HBox();
+        if (variablesItems != null && variablesItems.size() > 1) {
+            variableBox.getChildren().addAll(comboBoxInstruc, addInstructionButton, comboBoxVars, variableButton);
+        } else {
+            variableBox.getChildren().addAll(variableButton);
+        }
+        if (operationsElement != null && operationsElement.length > 1) {
+
+            if (operationsElement.length > 1) {
+                operationLabel1 = new Label(operationsElement[0].get() + ": ");
+                operationLabel1.setTextFill(Color.BLUE);
+                operationLabel2 = new Label(operationsElement[1].get());
+                operationLabel2.setTextFill(Color.ORANGE);
 
                 // Optionally, you can set additional styles or properties
-                descriptionLabel1.setStyle("-fx-font-size: 14px;"); // Example of setting font size
-                descriptionLabel1.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
-                descriptionLabel2.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
+                operationLabel1.setStyle("-fx-font-size: 14px;"); // Example of setting font size
+                operationLabel1.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
+                operationLabel2.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
 
                 blockButton.setPrefWidth(ABRConstants.SPACE_L);
                 if (comboBoxOperator != null) {
-                    actionPanel = new HBox(
-                            descriptionLabel1,
-                            descriptionLabel2,
-                            comboBoxOperator,
-                            blockButton,
-                            moveUpButton,
-                            moveDownButton,
-                            moreOptionsButton,
-                            deleteButton);
+                    xBox.getChildren()
+                            .addAll(
+                                    operationLabel1,
+                                    operationLabel2,
+                                    comboBoxOperator,
+                                    variableBox,
+                                    blockButton,
+                                    moveUpButton,
+                                    moveDownButton,
+                                    moreOptionsButton,
+                                    deleteButton);
                 } else {
-                    actionPanel = new HBox(
-                            descriptionLabel1,
-                            descriptionLabel2,
-                            blockButton,
-                            moveUpButton,
-                            moveDownButton,
-                            moreOptionsButton,
-                            deleteButton);
+                    xBox.getChildren()
+                            .addAll(
+                                    operationLabel1,
+                                    operationLabel2,
+                                    variableBox,
+                                    blockButton,
+                                    moveUpButton,
+                                    moveDownButton,
+                                    moreOptionsButton,
+                                    deleteButton);
                 }
 
             } else {
-                descriptionLabel1 = new Label(descriptionElement[0].get());
-                descriptionLabel1.setTextFill(Color.BLUE);
+                operationLabel1 = new Label(operationsElement[0].get());
+                operationLabel1.setTextFill(Color.BLUE);
                 blockButton.setPrefWidth(ABRConstants.SPACE_L);
 
                 if (comboBoxOperator != null) {
-                    actionPanel = new HBox(
-                            descriptionLabel1,
-                            comboBoxOperator,
-                            blockButton,
-                            moveUpButton,
-                            moveDownButton,
-                            moreOptionsButton,
-                            deleteButton);
+                    xBox.getChildren()
+                            .addAll(
+                                    operationLabel1,
+                                    comboBoxOperator,
+                                    variableBox,
+                                    blockButton,
+                                    moveUpButton,
+                                    moveDownButton,
+                                    moreOptionsButton,
+                                    deleteButton);
                 } else {
-                    actionPanel = new HBox(
-                            descriptionLabel1,
-                            blockButton,
-                            moveUpButton,
-                            moveDownButton,
-                            moreOptionsButton,
-                            deleteButton);
+                    xBox.getChildren()
+                            .addAll(
+                                    operationLabel1,
+                                    variableBox,
+                                    blockButton,
+                                    moveUpButton,
+                                    moveDownButton,
+                                    moreOptionsButton,
+                                    deleteButton);
                 }
 
                 // Optionally, you can set additional styles or properties
-                descriptionLabel1.setStyle("-fx-font-size: 14px;"); // Example of setting font size
-                descriptionLabel1.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
+                operationLabel1.setStyle("-fx-font-size: 14px;"); // Example of setting font size
+                operationLabel1.setStyle("-fx-font-weight: bold;"); // Example of setting font weight
             }
 
         } else {
             blockButton.setPrefWidth(ABRConstants.SPACE_L);
             if (comboBoxOperator != null) {
-                actionPanel = new HBox(
-                        comboBoxOperator, blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
+                xBox.getChildren()
+                        .addAll(
+                                comboBoxOperator,
+                                variableBox,
+                                blockButton,
+                                moveUpButton,
+                                moveDownButton,
+                                moreOptionsButton,
+                                deleteButton);
             } else {
-                actionPanel = new HBox(blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
+                xBox.getChildren()
+                        .addAll(
+                                variableBox,
+                                blockButton,
+                                moveUpButton,
+                                moveDownButton,
+                                moreOptionsButton,
+                                deleteButton);
             }
         }
+
+        actionPanel = xBox;
         actionPanel.setSpacing(ABRConstants.SPACE_XS);
         actionPanel.setAlignment(Pos.CENTER_RIGHT);
         AnchorPane.setTopAnchor(actionPanel, ABRConstants.SPACE_XS);
         AnchorPane.setBottomAnchor(actionPanel, ABRConstants.SPACE_XS);
         AnchorPane.setRightAnchor(actionPanel, ABRConstants.SPACE_XS);
+    }
+
+    private void initElementPanel() {
+        if (clickImage == null) {
+            clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
+        }
+        if (insertImage == null) {
+            insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
+        }
+        if (textImage == null) {
+            textImage = componentBuilder.buildImageView(ABRConstants.ICON_TEXT, ABRConstants.SPACE_M);
+        }
+        if (setImage == null) {
+            setImage = componentBuilder.buildImageView(ABRConstants.ICON_SET_VALUE, ABRConstants.SPACE_M);
+        }
+        if (getImage == null) {
+            getImage = componentBuilder.buildImageView(ABRConstants.ICON_GET_VALUE, ABRConstants.SPACE_M);
+        }
+        if (checkImage == null) {
+            checkImage = componentBuilder.buildImageView(ABRConstants.ICON_CHECK, ABRConstants.SPACE_M);
+        }
+        if (holdImage == null) {
+            holdImage = componentBuilder.buildImageView(ABRConstants.ICON_WAIT, ABRConstants.SPACE_M);
+        }
+        if (saveButton == null) {
+            saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
+            saveButton.setMaxHeight(ABRConstants.SPACE_L);
+        }
+
+        if (nameField == null) {
+            nameField = new TextField();
+            nameField.setMaxHeight(ABRConstants.SPACE_L);
+        }
+
+        if (nameLabel == null) {
+            nameLabel = new Label();
+            nameLabel.setMaxHeight(ABRConstants.SPACE_L);
+        }
+
+        if (nameGroup == null) {
+            nameGroup = new StackPane(nameLabel, nameField);
+        }
+
+        if (nameFieldsGroup == null) {
+            nameFieldsGroup = new HBox(nameGroup, saveButton);
+        }
+
+        if (actionGroup == null) {
+            actionGroup = new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
+            elementPanel = new HBox(actionGroup, nameFieldsGroup);
+            elementPanel.setSpacing(ABRConstants.SPACE_XS);
+        }
+        AnchorPane.setLeftAnchor(elementPanel, ABRConstants.SPACE_XS);
+        AnchorPane.setTopAnchor(elementPanel, ABRConstants.SPACE_XS);
+        AnchorPane.setBottomAnchor(elementPanel, ABRConstants.SPACE_XS);
+    }
+
+    private void initButtonsGrid() {
+        if (moreOptionsButton == null) {
+            moreOptionsButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_EDIT, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+        if (blockButton == null) {
+            blockButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_BLOCK, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+        if (moveUpButton == null) {
+            moveUpButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_UP, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+        if (moveDownButton == null) {
+            moveDownButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_DOWN, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+        if (deleteButton == null) {
+            deleteButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+
+        if (variableButton == null) {
+            variableButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_VARIABLES, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+
+        if (addInstructionButton == null) {
+            addInstructionButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_PLUS, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
     }
 
     private void initUIBehaviour() {
@@ -637,17 +872,47 @@ public class ABRWebElement {
         nameField.visibleProperty().bind(editingElement);
         saveButton.visibleProperty().bind(editingElement);
 
-        //        descriptionLabel.setText(descriptionElement.getValue());
+        //        operationLabel.setText(operationsElement.getValue());
 
         moveUpButton.visibleProperty().bind(toBeAddedElement.not());
         blockButton.visibleProperty().bind(toBeAddedElement.not());
         moveDownButton.visibleProperty().bind(toBeAddedElement.not());
         deleteButton.visibleProperty().bind(toBeAddedElement.not());
+
+        variableButton.visibleProperty().bind(toBeAddedElement.not());
+
         if (comboBoxOperator != null) {
             comboBoxOperator.visibleProperty().bind(toBeAddedElement.not());
         }
 
         moreOptionsButton.setOnAction(e -> editingElement.setValue(!editingElement.getValue()));
+        variableButton.setOnAction(e -> {
+            nameLabel.setText(nameField.getText());
+            ABRLogger.getInstance(ABRWebElement.class)
+                    .info("creating variable for instruction Name " + instructionName);
+            if (instructionId != null && instructionId != 0) {
+                // Example usage
+                ABRElementValueScene elementValueScene =
+                        new ABRElementValueScene(botJobId, instructionId, instructionName);
+                elementValueScene.showModal();
+                loadJobVariables();
+                variablesItems.clear();
+                List<ComboBoxVars> variablesNames = variablesList.stream()
+                        .map(variable -> new ComboBoxVars(
+                                variable.getType().substring(0, 1) + variable.getName(), variable.getInstructionId()))
+                        .collect(Collectors.toList());
+                variablesItems.add(new ComboBoxVars("variables", -1));
+                variablesItems.addAll(variablesNames);
+                // Set ComboBox to first item
+                comboBoxVars.getSelectionModel().selectFirst();
+
+//                defineButtonsGrid();
+//
+//                graphicRepresentation = new AnchorPane(elementPanel, actionPanel);
+                
+            }
+        });
+
         this.blockButton.setOnAction((e) -> {
             BlockLoopInstructionDTO item = (BlockLoopInstructionDTO)
                     ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, this.instructionId);
@@ -1049,5 +1314,56 @@ public class ABRWebElement {
         for (WebElement child : children) {
             extractTextRecursively(child, textContent);
         }
+    }
+
+    private Connection getConnection() {
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                try {
+                    conn = DriverManager.getConnection(dbUrl);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        }
+    }
+
+    private void loadJobVariables() {
+        variablesList.clear();
+        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
+                + " FROM variable vars "
+                + " left join block_loop_instruction blk on blk.variable_id = vars.id "
+                + " where bot_job_id = " + botJobId
+                + " and  block_loop_instruction_id = " + instructionId
+                + " group by vars.id, vars.type, vars.Name, vars.value ";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                String id = rs.getString("ID");
+                String type = rs.getString("type");
+                String name = rs.getString("name");
+                String value = rs.getString("value");
+                String usedVars = rs.getString("UsedVars");
+                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, instructionId, usedVars));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        //        jobUserList.clear();
+        //        loadBotJobData();
     }
 }

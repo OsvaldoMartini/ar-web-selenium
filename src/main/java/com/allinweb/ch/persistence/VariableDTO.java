@@ -17,9 +17,21 @@ public class VariableDTO extends BaseDTO {
     @Column(name = "value")
     private String value;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "block_loop_instruction_id")
+    private BlockLoopInstructionDTO blockLoopInstructionDTO;
+
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "bot_job_id")
     private BotJobDTO botJobDTO;
+
+    public BlockLoopInstructionDTO getBlockLoopInstructionDTO() {
+        return blockLoopInstructionDTO;
+    }
+
+    public void setBlockLoopInstructionDTO(BlockLoopInstructionDTO blockLoopInstructionDTO) {
+        this.blockLoopInstructionDTO = blockLoopInstructionDTO;
+    }
 
     public BotJobDTO getBotJobDTO() {
         return botJobDTO;

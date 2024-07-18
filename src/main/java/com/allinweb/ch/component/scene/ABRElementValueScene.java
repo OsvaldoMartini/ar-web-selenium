@@ -13,15 +13,19 @@ public class ABRElementValueScene extends ABRScene {
     private static final Double SCENE_WIDTH = 300D;
     private static final String TITLE = "New Variables";
     private int botJobId;
+    private int instructionId;
+    private String instructionName;
 
-    public ABRElementValueScene(int botJobId) {
+    public ABRElementValueScene(int botJobId, int instructionId, String instructionName) {
         super();
         this.botJobId = botJobId;
+        this.instructionId = instructionId;
+        this.instructionName = instructionName;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRElementValuePane(botJobId);
+        return new ABRElementValuePane(botJobId, instructionId, instructionName);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.allinweb.ch.persistence;
 
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
@@ -8,26 +10,36 @@ public class VariableUserDTO {
     private StringProperty type;
     private StringProperty name;
     private StringProperty value;
-    private StringProperty botJobId;
+    private IntegerProperty botJobId;
+    private IntegerProperty instructionId;
     private StringProperty usedVars;
 
     public VariableUserDTO() {}
 
-    public VariableUserDTO(String id, String type, String name, String value, String botJobId, String usedVars) {
+    public VariableUserDTO(
+            String id,
+            String type,
+            String name,
+            String value,
+            Integer botJobId,
+            Integer instructionId,
+            String usedVars) {
         this.id = new SimpleStringProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleStringProperty(value);
-        this.botJobId = new SimpleStringProperty(botJobId);
+        this.botJobId = new SimpleIntegerProperty(botJobId);
+        this.instructionId = new SimpleIntegerProperty(instructionId);
         this.usedVars = new SimpleStringProperty(usedVars);
     }
 
-    public VariableUserDTO(String id, String type, String name, String value, String botJobId) {
+    public VariableUserDTO(String id, String type, String name, String value, Integer botJobId, Integer instructionId) {
         this.id = new SimpleStringProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleStringProperty(value);
-        this.botJobId = new SimpleStringProperty(botJobId);
+        this.botJobId = new SimpleIntegerProperty(botJobId);
+        this.instructionId = new SimpleIntegerProperty(instructionId);
     }
 
     public String getId() {
@@ -78,16 +90,28 @@ public class VariableUserDTO {
         this.value.set(value);
     }
 
-    public String getBotJobId() {
+    public Integer getBotJobId() {
         return botJobId.get();
     }
 
-    public StringProperty botJobIdProperty() {
+    public IntegerProperty botJobIdProperty() {
         return botJobId;
     }
 
-    public void setBotJobId(String botJobId) {
+    public void setBotJobId(Integer botJobId) {
         this.botJobId.set(botJobId);
+    }
+
+    public Integer getInstructionId() {
+        return instructionId.get();
+    }
+
+    public IntegerProperty instructionIdProperty() {
+        return instructionId;
+    }
+
+    public void setInstructionId(Integer instructionId) {
+        this.instructionId.set(instructionId);
     }
 
     public String getUsedVars() {

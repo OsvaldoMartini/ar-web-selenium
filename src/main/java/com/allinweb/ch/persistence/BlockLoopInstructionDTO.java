@@ -26,8 +26,11 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "path", length = 1000)
     private String path;
 
-    @Column(name = "description", length = 1000)
+    @Column(name = "description")
     private String description;
+
+    @Column(name = "operation", length = 500)
+    private String operation;
 
     @Column(name = "optional")
     private int optional;
@@ -131,6 +134,14 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getOperation() {
+        return operation;
+    }
+
+    public void setOperation(String operation) {
+        this.operation = operation;
     }
 
     public BlockDTO getBlock() {

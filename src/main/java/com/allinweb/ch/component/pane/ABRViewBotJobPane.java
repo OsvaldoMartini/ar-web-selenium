@@ -19,6 +19,7 @@ import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ComboBoxItem;
+import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ExcelWriter;
 import com.google.common.base.Strings;
 import java.io.File;
@@ -64,7 +65,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -73,12 +74,13 @@ public class ABRViewBotJobPane extends ABRPane {
     private static final String PASSWORD = "martini"; // your database password
 
     private Connection conn = null;
-    private List<VariableUserDTO> variablesList = new ArrayList<>();
+    private ObservableList<VariableUserDTO> variablesList;
 
-    private ComboBox<ComboBoxItem> comboBox;
-    private ObservableList<ComboBoxItem> items;
-    private ComboBox<String> comboBoxVars;
-    private ObservableList<String> itemsVars;
+    private ComboBox<ComboBoxItem> comboBoxInstruc;
+    private ObservableList<ComboBoxItem> itemsInstructions;
+
+    private ComboBox<ComboBoxVars> comboBoxVars;
+    private ObservableList<ComboBoxVars> variablesItems;
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private BotJobDTO botJob;
@@ -120,6 +122,7 @@ public class ABRViewBotJobPane extends ABRPane {
     public ABRViewBotJobPane(BotJobDTO botJob) {
         this.botJob = botJob;
         // Initialize database IF IS ACCESS TO BE USED
+        variablesList = FXCollections.observableArrayList();
         if (!POSTGRES_DB) {
             initializeDatabase();
         }
@@ -186,20 +189,19 @@ public class ABRViewBotJobPane extends ABRPane {
                 "Close", ABRConstants.SPACE_ZERO, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, new Insets(5.0D));
 
         // Initialize items with images and text
-        items = FXCollections.observableArrayList(
+        itemsInstructions = FXCollections.observableArrayList(
                 new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
                 new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
                 new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
                 new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
 
         // Create ComboBox
-        comboBox = new ComboBox<>(items);
-        comboBox.setPrefWidth(120); // Set preferred width of ComboBox
-        comboBox = new ComboBox<>(items);
-        comboBox.getSelectionModel().selectFirst();
+        comboBoxInstruc = new ComboBox<>(itemsInstructions);
+        comboBoxInstruc.setPrefWidth(120); // Set preferred width of ComboBox
+        comboBoxInstruc.getSelectionModel().selectFirst();
 
         // Set cell factory to display images and text
-        comboBox.setButtonCell(new ListCell<>() {
+        comboBoxInstruc.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxItem item, boolean empty) {
                 super.updateItem(item, empty);
@@ -219,7 +221,7 @@ public class ABRViewBotJobPane extends ABRPane {
             }
         });
 
-        comboBox.setCellFactory(param -> new ListCell<>() {
+        comboBoxInstruc.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxItem item, boolean empty) {
                 super.updateItem(item, empty);
@@ -245,14 +247,21 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Initialize items with images and text
 
-        itemsVars = FXCollections.observableArrayList();
-        itemsVars.add("variables");
-        List<String> variablesNames = variablesList.stream()
-                .map(variable -> variable.getType().substring(0, 1) + variable.getName())
+        variablesItems = FXCollections.observableArrayList();
+        variablesItems.add(new ComboBoxVars("variables", -1));
+
+        itemsInstructions = FXCollections.observableArrayList(
+                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
+                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
+                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
+                new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
+
+        List<ComboBoxVars> variablesNames = variablesList.stream()
+                .map(variable -> new ComboBoxVars(variable.getName(), variable.getInstructionId()))
                 .collect(Collectors.toList());
-        itemsVars.addAll(variablesNames);
+        variablesItems.addAll(variablesNames);
         // Create ComboBox
-        comboBoxVars = new ComboBox<>(itemsVars);
+        comboBoxVars = new ComboBox<>(variablesItems);
         comboBoxVars.setPrefWidth(120); // Set preferred width of ComboBox
         comboBoxVars.getSelectionModel().selectFirst();
 
@@ -319,9 +328,9 @@ public class ABRViewBotJobPane extends ABRPane {
         rightGridPane.setVgap(10); // Vertical spacing between elements
         rightGridPane.setHgap(10); // Horizontal spacing between elements
 
-        //        rightGridPane.add(comboBox, 0, 0);
+        //        rightGridPane.add(comboBoxInstruc, 0, 0);
 
-        rightGridPane.add(comboBox, 0, 0);
+        rightGridPane.add(comboBoxInstruc, 0, 0);
         rightGridPane.add(comboBoxVars, 1, 0);
 
         addInstructionButton.setPrefWidth(buttonWidth);
@@ -539,14 +548,17 @@ public class ABRViewBotJobPane extends ABRPane {
         });
         this.variablesButton.setOnMouseClicked((e) -> {
             // Example usage
-            ABRElementValueScene elementValueScene = new ABRElementValueScene(this.botJob.getId());
+            ABRElementValueScene elementValueScene = new ABRElementValueScene(this.botJob.getId(), -1, "");
             elementValueScene.showModal();
             loadJobVariables();
-            itemsVars.clear();
-            itemsVars.add("variables");
-            itemsVars.addAll(variablesList.stream()
-                    .map(variable -> variable.getType().substring(0, 1) + variable.getName())
-                    .collect(Collectors.toList()));
+            variablesItems.clear();
+            variablesItems.add(new ComboBoxVars("Variables", -1));
+
+            List<ComboBoxVars> variablesNames = variablesList.stream()
+                    .map(variable -> new ComboBoxVars(
+                            variable.getType().substring(0, 1) + variable.getName(), variable.getInstructionId()))
+                    .collect(Collectors.toList());
+            variablesItems.addAll(variablesNames);
             // Set ComboBox to first item
             comboBoxVars.getSelectionModel().selectFirst();
         });
@@ -556,26 +568,29 @@ public class ABRViewBotJobPane extends ABRPane {
             if (comboBoxVars.getSelectionModel().getSelectedIndex() < 1) {
                 showAlert("Select the Variable", "Select the Variable to apply!");
                 return;
-            } else if (comboBox.getSelectionModel().getSelectedIndex() < 1) {
+            } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 1) {
                 showAlert("Select the Instruction", "Select the Instruction to apply!");
                 return;
             }
 
-            if (comboBox.getValue().getText().equalsIgnoreCase("setValue")) {
+            if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("setValue")) {
                 addInstruction(
                         "SetValue",
-                        comboBoxVars.getValue().substring(1).toLowerCase() + ":"
-                                + comboBoxVars.getValue().toUpperCase());
-            } else if (comboBox.getValue().getText().equalsIgnoreCase("getValue")) {
+                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
+                                + comboBoxVars.getValue().getText().toUpperCase(),
+                        comboBoxVars.getValue().getVarId());
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
                 addInstruction(
                         "GetValue",
-                        comboBoxVars.getValue().substring(1).toLowerCase() + ":"
-                                + comboBoxVars.getValue().toUpperCase());
-            } else if (comboBox.getValue().getText().equalsIgnoreCase("check")) {
+                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
+                                + comboBoxVars.getValue().getText().toUpperCase(),
+                        comboBoxVars.getValue().getVarId());
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("check")) {
                 addInstruction(
                         "Check",
-                        comboBoxVars.getValue().substring(1).toLowerCase() + ":"
-                                + comboBoxVars.getValue().toUpperCase());
+                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
+                                + comboBoxVars.getValue().getText().toUpperCase(),
+                        comboBoxVars.getValue().getVarId());
             }
         });
 
@@ -724,7 +739,7 @@ public class ABRViewBotJobPane extends ABRPane {
         }
     }
 
-    private void addInstruction(String name, String description) {
+    private void addInstruction(String name, String operation, Integer varId) {
         Alert alert = new Alert(
                 Alert.AlertType.CONFIRMATION,
                 "Are you sure you want to add a " + name + " to the botjob?",
@@ -739,7 +754,8 @@ public class ABRViewBotJobPane extends ABRPane {
                             botJob.getBlocks().get(0).getBlockLoopInstructions();
                     BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
                     instruction.setName(name);
-                    instruction.setDescription(description);
+                    instruction.setOperation(operation);
+                    instruction.setVariableId(varId);
                     instruction.setEncrypted(false);
                     instruction.setInstructionOrderNumber(instructionList.size());
                     instruction.setOptional(false);
@@ -832,9 +848,10 @@ public class ABRViewBotJobPane extends ABRPane {
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
-                String botJobId = rs.getString("bot_job_id");
+                int botJobId = rs.getInt("bot_job_id");
+                int instructionId = rs.getInt("instruction_id");
                 String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, usedVars));
+                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, instructionId, usedVars));
             }
         } catch (SQLException e) {
             e.printStackTrace();

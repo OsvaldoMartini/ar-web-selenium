@@ -33,18 +33,20 @@ public class ABRElementValuePane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
     private static final String DB_NAME = "abr_web"; // your database name
     private static final String USERNAME = "postgres"; // your database username
     private static final String PASSWORD = "martini"; // your database password
-
     private Connection conn = null;
-    private ObservableList<VariableUserDTO> databaseList = FXCollections.observableArrayList();
+
+    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
     private TableView<VariableUserDTO> tableView = new TableView<>();
     private int botJobId;
+    private int instructionId;
+    private String instructionName;
 
     private List<BankingDTO> dtoList;
     private int currentIndex = 0;
@@ -62,8 +64,10 @@ public class ABRElementValuePane extends ABRPane {
 
     private boolean isNewState = false;
 
-    public ABRElementValuePane(int botJobId) {
+    public ABRElementValuePane(int botJobId, int instructionId, String instructionName) {
         this.botJobId = botJobId;
+        this.instructionId = instructionId;
+        this.instructionName = instructionName;
     }
 
     @Override
@@ -93,6 +97,7 @@ public class ABRElementValuePane extends ABRPane {
         idField.setPrefHeight(30);
 
         nameField = new TextField();
+        nameField.setText(instructionName);
         nameField.setStyle("-fx-control-inner-background: FFDA33;");
         nameField.requestFocus();
 
@@ -130,7 +135,7 @@ public class ABRElementValuePane extends ABRPane {
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
             VariableUserDTO user = new VariableUserDTO(
-                    null, selectedType, nameField.getText().trim(), valueField.getText(), String.valueOf(botJobId));
+                    null, selectedType, nameField.getText().trim(), valueField.getText(), botJobId, instructionId);
 
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
@@ -157,7 +162,7 @@ public class ABRElementValuePane extends ABRPane {
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
             VariableUserDTO user = new VariableUserDTO(
-                    id, selectedType, nameField.getText(), valueField.getText(), String.valueOf(botJobId));
+                    id, selectedType, nameField.getText(), valueField.getText(), botJobId, instructionId);
             updateUserData(id, user);
             loadUserData();
         });
@@ -230,7 +235,7 @@ public class ABRElementValuePane extends ABRPane {
         valueColumn.setCellValueFactory(new PropertyValueFactory<>("value"));
 
         tableView.getColumns().addAll(idColumn, typeColumn, nameColumn, valueColumn);
-        tableView.setItems(databaseList);
+        tableView.setItems(variablesList);
 
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
@@ -345,7 +350,7 @@ public class ABRElementValuePane extends ABRPane {
     }
 
     private boolean nameExists(String name) {
-        for (VariableUserDTO dto : databaseList) {
+        for (VariableUserDTO dto : variablesList) {
             if (dto.getName().trim().equalsIgnoreCase(name)) {
                 return true;
             }
@@ -402,13 +407,13 @@ public class ABRElementValuePane extends ABRPane {
     }
 
     private void loadUserData() {
-        databaseList.clear();
-        String selectSQL =
-                " SELECT vars.id, vars.type, vars.name, vars.value, bot_job_id, COUNT(blk.variable_id) UsedVars "
-                        + " FROM variable vars "
-                        + " left join block_loop_instruction blk on blk.variable_id = vars.id "
-                        + " where bot_job_id = " + botJobId
-                        + " group by vars.id, vars.type, vars.Name, vars.value ";
+        variablesList.clear();
+        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
+                + " FROM variable vars "
+                + " left join block_loop_instruction blk on blk.variable_id = vars.id "
+                + " where bot_job_id = " + botJobId
+                + " and  block_loop_instruction_id = " + instructionId
+                + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -416,9 +421,8 @@ public class ABRElementValuePane extends ABRPane {
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
-                String botJobId = rs.getString("bot_job_id");
                 String usedVars = rs.getString("UsedVars");
-                databaseList.add(new VariableUserDTO(id, type, name, value, botJobId, usedVars));
+                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, instructionId, usedVars));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -447,12 +451,14 @@ public class ABRElementValuePane extends ABRPane {
         //        AlterSeq(hashCode);
         //        Integer hashCode = generateID();
 
-        String insertSQL = "INSERT INTO variable (ID, type, Name, Value, bot_job_id) VALUES ( "
-                + hashCode + ","
-                + "'" + user.getType() + "', "
-                + "'" + user.getName() + "', "
-                + "'" + user.getValue() + "', "
-                + "'" + user.getBotJobId() + "')";
+        String insertSQL =
+                "INSERT INTO variable (ID, type, Name, Value, bot_job_id, block_loop_instruction_id) VALUES ( "
+                        + hashCode + ","
+                        + "'" + user.getType() + "', "
+                        + "'" + user.getName() + "', "
+                        + "'" + user.getValue() + "', "
+                        + "'" + user.getBotJobId() + "', "
+                        + "'" + user.getInstructionId() + "')";
         try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
@@ -479,7 +485,7 @@ public class ABRElementValuePane extends ABRPane {
             } catch (SQLException e) {
                 showAlert(
                         Alert.AlertType.ERROR,
-                        "MAX CARACTERES LIMIT FOR ACCESS",
+                        "MAX CHARACTERS LIMIT FOR ACCESS",
                         String.format(
                                 "This '%s' \n cannot be updated with same name.\nError: %s",
                                 user.getName(), e.getMessage()));
