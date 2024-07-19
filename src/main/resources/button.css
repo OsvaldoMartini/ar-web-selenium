@@ -1,27 +1,29 @@
 .cancel-button {
     -fx-background-color: red;
-    -fx-background-radius: 5; /* Adjust the radius value for rounded corners */
-    -fx-text-fill: white; /* Set text color to white for better contrast */
-    -fx-padding: 5 10 5 10; /* Add some padding for better appearance */
+    -fx-background-radius: 5; 
+    -fx-text-fill: white; 
+    -fx-padding: 5 10 5 10;
 }
 
 .cancel-button:hover {
-    -fx-background-color: darkred; /* Darken the button when hovered */
+    -fx-background-color: darkred; 
 }
 
 .cancel-button:pressed {
-    -fx-background-color: crimson; /* Change the color when pressed */
+    -fx-background-color: crimson;
 }
 
 .ok-button {
     -fx-background-color: blue;
-    -fx-background-radius: 5; /* Adjust the radius value for rounded corners */
-    -fx-text-fill: white; /* Set text color to white for better contrast */
-    -fx-padding: 5 10 5 10; /* Add some padding for better appearance */
+    -fx-background-radius: 5; 
+    -fx-text-fill: white; 
+    -fx-padding: 5 10 5 10; 
 }
 
 .ok-button:hover {
-    -fx-background-color: darkblue; /* Darken the button when hovered */
+    -fx-background-color: darkblue;
 }
 
-.ok
+.ok-button:pressed {
+    -fx-background-color: royalblue;
+}
