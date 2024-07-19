@@ -18,6 +18,7 @@ import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ExcelWriter;
 import java.io.File;
 import java.io.IOException;
@@ -59,7 +60,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -69,6 +70,8 @@ public class ABRViewBotJobPane extends ABRPane {
 
     private Connection conn = null;
     private ObservableList<VariableUserDTO> variablesList;
+
+    private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private BotJobDTO botJob;
@@ -113,6 +116,7 @@ public class ABRViewBotJobPane extends ABRPane {
             initializeDatabase();
         }
         loadJobVariables();
+        loadWebPageFields();
     }
 
     public void initUIComponents() {
@@ -413,10 +417,9 @@ public class ABRViewBotJobPane extends ABRPane {
             stage.close();
         });
         this.addNewStepButton.setOnMouseClicked((e) -> {
-            // Example usage
-            ABRNewCommandScene newCommandScene = new ABRNewCommandScene(this.botJob.getId(), -1, "");
+            loadWebPageFields();
+            ABRNewCommandScene newCommandScene = new ABRNewCommandScene(this.botJob.getId(), webPageItems);
             newCommandScene.showModal();
-            loadJobVariables();
         });
 
         this.openExcelFileButton.setOnMouseClicked((e) -> {
@@ -680,4 +683,33 @@ public class ABRViewBotJobPane extends ABRPane {
             e.printStackTrace();
         }
     }
+
+
+    private void loadWebPageFields() {
+        webPageItems.clear();
+        String selectSQL =  " SELECT  "
+                +"  bj.id AS bot_job_id,  "
+                +"  bli.id AS block_loop_instruction_id,  "
+                +"  bli.instruction_order_number,  "
+                +"  bli.actions,  "
+                +"  bli.name AS instruction_name,  "
+                +"  bli.path,  "
+                +"  bli.operation      "
+                +" FROM bot_job bj  "
+                +" LEFT JOIN block b ON b.bot_job_id = bj.id  "
+                +" LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id  "
+                +"  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number ASC;";
+
+        try (Statement stmt = getConnection().createStatement();
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                int id = rs.getInt("block_loop_instruction_id");
+                String name = rs.getString("instruction_name");
+                webPageItems.add(new ComboBoxVars(name, id, name));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+    
 }

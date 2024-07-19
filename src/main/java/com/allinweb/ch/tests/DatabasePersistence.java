@@ -38,7 +38,7 @@ public class DatabasePersistence extends Application {
     private TableView<DatabaseUserDTO> tableView = new TableView<>();
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port

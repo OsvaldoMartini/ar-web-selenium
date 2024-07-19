@@ -3,9 +3,13 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ABRNewCommandPane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
+import com.allinweb.ch.util.ComboBoxVars;
+import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+
+import java.util.List;
 
 public class ABRNewCommandScene extends ABRScene {
 
@@ -13,19 +17,17 @@ public class ABRNewCommandScene extends ABRScene {
     private static final Double SCENE_WIDTH = 400D;
     private static final String TITLE = "Add Command";
     private int botJobId;
-    private int instructionId;
-    private String instructionName;
+    private ObservableList<ComboBoxVars> webPageItems;
 
-    public ABRNewCommandScene(int botJobId, int instructionId, String instructionName) {
+    public ABRNewCommandScene(int botJobId, ObservableList<ComboBoxVars> webPageItems) {
         super();
         this.botJobId = botJobId;
-        this.instructionId = instructionId;
-        this.instructionName = instructionName;
+        this.webPageItems = webPageItems;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRNewCommandPane(botJobId, instructionId, instructionName);
+        return new ABRNewCommandPane(botJobId, webPageItems);
     }
 
     @Override

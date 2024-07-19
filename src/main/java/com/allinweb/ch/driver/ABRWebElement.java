@@ -4,7 +4,7 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.scene.ABRAlertScene;
-import com.allinweb.ch.component.scene.ABRNewCommandScene;
+import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
@@ -57,7 +57,7 @@ public class ABRWebElement {
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -967,8 +967,9 @@ public class ABRWebElement {
                     .info("creating variable for instruction Name " + instructionName);
             if (instructionId != null && instructionId != 0) {
                 // Example usage
-                ABRNewCommandScene newCommandScene = new ABRNewCommandScene(botJobId, instructionId, instructionName);
-                newCommandScene.showModal();
+                ABRElementValueScene elementValueScene =
+                        new ABRElementValueScene(botJobId, instructionId, instructionName);
+                elementValueScene.showModal();
                 loadJobVariables();
                 variablesItems.clear();
                 List<ComboBoxVars> variablesNames = variablesList.stream()

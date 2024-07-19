@@ -45,7 +45,7 @@ public class ABRNewCommandPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -76,13 +76,13 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
 
-    private ComboBox<ComboBoxOperator> comboBoxWebPage;
-    private ObservableList<ComboBoxOperator> webPageItems;
+    private ComboBox<ComboBoxVars> comboBoxWebPage;
+    private ObservableList<ComboBoxVars> webPageItems;
 
-    public ABRNewCommandPane(int botJobId, int instructionId, String instructionName) {
+    public ABRNewCommandPane(int botJobId, ObservableList<ComboBoxVars> webPageItems) {
         this.botJobId = botJobId;
-        this.instructionId = instructionId;
-        this.instructionName = instructionName;
+        this.webPageItems = webPageItems;
+
         // Initialize database IF IS ACCESS TO BE USED
         if (!POSTGRES_DB) {
             initializeDatabase();
@@ -93,12 +93,6 @@ public class ABRNewCommandPane extends ABRPane {
                 new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
                 new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
                 new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
-
-        // Initialize items with images and text
-        webPageItems = FXCollections.observableArrayList(
-                new ComboBoxOperator("Equals", new Image(ABRConstants.ICON_EQUAL), "="),
-                new ComboBoxOperator("Greater", new Image(ABRConstants.ICON_GREATER), ">"));
-        
     }
 
     @Override
@@ -216,7 +210,7 @@ public class ABRNewCommandPane extends ABRPane {
         // Set cell factory to display images and text
         comboBoxWebPage.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxOperator item, boolean empty) {
+            protected void updateItem(ComboBoxVars item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
@@ -224,11 +218,6 @@ public class ABRNewCommandPane extends ABRPane {
                     setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
-                    ImageView imageView = new ImageView(item.getImage());
-                    imageView.setFitWidth(15); // Set the width for icon size
-                    imageView.setFitHeight(15); // Set the height for icon size
-                    imageView.setPreserveRatio(true);
-                    setGraphic(imageView);
                     setTextFill(Color.BLACK); // Ensure text is black
                 }
             }
@@ -236,7 +225,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         comboBoxWebPage.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxOperator item, boolean empty) {
+            protected void updateItem(ComboBoxVars item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
@@ -244,11 +233,6 @@ public class ABRNewCommandPane extends ABRPane {
                     setTextFill(Color.BLACK); // Ensure text is black
                 } else {
                     setText(item.getText());
-                    ImageView imageView = new ImageView(item.getImage());
-                    imageView.setFitWidth(15); // Set the width for icon size
-                    imageView.setFitHeight(15); // Set the height for icon size
-                    imageView.setPreserveRatio(true);
-                    setGraphic(imageView);
                     setTextFill(Color.BLACK); // Ensure text is black
                 }
 
