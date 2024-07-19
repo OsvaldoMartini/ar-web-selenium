@@ -4,7 +4,7 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.scene.ABRAlertScene;
-import com.allinweb.ch.component.scene.ABRElementValueScene;
+import com.allinweb.ch.component.scene.ABRNewCommandScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
@@ -57,7 +57,7 @@ public class ABRWebElement {
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -108,6 +108,7 @@ public class ABRWebElement {
     private AnchorPane graphicRepresentation;
     private HBox elementPanel;
     private HBox actionPanel;
+    private HBox variableBox;
 
     private StackPane nameGroup;
     private HBox nameFieldsGroup;
@@ -704,7 +705,7 @@ public class ABRWebElement {
 
         // Create description label
         actionPanel = new HBox();
-        HBox variableBox = new HBox();
+        variableBox = new HBox();
         if (itemsInstructions != null && itemsInstructions.size() > 0) {
             variableBox.getChildren().addAll(comboBoxInstruc, addInstructionButton, comboBoxVars, variableButton);
 
@@ -952,8 +953,8 @@ public class ABRWebElement {
         blockButton.visibleProperty().bind(toBeAddedElement.not());
         moveDownButton.visibleProperty().bind(toBeAddedElement.not());
         deleteButton.visibleProperty().bind(toBeAddedElement.not());
-
-        variableButton.visibleProperty().bind(toBeAddedElement.not());
+        deleteButton.visibleProperty().bind(toBeAddedElement.not());
+        variableBox.visibleProperty().bind(toBeAddedElement.not());
 
         if (comboBoxOperator != null) {
             comboBoxOperator.visibleProperty().bind(toBeAddedElement.not());
@@ -966,9 +967,8 @@ public class ABRWebElement {
                     .info("creating variable for instruction Name " + instructionName);
             if (instructionId != null && instructionId != 0) {
                 // Example usage
-                ABRElementValueScene elementValueScene =
-                        new ABRElementValueScene(botJobId, instructionId, instructionName);
-                elementValueScene.showModal();
+                ABRNewCommandScene newCommandScene = new ABRNewCommandScene(botJobId, instructionId, instructionName);
+                newCommandScene.showModal();
                 loadJobVariables();
                 variablesItems.clear();
                 List<ComboBoxVars> variablesNames = variablesList.stream()

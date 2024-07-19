@@ -18,9 +18,7 @@ import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
-import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ExcelWriter;
-import com.google.common.base.Strings;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
@@ -33,7 +31,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -62,7 +59,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -72,9 +69,6 @@ public class ABRViewBotJobPane extends ABRPane {
 
     private Connection conn = null;
     private ObservableList<VariableUserDTO> variablesList;
-
-    private ComboBox<ComboBoxVars> comboBoxVars;
-    private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private BotJobDTO botJob;
@@ -86,14 +80,13 @@ public class ABRViewBotJobPane extends ABRPane {
     Button editBotJobButton;
     Button launchBotJobButton;
     Button saveBotJobButton;
-    CheckBox checkBoxUpdatePriority;
     Button saveAsBotJobButton;
     Button printBotJobButton;
     Button copyBotJobButton;
     Button openExcelFileButton;
     Button generateExcelButton;
     Button openExcelFilterPanelButton;
-    Button variablesButton;
+    Button addNewStepButton;
     Button closeBotJobButton;
 
     Label botJobNameLabel;
@@ -161,10 +154,6 @@ public class ABRViewBotJobPane extends ABRPane {
                 "Launch", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.saveBotJobButton = builder.buildButton(
                 "Save", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, new Insets(5.0D));
-        this.checkBoxUpdatePriority = new CheckBox("Upd JOB");
-        checkBoxUpdatePriority.setWrapText(true);
-        checkBoxUpdatePriority.setPrefWidth(80); // Adjust width as needed
-        checkBoxUpdatePriority.setVisible(false);
 
         this.saveAsBotJobButton = builder.buildButton(
                 "Save As", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, new Insets(5.0D));
@@ -181,59 +170,8 @@ public class ABRViewBotJobPane extends ABRPane {
         this.closeBotJobButton = builder.buildButton(
                 "Close", ABRConstants.SPACE_ZERO, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, new Insets(5.0D));
 
-        variablesItems.add(new ComboBoxVars("variables", -1, ""));
-
-        List<ComboBoxVars> variablesNames = variablesList.stream()
-                .map(variable -> new ComboBoxVars(
-                        variable.getType().substring(0, 1) + variable.getName(),
-                        variable.getInstructionId(),
-                        variable.getValue()))
-                .collect(Collectors.toList());
-        variablesItems.addAll(variablesNames);
-        // Create ComboBox
-        comboBoxVars = new ComboBox<>(variablesItems);
-        // Set cell factory to display images and text
-        comboBoxVars.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
-                } else {
-                    setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
-                }
-            }
-        });
-
-        comboBoxVars.setCellFactory(param -> new ListCell<>() {
-            @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
-                } else {
-                    setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
-                }
-
-                // Add hover effect
-                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
-                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
-            }
-        });
-        comboBoxVars.getSelectionModel().selectFirst();
-
-        this.variablesButton = builder.buildButton(
-                "Variables",
-                ABRConstants.SPACE_ZERO,
-                ABRConstants.ICON_VARIABLES,
-                ABRConstants.SPACE_M,
-                new Insets(5.0D));
+        this.addNewStepButton = builder.buildButton(
+                "New Step", ABRConstants.SPACE_ZERO, ABRConstants.ICON_STEP, ABRConstants.SPACE_M, new Insets(5.0D));
 
         // Create a GridPane for the left side buttons
         GridPane leftGridPane = new GridPane();
@@ -262,6 +200,9 @@ public class ABRViewBotJobPane extends ABRPane {
         launchBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(launchBotJobButton, 5, 0);
 
+        addNewStepButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(addNewStepButton, 6, 0);
+
         // Add the bottom row of buttons
         saveBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(saveBotJobButton, 0, 1);
@@ -278,37 +219,13 @@ public class ABRViewBotJobPane extends ABRPane {
         openExcelFilterPanelButton.setPrefWidth(buttonWidth);
         leftGridPane.add(openExcelFilterPanelButton, 4, 1);
 
+        closeBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(closeBotJobButton, 5, 1);
+
         // Center the buttons
         for (Node node : leftGridPane.getChildren()) {
             GridPane.setHalignment(node, javafx.geometry.HPos.CENTER);
         }
-
-        // Create a GridPane for the right side buttons
-        GridPane rightGridPane = new GridPane();
-        rightGridPane.setVgap(10); // Vertical spacing between elements
-        rightGridPane.setHgap(10); // Horizontal spacing between elements
-
-        variablesButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(variablesButton, 0, 0);
-        rightGridPane.add(comboBoxVars, 1, 0);
-
-        closeBotJobButton.setPrefWidth(buttonWidth);
-        rightGridPane.add(closeBotJobButton, 2, 2);
-
-        // Center the buttons
-        for (Node node : rightGridPane.getChildren()) {
-            GridPane.setHalignment(node, javafx.geometry.HPos.CENTER);
-        }
-
-        // Create a main GridPane to hold both left and right GridPanes
-        GridPane mainGridPane = new GridPane();
-        mainGridPane.setHgap(50); // Horizontal spacing between left and right GridPanes
-        mainGridPane.add(leftGridPane, 0, 0);
-        mainGridPane.add(rightGridPane, 1, 0);
-
-        // Add checkBoxUpdatePriority below the buttons in leftGridPane
-        leftGridPane.add(checkBoxUpdatePriority, 0, 2, 8, 1); // Span across 8 columns
-        GridPane.setHalignment(checkBoxUpdatePriority, javafx.geometry.HPos.CENTER); // Align center
 
         // Other UI components
         this.botJobNameLabel = new Label(this.botJob.getName());
@@ -341,7 +258,7 @@ public class ABRViewBotJobPane extends ABRPane {
         HBox compBox = new HBox(new Node[] {this.uiBlockList, this.componentContainer});
         HBox.setHgrow(this.uiBlockList, Priority.ALWAYS);
         HBox.setHgrow(this.componentContainer, Priority.ALWAYS);
-        this.botJobContainer = new VBox(new Node[] {mainGridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
+        this.botJobContainer = new VBox(new Node[] {leftGridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
         AnchorPane.setTopAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setBottomAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setLeftAnchor(this.botJobContainer, ABRConstants.SPACE_M);
@@ -373,10 +290,6 @@ public class ABRViewBotJobPane extends ABRPane {
             this.botJobDescriptionLabel.setText(this.botJobDescription.getText());
             this.botJob.setName(this.botJobNameLabel.getText());
             this.botJob.setDescription(this.botJobDescriptionLabel.getText());
-            if (checkBoxUpdatePriority.isSelected()
-                    && !Strings.isNullOrEmpty(this.botJob.getHomeBanking().getPriority())) {
-                this.botJob.setPriority(this.botJob.getHomeBanking().getPriority());
-            }
             ABRSharedResources.getInstance().updateEntity(this.botJob, BotJobDTO.class);
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
@@ -499,23 +412,11 @@ public class ABRViewBotJobPane extends ABRPane {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
         });
-        this.variablesButton.setOnMouseClicked((e) -> {
+        this.addNewStepButton.setOnMouseClicked((e) -> {
             // Example usage
-            ABRElementValueScene elementValueScene = new ABRElementValueScene(this.botJob.getId(), -1, "");
-            elementValueScene.showModal();
+            ABRNewCommandScene newCommandScene = new ABRNewCommandScene(this.botJob.getId(), -1, "");
+            newCommandScene.showModal();
             loadJobVariables();
-            variablesItems.clear();
-            variablesItems.add(new ComboBoxVars("Variables", -1, ""));
-
-            List<ComboBoxVars> variablesNames = variablesList.stream()
-                    .map(variable -> new ComboBoxVars(
-                            variable.getType().substring(0, 1) + variable.getName(),
-                            variable.getInstructionId(),
-                            variable.getValue()))
-                    .collect(Collectors.toList());
-            variablesItems.addAll(variablesNames);
-            // Set ComboBox to first item
-            comboBoxVars.getSelectionModel().selectFirst();
         });
 
         this.openExcelFileButton.setOnMouseClicked((e) -> {
