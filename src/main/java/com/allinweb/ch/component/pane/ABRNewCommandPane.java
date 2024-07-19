@@ -273,7 +273,7 @@ public class ABRNewCommandPane extends ABRPane {
                 "Variables", ABRConstants.SPACE_L, ABRConstants.ICON_VARIABLES, ABRConstants.SPACE_M, Insets.EMPTY);
 
         // Define a uniform width for the buttons
-        double buttonWidth = 100;
+        double buttonWidth = 200;
         
         // Create layout and add components
         GridPane gridPane = new GridPane();
