@@ -1,37 +1,33 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.dto.BankingDTO;
-import com.allinweb.ch.component.model.dto.JobDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
+import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
-import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.persistence.BotJobDTO;
-import com.allinweb.ch.persistence.HomeBankingDTO;
+import com.allinweb.ch.driver.ABRWebElement;
 import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ComboBoxItem;
+import com.allinweb.ch.util.ComboBoxVars;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.allinweb.ch.util.ComboBoxItem;
-import com.allinweb.ch.util.ComboBoxOperator;
-import com.allinweb.ch.util.ComboBoxOperator;
-import com.allinweb.ch.util.ComboBoxVars;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
@@ -40,7 +36,7 @@ import javafx.scene.paint.Color;
 public class ABRNewCommandPane extends ABRPane {
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
-    
+
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
@@ -66,10 +62,10 @@ public class ABRNewCommandPane extends ABRPane {
     TextField valueField;
 
     private Button variableButton;
-    
+
     Button submitButton;
     Button cancelButton;
-    
+
     private ComboBox<ComboBoxItem> comboBoxInstruc;
     private ObservableList<ComboBoxItem> itemsInstructions;
 
@@ -87,12 +83,16 @@ public class ABRNewCommandPane extends ABRPane {
         if (!POSTGRES_DB) {
             initializeDatabase();
         }
-        loadUserData();
 
         itemsInstructions = FXCollections.observableArrayList(
                 new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
                 new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)),
                 new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK)));
+
+        if (webPageItems !=null && webPageItems.size() > 0) {
+            loadJobVariables(webPageItems.get(0).getVarId());
+        }
+
     }
 
     @Override
@@ -244,25 +244,23 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxWebPage.getSelectionModel().selectFirst();
 
         String css = getClass().getResource("/button.css").toExternalForm();
-        
-        submitButton = componentBuilder.buildButton(
-                "OK", ABRConstants.SPACE_L, Insets.EMPTY);
+
+        submitButton = componentBuilder.buildButton("OK", ABRConstants.SPACE_L, Insets.EMPTY);
         submitButton.getStyleClass().add("ok-button");
-        
-        cancelButton = componentBuilder.buildButton(
-                "Cancel", ABRConstants.SPACE_L, Insets.EMPTY);
+
+        cancelButton = componentBuilder.buildButton("Cancel", ABRConstants.SPACE_L, Insets.EMPTY);
         cancelButton.getStyleClass().add("cancel-button");
-        
+
         variableButton = componentBuilder.buildButton(
                 "Variables", ABRConstants.SPACE_L, ABRConstants.ICON_VARIABLES, ABRConstants.SPACE_M, Insets.EMPTY);
 
         // Define a uniform width for the buttons
         double buttonWidth = 200;
-        
+
         // Create layout and add components
         GridPane gridPane = new GridPane();
-        gridPane.setHgap(10); 
-        gridPane.setVgap(10); 
+        gridPane.setHgap(10);
+        gridPane.setVgap(10);
         //  gridPane.setPadding(new Insets(10)); // Padding around the gridPane
 
         // Add components to the grid
@@ -288,19 +286,18 @@ public class ABRNewCommandPane extends ABRPane {
         cancelButton.setPrefWidth(buttonWidth);
         gridPane.add(cancelButton, 2, 3);
 
-////        gridPane.add(buttonsBox, 2, 1);
-////
-//        VBox buttonsBox = new VBox(10, submitButton, cancelButton);
-//        buttonsBox.setAlignment(Pos.CENTER);
-//        buttonsBox.setSpacing(10); 
-//
-//        gridPane.add(buttonsBox, 3, 1);
+        ////        gridPane.add(buttonsBox, 2, 1);
+        ////
+        //        VBox buttonsBox = new VBox(10, submitButton, cancelButton);
+        //        buttonsBox.setAlignment(Pos.CENTER);
+        //        buttonsBox.setSpacing(10);
+        //
+        //        gridPane.add(buttonsBox, 3, 1);
 
         HBox hBoxGridPane = new HBox(gridPane);
         hBoxGridPane.setAlignment(Pos.CENTER);
         hBoxGridPane.setSpacing(10); // Horizontal spacing around the gridPane
 
-      
         // Create main layout
         VBox vbox = new VBox(20, hBoxGridPane);
         vbox.setAlignment(Pos.CENTER);
@@ -312,7 +309,7 @@ public class ABRNewCommandPane extends ABRPane {
         // Use AnchorPane to ensure the VBox resizes with the window
         mainPane = new AnchorPane(vbox);
         mainPane.getStylesheets().add(css);
-        
+
         AnchorPane.setTopAnchor(vbox, 0.0);
         AnchorPane.setBottomAnchor(vbox, 0.0);
         AnchorPane.setLeftAnchor(vbox, 0.0);
@@ -324,9 +321,20 @@ public class ABRNewCommandPane extends ABRPane {
         valueField.clear();
     }
 
-
     @Override
     public void initUIBehaviour() {
+
+        // Add a listener to print the ID when the selection changes
+        comboBoxWebPage.getSelectionModel().selectedItemProperty().addListener(
+                new ChangeListener<ComboBoxVars>() {
+                    @Override
+                    public void changed(ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars newValue) {
+                        if (newValue != null) {
+                            loadJobVariables(newValue.getVarId());
+                        }
+                    }
+                }
+        );
 
         submitButton.setOnAction(event -> {
             /*String selectedType =
@@ -349,17 +357,33 @@ public class ABRNewCommandPane extends ABRPane {
             }
 
             saveUserData(user);
-            loadUserData();*/
+            loadVariablesJob();*/
         });
-
 
         // Create delete button
         cancelButton.setOnAction(event -> {
-           
-                return;
-           
+            return;
         });
-   
+
+        variableButton.setOnAction(e -> {
+            ABRLogger.getInstance(ABRWebElement.class)
+                    .info("creating variable for instruction Name " + instructionName);
+            ABRElementValueScene elementValueScene = new ABRElementValueScene(
+                    botJobId, comboBoxWebPage.getValue().getVarId(), comboBoxWebPage.getValue().getText());
+            elementValueScene.showModal();
+            loadJobVariables(comboBoxWebPage.getValue().getVarId());
+            variablesItems.clear();
+            List<ComboBoxVars> variablesNames = variablesList.stream()
+                    .map(variable -> new ComboBoxVars(
+                            variable.getType().substring(0, 1) + variable.getName(),
+                            variable.getInstructionId(),
+                            variable.getValue()))
+                    .collect(Collectors.toList());
+            variablesItems.add(new ComboBoxVars("variables", -1, ""));
+            variablesItems.addAll(variablesNames);
+            // Set ComboBox to first item
+            comboBoxVars.getSelectionModel().selectFirst();
+        });
     }
 
     private void updateFields() {}
@@ -440,7 +464,21 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
-    private void loadUserData() {
+    private Integer loadNexIdData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private void loadJobVariables(int instructionId) {
         variablesList.clear();
         String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "
@@ -463,20 +501,6 @@ public class ABRNewCommandPane extends ABRPane {
         }
         //        jobUserList.clear();
         //        loadBotJobData();
-    }
-
-    private Integer loadNexIdData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
-        try (Statement stmt = getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 
     private void saveUserData(VariableUserDTO user) {

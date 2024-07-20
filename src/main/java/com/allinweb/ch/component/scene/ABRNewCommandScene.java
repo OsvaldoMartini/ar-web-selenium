@@ -9,8 +9,6 @@ import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-import java.util.List;
-
 public class ABRNewCommandScene extends ABRScene {
 
     private static final Double SCENE_HEIGHT = 300D;
