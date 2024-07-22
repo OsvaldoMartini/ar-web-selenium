@@ -157,17 +157,21 @@ public class ABRNewCommandPane extends ABRPane {
         });
         comboBoxInstruc.getSelectionModel().selectFirst();
 
-        variablesItems.add(new ComboBoxVars("variables", -1, ""));
-        if (variablesList != null && variablesList.size() > 0) {
-            List<ComboBoxVars> variablesNames = variablesList.stream()
-                    .map(variable -> new ComboBoxVars(
-                            variable.getType().substring(0, 1) + variable.getName(),
-                            variable.getInstructionId(),
-                            variable.getValue()))
-                    .collect(Collectors.toList());
-            variablesItems.addAll(variablesNames);
-        }
+        reloadComboVars();
+//        if (variablesList != null && variablesList.size() > 0) {
+//            List<ComboBoxVars> variablesNames = variablesList.stream()
+//                    .map(variable -> new ComboBoxVars(
+//                            variable.getType().substring(0, 1) + variable.getName(),
+//                            variable.getInstructionId(),
+//                            variable.getValue()))
+//                    .collect(Collectors.toList());
+//            variablesItems.addAll(variablesNames);
+//        } else {
+//            variablesItems.add(new ComboBoxVars("no variables added", -1, ""));
+//        }
         comboBoxVars = new ComboBox<>(variablesItems);
+        comboBoxVars.getSelectionModel().selectFirst();
+
         // Set cell factory to display images and text
         comboBoxVars.setButtonCell(new ListCell<>() {
             @Override
@@ -331,6 +335,8 @@ public class ABRNewCommandPane extends ABRPane {
                     public void changed(ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars newValue) {
                         if (newValue != null) {
                             loadJobVariables(newValue.getVarId());
+                            reloadComboVars();
+                            comboBoxVars.getSelectionModel().selectFirst();
                         }
                     }
                 }
@@ -372,18 +378,24 @@ public class ABRNewCommandPane extends ABRPane {
                     botJobId, comboBoxWebPage.getValue().getVarId(), comboBoxWebPage.getValue().getText());
             elementValueScene.showModal();
             loadJobVariables(comboBoxWebPage.getValue().getVarId());
-            variablesItems.clear();
+            reloadComboVars();
+            // Set ComboBox to first item
+            comboBoxVars.getSelectionModel().selectFirst();
+        });
+    }
+
+    private void reloadComboVars() {
+        if (variablesList != null && variablesList.size() > 0) {
             List<ComboBoxVars> variablesNames = variablesList.stream()
                     .map(variable -> new ComboBoxVars(
                             variable.getType().substring(0, 1) + variable.getName(),
                             variable.getInstructionId(),
                             variable.getValue()))
                     .collect(Collectors.toList());
-            variablesItems.add(new ComboBoxVars("variables", -1, ""));
             variablesItems.addAll(variablesNames);
-            // Set ComboBox to first item
-            comboBoxVars.getSelectionModel().selectFirst();
-        });
+        } else {
+            variablesItems.add(new ComboBoxVars("no variables added", -1, ""));
+        }
     }
 
     private void updateFields() {}
@@ -479,6 +491,7 @@ public class ABRNewCommandPane extends ABRPane {
     }
 
     private void loadJobVariables(int instructionId) {
+        variablesItems.clear();
         variablesList.clear();
         String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "
