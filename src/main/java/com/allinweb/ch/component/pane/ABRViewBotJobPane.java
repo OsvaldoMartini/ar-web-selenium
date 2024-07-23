@@ -97,6 +97,7 @@ public class ABRViewBotJobPane extends ABRPane {
     Label botJobDescriptionLabel;
     TextField botJobName;
     TextField botJobDescription;
+    ObservableList<BlockDTO> blockDTOObservableList;
     ListView<BlockDTO> uiBlockList;
     VBox botJobContainer;
     Button componentButton;
@@ -247,14 +248,12 @@ public class ABRViewBotJobPane extends ABRPane {
         StackPane botJobDescriptionGroup =
                 new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescription});
 
-        ObservableList<BlockDTO> blockDTOObservableList =
-                FXCollections.observableArrayList(ABRSharedResources.getInstance()
-                        .getEntityList(
-                                BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId()));
+        this.blockDTOObservableList = FXCollections.observableArrayList(ABRSharedResources.getInstance()
+                .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId()));
 
         this.uiBlockList = new ListView<>(blockDTOObservableList);
 
-        uiBlockList.setCellFactory(new ABRCellFactory<>(BlockListCell.class)::call);
+        this.uiBlockList.setCellFactory(new ABRCellFactory<>(BlockListCell.class)::call);
         this.uiBlockList.setMaxHeight(Double.MAX_VALUE);
         this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
         this.uiBlockList.setPrefHeight(900.0D);
@@ -446,8 +445,9 @@ public class ABRViewBotJobPane extends ABRPane {
     private void showAlert(String title, String content) {
         executorService = Executors.newSingleThreadExecutor();
         alertToShow.setAlertType(AlertType.ERROR);
-        alertToShow.setTitle(title);
-        alertToShow.setHeaderText(content);
+        alertToShow.setTitle("Error");
+        alertToShow.setHeaderText(title);
+        alertToShow.setContentText(content);
 
         executorService.execute(() -> {
             timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
@@ -668,7 +668,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 + " FROM variable vars "
                 + " left join block_loop_instruction blk on blk.variable_id = vars.id "
                 + " where bot_job_id = " + this.botJob.getId()
-//                                + " and  block_loop_instruction_id = " + instructionId
+                //                                + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
@@ -709,7 +709,9 @@ public class ABRViewBotJobPane extends ABRPane {
                 String actions = rs.getString("actions");
 
                 // Filter out "SET", "GET", and "CK"
-                if (!actions.equalsIgnoreCase(WebElementTagNameEnum.SET.getValue()) && !actions.equalsIgnoreCase(WebElementTagNameEnum.GET.getValue()) && !actions.equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
+                if (!actions.equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())
+                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
+                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
                     webPageItems.add(new ComboBoxVars(name, id, name));
                 }
             }

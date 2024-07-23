@@ -10,6 +10,7 @@ import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
+import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -35,8 +36,8 @@ public class ABRElementValuePane extends ABRPane {
     // Postgres
     private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
-    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
-    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_HOST = "localhost"; // or your PostgresSQL server address
+    private static final String DB_PORT = "5432"; // default PostgresSQL port
     private static final String DB_NAME = "abr_web"; // your database name
     private static final String USERNAME = "postgres"; // your database username
     private static final String PASSWORD = "martini"; // your database password
@@ -132,8 +133,10 @@ public class ABRElementValuePane extends ABRPane {
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
+            String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
+
             VariableUserDTO user = new VariableUserDTO(
-                    null, selectedType, nameField.getText().trim(), valueField.getText(), botJobId, instructionId);
+                    null, selectedType, nameField.getText().trim(), valueVar, botJobId, instructionId);
 
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
@@ -159,8 +162,10 @@ public class ABRElementValuePane extends ABRPane {
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
-            VariableUserDTO user = new VariableUserDTO(
-                    id, selectedType, nameField.getText(), valueField.getText(), botJobId, instructionId);
+            String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
+
+            VariableUserDTO user =
+                    new VariableUserDTO(id, selectedType, nameField.getText(), valueVar, botJobId, instructionId);
             updateUserData(id, user);
             loadUserData();
         });
@@ -243,7 +248,8 @@ public class ABRElementValuePane extends ABRPane {
                 // Set the values of the selected row to the text fields
                 idField.setText(selectedUser.getId());
                 nameField.setText(selectedUser.getName());
-                valueField.setText(selectedUser.getValue());
+                String valueVar = selectedUser.getValue().equalsIgnoreCase("$EMPTY") ? "" : selectedUser.getValue();
+                valueField.setText(valueVar);
                 usedVarsField.setText(selectedUser.getUsedVars()); // Update the hidden field
 
                 // Update the checkboxes based on the selected user's type

@@ -9,6 +9,7 @@ import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.persistence.JobUserDTO;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.google.common.base.Strings;
@@ -402,7 +403,8 @@ public class ABRNewHomeBankingPane extends ABRPane {
 
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
-        alert.setTitle(title);
+        alert.setTitle("Error");
+        alert.setHeaderText(title);
         alert.setContentText(content);
         alert.showAndWait();
     }
@@ -584,15 +586,15 @@ public class ABRNewHomeBankingPane extends ABRPane {
             try (Statement stmt = getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(deleteSQL);
                 if (rowsAffected > 0) {
-                    System.out.println("Data updated successfully.");
+                    ABRLogger.getInstance(Thread.class).finer("Data deleted successfully.\n " + Id);
                 } else {
-                    System.out.println("No matching record found to update.");
+                    ABRLogger.getInstance(Thread.class).finer("Data NOT deleted successfully.\n " + Id);
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                ABRLogger.getInstance(Thread.class).finer("Error Deleting\n " + Id);
             }
         } catch (NumberFormatException e) {
-            System.out.println("Invalid ID format.");
+            ABRLogger.getInstance(Thread.class).finer("Invalid Format ID:\n " + Id);
         }
     }
 

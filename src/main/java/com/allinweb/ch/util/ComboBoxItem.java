@@ -6,10 +6,12 @@ import javafx.scene.image.Image;
 public class ComboBoxItem {
     private final String text;
     private final Image image;
+    private final String value;
 
-    public ComboBoxItem(String text, Image image) {
+    public ComboBoxItem(String text, Image image, String value) {
         this.text = text;
         this.image = image;
+        this.value = value;
     }
 
     public String getText() {
@@ -18,5 +20,9 @@ public class ComboBoxItem {
 
     public Image getImage() {
         return image;
+    }
+
+    public String getValue() {
+        return value;
     }
 }

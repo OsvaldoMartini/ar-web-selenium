@@ -33,8 +33,8 @@ public class CountdownAlertAsynchronous extends Application {
 
         // Create a dialog for the alert
         alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Countdown Alert");
-        alertToShow.setHeaderText(null);
+        alertToShow.setTitle("Alert");
+        alertToShow.setHeaderText("Countdown Alert");
         alertToShow.initModality(Modality.APPLICATION_MODAL);
 
         // Set the content of the alert

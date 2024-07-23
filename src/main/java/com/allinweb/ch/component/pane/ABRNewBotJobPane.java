@@ -74,8 +74,9 @@ public class ABRNewBotJobPane extends ABRPane {
         stackPane.setPadding(new Insets(20));
         // Create a dialog for the alert
         alertToShow = new Alert(Alert.AlertType.INFORMATION);
-        alertToShow.setTitle("Countdown Alert");
-        alertToShow.setHeaderText("Count Down");
+        alertToShow.setTitle("Title");
+        alertToShow.setHeaderText("Header Message");
+        alertToShow.setContentText("Main Message");
         alertToShow.initModality(Modality.APPLICATION_MODAL);
         // Set the content of the alert
         alertToShow.getDialogPane().setContent(stackPane);
@@ -153,7 +154,7 @@ public class ABRNewBotJobPane extends ABRPane {
             alertToShow.setAlertType(Alert.AlertType.ERROR);
             alertToShow.setTitle("Duplicate Name");
             alertToShow.setHeaderText(String.format("The name already exist! %s", botJobName.getText()));
-
+            alertToShow.setContentText("Main Message");
             executorService.execute(() -> {
                 timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
                 timeline.play(); // Start the timeline
@@ -167,6 +168,7 @@ public class ABRNewBotJobPane extends ABRPane {
                 || Strings.isNullOrEmpty(homeBankingChoiceBox.getValue().getName())) {
             alertToShow.setTitle("WebSite is Empty!");
             alertToShow.setHeaderText("Select an web Site!");
+            alertToShow.setContentText("Main Message");
 
             executorService.execute(() -> {
                 timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
