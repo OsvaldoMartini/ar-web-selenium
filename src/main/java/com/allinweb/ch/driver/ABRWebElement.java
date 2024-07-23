@@ -3,7 +3,6 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
@@ -21,7 +20,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
-
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
@@ -51,7 +49,7 @@ public class ABRWebElement {
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -103,7 +101,7 @@ public class ABRWebElement {
     private AnchorPane graphicRepresentation;
     private HBox elementPanel;
     private HBox actionPanel;
-    
+
     private StackPane nameGroup;
     private HBox nameFieldsGroup;
     private StackPane actionGroup;
@@ -786,15 +784,15 @@ public class ABRWebElement {
                         .collect(Collectors.toCollection(LinkedBlockingQueue::new));
                 instructionQueue.forEach(
                         instr -> instr.setInstructionOrderNumber(instr.getInstructionOrderNumber() - 1));
-//                ABRSharedResources.getInstance()
-//                        .updateAllEntity(
-//                                instructionQueue,
-//                                BlockLoopInstructionDTO.class,
-//                                () -> new ABRAlertScene(
-//                                        Alert.AlertType.INFORMATION,
-//                                        "Successfull deletion",
-//                                        "The element has been deleted successfully",
-//                                        ButtonType.OK));
+                //                ABRSharedResources.getInstance()
+                //                        .updateAllEntity(
+                //                                instructionQueue,
+                //                                BlockLoopInstructionDTO.class,
+                //                                () -> new ABRAlertScene(
+                //                                        Alert.AlertType.INFORMATION,
+                //                                        "Successfull deletion",
+                //                                        "The element has been deleted successfully",
+                //                                        ButtonType.OK));
             });
         });
 

@@ -61,7 +61,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -709,7 +709,8 @@ public class ABRViewBotJobPane extends ABRPane {
                 String actions = rs.getString("actions");
 
                 // Filter out "SET", "GET", and "CK"
-                if (!actions.equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())
+                if (actions != null
+                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())
                         && !actions.equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
                         && !actions.equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
                     webPageItems.add(new ComboBoxVars(name, id, name));

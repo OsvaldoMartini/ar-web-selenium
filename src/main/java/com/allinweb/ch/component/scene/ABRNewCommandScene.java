@@ -12,7 +12,7 @@ import javafx.stage.Stage;
 public class ABRNewCommandScene extends ABRScene {
 
     private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 500D;
+    private static final Double SCENE_WIDTH = 650D;
     private static final String TITLE = "Add Command";
     private int botJobId;
     private ObservableList<ComboBoxVars> webPageItems;

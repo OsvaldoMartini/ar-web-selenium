@@ -54,7 +54,7 @@ public class ABRNewCommandPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -392,15 +392,21 @@ public class ABRNewCommandPane extends ABRPane {
         variableButton.setPrefWidth(buttonWidth);
         gridPane.add(variableButton, 0, 2);
 
-        gridPane.add(comboBoxOperator, 1, 2);
+        // Set the preferred width of valueCheckField
+        valueCheckField.setPrefWidth(150);
 
-        gridPane.add(valueCheckField, 2, 2);
+        // Add valueCheckField to the GridPane in its own row
+        gridPane.add(valueCheckField, 1, 1); // Row 1 for valueCheckField
+
+        // Create the HBox and add it to the GridPane
+        HBox hbox = new HBox(comboBoxOperator, valueCheckField);
+        gridPane.add(hbox, 1, 2); // Row 2 for HBox
 
         addInstructionButton.setPrefWidth(buttonWidth);
-        gridPane.add(addInstructionButton, 3, 2);
+        gridPane.add(addInstructionButton, 2, 2);
 
         cancelButton.setPrefWidth(buttonWidth);
-        gridPane.add(cancelButton, 3, 3);
+        gridPane.add(cancelButton, 2, 3);
 
         ////        gridPane.add(buttonsBox, 2, 1);
         ////
