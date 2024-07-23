@@ -103,8 +103,7 @@ public class ABRWebElement {
     private AnchorPane graphicRepresentation;
     private HBox elementPanel;
     private HBox actionPanel;
-    private HBox variableBox;
-
+    
     private StackPane nameGroup;
     private HBox nameFieldsGroup;
     private StackPane actionGroup;
