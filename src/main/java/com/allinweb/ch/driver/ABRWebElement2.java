@@ -3,7 +3,6 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
@@ -12,10 +11,17 @@ import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
-import javafx.application.Platform;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -32,16 +38,30 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.stage.Modality;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 
-public class ABRWebElement {
+public class ABRWebElement2 {
+
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+
+    private static final boolean POSTGRES_DB = true;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+    private Connection conn = null;
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
     private BooleanProperty clickElement = new SimpleBooleanProperty(false);
+    private BooleanProperty varButtonElem = new SimpleBooleanProperty(false);
     private BooleanProperty setValueElem = new SimpleBooleanProperty(false);
     private BooleanProperty getValueElem = new SimpleBooleanProperty(false);
     private BooleanProperty checkValueElem = new SimpleBooleanProperty(false);
@@ -53,6 +73,12 @@ public class ABRWebElement {
     private StringProperty[] operationsElement = new StringProperty[0];
 
     private boolean isCheckValidator;
+
+    private static final int SECONDS = 3; // Total seconds for the countdown
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private ExecutorService executorService;
+    private Alert alertToShow;
 
     private Integer instructionId;
     private Integer botJobId;
@@ -75,6 +101,10 @@ public class ABRWebElement {
     private AnchorPane graphicRepresentation;
     private HBox elementPanel;
     private HBox actionPanel;
+
+    private StackPane nameGroup;
+    private HBox nameFieldsGroup;
+    private StackPane actionGroup;
 
     private Label nameLabel;
     private Label operationLabel1;
@@ -109,12 +139,12 @@ public class ABRWebElement {
         abrPriorities = ABRPriorities.getInstance();
     }
 
-    public ABRWebElement(WebElement element, int jobId) {
+    public ABRWebElement2(WebElement element, int jobId) {
         abrPriorities.setJobId(jobId);
         initFromWebElement(element);
     }
 
-    public ABRWebElement(SearchReturn searchReturn, int jobId) {
+    public ABRWebElement2(SearchReturn searchReturn, int jobId) {
         abrPriorities.setJobId(jobId);
         this.searchReturn = searchReturn;
         this.forceTagEnum = searchReturn.getForceTypeEnum();
@@ -123,7 +153,7 @@ public class ABRWebElement {
         initFromWebElement(searchReturn.getElement());
     }
 
-    public ABRWebElement(Map.Entry<String, WebElement> entry, String attribute, int jobId) {
+    public ABRWebElement2(Map.Entry<String, WebElement> entry, String attribute, int jobId) {
         abrPriorities.setJobId(jobId);
         WebElement element = entry.getValue();
         this.xPath = entry.getKey();
@@ -131,12 +161,12 @@ public class ABRWebElement {
         initFromWebElement(element);
     }
 
-    public ABRWebElement(WebElement element, String priority) {
+    public ABRWebElement2(WebElement element, String priority) {
         updatePriorities(priority, null);
         initFromWebElement(element);
     }
 
-    public ABRWebElement(BlockLoopInstructionDTO instruction) {
+    public ABRWebElement2(BlockLoopInstructionDTO instruction) {
         botJobId = instruction.getBlock().getBotJob().getId();
         updatePriorities(null, instruction);
         initFromBlockLoopInstruction(instruction);
@@ -239,6 +269,7 @@ public class ABRWebElement {
                 if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
                     // OR BUTTON SOMETHING CLICKABLE
                     clickElement.setValue(true);
+                    varButtonElem.setValue(true);
                 } else if (forceTagEnum.equals(WebElementTagNameEnum.SET)) {
                     setValueElem.setValue(true);
                 } else if (forceTagEnum.equals(WebElementTagNameEnum.GET)) {
@@ -248,6 +279,7 @@ public class ABRWebElement {
                 } else {
                     // OR INPUT SOMETHING IMPUTABLE
                     clickElement.setValue(false);
+                    varButtonElem.setValue(true);
                 }
 
             } else {
@@ -385,6 +417,30 @@ public class ABRWebElement {
 
     private void initFromBlockLoopInstruction(BlockLoopInstructionDTO instruction) {
 
+        // Create a label to display the countdown
+        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
+        countdownLabel.setStyle("-fx-font-size: 24px;");
+        countdownLabel.setVisible(false);
+        // Create a stack pane to hold the label
+        StackPane stackPane = new StackPane(countdownLabel);
+        stackPane.setPadding(new Insets(20));
+        // Create a dialog for the alert
+        alertToShow = new Alert(Alert.AlertType.INFORMATION);
+        alertToShow.setTitle("Countdown Alert");
+        alertToShow.setHeaderText("Count Down");
+        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        // Set the content of the alert
+        alertToShow.getDialogPane().setContent(stackPane);
+        // Create a timeline to update the countdown
+        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
+            remainingSeconds--;
+            countdownLabel.setText(String.valueOf(remainingSeconds));
+            if (remainingSeconds <= 0) {
+                timeline.stop(); // Stop the timeline when countdown finishes
+                alertToShow.close(); // Close the alert dialog
+            }
+        }));
+
         // Split the description string
         if (instruction.getOperation() != null) {
             String[] descriptionArray = instruction.getOperation().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
@@ -404,6 +460,9 @@ public class ABRWebElement {
         instructionId = instruction.getId();
         instrName = instruction.getName();
         instrOperation = instruction.getOperation();
+
+        //        loadJobVariables();
+
         initUI();
 
         nameLabel.setText(instruction.getName());
@@ -416,8 +475,10 @@ public class ABRWebElement {
 
         if (actionReference[0].equals(ABRConstants.CLICK)) {
             clickElement.setValue(true);
+            varButtonElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.INSERT)) {
             textElement.setValue(true);
+            varButtonElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.SET_VALUE)) {
             setValueElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.GET_VALUE)) {
@@ -426,6 +487,8 @@ public class ABRWebElement {
             checkValueElem.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.HOLD)) {
             holdValueElem.setValue(true);
+        } else {
+            varButtonElem.setValue(true);
         }
 
         toBeAddedElement.setValue(false);
@@ -438,7 +501,8 @@ public class ABRWebElement {
 
     private void initUIComponents() {
         initElementPanel();
-        initActionPanel();
+        initButtonsGrid();
+        defineButtonsGrid();
 
         graphicRepresentation = new AnchorPane(elementPanel, actionPanel);
 
@@ -447,51 +511,7 @@ public class ABRWebElement {
         // graphicRepresentation.backgroundProperty().setValue(Background.fill(Color.WHITE));
     }
 
-    private void initElementPanel() {
-        clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
-        insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
-        textImage = componentBuilder.buildImageView(ABRConstants.ICON_TEXT, ABRConstants.SPACE_M);
-
-        setImage = componentBuilder.buildImageView(ABRConstants.ICON_SET_VALUE, ABRConstants.SPACE_M);
-        getImage = componentBuilder.buildImageView(ABRConstants.ICON_GET_VALUE, ABRConstants.SPACE_M);
-        checkImage = componentBuilder.buildImageView(ABRConstants.ICON_CHECK, ABRConstants.SPACE_M);
-        holdImage = componentBuilder.buildImageView(ABRConstants.ICON_WAIT, ABRConstants.SPACE_M);
-
-        saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
-        saveButton.setMaxHeight(ABRConstants.SPACE_L);
-
-        nameField = new TextField();
-        nameField.setMaxHeight(ABRConstants.SPACE_L);
-
-        nameLabel = new Label();
-        nameLabel.setMaxHeight(ABRConstants.SPACE_L);
-
-        StackPane nameGroup = new StackPane(nameLabel, nameField);
-
-        HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
-        StackPane actionGroup =
-                new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
-        elementPanel = new HBox(actionGroup, nameFieldsGroup);
-        elementPanel.setSpacing(ABRConstants.SPACE_XS);
-
-        AnchorPane.setLeftAnchor(elementPanel, ABRConstants.SPACE_XS);
-        AnchorPane.setTopAnchor(elementPanel, ABRConstants.SPACE_XS);
-        AnchorPane.setBottomAnchor(elementPanel, ABRConstants.SPACE_XS);
-    }
-
-    private void initActionPanel() {
-        moreOptionsButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_EDIT, ABRConstants.SPACE_M, Insets.EMPTY);
-        blockButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_BLOCK, ABRConstants.SPACE_M, Insets.EMPTY);
-        moveUpButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_UP, ABRConstants.SPACE_M, Insets.EMPTY);
-        moveDownButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_DOWN, ABRConstants.SPACE_M, Insets.EMPTY);
-        deleteButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
-
-        blockButton.setPrefWidth(ABRConstants.SPACE_L);
+    private void defineButtonsGrid() {
 
         spaceLabel = new Label("                  ");
 
@@ -531,6 +551,7 @@ public class ABRWebElement {
                 operationLabel2.setStyle("-fx-font-size: 14px;");
                 operationLabel2.setStyle("-fx-font-weight: bold;");
 
+                blockButton.setPrefWidth(ABRConstants.SPACE_L);
                 if (isCheckValidator) {
                     actionPanel
                             .getChildren()
@@ -561,6 +582,7 @@ public class ABRWebElement {
             } else {
                 operationLabel1 = new Label(operationsElement[0].get());
                 operationLabel1.setTextFill(Color.BLUE);
+                blockButton.setPrefWidth(ABRConstants.SPACE_L);
 
                 actionPanel
                         .getChildren()
@@ -587,10 +609,87 @@ public class ABRWebElement {
 
         actionPanel.setSpacing(ABRConstants.SPACE_XS);
         actionPanel.setAlignment(Pos.CENTER_RIGHT);
-
         AnchorPane.setTopAnchor(actionPanel, ABRConstants.SPACE_XS);
         AnchorPane.setBottomAnchor(actionPanel, ABRConstants.SPACE_XS);
         AnchorPane.setRightAnchor(actionPanel, ABRConstants.SPACE_XS);
+    }
+
+    private void initElementPanel() {
+        if (clickImage == null) {
+            clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
+        }
+        if (insertImage == null) {
+            insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
+        }
+        if (textImage == null) {
+            textImage = componentBuilder.buildImageView(ABRConstants.ICON_TEXT, ABRConstants.SPACE_M);
+        }
+        if (setImage == null) {
+            setImage = componentBuilder.buildImageView(ABRConstants.ICON_SET_VALUE, ABRConstants.SPACE_M);
+        }
+        if (getImage == null) {
+            getImage = componentBuilder.buildImageView(ABRConstants.ICON_GET_VALUE, ABRConstants.SPACE_M);
+        }
+        if (checkImage == null) {
+            checkImage = componentBuilder.buildImageView(ABRConstants.ICON_CHECK, ABRConstants.SPACE_M);
+        }
+        if (holdImage == null) {
+            holdImage = componentBuilder.buildImageView(ABRConstants.ICON_WAIT, ABRConstants.SPACE_M);
+        }
+        if (saveButton == null) {
+            saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
+            saveButton.setMaxHeight(ABRConstants.SPACE_L);
+        }
+
+        if (nameField == null) {
+            nameField = new TextField();
+            nameField.setMaxHeight(ABRConstants.SPACE_L);
+        }
+
+        if (nameLabel == null) {
+            nameLabel = new Label();
+            nameLabel.setMaxHeight(ABRConstants.SPACE_L);
+        }
+
+        if (nameGroup == null) {
+            nameGroup = new StackPane(nameLabel, nameField);
+        }
+
+        if (nameFieldsGroup == null) {
+            nameFieldsGroup = new HBox(nameGroup, saveButton);
+        }
+
+        if (actionGroup == null) {
+            actionGroup = new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
+            elementPanel = new HBox(actionGroup, nameFieldsGroup);
+            elementPanel.setSpacing(ABRConstants.SPACE_XS);
+        }
+        AnchorPane.setLeftAnchor(elementPanel, ABRConstants.SPACE_XS);
+        AnchorPane.setTopAnchor(elementPanel, ABRConstants.SPACE_XS);
+        AnchorPane.setBottomAnchor(elementPanel, ABRConstants.SPACE_XS);
+    }
+
+    private void initButtonsGrid() {
+        if (moreOptionsButton == null) {
+            moreOptionsButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_EDIT, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+        if (blockButton == null) {
+            blockButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_BLOCK, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+        if (moveUpButton == null) {
+            moveUpButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_UP, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+        if (moveDownButton == null) {
+            moveDownButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_DOWN, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
+        if (deleteButton == null) {
+            deleteButton = componentBuilder.buildButton(
+                    "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
+        }
     }
 
     private void initUIBehaviour() {
@@ -609,12 +708,17 @@ public class ABRWebElement {
         nameLabel.visibleProperty().bind(editingElement.not());
         nameField.visibleProperty().bind(editingElement);
         saveButton.visibleProperty().bind(editingElement);
+
+        //        operationLabel.setText(operationsElement.getValue());
+
         moveUpButton.visibleProperty().bind(toBeAddedElement.not());
         blockButton.visibleProperty().bind(toBeAddedElement.not());
         moveDownButton.visibleProperty().bind(toBeAddedElement.not());
         deleteButton.visibleProperty().bind(toBeAddedElement.not());
+        deleteButton.visibleProperty().bind(toBeAddedElement.not());
 
         moreOptionsButton.setOnAction(e -> editingElement.setValue(!editingElement.getValue()));
+
         this.blockButton.setOnAction((e) -> {
             BlockLoopInstructionDTO item = (BlockLoopInstructionDTO)
                     ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, this.instructionId);
@@ -650,7 +754,7 @@ public class ABRWebElement {
         saveButton.setOnAction(e -> {
             editingElement.setValue(false);
             nameLabel.setText(nameField.getText());
-            ABRLogger.getInstance(ABRWebElement.class).info("saving instruction with id: " + instructionId);
+            ABRLogger.getInstance(ABRWebElement2.class).info("saving instruction with id: " + instructionId);
             if (instructionId != null && instructionId != 0) {
                 BlockLoopInstructionDTO instruction =
                         ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
@@ -665,50 +769,33 @@ public class ABRWebElement {
             }
         });
         deleteButton.setOnAction(e -> {
-            String msgDelete = instrOperation != null ? " -> " + instrOperation : "";
-            boolean delete = showConfirmationDialog(instrName, msgDelete);
-
-            if (delete) {
-                BlockLoopInstructionDTO instruction =
-                        ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
-                int instructionIndex = instruction.getInstructionOrderNumber();
-                BlockDTO block = instruction.getBlock();
-                ABRSharedResources.getInstance()
-                        .removeEntity(
-                                instruction,
-                                BlockLoopInstructionDTO.class,
-                                () -> {
-                                    Queue<BlockLoopInstructionDTO> instructionQueue =
-                                            block.getBlockLoopInstructions().stream()
-                                                    .filter(i -> i.getInstructionOrderNumber() > instructionIndex)
-                                                    .collect(Collectors.toCollection(LinkedBlockingQueue::new));
-                                    instructionQueue.forEach(instr ->
-                                            instr.setInstructionOrderNumber(instr.getInstructionOrderNumber() - 1));
-                                    ABRSharedResources.getInstance()
-                                            .updateAllEntity(
-                                                    instructionQueue,
-                                                    BlockLoopInstructionDTO.class,
-                                                    () -> Platform.runLater(() -> {
-                                                        new ABRAlertScene(
-                                                                Alert.AlertType.INFORMATION,
-                                                                "Successful deletion \"" + instrName + "\"" + msgDelete,
-                                                                "The element has been deleted successfully",
-                                                                ButtonType.OK);
-                                                    }));
-                                },
-                                ex -> {
-                                    // Handle the exception here (e.g., show an alert)
-                                    //                                    ex.printStackTrace();
-                                    Platform.runLater(() -> {
-                                        new ABRAlertScene(
-                                                Alert.AlertType.INFORMATION,
-                                                "Not possible delete \"" + instrName + "\"" + instrOperation,
-                                                "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
-                                                ButtonType.OK);
-                                    });
-                                });
-            }
+            boolean delete = showConfirmationDialog(instrName, instrOperation);
+            //            if (delete) {
+            //                deleteUserData(instructionId, instrName, instrOperation);
+            //                graphicRepresentation.layout();
+            //            }
+            BlockLoopInstructionDTO instruction =
+                    ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
+            int instructionIndex = instruction.getInstructionOrderNumber();
+            BlockDTO block = instruction.getBlock();
+            ABRSharedResources.getInstance().removeEntity(instruction, BlockLoopInstructionDTO.class, () -> {
+                Queue<BlockLoopInstructionDTO> instructionQueue = block.getBlockLoopInstructions().stream()
+                        .filter(i -> i.getInstructionOrderNumber() > instructionIndex)
+                        .collect(Collectors.toCollection(LinkedBlockingQueue::new));
+                instructionQueue.forEach(
+                        instr -> instr.setInstructionOrderNumber(instr.getInstructionOrderNumber() - 1));
+                //                ABRSharedResources.getInstance()
+                //                        .updateAllEntity(
+                //                                instructionQueue,
+                //                                BlockLoopInstructionDTO.class,
+                //                                () -> new ABRAlertScene(
+                //                                        Alert.AlertType.INFORMATION,
+                //                                        "Successfull deletion",
+                //                                        "The element has been deleted successfully",
+                //                                        ButtonType.OK));
+            });
         });
+
         EventHandler<MouseEvent> mouseEventEventHandler = mouseEvent -> {
             editingElement.setValue(false);
         };
@@ -1020,11 +1107,156 @@ public class ABRWebElement {
         }
     }
 
+    private Connection getConnection() {
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                try {
+                    conn = DriverManager.getConnection(dbUrl);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        }
+    }
+
+    //    private void loadJobVariables() {
+    //        variablesList.clear();
+    //        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
+    //                + " FROM variable vars "
+    //                + " left join block_loop_instruction blk on blk.variable_id = vars.id "
+    //                + " where bot_job_id = " + botJobId
+    //                + " and  block_loop_instruction_id = " + instructionId
+    //                + " group by vars.id, vars.type, vars.Name, vars.value ";
+    //        try (Statement stmt = getConnection().createStatement();
+    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
+    //            while (rs.next()) {
+    //                String id = rs.getString("ID");
+    //                String type = rs.getString("type");
+    //                String name = rs.getString("name");
+    //                String value = rs.getString("value");
+    //                String usedVars = rs.getString("UsedVars");
+    //                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, instructionId, usedVars));
+    //            }
+    //        } catch (SQLException e) {
+    //            e.printStackTrace();
+    //        }
+    //        //        jobUserList.clear();
+    //        //        loadBotJobData();
+    //    }
+
+    private void showAlert(String title, String content) {
+        executorService = Executors.newSingleThreadExecutor();
+        alertToShow.setAlertType(Alert.AlertType.ERROR);
+        alertToShow.setTitle(title);
+        alertToShow.setHeaderText(title);
+        alertToShow.setContentText(content);
+
+        executorService.execute(() -> {
+            timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
+            timeline.play(); // Start the timeline
+
+            // Show the alert on the JavaFX Application Thread
+            javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
+        });
+
+        if (executorService != null) {
+            remainingSeconds = SECONDS;
+            executorService.shutdown();
+        }
+    }
+
+    //    private void addInstruction(String name, String operation, Integer varId) {
+    //        Alert alert = new Alert(
+    //                Alert.AlertType.CONFIRMATION,
+    //                "Are you sure you want to add a " + name + " to the botjob?",
+    //                ButtonType.YES,
+    //                ButtonType.NO);
+    //        Optional<ButtonType> result = alert.showAndWait();
+    //        if (result.isPresent() && result.get() == ButtonType.YES) {
+    //            Task<Void> waitTask = new Task<>() {
+    //                @Override
+    //                protected Void call() throws Exception {
+    //                    //                    List<BlockLoopInstructionDTO> instructionList =
+    //                    //                            botJob.getBlocks().get(0).getBlockLoopInstructions();
+    //                    BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
+    //                    List<BlockLoopInstructionDTO> instructionList =
+    //                            botJob.getBlocks().get(0).getBlockLoopInstructions();
+    //
+    //                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+    //                    instruction.setName(name);
+    //                    instruction.setDescription("loop desc");
+    //                    instruction.setOperation(operation);
+    //                    instruction.setVariableId(varId);
+    //                    instruction.setEncrypted(false);
+    //                    instruction.setExportToABR(true);
+    //                    instruction.setInstructionOrderNumber(instructionList.size());
+    //                    instruction.setOptional(false);
+    //                    if (name.equalsIgnoreCase("setValue")) {
+    //                        instruction.setActions(ABRConstants.SET_VALUE);
+    //                    } else if (name.equalsIgnoreCase("getValue")) {
+    //                        instruction.setActions(ABRConstants.GET_VALUE);
+    //                    } else if (name.equalsIgnoreCase("check")) {
+    //                        instruction.setActions(ABRConstants.CHECK_VALUE);
+    //                    }
+    //                    instruction.setActionCustomMaxWaitSec(30);
+    //                    instruction.setOnHoldSeconds(1);
+    //                    instruction.setBlock(botJob.getBlocks().get(0));
+    //                    instruction.setExportToABR(false);
+    //                    ABRSharedResources.getInstance()
+    //                            .addEntity(
+    //                                    instruction,
+    //                                    BlockLoopInstructionDTO.class,
+    //                                    () -> new ABRAlertScene(
+    //                                            Alert.AlertType.INFORMATION,
+    //                                            "Instruction Added",
+    //                                            "Instruction " + instruction.getName() + " has been added
+    // successfully",
+    //                                            ButtonType.OK));
+    //                    return null;
+    //                }
+    //            };
+    //            new Thread(waitTask).start();
+    //        }
+    //    }
+
+    private void deleteUserData(int variableId, String instrName, String instrOperation) {
+        String deleteSQL = "DELETE FROM block_loop_instruction WHERE ID = " + variableId;
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class)
+                        .finer("Data deleted successfully.\n " + instrName + " -> " + instrOperation);
+
+            } else {
+                ABRLogger.getInstance(Thread.class)
+                        .finer("Data NOT deleted successfully.\n " + instrName + " -> " + instrOperation);
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(Thread.class)
+                    .finer("Error Deleting\n " + instrName + " -> " + instrOperation + "\"" + e.getMessage());
+        }
+    }
+
     private boolean showConfirmationDialog(String name, String operation) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Confirmation Dialog");
         alert.setHeaderText("Delete Confirmation");
-        alert.setContentText("Are you sure you want to delete the record for \n\"" + name + "\"" + operation + "  ?");
+        alert.setContentText(
+                "Are you sure you want to delete the record for \n\"" + name + "\"  ->   " + operation + "  ?");
 
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;

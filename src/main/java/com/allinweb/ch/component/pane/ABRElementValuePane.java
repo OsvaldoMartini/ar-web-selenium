@@ -34,7 +34,7 @@ public class ABRElementValuePane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgresSQL server address
     private static final String DB_PORT = "5432"; // default PostgresSQL port

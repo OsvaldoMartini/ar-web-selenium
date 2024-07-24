@@ -54,7 +54,7 @@ public class ABRNewCommandPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -360,7 +360,7 @@ public class ABRNewCommandPane extends ABRPane {
         addInstructionButton = componentBuilder.buildButton("OK", ABRConstants.SPACE_L, Insets.EMPTY);
         addInstructionButton.getStyleClass().add("ok-button");
 
-        cancelButton = componentBuilder.buildButton("Cancel", ABRConstants.SPACE_L, Insets.EMPTY);
+        cancelButton = componentBuilder.buildButton("Close", ABRConstants.SPACE_L, Insets.EMPTY);
         cancelButton.getStyleClass().add("cancel-button");
 
         variableButton = componentBuilder.buildButton(
@@ -809,15 +809,15 @@ public class ABRNewCommandPane extends ABRPane {
 
     private void addInstruction(String name, String operation, Integer varId) {
         // Create a label to display the countdown
-        Label newInstruction =
-                new Label("Are you sure you want to add:\n\"" + name + "\"\n\"" + operation + "\"\nto the Bot-Job?");
-        newInstruction.setStyle("-fx-font-size: 20px;");
+        Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
+        newInstruction.setStyle("-fx-font-size: 18px;");
 
         StackPane stackPane = new StackPane(newInstruction);
         stackPane.setPadding(new Insets(20));
         alertToShow.getDialogPane().setContent(stackPane);
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+        alert.setHeaderText("Are you sure you want to Add the Instruction to the Bot-Job?");
         alert.getDialogPane().setContent(stackPane);
 
         Optional<ButtonType> result = alert.showAndWait();

@@ -13,9 +13,9 @@ import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
 import java.util.*;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
-import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -31,7 +31,6 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
@@ -53,6 +52,12 @@ public class ABRWebElement {
     private StringProperty[] operationsElement = new StringProperty[0];
 
     private boolean isCheckValidator;
+
+    private static final int SECONDS = 3; // Total seconds for the countdown
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private ExecutorService executorService;
+    private Alert alertToShow;
 
     private Integer instructionId;
     private Integer botJobId;
@@ -469,8 +474,7 @@ public class ABRWebElement {
         StackPane nameGroup = new StackPane(nameLabel, nameField);
 
         HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
-        StackPane actionGroup =
-                new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
+        StackPane actionGroup = new StackPane(clickImage, insertImage, textImage);
         elementPanel = new HBox(actionGroup, nameFieldsGroup);
         elementPanel.setSpacing(ABRConstants.SPACE_XS);
 
@@ -492,99 +496,7 @@ public class ABRWebElement {
                 "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
 
         blockButton.setPrefWidth(ABRConstants.SPACE_L);
-
-        spaceLabel = new Label("                  ");
-
-        // Create description label
-        actionPanel = new HBox();
-        if (operationsElement != null && operationsElement.length > 1) {
-            //            variableBox.getChildren().addAll(saveOperatorButton);
-            String complement = "";
-            if (!isCheckValidator) {
-                complement = ": "; // comboBoxOperator.getValue().getText();
-            }
-
-            if (operationsElement.length > 1) {
-
-                operationLabel1 = new Label(operationsElement[0].get() + complement);
-                operationLabel1.setTextFill(Color.BLUE);
-
-                if (isCheckValidator) {
-                    operationLabel2 = new Label(operationsElement[1].get());
-                    operationLabel2.setTextFill(Color.ORANGE);
-                    if (operationsElement.length > 2) {
-                        operationLabel3 = new Label(operationsElement[2].get());
-                    } else {
-                        operationLabel3 = new Label("Empty");
-                    }
-                    operationLabel3.setTextFill(Color.BLUE);
-                    operationLabel3.setStyle("-fx-font-size: 14px;");
-                    operationLabel3.setStyle("-fx-font-weight: bold;");
-                } else {
-                    operationLabel2 = new Label(operationsElement[1].get());
-                    operationLabel2.setTextFill(Color.ORANGE);
-                }
-
-                // Optionally, you can set additional styles or properties
-                operationLabel1.setStyle("-fx-font-size: 14px;");
-                operationLabel1.setStyle("-fx-font-weight: bold;");
-                operationLabel2.setStyle("-fx-font-size: 14px;");
-                operationLabel2.setStyle("-fx-font-weight: bold;");
-
-                if (isCheckValidator) {
-                    actionPanel
-                            .getChildren()
-                            .addAll(
-                                    operationLabel1,
-                                    operationLabel2,
-                                    operationLabel3,
-                                    spaceLabel,
-                                    blockButton,
-                                    moveUpButton,
-                                    moveDownButton,
-                                    moreOptionsButton,
-                                    deleteButton);
-                } else {
-                    actionPanel
-                            .getChildren()
-                            .addAll(
-                                    operationLabel1,
-                                    operationLabel2,
-                                    spaceLabel,
-                                    blockButton,
-                                    moveUpButton,
-                                    moveDownButton,
-                                    moreOptionsButton,
-                                    deleteButton);
-                }
-
-            } else {
-                operationLabel1 = new Label(operationsElement[0].get());
-                operationLabel1.setTextFill(Color.BLUE);
-
-                actionPanel
-                        .getChildren()
-                        .addAll(
-                                operationLabel1,
-                                spaceLabel,
-                                blockButton,
-                                moveUpButton,
-                                moveDownButton,
-                                moreOptionsButton,
-                                deleteButton);
-
-                // Optionally, you can set additional styles or properties
-                operationLabel1.setStyle("-fx-font-size: 14px;");
-                operationLabel1.setStyle("-fx-font-weight: bold;");
-            }
-
-        } else {
-            blockButton.setPrefWidth(ABRConstants.SPACE_L);
-            actionPanel
-                    .getChildren()
-                    .addAll(blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
-        }
-
+        actionPanel = new HBox(blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
         actionPanel.setSpacing(ABRConstants.SPACE_XS);
         actionPanel.setAlignment(Pos.CENTER_RIGHT);
 
@@ -665,49 +577,26 @@ public class ABRWebElement {
             }
         });
         deleteButton.setOnAction(e -> {
-            String msgDelete = instrOperation != null ? " -> " + instrOperation : "";
-            boolean delete = showConfirmationDialog(instrName, msgDelete);
-
-            if (delete) {
-                BlockLoopInstructionDTO instruction =
-                        ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
-                int instructionIndex = instruction.getInstructionOrderNumber();
-                BlockDTO block = instruction.getBlock();
+            BlockLoopInstructionDTO instruction =
+                    ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
+            int instructionIndex = instruction.getInstructionOrderNumber();
+            BlockDTO block = instruction.getBlock();
+            ABRSharedResources.getInstance().removeEntity(instruction, BlockLoopInstructionDTO.class, () -> {
+                Queue<BlockLoopInstructionDTO> instructionQueue = block.getBlockLoopInstructions().stream()
+                        .filter(i -> i.getInstructionOrderNumber() > instructionIndex)
+                        .collect(Collectors.toCollection(LinkedBlockingQueue::new));
+                instructionQueue.forEach(
+                        instr -> instr.setInstructionOrderNumber(instr.getInstructionOrderNumber() - 1));
                 ABRSharedResources.getInstance()
-                        .removeEntity(
-                                instruction,
+                        .updateAllEntity(
+                                instructionQueue,
                                 BlockLoopInstructionDTO.class,
-                                () -> {
-                                    Queue<BlockLoopInstructionDTO> instructionQueue =
-                                            block.getBlockLoopInstructions().stream()
-                                                    .filter(i -> i.getInstructionOrderNumber() > instructionIndex)
-                                                    .collect(Collectors.toCollection(LinkedBlockingQueue::new));
-                                    instructionQueue.forEach(instr ->
-                                            instr.setInstructionOrderNumber(instr.getInstructionOrderNumber() - 1));
-                                    ABRSharedResources.getInstance()
-                                            .updateAllEntity(
-                                                    instructionQueue,
-                                                    BlockLoopInstructionDTO.class,
-                                                    () -> Platform.runLater(() -> {
-                                                        new ABRAlertScene(
-                                                                Alert.AlertType.INFORMATION,
-                                                                "Successful deletion \"" + instrName + "\"" + msgDelete,
-                                                                "The element has been deleted successfully",
-                                                                ButtonType.OK);
-                                                    }));
-                                },
-                                ex -> {
-                                    // Handle the exception here (e.g., show an alert)
-                                    //                                    ex.printStackTrace();
-                                    Platform.runLater(() -> {
-                                        new ABRAlertScene(
-                                                Alert.AlertType.INFORMATION,
-                                                "Not possible delete \"" + instrName + "\"" + instrOperation,
-                                                "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
-                                                ButtonType.OK);
-                                    });
-                                });
-            }
+                                () -> new ABRAlertScene(
+                                        Alert.AlertType.INFORMATION,
+                                        "Successfull deletion",
+                                        "The element has been deleted successfully",
+                                        ButtonType.OK));
+            });
         });
         EventHandler<MouseEvent> mouseEventEventHandler = mouseEvent -> {
             editingElement.setValue(false);
@@ -1024,9 +913,31 @@ public class ABRWebElement {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Confirmation Dialog");
         alert.setHeaderText("Delete Confirmation");
-        alert.setContentText("Are you sure you want to delete the record for \n\"" + name + "\"" + operation + "  ?");
+        alert.setContentText(
+                "Are you sure you want to delete the record for \n\"" + name + "\"  ->   " + operation + "  ?");
 
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
+    }
+
+    private void showAlert(String title, String content) {
+        executorService = Executors.newSingleThreadExecutor();
+        alertToShow.setAlertType(Alert.AlertType.ERROR);
+        alertToShow.setTitle(title);
+        alertToShow.setHeaderText(title);
+        alertToShow.setContentText(content);
+
+        executorService.execute(() -> {
+            timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
+            timeline.play(); // Start the timeline
+
+            // Show the alert on the JavaFX Application Thread
+            javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
+        });
+
+        if (executorService != null) {
+            remainingSeconds = SECONDS;
+            executorService.shutdown();
+        }
     }
 }

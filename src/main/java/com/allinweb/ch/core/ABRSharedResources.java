@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import javafx.application.Platform;
@@ -28,12 +29,15 @@ import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
 public class ABRSharedResources {
+    
+    private Repository repository;
+    
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
     private static final String lock = "locked";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -269,6 +273,22 @@ public class ABRSharedResources {
         new Thread(executionTask).start();
     }
 
+    public <T extends BaseDTO> void removeEntity(
+            T entity, Class<T> clazz, ABRCallback callback, Consumer<Exception> errorHandler) {
+        Task<Void> executionTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    removeEntitySync(entity, clazz, callback);
+                } catch (Exception e) {
+                    errorHandler.accept(e); // Call the error handler with the exception
+                }
+                return null;
+            }
+        };
+        new Thread(executionTask).start();
+    }
+
     private <T extends BaseDTO> void removeEntitySync(T entity, Class<T> clazz, ABRCallback callback) {
         new Repository(session).remove(entity);
         ObservableList<T> obsList = getEntityList(clazz);
@@ -288,7 +308,7 @@ public class ABRSharedResources {
         this.getEntityList(SavedBlockLoopInstructionDTO.class).clear();
         this.getEntityList(SavedInstructionReferenceDTO.class).clear();
         getEntityList(InstructionReferenceDTO.class).clear();
-        Repository repository = new Repository(session);
+        this.repository = new Repository(session);
         getEntityList(HomeBankingDTO.class).addAll(repository.findAllEntities(HomeBankingDTO.class));
         getEntityList(BotJobDTO.class).addAll(repository.findAllEntities(BotJobDTO.class));
         getEntityList(BlockDTO.class).addAll(repository.findAllEntities(BlockDTO.class));
