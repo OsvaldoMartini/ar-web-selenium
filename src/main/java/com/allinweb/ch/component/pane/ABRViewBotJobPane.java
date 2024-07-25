@@ -673,7 +673,7 @@ public class ABRViewBotJobPane extends ABRPane {
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
-                String id = rs.getString("ID");
+                int id = rs.getInt("ID");
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
@@ -699,6 +699,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id  "
                 + " LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id  "
                 + " where bj.id = " + this.botJob.getId()
+                + "   and operation is null  "
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number ASC;";
 
         try (Statement stmt = getConnection().createStatement();
@@ -708,12 +709,13 @@ public class ABRViewBotJobPane extends ABRPane {
                 String name = rs.getString("instruction_name");
                 String actions = rs.getString("actions");
 
-                // Filter out "SET", "GET", and "CK"
+                // Filter out "SET", "GET", "CK", adn "H"
                 if (actions != null
                         && !actions.equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())
                         && !actions.equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
-                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
-                    webPageItems.add(new ComboBoxVars(name, id, name));
+                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())
+                        && !actions.equalsIgnoreCase(ABRConstants.HOLD)) {
+                    webPageItems.add(new ComboBoxVars(name, name, id, -1));
                 }
             }
         } catch (SQLException e) {

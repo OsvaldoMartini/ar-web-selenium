@@ -66,6 +66,9 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "variable_id")
     private Integer variableId;
 
+    @Column(name = "parent_id")
+    private Integer parentId;
+
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @OrderBy("orderNumber ASC")
     @JoinColumn(name = "block_loop_instruction_id")
@@ -245,5 +248,13 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     public void setVariableId(Integer variableId) {
         this.variableId = variableId;
+    }
+
+    public Integer getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(Integer parentId) {
+        this.parentId = parentId;
     }
 }

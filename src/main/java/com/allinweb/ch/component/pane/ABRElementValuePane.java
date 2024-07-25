@@ -158,7 +158,7 @@ public class ABRElementValuePane extends ABRPane {
         // Create update button
         updateButton = new Button("Update");
         updateButton.setOnAction(event -> {
-            String id = idField.getText();
+            int id = Strings.isNullOrEmpty(idField.getText()) ? -1 : Integer.parseInt(idField.getText());
             String selectedType =
                     stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
 
@@ -246,7 +246,7 @@ public class ABRElementValuePane extends ABRPane {
                 VariableUserDTO selectedUser = tableView.getSelectionModel().getSelectedItem();
 
                 // Set the values of the selected row to the text fields
-                idField.setText(selectedUser.getId());
+                idField.setText(String.valueOf(selectedUser.getId()));
                 nameField.setText(selectedUser.getName());
                 String valueVar = selectedUser.getValue().equalsIgnoreCase("$EMPTY") ? "" : selectedUser.getValue();
                 valueField.setText(valueVar);
@@ -421,7 +421,7 @@ public class ABRElementValuePane extends ABRPane {
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
-                String id = rs.getString("ID");
+                int id = rs.getInt("ID");
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
@@ -471,10 +471,8 @@ public class ABRElementValuePane extends ABRPane {
         }
     }
 
-    private void updateUserData(String id, VariableUserDTO user) {
+    private void updateUserData(Integer userId, VariableUserDTO user) {
         try {
-            int userId = Integer.parseInt(id);
-
             String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
                     + " type = '" + user.getType() + "', "
                     + " value = '" + user.getValue() + "' "

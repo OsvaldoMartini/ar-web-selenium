@@ -487,13 +487,15 @@ public class ABRNewCommandPane extends ABRPane {
                 addInstruction(
                         "SetValue",
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":" + setValueTo,
-                        comboBoxVars.getValue().getVarId());
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getInstructionId());
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
                 addInstruction(
                         "GetValue",
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
                                 + comboBoxVars.getValue().getText().toUpperCase(),
-                        comboBoxVars.getValue().getVarId());
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getInstructionId());
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("check")) {
                 String checkValueFor =
                         Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
@@ -502,9 +504,10 @@ public class ABRNewCommandPane extends ABRPane {
 
                 addInstruction(
                         "Check",
-                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
+                        comboBoxVars.getValue().getText().toLowerCase() + ":"
                                 + comboBoxOperator.getValue().getOperator() + ":" + checkValueFor,
-                        comboBoxVars.getValue().getVarId());
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getInstructionId());
             }
         });
 
@@ -519,30 +522,6 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.getSelectionModel().selectFirst();
                 }
             }
-        });
-
-        addInstructionButton.setOnAction(event -> {
-            /*String selectedType =
-                    stringCheckBox.isSelected() ? "$String" : numericCheckBox.isSelected() ? "#Numeric" : "";
-
-            VariableUserDTO user = new VariableUserDTO(
-                    null, selectedType, nameField.getText().trim(), valueField.getText(), botJobId, instructionId);
-
-            if (nameExists(nameField.getText().trim())) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Env Name Already Exists",
-                        String.format("This '%s' cannot be inserted with the same name.\n", nameField.getText()));
-                return;
-            }
-
-            if (nameField.getText().trim().isEmpty() || selectedType.isEmpty()) {
-                showAlert(Alert.AlertType.ERROR, "Name and Type Cannot be Empty", "Name and Type Cannot be Empty");
-                return;
-            }
-
-            saveUserData(user);
-            loadVariablesJob();*/
         });
 
         cancelButton.setOnMouseClicked((e) -> {
@@ -570,12 +549,13 @@ public class ABRNewCommandPane extends ABRPane {
             List<ComboBoxVars> variablesNames = variablesList.stream()
                     .map(variable -> new ComboBoxVars(
                             variable.getType().substring(0, 1) + variable.getName(),
-                            variable.getInstructionId(),
-                            variable.getValue()))
+                            variable.getValue(),
+                            variable.getId(),
+                            variable.getInstructionId()))
                     .collect(Collectors.toList());
             variablesItems.addAll(variablesNames);
         } else {
-            variablesItems.add(new ComboBoxVars("no variables added", -1, ""));
+            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1));
         }
     }
 
@@ -683,7 +663,7 @@ public class ABRNewCommandPane extends ABRPane {
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
-                String id = rs.getString("ID");
+                Integer id = rs.getInt("ID");
                 String type = rs.getString("type");
                 String name = rs.getString("name");
                 String value = rs.getString("value");
@@ -807,7 +787,7 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
-    private void addInstruction(String name, String operation, Integer varId) {
+    private void addInstruction(String name, String operation, Integer varId, Integer instructionId) {
         // Create a label to display the countdown
         Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
         newInstruction.setStyle("-fx-font-size: 18px;");
@@ -836,6 +816,7 @@ public class ABRNewCommandPane extends ABRPane {
                     instruction.setDescription("loop desc");
                     instruction.setOperation(operation);
                     instruction.setVariableId(varId);
+                    instruction.setParentId(instructionId);
                     instruction.setEncrypted(false);
                     instruction.setExportToABR(true);
                     instruction.setInstructionOrderNumber(instructionList.size());

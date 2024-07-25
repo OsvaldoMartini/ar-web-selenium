@@ -20,6 +20,8 @@ public class BlockLoopInstructionLoadDTO {
     private Integer exportToABR;
     private Boolean executed;
     private String priority;
+    private String operation;
+    private int parentId;
 
     public String getDefaultValue() {
         return default_val;
@@ -35,6 +37,22 @@ public class BlockLoopInstructionLoadDTO {
 
     public boolean isEncrypted() {
         return encrypted >= 1;
+    }
+
+    public String getOperation() {
+        return operation;
+    }
+
+    public void setOperation(String operation) {
+        this.operation = operation;
+    }
+
+    public int getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(int parentId) {
+        this.parentId = parentId;
     }
 
     private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;

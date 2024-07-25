@@ -6,7 +6,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
 public class VariableUserDTO {
-    private StringProperty id;
+    private IntegerProperty id;
     private StringProperty type;
     private StringProperty name;
     private StringProperty value;
@@ -17,14 +17,14 @@ public class VariableUserDTO {
     public VariableUserDTO() {}
 
     public VariableUserDTO(
-            String id,
+            Integer id,
             String type,
             String name,
             String value,
             Integer botJobId,
             Integer instructionId,
             String usedVars) {
-        this.id = new SimpleStringProperty(id);
+        this.id = new SimpleIntegerProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleStringProperty(value);
@@ -33,8 +33,9 @@ public class VariableUserDTO {
         this.usedVars = new SimpleStringProperty(usedVars);
     }
 
-    public VariableUserDTO(String id, String type, String name, String value, Integer botJobId, Integer instructionId) {
-        this.id = new SimpleStringProperty(id);
+    public VariableUserDTO(
+            Integer id, String type, String name, String value, Integer botJobId, Integer instructionId) {
+        this.id = new SimpleIntegerProperty(id);
         this.type = new SimpleStringProperty(type);
         this.name = new SimpleStringProperty(name);
         this.value = new SimpleStringProperty(value);
@@ -42,15 +43,15 @@ public class VariableUserDTO {
         this.instructionId = new SimpleIntegerProperty(instructionId);
     }
 
-    public String getId() {
+    public Integer getId() {
         return id.get();
     }
 
-    public StringProperty idProperty() {
+    public IntegerProperty idProperty() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(Integer id) {
         this.id.set(id);
     }
 

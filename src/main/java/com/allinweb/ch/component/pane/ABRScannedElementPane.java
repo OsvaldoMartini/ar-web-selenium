@@ -181,6 +181,8 @@ public class ABRScannedElementPane extends ABRPane {
     private Boolean nameAttributeFirst = false;
     private Boolean withoutNameAndId = false;
 
+    private Map<String, String> mapOperators;
+
     List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
 
     Map<String, WebElement> mapAdvanced = new HashMap<>();
@@ -2520,7 +2522,8 @@ public class ABRScannedElementPane extends ABRPane {
                 + " bli.actions, bli.name AS instruction_name, bli.path, bli.description AS instruction_description, "
                 + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
-                + " irl.reference_type, irl.value "
+                + " irl.reference_type, irl.value, "
+                + "  bli.operation, bli.parent_id "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + " LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -2585,6 +2588,8 @@ public class ABRScannedElementPane extends ABRPane {
                     instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                     instruction.setEncrypted(rs.getInt("encrypted"));
                     instruction.setExportToABR(rs.getInt("export_to_abr"));
+                    instruction.setOperation(rs.getString("operation"));
+                    instruction.setParentId(rs.getInt("parent_id"));
 
                     instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
                     blockDTO.getBlockLoopInstructionLoadDTOS().add(instruction);
@@ -2719,6 +2724,7 @@ public class ABRScannedElementPane extends ABRPane {
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
         boolean success = true;
+        boolean stopAll = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String lastInstructionExecuted = "No instruction executed yet";
@@ -2729,68 +2735,222 @@ public class ABRScannedElementPane extends ABRPane {
 
         clearFields();
 
+        mapOperators = new HashMap<>();
+
         if (extractedData.getNumberOfDataRows() > 0) {
             for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
                 List<BlockLoadDTO> blockList = blocksLoaded;
+                if (stopAll) {
+                    break;
+                }
                 for (int j = 0; success && j < blockList.size(); j++) {
+                    if (stopAll) {
+                        break;
+                    }
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
                             instructionsExecuted, blockList.get(j).getBlockLoopInstructionLoadDTOS());
 
                     for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
+                        if (stopAll) {
+                            break;
+                        }
                         if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
+                            boolean execOperation = false;
+                            boolean checkOperation = false;
+                            String xPathOperation = null;
+
+                            String[] actions =
+                                    currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
+                            String[] operations = currentInstruction.getOperation() != null
+                                    ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
+                                    : null;
+
+                            if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
+                                    || actions[0].equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())) {
+
+                                execOperation = true;
+                                xPathOperation = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                        .filter(f -> f.getId() == currentInstruction.getParentId())
+                                        .findFirst()
+                                        .get()
+                                        .getPath();
+                            } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
+                                checkOperation = true;
+                            }
 
                             long currentInstructionStartTime = System.nanoTime();
                             File logFileForSingleExcel = excelReader.createLogFile(excelPath);
-                            dataExcel = extractedData.getRowFieldValues(i);
 
                             fillUpCurretLocators(currentInstruction);
 
                             try {
-                                lastInstructionExecuted = currentInstruction.getName()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getPath();
-                                resultAcions = performActions(dataExcel, currentInstruction, botJobId);
-                                long currentInstructionEndTime = System.nanoTime();
-                                totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
-                                System.out.println("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
-                                        + lastInstructionExecuted);
-                                if (resultAcions != null) {
-                                    currentInstruction.setExecuted(true);
+                                if (!execOperation && !checkOperation) {
+                                    dataExcel = extractedData.getRowFieldValues(i);
 
-                                    // Assuming currentInstruction and instructionsExecuted are already defined
-                                    if (currentInstruction != null
-                                            && instructionsExecuted.stream()
-                                                    .noneMatch(instruction -> instruction.getInstructionOrderNumber()
-                                                            == currentInstruction.getInstructionOrderNumber())) {
-                                        instructionsExecuted.add(currentInstruction);
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getPath();
+                                    resultAcions = performActions(dataExcel, currentInstruction, botJobId);
+                                    long currentInstructionEndTime = System.nanoTime();
+                                    totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
+
+                                    if (resultAcions != null) {
+
+                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
+                                                        + lastInstructionExecuted);
+
+                                        currentInstruction.setExecuted(true);
+
+                                        // Assuming currentInstruction and instructionsExecuted are already defined
+                                        if (currentInstruction != null
+                                                && instructionsExecuted.stream()
+                                                        .noneMatch(
+                                                                instruction -> instruction.getInstructionOrderNumber()
+                                                                        == currentInstruction
+                                                                                .getInstructionOrderNumber())) {
+                                            instructionsExecuted.add(currentInstruction);
+                                        }
+                                        success = true;
+                                    } else {
+                                        resultAcions = "Failed to Execute -> " + currentInstruction.getName();
+                                        success = false;
                                     }
-                                    success = true;
-                                } else {
-                                    resultAcions = "Failled to Execute -> " + currentInstruction.getName();
-                                    success = false;
+
+                                } else if (execOperation) {
+                                    // Special Operators
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getActions()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getOperation();
+
+                                    if (operations.length == 2) {
+                                        resultAcions = performActionOperator(
+                                                currentInstruction, xPathOperation, actions[0], operations);
+
+                                        long currentInstructionEndTime = System.nanoTime();
+                                        totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
+
+                                        if (resultAcions != null) {
+
+                                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
+                                                            + lastInstructionExecuted);
+
+                                            currentInstruction.setExecuted(true);
+
+                                            // Assuming currentInstruction and instructionsExecuted are already defined
+                                            if (currentInstruction != null
+                                                    && instructionsExecuted.stream()
+                                                            .noneMatch(instruction ->
+                                                                    instruction.getInstructionOrderNumber()
+                                                                            == currentInstruction
+                                                                                    .getInstructionOrderNumber())) {
+                                                instructionsExecuted.add(currentInstruction);
+                                            }
+                                            success = true;
+                                        } else {
+                                            resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                            success = false;
+                                        }
+                                    } else {
+                                        resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                        success = false;
+                                    }
+                                } else if (checkOperation) {
+                                    // Special Operators
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getActions()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getOperation();
+
+                                    if (operations.length == 3) {
+                                        //                                        mapOperators =
+                                        // performActionOperator(currentInstruction, xPathOperation, mapOperators,
+                                        // actions[0],operations[1]);
+                                        resultAcions = String.join(":", operations);
+                                        boolean isOperationValid = false;
+                                        if (operations[1].equalsIgnoreCase("=")) {
+                                            isOperationValid = mapOperators
+                                                    .get(operations[0])
+                                                    .equalsIgnoreCase(operations[2]);
+
+                                        } else if (operations[1].equalsIgnoreCase(">")) {
+                                            isOperationValid = mapOperators
+                                                    .get(operations[0])
+                                                    .equalsIgnoreCase(operations[2]);
+                                        }
+
+                                        long currentInstructionEndTime = System.nanoTime();
+                                        totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
+
+                                        if (isOperationValid) {
+
+                                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
+                                                            + lastInstructionExecuted);
+
+                                            currentInstruction.setExecuted(true);
+
+                                            // Assuming currentInstruction and instructionsExecuted are already defined
+                                            if (currentInstruction != null
+                                                    && instructionsExecuted.stream()
+                                                            .noneMatch(instruction ->
+                                                                    instruction.getInstructionOrderNumber()
+                                                                            == currentInstruction
+                                                                                    .getInstructionOrderNumber())) {
+                                                instructionsExecuted.add(currentInstruction);
+                                            }
+                                            success = true;
+                                        } else {
+                                            Alert alert = new Alert(Alert.AlertType.ERROR);
+                                            alert.setTitle("Validation Error");
+                                            alert.setHeaderText("Check Validation Error");
+                                            alert.setContentText("The Value: "
+                                                    + mapOperators.get(operations[0]) + "\nis not " + operations[1]
+                                                    + " for " + operations[2]
+                                                    + "\nExpected value: "
+                                                    + mapOperators.get(operations[0]));
+                                            alert.showAndWait();
+
+                                            stopAll = true;
+
+                                            resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                            success = false;
+                                        }
+
+                                    } else {
+                                        resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                        success = false;
+                                    }
                                 }
+
                             } catch (Throwable t) {
                                 success = false;
                                 currentInstruction.setExecuted(false);
                                 if (currentInstruction.isOptional()) {
                                     long currentInstructionEndTime = System.nanoTime();
                                     long duration = currentInstructionEndTime - botJobStartTime;
-                                    LocalTime time = LocalTime.now();
-                                    System.out.println("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
-                                            + " --> "
-                                            + lastInstructionExecuted + "- Duration: "
-                                            + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
+                                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                                            .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
+                                                    + " --> "
+                                                    + lastInstructionExecuted + "- Duration: "
+                                                    + LocalTime.ofNanoOfDay(duration)
+                                                            .format(FORMAT_TIME));
 
                                 } else {
                                     long currentInstructionEndTime = System.nanoTime();
                                     long duration = currentInstructionEndTime - botJobStartTime;
-                                    LocalTime time = LocalTime.now();
-                                    System.out.println("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
-                                            + " --> "
-                                            + lastInstructionExecuted + "- Duration: "
-                                            + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
+                                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                                            .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
+                                                    + " --> "
+                                                    + lastInstructionExecuted + "- Duration: "
+                                                    + LocalTime.ofNanoOfDay(duration)
+                                                            .format(FORMAT_TIME));
                                 }
                                 //                            throw new RuntimeException(t);
                             }
@@ -2843,12 +3003,15 @@ public class ABRScannedElementPane extends ABRPane {
                         if (resultAcions != null) {
                             long currentInstructionEndTime = System.nanoTime();
                             totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
-                            System.out.println("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
-                                    + lastInstructionExecuted);
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
+                                            + lastInstructionExecuted);
+
                             currentInstruction.setExecuted(true);
                             success = true;
                         } else {
-                            resultAcions = "Failled to Execute -> " + currentInstruction.getName();
+                            resultAcions = "Failed to Execute -> " + currentInstruction.getName();
                             success = false;
                         }
                     } catch (Throwable t) {
@@ -2857,17 +3020,20 @@ public class ABRScannedElementPane extends ABRPane {
                         if (currentInstruction.isOptional()) {
                             long currentInstructionEndTime = System.nanoTime();
                             long duration = currentInstructionEndTime - botJobStartTime;
-                            LocalTime time = LocalTime.now();
-                            System.out.println("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " --> "
-                                    + lastInstructionExecuted + "- Duration: "
-                                    + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " --> "
+                                            + lastInstructionExecuted + "- Duration: "
+                                            + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
+
                         } else {
                             long currentInstructionEndTime = System.nanoTime();
                             long duration = currentInstructionEndTime - botJobStartTime;
-                            LocalTime time = LocalTime.now();
-                            System.out.println("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " --> "
-                                    + lastInstructionExecuted + "- Duration: "
-                                    + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " --> "
+                                            + lastInstructionExecuted + "- Duration: "
+                                            + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
                         }
                         //                        throw new RuntimeException(t);
                     }
@@ -2998,7 +3164,7 @@ public class ABRScannedElementPane extends ABRPane {
         String[] actions = instruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
 
         if (!StringUtils.isBlank(instruction.getPath())) {
-            instructionElement = locateElement(instruction, data, botJobId);
+            instructionElement = locateElement(instruction, botJobId);
         }
         String result = null;
         if (instructionElement != null || actions[0].equals(Constants.HOLD)) {
@@ -3050,6 +3216,43 @@ public class ABRScannedElementPane extends ABRPane {
         return result;
     }
 
+    public String performActionOperator(
+            BlockLoopInstructionLoadDTO instruction, String targetXPath, String action, String[] operations)
+            throws Exception {
+
+        WebElement instructionElement = null;
+
+        if (!StringUtils.isBlank(targetXPath)) {
+            instructionElement = locateTargetElement(targetXPath, instruction.getActionCustomMaxWaitSec());
+        }
+        if (instructionElement != null) {
+
+            switch (action) {
+                case "SET":
+                    insertTargetElement(instructionElement, operations[0], operations[1]);
+                    return "SET_VALUE : " + operations[0] + " <- " + operations[1];
+                case "GET":
+                    String valueElem = getValueInElement(instructionElement);
+                    mapOperators.put(operations[1].toLowerCase(), valueElem);
+                    return "GET_VALUE : " + operations[1] + " <- " + valueElem;
+                    //                    case "CK":
+                    //                        if (operator.equalsIgnoreCase("=")) {
+                    //                            result = "Equals -> "
+                    //                                    + String.valueOf(getValueInElement(instructionElement)
+                    //                                            .equalsIgnoreCase(valueOperator));
+                    //                        } else if (operator.equalsIgnoreCase(">")) {
+                    //                            result = "Greater -> "
+                    //                                    + String.valueOf(getValueInElement(instructionElement)
+                    //                                            .equalsIgnoreCase(valueOperator));
+                    //                        }
+                    //                        break;
+            }
+            onHoldForSeconds(null);
+        }
+
+        return null;
+    }
+
     private void executeAlert(BlockLoopInstructionDTO instruction) {
         // Execute the countdown in a separate thread
         if (instruction != null) {
@@ -3061,8 +3264,76 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private WebElement locateElement(BlockLoopInstructionLoadDTO instruction, Map<String, String> data, int botJobId)
-            throws Exception {
+    private WebElement locateTargetElement(String targetXPath, Integer actionCustomMaxWaitSec) {
+
+        String tagName = null;
+        try {
+            tagName = removeTrailingSlash(targetXPath);
+            tagName = extractTagName(targetXPath);
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .fine(String.format(
+                            "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
+                            tagName, targetXPath, e.getMessage()));
+        }
+
+        waitPage();
+
+        WebElement elementFound = null;
+        List<By> criterias = Arrays.asList(new By[] {By.xpath(targetXPath)});
+
+        // Actually here is Calling the Actions
+        if (criterias != null) {
+
+            for (By criteria : criterias) {
+                List<WebElement> foundElementList = abrWebDriver.getDriver().findElements(criteria);
+
+                if (foundElementList != null && foundElementList.size() > 0) {
+                    if (justCalledRefreshPage) {
+                        justCalledRefreshPage = false;
+                        try {
+                            waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                        } catch (Exception e) {
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine(String.format(
+                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            targetXPath, criteria, e.getMessage()));
+                        }
+                    } else if (actionCustomMaxWaitSec != null) {
+                        try {
+
+                            new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(actionCustomMaxWaitSec))
+                                    .until(ExpectedConditions.presenceOfElementLocated(criteria));
+                        } catch (Exception e) {
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine(String.format(
+                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            targetXPath, criteria, e.getMessage()));
+                        }
+                    } else {
+                        try {
+
+                            waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                        } catch (Exception e) {
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine(String.format(
+                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            targetXPath, criteria, e.getMessage()));
+                        }
+                    }
+                    if (foundElementList.size() > 0) {
+                        elementFound = foundElementList.get(0);
+                    }
+                }
+            }
+
+            return elementFound;
+        } else {
+            return null;
+        }
+    }
+
+    private WebElement locateElement(BlockLoopInstructionLoadDTO instruction, int botJobId) {
 
         String instructionPath = instruction.getPath();
         String tagName = null;
@@ -3070,7 +3341,10 @@ public class ABRScannedElementPane extends ABRPane {
             tagName = removeTrailingSlash(instructionPath);
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
-            System.out.println("Error trying to get tagName" + e.getMessage());
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .fine(String.format(
+                            "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
+                            tagName, instructionPath, e.getMessage()));
         }
         List<InstructionReferenceLoadDTO> instructionReferenceList = instruction.getInstructionReferenceLoadDTOList();
 
@@ -3192,7 +3466,10 @@ public class ABRScannedElementPane extends ABRPane {
                                     try {
                                         waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        System.out.println("Could not fin the element");
+                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                .fine(String.format(
+                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        instructionPath, criteria, e.getMessage()));
                                     }
                                 } else if (instruction.getActionCustomMaxWaitSec() != null) {
                                     try {
@@ -3202,14 +3479,20 @@ public class ABRScannedElementPane extends ABRPane {
                                                         Duration.ofSeconds(instruction.getActionCustomMaxWaitSec()))
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        System.out.println("Could not fin the element");
+                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                .fine(String.format(
+                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        instructionPath, criteria, e.getMessage()));
                                     }
                                 } else {
                                     try {
 
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        System.out.println("Could not fin the element");
+                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                .fine(String.format(
+                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        instructionPath, criteria, e.getMessage()));
                                     }
                                 }
                                 int k = 0;
@@ -3344,6 +3627,27 @@ public class ABRScannedElementPane extends ABRPane {
         } while (existNextPage && shouldContinue);
     }
 
+    private String insertTargetElement(WebElement element, String fieldName, String dataFieldValue) throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        waitForAction.until(ExpectedConditions.visibilityOf(element));
+
+        if (dataFieldValue != null) {
+            element.clear();
+            element.sendKeys(dataFieldValue);
+            element.sendKeys(Keys.TAB);
+        }
+
+        return fieldName + "->" + dataFieldValue;
+    }
+
+    private String getValueInElement(WebElement element) throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        waitForAction.until(ExpectedConditions.visibilityOf(element));
+
+        // Assuming instructionElement is an input field
+        return element.getAttribute("value");
+    }
+
     private String insertInElement(
             WebElement element,
             Map<String, String> data,
@@ -3365,6 +3669,7 @@ public class ABRScannedElementPane extends ABRPane {
                 }
 
                 if (dataFieldValue != null) {
+                    element.clear();
                     element.sendKeys(dataFieldValue);
                     element.sendKeys(Keys.TAB);
 
