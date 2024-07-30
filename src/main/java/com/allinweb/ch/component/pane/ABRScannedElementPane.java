@@ -325,9 +325,9 @@ public class ABRScannedElementPane extends ABRPane {
                 "Config", ABRConstants.SPACE_M, ABRConstants.ICON_CONFIG, ABRConstants.SPACE_M, new Insets(5.0D));
 
         launchBotJobButton = componentBuilder.buildButton(
-                "Launch Test", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Pre-Launch", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
         recallJobButton = componentBuilder.buildButton(
-                "Re-Call", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Resume", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
 
         countdownTextField = new TextArea("10");
         countdownTextField.setStyle("-fx-font-size: 18px; -fx-text-fill: blue;");
@@ -462,8 +462,8 @@ public class ABRScannedElementPane extends ABRPane {
             // Fix the widths to 70% and 30% of the HBox width
             hBoxLaunchButon.widthProperty().addListener((obs, oldVal, newVal) -> {
                 double totalWidth = newVal.doubleValue();
-                launchBotJobButton.setMaxWidth(totalWidth * 0.7);
-                recallJobButton.setMaxWidth(totalWidth * 0.3);
+                launchBotJobButton.setMaxWidth(totalWidth * 0.6);
+                recallJobButton.setMaxWidth(totalWidth * 0.7);
             });
 
             HBox boxListViews = new HBox();
@@ -2912,9 +2912,12 @@ public class ABRScannedElementPane extends ABRPane {
                                             alert.setHeaderText("Check Validation Error");
                                             alert.setContentText("The Value: "
                                                     + mapOperators.get(operations[0]) + "\nis not " + operations[1]
-                                                    + " for " + operations[2]
+                                                    + operations[2] + " Length: (" + operations[2].length() + ")"
                                                     + "\nExpected value: "
-                                                    + mapOperators.get(operations[0]));
+                                                    + mapOperators.get(operations[0]) + " Length: ("
+                                                    + mapOperators
+                                                            .get(operations[0])
+                                                            .length() + ")");
                                             alert.showAndWait();
 
                                             stopAll = true;
@@ -2956,9 +2959,8 @@ public class ABRScannedElementPane extends ABRPane {
                             }
                             printLog(generateTimestamp(), logFileForSingleExcel, resultAcions, success);
                             if (!success) {
-                                countdownTextField.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
-                                countdownTextField.setText(
-                                        resultAcions + "\nincrease the Waiting time or\ncheck the xPath/CSS Locators");
+                                countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
+                                countdownTextField.setText(resultAcions);
                                 return false;
                             }
                         }

@@ -180,7 +180,7 @@ public class ABRElementValuePane extends ABRPane {
                         Alert.AlertType.ERROR,
                         "Action Remove Error",
                         String.format(
-                                "This '%s' cannot be deleted.\nIt has %s Jobs",
+                                "This '%s' cannot be deleted.\nIt has %s Steps attached!",
                                 nameField.getText(), usedVarsField.getText()));
                 return;
             }
