@@ -2912,6 +2912,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             alert.setHeaderText("Check Validation Error");
                                             alert.setContentText("The Value: "
                                                     + mapOperators.get(operations[0]) + "\nis not " + operations[1]
+                                                    + " "
                                                     + operations[2] + " Length: (" + operations[2].length() + ")"
                                                     + "\nExpected value: "
                                                     + mapOperators.get(operations[0]) + " Length: ("
