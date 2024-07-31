@@ -34,7 +34,7 @@ public class ABRElementValuePane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgresSQL server address
     private static final String DB_PORT = "5432"; // default PostgresSQL port
@@ -136,18 +136,23 @@ public class ABRElementValuePane extends ABRPane {
             String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
 
             VariableUserDTO user = new VariableUserDTO(
-                    null, selectedType, nameField.getText().trim(), valueVar, botJobId, instructionId);
+                    -1, selectedType, nameField.getText().trim(), valueVar, botJobId, instructionId);
 
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
                         Alert.AlertType.ERROR,
+                        "Error",
                         "Env Name Already Exists",
                         String.format("This '%s' cannot be inserted with the same name.\n", nameField.getText()));
                 return;
             }
 
             if (nameField.getText().trim().isEmpty() || selectedType.isEmpty()) {
-                showAlert(Alert.AlertType.ERROR, "Name and Type Cannot be Empty", "Name and Type Cannot be Empty");
+                showAlert(
+                        Alert.AlertType.ERROR,
+                        "Error",
+                        "Name and Type Cannot be Empty",
+                        "Name and Type Cannot be Empty");
                 return;
             }
 
@@ -178,6 +183,7 @@ public class ABRElementValuePane extends ABRPane {
             if (Integer.parseInt(usedVarsField.getText()) > 0) {
                 showAlert(
                         Alert.AlertType.ERROR,
+                        "Error",
                         "Action Remove Error",
                         String.format(
                                 "This '%s' cannot be deleted.\nIt has %s Steps attached!",
@@ -346,9 +352,10 @@ public class ABRElementValuePane extends ABRPane {
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 
-    private void showAlert(Alert.AlertType type, String title, String content) {
+    private void showAlert(Alert.AlertType type, String title, String header, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
+        alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();
     }
@@ -487,6 +494,7 @@ public class ABRElementValuePane extends ABRPane {
             } catch (SQLException e) {
                 showAlert(
                         Alert.AlertType.ERROR,
+                        "Error",
                         "MAX CHARACTERS LIMIT FOR ACCESS",
                         String.format(
                                 "This '%s' \n cannot be updated with same name.\nError: %s",

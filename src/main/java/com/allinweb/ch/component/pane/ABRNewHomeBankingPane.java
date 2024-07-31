@@ -36,7 +36,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -135,14 +135,16 @@ public class ABRNewHomeBankingPane extends ABRPane {
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
                         Alert.AlertType.ERROR,
-                        "Env Name Alread Existe",
+                        "Error",
+                        "Env Name Alread Exist",
                         String.format("This '%s' cannot be inserted with same name.\n", nameField.getText()));
                 return;
             }
 
             if (nameField.getText().trim().isEmpty()
                     || urlField.getText().trim().isEmpty()) {
-                showAlert(Alert.AlertType.ERROR, "Name and URL Cannot be Empty", "Name and URL Cannot be Empty");
+                showAlert(
+                        Alert.AlertType.ERROR, "Error", "Name and URL Cannot be Empty", "Name and URL Cannot be Empty");
                 return;
             }
 
@@ -171,6 +173,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
             if (Integer.parseInt(jobsField.getText()) > 0) {
                 showAlert(
                         Alert.AlertType.ERROR,
+                        "Error",
                         "Action Remove Error",
                         String.format(
                                 "This '%s' cannot be deleted.\nIt has %s Jobs",
@@ -230,7 +233,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
 
             optionsConfigField.setText(optionsConfig.toString());
 
-            loadUserData();
+            //            loadUserData();
         });
 
         // Create layout and add components
@@ -401,10 +404,10 @@ public class ABRNewHomeBankingPane extends ABRPane {
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 
-    private void showAlert(Alert.AlertType type, String title, String content) {
+    private void showAlert(Alert.AlertType type, String title, String header, String content) {
         Alert alert = new Alert(type);
-        alert.setTitle("Error");
-        alert.setHeaderText(title);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();
     }
@@ -555,20 +558,25 @@ public class ABRNewHomeBankingPane extends ABRPane {
             String updateSQL = "UPDATE home_banking SET Name = '" + user.getName() + "', "
                     + " Url = '" + user.getUrl() + "', "
                     + " Priority = '" + priority + "', "
-                    + " searchConfig = '" + searchConfig + "', "
-                    + " optionsConfig = '" + optionsConfig + "' "
+                    + " search_config = '" + searchConfig + "', "
+                    + " options_config = '" + optionsConfig + "' "
                     + " WHERE ID = " + userId;
             try (Statement stmt = getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    System.out.println("Data updated successfully.");
+                    showAlert(Alert.AlertType.INFORMATION, "Success", "Updated", "Data updated successfully.");
                 } else {
-                    System.out.println("No matching record found to update.");
+                    showAlert(
+                            Alert.AlertType.ERROR,
+                            "Error",
+                            "Id Not Found",
+                            String.format("No matching record found to update Id: ", user));
                 }
             } catch (SQLException e) {
                 showAlert(
                         Alert.AlertType.ERROR,
-                        "MAX CARACTERES LIMIT FOR ACCESS",
+                        "Error",
+                        "MAX CHARACTERS LIMIT FOR ACCESS",
                         String.format(
                                 "This '%s' \n cannot be updated with same name.\nError: %s",
                                 searchConfig, e.getMessage()));
@@ -576,6 +584,11 @@ public class ABRNewHomeBankingPane extends ABRPane {
             }
         } catch (NumberFormatException e) {
             System.out.println("Invalid ID format.");
+            showAlert(
+                    Alert.AlertType.ERROR,
+                    "Error",
+                    "ID Invalid",
+                    String.format("Invalid ID format : Id %s.\nError: %s", id, e.getMessage()));
         }
     }
 

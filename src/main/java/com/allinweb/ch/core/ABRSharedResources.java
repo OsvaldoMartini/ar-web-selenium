@@ -37,7 +37,7 @@ public class ABRSharedResources {
     private static final String lock = "locked";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static final boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -420,7 +420,7 @@ public class ABRSharedResources {
                 if (Strings.isNullOrEmpty(userDTO.getPriority())
                         && Strings.isNullOrEmpty(userDTO.getSearchConfig())
                         && Strings.isNullOrEmpty(userDTO.getOptionsConfig())) {
-                    updateSQL += " Priority = '" + priority + "', " + " searchConfig = '" + searchConfig + "' " + "', "
+                    updateSQL += " Priority = '" + priority + "', " + " search_config = '" + searchConfig + "', "
                             + " options_config = '" + optionsConfig + "' ";
                     updateNeeded = true;
                 } else if (Strings.isNullOrEmpty(userDTO.getPriority())) {
@@ -442,14 +442,19 @@ public class ABRSharedResources {
                             int rowsAffected = stmt.executeUpdate(updateSQL);
                             if (rowsAffected > 0) {
                                 System.out.println("Data updated successfully.");
+                                ABRLogger.getInstance(ABRSharedResources.class).fine("Data updated successfully.");
                             } else {
                                 System.out.println("No matching record found to update.");
+                                ABRLogger.getInstance(ABRSharedResources.class)
+                                        .severe("No matching record found to update:  Id: " + userId);
                             }
                         } catch (SQLException e) {
-                            e.printStackTrace();
+                            ABRLogger.getInstance(ABRSharedResources.class)
+                                    .severe("Error: updateSQL\n" + updateSQL + "\n" + e.getMessage());
                         }
                     } catch (NumberFormatException e) {
-                        System.out.println("Invalid ID format.");
+                        ABRLogger.getInstance(ABRSharedResources.class)
+                                .severe("Error: updateSQL -> Invalid ID format.");
                     }
                 }
             }
