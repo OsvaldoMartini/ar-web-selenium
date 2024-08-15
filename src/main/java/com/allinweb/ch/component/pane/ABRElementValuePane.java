@@ -55,6 +55,7 @@ public class ABRElementValuePane extends ABRPane {
     private Pane mainPane;
 
     TextField idField;
+    TextField parentField;
     TextField nameField;
     TextField valueField;
     TextField usedVarsField;
@@ -84,7 +85,8 @@ public class ABRElementValuePane extends ABRPane {
 
         // Create labels
         Label idLabel = new Label("ID:");
-        Label nameLabel = new Label("Name:");
+        Label parentLabel = new Label("Parent:");
+        Label nameLabel = new Label("Var Name:");
         Label typeLabel = new Label("Type");
         Label valueLabel = new Label("Value");
         Label jobsLabel = new Label("Used Variables:");
@@ -95,6 +97,11 @@ public class ABRElementValuePane extends ABRPane {
         idField.setStyle("-fx-control-inner-background: D3D3D3; -fx-pref-width: 50px;");
         idField.setPrefHeight(30);
 
+        parentField = new TextField();
+        parentField.setEditable(false);
+        parentField.setText(instructionName);
+        parentField.setStyle("-fx-control-inner-background: white; -fx-font-weight: bold;");
+
         nameField = new TextField();
         nameField.setText(instructionName);
         nameField.setStyle("-fx-control-inner-background: FFDA33;");
@@ -102,7 +109,6 @@ public class ABRElementValuePane extends ABRPane {
 
         valueField = new TextField();
         valueField.setStyle("-fx-control-inner-background: FFDA33;");
-        valueField.requestFocus();
 
         usedVarsField = new TextField();
         usedVarsField.setEditable(false);
@@ -206,24 +212,27 @@ public class ABRElementValuePane extends ABRPane {
         gridPane.add(idLabel, 0, 0);
         gridPane.add(idField, 1, 0);
 
-        gridPane.add(nameLabel, 0, 1);
-        gridPane.add(nameField, 1, 1);
+        gridPane.add(parentLabel, 0, 1);
+        gridPane.add(parentField, 1, 1);
 
-        gridPane.add(valueLabel, 0, 2);
-        gridPane.add(valueField, 1, 2);
+        gridPane.add(nameLabel, 0, 2);
+        gridPane.add(nameField, 1, 2);
 
-        gridPane.add(typeLabel, 0, 3);
+        gridPane.add(valueLabel, 0, 3);
+        gridPane.add(valueField, 1, 3);
+
+        gridPane.add(typeLabel, 0, 4);
         HBox typeBox = new HBox(10, stringCheckBox, numericCheckBox); // Create an HBox to hold the checkboxes
-        gridPane.add(typeBox, 1, 3);
+        gridPane.add(typeBox, 1, 4);
 
-        gridPane.add(jobsLabel, 0, 6);
-        gridPane.add(usedVarsField, 1, 6);
+        gridPane.add(jobsLabel, 0, 7);
+        gridPane.add(usedVarsField, 1, 7);
 
         HBox buttonsBox = new HBox(10, submitButton, updateButton, deleteButton);
         buttonsBox.setAlignment(Pos.CENTER);
         buttonsBox.setSpacing(10); // Horizontal spacing between buttons
 
-        gridPane.add(buttonsBox, 0, 8, 2, 1);
+        gridPane.add(buttonsBox, 0, 9, 2, 1);
 
         HBox hBoxGridPane = new HBox(gridPane);
         hBoxGridPane.setAlignment(Pos.CENTER);
@@ -234,7 +243,7 @@ public class ABRElementValuePane extends ABRPane {
         TableColumn<VariableUserDTO, String> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
 
-        TableColumn<VariableUserDTO, String> typeColumn = new TableColumn<>("type");
+        TableColumn<VariableUserDTO, String> typeColumn = new TableColumn<>("Type");
         typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
 
         TableColumn<VariableUserDTO, String> nameColumn = new TableColumn<>("Name");
@@ -246,6 +255,7 @@ public class ABRElementValuePane extends ABRPane {
         tableView.getColumns().addAll(idColumn, typeColumn, nameColumn, valueColumn);
         tableView.setItems(variablesList);
 
+        // Add listener to TableView selection
         tableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 // Get the selected UserDTO object
@@ -274,26 +284,26 @@ public class ABRElementValuePane extends ABRPane {
             }
         });
 
-        // Wrap the tableView in a VBox for more control
+        // Wrap the TableView in a VBox for more control
         VBox tableViewContainer = new VBox(tableView);
         tableViewContainer.setAlignment(Pos.BOTTOM_CENTER);
-        tableViewContainer.setSpacing(10); // Spacing around the tableView
-        tableViewContainer.setPadding(new Insets(10)); // Padding inside the tableView container
+        tableViewContainer.setSpacing(10); // Spacing around the TableView
+        tableViewContainer.setPadding(new Insets(10)); // Padding inside the TableView container
 
-        // Create main layout
-        VBox vbox = new VBox(20, hBoxGridPane, tableViewContainer);
-        vbox.setAlignment(Pos.CENTER);
-        vbox.setPadding(new Insets(10)); // Padding around the VBox
+        // Create the main layout
+        VBox mainLayout = new VBox(20, hBoxGridPane, tableViewContainer);
+        mainLayout.setAlignment(Pos.CENTER);
+        mainLayout.setPadding(new Insets(10)); // Padding around the VBox
 
         // Adjust VBox properties for better alignment
         VBox.setVgrow(tableViewContainer, Priority.ALWAYS);
 
         // Use AnchorPane to ensure the VBox resizes with the window
-        mainPane = new AnchorPane(vbox);
-        AnchorPane.setTopAnchor(vbox, 0.0);
-        AnchorPane.setBottomAnchor(vbox, 0.0);
-        AnchorPane.setLeftAnchor(vbox, 0.0);
-        AnchorPane.setRightAnchor(vbox, 0.0);
+        mainPane = new AnchorPane(mainLayout);
+        AnchorPane.setTopAnchor(mainLayout, 0.0);
+        AnchorPane.setBottomAnchor(mainLayout, 0.0);
+        AnchorPane.setLeftAnchor(mainLayout, 0.0);
+        AnchorPane.setRightAnchor(mainLayout, 0.0);
     }
 
     private void clearData() {

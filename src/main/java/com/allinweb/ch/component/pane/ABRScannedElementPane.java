@@ -2760,6 +2760,7 @@ public class ABRScannedElementPane extends ABRPane {
                             boolean execOperation = false;
                             boolean checkOperation = false;
                             String xPathOperation = null;
+                            String parentField = null;
 
                             String[] actions =
                                     currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
@@ -2776,7 +2777,18 @@ public class ABRScannedElementPane extends ABRPane {
                                         .findFirst()
                                         .get()
                                         .getPath();
+                                parentField = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                        .filter(f -> f.getId() == currentInstruction.getParentId())
+                                        .findFirst()
+                                        .get()
+                                        .getName();
                             } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
+                                parentField = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                        .filter(f -> f.getId() == currentInstruction.getParentId())
+                                        .findFirst()
+                                        .get()
+                                        .getName();
+
                                 checkOperation = true;
                             }
 
@@ -2799,7 +2811,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     if (resultAcions != null) {
 
                                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                                .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
+                                                .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " Cmd: "
                                                         + lastInstructionExecuted);
 
                                         currentInstruction.setExecuted(true);
@@ -2829,7 +2841,11 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     if (operations.length == 2) {
                                         resultAcions = performActionOperator(
-                                                currentInstruction, xPathOperation, actions[0], operations);
+                                                currentInstruction,
+                                                xPathOperation,
+                                                actions[0],
+                                                operations,
+                                                parentField);
 
                                         long currentInstructionEndTime = System.nanoTime();
                                         totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
@@ -2837,8 +2853,8 @@ public class ABRScannedElementPane extends ABRPane {
                                         if (resultAcions != null) {
 
                                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
-                                                            + lastInstructionExecuted);
+                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
+                                                            + " Cmd: " + lastInstructionExecuted);
 
                                             currentInstruction.setExecuted(true);
 
@@ -2853,11 +2869,11 @@ public class ABRScannedElementPane extends ABRPane {
                                             }
                                             success = true;
                                         } else {
-                                            resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                             success = false;
                                         }
                                     } else {
-                                        resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                        resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                         success = false;
                                     }
                                 } else if (checkOperation) {
@@ -2872,16 +2888,16 @@ public class ABRScannedElementPane extends ABRPane {
                                         //                                        mapOperators =
                                         // performActionOperator(currentInstruction, xPathOperation, mapOperators,
                                         // actions[0],operations[1]);
-                                        resultAcions = String.join(":", operations);
+                                        resultAcions = "(" + parentField + ")" + String.join(":", operations);
                                         boolean isOperationValid = false;
                                         if (operations[1].equalsIgnoreCase("=")) {
                                             isOperationValid = mapOperators
-                                                    .get(operations[0])
+                                                    .get(parentField)
                                                     .equalsIgnoreCase(operations[2]);
 
                                         } else if (operations[1].equalsIgnoreCase(">")) {
                                             isOperationValid = mapOperators
-                                                    .get(operations[0])
+                                                    .get(parentField)
                                                     .equalsIgnoreCase(operations[2]);
                                         }
 
@@ -2891,8 +2907,8 @@ public class ABRScannedElementPane extends ABRPane {
                                         if (isOperationValid) {
 
                                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
-                                                            + lastInstructionExecuted);
+                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
+                                                            + " Cmd: " + lastInstructionExecuted);
 
                                             currentInstruction.setExecuted(true);
 
@@ -2911,24 +2927,24 @@ public class ABRScannedElementPane extends ABRPane {
                                             alert.setTitle("Validation Error");
                                             alert.setHeaderText("Check Validation Error");
                                             alert.setContentText("The Value: "
-                                                    + mapOperators.get(operations[0]) + "\nis not " + operations[1]
+                                                    + mapOperators.get(parentField) + "\nis not " + operations[1]
                                                     + " "
                                                     + operations[2] + " Length: (" + operations[2].length() + ")"
                                                     + "\nExpected value: "
-                                                    + mapOperators.get(operations[0]) + " Length: ("
+                                                    + mapOperators.get(parentField) + " Length: ("
                                                     + mapOperators
-                                                            .get(operations[0])
+                                                            .get(parentField)
                                                             .length() + ")");
                                             alert.showAndWait();
 
                                             stopAll = true;
 
-                                            resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                             success = false;
                                         }
 
                                     } else {
-                                        resultAcions = "Failed to Execute -> " + lastInstructionExecuted;
+                                        resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                         success = false;
                                     }
                                 }
@@ -2941,7 +2957,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     long duration = currentInstructionEndTime - botJobStartTime;
                                     ABRLogger.getInstance(ABRScannedElementPane.class)
                                             .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
-                                                    + " --> "
+                                                    + " Cmd: "
                                                     + lastInstructionExecuted + "- Duration: "
                                                     + LocalTime.ofNanoOfDay(duration)
                                                             .format(FORMAT_TIME));
@@ -2951,7 +2967,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     long duration = currentInstructionEndTime - botJobStartTime;
                                     ABRLogger.getInstance(ABRScannedElementPane.class)
                                             .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
-                                                    + " --> "
+                                                    + " Cmd: "
                                                     + lastInstructionExecuted + "- Duration: "
                                                     + LocalTime.ofNanoOfDay(duration)
                                                             .format(FORMAT_TIME));
@@ -3008,7 +3024,7 @@ public class ABRScannedElementPane extends ABRPane {
                             totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " --> "
+                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " Cmd: "
                                             + lastInstructionExecuted);
 
                             currentInstruction.setExecuted(true);
@@ -3025,7 +3041,7 @@ public class ABRScannedElementPane extends ABRPane {
                             long duration = currentInstructionEndTime - botJobStartTime;
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " --> "
+                                    .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " Cmd: "
                                             + lastInstructionExecuted + "- Duration: "
                                             + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
 
@@ -3034,7 +3050,7 @@ public class ABRScannedElementPane extends ABRPane {
                             long duration = currentInstructionEndTime - botJobStartTime;
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " --> "
+                                    .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " Cmd: "
                                             + lastInstructionExecuted + "- Duration: "
                                             + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
                         }
@@ -3220,7 +3236,11 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     public String performActionOperator(
-            BlockLoopInstructionLoadDTO instruction, String targetXPath, String action, String[] operations)
+            BlockLoopInstructionLoadDTO instruction,
+            String targetXPath,
+            String action,
+            String[] operations,
+            String parentField)
             throws Exception {
 
         WebElement instructionElement = null;
@@ -3233,11 +3253,11 @@ public class ABRScannedElementPane extends ABRPane {
             switch (action) {
                 case "SET":
                     insertTargetElement(instructionElement, operations[0], operations[1]);
-                    return "SET_VALUE : " + operations[0] + " <- " + operations[1];
+                    return "SET_VALUE to (" + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
                 case "GET":
                     String valueElem = getValueInElement(instructionElement);
-                    mapOperators.put(operations[1].toLowerCase(), valueElem);
-                    return "GET_VALUE : " + operations[1] + " <- " + valueElem;
+                    mapOperators.put(parentField, valueElem);
+                    return "GET_VALUE from (" + parentField + ") Var" + operations[1] + " <-- " + valueElem;
                     //                    case "CK":
                     //                        if (operator.equalsIgnoreCase("=")) {
                     //                            result = "Equals -> "

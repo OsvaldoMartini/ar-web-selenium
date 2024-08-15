@@ -9,7 +9,7 @@ import javafx.stage.Stage;
 
 public class ABRElementValueScene extends ABRScene {
 
-    private static final Double SCENE_HEIGHT = 400D;
+    private static final Double SCENE_HEIGHT = 500D;
     private static final Double SCENE_WIDTH = 300D;
     private static final String TITLE = "New Variables";
     private int botJobId;
