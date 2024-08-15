@@ -2669,7 +2669,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         try {
             baseLogFile = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG)
-                    + ABRConstants.FILE_NAME_ENGINE_LOG);
+                    + ABRConstants.FILE_NAME_SCANNER_BASE_LOG);
         } catch (Exception e) {
             e.printStackTrace();
         }

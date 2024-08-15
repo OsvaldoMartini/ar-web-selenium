@@ -32,12 +32,10 @@ public class ABRConstants {
     public static final Double SPACE_XXS = 2.5D;
 
     // IMPORTANT FILE NAMES
-    public static final String FILE_NAME_LAUNCHER_LOG = "\\abr_web_launcher.log";
-    public static final String FILE_NAME_LAUNCHER_OUTPUT_LOG = "\\abr_web_launcher_output.log";
+    public static final String FILE_NAME_SCANNER_BASE_LOG = "\\abr_web_scan_base.log";
     public static final String FILE_NAME_SCANNER_LOG = "\\abr_web_scan.log";
     public static final String FILE_NAME_SCANNER_OUTPUT_LOG = "\\abr_web_scan_output.log";
-    public static final String FILE_NAME_ENGINE_LOG = "\\abr_web_engine.log";
-    public static final String FILE_NAME_ENGINE_OUTPUT_LOG = "\\abr_web_engine_output.log";
+
     public static final String FILE_NAME_CONFIGURATION = "\\config\\configuration.properties";
     public static final String FILE_NAME_PRIORITIES = "\\priorities.properties";
     public static final String FILE_NAME_DB = "\\database.mdb";
