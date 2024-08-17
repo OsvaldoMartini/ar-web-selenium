@@ -2890,58 +2890,79 @@ public class ABRScannedElementPane extends ABRPane {
                                         // actions[0],operations[1]);
                                         resultAcions = "(" + parentField + ")" + String.join(":", operations);
                                         boolean isOperationValid = false;
-                                        if (operations[1].equalsIgnoreCase("=")) {
-                                            isOperationValid = mapOperators
-                                                    .get(parentField)
-                                                    .equalsIgnoreCase(operations[2]);
 
-                                        } else if (operations[1].equalsIgnoreCase(">")) {
-                                            isOperationValid = mapOperators
-                                                    .get(parentField)
-                                                    .equalsIgnoreCase(operations[2]);
-                                        }
+                                        if (mapOperators.containsKey(parentField)) {
 
-                                        long currentInstructionEndTime = System.nanoTime();
-                                        totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
+                                            if (operations[1].equalsIgnoreCase("=")) {
+                                                isOperationValid = mapOperators
+                                                        .get(parentField)
+                                                        .equalsIgnoreCase(operations[2]);
 
-                                        if (isOperationValid) {
-
-                                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                                    .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
-                                                            + " Cmd: " + lastInstructionExecuted);
-
-                                            currentInstruction.setExecuted(true);
-
-                                            // Assuming currentInstruction and instructionsExecuted are already defined
-                                            if (currentInstruction != null
-                                                    && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
-                                                instructionsExecuted.add(currentInstruction);
+                                            } else if (operations[1].equalsIgnoreCase(">")) {
+                                                isOperationValid = mapOperators
+                                                        .get(parentField)
+                                                        .equalsIgnoreCase(operations[2]);
                                             }
-                                            success = true;
+
+                                            long currentInstructionEndTime = System.nanoTime();
+                                            totalExecutionTime +=
+                                                    currentInstructionEndTime - currentInstructionStartTime;
+
+                                            if (isOperationValid) {
+
+                                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                        .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
+                                                                + " Cmd: " + lastInstructionExecuted);
+
+                                                currentInstruction.setExecuted(true);
+
+                                                // Assuming currentInstruction and instructionsExecuted are already
+                                                // defined
+                                                if (currentInstruction != null
+                                                        && instructionsExecuted.stream()
+                                                                .noneMatch(instruction ->
+                                                                        instruction.getInstructionOrderNumber()
+                                                                                == currentInstruction
+                                                                                        .getInstructionOrderNumber())) {
+                                                    instructionsExecuted.add(currentInstruction);
+                                                }
+                                                success = true;
+
+                                            } else {
+                                                Alert alert = new Alert(Alert.AlertType.ERROR);
+                                                alert.setTitle("Validation Error");
+                                                alert.setHeaderText("Check Validation Error");
+                                                alert.setContentText("The Value: "
+                                                        + operations[2] + "\nis not " + operations[1]
+                                                        + " "
+                                                        + mapOperators.get(parentField) + " Length: ("
+                                                        + mapOperators
+                                                                .get(parentField)
+                                                                .length() + ")"
+                                                        + "\n --------------------- "
+                                                        + "\nCheck the SET/GET of " + operations[0] + " for "
+                                                        + parentField
+                                                        + "\nCurrent value: " + operations[2] + " Length: ("
+                                                        + operations[2].length() + ")"
+                                                        + "\nExpected value: "
+                                                        + mapOperators.get(parentField) + " Length: ("
+                                                        + mapOperators
+                                                                .get(parentField)
+                                                                .length() + ")");
+                                                alert.showAndWait();
+
+                                                stopAll = true;
+
+                                                resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                                success = false;
+                                            }
                                         } else {
                                             Alert alert = new Alert(Alert.AlertType.ERROR);
                                             alert.setTitle("Validation Error");
-                                            alert.setHeaderText("Check Validation Error");
-                                            alert.setContentText("The Value: "
-                                                    + operations[2] + "\nis not " + operations[1]
-                                                    + " "
-                                                    + mapOperators.get(parentField) + " Length: ("
-                                                    + mapOperators
-                                                            .get(parentField)
-                                                            .length() + ")"
+                                            alert.setHeaderText("GET/SET is Not Defined");
+                                            alert.setContentText("There is NOT GET VALUE defined for: " + parentField
                                                     + "\n --------------------- "
-                                                    + "\nCheck the SET/GET of " + operations[0] + " for " + parentField
-                                                    + "\nCurrent value: " + operations[2] + " Length: ("
-                                                    + operations[2].length() + ")"
-                                                    + "\nExpected value: "
-                                                    + mapOperators.get(parentField) + " Length: ("
-                                                    + mapOperators
-                                                            .get(parentField)
-                                                            .length() + ")");
+                                                    + "\nCheck the SET/GET for " + parentField);
                                             alert.showAndWait();
 
                                             stopAll = true;

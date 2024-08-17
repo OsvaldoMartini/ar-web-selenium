@@ -1,5 +1,7 @@
 package com.allinweb.ch.persistence;
 
+import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.util.ABRLogger;
 import java.util.List;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -30,10 +32,16 @@ public class Repository {
     }
 
     public <T> void remove(T obj) {
-        transaction = session.beginTransaction();
-        session.delete(obj);
-        session.remove(obj);
-        transaction.commit();
+        try {
+            transaction = session.beginTransaction();
+            session.flush();
+            session.clear();
+            session.delete(obj);
+            //            session.remove(obj);
+            transaction.commit();
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class).severe("Error Repository Remove.\nCause: " + e.getMessage());
+        }
     }
 
     public <T> T findEntityById(Class<T> clazz, int id) {

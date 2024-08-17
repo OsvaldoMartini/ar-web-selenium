@@ -69,12 +69,12 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "parent_id")
     private Integer parentId;
 
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderNumber ASC")
     @JoinColumn(name = "block_loop_instruction_id")
     private List<ComplexInstructionDTO> complexInstructionDTOList;
 
-    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "block_loop_instruction_id")
     private List<InstructionReferenceDTO> instructionReferenceDTOList;
 

@@ -290,11 +290,15 @@ public class ABRSharedResources {
     }
 
     private <T extends BaseDTO> void removeEntitySync(T entity, Class<T> clazz, ABRCallback callback) {
-        new Repository(session).remove(entity);
-        ObservableList<T> obsList = getEntityList(clazz);
-        obsList.remove(entity);
-        if (callback != null) {
-            callback.execute();
+        try {
+            new Repository(session).remove(entity);
+            ObservableList<T> obsList = getEntityList(clazz);
+            obsList.remove(entity);
+            if (callback != null) {
+                callback.execute();
+            }
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class).severe("Error removeEntitySync.\nCause: " + e.getMessage());
         }
     }
 
@@ -319,15 +323,22 @@ public class ABRSharedResources {
         this.getEntityList(SavedInstructionReferenceDTO.class)
                 .addAll(repository.findAllEntities(SavedInstructionReferenceDTO.class));
         getEntityList(InstructionReferenceDTO.class).addAll(repository.findAllEntities(InstructionReferenceDTO.class));
-        cleanList(BotJobDTO.class, (botJob) -> botJob.getHomeBanking() == null);
-        cleanList(BlockDTO.class, (block) -> block.getBotJob() == null);
-        cleanList(BlockLoopInstructionDTO.class, (instruction) -> instruction.getBlock() == null);
-        cleanList(SavedBlockLoopInstructionDTO.class, (instruction) -> {
-            return instruction.getBlock() == null;
-        });
-        cleanList(InstructionReferenceDTO.class, (ref) -> ref.getBlockLoopInstructionDTO() == null);
-        cleanList(SavedInstructionReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionDTO() == null);
+        try {
 
+            cleanList(BotJobDTO.class, (botJob) -> botJob.getHomeBanking() == null);
+
+            cleanList(BlockDTO.class, (block) -> block.getBotJob() == null);
+            cleanList(BlockLoopInstructionDTO.class, (instruction) -> instruction.getBlock() == null);
+            cleanList(SavedBlockLoopInstructionDTO.class, (instruction) -> {
+                return instruction.getBlock() == null;
+            });
+            cleanList(InstructionReferenceDTO.class, (ref) -> ref.getBlockLoopInstructionDTO() == null);
+            cleanList(SavedInstructionReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionDTO() == null);
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe("Many Entities Still Open In Threads\n" + "Wait to get to finish.\nError: "
+                            + e.getMessage());
+        }
         updateDBPriorities();
     }
 

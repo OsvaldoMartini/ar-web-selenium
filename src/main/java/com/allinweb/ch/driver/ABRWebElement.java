@@ -12,6 +12,10 @@ import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
@@ -38,6 +42,19 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 
 public class ABRWebElement {
+
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+
+    // Postgres
+    private static final boolean POSTGRES_DB = false;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+    private Connection conn = null;
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
@@ -672,41 +689,61 @@ public class ABRWebElement {
                 BlockLoopInstructionDTO instruction =
                         ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
                 int instructionIndex = instruction.getInstructionOrderNumber();
+                //                deleteInstrReference(instructionId);
+                //                deleteBlockInstruction(instructionId);
+                forceDeleteOrphan();
                 BlockDTO block = instruction.getBlock();
-                ABRSharedResources.getInstance()
-                        .removeEntity(
-                                instruction,
-                                BlockLoopInstructionDTO.class,
-                                () -> {
-                                    Queue<BlockLoopInstructionDTO> instructionQueue =
-                                            block.getBlockLoopInstructions().stream()
-                                                    .filter(i -> i.getInstructionOrderNumber() > instructionIndex)
-                                                    .collect(Collectors.toCollection(LinkedBlockingQueue::new));
-                                    instructionQueue.forEach(instr ->
-                                            instr.setInstructionOrderNumber(instr.getInstructionOrderNumber() - 1));
-                                    ABRSharedResources.getInstance()
-                                            .updateAllEntity(
-                                                    instructionQueue,
-                                                    BlockLoopInstructionDTO.class,
-                                                    () -> Platform.runLater(() -> {
-                                                        new ABRAlertScene(
-                                                                Alert.AlertType.INFORMATION,
-                                                                "Successful deletion \"" + instrName + "\"" + msgDelete,
-                                                                "The element has been deleted successfully",
-                                                                ButtonType.OK);
-                                                    }));
-                                },
-                                ex -> {
-                                    // Handle the exception here (e.g., show an alert)
-                                    //                                    ex.printStackTrace();
-                                    Platform.runLater(() -> {
-                                        new ABRAlertScene(
-                                                Alert.AlertType.INFORMATION,
-                                                "Not possible delete \"" + instrName + "\"" + instrOperation,
-                                                "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
-                                                ButtonType.OK);
+
+                try {
+                    instruction.getInstructionReferenceDTOList().forEach(ref -> ref.setBlockLoopInstructionDTO(null));
+                } catch (Exception ef) {
+                    ABRLogger.getInstance(Thread.class)
+                            .finer("getInstructionReferenceDTOList Error: \nCause: " + ef.getMessage());
+                }
+                try {
+                    ABRSharedResources.getInstance()
+                            .removeEntity(
+                                    instruction,
+                                    BlockLoopInstructionDTO.class,
+                                    () -> {
+                                        Queue<BlockLoopInstructionDTO> instructionQueue =
+                                                block.getBlockLoopInstructions().stream()
+                                                        .filter(i -> i.getInstructionOrderNumber() > instructionIndex)
+                                                        .collect(Collectors.toCollection(LinkedBlockingQueue::new));
+                                        instructionQueue.forEach(instr ->
+                                                instr.setInstructionOrderNumber(instr.getInstructionOrderNumber() - 1));
+                                        ABRSharedResources.getInstance()
+                                                .updateAllEntity(
+                                                        instructionQueue,
+                                                        BlockLoopInstructionDTO.class,
+                                                        () -> Platform.runLater(() -> {
+                                                            new ABRAlertScene(
+                                                                    Alert.AlertType.INFORMATION,
+                                                                    "Successful deletion \"" + instrName + "\""
+                                                                            + msgDelete,
+                                                                    "The element has been deleted successfully",
+                                                                    ButtonType.OK);
+                                                        }));
+                                    },
+                                    ex -> {
+                                        // Handle the exception here (e.g., show an alert)
+                                        //                                    ex.printStackTrace();
+                                        //                                        ABRLogger.getInstance(Thread.class)
+                                        //                                                .finer("Error deleting for: "
+                                        // + instructionId + "\nCause: "
+                                        //                                                        + ex.getMessage());
+                                        Platform.runLater(() -> {
+                                            new ABRAlertScene(
+                                                    Alert.AlertType.INFORMATION,
+                                                    "Not possible delete \"" + instrName + "\"" + instrOperation,
+                                                    "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
+                                                    ButtonType.OK);
+                                        });
                                     });
-                                });
+                } catch (Exception ex) {
+                    ABRLogger.getInstance(Thread.class)
+                            .finer("Error deleting for: " + instructionId + "\nCause: " + ex.getMessage());
+                }
             }
         });
         EventHandler<MouseEvent> mouseEventEventHandler = mouseEvent -> {
@@ -1028,5 +1065,83 @@ public class ABRWebElement {
 
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
+    }
+
+    private void deleteBlockInstruction(int instructionId) {
+        String deleteBlockInstruction = "delete FROM public.block_loop_instruction " + " where id = " + instructionId;
+
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+            } else {
+                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(Thread.class)
+                    .finer("An exception has occurred deleting Instruction id: " + instructionId + "\nCause: "
+                            + e.getMessage());
+        }
+    }
+
+    private void deleteInstrReference(int instructionId) {
+        String deleteSQL =
+                "delete FROM public.instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
+
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+            } else {
+                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(Thread.class)
+                    .finer("An exception has occurred deleting Instruction id: " + instructionId + "\nCause: "
+                            + e.getCause());
+        }
+    }
+
+    private void forceDeleteOrphan() {
+        String deleteSQL = "delete FROM public.instruction_reference " + " where block_loop_instruction_id is null ";
+
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+            } else {
+                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(Thread.class)
+                    .finer("An exception has occurred deleting Instruction id: " + instructionId + "\nCause: "
+                            + e.getCause());
+        }
+    }
+
+    private Connection getConnection() {
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                try {
+                    conn = DriverManager.getConnection(dbUrl);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            return conn;
+        }
     }
 }
