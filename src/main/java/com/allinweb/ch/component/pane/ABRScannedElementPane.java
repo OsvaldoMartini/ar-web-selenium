@@ -3378,6 +3378,14 @@ public class ABRScannedElementPane extends ABRPane {
         }
         List<InstructionReferenceLoadDTO> instructionReferenceList = instruction.getInstructionReferenceLoadDTOList();
 
+        if (instructionReferenceList.size() == 0) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe("####    Access Database Error   ####"
+                            + "\n####    It means there is not XPath to Be Located!   ####"
+                            + "\n####    Remove and Re-Scan the Failed Field Again   ####");
+            return null;
+        }
+
         waitPage();
 
         // If Not Loaded get if the JobId Changed
