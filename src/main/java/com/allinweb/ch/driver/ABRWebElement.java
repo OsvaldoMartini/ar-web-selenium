@@ -1068,7 +1068,7 @@ public class ABRWebElement {
     }
 
     private void deleteBlockInstruction(int instructionId) {
-        String deleteBlockInstruction = "delete FROM public.block_loop_instruction " + " where id = " + instructionId;
+        String deleteBlockInstruction = "delete FROM block_loop_instruction " + " where id = " + instructionId;
 
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
@@ -1086,7 +1086,7 @@ public class ABRWebElement {
 
     private void deleteInstrReference(int instructionId) {
         String deleteSQL =
-                "delete FROM public.instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
+                "delete FROM instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
 
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -1103,7 +1103,7 @@ public class ABRWebElement {
     }
 
     private void forceDeleteOrphan() {
-        String deleteSQL = "delete FROM public.instruction_reference " + " where block_loop_instruction_id is null ";
+        String deleteSQL = "delete FROM instruction_reference " + " where block_loop_instruction_id is null ";
 
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
