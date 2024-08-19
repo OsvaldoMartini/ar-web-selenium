@@ -16,8 +16,8 @@ public class InstructionReferenceDTO extends BaseDTO {
     @Column(name = "value", length = 1000)
     private String value;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "block_loop_instruction_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false) // Ensures the foreign key is not null
+    @JoinColumn(name = "block_loop_instruction_id", nullable = false) // Adds non-null constraint on the foreign key
     private BlockLoopInstructionDTO blockLoopInstructionDTO;
 
     public InstructionReferenceDTO() {

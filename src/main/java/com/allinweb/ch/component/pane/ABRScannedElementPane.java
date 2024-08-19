@@ -1314,7 +1314,7 @@ public class ABRScannedElementPane extends ABRPane {
                     ABRLogger.getInstance(ABRScannedElementPane.class).fine("Going to show the confirmation Alert");
                     Alert alert = new Alert(
                             Alert.AlertType.CONFIRMATION,
-                            "Are you sure you want to add the instruction selected to the bot job?",
+                            "Are you sure you want to Add the Instruction Selected to the Bot-Job?",
                             ButtonType.YES,
                             ButtonType.NO);
                     ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -3404,6 +3404,7 @@ public class ABRScannedElementPane extends ABRPane {
                     .severe("####    Access Database Error   ####"
                             + "\n####    It means there is not XPath to Be Located!   ####"
                             + "\n####    Remove and Re-Scan the Failed Field Again   ####");
+
             return null;
         }
 

@@ -14,6 +14,7 @@ import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
@@ -689,60 +690,114 @@ public class ABRWebElement {
                 BlockLoopInstructionDTO instruction =
                         ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
                 int instructionIndex = instruction.getInstructionOrderNumber();
-                //                deleteInstrReference(instructionId);
-                //                deleteBlockInstruction(instructionId);
-                forceDeleteOrphan();
+                try {
+                    if (existVariables(instructionId)) {
+                        new ABRAlertScene(
+                                Alert.AlertType.INFORMATION,
+                                "Not possible delete \"" + instrName + "\"" + instrOperation != null
+                                        ? instrOperation
+                                        : "",
+                                "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
+                                ButtonType.OK);
+                        delete = false;
+                    }
+                    if (delete) {
+                        deleteInstrReference(instructionId);
+                        deleteBlockInstruction(instructionId);
+                        forceDeleteOrphan();
+                        forceDeleteFatherNoChild(instructionId);
+                        Platform.runLater(() -> {
+                            new ABRAlertScene(
+                                    Alert.AlertType.INFORMATION,
+                                    "Successful deletion \"" + instrName + "\"" + msgDelete,
+                                    "The element has been deleted successfully",
+                                    ButtonType.OK);
+                        });
+                    }
+                } catch (SQLException ex) {
+                    ABRLogger.getInstance(Thread.class)
+                            .finer("An exception has occurred deleting Instruction id: " + instructionId + "\nCause: "
+                                    + ex.getCause());
+                    Platform.runLater(() -> {
+                        new ABRAlertScene(
+                                Alert.AlertType.INFORMATION,
+                                "Not possible delete \"" + instrName + "\"" + instrOperation != null
+                                        ? instrOperation
+                                        : "",
+                                "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
+                                ButtonType.OK);
+                    });
+                    // Force exit
+                    delete = false;
+                }
                 BlockDTO block = instruction.getBlock();
 
-                try {
-                    instruction.getInstructionReferenceDTOList().forEach(ref -> ref.setBlockLoopInstructionDTO(null));
-                } catch (Exception ef) {
-                    ABRLogger.getInstance(Thread.class)
-                            .finer("getInstructionReferenceDTOList Error: \nCause: " + ef.getMessage());
-                }
-                try {
-                    ABRSharedResources.getInstance()
-                            .removeEntity(
-                                    instruction,
-                                    BlockLoopInstructionDTO.class,
-                                    () -> {
-                                        Queue<BlockLoopInstructionDTO> instructionQueue =
-                                                block.getBlockLoopInstructions().stream()
-                                                        .filter(i -> i.getInstructionOrderNumber() > instructionIndex)
-                                                        .collect(Collectors.toCollection(LinkedBlockingQueue::new));
-                                        instructionQueue.forEach(instr ->
-                                                instr.setInstructionOrderNumber(instr.getInstructionOrderNumber() - 1));
-                                        ABRSharedResources.getInstance()
-                                                .updateAllEntity(
-                                                        instructionQueue,
-                                                        BlockLoopInstructionDTO.class,
-                                                        () -> Platform.runLater(() -> {
-                                                            new ABRAlertScene(
-                                                                    Alert.AlertType.INFORMATION,
-                                                                    "Successful deletion \"" + instrName + "\""
-                                                                            + msgDelete,
-                                                                    "The element has been deleted successfully",
-                                                                    ButtonType.OK);
-                                                        }));
-                                    },
-                                    ex -> {
-                                        // Handle the exception here (e.g., show an alert)
-                                        //                                    ex.printStackTrace();
-                                        //                                        ABRLogger.getInstance(Thread.class)
-                                        //                                                .finer("Error deleting for: "
-                                        // + instructionId + "\nCause: "
-                                        //                                                        + ex.getMessage());
-                                        Platform.runLater(() -> {
-                                            new ABRAlertScene(
-                                                    Alert.AlertType.INFORMATION,
-                                                    "Not possible delete \"" + instrName + "\"" + instrOperation,
-                                                    "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
-                                                    ButtonType.OK);
+                if (delete) {
+                    try {
+                        instruction
+                                .getInstructionReferenceDTOList()
+                                .forEach(ref -> ref.setBlockLoopInstructionDTO(null));
+                    } catch (Exception ef) {
+                        ABRLogger.getInstance(Thread.class)
+                                .finer("getInstructionReferenceDTOList Error: \nCause: " + ef.getMessage());
+                    }
+                    try {
+                        ABRSharedResources.getInstance()
+                                .removeEntity(
+                                        instruction,
+                                        BlockLoopInstructionDTO.class,
+                                        () -> {
+                                            Queue<BlockLoopInstructionDTO> instructionQueue =
+                                                    block.getBlockLoopInstructions().stream()
+                                                            .filter(i ->
+                                                                    i.getInstructionOrderNumber() > instructionIndex)
+                                                            .collect(Collectors.toCollection(LinkedBlockingQueue::new));
+                                            instructionQueue.forEach(instr -> instr.setInstructionOrderNumber(
+                                                    instr.getInstructionOrderNumber() - 1));
+                                            //
+                                            // ABRSharedResources.getInstance()
+                                            //                                                    .updateAllEntity(
+                                            //
+                                            // instructionQueue,
+                                            //
+                                            // BlockLoopInstructionDTO.class,
+                                            //                                                            () ->
+                                            // Platform.runLater(() -> {
+                                            //
+                                            // ABRLogger.getInstance(Thread.class)
+                                            //
+                                            // .finer(
+                                            //
+                                            //      "Success deleting Instruction has occurred deleting Instruction : "
+                                            //
+                                            //              + instrName);
+                                            //                                                            }));
+                                        },
+                                        ex -> {
+                                            // Handle the exception here (e.g., show an alert)
+                                            //                                    ex.printStackTrace();
+                                            //
+                                            // ABRLogger.getInstance(Thread.class)
+                                            //                                                .finer("Error deleting
+                                            // for: "
+                                            // + instructionId + "\nCause: "
+                                            //                                                        +
+                                            // ex.getMessage());
+                                            Platform.runLater(() -> {
+                                                new ABRAlertScene(
+                                                        Alert.AlertType.INFORMATION,
+                                                        "Not possible delete \"" + instrName + "\"" + instrOperation
+                                                                        != null
+                                                                ? instrOperation
+                                                                : "",
+                                                        "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
+                                                        ButtonType.OK);
+                                            });
                                         });
-                                    });
-                } catch (Exception ex) {
-                    ABRLogger.getInstance(Thread.class)
-                            .finer("Error deleting for: " + instructionId + "\nCause: " + ex.getMessage());
+                    } catch (Exception ex) {
+                        ABRLogger.getInstance(Thread.class)
+                                .finer("Error deleting for: " + instructionId + "\nCause: " + ex.getMessage());
+                    }
                 }
             }
         });
@@ -753,21 +808,27 @@ public class ABRWebElement {
     }
 
     private void switchInstruction(int directionQuantity) {
-        BlockLoopInstructionDTO currentInstruction =
-                ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
-        int order = currentInstruction.getInstructionOrderNumber();
-        BlockDTO block = ABRSharedResources.getInstance()
-                .getEntityById(BlockDTO.class, currentInstruction.getBlock().getId());
-        List<BlockLoopInstructionDTO> instructionList = block.getBlockLoopInstructions();
-        BlockLoopInstructionDTO instructionToChange = instructionList.stream()
-                .filter(i -> i.getInstructionOrderNumber() == order + directionQuantity)
-                .findFirst()
-                .orElseThrow();
-        currentInstruction.setInstructionOrderNumber(order + directionQuantity);
-        instructionToChange.setInstructionOrderNumber(order);
-        ABRSharedResources.getInstance()
-                .updateEntity(currentInstruction, BlockLoopInstructionDTO.class, () -> ABRSharedResources.getInstance()
-                        .updateEntity(instructionToChange, BlockLoopInstructionDTO.class));
+        try {
+            BlockLoopInstructionDTO currentInstruction =
+                    ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
+            int order = currentInstruction.getInstructionOrderNumber();
+            BlockDTO block = ABRSharedResources.getInstance()
+                    .getEntityById(BlockDTO.class, currentInstruction.getBlock().getId());
+            List<BlockLoopInstructionDTO> instructionList = block.getBlockLoopInstructions();
+            BlockLoopInstructionDTO instructionToChange = instructionList.stream()
+                    .filter(i -> i.getInstructionOrderNumber() == order + directionQuantity)
+                    .findFirst()
+                    .orElseThrow();
+            currentInstruction.setInstructionOrderNumber(order + directionQuantity);
+            instructionToChange.setInstructionOrderNumber(order);
+            ABRSharedResources.getInstance()
+                    .updateEntity(
+                            currentInstruction, BlockLoopInstructionDTO.class, () -> ABRSharedResources.getInstance()
+                                    .updateEntity(instructionToChange, BlockLoopInstructionDTO.class));
+
+        } catch (Exception ex) {
+            ABRLogger.getInstance(Thread.class).severe("Error switch Instruction!\nCause: " + ex.getMessage());
+        }
     }
 
     public BlockLoopInstructionDTO buildBlockLoopInstruction(Integer orderNumber) {
@@ -1067,7 +1128,7 @@ public class ABRWebElement {
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 
-    private void deleteBlockInstruction(int instructionId) {
+    private void deleteBlockInstruction(int instructionId) throws SQLException {
         String deleteBlockInstruction = "delete FROM block_loop_instruction " + " where id = " + instructionId;
 
         try (Statement stmt = getConnection().createStatement()) {
@@ -1077,14 +1138,10 @@ public class ABRWebElement {
             } else {
                 ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
             }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .finer("An exception has occurred deleting Instruction id: " + instructionId + "\nCause: "
-                            + e.getMessage());
         }
     }
 
-    private void deleteInstrReference(int instructionId) {
+    private void deleteInstrReference(int instructionId) throws SQLException {
         String deleteSQL =
                 "delete FROM instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
 
@@ -1095,14 +1152,24 @@ public class ABRWebElement {
             } else {
                 ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
             }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .finer("An exception has occurred deleting Instruction id: " + instructionId + "\nCause: "
-                            + e.getCause());
         }
     }
 
-    private void forceDeleteOrphan() {
+    private boolean existVariables(int instructionId) throws SQLException {
+        String query = "select id FROM variable " + " where block_loop_instruction_id =  " + instructionId;
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                return true;
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    private void forceDeleteOrphan() throws SQLException {
         String deleteSQL = "delete FROM instruction_reference " + " where block_loop_instruction_id is null ";
 
         try (Statement stmt = getConnection().createStatement()) {
@@ -1112,10 +1179,25 @@ public class ABRWebElement {
             } else {
                 ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
             }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .finer("An exception has occurred deleting Instruction id: " + instructionId + "\nCause: "
-                            + e.getCause());
+        }
+    }
+
+    private void forceDeleteFatherNoChild(int instructionId) throws SQLException {
+        String deleteSQL = "DELETE FROM block_loop_instruction " + "WHERE id IN ( "
+                + "    SELECT bli.id "
+                + "    FROM block_loop_instruction bli "
+                + "    LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
+                + "    WHERE irl.id IS NULL "
+                + "    AND bli.name NOT IN ('Check', 'GetValue', 'SetValue')"
+                + ") ";
+
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+            } else {
+                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+            }
         }
     }
 
