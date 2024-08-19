@@ -147,19 +147,20 @@ public class ABRSharedResources {
             @Override
             protected Void call() {
                 try {
+                    if (session.getTransaction().isActive()) {
+                        session.getTransaction().rollback(); // Rollback any existing transaction
+                    }
                     new Repository(session).write(entity);
                     getEntityList(clazz).add(entity);
+
                     if (callback != null) {
                         callback.execute();
                     }
                 } catch (NullPointerException e) {
-                    // Handle NullPointer exception
                     ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
                 } catch (UnsupportedOperationException e) {
-                    // Handle UnsupportedOperation exception
                     ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
                 } catch (Exception e) {
-                    // Handle any other exceptions
                     ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
                 }
                 return null;
