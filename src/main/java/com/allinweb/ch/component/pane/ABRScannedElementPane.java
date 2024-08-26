@@ -3310,9 +3310,13 @@ public class ABRScannedElementPane extends ABRPane {
                     case Constants.QUIT:
                         Alert alert = new Alert(
                                 Alert.AlertType.CONFIRMATION,
-                                "This Action Closes the Browser and Scanner?",
+                                "Do you want to continue?",
                                 ButtonType.YES,
                                 ButtonType.NO);
+                        alert.setTitle("Confirmation");
+                        alert.setHeaderText("This Action Closes the Browser and Scanner!");
+                        //                        alert.setContentText(content);
+
                         Optional<ButtonType> quitResult = alert.showAndWait();
                         if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
                             result = "Close Browser";
