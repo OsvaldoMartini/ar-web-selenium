@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -83,6 +84,7 @@ public class ABRScannedElementPane extends ABRPane {
     private int remainingSeconds = SECONDS;
     private Timeline timeline;
     private Alert alertToShow;
+    public static Repository repository;
 
     private static SearchReturn searchReturn = new SearchReturn();
 
@@ -2667,6 +2669,8 @@ public class ABRScannedElementPane extends ABRPane {
                     abrWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
 
+        repository = new Repository();
+
         try {
             baseLogFile = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG)
                     + ABRConstants.FILE_NAME_SCANNER_BASE_LOG);
@@ -2718,20 +2722,30 @@ public class ABRScannedElementPane extends ABRPane {
         //        String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
         //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
 
+        int botJobId = blocksLoaded.get(0).getBotJobLoadDTO().getId();
+
+        // Original BotJobDTO
+        BotJobDTO selectedJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
+
         String baseLogString = blocksLoaded.get(0).getBotJobLoadDTO().getName()
                 + Constants.FIELDS_SEPARATOR
                 + labelsValue.getProperty(Labels.START);
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
-
+        ExcelReportDTO report = new ExcelReportDTO(selectedJob);
+        report.setOrder((short) 0);
+        report.setStartDate(LocalDateTime.now());
+        report.setBatchJobId(0);
+        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
+        ExcelWriter.ExcelChain writer = new ExcelWriter(selectedJob.getName()).withPurpose("report");
+        writer.insertReportHead();
         boolean success = true;
         boolean stopAll = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String lastInstructionExecuted = "No instruction executed yet";
         String resultAcions = "";
+        short status = (short) ExcelReportStatusEnum.ERROR.ordinal();
         Map<String, String> dataExcel = null;
-
-        int botJobId = blocksLoaded.get(0).getBotJobLoadDTO().getId();
 
         clearFields();
 
@@ -2747,6 +2761,8 @@ public class ABRScannedElementPane extends ABRPane {
                     if (stopAll) {
                         break;
                     }
+
+                    writer.insertBlockSeparation(blockList.get(j).getName());
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
@@ -2830,6 +2846,13 @@ public class ABRScannedElementPane extends ABRPane {
                                         resultAcions = "Failed to Execute -> " + currentInstruction.getName();
                                         success = false;
                                     }
+
+                                    writer.insertInstructionResult(
+                                            currentInstruction,
+                                            dataExcel,
+                                            LocalTime.ofNanoOfDay(
+                                                    currentInstructionEndTime - currentInstructionStartTime),
+                                            success ? "success" : "failed");
 
                                 } else if (execOperation) {
                                     // Special Operators
@@ -2989,6 +3012,13 @@ public class ABRScannedElementPane extends ABRPane {
                                                     + lastInstructionExecuted + "- Duration: "
                                                     + LocalTime.ofNanoOfDay(duration)
                                                             .format(FORMAT_TIME));
+                                    writer.insertInstructionResult(
+                                            currentInstruction,
+                                            dataExcel,
+                                            LocalTime.ofNanoOfDay(
+                                                    currentInstructionEndTime - currentInstructionStartTime),
+                                            "optional skipped");
+                                    status = (short) ExcelReportStatusEnum.WARNING.ordinal();
 
                                 } else {
                                     long currentInstructionEndTime = System.nanoTime();
@@ -2999,6 +3029,13 @@ public class ABRScannedElementPane extends ABRPane {
                                                     + lastInstructionExecuted + "- Duration: "
                                                     + LocalTime.ofNanoOfDay(duration)
                                                             .format(FORMAT_TIME));
+                                    writer.insertInstructionResult(
+                                            currentInstruction,
+                                            null,
+                                            LocalTime.ofNanoOfDay(
+                                                    currentInstructionEndTime - currentInstructionStartTime),
+                                            "failed");
+                                    status = (short) ExcelReportStatusEnum.ERROR.ordinal();
                                 }
                                 //                            throw new RuntimeException(t);
                             }
@@ -3047,9 +3084,9 @@ public class ABRScannedElementPane extends ABRPane {
                         lastInstructionExecuted =
                                 currentInstruction.getName() + Constants.BLANK_STRING + currentInstruction.getPath();
                         resultAcions = performActions(dataDynamic, currentInstruction, botJobId);
+                        long currentInstructionEndTime = System.nanoTime();
+                        totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
                         if (resultAcions != null) {
-                            long currentInstructionEndTime = System.nanoTime();
-                            totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions + " Cmd: "
@@ -3061,26 +3098,43 @@ public class ABRScannedElementPane extends ABRPane {
                             resultAcions = "Failed to Execute -> " + currentInstruction.getName();
                             success = false;
                         }
+                        writer.insertInstructionResult(
+                                currentInstruction,
+                                dataDynamic,
+                                LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
+                                success ? "success" : "failed");
+
                     } catch (Throwable t) {
                         success = false;
                         currentInstruction.setExecuted(false);
                         if (currentInstruction.isOptional()) {
                             long currentInstructionEndTime = System.nanoTime();
                             long duration = currentInstructionEndTime - botJobStartTime;
-
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " Cmd: "
+                                    .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
+                                            + " Cmd: "
                                             + lastInstructionExecuted + "- Duration: "
                                             + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
-
+                            writer.insertInstructionResult(
+                                    currentInstruction,
+                                    dataDynamic,
+                                    LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
+                                    "optional skipped");
+                            status = (short) ExcelReportStatusEnum.WARNING.ordinal();
                         } else {
                             long currentInstructionEndTime = System.nanoTime();
                             long duration = currentInstructionEndTime - botJobStartTime;
-
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " Cmd: "
+                                    .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
+                                            + " Cmd: "
                                             + lastInstructionExecuted + "- Duration: "
                                             + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
+                            writer.insertInstructionResult(
+                                    currentInstruction,
+                                    null,
+                                    LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
+                                    "failed");
+                            status = (short) ExcelReportStatusEnum.ERROR.ordinal();
                         }
                         //                        throw new RuntimeException(t);
                     }
@@ -3089,24 +3143,38 @@ public class ABRScannedElementPane extends ABRPane {
             }
         }
 
-        if (totalExecutionTime == 0) {}
+        if (totalExecutionTime == 0) {
+            report.setDuration(0);
+            writer.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
+            repository.write(report);
+        }
 
         // PRINT END BASE LOG//
         if (success) {
-            baseLogString = blocksLoaded.get(0).getBotJobLoadDTO().getName()
+            report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
+            report.setDuration(totalExecutionTime / 100);
+            writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
+            repository.write(report);
+            baseLogString = selectedJob.getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
         } else {
-            baseLogString = blocksLoaded.get(0).getBotJobLoadDTO().getName()
+            baseLogString = selectedJob.getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
                     + lastInstructionExecuted;
+            report.setStatus(status);
+            report.setDuration(totalExecutionTime / 100);
+            writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
+            repository.write(report);
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+
+        repository.closeSession();
         return true;
     }
 
@@ -3214,7 +3282,7 @@ public class ABRScannedElementPane extends ABRPane {
             instructionElement = locateElement(instruction, botJobId);
         }
         String result = null;
-        if (instructionElement != null || actions[0].equals(Constants.HOLD)) {
+        if (instructionElement != null || actions[0].equals(Constants.HOLD) || actions[0].equals(Constants.QUIT)) {
 
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
@@ -3240,7 +3308,18 @@ public class ABRScannedElementPane extends ABRPane {
                         result = "refreshPage";
                         break;
                     case Constants.QUIT:
-                        quit(0);
+                        Alert alert = new Alert(
+                                Alert.AlertType.CONFIRMATION,
+                                "This Action Closes the Browser and Scanner?",
+                                ButtonType.YES,
+                                ButtonType.NO);
+                        Optional<ButtonType> quitResult = alert.showAndWait();
+                        if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
+                            result = "Close Browser";
+                            quit(1);
+                        } else {
+                            result = "Close Browser Cancelled";
+                        }
                         break;
                     case Constants.EXTRACT:
                         result = "insertValueFieldNameInExcel-->"
@@ -3827,9 +3906,10 @@ public class ABRScannedElementPane extends ABRPane {
 
     public void quit(int status) {
         abrWebDriver.getDriver().quit();
-        if (status > 0) {
+        if (status == 0) {
             System.exit(status);
         }
+        Close();
     }
 
     private void executeActionsAtInstructionCoordinates(
@@ -4166,5 +4246,12 @@ public class ABRScannedElementPane extends ABRPane {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    private void Close() {
+        Platform.runLater(() -> {
+            Stage stage = (Stage) contentPane.getScene().getWindow();
+            stage.close();
+        });
     }
 }

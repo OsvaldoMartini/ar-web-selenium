@@ -1,6 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
+import com.allinweb.ch.component.model.dto.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -71,7 +71,7 @@ public class ExcelWriter {
         }
 
         public void insertInstructionResult(
-                BlockLoopInstructionDTO instruction, Map<String, String> data, LocalTime time, String status) {
+                BlockLoopInstructionLoadDTO instruction, Map<String, String> data, LocalTime time, String status) {
             String[] splittedAction =
                     UtilsMethods.splitIfContains(instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
             String action =
