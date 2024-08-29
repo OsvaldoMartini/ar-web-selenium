@@ -39,6 +39,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
@@ -129,7 +130,6 @@ public class ABRScannedElementPane extends ABRPane {
     private HBox topPane;
     private HBox bottomPane;
     private HBox bottomPaneTime;
-    private ProgressBar progressBar;
     private AnchorPane contentPane;
     private ObservableList<ABRWebElement> webElementObservableList1;
     private ObservableList<ABRWebElement> webElementObservableList2;
@@ -486,40 +486,47 @@ public class ABRScannedElementPane extends ABRPane {
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
-            verticalBox.getChildren().addAll(gridPane, boxListViews, bottomPane, bottomPaneTime);
+            verticalBox.getChildren().addAll(gridPane, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
             VBox.setVgrow(bottomPane, Priority.NEVER);
             VBox.setVgrow(bottomPaneTime, Priority.NEVER);
 
-            // Use AnchorPane to anchor components
-            AnchorPane.setTopAnchor(topPane, 0.0);
-            AnchorPane.setLeftAnchor(topPane, 0.0);
-            AnchorPane.setRightAnchor(topPane, 0.0);
+            contentPane.getChildren().addAll(topPane, verticalBox, bottomPaneTime, bottomPane);
+
+            AnchorPane.setBottomAnchor(bottomPane, -15.0);
+
+            AnchorPane.setLeftAnchor(
+                    bottomPane, 0.0); // Optional: Anchors the left edge of bottomPane to the left of the AnchorPane
+            AnchorPane.setRightAnchor(
+                    bottomPane, 0.0); // Optional: Anchors the right edge of bottomPane to the right of the AnchorPane
 
             AnchorPane.setTopAnchor(verticalBox, 0.0);
             AnchorPane.setBottomAnchor(verticalBox, 0.0);
             AnchorPane.setLeftAnchor(verticalBox, 0.0);
             AnchorPane.setRightAnchor(verticalBox, 0.0);
 
-            contentPane.getChildren().addAll(topPane, verticalBox);
+            AnchorPane.setTopAnchor(topPane, 0.0);
+            AnchorPane.setLeftAnchor(topPane, 0.0);
+            AnchorPane.setRightAnchor(topPane, 0.0);
 
-            // Add a listener to the children list of bottomPane
-            bottomPane.getChildren().addListener((ListChangeListener<Node>) change -> {
-                while (change.next()) {
-                    if (change.wasAdded()) {
-                        for (Node node : change.getAddedSubList()) {
-                            scheduleRemoval(bottomPane, node, 300); // Schedule removal for the newly added node
-                        }
-                    }
-                }
-            });
+            //            // Add a listener to the children list of bottomPane
+            //            bottomPane.getChildren().addListener((ListChangeListener<Node>) change -> {
+            //                while (change.next()) {
+            //                    if (change.wasAdded()) {
+            //                        for (Node node : change.getAddedSubList()) {
+            //                            scheduleRemoval(bottomPane, node, 3000); // Schedule removal for the newly
+            // added node
+            //                        }
+            //                    }
+            //                }
+            //            });
 
             bottomPaneTime.getChildren().addListener((ListChangeListener<Node>) change -> {
                 while (change.next()) {
                     if (change.wasAdded()) {
                         for (Node node : change.getAddedSubList()) {
-                            scheduleRemoval(bottomPaneTime, node, 300); // Schedule removal for the newly added node
+                            scheduleRemoval(bottomPaneTime, node, 3300); // Schedule removal for the newly added node
                         }
                     }
                 }
@@ -755,7 +762,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         } else {
             ABRLogger.getInstance(ABRScannedElementPane.class)
-                    .severe("Could not find any Web Elementwith XPath/Id/Attributes values.");
+                    .severe("Could not find any Web Element with XPath/Id/Attributes values.");
         }
 
         return null;
@@ -849,7 +856,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void refreshWithNamesBtn() {
         webElementObservableList1.clear();
-        manageUIScanAtributeNameFirst();
+        manageUIScanAttributeNameFirst();
     }
 
     private void refreshWithIdsBtn() {
@@ -879,7 +886,7 @@ public class ABRScannedElementPane extends ABRPane {
         webElementObservableList2.clear();
         webElementObservableList3.clear();
         manageUIScanIdsFirst();
-        manageUIScanAtributeNameFirst();
+        manageUIScanAttributeNameFirst();
         manageUIScanWithoudNameAndId();
 
         manageUIScanPriorities();
@@ -892,20 +899,31 @@ public class ABRScannedElementPane extends ABRPane {
         idAttributeFirst = false;
         nameAttributeFirst = false;
         withoutNameAndId = true;
-        addProgressBar();
+        // addProgressBar();
         scanABRElementsAsync(null, null, null, webElementObservableList1, "input");
-        addProgressBar();
+        // addProgressBar();
         scanABRElementsAsync(null, null, null, webElementObservableList1, "button");
     }
 
-    private void addProgressBar() {
-        if (bottomPane.getChildren().size() < 20) {
-            progressBar = new ProgressBar();
-            bottomPane.getChildren().add(progressBar);
+    private void addProgressBar(int items) {
+        int currentChildrenCount = bottomPane.getChildren().size();
+        if (currentChildrenCount < 50) {
+            // Calculate how many more ProgressBars can be added without exceeding 20
+            int availableSlots = 50 - currentChildrenCount;
+
+            // Determine the number of ProgressBars to add, ensuring it does not exceed available slots
+            int progressBarCountToAdd = Math.min(items, availableSlots);
+
+            Platform.runLater(() -> {
+                for (int x = 0; x < progressBarCountToAdd; x++) {
+                    ProgressBar progressBar = new ProgressBar();
+                    bottomPane.getChildren().add(progressBar);
+                }
+            });
         }
     }
 
-    private void manageUIScanAtributeNameFirst() {
+    private void manageUIScanAttributeNameFirst() {
         idAttributeFirst = false;
         nameAttributeFirst = true;
         withoutNameAndId = false;
@@ -922,7 +940,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void manageUIScanInputs() {
         List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
         for (WebElementTagNameEnum tag : inputTags) {
-            addProgressBar();
+            // addProgressBar();
             scanABRElementsAsync(
                     null, By.tagName(tag.getValue()), ABRWebElement::isNotClickable, webElementObservableList1, null);
         }
@@ -931,7 +949,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void manageUIScanClickable() {
         List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
         for (WebElementTagNameEnum tag : clickableTags) {
-            addProgressBar();
+            // addProgressBar();
             scanABRElementsAsync(
                     null, By.tagName(tag.getValue()), ABRWebElement::isClickable, webElementObservableList2, null);
         }
@@ -943,7 +961,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
         try {
             if (webElements != null && webElements.size() > 0) {
-                addProgressBar();
+                // addProgressBar();
                 scanABRElementsAsync(webElements, null, null, webElementObservableList3, null);
             }
         } catch (Exception e) {
@@ -953,34 +971,38 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void manageUIScanOutputs() {
         String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
-        addProgressBar();
+        // addProgressBar();
         scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2);
     }
 
-    private void scanABRElementsAsync(By criteria, ObservableList<ABRWebElement> listToaddNewElements) {
-        scanABRElementsAsync(null, criteria, null, listToaddNewElements, null);
+    private void scanABRElementsAsync(By criteria, ObservableList<ABRWebElement> listToAddNewElements) {
+        scanABRElementsAsync(null, criteria, null, listToAddNewElements, null);
     }
 
     private void scanABRElementsAsync(
             List<WebElement> preElements,
             By criteria,
             Predicate<ABRWebElement> filterCondition,
-            ObservableList<ABRWebElement> listToaddNewElements,
+            ObservableList<ABRWebElement> listToAddNewElements,
             String elementType) {
 
         executorService = Executors.newCachedThreadPool();
 
+        // External variables to hold the sizes
+        AtomicInteger listABRElementsSize = new AtomicInteger(0);
+        AtomicInteger scannedElementListSize = new AtomicInteger(0);
+
+        // Simulate async task completion with CompletableFuture
         // Simulate async task completion with CompletableFuture
         CompletableFuture<Void> future = CompletableFuture.runAsync(
                 () -> {
                     List<ABRWebElement> listABRElements = null;
+                    List<WebElement> scannedElementList = new ArrayList<>();
 
                     // Separation between creation of ABR Elements
                     try {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
                                 .fine("Starting scan of elements for criteria: " + criteria);
-
-                        List<WebElement> scannedElementList = new ArrayList<>();
 
                         if (idAttributeFirst || nameAttributeFirst) {
                             mapAdvanced = findElementsWithXPath(abrWebDriver.getDriver(), elementType);
@@ -994,8 +1016,9 @@ public class ABRScannedElementPane extends ABRPane {
                             scannedElementList = abrWebDriver.getDriver().findElements(criteria);
                         }
                         if (listABRElements != null && listABRElements.size() > 0) {
+                            listABRElementsSize.set(listABRElements.size());
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .finer("list of Advanced Scanner elements has " + listABRElements.size());
+                                    .finer("list of Advanced Scanner elements has " + listABRElementsSize.get());
                         }
 
                         // Reset these
@@ -1004,15 +1027,18 @@ public class ABRScannedElementPane extends ABRPane {
                         withoutNameAndId = false;
 
                         if (scannedElementList != null && scannedElementList.size() > 0) {
+                            scannedElementListSize.set(scannedElementList.size());
+                            addProgressBar(scannedElementListSize.get());
+
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .finer("list of scanned elements has " + scannedElementList.size()
+                                    .finer("list of scanned elements has " + scannedElementListSize.get()
                                             + " elements for Search Criteria " + criteria);
-                            if (scannedElementList.size() > reduceSearchCriteria) {
+                            if (scannedElementListSize.get() > reduceSearchCriteria) {
 
                                 ABRLogger.getInstance(ABRScannedElementPane.class)
                                         .fine("Reduces to the Limit of ABRWebElements : " + reduceSearchCriteria);
                                 List<WebElement> scannedElementListReduced =
-                                        scannedElementList.size() > reduceSearchCriteria
+                                        scannedElementListSize.get() > reduceSearchCriteria
                                                 ? new ArrayList<>(scannedElementList.subList(0, reduceSearchCriteria))
                                                 : scannedElementList;
                                 scannedElementList.clear();
@@ -1022,11 +1048,16 @@ public class ABRScannedElementPane extends ABRPane {
                             try {
                                 listABRElements = scannedElementList.stream()
                                         .filter(element -> element != null) // Filter out null elements
+                                        //                                        .peek(element -> addProgressBar(1))
                                         .map(element -> new ABRWebElement(element, botJob.getId()))
                                         .collect(Collectors.toList());
+                                listABRElementsSize.set(listABRElements.size());
 
                             } finally {
-
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .fine("Final size of listABRElements: " + listABRElementsSize.get());
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .fine("Final size of scannedElementList: " + scannedElementListSize.get());
                             }
                         }
 
@@ -1037,41 +1068,70 @@ public class ABRScannedElementPane extends ABRPane {
 
                     // After Creation of ABR Elements - > Update View List
                     if (listABRElements != null) {
+                        addProgressBar(listABRElements.size());
                         for (ABRWebElement element : listABRElements) {
                             Platform.runLater(() -> {
-                                listToaddNewElements.add(element);
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .finer("add request to JavaFX thread ended for ABRWebElement with xPath: "
-                                                + element.getXPath());
+                                listToAddNewElements.add(element);
+                                if (element.getSavedReferences() != null
+                                        && element.getSavedReferences().size() > 0) {
+                                    String absolutPath =
+                                            element.getSavedReferences().get(0);
+                                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                                            .finer(String.format(
+                                                    "added ABRWebElement with %s References -> xPath: ",
+                                                    element.getSavedReferences().size(), absolutPath));
+
+                                } else if (element.getSavedReferences() != null
+                                        && element.getSavedReferences().size() == 0) {
+                                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                                            .finer("added ABRWebElement with NO References!");
+                                }
                             });
                         }
                     }
-                    Platform.runLater(() -> {
-                        Node node = bottomPane
-                                .getChildren()
-                                .get(bottomPane.getChildren().size() - 1);
-                        bottomPane.getChildren().remove(node);
-                    });
+                    //                    Platform.runLater(() -> {
+                    //                        if (bottomPane.getChildren().size() > 0) {
+                    //                            Node node = bottomPane
+                    //                                    .getChildren()
+                    //                                    .get(bottomPane.getChildren().size() - 1);
+                    //                            bottomPane.getChildren().remove(node);
+                    //                        }
+                    //                    });
                 },
                 executorService);
 
         if (executorService != null) {
             executorService.shutdown();
         }
-        //        progressBar.progressProperty().bind(workingTask.workDoneProperty());
-        //        ABRLogger.getInstance(ABRScannedElementPane.class).fine("starting scanning thread for " + criteria);
-        //        new Thread(workingTask).start();
 
         // Handle completion of the CompletableFuture to remove the ProgressBar
         future.handle((result, ex) -> {
             if (ex != null) {
                 Platform.runLater(() -> {
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Removing ProgressBar");
-                    bottomPane
-                            .getChildren()
-                            .remove(bottomPane
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine("Removing ProgressBar due to exception. Sizes: " + "listABRElements="
+                                    + listABRElementsSize.get() + ", scannedElementList="
+                                    + scannedElementListSize.get());
+                    if (bottomPane.getChildren().size() > 0) {
+                        int elementsToRemove = Math.min(
+                                listABRElementsSize.get() + scannedElementListSize.get(),
+                                bottomPane.getChildren().size());
+
+                        for (int x = 0; x < elementsToRemove; x++) {
+                            bottomPane
                                     .getChildren()
-                                    .get(bottomPane.getChildren().size() - 1));
+                                    .remove(bottomPane
+                                            .getChildren()
+                                            .get(bottomPane.getChildren().size() - 1));
+                        }
+                    }
+                });
+            } else {
+                Platform.runLater(() -> {
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine("Future handle completed successfully. Sizes: " + "listABRElements="
+                                    + listABRElementsSize.get() + ", scannedElementList="
+                                    + scannedElementListSize.get());
                 });
             }
             return result;
@@ -1086,12 +1146,23 @@ public class ABRScannedElementPane extends ABRPane {
         // Handle completion of the CompletableFuture to remove the ProgressBar
         future.thenRun(() -> {
             Platform.runLater(() -> {
-                ABRLogger.getInstance(ABRScannedElementPane.class).fine("Removing ProgressBar");
-                bottomPane
-                        .getChildren()
-                        .remove(bottomPane
+                ABRLogger.getInstance(ABRScannedElementPane.class)
+                        .fine("thenRun executed. Sizes: " + "listABRElements="
+                                + listABRElementsSize.get() + ", scannedElementList="
+                                + scannedElementListSize.get());
+
+                if (bottomPane.getChildren().size() > 0) {
+                    int elementsToRemove = Math.min(
+                            listABRElementsSize.get() + scannedElementListSize.get(),
+                            bottomPane.getChildren().size());
+                    for (int x = 0; x < elementsToRemove; x++) {
+                        bottomPane
                                 .getChildren()
-                                .get(bottomPane.getChildren().size() - 1));
+                                .remove(bottomPane
+                                        .getChildren()
+                                        .get(bottomPane.getChildren().size() - 1));
+                    }
+                }
             });
         });
 
@@ -2346,8 +2417,7 @@ public class ABRScannedElementPane extends ABRPane {
         List<WebElement> inputElements = (List<WebElement>) ((JavascriptExecutor) driver).executeScript(script);
 
         // Print the number of input elements found
-        System.out.println("Number of input elements: " + inputElements.size());
-
+        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Number of input elements: " + inputElements.size());
         return inputElements;
     }
 
@@ -3203,7 +3273,8 @@ public class ABRScannedElementPane extends ABRPane {
                     customXPathTextField.setText(reference.getValue());
                     break;
                 default:
-                    System.out.println("Unknown reference type: " + reference.getReferenceType());
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine("Unknown reference type: " + reference.getReferenceType());
             }
         }
     }
