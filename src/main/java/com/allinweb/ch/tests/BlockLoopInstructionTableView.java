@@ -11,12 +11,14 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Callback;
 
 public class BlockLoopInstructionTableView extends Application {
 
@@ -37,8 +39,66 @@ public class BlockLoopInstructionTableView extends Application {
         TableColumn<BlockLoopInstructionLoadDTO, String> descriptionColumn = new TableColumn<>("Description");
         descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
 
-        // Add columns to TableView
-        tableView.getColumns().addAll(idColumn, instructionOrderColumn, nameColumn, descriptionColumn);
+        // Add a new column for the buttons (UP, DOWN, Action)
+        TableColumn<BlockLoopInstructionLoadDTO, Void> actionColumn = new TableColumn<>("Actions");
+
+        // Add the buttons to each row
+        Callback<TableColumn<BlockLoopInstructionLoadDTO, Void>, TableCell<BlockLoopInstructionLoadDTO, Void>>
+                cellFactory = new Callback<>() {
+                    @Override
+                    public TableCell<BlockLoopInstructionLoadDTO, Void> call(
+                            final TableColumn<BlockLoopInstructionLoadDTO, Void> param) {
+                        final TableCell<BlockLoopInstructionLoadDTO, Void> cell = new TableCell<>() {
+
+                            private final Button upButton = new Button("↑");
+                            private final Button downButton = new Button("↓");
+                            private final Button actionButton = new Button("Action");
+
+                            {
+                                // Define actions for each button
+                                upButton.setOnAction(event -> {
+                                    BlockLoopInstructionLoadDTO data =
+                                            getTableView().getItems().get(getIndex());
+                                    System.out.println("UP button clicked for: " + data.getName());
+                                });
+
+                                downButton.setOnAction(event -> {
+                                    BlockLoopInstructionLoadDTO data =
+                                            getTableView().getItems().get(getIndex());
+                                    System.out.println("DOWN button clicked for: " + data.getName());
+                                });
+
+                                actionButton.setOnAction(event -> {
+                                    BlockLoopInstructionLoadDTO data =
+                                            getTableView().getItems().get(getIndex());
+                                    System.out.println("Action button clicked for: " + data.getName());
+                                });
+                            }
+
+                            @Override
+                            public void updateItem(Void item, boolean empty) {
+                                super.updateItem(item, empty);
+                                if (empty) {
+                                    setGraphic(null);
+                                } else {
+                                    // Add the buttons to an HBox
+                                    HBox buttonsBox = new HBox(upButton, downButton, actionButton);
+                                    buttonsBox.setSpacing(5);
+                                    buttonsBox.setAlignment(Pos.CENTER);
+
+                                    // Set the HBox as the graphic for this cell
+                                    setGraphic(buttonsBox);
+                                }
+                            }
+                        };
+                        return cell;
+                    }
+                };
+
+        actionColumn.setCellFactory(cellFactory);
+
+        // Add all columns to TableView
+        tableView.getColumns().addAll(idColumn, instructionOrderColumn, nameColumn, descriptionColumn, actionColumn);
 
         return tableView;
     }
