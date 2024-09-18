@@ -2806,7 +2806,8 @@ public class ABRScannedElementPane extends ABRPane {
         report.setStartDate(LocalDateTime.now());
         report.setBatchJobId(0);
         report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
-        ExcelWriter.ExcelChain writer = new ExcelWriter(selectedJob.getName()).withPurpose("report");
+        ExcelWriter.ExcelChain writer =
+                new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("report");
         writer.insertReportHead();
         boolean success = true;
         boolean stopAll = false;
@@ -2890,7 +2891,11 @@ public class ABRScannedElementPane extends ABRPane {
                                     lastInstructionExecuted = currentInstruction.getName()
                                             + Constants.BLANK_STRING
                                             + currentInstruction.getPath();
-                                    resultAcions = performActions(dataExcel, currentInstruction, botJobId);
+                                    resultAcions = performActions(
+                                            dataExcel,
+                                            currentInstruction,
+                                            botJobId,
+                                            blockList.get(j).getName());
                                     long currentInstructionEndTime = System.nanoTime();
                                     totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
@@ -3153,7 +3158,11 @@ public class ABRScannedElementPane extends ABRPane {
                     try {
                         lastInstructionExecuted =
                                 currentInstruction.getName() + Constants.BLANK_STRING + currentInstruction.getPath();
-                        resultAcions = performActions(dataDynamic, currentInstruction, botJobId);
+                        resultAcions = performActions(
+                                dataDynamic,
+                                currentInstruction,
+                                botJobId,
+                                blockList.get(j).getName());
                         long currentInstructionEndTime = System.nanoTime();
                         totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
                         if (resultAcions != null) {
@@ -3344,7 +3353,8 @@ public class ABRScannedElementPane extends ABRPane {
         return nameBuilder.toString();
     }
 
-    public String performActions(Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId)
+    public String performActions(
+            Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId, String blockJobName)
             throws Exception {
         WebElement instructionElement = null;
         String[] actions = instruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
@@ -3353,7 +3363,10 @@ public class ABRScannedElementPane extends ABRPane {
             instructionElement = locateElement(instruction, botJobId);
         }
         String result = null;
-        if (instructionElement != null || actions[0].equals(Constants.HOLD) || actions[0].equals(Constants.QUIT)) {
+        if (instructionElement != null
+                || actions[0].equals(Constants.HOLD)
+                || actions[0].equals(Constants.QUIT)
+                || actions[0].equals(Constants.SCREEN)) {
 
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
@@ -3398,13 +3411,10 @@ public class ABRScannedElementPane extends ABRPane {
                         break;
                     case Constants.EXTRACT:
                         result = "insertValueFieldNameInExcel-->"
-                                + insertValueFieldNameInExcel(
-                                        instructionElement,
-                                        instruction,
-                                        action,
-                                        botLoadJobs.get(0).getName());
+                                + insertValueFieldNameInExcel(instructionElement, instruction, action, blockJobName);
                         break;
                     case Constants.SCREEN:
+                        result = instruction.getName() + " --> " + blockJobName;
                         break;
                 }
                 onHoldForSeconds(null);
@@ -3757,7 +3767,9 @@ public class ABRScannedElementPane extends ABRPane {
             fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
-        new ExcelWriter(botJobName).withPurpose("excel").insertValueFieldName(fieldName, innerHTMLValue);
+        new ExcelWriter(botJobName, abrWebDriver.getDriver())
+                .withPurpose("excel")
+                .insertValueFieldName(fieldName, innerHTMLValue);
         return action + " fieldName " + fieldName;
     }
 
