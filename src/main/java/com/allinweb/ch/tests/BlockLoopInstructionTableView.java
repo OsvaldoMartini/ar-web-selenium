@@ -63,7 +63,7 @@ public class BlockLoopInstructionTableView extends Application {
             Label blockLabel = new Label("Block: " + blockName);
             blockLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-            // Create UP and DOWN buttons
+            // Create UP and DOWN buttons for the block header
             Button upButton = new Button("↑"); // Arrow Up symbol
             Button downButton = new Button("↓"); // Arrow Down symbol
 
@@ -88,7 +88,7 @@ public class BlockLoopInstructionTableView extends Application {
             // Set the items for this block's TableView
             tableView.setItems(FXCollections.observableArrayList(entry.getValue()));
 
-            // Add the block header (with label and buttons) and table to the main VBox without spacing
+            // Add the block header (with label and buttons) and table to the main VBox
             mainVBox.getChildren().addAll(blockHeader, tableView);
         }
 
