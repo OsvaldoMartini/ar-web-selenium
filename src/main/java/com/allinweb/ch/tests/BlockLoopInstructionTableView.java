@@ -15,6 +15,8 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -39,7 +41,7 @@ public class BlockLoopInstructionTableView extends Application {
         TableColumn<BlockLoopInstructionLoadDTO, String> descriptionColumn = new TableColumn<>("Description");
         descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
 
-        // Add a new column for the buttons (UP, DOWN, Action)
+        // Add a new column for the buttons (UP, DOWN, Action, Edit)
         TableColumn<BlockLoopInstructionLoadDTO, Void> actionColumn = new TableColumn<>("Actions");
 
         // Add the buttons to each row
@@ -53,8 +55,16 @@ public class BlockLoopInstructionTableView extends Application {
                             private final Button upButton = new Button("↑");
                             private final Button downButton = new Button("↓");
                             private final Button actionButton = new Button("Action");
+                            private final Button editButton = new Button(); // New button with an image
 
                             {
+                                // Load the edit image
+                                Image editImage = new Image(getClass().getResourceAsStream("/edit.png"));
+                                ImageView editImageView = new ImageView(editImage);
+                                editImageView.setFitWidth(16);
+                                editImageView.setFitHeight(16);
+                                editButton.setGraphic(editImageView);
+
                                 // Define actions for each button
                                 upButton.setOnAction(event -> {
                                     BlockLoopInstructionLoadDTO data =
@@ -73,6 +83,12 @@ public class BlockLoopInstructionTableView extends Application {
                                             getTableView().getItems().get(getIndex());
                                     System.out.println("Action button clicked for: " + data.getName());
                                 });
+
+                                editButton.setOnAction(event -> {
+                                    BlockLoopInstructionLoadDTO data =
+                                            getTableView().getItems().get(getIndex());
+                                    System.out.println("Edit button clicked for: " + data.getName());
+                                });
                             }
 
                             @Override
@@ -82,7 +98,7 @@ public class BlockLoopInstructionTableView extends Application {
                                     setGraphic(null);
                                 } else {
                                     // Add the buttons to an HBox
-                                    HBox buttonsBox = new HBox(upButton, downButton, actionButton);
+                                    HBox buttonsBox = new HBox(upButton, downButton, actionButton, editButton);
                                     buttonsBox.setSpacing(5);
                                     buttonsBox.setAlignment(Pos.CENTER);
 
