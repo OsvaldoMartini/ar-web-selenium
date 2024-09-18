@@ -14,6 +14,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -35,8 +36,50 @@ public class BlockLoopInstructionTableView extends Application {
                 new TableColumn<>("Instruction Order");
         instructionOrderColumn.setCellValueFactory(new PropertyValueFactory<>("instructionOrderNumber"));
 
+        // Add a new column for the Name with TextField and Save button
         TableColumn<BlockLoopInstructionLoadDTO, String> nameColumn = new TableColumn<>("Name");
-        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        nameColumn.setCellFactory(new Callback<>() {
+            @Override
+            public TableCell<BlockLoopInstructionLoadDTO, String> call(
+                    TableColumn<BlockLoopInstructionLoadDTO, String> param) {
+                return new TableCell<>() {
+
+                    private final TextField textField = new TextField();
+                    private final Button saveButton = new Button();
+                    private final HBox hbox = new HBox(textField, saveButton);
+
+                    {
+                        // Load the save image and set to the save button
+                        Image saveImage = new Image(getClass().getResourceAsStream("/save.png"));
+                        ImageView saveImageView = new ImageView(saveImage);
+                        saveImageView.setFitWidth(16);
+                        saveImageView.setFitHeight(16);
+                        saveButton.setGraphic(saveImageView);
+
+                        hbox.setSpacing(5);
+
+                        // Save button action
+                        saveButton.setOnAction(event -> {
+                            BlockLoopInstructionLoadDTO data =
+                                    getTableView().getItems().get(getIndex());
+                            data.setName(textField.getText()); // Update the name in the object
+                            System.out.println("Save button clicked: " + textField.getText());
+                        });
+                    }
+
+                    @Override
+                    public void updateItem(String item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty) {
+                            setGraphic(null);
+                        } else {
+                            textField.setText(item); // Pre-fill the text field with the current name
+                            setGraphic(hbox); // Display the TextField and Save button in the HBox
+                        }
+                    }
+                };
+            }
+        });
 
         TableColumn<BlockLoopInstructionLoadDTO, String> descriptionColumn = new TableColumn<>("Description");
         descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
