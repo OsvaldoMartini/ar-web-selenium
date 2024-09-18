@@ -24,6 +24,16 @@ public class BlockLoopInstructionLoadDTO {
     private int parentId;
     private int blockId;
     private String blockName;
+    private boolean editMode = false; // Add an editMode flag
+
+    // Getters and setters for 'editMode'
+    public boolean isEditMode() {
+        return editMode;
+    }
+
+    public void setEditMode(boolean editMode) {
+        this.editMode = editMode;
+    }
 
     public BlockLoopInstructionLoadDTO() {}
 

@@ -1,5 +1,6 @@
 package com.allinweb.ch.tests;
 
+import com.allinweb.ch.component.listCell.TableCellWithEditMode;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import java.util.List;
 import java.util.Map;
@@ -13,8 +14,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -38,51 +39,19 @@ public class BlockLoopInstructionTableView extends Application {
 
         // Add a new column for the Name with TextField and Save button
         TableColumn<BlockLoopInstructionLoadDTO, String> nameColumn = new TableColumn<>("Name");
-        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name")); // Proper binding to 'name' property
+        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
 
-        nameColumn.setCellFactory(new Callback<>() {
-            @Override
-            public TableCell<BlockLoopInstructionLoadDTO, String> call(
-                    TableColumn<BlockLoopInstructionLoadDTO, String> param) {
-                return new TableCell<>() {
-
-                    private final TextField textField = new TextField();
-                    private final Button saveButton = new Button();
-                    private final HBox hbox = new HBox(textField, saveButton);
-
-                    {
-                        // Load the save image and set to the save button
-                        Image saveImage = new Image(getClass().getResourceAsStream("/save.png"));
-                        ImageView saveImageView = new ImageView(saveImage);
-                        saveImageView.setFitWidth(16);
-                        saveImageView.setFitHeight(16);
-                        saveButton.setGraphic(saveImageView);
-
-                        hbox.setSpacing(5);
-
-                        // Save button action
-                        saveButton.setOnAction(event -> {
-                            BlockLoopInstructionLoadDTO data =
-                                    getTableView().getItems().get(getIndex());
-                            data.setName(textField.getText()); // Update the name in the object
-                            System.out.println("Save button clicked: " + textField.getText());
-                        });
-                    }
-
+        // Use custom TableCellWithEditMode for Name column
+        nameColumn.setCellFactory(
+                new Callback<
+                        TableColumn<BlockLoopInstructionLoadDTO, String>,
+                        TableCell<BlockLoopInstructionLoadDTO, String>>() {
                     @Override
-                    public void updateItem(String item, boolean empty) {
-                        super.updateItem(item, empty);
-                        if (empty) {
-                            setGraphic(null);
-                        } else {
-                            textField.setText(
-                                    item != null ? item : ""); // Pre-fill the text field with the current name
-                            setGraphic(hbox); // Display the TextField and Save button in the HBox
-                        }
+                    public TableCell<BlockLoopInstructionLoadDTO, String> call(
+                            TableColumn<BlockLoopInstructionLoadDTO, String> param) {
+                        return new TableCellWithEditMode();
                     }
-                };
-            }
-        });
+                });
 
         TableColumn<BlockLoopInstructionLoadDTO, String> descriptionColumn = new TableColumn<>("Description");
         descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
@@ -90,74 +59,81 @@ public class BlockLoopInstructionTableView extends Application {
         // Add a new column for the buttons (UP, DOWN, Action, Edit)
         TableColumn<BlockLoopInstructionLoadDTO, Void> actionColumn = new TableColumn<>("Actions");
 
-        // Add the buttons to each row
-        Callback<TableColumn<BlockLoopInstructionLoadDTO, Void>, TableCell<BlockLoopInstructionLoadDTO, Void>>
-                cellFactory = new Callback<>() {
-                    @Override
-                    public TableCell<BlockLoopInstructionLoadDTO, Void> call(
-                            final TableColumn<BlockLoopInstructionLoadDTO, Void> param) {
-                        final TableCell<BlockLoopInstructionLoadDTO, Void> cell = new TableCell<>() {
+        actionColumn.setCellFactory(new Callback<>() {
+            @Override
+            public TableCell<BlockLoopInstructionLoadDTO, Void> call(
+                    final TableColumn<BlockLoopInstructionLoadDTO, Void> param) {
+                final TableCell<BlockLoopInstructionLoadDTO, Void> cell = new TableCell<>() {
 
-                            private final Button upButton = new Button("↑");
-                            private final Button downButton = new Button("↓");
-                            private final Button actionButton = new Button("Action");
-                            private final Button editButton = new Button(); // New button with an image
+                    private final Button upButton = new Button("↑");
+                    private final Button downButton = new Button("↓");
+                    private final Button actionButton = new Button("Action");
+                    private final Button editButton = new Button();
 
-                            {
-                                // Load the edit image
-                                Image editImage = new Image(getClass().getResourceAsStream("/edit.png"));
-                                ImageView editImageView = new ImageView(editImage);
-                                editImageView.setFitWidth(16);
-                                editImageView.setFitHeight(16);
-                                editButton.setGraphic(editImageView);
+                    {
+                        // Load the edit image
+                        Image editImage = new Image(getClass().getResourceAsStream("/edit.png"));
+                        ImageView editImageView = new ImageView(editImage);
+                        editImageView.setFitWidth(16);
+                        editImageView.setFitHeight(16);
+                        editButton.setGraphic(editImageView);
 
-                                // Define actions for each button
-                                upButton.setOnAction(event -> {
-                                    BlockLoopInstructionLoadDTO data =
-                                            getTableView().getItems().get(getIndex());
-                                    System.out.println("UP button clicked for: " + data.getName());
-                                });
+                        // Define actions for each button
+                        upButton.setOnAction(event -> {
+                            BlockLoopInstructionLoadDTO data =
+                                    getTableView().getItems().get(getIndex());
+                            System.out.println("UP button clicked for: " + data.getName());
+                        });
 
-                                downButton.setOnAction(event -> {
-                                    BlockLoopInstructionLoadDTO data =
-                                            getTableView().getItems().get(getIndex());
-                                    System.out.println("DOWN button clicked for: " + data.getName());
-                                });
+                        downButton.setOnAction(event -> {
+                            BlockLoopInstructionLoadDTO data =
+                                    getTableView().getItems().get(getIndex());
+                            System.out.println("DOWN button clicked for: " + data.getName());
+                        });
 
-                                actionButton.setOnAction(event -> {
-                                    BlockLoopInstructionLoadDTO data =
-                                            getTableView().getItems().get(getIndex());
-                                    System.out.println("Action button clicked for: " + data.getName());
-                                });
+                        actionButton.setOnAction(event -> {
+                            BlockLoopInstructionLoadDTO data =
+                                    getTableView().getItems().get(getIndex());
+                            System.out.println("Action button clicked for: " + data.getName());
+                        });
 
-                                editButton.setOnAction(event -> {
-                                    BlockLoopInstructionLoadDTO data =
-                                            getTableView().getItems().get(getIndex());
-                                    System.out.println("Edit button clicked for: " + data.getName());
-                                });
-                            }
+                        editButton.setOnAction(event -> {
+                            BlockLoopInstructionLoadDTO data =
+                                    getTableView().getItems().get(getIndex());
+                            System.out.println("Edit button clicked for: " + data.getName());
 
-                            @Override
-                            public void updateItem(Void item, boolean empty) {
-                                super.updateItem(item, empty);
-                                if (empty) {
-                                    setGraphic(null);
-                                } else {
-                                    // Add the buttons to an HBox
-                                    HBox buttonsBox = new HBox(upButton, downButton, actionButton, editButton);
-                                    buttonsBox.setSpacing(5);
-                                    buttonsBox.setAlignment(Pos.CENTER);
-
-                                    // Set the HBox as the graphic for this cell
-                                    setGraphic(buttonsBox);
+                            // Trigger the edit mode in the name column's cell
+                            TableRow<BlockLoopInstructionLoadDTO> row = getTableRow();
+                            if (row != null) {
+                                TableCell<BlockLoopInstructionLoadDTO, String> nameCell =
+                                        (TableCell<BlockLoopInstructionLoadDTO, String>)
+                                                row.getChildrenUnmodifiable().get(2);
+                                if (nameCell instanceof TableCellWithEditMode) {
+                                    ((TableCellWithEditMode) nameCell).showEditMode();
                                 }
                             }
-                        };
-                        return cell;
+                        });
+                    }
+
+                    @Override
+                    public void updateItem(Void item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty) {
+                            setGraphic(null);
+                        } else {
+                            // Add the buttons to an HBox
+                            HBox buttonsBox = new HBox(upButton, downButton, actionButton, editButton);
+                            buttonsBox.setSpacing(5);
+                            buttonsBox.setAlignment(Pos.CENTER);
+
+                            // Set the HBox as the graphic for this cell
+                            setGraphic(buttonsBox);
+                        }
                     }
                 };
-
-        actionColumn.setCellFactory(cellFactory);
+                return cell;
+            }
+        });
 
         // Add all columns to TableView
         tableView.getColumns().addAll(idColumn, instructionOrderColumn, nameColumn, descriptionColumn, actionColumn);
@@ -186,13 +162,13 @@ public class BlockLoopInstructionTableView extends Application {
             blockLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
             // Create UP and DOWN buttons for the block header
-            Button upButton = new Button("↑"); // Arrow Up symbol
-            Button downButton = new Button("↓"); // Arrow Down symbol
+            Button upButton = new Button("↑");
+            Button downButton = new Button("↓");
 
             // Create an HBox to place label and buttons
             HBox blockHeader = new HBox(10);
             blockHeader.setAlignment(Pos.CENTER_LEFT);
-            blockHeader.setStyle("-fx-padding: 0px;"); // Remove padding from the block header
+            blockHeader.setStyle("-fx-padding: 0px;");
 
             // Create an HBox for buttons, aligning them to the right
             HBox buttonBox = new HBox(5);
@@ -201,8 +177,8 @@ public class BlockLoopInstructionTableView extends Application {
 
             // Add the label and buttons to the header
             blockHeader.getChildren().addAll(blockLabel, buttonBox);
-            blockHeader.setSpacing(20); // Add spacing between the label and button box
-            HBox.setHgrow(buttonBox, javafx.scene.layout.Priority.ALWAYS); // Make the buttons stay on the right side
+            blockHeader.setSpacing(20);
+            HBox.setHgrow(buttonBox, javafx.scene.layout.Priority.ALWAYS);
 
             // Create a TableView for the instructions under this block
             TableView<BlockLoopInstructionLoadDTO> tableView = createInstructionTable();
@@ -222,7 +198,6 @@ public class BlockLoopInstructionTableView extends Application {
         primaryStage.setTitle("BlockLoopInstructionLoadDTO TableView with Block Separation and Buttons");
         primaryStage.show();
     }
-
     // Sample data
     private ObservableList<BlockLoopInstructionLoadDTO> getBlockLoopInstructions() {
         return FXCollections.observableArrayList(
