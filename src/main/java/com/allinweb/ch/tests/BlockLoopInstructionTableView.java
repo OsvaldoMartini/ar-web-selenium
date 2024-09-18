@@ -1,5 +1,9 @@
 package com.allinweb.ch.tests;
+
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -14,10 +18,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
 public class BlockLoopInstructionTableView extends Application {
 
     private TableView<BlockLoopInstructionLoadDTO> createInstructionTable() {
@@ -27,7 +27,8 @@ public class BlockLoopInstructionTableView extends Application {
         TableColumn<BlockLoopInstructionLoadDTO, Integer> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
 
-        TableColumn<BlockLoopInstructionLoadDTO, Integer> instructionOrderColumn = new TableColumn<>("Instruction Order");
+        TableColumn<BlockLoopInstructionLoadDTO, Integer> instructionOrderColumn =
+                new TableColumn<>("Instruction Order");
         instructionOrderColumn.setCellValueFactory(new PropertyValueFactory<>("instructionOrderNumber"));
 
         TableColumn<BlockLoopInstructionLoadDTO, String> nameColumn = new TableColumn<>("Name");
@@ -48,8 +49,8 @@ public class BlockLoopInstructionTableView extends Application {
         ObservableList<BlockLoopInstructionLoadDTO> blockLoopInstructions = getBlockLoopInstructions();
 
         // Group the instructions by blockId
-        Map<Integer, List<BlockLoopInstructionLoadDTO>> groupedByBlock = blockLoopInstructions.stream()
-                .collect(Collectors.groupingBy(BlockLoopInstructionLoadDTO::getBlockId));
+        Map<Integer, List<BlockLoopInstructionLoadDTO>> groupedByBlock =
+                blockLoopInstructions.stream().collect(Collectors.groupingBy(BlockLoopInstructionLoadDTO::getBlockId));
 
         // Create a VBox to display the block names and corresponding instruction tables
         VBox mainVBox = new VBox(10);
@@ -106,8 +107,7 @@ public class BlockLoopInstructionTableView extends Application {
                 new BlockLoopInstructionLoadDTO(2, 102, "Instruction 2", "Description 2", 2, "Block Test 1"),
                 new BlockLoopInstructionLoadDTO(3, 103, "Instruction 3", "Description 3", 2, "Block Test 1"),
                 new BlockLoopInstructionLoadDTO(4, 104, "Instruction 4", "Description 4", 3, "Block Test 2"),
-                new BlockLoopInstructionLoadDTO(5, 105, "Instruction 5", "Description 5", 3, "Block Test 2")
-        );
+                new BlockLoopInstructionLoadDTO(5, 105, "Instruction 5", "Description 5", 3, "Block Test 2"));
     }
 
     public static void main(String[] args) {
