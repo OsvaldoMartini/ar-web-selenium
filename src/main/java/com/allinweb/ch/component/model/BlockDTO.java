@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.model.dto;
+package com.allinweb.ch.component.model;
 
 public class BlockDTO {
     private int blockOrderNumber;

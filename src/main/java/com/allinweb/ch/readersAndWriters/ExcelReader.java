@@ -1,7 +1,7 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.component.model.dto.BlockLoadDTO;
-import com.allinweb.ch.component.model.dto.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;

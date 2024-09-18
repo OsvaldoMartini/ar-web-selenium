@@ -1,6 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.component.model.dto.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;

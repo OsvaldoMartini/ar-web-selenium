@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.model.dto;
+package com.allinweb.ch.component.model;
 
 import java.util.List;
 

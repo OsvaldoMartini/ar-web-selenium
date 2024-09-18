@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.model.dto;
+package com.allinweb.ch.component.model;
 
 import java.util.List;
 import lombok.Data;
@@ -22,6 +22,21 @@ public class BlockLoopInstructionLoadDTO {
     private String priority;
     private String operation;
     private int parentId;
+    private int blockId;
+    private String blockName;
+
+    public BlockLoopInstructionLoadDTO() {}
+
+    // Constructor
+    public BlockLoopInstructionLoadDTO(
+            int id, int instructionOrderNumber, String name, String description, int blockId, String blockName) {
+        this.id = id;
+        this.instructionOrderNumber = instructionOrderNumber;
+        this.name = name;
+        this.description = description;
+        this.blockId = blockId;
+        this.blockName = blockName;
+    }
 
     public String getDefaultValue() {
         return default_val;

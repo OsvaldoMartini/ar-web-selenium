@@ -5,11 +5,11 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.ABRWebElementListCell;
-import com.allinweb.ch.component.model.dto.BlockLoadDTO;
-import com.allinweb.ch.component.model.dto.BlockLoopInstructionLoadDTO;
-import com.allinweb.ch.component.model.dto.BotJobLoadDTO;
-import com.allinweb.ch.component.model.dto.ComplexInstructionLoadDTO;
-import com.allinweb.ch.component.model.dto.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRNewHomeBankingScene;
@@ -108,7 +108,7 @@ public class ABRScannedElementPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = false;
+    private static final boolean POSTGRES_DB = true;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
