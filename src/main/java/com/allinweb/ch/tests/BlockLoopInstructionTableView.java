@@ -38,6 +38,8 @@ public class BlockLoopInstructionTableView extends Application {
 
         // Add a new column for the Name with TextField and Save button
         TableColumn<BlockLoopInstructionLoadDTO, String> nameColumn = new TableColumn<>("Name");
+        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name")); // Proper binding to 'name' property
+
         nameColumn.setCellFactory(new Callback<>() {
             @Override
             public TableCell<BlockLoopInstructionLoadDTO, String> call(
@@ -73,7 +75,8 @@ public class BlockLoopInstructionTableView extends Application {
                         if (empty) {
                             setGraphic(null);
                         } else {
-                            textField.setText(item); // Pre-fill the text field with the current name
+                            textField.setText(
+                                    item != null ? item : ""); // Pre-fill the text field with the current name
                             setGraphic(hbox); // Display the TextField and Save button in the HBox
                         }
                     }
