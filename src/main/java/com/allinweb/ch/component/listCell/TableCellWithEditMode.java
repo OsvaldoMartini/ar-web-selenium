@@ -23,16 +23,22 @@ public class TableCellWithEditMode extends TableCell<BlockLoopInstructionLoadDTO
         saveImageView.setFitWidth(16);
         saveImageView.setFitHeight(16);
         saveButton.setGraphic(saveImageView);
+
         hbox.setSpacing(5);
 
         // Save button action
         saveButton.setOnAction(event -> {
             BlockLoopInstructionLoadDTO data = getTableView().getItems().get(getIndex());
-            data.setName(textField.getText());
-            nameLabel.setText(textField.getText());
+            data.setName(textField.getText()); // Update the name in the data object
+            nameLabel.setText(textField.getText()); // Update label to show the new name
+
+            // Hide TextField and Save button, show the label
             textField.setVisible(false);
             saveButton.setVisible(false);
             nameLabel.setVisible(true);
+
+            setGraphic(nameLabel); // Set the graphic back to the label
+            System.out.println("Save button clicked: " + textField.getText());
         });
     }
 
