@@ -53,7 +53,8 @@ public class BlockLoopInstructionTableView extends Application {
                 blockLoopInstructions.stream().collect(Collectors.groupingBy(BlockLoopInstructionLoadDTO::getBlockId));
 
         // Create a VBox to display the block names and corresponding instruction tables
-        VBox mainVBox = new VBox(10);
+        VBox mainVBox = new VBox(0); // No spacing between blocks
+        mainVBox.setStyle("-fx-padding: 0;"); // No padding around the VBox
 
         // Loop through each block and its instructions
         for (Map.Entry<Integer, List<BlockLoopInstructionLoadDTO>> entry : groupedByBlock.entrySet()) {
@@ -69,7 +70,7 @@ public class BlockLoopInstructionTableView extends Application {
             // Create an HBox to place label and buttons
             HBox blockHeader = new HBox(10);
             blockHeader.setAlignment(Pos.CENTER_LEFT);
-            blockHeader.setStyle("-fx-padding: 10px;");
+            blockHeader.setStyle("-fx-padding: 0px;"); // Remove padding from the block header
 
             // Create an HBox for buttons, aligning them to the right
             HBox buttonBox = new HBox(5);
@@ -87,7 +88,7 @@ public class BlockLoopInstructionTableView extends Application {
             // Set the items for this block's TableView
             tableView.setItems(FXCollections.observableArrayList(entry.getValue()));
 
-            // Add the block header (with label and buttons) and table to the main VBox
+            // Add the block header (with label and buttons) and table to the main VBox without spacing
             mainVBox.getChildren().addAll(blockHeader, tableView);
         }
 
