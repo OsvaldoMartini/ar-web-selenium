@@ -48,9 +48,22 @@ public class TableCellWithEditMode extends TableCell<BlockLoopInstructionLoadDTO
         if (empty) {
             setGraphic(null);
         } else {
-            nameLabel.setText(item);
-            textField.setText(item);
-            setGraphic(nameLabel); // Display the label when TextField and Save button are hidden
+            BlockLoopInstructionLoadDTO data = getTableView().getItems().get(getIndex());
+
+            if (data.isEditMode()) {
+                textField.setText(item); // Show the TextField with the current name
+                textField.setVisible(true);
+                saveButton.setVisible(true);
+                nameLabel.setVisible(false);
+                setGraphic(hbox); // Show the HBox (TextField + Save button)
+            } else {
+                nameLabel.setText(item);
+                textField.setText(item);
+                textField.setVisible(false);
+                saveButton.setVisible(false);
+                nameLabel.setVisible(true);
+                setGraphic(nameLabel); // Show the label when not in edit mode
+            }
         }
     }
 
