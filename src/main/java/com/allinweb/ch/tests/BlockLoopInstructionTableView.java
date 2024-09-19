@@ -2,6 +2,7 @@ package com.allinweb.ch.tests;
 
 import com.allinweb.ch.component.listCell.TableCellWithEditMode;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -9,7 +10,6 @@ import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -26,6 +26,7 @@ import javafx.stage.Stage;
 public class BlockLoopInstructionTableView extends Application {
 
     private VBox mainVBox; // Main VBox layout to hold the blocks
+    private ObservableList<List<BlockLoopInstructionLoadDTO>> blockDataList; // List of block data
 
     private TableView<BlockLoopInstructionLoadDTO> createInstructionTable() {
         TableView<BlockLoopInstructionLoadDTO> tableView = new TableView<>();
@@ -123,14 +124,17 @@ public class BlockLoopInstructionTableView extends Application {
         Map<Integer, List<BlockLoopInstructionLoadDTO>> groupedByBlock =
                 blockLoopInstructions.stream().collect(Collectors.groupingBy(BlockLoopInstructionLoadDTO::getBlockId));
 
+        // Initialize the block data list
+        blockDataList = FXCollections.observableArrayList(groupedByBlock.values());
+
         // Create a VBox to display the block names and corresponding instruction tables
         mainVBox = new VBox(0); // No spacing between blocks
         mainVBox.setStyle("-fx-padding: 0;"); // No padding around the VBox
 
-        // Loop through each block and its instructions
-        groupedByBlock.forEach((blockId, instructions) -> {
-            addBlockToVBox(instructions);
-        });
+        // Add each block to the VBox
+        for (int i = 0; i < blockDataList.size(); i++) {
+            addBlockToVBox(i);
+        }
 
         // Set the VBox as the root layout
         Scene scene = new Scene(mainVBox, 600, 400);
@@ -141,8 +145,10 @@ public class BlockLoopInstructionTableView extends Application {
         primaryStage.show();
     }
 
-    // Method to add blocks to VBox
-    private void addBlockToVBox(List<BlockLoopInstructionLoadDTO> instructions) {
+    // Method to add blocks to VBox by index
+    private void addBlockToVBox(int index) {
+        List<BlockLoopInstructionLoadDTO> instructions = blockDataList.get(index);
+
         // Create a Label for the block name
         String blockName = instructions.get(0).getBlockName();
         Label blockLabel = new Label("Block: " + blockName);
@@ -170,31 +176,34 @@ public class BlockLoopInstructionTableView extends Application {
         tableView.setItems(FXCollections.observableArrayList(instructions));
 
         // Add the block header (with label and buttons) and table to the main VBox
-        int currentIndex = mainVBox.getChildren().size();
         mainVBox.getChildren().addAll(blockHeader, tableView);
 
         // UP button action to move the block up
         upButton.setOnAction(event -> {
-            if (currentIndex > 0) {
-                moveBlock(currentIndex, currentIndex - 2);
+            if (index > 0) {
+                moveBlock(index, index - 1);
             }
         });
 
         // DOWN button action to move the block down
         downButton.setOnAction(event -> {
-            if (currentIndex + 2 < mainVBox.getChildren().size()) {
-                moveBlock(currentIndex, currentIndex + 2);
+            if (index < blockDataList.size() - 1) {
+                moveBlock(index, index + 1);
             }
         });
     }
 
-    // Method to move blocks up and down in the VBox
+    // Method to move blocks up and down in the VBox and update data list
     private void moveBlock(int currentIndex, int newIndex) {
-        if (newIndex >= 0 && newIndex < mainVBox.getChildren().size()) {
-            Node blockHeader = mainVBox.getChildren().remove(currentIndex);
-            Node tableView = mainVBox.getChildren().remove(currentIndex); // Remove table after header
-            mainVBox.getChildren().add(newIndex, blockHeader);
-            mainVBox.getChildren().add(newIndex + 1, tableView);
+        if (newIndex >= 0 && newIndex < blockDataList.size()) {
+            // Swap the data in the blockDataList
+            Collections.swap(blockDataList, currentIndex, newIndex);
+
+            // Clear the mainVBox and re-add all blocks to update their order
+            mainVBox.getChildren().clear();
+            for (int i = 0; i < blockDataList.size(); i++) {
+                addBlockToVBox(i);
+            }
         }
     }
 
