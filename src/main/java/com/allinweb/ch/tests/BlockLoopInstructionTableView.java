@@ -132,9 +132,27 @@ public class BlockLoopInstructionTableView extends Application {
                                 getTableView().getItems().get(getIndex());
                         System.out.println("Remove button clicked for: " + data.getName());
 
+                        // Remove the item from the TableView's items
                         getTableView().getItems().remove(data);
+
+                        // Remove the item from blockLoopInstructions
+                        blockLoopInstructions.remove(data);
+
+                        // Find the corresponding block in blockDataList and remove the item from that block
+                        for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
+                            if (block.remove(data)) {
+                                // If the item was found and removed, break out of the loop
+                                break;
+                            }
+                        }
+
+                        // Update the instructionOrderNumbers for the remaining items
                         updateInstructionOrderNumbers(getTableView().getItems());
+
+                        // Synchronize blockLoopInstructions with blockDataList
                         syncBlockLoopInstructionsWithBlockDataList();
+
+                        // Sort the table items by instructionOrderNumber to maintain order
                         sortTableByOrderNumber(getTableView());
                     });
                 }
