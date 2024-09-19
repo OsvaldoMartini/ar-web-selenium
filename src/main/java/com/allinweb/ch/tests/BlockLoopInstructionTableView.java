@@ -15,6 +15,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
@@ -90,6 +91,17 @@ public class BlockLoopInstructionTableView extends Application {
                         BlockLoopInstructionLoadDTO data =
                                 getTableView().getItems().get(getIndex());
                         System.out.println("Edit button clicked for: " + data.getName());
+
+                        // Trigger the edit mode in the name column's cell
+                        TableRow<BlockLoopInstructionLoadDTO> row = getTableRow();
+                        if (row != null) {
+                            TableCell<BlockLoopInstructionLoadDTO, String> nameCell =
+                                    (TableCell<BlockLoopInstructionLoadDTO, String>)
+                                            row.getChildrenUnmodifiable().get(2);
+                            if (nameCell instanceof TableCellWithEditMode) {
+                                ((TableCellWithEditMode) nameCell).showEditMode();
+                            }
+                        }
                     });
                 }
 
