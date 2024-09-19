@@ -14,6 +14,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
@@ -315,8 +316,17 @@ public class BlockLoopInstructionTableView extends Application {
             addBlockToVBox(i);
         }
 
-        // Set the VBox as the root layout
-        Scene scene = new Scene(mainVBox, 600, 400);
+        // Create a ScrollPane to allow scrolling when there are too many blocks
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setContent(mainVBox); // Set VBox as the content of the ScrollPane
+
+        // Set ScrollPane properties to allow vertical scrolling and disable horizontal scrolling
+        scrollPane.setFitToWidth(true); // The ScrollPane's width matches the scene width
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.ALWAYS); // Always show the vertical scrollbar
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER); // Disable the horizontal scrollbar
+
+        // Set the ScrollPane as the root layout
+        Scene scene = new Scene(scrollPane, 600, 400);
 
         // Set up the Stage
         primaryStage.setScene(scene);
@@ -409,9 +419,6 @@ public class BlockLoopInstructionTableView extends Application {
         tableView.getStylesheets().add(getClass().getResource("/tableView.css").toExternalForm());
 
         tableView.setItems(FXCollections.observableArrayList(instructions));
-
-        // Resize the TableView rows based on content
-        resizeTableRows(tableView);
 
         // Add the block header (with label and buttons) and table to the main VBox
         mainVBox.getChildren().addAll(blockHeader, tableView);
@@ -517,15 +524,52 @@ public class BlockLoopInstructionTableView extends Application {
     }
 
     // Sample data
+    // Sample data with 7 blocks and 5 instructions each
     private ObservableList<BlockLoopInstructionLoadDTO> getBlockLoopInstructions() {
         return FXCollections.observableArrayList(
+                // Block 1 (Default Block)
                 new BlockLoopInstructionLoadDTO(1, 1, "Instruction 1", "Description 1", 1, "Default Block", "SET"),
                 new BlockLoopInstructionLoadDTO(2, 4, "Instruction 2", "Description 2", 2, "Block Test 1", "SET"),
                 new BlockLoopInstructionLoadDTO(3, 3, "Instruction 3", "Description 3", 2, "Block Test 1", "GET"),
                 new BlockLoopInstructionLoadDTO(4, 2, "Instruction 4", "Description 4", 2, "Block Test 1", "CK"),
                 new BlockLoopInstructionLoadDTO(5, 1, "Instruction 5", "Description 5", 2, "Block Test 1", "SET"),
                 new BlockLoopInstructionLoadDTO(6, 2, "Instruction 6", "Description 6", 3, "Block Test 2", "SET"),
-                new BlockLoopInstructionLoadDTO(7, 1, "Instruction 7", "Description 7", 3, "Block Test 2", "GET"));
+                new BlockLoopInstructionLoadDTO(7, 1, "Instruction 7", "Description 7", 3, "Block Test 2", "GET"),
+
+                // Block 3
+                new BlockLoopInstructionLoadDTO(8, 1, "Instruction 8", "Description 8", 4, "Block Test 3", "SET"),
+                new BlockLoopInstructionLoadDTO(9, 2, "Instruction 9", "Description 9", 4, "Block Test 3", "GET"),
+                new BlockLoopInstructionLoadDTO(10, 3, "Instruction 10", "Description 10", 4, "Block Test 3", "CK"),
+                new BlockLoopInstructionLoadDTO(11, 4, "Instruction 11", "Description 11", 4, "Block Test 3", "SET"),
+                new BlockLoopInstructionLoadDTO(12, 5, "Instruction 12", "Description 12", 4, "Block Test 3", "GET"),
+
+                // Block 4
+                new BlockLoopInstructionLoadDTO(13, 1, "Instruction 13", "Description 13", 5, "Block Test 4", "CK"),
+                new BlockLoopInstructionLoadDTO(14, 2, "Instruction 14", "Description 14", 5, "Block Test 4", "SET"),
+                new BlockLoopInstructionLoadDTO(15, 3, "Instruction 15", "Description 15", 5, "Block Test 4", "GET"),
+                new BlockLoopInstructionLoadDTO(16, 4, "Instruction 16", "Description 16", 5, "Block Test 4", "CK"),
+                new BlockLoopInstructionLoadDTO(17, 5, "Instruction 17", "Description 17", 5, "Block Test 4", "SET"),
+
+                // Block 5
+                new BlockLoopInstructionLoadDTO(18, 1, "Instruction 18", "Description 18", 6, "Block Test 5", "GET"),
+                new BlockLoopInstructionLoadDTO(19, 2, "Instruction 19", "Description 19", 6, "Block Test 5", "SET"),
+                new BlockLoopInstructionLoadDTO(20, 3, "Instruction 20", "Description 20", 6, "Block Test 5", "CK"),
+                new BlockLoopInstructionLoadDTO(21, 4, "Instruction 21", "Description 21", 6, "Block Test 5", "SET"),
+                new BlockLoopInstructionLoadDTO(22, 5, "Instruction 22", "Description 22", 6, "Block Test 5", "GET"),
+
+                // Block 6
+                new BlockLoopInstructionLoadDTO(23, 1, "Instruction 23", "Description 23", 7, "Block Test 6", "CK"),
+                new BlockLoopInstructionLoadDTO(24, 2, "Instruction 24", "Description 24", 7, "Block Test 6", "SET"),
+                new BlockLoopInstructionLoadDTO(25, 3, "Instruction 25", "Description 25", 7, "Block Test 6", "GET"),
+                new BlockLoopInstructionLoadDTO(26, 4, "Instruction 26", "Description 26", 7, "Block Test 6", "CK"),
+                new BlockLoopInstructionLoadDTO(27, 5, "Instruction 27", "Description 27", 7, "Block Test 6", "SET"),
+
+                // Block 7
+                new BlockLoopInstructionLoadDTO(28, 1, "Instruction 28", "Description 28", 8, "Block Test 7", "GET"),
+                new BlockLoopInstructionLoadDTO(29, 2, "Instruction 29", "Description 29", 8, "Block Test 7", "SET"),
+                new BlockLoopInstructionLoadDTO(30, 3, "Instruction 30", "Description 30", 8, "Block Test 7", "CK"),
+                new BlockLoopInstructionLoadDTO(31, 4, "Instruction 31", "Description 31", 8, "Block Test 7", "SET"),
+                new BlockLoopInstructionLoadDTO(32, 5, "Instruction 32", "Description 32", 8, "Block Test 7", "GET"));
     }
 
     public static void main(String[] args) {
