@@ -70,15 +70,37 @@ public class BlockLoopInstructionTableView extends Application {
 
                     // Define actions for each button
                     upButton.setOnAction(event -> {
-                        BlockLoopInstructionLoadDTO data =
-                                getTableView().getItems().get(getIndex());
-                        System.out.println("UP button clicked for: " + data.getName());
+                        TableView<BlockLoopInstructionLoadDTO> table = getTableView();
+                        ObservableList<BlockLoopInstructionLoadDTO> currentItems = table.getItems();
+                        int currentIndex = getIndex();
+
+                        if (currentIndex > 0) {
+                            // Swap the current item with the one above
+                            Collections.swap(currentItems, currentIndex, currentIndex - 1);
+
+                            // Update instructionOrderNumbers
+                            updateInstructionOrderNumbers(currentItems);
+
+                            // Refresh the table view to show the updated order
+                            table.refresh();
+                        }
                     });
 
                     downButton.setOnAction(event -> {
-                        BlockLoopInstructionLoadDTO data =
-                                getTableView().getItems().get(getIndex());
-                        System.out.println("DOWN button clicked for: " + data.getName());
+                        TableView<BlockLoopInstructionLoadDTO> table = getTableView();
+                        ObservableList<BlockLoopInstructionLoadDTO> currentItems = table.getItems();
+                        int currentIndex = getIndex();
+
+                        if (currentIndex < currentItems.size() - 1) {
+                            // Swap the current item with the one below
+                            Collections.swap(currentItems, currentIndex, currentIndex + 1);
+
+                            // Update instructionOrderNumbers
+                            updateInstructionOrderNumbers(currentItems);
+
+                            // Refresh the table view to show the updated order
+                            table.refresh();
+                        }
                     });
 
                     actionButton.setOnAction(event -> {
@@ -211,8 +233,8 @@ public class BlockLoopInstructionTableView extends Application {
             // Swap the data in the blockDataList
             Collections.swap(blockDataList, currentIndex, newIndex);
 
-            // After swapping blocks, update the instructionOrderNumber sequentially for each block
-            updateInstructionOrderNumbers();
+            // After swapping blocks, update the instructionOrderNumber sequentially for all blocks
+            updateInstructionOrderNumbersForAllBlocks();
 
             // Clear the mainVBox and re-add all blocks to update their order
             mainVBox.getChildren().clear();
@@ -222,13 +244,21 @@ public class BlockLoopInstructionTableView extends Application {
         }
     }
 
-    // Method to update instructionOrderNumber for all blocks
-    private void updateInstructionOrderNumbers() {
+    // Method to update instructionOrderNumber for all blocks after block movement
+    private void updateInstructionOrderNumbersForAllBlocks() {
         for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
             int orderNumber = 1;
             for (BlockLoopInstructionLoadDTO instruction : block) {
                 instruction.setInstructionOrderNumber(orderNumber++);
             }
+        }
+    }
+
+    // Method to update instructionOrderNumber for a specific block
+    private void updateInstructionOrderNumbers(ObservableList<BlockLoopInstructionLoadDTO> instructions) {
+        int orderNumber = 1;
+        for (BlockLoopInstructionLoadDTO instruction : instructions) {
+            instruction.setInstructionOrderNumber(orderNumber++);
         }
     }
 
