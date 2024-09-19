@@ -199,6 +199,9 @@ public class BlockLoopInstructionTableView extends Application {
             // Swap the data in the blockDataList
             Collections.swap(blockDataList, currentIndex, newIndex);
 
+            // After swapping blocks, update the instructionOrderNumber sequentially for each block
+            updateInstructionOrderNumbers();
+
             // Clear the mainVBox and re-add all blocks to update their order
             mainVBox.getChildren().clear();
             for (int i = 0; i < blockDataList.size(); i++) {
@@ -207,14 +210,26 @@ public class BlockLoopInstructionTableView extends Application {
         }
     }
 
+    // Method to update instructionOrderNumber for all blocks
+    private void updateInstructionOrderNumbers() {
+        for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
+            int orderNumber = 1;
+            for (BlockLoopInstructionLoadDTO instruction : block) {
+                instruction.setInstructionOrderNumber(orderNumber++);
+            }
+        }
+    }
+
     // Sample data
     private ObservableList<BlockLoopInstructionLoadDTO> getBlockLoopInstructions() {
         return FXCollections.observableArrayList(
-                new BlockLoopInstructionLoadDTO(1, 101, "Instruction 1", "Description 1", 1, "Default Block"),
-                new BlockLoopInstructionLoadDTO(2, 102, "Instruction 2", "Description 2", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(3, 103, "Instruction 3", "Description 3", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(4, 104, "Instruction 4", "Description 4", 3, "Block Test 2"),
-                new BlockLoopInstructionLoadDTO(5, 105, "Instruction 5", "Description 5", 3, "Block Test 2"));
+                new BlockLoopInstructionLoadDTO(1, 1, "Instruction 1", "Description 1", 1, "Default Block"),
+                new BlockLoopInstructionLoadDTO(2, 1, "Instruction 2", "Description 2", 2, "Block Test 1"),
+                new BlockLoopInstructionLoadDTO(3, 2, "Instruction 3", "Description 3", 2, "Block Test 1"),
+                new BlockLoopInstructionLoadDTO(3, 3, "Instruction 4", "Description 4", 2, "Block Test 1"),
+                new BlockLoopInstructionLoadDTO(3, 4, "Instruction 5", "Description 5", 2, "Block Test 1"),
+                new BlockLoopInstructionLoadDTO(4, 1, "Instruction 6", "Description 6", 3, "Block Test 2"),
+                new BlockLoopInstructionLoadDTO(5, 2, "Instruction 7", "Description 7", 3, "Block Test 2"));
     }
 
     public static void main(String[] args) {
