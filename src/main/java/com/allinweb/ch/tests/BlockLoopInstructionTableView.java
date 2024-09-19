@@ -358,7 +358,7 @@ public class BlockLoopInstructionTableView extends Application {
         HBox blockHeader = new HBox(5); // Reduced spacing between elements
         blockHeader.setAlignment(Pos.CENTER_LEFT);
         // Set header style (Light blue background, white text)
-        blockHeader.setStyle("-fx-background-color: #1e90ff; -fx-padding: 5px 10px;"); // Reduced padding
+        blockHeader.setStyle("-fx-background-color: #0b5394; -fx-padding: 5px 10px;"); // Reduced padding
 
         HBox buttonBox = new HBox(3); // Reduced spacing between buttons
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
