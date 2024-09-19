@@ -252,6 +252,34 @@ public class BlockLoopInstructionTableView extends Application {
         // Apply the CSS stylesheet to the TableView
         tableView.getStylesheets().add(getClass().getResource("/tableView.css").toExternalForm());
 
+        // Apply row selection style (Change font to black and bold when row is selected)
+        tableView.setRowFactory(tv -> new TableRow<>() {
+            @Override
+            protected void updateItem(BlockLoopInstructionLoadDTO item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (item == null || empty) {
+                    setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
+                } else {
+                    // When row is selected, change font color to black and bold
+                    if (isSelected()) {
+                        setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
+                    } else {
+                        setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
+                    }
+
+                    // Listen for selection changes to apply style dynamically
+                    selectedProperty().addListener((obs, wasSelected, isNowSelected) -> {
+                        if (isNowSelected) {
+                            setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
+                        } else {
+                            setStyle("-fx-font-weight: bold; -fx-text-fill: black;");
+                        }
+                    });
+                }
+            }
+        });
+
         return tableView;
     }
 
