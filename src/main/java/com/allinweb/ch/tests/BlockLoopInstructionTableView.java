@@ -139,8 +139,8 @@ public class BlockLoopInstructionTableView extends Application {
                     downButton.setGraphic(downImageView);
 
                     // Optional: Set button styles (transparent background)
-                    upButton.setStyle("-fx-background-color: transparent;");
-                    downButton.setStyle("-fx-background-color: transparent;");
+                    upButton.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
+                    downButton.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
 
                     // Set up button actions
                     upButton.setOnAction(event -> {
@@ -351,8 +351,8 @@ public class BlockLoopInstructionTableView extends Application {
         downButton.setGraphic(downImageView);
 
         // Optional: Set button styles (transparent background)
-        upButton.setStyle("-fx-background-color: transparent;");
-        downButton.setStyle("-fx-background-color: transparent;");
+        upButton.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
+        downButton.setStyle("-fx-background-color: transparent; -fx-padding: 0;");
 
         // Create an HBox to place label and buttons
         HBox blockHeader = new HBox(5); // Reduced spacing between elements
@@ -360,7 +360,8 @@ public class BlockLoopInstructionTableView extends Application {
         // Set header style (Light blue background, white text)
         blockHeader.setStyle("-fx-background-color: #0b5394; -fx-padding: 5px 10px;"); // Reduced padding
 
-        HBox buttonBox = new HBox(3); // Reduced spacing between buttons
+        // Create an HBox for the buttons with reduced spacing between the buttons
+        HBox buttonBox = new HBox(1); // Reduced spacing between buttons to be near each other
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
         buttonBox.getChildren().addAll(upButton, downButton);
 
