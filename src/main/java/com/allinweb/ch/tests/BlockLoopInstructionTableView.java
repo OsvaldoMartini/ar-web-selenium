@@ -220,6 +220,12 @@ public class BlockLoopInstructionTableView extends Application {
 
                         // Sort the table items by instructionOrderNumber to maintain order
                         sortTableByOrderNumber(getTableView());
+
+                        // Resize the TableView after removing the item
+                        resizeTableRows(getTableView());
+
+                        // Force the VBox to re-layout to reflect the change in height
+                        mainVBox.layout();
                     });
                 }
 
@@ -404,6 +410,9 @@ public class BlockLoopInstructionTableView extends Application {
 
         tableView.setItems(FXCollections.observableArrayList(instructions));
 
+        // Resize the TableView rows based on content
+        resizeTableRows(tableView);
+
         // Add the block header (with label and buttons) and table to the main VBox
         mainVBox.getChildren().addAll(blockHeader, tableView);
 
@@ -492,6 +501,19 @@ public class BlockLoopInstructionTableView extends Application {
         for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
             blockLoopInstructions.addAll(block); // Add all instructions from the current block to blockLoopInstructions
         }
+    }
+
+    private void resizeTableRows(TableView<BlockLoopInstructionLoadDTO> tableView) {
+        // Dynamically adjust the height of the TableView based on the number of rows
+        tableView.itemsProperty().addListener((obs, oldItems, newItems) -> {
+            tableView.setFixedCellSize(30); // Set a fixed height for each row
+            int rowCount = tableView.getItems().size();
+            tableView.setPrefHeight(rowCount * tableView.getFixedCellSize() + 30); // Adding padding for header
+        });
+
+        // Manually trigger resize
+        int rowCount = tableView.getItems().size();
+        tableView.setPrefHeight(rowCount * tableView.getFixedCellSize() + 30); // Adding padding for header
     }
 
     // Sample data
