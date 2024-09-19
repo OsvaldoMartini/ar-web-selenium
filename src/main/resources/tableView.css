@@ -1,0 +1,35 @@
+.table-row-cell {
+    -fx-background-color: #e0f7fa;  /* Light blue background for rows */
+    -fx-border-color: white;         /* White border between rows */
+    -fx-border-width: 0 0 3px 0;     /* Bottom border to create separation */
+    -fx-text-fill: black;            /* Set default text color to black */
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #f0fcfc;   /* Slightly different light blue shade for odd rows */
+    -fx-border-color: white;         /* White border between rows */
+    -fx-border-width: 0 0 3px 0;     /* Bottom border for odd rows as well */
+    -fx-text-fill: black;            /* Set default text color to black */
+}
+
+/* Make the column lines invisible */
+/* Make the borders between columns invisible */
+/* Remove any default border width */
+.table-cell {
+    -fx-border-color: transparent;   
+    -fx-border-width: 0;             
+}
+
+/* Set the background color to blue when selected */
+/* Make the font bold when selected */
+.table-row-cell:selected {
+    -fx-background-color: #1a9bcb;   
+    -fx-font-weight: bold;           
+}
+
+/* Set text color to white when the row is selected */
+/*.
+table-row-cell:selected .table-cell {
+    -fx-text-fill: white;            
+}
+*/
