@@ -39,13 +39,20 @@ public class BlockLoopInstructionLoadDTO {
 
     // Constructor
     public BlockLoopInstructionLoadDTO(
-            int id, int instructionOrderNumber, String name, String description, int blockId, String blockName) {
+            int id,
+            int instructionOrderNumber,
+            String name,
+            String description,
+            int blockId,
+            String blockName,
+            String actions) {
         this.id = id;
         this.instructionOrderNumber = instructionOrderNumber;
         this.name = name;
         this.description = description;
         this.blockId = blockId;
         this.blockName = blockName;
+        this.actions = actions;
     }
 
     public String getDefaultValue() {

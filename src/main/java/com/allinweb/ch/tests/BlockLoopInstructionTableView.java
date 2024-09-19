@@ -42,6 +42,49 @@ public class BlockLoopInstructionTableView extends Application {
                 new TableColumn<>("Instruction Order");
         instructionOrderColumn.setCellValueFactory(new PropertyValueFactory<>("instructionOrderNumber"));
 
+        // Create a new column to show the image based on the "actions" data field
+        TableColumn<BlockLoopInstructionLoadDTO, String> actionTypeColumn = new TableColumn<>("Action Type");
+        actionTypeColumn.setCellValueFactory(
+                new PropertyValueFactory<>("actions")); // Assuming "actions" is the property in the DTO
+
+        // Use custom TableCell for showing images based on actions
+        actionTypeColumn.setCellFactory(param -> new TableCell<>() {
+            private final ImageView imageView = new ImageView();
+
+            @Override
+            protected void updateItem(String actionType, boolean empty) {
+                super.updateItem(actionType, empty);
+                if (empty || actionType == null) {
+                    setGraphic(null);
+                } else {
+                    // Load the appropriate image based on the actionType ("SET", "GET", "CK")
+                    Image image = null;
+                    switch (actionType) {
+                        case "SET":
+                            image = new Image(getClass().getResourceAsStream("/setValueBtn.png"));
+                            break;
+                        case "GET":
+                            image = new Image(getClass().getResourceAsStream("/getValueBtn.png"));
+                            break;
+                        case "CK":
+                            image = new Image(getClass().getResourceAsStream("/check2.png"));
+                            break;
+                        default:
+                            image = null; // No image for other values
+                    }
+
+                    if (image != null) {
+                        imageView.setImage(image);
+                        imageView.setFitWidth(16); // Set image width
+                        imageView.setFitHeight(16); // Set image height
+                        setGraphic(imageView); // Display the image in the cell
+                    } else {
+                        setGraphic(null); // No image to display
+                    }
+                }
+            }
+        });
+
         // Add a new column for the Name with TextField and Save button
         TableColumn<BlockLoopInstructionLoadDTO, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -117,10 +160,11 @@ public class BlockLoopInstructionTableView extends Application {
                         System.out.println("Edit button clicked for: " + data.getName());
 
                         TableRow<BlockLoopInstructionLoadDTO> row = getTableRow();
+                        // Adjust the columns to be Editable if you change the Columns Size
                         if (row != null) {
                             TableCell<BlockLoopInstructionLoadDTO, String> nameCell =
                                     (TableCell<BlockLoopInstructionLoadDTO, String>)
-                                            row.getChildrenUnmodifiable().get(2);
+                                            row.getChildrenUnmodifiable().get(3);
                             if (nameCell instanceof TableCellWithEditMode) {
                                 ((TableCellWithEditMode) nameCell).showEditMode();
                             }
@@ -174,7 +218,18 @@ public class BlockLoopInstructionTableView extends Application {
         });
 
         // Add all columns to TableView
-        tableView.getColumns().addAll(idColumn, instructionOrderColumn, nameColumn, descriptionColumn, actionColumn);
+        tableView
+                .getColumns()
+                .addAll(
+                        idColumn,
+                        instructionOrderColumn,
+                        actionTypeColumn,
+                        nameColumn,
+                        descriptionColumn,
+                        actionColumn);
+
+        // Apply the CSS stylesheet to the TableView
+        tableView.getStylesheets().add(getClass().getResource("/tableView.css").toExternalForm());
 
         return tableView;
     }
@@ -339,13 +394,13 @@ public class BlockLoopInstructionTableView extends Application {
     // Sample data
     private ObservableList<BlockLoopInstructionLoadDTO> getBlockLoopInstructions() {
         return FXCollections.observableArrayList(
-                new BlockLoopInstructionLoadDTO(1, 1, "Instruction 1", "Description 1", 1, "Default Block"),
-                new BlockLoopInstructionLoadDTO(2, 4, "Instruction 2", "Description 2", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(3, 3, "Instruction 3", "Description 3", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(4, 2, "Instruction 4", "Description 4", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(5, 1, "Instruction 5", "Description 5", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(6, 2, "Instruction 6", "Description 6", 3, "Block Test 2"),
-                new BlockLoopInstructionLoadDTO(7, 1, "Instruction 7", "Description 7", 3, "Block Test 2"));
+                new BlockLoopInstructionLoadDTO(1, 1, "Instruction 1", "Description 1", 1, "Default Block", "SET"),
+                new BlockLoopInstructionLoadDTO(2, 4, "Instruction 2", "Description 2", 2, "Block Test 1", "SET"),
+                new BlockLoopInstructionLoadDTO(3, 3, "Instruction 3", "Description 3", 2, "Block Test 1", "GET"),
+                new BlockLoopInstructionLoadDTO(4, 2, "Instruction 4", "Description 4", 2, "Block Test 1", "CK"),
+                new BlockLoopInstructionLoadDTO(5, 1, "Instruction 5", "Description 5", 2, "Block Test 1", "SET"),
+                new BlockLoopInstructionLoadDTO(6, 2, "Instruction 6", "Description 6", 3, "Block Test 2", "SET"),
+                new BlockLoopInstructionLoadDTO(7, 1, "Instruction 7", "Description 7", 3, "Block Test 2", "GET"));
     }
 
     public static void main(String[] args) {

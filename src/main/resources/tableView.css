@@ -1,0 +1,11 @@
+.table-row-cell {
+    -fx-background-color: #e0f7fa;  /* Light blue background */
+    -fx-border-color: white;         /* White border between rows */
+    -fx-border-width: 0 0 3px 0;     /* Bottom border to create the separation */
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #f0fcfc;   /* Slightly different shade for odd rows */
+    -fx-border-color: white;         /* White border between rows */
+    -fx-border-width: 0 0 3px 0;     /* Bottom border for odd rows as well */
+}
