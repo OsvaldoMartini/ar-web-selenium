@@ -51,7 +51,6 @@ public class BlockLoopInstructionTableView extends Application {
         TableColumn<BlockLoopInstructionLoadDTO, String> descriptionColumn = new TableColumn<>("Description");
         descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
 
-        // Add a new column for the buttons (UP, DOWN, Action, Edit)
         TableColumn<BlockLoopInstructionLoadDTO, Void> actionColumn = new TableColumn<>("Actions");
         actionColumn.setCellFactory(param -> {
             final TableCell<BlockLoopInstructionLoadDTO, Void> cell = new TableCell<>() {
@@ -60,6 +59,7 @@ public class BlockLoopInstructionTableView extends Application {
                 private final Button downButton = new Button("↓");
                 private final Button actionButton = new Button("Action");
                 private final Button editButton = new Button();
+                private final Button removeButton = new Button(); // New button
 
                 {
                     // Load the edit image
@@ -69,28 +69,25 @@ public class BlockLoopInstructionTableView extends Application {
                     editImageView.setFitHeight(16);
                     editButton.setGraphic(editImageView);
 
-                    // Inside the TableCell for actionColumn
+                    // Load the cross image for the remove button
+                    Image crossImage = new Image(getClass().getResourceAsStream("/cross.png"));
+                    ImageView crossImageView = new ImageView(crossImage);
+                    crossImageView.setFitWidth(16);
+                    crossImageView.setFitHeight(16);
+                    removeButton.setGraphic(crossImageView);
+
+                    // Set up button actions (this part stays unchanged)
                     upButton.setOnAction(event -> {
                         TableView<BlockLoopInstructionLoadDTO> table = getTableView();
                         ObservableList<BlockLoopInstructionLoadDTO> currentItems = table.getItems();
                         int currentIndex = getIndex();
 
                         if (currentIndex > 0) {
-                            // Swap the current item with the one above in the TableView
                             Collections.swap(currentItems, currentIndex, currentIndex - 1);
-
-                            // Update the original blockLoopInstructions list to reflect the change
-                            BlockLoopInstructionLoadDTO movedItem =
-                                    currentItems.get(currentIndex - 1); // The moved item is now at currentIndex - 1
+                            BlockLoopInstructionLoadDTO movedItem = currentItems.get(currentIndex - 1);
                             updateBlockLoopInstructions(movedItem, currentItems);
-
-                            // Update instructionOrderNumbers for the block
                             updateInstructionOrderNumbers(currentItems);
-
-                            // Synchronize blockLoopInstructions with blockDataList
                             syncBlockLoopInstructionsWithBlockDataList();
-
-                            // Refresh the table view to show the updated order
                             table.refresh();
                         }
                     });
@@ -101,21 +98,11 @@ public class BlockLoopInstructionTableView extends Application {
                         int currentIndex = getIndex();
 
                         if (currentIndex < currentItems.size() - 1) {
-                            // Swap the current item with the one below in the TableView
                             Collections.swap(currentItems, currentIndex, currentIndex + 1);
-
-                            // Update the original blockLoopInstructions list to reflect the change
-                            BlockLoopInstructionLoadDTO movedItem =
-                                    currentItems.get(currentIndex + 1); // The moved item is now at currentIndex + 1
+                            BlockLoopInstructionLoadDTO movedItem = currentItems.get(currentIndex + 1);
                             updateBlockLoopInstructions(movedItem, currentItems);
-
-                            // Update instructionOrderNumbers for the block
                             updateInstructionOrderNumbers(currentItems);
-
-                            // Synchronize blockLoopInstructions with blockDataList
                             syncBlockLoopInstructionsWithBlockDataList();
-
-                            // Refresh the table view to show the updated order
                             table.refresh();
                         }
                     });
@@ -131,7 +118,6 @@ public class BlockLoopInstructionTableView extends Application {
                                 getTableView().getItems().get(getIndex());
                         System.out.println("Edit button clicked for: " + data.getName());
 
-                        // Trigger the edit mode in the name column's cell
                         TableRow<BlockLoopInstructionLoadDTO> row = getTableRow();
                         if (row != null) {
                             TableCell<BlockLoopInstructionLoadDTO, String> nameCell =
@@ -142,6 +128,19 @@ public class BlockLoopInstructionTableView extends Application {
                             }
                         }
                     });
+
+                    // Add functionality for the new removeButton
+                    removeButton.setOnAction(event -> {
+                        BlockLoopInstructionLoadDTO data =
+                                getTableView().getItems().get(getIndex());
+                        System.out.println("Remove button clicked for: " + data.getName());
+
+                        // Remove the item from the table and update the data
+                        getTableView().getItems().remove(data);
+                        updateInstructionOrderNumbers(getTableView().getItems());
+                        syncBlockLoopInstructionsWithBlockDataList();
+                        getTableView().refresh();
+                    });
                 }
 
                 @Override
@@ -150,7 +149,8 @@ public class BlockLoopInstructionTableView extends Application {
                     if (empty) {
                         setGraphic(null);
                     } else {
-                        HBox buttonsBox = new HBox(upButton, downButton, actionButton, editButton);
+                        // Add the new removeButton to the HBox along with the other buttons
+                        HBox buttonsBox = new HBox(upButton, downButton, actionButton, editButton, removeButton);
                         buttonsBox.setSpacing(5);
                         buttonsBox.setAlignment(Pos.CENTER);
                         setGraphic(buttonsBox);
@@ -309,10 +309,10 @@ public class BlockLoopInstructionTableView extends Application {
                 new BlockLoopInstructionLoadDTO(1, 1, "Instruction 1", "Description 1", 1, "Default Block"),
                 new BlockLoopInstructionLoadDTO(2, 1, "Instruction 2", "Description 2", 2, "Block Test 1"),
                 new BlockLoopInstructionLoadDTO(3, 2, "Instruction 3", "Description 3", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(3, 3, "Instruction 4", "Description 4", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(3, 4, "Instruction 5", "Description 5", 2, "Block Test 1"),
-                new BlockLoopInstructionLoadDTO(4, 1, "Instruction 6", "Description 6", 3, "Block Test 2"),
-                new BlockLoopInstructionLoadDTO(5, 2, "Instruction 7", "Description 7", 3, "Block Test 2"));
+                new BlockLoopInstructionLoadDTO(4, 3, "Instruction 4", "Description 4", 2, "Block Test 1"),
+                new BlockLoopInstructionLoadDTO(5, 4, "Instruction 5", "Description 5", 2, "Block Test 1"),
+                new BlockLoopInstructionLoadDTO(6, 1, "Instruction 6", "Description 6", 3, "Block Test 2"),
+                new BlockLoopInstructionLoadDTO(7, 2, "Instruction 7", "Description 7", 3, "Block Test 2"));
     }
 
     public static void main(String[] args) {
