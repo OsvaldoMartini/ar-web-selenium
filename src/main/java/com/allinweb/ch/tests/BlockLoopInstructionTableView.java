@@ -19,6 +19,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.skin.TableViewSkin;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
@@ -249,9 +250,6 @@ public class BlockLoopInstructionTableView extends Application {
                         descriptionColumn,
                         actionColumn);
 
-        // Apply the CSS stylesheet to the TableView
-        tableView.getStylesheets().add(getClass().getResource("/tableView.css").toExternalForm());
-
         // Apply row selection style (Change font to black and bold when row is selected)
         tableView.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -371,6 +369,39 @@ public class BlockLoopInstructionTableView extends Application {
 
         // Create a TableView for the instructions under this block
         TableView<BlockLoopInstructionLoadDTO> tableView = createInstructionTable();
+
+        // Set height or padding for the table header row and make borders invisible
+        tableView.skinProperty().addListener((obs, oldSkin, newSkin) -> {
+            if (newSkin != null) {
+                TableViewSkin<?> skin = (TableViewSkin<?>) tableView.getSkin();
+                skin.getChildren().stream()
+                        .filter(node -> node.getClass().getSimpleName().equals("TableHeaderRow"))
+                        .forEach(node -> {
+                            // Set padding, height, and make borders invisible
+                            node.setStyle("-fx-padding: 0; " + // Remove padding
+                                    "-fx-min-height: 1px; "
+                                    + // Set the minimum height to 3px
+                                    "-fx-max-height: 1px; "
+                                    + // Set the maximum height to 3px
+                                    "-fx-border-width: 0 0 0 0; "
+                                    + // Remove any borders
+                                    "-fx-border-color: transparent; "
+                                    + // Make borders transparent
+                                    "-fx-background-color: #e0f7fa; " /* Light blue background for rows */);
+                        });
+            }
+        });
+
+        // Dynamically adjust the height of the TableView based on the number of rows
+        tableView.itemsProperty().addListener((obs, oldItems, newItems) -> {
+            tableView.setFixedCellSize(30); // Set a fixed height for each row
+            int rowCount = tableView.getItems().size();
+            tableView.setPrefHeight(rowCount * tableView.getFixedCellSize() + 30); // Adding padding for header
+        });
+
+        // Apply the CSS stylesheet to the TableView
+        tableView.getStylesheets().add(getClass().getResource("/tableView.css").toExternalForm());
+
         tableView.setItems(FXCollections.observableArrayList(instructions));
 
         // Add the block header (with label and buttons) and table to the main VBox

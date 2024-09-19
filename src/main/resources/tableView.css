@@ -5,6 +5,7 @@
     -fx-text-fill: black;            /* Set default text color to black */
 }
 
+/* For odd rows */
 .table-row-cell:odd {
     -fx-background-color: #f0fcfc;   /* Slightly different light blue shade for odd rows */
     -fx-border-color: white;         /* White border between rows */
@@ -13,11 +14,9 @@
 }
 
 /* Make the column lines invisible */
-/* Make the borders between columns invisible */
-/* Remove any default border width */
 .table-cell {
-    -fx-border-color: transparent;   
-    -fx-border-width: 0;             
+    -fx-border-color: transparent;   /* Make the borders between columns invisible */
+    -fx-border-width: 0;             /* Remove any default border width */
 }
 
 /* Set the background color to blue when selected */
@@ -28,8 +27,12 @@
 }
 
 /* Set text color to white when the row is selected */
-/*.
-table-row-cell:selected .table-cell {
+.table-row-cell:selected .table-cell {
     -fx-text-fill: white;            
 }
-*/
+
+/* Apply transparent or a different background color for empty rows */
+.table-row-cell:empty {
+    -fx-background-color: transparent; /* Set to transparent or any other color */
+    -fx-border-width: 0;               /* Remove borders for empty rows */
+}
