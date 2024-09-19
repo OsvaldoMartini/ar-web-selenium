@@ -100,8 +100,10 @@ public class BlockLoopInstructionTableView extends Application {
         actionColumn.setCellFactory(param -> {
             final TableCell<BlockLoopInstructionLoadDTO, Void> cell = new TableCell<>() {
 
-                private final Button upButton = new Button("↑");
-                private final Button downButton = new Button("↓");
+                //                private final Button upButton = new Button("↑");
+                //                private final Button downButton = new Button("↓");
+                private final Button upButton = new Button();
+                private final Button downButton = new Button();
                 private final Button actionButton = new Button("Action");
                 private final Button editButton = new Button();
                 private final Button removeButton = new Button(); // New remove button
@@ -120,6 +122,25 @@ public class BlockLoopInstructionTableView extends Application {
                     crossImageView.setFitWidth(16);
                     crossImageView.setFitHeight(16);
                     removeButton.setGraphic(crossImageView);
+
+                    // Load the up and down images
+                    Image upImage = new Image(getClass().getResourceAsStream("/up.png"));
+                    Image downImage = new Image(getClass().getResourceAsStream("/down.png"));
+
+                    // Set images to buttons
+                    ImageView upImageView = new ImageView(upImage);
+                    upImageView.setFitWidth(16); // Adjust width as needed
+                    upImageView.setFitHeight(16); // Adjust height as needed
+                    upButton.setGraphic(upImageView);
+
+                    ImageView downImageView = new ImageView(downImage);
+                    downImageView.setFitWidth(16); // Adjust width as needed
+                    downImageView.setFitHeight(16); // Adjust height as needed
+                    downButton.setGraphic(downImageView);
+
+                    // Optional: Set button styles (transparent background)
+                    upButton.setStyle("-fx-background-color: transparent;");
+                    downButton.setStyle("-fx-background-color: transparent;");
 
                     // Set up button actions
                     upButton.setOnAction(event -> {
@@ -278,23 +299,45 @@ public class BlockLoopInstructionTableView extends Application {
         // Create a Label for the block name
         String blockName = instructions.get(0).getBlockName();
         Label blockLabel = new Label("Block: " + blockName);
-        blockLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        blockLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: white;");
 
         // Create UP and DOWN buttons for the block header
-        Button upButton = new Button("↑");
-        Button downButton = new Button("↓");
+        Button upButton = new Button();
+        Button downButton = new Button();
+
+        // Set images for the buttons
+        Image upImage = new Image(getClass().getResourceAsStream("/up.png"));
+        Image downImage = new Image(getClass().getResourceAsStream("/down.png"));
+
+        ImageView upImageView = new ImageView(upImage);
+        ImageView downImageView = new ImageView(downImage);
+
+        // Set the image size (optional)
+        upImageView.setFitWidth(16); // Adjust the width as needed
+        upImageView.setFitHeight(16); // Adjust the height as needed
+        downImageView.setFitWidth(16); // Adjust the width as needed
+        downImageView.setFitHeight(16); // Adjust the height as needed
+
+        // Set the ImageView to the buttons
+        upButton.setGraphic(upImageView);
+        downButton.setGraphic(downImageView);
+
+        // Optional: Set button styles (transparent background)
+        upButton.setStyle("-fx-background-color: transparent;");
+        downButton.setStyle("-fx-background-color: transparent;");
 
         // Create an HBox to place label and buttons
-        HBox blockHeader = new HBox(10);
+        HBox blockHeader = new HBox(5); // Reduced spacing between elements
         blockHeader.setAlignment(Pos.CENTER_LEFT);
-        blockHeader.setStyle("-fx-padding: 0px;");
+        // Set header style (Light blue background, white text)
+        blockHeader.setStyle("-fx-background-color: #1e90ff; -fx-padding: 5px 10px;"); // Reduced padding
 
-        HBox buttonBox = new HBox(5);
+        HBox buttonBox = new HBox(3); // Reduced spacing between buttons
         buttonBox.setAlignment(Pos.CENTER_RIGHT);
         buttonBox.getChildren().addAll(upButton, downButton);
 
         blockHeader.getChildren().addAll(blockLabel, buttonBox);
-        blockHeader.setSpacing(20);
+        blockHeader.setSpacing(10); // Reduced spacing between the label and buttons
         HBox.setHgrow(buttonBox, javafx.scene.layout.Priority.ALWAYS);
 
         // Create a TableView for the instructions under this block
