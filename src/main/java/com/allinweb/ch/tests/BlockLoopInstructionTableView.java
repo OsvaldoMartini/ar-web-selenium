@@ -251,7 +251,7 @@ public class BlockLoopInstructionTableView extends Application {
             Collections.swap(blockDataList, currentIndex, newIndex);
 
             // After swapping blocks, update the instructionOrderNumber sequentially for all blocks
-            updateInstructionOrderNumbersForAllBlocks();
+            //            updateInstructionOrderNumbersForAllBlocks();
 
             // Synchronize blockLoopInstructions with blockDataList
             syncBlockLoopInstructionsWithBlockDataList();
