@@ -28,6 +28,7 @@ public class BlockLoopInstructionTableView extends Application {
 
     private VBox mainVBox; // Main VBox layout to hold the blocks
     private ObservableList<List<BlockLoopInstructionLoadDTO>> blockDataList; // List of block data
+    private ObservableList<BlockLoopInstructionLoadDTO> blockLoopInstructions;
 
     private TableView<BlockLoopInstructionLoadDTO> createInstructionTable() {
         TableView<BlockLoopInstructionLoadDTO> tableView = new TableView<>();
@@ -68,18 +69,26 @@ public class BlockLoopInstructionTableView extends Application {
                     editImageView.setFitHeight(16);
                     editButton.setGraphic(editImageView);
 
-                    // Define actions for each button
+                    // Inside the TableCell for actionColumn
                     upButton.setOnAction(event -> {
                         TableView<BlockLoopInstructionLoadDTO> table = getTableView();
                         ObservableList<BlockLoopInstructionLoadDTO> currentItems = table.getItems();
                         int currentIndex = getIndex();
 
                         if (currentIndex > 0) {
-                            // Swap the current item with the one above
+                            // Swap the current item with the one above in the TableView
                             Collections.swap(currentItems, currentIndex, currentIndex - 1);
 
-                            // Update instructionOrderNumbers
+                            // Update the original blockLoopInstructions list to reflect the change
+                            BlockLoopInstructionLoadDTO movedItem =
+                                    currentItems.get(currentIndex - 1); // The moved item is now at currentIndex - 1
+                            updateBlockLoopInstructions(movedItem, currentItems);
+
+                            // Update instructionOrderNumbers for the block
                             updateInstructionOrderNumbers(currentItems);
+
+                            // Synchronize blockLoopInstructions with blockDataList
+                            syncBlockLoopInstructionsWithBlockDataList();
 
                             // Refresh the table view to show the updated order
                             table.refresh();
@@ -92,11 +101,19 @@ public class BlockLoopInstructionTableView extends Application {
                         int currentIndex = getIndex();
 
                         if (currentIndex < currentItems.size() - 1) {
-                            // Swap the current item with the one below
+                            // Swap the current item with the one below in the TableView
                             Collections.swap(currentItems, currentIndex, currentIndex + 1);
 
-                            // Update instructionOrderNumbers
+                            // Update the original blockLoopInstructions list to reflect the change
+                            BlockLoopInstructionLoadDTO movedItem =
+                                    currentItems.get(currentIndex + 1); // The moved item is now at currentIndex + 1
+                            updateBlockLoopInstructions(movedItem, currentItems);
+
+                            // Update instructionOrderNumbers for the block
                             updateInstructionOrderNumbers(currentItems);
+
+                            // Synchronize blockLoopInstructions with blockDataList
+                            syncBlockLoopInstructionsWithBlockDataList();
 
                             // Refresh the table view to show the updated order
                             table.refresh();
@@ -152,7 +169,7 @@ public class BlockLoopInstructionTableView extends Application {
     @Override
     public void start(Stage primaryStage) {
         // Sample data
-        ObservableList<BlockLoopInstructionLoadDTO> blockLoopInstructions = getBlockLoopInstructions();
+        blockLoopInstructions = FXCollections.observableArrayList(getBlockLoopInstructions());
 
         // Group the instructions by blockId
         Map<Integer, List<BlockLoopInstructionLoadDTO>> groupedByBlock =
@@ -236,6 +253,9 @@ public class BlockLoopInstructionTableView extends Application {
             // After swapping blocks, update the instructionOrderNumber sequentially for all blocks
             updateInstructionOrderNumbersForAllBlocks();
 
+            // Synchronize blockLoopInstructions with blockDataList
+            syncBlockLoopInstructionsWithBlockDataList();
+
             // Clear the mainVBox and re-add all blocks to update their order
             mainVBox.getChildren().clear();
             for (int i = 0; i < blockDataList.size(); i++) {
@@ -259,6 +279,27 @@ public class BlockLoopInstructionTableView extends Application {
         int orderNumber = 1;
         for (BlockLoopInstructionLoadDTO instruction : instructions) {
             instruction.setInstructionOrderNumber(orderNumber++);
+        }
+    }
+
+    // Method to update the blockLoopInstructions list in real-time
+    private void updateBlockLoopInstructions(
+            BlockLoopInstructionLoadDTO movedItem, ObservableList<BlockLoopInstructionLoadDTO> updatedBlock) {
+        // Remove all instructions from blockLoopInstructions that belong to the same blockId as movedItem
+        blockLoopInstructions.removeIf(instruction -> instruction.getBlockId() == movedItem.getBlockId());
+
+        // Add the updated block instructions back to blockLoopInstructions
+        blockLoopInstructions.addAll(updatedBlock);
+    }
+
+    // Method to synchronize blockDataList with blockLoopInstructions based on blockId
+    private void syncBlockLoopInstructionsWithBlockDataList() {
+        // Clear the blockLoopInstructions list
+        blockLoopInstructions.clear();
+
+        // Iterate through blockDataList and add the updated instructions back to blockLoopInstructions
+        for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
+            blockLoopInstructions.addAll(block); // Add all instructions from the current block to blockLoopInstructions
         }
     }
 
