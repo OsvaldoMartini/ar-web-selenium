@@ -206,11 +206,23 @@ public class BlockLoopInstructionTableView extends Application {
                         blockLoopInstructions.remove(data);
 
                         // Find the corresponding block in blockDataList and remove the item from that block
+                        List<BlockLoopInstructionLoadDTO> blockToRemove = null;
                         for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
                             if (block.remove(data)) {
-                                // If the item was found and removed, break out of the loop
-                                break;
+                                // If the item was found and removed, check if the block is now empty
+                                if (block.isEmpty()) {
+                                    blockToRemove = block; // Store the empty block for removal later
+                                }
+                                break; // Stop the loop once the item is found and removed
                             }
+                        }
+
+                        // If a block became empty, remove it from blockDataList
+                        if (blockToRemove != null) {
+                            blockDataList.remove(blockToRemove);
+
+                            // Call a method to refresh or re-render the blocks after removal
+                            refreshBlocks(); // or renderBlocks() if that's the method to use
                         }
 
                         // Update the instructionOrderNumbers for the remaining items
@@ -438,6 +450,28 @@ public class BlockLoopInstructionTableView extends Application {
         });
     }
 
+    // Method to refresh or re-render the blocks in the VBox
+    private void refreshBlocks() {
+        // Clear the existing blocks in the main VBox
+        // Clear the mainVBox and re-add all blocks to update their order
+        mainVBox.getChildren().clear();
+
+        // Loop through the blocks and re-add them to the VBox
+        for (int i = 0; i < blockDataList.size(); i++) {
+            // Get the instructions for the current block
+            List<BlockLoopInstructionLoadDTO> instructions = blockDataList.get(i);
+
+            // Sort the instructions by instructionOrderNumber in ascending order
+            instructions.sort(Comparator.comparingInt(BlockLoopInstructionLoadDTO::getInstructionOrderNumber));
+
+            // Add the block with sorted instructions to the VBox
+            addBlockToVBox(i);
+        }
+
+        // Trigger layout update to reflect changes
+        mainVBox.layout();
+    }
+
     // Method to move blocks up and down in the VBox and update data list
     private void moveBlock(int currentIndex, int newIndex) {
         if (newIndex >= 0 && newIndex < blockDataList.size()) {
@@ -447,20 +481,7 @@ public class BlockLoopInstructionTableView extends Application {
             // Synchronize blockLoopInstructions with blockDataList
             syncBlockLoopInstructionsWithBlockDataList();
 
-            // Clear the mainVBox and re-add all blocks to update their order
-            mainVBox.getChildren().clear();
-
-            // Loop through the blocks and re-add them to the VBox
-            for (int i = 0; i < blockDataList.size(); i++) {
-                // Get the instructions for the current block
-                List<BlockLoopInstructionLoadDTO> instructions = blockDataList.get(i);
-
-                // Sort the instructions by instructionOrderNumber in ascending order
-                instructions.sort(Comparator.comparingInt(BlockLoopInstructionLoadDTO::getInstructionOrderNumber));
-
-                // Add the block with sorted instructions to the VBox
-                addBlockToVBox(i);
-            }
+            refreshBlocks();
         }
     }
 
