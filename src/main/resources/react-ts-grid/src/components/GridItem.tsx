@@ -32,8 +32,8 @@ const GridItem: React.FC<GridItemProps> = ({ data }) => {
     <div className="grid-container">
       {Object.entries(groupedData).sort(([aId], [bId]) => parseInt(aId) - parseInt(bId)).map(([blockId, blockData]) => (
         <div key={blockId} className="block">
-          <h3>{blockData.blockName}</h3>
-          <div className="instructions-row">
+          <h3 className="block-title">{blockData.blockName}</h3>
+          <div className="instructions-list">
             {blockData.instructions.map((instruction) => (
               <div key={instruction.id} className="instruction-item">
                 <p>
