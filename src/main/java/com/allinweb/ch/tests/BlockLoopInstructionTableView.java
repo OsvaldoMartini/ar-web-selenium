@@ -509,7 +509,6 @@ public class BlockLoopInstructionTableView extends Application {
         }
     }
 
-
     // Method to sort the table by instructionOrderNumber in ascending order
     private void sortTableByOrderNumber(TableView<BlockLoopInstructionLoadDTO> tableView) {
         ObservableList<BlockLoopInstructionLoadDTO> items = tableView.getItems();
@@ -548,8 +547,7 @@ public class BlockLoopInstructionTableView extends Application {
         tableView.setPrefHeight(rowCount * tableView.getFixedCellSize() + 30); // Adding padding for header
     }
 
-    // Sample data
-    // Sample data with 7 blocks and 5 instructions each
+    // Sample data with 8 blocks and 5 instructions each
     private ObservableList<BlockLoopInstructionLoadDTO> getBlockLoopInstructions() {
         return FXCollections.observableArrayList(
                 // Block 1 (Default Block)

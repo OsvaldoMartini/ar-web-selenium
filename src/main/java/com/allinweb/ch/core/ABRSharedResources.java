@@ -473,7 +473,7 @@ public class ABRSharedResources {
         }
     }
 
-    private Connection getConnection() {
+    public Connection getConnection() {
         if (!POSTGRES_DB) {
             if (conn == null) {
                 String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);

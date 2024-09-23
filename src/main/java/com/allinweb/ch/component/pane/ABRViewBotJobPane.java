@@ -637,31 +637,31 @@ public class ABRViewBotJobPane extends ABRPane {
         }
     }
 
-    private Connection getConnection() {
-        if (!POSTGRES_DB) {
-            if (conn == null) {
-                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                try {
-                    conn = DriverManager.getConnection(dbUrl);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
-        } else {
-
-            if (conn == null) {
-                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                try {
-                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
-        }
-    }
+    //    private Connection getConnection() {
+    //        if (!POSTGRES_DB) {
+    //            if (conn == null) {
+    //                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+    //                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+    //                try {
+    //                    conn = DriverManager.getConnection(dbUrl);
+    //                } catch (SQLException e) {
+    //                    e.printStackTrace();
+    //                }
+    //            }
+    //            return conn;
+    //        } else {
+    //
+    //            if (conn == null) {
+    //                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+    //                try {
+    //                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+    //                } catch (SQLException e) {
+    //                    e.printStackTrace();
+    //                }
+    //            }
+    //            return conn;
+    //        }
+    //    }
 
     private void loadJobVariables() {
         variablesList.clear();
@@ -671,7 +671,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 + " where bot_job_id = " + this.botJob.getId()
                 //                                + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 int id = rs.getInt("ID");
@@ -703,7 +703,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 + "   and operation is null  "
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number ASC;";
 
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 int id = rs.getInt("block_loop_instruction_id");

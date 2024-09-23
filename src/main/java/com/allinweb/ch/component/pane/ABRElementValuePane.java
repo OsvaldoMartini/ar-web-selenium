@@ -401,31 +401,31 @@ public class ABRElementValuePane extends ABRPane {
         }
     }
 
-    private Connection getConnection() {
-        if (!POSTGRES_DB) {
-            if (conn == null) {
-                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                try {
-                    conn = DriverManager.getConnection(dbUrl);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
-        } else {
-
-            if (conn == null) {
-                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                try {
-                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
-        }
-    }
+    //    private Connection getConnection() {
+    //        if (!POSTGRES_DB) {
+    //            if (conn == null) {
+    //                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+    //                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+    //                try {
+    //                    conn = DriverManager.getConnection(dbUrl);
+    //                } catch (SQLException e) {
+    //                    e.printStackTrace();
+    //                }
+    //            }
+    //            return conn;
+    //        } else {
+    //
+    //            if (conn == null) {
+    //                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+    //                try {
+    //                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+    //                } catch (SQLException e) {
+    //                    e.printStackTrace();
+    //                }
+    //            }
+    //            return conn;
+    //        }
+    //    }
 
     private void loadUserData() {
         variablesList.clear();
@@ -435,7 +435,7 @@ public class ABRElementValuePane extends ABRPane {
                 + " where bot_job_id = " + botJobId
                 + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 int id = rs.getInt("ID");
@@ -455,7 +455,7 @@ public class ABRElementValuePane extends ABRPane {
     private Integer loadNexIdData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -480,7 +480,7 @@ public class ABRElementValuePane extends ABRPane {
                         + "'" + user.getValue() + "', "
                         + "'" + user.getBotJobId() + "', "
                         + "'" + user.getInstructionId() + "')";
-        try (Statement stmt = getConnection().createStatement()) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
@@ -494,7 +494,8 @@ public class ABRElementValuePane extends ABRPane {
                     + " type = '" + user.getType() + "', "
                     + " value = '" + user.getValue() + "' "
                     + " WHERE ID = " + userId;
-            try (Statement stmt = getConnection().createStatement()) {
+            try (Statement stmt =
+                    ABRSharedResources.getInstance().getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
                     System.out.println("Data updated successfully.");
@@ -520,7 +521,8 @@ public class ABRElementValuePane extends ABRPane {
         try {
             int variableId = Integer.parseInt(Id);
             String deleteSQL = "DELETE FROM variable WHERE ID = " + variableId;
-            try (Statement stmt = getConnection().createStatement()) {
+            try (Statement stmt =
+                    ABRSharedResources.getInstance().getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(deleteSQL);
                 if (rowsAffected > 0) {
                     System.out.println("Data updated successfully.");
