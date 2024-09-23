@@ -225,6 +225,9 @@ public class BlockLoopInstructionTableView extends Application {
 
                             // Call a method to refresh or re-render the blocks after removal
                             refreshBlocks(); // or renderBlocks() if that's the method to use
+
+                            // Ensure blockOrderNumber starts from 1
+                            updateBlockOrderNumbers();
                         }
 
                         // Update the instructionOrderNumbers for the remaining items
