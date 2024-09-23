@@ -68,10 +68,10 @@ public class ABRConstants {
     public static final String ICON_BIN = "/Bin.png";
     public static final String ICON_SET_VALUE = "/setValue1.png";
     public static final String ICON_GET_VALUE = "/getValue1.png";
-    public static final String ICON_SET_VALUE_BTN = "/setValueBtn.png";
-    public static final String ICON_GET_VALUE_BTN = "/getValueBtn.png";
+    public static final String ICON_SET_VALUE_BTN = "/setValueBtn2.png";
+    public static final String ICON_GET_VALUE_BTN = "/getValueBtn2.png";
     public static final String ICON_VARIABLES = "/variables.png";
-    public static final String ICON_CHECK = "/check2.png";
+    public static final String ICON_CHECK = "/check3.png";
     public static final String ICON_STEP = "/step.png";
     public static final String ICON_PLUS = "/plus4.png";
     public static final String ICON_BLANK = "/blank.png";

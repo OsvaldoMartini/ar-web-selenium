@@ -1,13 +1,13 @@
- package com.allinweb.ch.tests;
+package com.allinweb.ch.tests;
 
- import javafx.application.Application;
- import javafx.scene.Scene;
- import javafx.scene.layout.BorderPane;
- import javafx.scene.web.WebEngine;
- import javafx.scene.web.WebView;
- import javafx.stage.Stage;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
+import javafx.stage.Stage;
 
- public class JavaFXWithReactApp extends Application {
+public class JavaFXWithReactApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
@@ -36,4 +36,4 @@
     public static void main(String[] args) {
         launch(args);
     }
- }
+}
