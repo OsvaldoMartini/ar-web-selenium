@@ -2,6 +2,9 @@ package com.allinweb.ch.tests;
 
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.google.gson.Gson;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -13,10 +16,6 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import netscape.javascript.JSObject;
-
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class JavaFXWithReactApp extends Application {
 
@@ -42,15 +41,14 @@ public class JavaFXWithReactApp extends Application {
         Gson gson = new Gson();
         String jsonData = gson.toJson(blockLoopInstructions);
 
-                webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 // Expose the JSBridge object to the JavaScript context
                 JSObject window = (JSObject) webEngine.executeScript("window");
                 window.setMember("javaBridge", new JSBridge());
-
             }
         });
-        
+
         // Load your React app (ensure your HTML and JS files are correctly loaded)
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
         // Alternatively, you can load from a server URL
@@ -73,8 +71,6 @@ public class JavaFXWithReactApp extends Application {
             }
         });
 
-
-
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 // Expose the JSBridge object to the JavaScript context
@@ -82,15 +78,20 @@ public class JavaFXWithReactApp extends Application {
                 window.setMember("javaBridge", new JSBridge());
 
                 // Schedule a task to interact with JavaScript every 10 seconds
-                executorService.scheduleAtFixedRate(() -> {
-                    Platform.runLater(() -> {
-                        // Your JavaScript interaction here
-                        webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify(" + jsonData + ")) }, 1000)");
-                    });
-                }, 0, 10, TimeUnit.SECONDS);  // Executes immediately and repeats every 10 seconds
+                executorService.scheduleAtFixedRate(
+                        () -> {
+                            Platform.runLater(() -> {
+                                // Your JavaScript interaction here
+                                webEngine.executeScript(
+                                        "setTimeout(function() { window.receiveDataFromJava(JSON.stringify(" + jsonData
+                                                + ")) }, 1000)");
+                            });
+                        },
+                        0,
+                        10,
+                        TimeUnit.SECONDS); // Executes immediately and repeats every 10 seconds
             }
         });
-        
 
         // Create the layout
         BorderPane root = new BorderPane();
@@ -110,7 +111,7 @@ public class JavaFXWithReactApp extends Application {
             // Process the data here
         }
     }
-    
+
     // Sample data with 8 blocks and 5 instructions each
     private ObservableList<BlockLoopInstructionLoadDTO> getBlockLoopInstructions() {
         return FXCollections.observableArrayList(
