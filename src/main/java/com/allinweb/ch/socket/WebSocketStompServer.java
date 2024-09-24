@@ -8,7 +8,7 @@ import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 
 @ServerEndpoint(
-        value = "/websocket2",
+        value = "/websocket",
         subprotocols = {"v12.stomp", "v11.stomp", "v10.stomp"}, // Supported STOMP subprotocols
         configurator = StompConfigurator.class // Use the custom configurator
         )
