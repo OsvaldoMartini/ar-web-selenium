@@ -1,12 +1,11 @@
 package com.allinweb.ch.tests;
 
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.socket.WebSocketStompServer;
 import com.google.gson.Gson;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Worker;
@@ -15,9 +14,13 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import netscape.javascript.JSObject;
+import javax.websocket.server.ServerContainer;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
 public class JavaFXWithReactApp extends Application {
+    private Server jettyServer;
 
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
 
@@ -30,7 +33,6 @@ public class JavaFXWithReactApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-
         blockLoopInstructions = FXCollections.observableArrayList(getBlockLoopInstructions());
 
         // Create the WebView
@@ -41,13 +43,13 @@ public class JavaFXWithReactApp extends Application {
         Gson gson = new Gson();
         String jsonData = gson.toJson(blockLoopInstructions);
 
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            if (newState == Worker.State.SUCCEEDED) {
-                // Expose the JSBridge object to the JavaScript context
-                JSObject window = (JSObject) webEngine.executeScript("window");
-                window.setMember("javaBridge", new JSBridge());
-            }
-        });
+        //        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+        //            if (newState == Worker.State.SUCCEEDED) {
+        //                // Expose the JSBridge object to the JavaScript context
+        //                JSObject window = (JSObject) webEngine.executeScript("window");
+        //                window.setMember("javaBridge", new JSBridge());
+        //            }
+        //        });
 
         // Load your React app (ensure your HTML and JS files are correctly loaded)
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
@@ -71,27 +73,28 @@ public class JavaFXWithReactApp extends Application {
             }
         });
 
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            if (newState == Worker.State.SUCCEEDED) {
-                // Expose the JSBridge object to the JavaScript context
-                JSObject window = (JSObject) webEngine.executeScript("window");
-                window.setMember("javaBridge", new JSBridge());
-
-                // Schedule a task to interact with JavaScript every 10 seconds
-                executorService.scheduleAtFixedRate(
-                        () -> {
-                            Platform.runLater(() -> {
-                                // Your JavaScript interaction here
-                                webEngine.executeScript(
-                                        "setTimeout(function() { window.receiveDataFromJava(JSON.stringify(" + jsonData
-                                                + ")) }, 1000)");
-                            });
-                        },
-                        0,
-                        10,
-                        TimeUnit.SECONDS); // Executes immediately and repeats every 10 seconds
-            }
-        });
+        //        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+        //            if (newState == Worker.State.SUCCEEDED) {
+        //                // Expose the JSBridge object to the JavaScript context
+        //                JSObject window = (JSObject) webEngine.executeScript("window");
+        //                window.setMember("javaBridge", new JSBridge());
+        //
+        //                // Schedule a task to interact with JavaScript every 10 seconds
+        //                executorService.scheduleAtFixedRate(
+        //                        () -> {
+        //                            Platform.runLater(() -> {
+        //                                // Your JavaScript interaction here
+        //                                webEngine.executeScript(
+        //                                        "setTimeout(function() { window.receiveDataFromJava(JSON.stringify(" +
+        // jsonData
+        //                                                + ")) }, 1000)");
+        //                            });
+        //                        },
+        //                        0,
+        //                        10,
+        //                        TimeUnit.SECONDS); // Executes immediately and repeats every 10 seconds
+        //            }
+        //        });
 
         // Create the layout
         BorderPane root = new BorderPane();
@@ -103,6 +106,43 @@ public class JavaFXWithReactApp extends Application {
         primaryStage.setTitle("JavaFX with React");
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        // Start WebSocket server in a background thread
+        new Thread(() -> {
+                    try {
+                        startWebSocketServer();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                })
+                .start();
+    }
+
+    public void startWebSocketServer() throws Exception {
+        // Set up Jetty server to run WebSocket endpoint
+        jettyServer = new Server(8080); // Server listens on port 8080
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/");
+        jettyServer.setHandler(context);
+
+        // Initialize WebSocket container
+        ServerContainer wsContainer = WebSocketServerContainerInitializer.configureContext(context);
+        //        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register WebSocket endpoint
+        wsContainer.addEndpoint(WebSocketStompServer.class);
+
+        // Start Jetty server
+        jettyServer.start();
+        System.out.println("WebSocket server started at ws://localhost:8080/websocket");
+    }
+
+    @Override
+    public void stop() throws Exception {
+        // Stop the Jetty server when JavaFX application stops
+        if (jettyServer != null && jettyServer.isRunning()) {
+            jettyServer.stop();
+            jettyServer.join();
+        }
+        super.stop();
     }
 
     public class JSBridge {
