@@ -1,7 +1,9 @@
 package com.allinweb.ch.socket;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import javax.websocket.OnClose;
+import javax.websocket.OnError;
 import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
@@ -28,6 +30,23 @@ public class WebSocketStompServer {
             StompFrame frame = StompParser.parse(message);
             // Handle the STOMP frame (e.g., CONNECT, SEND, SUBSCRIBE)
             stompHandler.handleFrame(frame, session);
+            session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        // Log the error and attempt to handle it (e.g., reconnect or clean up resources)
+        System.err.println("WebSocket error: " + throwable.getMessage());
+        throwable.printStackTrace();
+
+        // Attempt to reconnect or clean up session
+        try {
+            if (session.isOpen()) {
+                session.close();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }

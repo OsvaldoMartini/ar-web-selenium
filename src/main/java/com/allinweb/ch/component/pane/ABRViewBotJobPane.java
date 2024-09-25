@@ -773,6 +773,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Initialize WebSocket container
         ServerContainer wsContainer = WebSocketServerContainerInitializer.configureContext(context);
+        wsContainer.setDefaultMaxSessionIdleTimeout(600000);
         //        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register WebSocket endpoint
         wsContainer.addEndpoint(WebSocketStompServer.class);
 
