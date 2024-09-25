@@ -5,6 +5,7 @@ import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.BlockListCell;
 import com.allinweb.ch.component.listCell.ComponentListCell;
+import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ABRComponentBuilder;
@@ -15,6 +16,7 @@ import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.persistence.VariableUserDTO;
+import com.allinweb.ch.socket.WebSocketStompServer;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -33,6 +35,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+
+import com.google.gson.Gson;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -40,6 +45,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
+import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -53,8 +59,15 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
+
+import javax.websocket.server.ServerContainer;
 
 public class ABRViewBotJobPane extends ABRPane {
 
@@ -110,6 +123,9 @@ public class ABRViewBotJobPane extends ABRPane {
     private Timeline timeline;
     private ExecutorService executorService;
     private Alert alertToShow;
+    private Server jettyServer;
+    private WebView webView = new WebView();
+    private WebEngine webEngine;
 
     public ABRViewBotJobPane(BotJobDTO botJob) {
         this.botJob = botJob;
@@ -123,6 +139,16 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIComponents() {
+        // Start WebSocket server in a background thread
+        new Thread(() -> {
+            try {
+                startWebSocketServer();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        })
+                .start();
+
         // Create a label to display the countdown
         Label countdownLabel = new Label(String.valueOf(remainingSeconds));
         countdownLabel.setStyle("-fx-font-size: 24px;");
@@ -251,17 +277,37 @@ public class ABRViewBotJobPane extends ABRPane {
 
         this.blockDTOObservableList = FXCollections.observableArrayList(ABRSharedResources.getInstance()
                 .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId()));
+       
+        List<BlockLoopInstructionLoadDTO> blockLoopInstructions = blockDTOObservableList.stream()
+                .flatMap(blockDTO -> blockDTO.getBlockLoopInstructionDTOS().stream()
+                        .map(blockLoopInstructionDTO -> new BlockLoopInstructionLoadDTO(
+                                blockLoopInstructionDTO.getId(),
+                                blockLoopInstructionDTO.getInstructionOrderNumber(),
+                                blockLoopInstructionDTO.getName(),
+                                blockLoopInstructionDTO.getDescription(),
+                                blockDTO.getId(),
+                                blockDTO.getBlockOrderNumber(),
+                                blockDTO.getName(),
+                                blockLoopInstructionDTO.getActions()
+                        ))
+                )
+                .collect(Collectors.toList());
 
-        this.uiBlockList = new ListView<>(blockDTOObservableList);
+        webEngine = webView.getEngine();
+        webEngine.javaScriptEnabledProperty().set(true);
+        buildWebView(blockLoopInstructions);
 
-        this.uiBlockList.setCellFactory(new ABRCellFactory<>(BlockListCell.class)::call);
-        this.uiBlockList.setMaxHeight(Double.MAX_VALUE);
-        this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
-        this.uiBlockList.setPrefHeight(900.0D);
-        this.uiBlockList.setBorder(null);
 
-        HBox compBox = new HBox(new Node[] {this.uiBlockList, this.componentContainer});
-        HBox.setHgrow(this.uiBlockList, Priority.ALWAYS);
+//        this.uiBlockList = new ListView<>(blockDTOObservableList);
+//
+//        this.uiBlockList.setCellFactory(new ABRCellFactory<>(BlockListCell.class)::call);
+//        this.uiBlockList.setMaxHeight(Double.MAX_VALUE);
+//        this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
+//        this.uiBlockList.setPrefHeight(900.0D);
+//        this.uiBlockList.setBorder(null);
+
+        HBox compBox = new HBox(new Node[] {this.webView, this.componentContainer});
+        HBox.setHgrow(this.webView, Priority.ALWAYS);
         HBox.setHgrow(this.componentContainer, Priority.ALWAYS);
         this.botJobContainer = new VBox(new Node[] {leftGridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
         AnchorPane.setTopAnchor(this.botJobContainer, ABRConstants.SPACE_M);
@@ -271,6 +317,26 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Add the stylesheet to the scene
         //        mainGridPane.getStylesheets().add(css);
+        
+    }
+
+    private void buildWebView( List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
+        Gson gson = new Gson();
+        String jsonData = gson.toJson(blockLoopInstructions);
+
+        webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
+
+        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (newState == Worker.State.SUCCEEDED) {
+                // After the page has successfully loaded
+                try {
+                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
+                            + jsonData + ")) }, 1000)");
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
     }
 
     public void initUIBehaviour() {
@@ -637,32 +703,6 @@ public class ABRViewBotJobPane extends ABRPane {
         }
     }
 
-    //    private Connection getConnection() {
-    //        if (!POSTGRES_DB) {
-    //            if (conn == null) {
-    //                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-    //                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-    //                try {
-    //                    conn = DriverManager.getConnection(dbUrl);
-    //                } catch (SQLException e) {
-    //                    e.printStackTrace();
-    //                }
-    //            }
-    //            return conn;
-    //        } else {
-    //
-    //            if (conn == null) {
-    //                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-    //                try {
-    //                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
-    //                } catch (SQLException e) {
-    //                    e.printStackTrace();
-    //                }
-    //            }
-    //            return conn;
-    //        }
-    //    }
-
     private void loadJobVariables() {
         variablesList.clear();
         String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
@@ -722,5 +762,22 @@ public class ABRViewBotJobPane extends ABRPane {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    public void startWebSocketServer() throws Exception {
+        // Set up Jetty server to run WebSocket endpoint
+        jettyServer = new Server(8080); // Server listens on port 8080
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/");
+        jettyServer.setHandler(context);
+
+        // Initialize WebSocket container
+        ServerContainer wsContainer = WebSocketServerContainerInitializer.configureContext(context);
+        //        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register WebSocket endpoint
+        wsContainer.addEndpoint(WebSocketStompServer.class);
+
+        // Start Jetty server
+        jettyServer.start();
+        System.out.println("WebSocket server started at ws://localhost:8080/websocket");
     }
 }
