@@ -49,9 +49,9 @@ public class BlockLoopInstructionTableView extends Application {
         instructionOrderColumn.setCellValueFactory(new PropertyValueFactory<>("instructionOrderNumber"));
 
         // Create a new column to show the image based on the "actions" data field
-        TableColumn<BlockLoopInstructionLoadDTO, String> actionTypeColumn = new TableColumn<>("Instruction Type");
+        TableColumn<BlockLoopInstructionLoadDTO, String> actionTypeColumn = new TableColumn<>("Action");
         actionTypeColumn.setCellValueFactory(
-                new PropertyValueFactory<>("instructionType")); // Assuming "actions" is the property in the DTO
+                new PropertyValueFactory<>("actions")); // Assuming "actions" is the property in the DTO
 
         // Use custom TableCell for showing images based on actions
         actionTypeColumn.setCellFactory(param -> new TableCell<>() {
@@ -552,13 +552,13 @@ public class BlockLoopInstructionTableView extends Application {
         return FXCollections.observableArrayList(
                 // Block 1 (Default Block)
                 new BlockLoopInstructionLoadDTO(
-                        1, 1, "Instruction 1", "Description 1", 1, 1, "Default Block", "click"),
+                        1, 1, "SetValue", "Description 1", 1, 1, "Default Block", "SET"),
 
                 // Block 2
                 new BlockLoopInstructionLoadDTO(
-                        2, 4, "Instruction 2", "Description 2", 2, 2, "Block Test 2", "click"),
+                        2, 4, "GetValue", "Description 2", 2, 2, "Block Test 2", "GET"),
                 new BlockLoopInstructionLoadDTO(
-                        3, 3, "Instruction 3", "Description 3", 2, 2, "Block Test 2", "click"),
+                        3, 3, "Check", "Description 3", 2, 2, "Block Test 2", "CK"),
                 new BlockLoopInstructionLoadDTO(
                         4, 2, "Instruction 4", "Description 4", 2, 2, "Block Test 2", "click"),
                 new BlockLoopInstructionLoadDTO(
@@ -566,15 +566,15 @@ public class BlockLoopInstructionTableView extends Application {
 
                 // Block 3
                 new BlockLoopInstructionLoadDTO(
-                        6, 2, "Instruction 6", "Description 6", 3, 3, "Block Test 3", "click"),
+                        6, 2, "SetValue", "Description 6", 3, 3, "Block Test 3", "SET"),
                 new BlockLoopInstructionLoadDTO(
-                        7, 1, "Instruction 7", "Description 7", 3, 3, "Block Test 3", "click"),
+                        7, 1, "GetValue", "Description 7", 3, 3, "Block Test 3", "GET"),
 
                 // Block 4
                 new BlockLoopInstructionLoadDTO(
                         8, 1, "Instruction 8", "Description 8", 4, 4, "Block Test 4", "click"),
                 new BlockLoopInstructionLoadDTO(
-                        9, 2, "Instruction 9", "Description 9", 4, 4, "Block Test 4", "click"),
+                        9, 2, "Check", "Description 9", 4, 4, "Block Test 4", "CK"),
                 new BlockLoopInstructionLoadDTO(
                         10, 3, "Instruction 10", "Description 10", 4, 4, "Block Test 4", "click"),
                 new BlockLoopInstructionLoadDTO(
