@@ -25,7 +25,6 @@ public class BlockLoopInstructionLoadDTO {
     private int blockId;
     private int blockOrderNumber;
     private String blockName;
-    private String instructionType;
     private boolean editMode = false; // Add an editMode flag
 
     // Getters and setters for 'editMode'
@@ -48,8 +47,7 @@ public class BlockLoopInstructionLoadDTO {
             int blockId,
             int blockOrderNumber,
             String blockName,
-            String actions,
-            String instructionType) {
+            String actions) {
         this.id = id;
         this.instructionOrderNumber = instructionOrderNumber;
         this.name = name;
@@ -58,7 +56,6 @@ public class BlockLoopInstructionLoadDTO {
         this.blockOrderNumber = blockOrderNumber;
         this.blockName = blockName;
         this.actions = actions;
-        this.instructionType = instructionType;
     }
 
     public String getDefaultValue() {
