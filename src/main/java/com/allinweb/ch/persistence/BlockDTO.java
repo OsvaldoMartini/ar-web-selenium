@@ -141,4 +141,13 @@ public class BlockDTO extends BaseDTO {
 
         return blockLoopInstructionDTOs;
     }
+
+
+    public List<BlockLoopInstructionDTO> getBlockLoopInstructionDTOS() {
+        return blockLoopInstructionDTOS;
+    }
+
+    public void setBlockLoopInstructionDTOS(List<BlockLoopInstructionDTO> blockLoopInstructionDTOS) {
+        this.blockLoopInstructionDTOS = blockLoopInstructionDTOS;
+    }
 }
