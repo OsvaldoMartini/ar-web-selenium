@@ -576,4 +576,11 @@ public class ABRSharedResources {
         }
         return null;
     }
+
+    public Session getSession() {
+        if (session == null || !session.isOpen()) {
+            session = sessionFactory.openSession();
+        }
+        return session;
+    }
 }

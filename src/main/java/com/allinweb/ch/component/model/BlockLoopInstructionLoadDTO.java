@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class BlockLoopInstructionLoadDTO {
     private int id;
+    private int botJobId;
     private int instructionOrderNumber;
     private String actions;
     private String name;
@@ -40,6 +41,7 @@ public class BlockLoopInstructionLoadDTO {
 
     // Constructor
     public BlockLoopInstructionLoadDTO(
+            int botJobId,
             int id,
             int instructionOrderNumber,
             String name,
@@ -48,6 +50,7 @@ public class BlockLoopInstructionLoadDTO {
             int blockOrderNumber,
             String blockName,
             String actions) {
+        this.botJobId = botJobId;
         this.id = id;
         this.instructionOrderNumber = instructionOrderNumber;
         this.name = name;
@@ -56,6 +59,14 @@ public class BlockLoopInstructionLoadDTO {
         this.blockOrderNumber = blockOrderNumber;
         this.blockName = blockName;
         this.actions = actions;
+    }
+
+    public int getBotJobId() {
+        return botJobId;
+    }
+
+    public void setBotJobId(int botJobId) {
+        this.botJobId = botJobId;
     }
 
     public String getDefaultValue() {

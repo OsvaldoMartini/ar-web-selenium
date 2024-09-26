@@ -1,17 +1,17 @@
-//package com.allinweb.ch.socket;
+// package com.allinweb.ch.socket;
 //
-//import java.io.IOException;
-//import java.util.Collections;
-//import java.util.HashSet;
-//import java.util.Set;
-//import javax.websocket.OnClose;
-//import javax.websocket.OnMessage;
-//import javax.websocket.OnOpen;
-//import javax.websocket.Session;
-//import javax.websocket.server.ServerEndpoint;
+// import java.io.IOException;
+// import java.util.Collections;
+// import java.util.HashSet;
+// import java.util.Set;
+// import javax.websocket.OnClose;
+// import javax.websocket.OnMessage;
+// import javax.websocket.OnOpen;
+// import javax.websocket.Session;
+// import javax.websocket.server.ServerEndpoint;
 //
-//@ServerEndpoint("/websocket2")
-//public class SimpleWebSocketServer {
+// @ServerEndpoint("/websocket2")
+// public class SimpleWebSocketServer {
 //
 //    private static Set<Session> clients = Collections.synchronizedSet(new HashSet<>());
 //
@@ -38,4 +38,4 @@
 //        clients.remove(session);
 //        System.out.println("Client disconnected: " + session.getId());
 //    }
-//}
+// }

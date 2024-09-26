@@ -452,7 +452,7 @@ public class ABRElementValuePane extends ABRPane {
         //        loadBotJobData();
     }
 
-    private Integer loadNexIdData() {
+    private Integer loadNextIdData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
@@ -468,7 +468,7 @@ public class ABRElementValuePane extends ABRPane {
 
     private void saveUserData(VariableUserDTO user) {
         // Generate a Unique-ID
-        Integer hashCode = loadNexIdData() + 1;
+        Integer hashCode = loadNextIdData() + 1;
         //        AlterSeq(hashCode);
         //        Integer hashCode = generateID();
 

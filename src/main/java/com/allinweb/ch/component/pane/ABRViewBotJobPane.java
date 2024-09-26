@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
-import com.allinweb.ch.component.listCell.BlockListCell;
 import com.allinweb.ch.component.listCell.ComponentListCell;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
@@ -23,8 +22,10 @@ import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ExcelWriter;
+import com.google.gson.Gson;
 import java.io.File;
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -36,8 +37,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
-
-import com.google.gson.Gson;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -63,11 +62,10 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javax.websocket.server.ServerContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
-
-import javax.websocket.server.ServerContainer;
 
 public class ABRViewBotJobPane extends ABRPane {
 
@@ -141,12 +139,12 @@ public class ABRViewBotJobPane extends ABRPane {
     public void initUIComponents() {
         // Start WebSocket server in a background thread
         new Thread(() -> {
-            try {
-                startWebSocketServer();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        })
+                    try {
+                        startWebSocketServer();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                })
                 .start();
 
         // Create a label to display the countdown
@@ -277,10 +275,11 @@ public class ABRViewBotJobPane extends ABRPane {
 
         this.blockDTOObservableList = FXCollections.observableArrayList(ABRSharedResources.getInstance()
                 .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId()));
-       
+
         List<BlockLoopInstructionLoadDTO> blockLoopInstructions = blockDTOObservableList.stream()
                 .flatMap(blockDTO -> blockDTO.getBlockLoopInstructionDTOS().stream()
                         .map(blockLoopInstructionDTO -> new BlockLoopInstructionLoadDTO(
+                                botJob.getId(),
                                 blockLoopInstructionDTO.getId(),
                                 blockLoopInstructionDTO.getInstructionOrderNumber(),
                                 blockLoopInstructionDTO.getName(),
@@ -288,23 +287,20 @@ public class ABRViewBotJobPane extends ABRPane {
                                 blockDTO.getId(),
                                 blockDTO.getBlockOrderNumber(),
                                 blockDTO.getName(),
-                                blockLoopInstructionDTO.getActions()
-                        ))
-                )
+                                blockLoopInstructionDTO.getActions())))
                 .collect(Collectors.toList());
 
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
         buildWebView(blockLoopInstructions);
 
-
-//        this.uiBlockList = new ListView<>(blockDTOObservableList);
-//
-//        this.uiBlockList.setCellFactory(new ABRCellFactory<>(BlockListCell.class)::call);
-//        this.uiBlockList.setMaxHeight(Double.MAX_VALUE);
-//        this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
-//        this.uiBlockList.setPrefHeight(900.0D);
-//        this.uiBlockList.setBorder(null);
+        //        this.uiBlockList = new ListView<>(blockDTOObservableList);
+        //
+        //        this.uiBlockList.setCellFactory(new ABRCellFactory<>(BlockListCell.class)::call);
+        //        this.uiBlockList.setMaxHeight(Double.MAX_VALUE);
+        //        this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
+        //        this.uiBlockList.setPrefHeight(900.0D);
+        //        this.uiBlockList.setBorder(null);
 
         HBox compBox = new HBox(new Node[] {this.webView, this.componentContainer});
         HBox.setHgrow(this.webView, Priority.ALWAYS);
@@ -317,10 +313,10 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Add the stylesheet to the scene
         //        mainGridPane.getStylesheets().add(css);
-        
+
     }
 
-    private void buildWebView( List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
+    private void buildWebView(List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
         Gson gson = new Gson();
         String jsonData = gson.toJson(blockLoopInstructions);
 
@@ -343,8 +339,10 @@ public class ABRViewBotJobPane extends ABRPane {
         addWaitButton30.setOnAction(e -> addWaitTask(30));
         addWaitButton15.setOnAction(e -> addWaitTask(15));
         refreshButton.setOnMouseClicked(e -> {
+            stopWebSocketServer();
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
+
             new ABRViewBotJobScene(botJob.getId()).show();
         });
         saveAsBotJobButton.setOnMouseClicked(e -> new ABRSaveBotJobAsScene(botJob.getId()).show());
@@ -480,6 +478,7 @@ public class ABRViewBotJobPane extends ABRPane {
             }
         });
         this.closeBotJobButton.setOnMouseClicked((e) -> {
+            stopWebSocketServer();
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
         });
@@ -765,8 +764,15 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void startWebSocketServer() throws Exception {
+        int port = 8080;
+        // Check if the port is available
+        if (isPortInUse(port)) {
+            System.out.println("Port " + port + " is already in use.");
+            return;
+        }
+
         // Set up Jetty server to run WebSocket endpoint
-        jettyServer = new Server(8080); // Server listens on port 8080
+        jettyServer = new Server(port); // Server listens on port 8080
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         jettyServer.setHandler(context);
@@ -774,11 +780,31 @@ public class ABRViewBotJobPane extends ABRPane {
         // Initialize WebSocket container
         ServerContainer wsContainer = WebSocketServerContainerInitializer.configureContext(context);
         wsContainer.setDefaultMaxSessionIdleTimeout(600000);
-        //        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register WebSocket endpoint
         wsContainer.addEndpoint(WebSocketStompServer.class);
 
         // Start Jetty server
         jettyServer.start();
         System.out.println("WebSocket server started at ws://localhost:8080/websocket");
+    }
+
+    // Method to check if the port is already in use
+    private boolean isPortInUse(int port) {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            return false; // Port is available
+        } catch (IOException e) {
+            return true; // Port is already in use
+        }
+    }
+
+    public void stopWebSocketServer() {
+        if (jettyServer != null && jettyServer.isStarted()) {
+            try {
+                jettyServer.stop();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            jettyServer.destroy();
+            System.out.println("WebSocket server stopped.");
+        }
     }
 }
