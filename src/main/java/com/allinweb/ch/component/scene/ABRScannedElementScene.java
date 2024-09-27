@@ -33,7 +33,7 @@ public class ABRScannedElementScene extends ABRScene {
         return new ABRScannedElementPane(
                 priority,
                 ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId),
-                ABRSharedResources.getInstance().getEntityById(BlockDTO.class, blockId),
+                blockId != null ? ABRSharedResources.getInstance().getEntityById(BlockDTO.class, blockId) : null,
                 abrWebDriver);
     }
 

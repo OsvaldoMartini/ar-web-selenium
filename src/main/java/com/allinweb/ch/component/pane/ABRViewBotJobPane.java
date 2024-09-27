@@ -4,6 +4,7 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.ComponentListCell;
+import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.*;
@@ -13,6 +14,7 @@ import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
+import com.allinweb.ch.persistence.InstructionReferenceDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.socket.WebSocketStompServer;
@@ -62,6 +64,7 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javax.swing.*;
 import javax.websocket.server.ServerContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -369,18 +372,27 @@ public class ABRViewBotJobPane extends ABRPane {
                                 this.botJob.getHomeBanking().getPriority(),
                                 this.botJob.getId(),
                                 this.botJob.getBlocks() != null
+                                                && this.botJob.getBlocks().size() > 0
                                         ? this.botJob.getBlocks().get(0).getId()
-                                        : 0))
+                                        : null))
                         .show();
             } catch (Exception ex) {
-                //                ABRLogger.getInstance(ABRWebDriver.class).severe("ERROR Calling openScannerButton\n" +
-                // ex.getMessage());
-                //                JOptionPane.showMessageDialog(
-                //                        null,
-                //                        "An error has occurred Calling SCAN: \nError:" + ex.getMessage() + " Cause: "
-                // + ex.getCause(),
-                //                        "Error calling in SCAN",
-                //                        JOptionPane.ERROR_MESSAGE);
+                // Retrieve the root cause of the exception
+                Throwable rootCause = ex;
+                while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+                    rootCause = rootCause.getCause();
+                }
+
+                // Log the main exception and the root cause
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .severe("ERROR Calling openScannerButton\n" + ex.getMessage() + "\nRoot cause: " + rootCause);
+
+                // Display a message with both the exception message and the root cause
+                JOptionPane.showMessageDialog(
+                        null,
+                        "An error has occurred Calling SCAN: \nError: " + ex.getMessage() + "\nCause: " + rootCause.getMessage(),
+                        "Error calling in SCAN",
+                        JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -794,6 +806,43 @@ public class ABRViewBotJobPane extends ABRPane {
         } catch (IOException e) {
             return true; // Port is already in use
         }
+    }
+
+    private int saveBlock(BlockDetailsDTO blockDTO) {
+        // Generate a Unique-ID for the block
+        Integer nextId = loadNextIdBlockData() + 1;
+
+        // Build the SQL insert query
+        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
+                + nextId + ", "
+                + blockDTO.getBlockOrderNumber() + ", " // block_order_number
+                + "'" + blockDTO.getBlockName() + " description', " // description
+                + "'" + blockDTO.getBlockName() + "', " // name
+                + 1 + ", " // type_id
+                + blockDTO.getBotJobId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            stmt.executeUpdate(insertSQL);
+            System.out.println("Block data saved successfully.");
+            return nextId;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    private Integer loadNextIdBlockData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public void stopWebSocketServer() {
