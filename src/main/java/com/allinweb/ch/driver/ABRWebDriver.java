@@ -137,6 +137,8 @@ public class ABRWebDriver {
                                 + e.getCause(),
                         "Error in WebDriver Load",
                         JOptionPane.ERROR_MESSAGE);
+
+                throw new UnsupportedOperationException(e.getMessage());
             }
         }
         driver.manage().window().maximize();

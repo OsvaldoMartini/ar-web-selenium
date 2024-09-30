@@ -303,7 +303,7 @@ public class ABRSharedResources {
         }
     }
 
-    private void cacheEntitiesFromDB() {
+    public void cacheEntitiesFromDB() {
 
         getEntityList(HomeBankingDTO.class).clear();
         getEntityList(BotJobDTO.class).clear();

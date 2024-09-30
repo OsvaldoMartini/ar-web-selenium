@@ -590,7 +590,7 @@ public class ABRScannedElementPane extends ABRPane {
         configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
         launchBotJobButton.setOnMouseClicked(e -> {
             //                        loadBotJob(botJob);
-            loadBlockAll(botJob);
+            loadBlockAll(botJob.getId());
             instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
@@ -602,7 +602,7 @@ public class ABRScannedElementPane extends ABRPane {
         });
 
         recallJobButton.setOnMouseClicked(e -> {
-            loadBlockAll(botJob);
+            loadBlockAll(botJob.getId());
             // loadBotJob(botJob);
             recallJob();
         });
@@ -2483,7 +2483,7 @@ public class ABRScannedElementPane extends ABRPane {
                         + "                         left join bot_job bot on bot.home_banking_id = bank.id "
                         + " WHERE bank.id = " + bankId
                         + "                         group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
@@ -2515,7 +2515,7 @@ public class ABRScannedElementPane extends ABRPane {
                         + " join bot_job bot on bot.id = " + botJob.getId()
                         + " join block blk on blk.bot_job_id = bot.id "
                         + " order by blockInstr.id, blockInstr.instruction_order_number, instr.id";
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
 
             List<InstructionReferenceDTO> instructions = new ArrayList<>();
@@ -2586,7 +2586,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        loadBotJobData();
     }
 
-    private void loadBlockAll(BotJobDTO botJob) {
+    private void loadBlockAll(int botJobId) {
         String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
                 + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
                 + " b.description AS block_description, b.type_id, "
@@ -2600,10 +2600,10 @@ public class ABRScannedElementPane extends ABRPane {
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + " LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id "
                 + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
-                + " where bot_job_id = " + botJob.getId()
+                + " where bot_job_id = " + botJobId
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
 
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
             Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
@@ -2613,7 +2613,7 @@ public class ABRScannedElementPane extends ABRPane {
             botLoadJobs.clear();
 
             while (rs.next()) {
-                int botJobId = rs.getInt("bot_job_id");
+                botJobId = rs.getInt("bot_job_id");
                 BotJobLoadDTO botJobDTO = botJobMap.get(botJobId);
 
                 if (botJobDTO == null) {
@@ -2678,32 +2678,6 @@ public class ABRScannedElementPane extends ABRPane {
             }
         } catch (SQLException e) {
             e.printStackTrace();
-        }
-    }
-
-    private Connection getConnection() {
-        if (!POSTGRES_DB) {
-            if (conn == null) {
-                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                try {
-                    conn = DriverManager.getConnection(dbUrl);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
-        } else {
-
-            if (conn == null) {
-                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                try {
-                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
         }
     }
 
