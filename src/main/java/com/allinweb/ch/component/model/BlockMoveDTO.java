@@ -1,8 +1,7 @@
 package com.allinweb.ch.component.model;
 
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class BlockMoveDTO {

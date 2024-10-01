@@ -51,7 +51,8 @@ public class WebSocketStompServer {
     @OnOpen
     public void onOpen(Session session) {
         sessions.add(session);
-        System.out.println("New connection: " + session.getId());
+        ABRLogger.getInstance(ABRWebDriver.class)
+                .info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
     }
 
     @OnMessage
@@ -98,7 +99,6 @@ public class WebSocketStompServer {
                         updateBlockOrderNumber(selectAllBlocks(
                                 blockReorder.getUpdatedBlocks().get(0).getBotJobId()));
                         deleteNullBlocks(blockReorder.getUpdatedBlocks().get(0).getBotJobId());
-
                     }
                     break;
 
@@ -125,7 +125,12 @@ public class WebSocketStompServer {
 
             session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
         } catch (IOException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .warning(String.format("onMessage - IO Error:  %s", e.getMessage()));
+
+        } catch (Exception e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .warning((String.format("onMessage - Error:  %s", e.getMessage())));
         }
     }
 
@@ -139,7 +144,8 @@ public class WebSocketStompServer {
                         session.getBasicRemote().sendText(stompMessage);
                         System.out.println("Sent message to session " + session.getId());
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        ABRLogger.getInstance(ABRWebDriver.class)
+                                .warning((String.format("sendMessageToAll - IO Error:  %s", e.getMessage())));
                     }
                 }
             }
@@ -158,7 +164,7 @@ public class WebSocketStompServer {
                 session.close();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRWebDriver.class).warning(String.format("onError - IO Error:  %s", e.getMessage()));
         }
     }
 
@@ -213,7 +219,9 @@ public class WebSocketStompServer {
 
     // Handle ROW_MOVE message
     private void rowMove(RowMoveDTO rowMoveDTO) {
-  
+
+        updateMoveRowsOrder(rowMoveDTO.getUpdatedRows());
+
         // Add business logic to handle ROW_MOVE
     }
 
@@ -331,7 +339,8 @@ public class WebSocketStompServer {
             sendMessageToAll("Created New Block");
 
         } catch (Exception e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format("createNewBlock - \nError: %s", e.getMessage()));
         }
 
         return -1;
@@ -358,10 +367,11 @@ public class WebSocketStompServer {
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
-            System.out.println("Block data saved successfully.");
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .info(String.format("Block data saved successfully.\n BlockId: %d", nextId));
             return nextId;
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRWebDriver.class).severe(String.format("saveBlock - \nError: %s", e.getMessage()));
             return -1;
         }
     }
@@ -392,6 +402,38 @@ public class WebSocketStompServer {
             ABRLogger.getInstance(ABRWebDriver.class)
                     .severe(String.format(
                             "This '%s' \n cannot be updated.\nError: %s", originalBlockId, e.getMessage()));
+        }
+        return false;
+    }
+
+    private boolean updateMoveRowsOrder(List<InstructionDTO> instructions) {
+        // Build the SQL update statement
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            for (InstructionDTO instruction : instructions) {
+
+                String updateSQL = "UPDATE block_loop_instruction SET  "
+                        + " instruction_order_number = " + instruction.getInstructionOrderNumber()
+                        + " WHERE id = " + instruction.getInstructionId()
+                        + " and block_id = " + instruction.getBlockId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+                if (rowsAffected > 0) {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "UpdateMoveRowsOrder - InstructionId: %s now have order number: %d",
+                                    instruction.getInstructionId(), instruction.getInstructionOrderNumber()));
+                } else {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "UpdateMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: $d",
+                                    instruction.getBlockId(), instruction.getInstructionId()));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "This Order Number for Instructions\n cannot be updated.\nError: %s", e.getMessage()));
         }
         return false;
     }
@@ -617,7 +659,9 @@ public class WebSocketStompServer {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "loadNextIdBlockData - Error selecting Next Id Block. Error: %s", e.getMessage()));
         }
         return null;
     }
