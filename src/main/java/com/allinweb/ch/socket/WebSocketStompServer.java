@@ -10,7 +10,6 @@ import com.allinweb.ch.component.model.DeleteInstructionDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.model.UpdatedBlockDTO;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -95,7 +94,12 @@ public class WebSocketStompServer {
                     break;
                 case "BLOCK_ORDER":
                     BlockOrderDTO blockReorder = gson.fromJson(frame.getBody(), BlockOrderDTO.class);
-                    updateBlockOrderNumber(blockReorder);
+                    if (blockReorder.getUpdatedBlocks().size() > 0) {
+                        updateBlockOrderNumber(selectAllBlocks(
+                                blockReorder.getUpdatedBlocks().get(0).getBotJobId()));
+                        deleteNullBlocks(blockReorder.getUpdatedBlocks().get(0).getBotJobId());
+
+                    }
                     break;
 
                 case "DELETE_INSTRUCTION":
@@ -186,7 +190,7 @@ public class WebSocketStompServer {
     private void splitBlocks(BlockSplitDTO blockSplitDTO) {
         BlockDetailsDTO originalBlock = blockSplitDTO.getDetails().getOriginalBlock();
         BlockDetailsDTO newBlock = blockSplitDTO.getDetails().getNewBlock();
-        List<UpdatedBlockDTO> updatedBlock = blockSplitDTO.getDetails().getUpdatedBlocks();
+        List<BlockOrderDetailDTO> updatedBlock = blockSplitDTO.getDetails().getUpdatedBlocks();
         System.out.println("Original Block ID: " + originalBlock.getBlockId());
         System.out.println("New Block Name: " + newBlock.getBlockName());
         System.out.println("Updated Block: " + updatedBlock.size());
@@ -194,7 +198,7 @@ public class WebSocketStompServer {
         int newBlockId = createNewBlock(newBlock);
         if (updateInstructionsSplitter(newBlock.getInstructions(), (int) originalBlock.getBlockId(), newBlockId)) {
             if (updatedBlock.size() > 0) {
-                updateOtherBlocks(updatedBlock);
+                updateBlockOrderNumber(selectAllBlocks(updatedBlock.get(0).getBotJobId()));
             }
         }
 
@@ -203,66 +207,82 @@ public class WebSocketStompServer {
 
     // Handle BLOCK_MOVE message
     private void moveBlock(BlockMoveDTO blockMoveDTO) {
-        BlockMoveDTO.BlocksDTO blocks = blockMoveDTO.getBlocks();
-        BlockMoveDTO.BlockDTO currentBlock = blocks.getCurrentBlock();
-        BlockMoveDTO.BlockDTO nextBlock = blocks.getNextBlock(); // or use getPreviousBlock() if needed
-
-        System.out.println("Current Block ID: " + currentBlock.getBlockId());
-        if (nextBlock != null) {
-            System.out.println("Next Block ID: " + nextBlock.getBlockId());
-        }
-        // Add business logic to handle BLOCK_MOVE
+        List<BlockOrderDetailDTO> updatedBlocks = blockMoveDTO.getUpdatedBlocks();
+        updateBlockOrderNumber(updatedBlocks);
     }
 
     // Handle ROW_MOVE message
     private void rowMove(RowMoveDTO rowMoveDTO) {
-        RowMoveDTO.RowsDTO rows = rowMoveDTO.getRows();
-        RowMoveDTO.RowDTO currentRow = rows.getCurrentRow();
-        RowMoveDTO.RowDTO nextRow = rows.getNextRow(); // or use getPreviousRow() if needed
-
-        System.out.println("Current Row Instruction ID: " + currentRow.getInstructionId());
-        if (nextRow != null) {
-            System.out.println("Next Row Instruction ID: " + nextRow.getInstructionId());
-        }
+  
         // Add business logic to handle ROW_MOVE
     }
 
-    // Handle DELETE_BLOCK message
-    private void updateBlockOrderNumber(BlockOrderDTO reorderBlockDTO) {
-        // Build the SQL update statement
-        try {
+    private List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
+        List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            try (Statement stmt =
-                    ABRSharedResources.getInstance().getConnection().createStatement()) {
-                for (BlockOrderDetailDTO block : reorderBlockDTO.getBlocks()) {
+            // Select blocks based on botJobId, ordered by block_order_number ASC
+            String selectSQL =
+                    "SELECT id FROM block WHERE bot_job_id = " + botJobId + " ORDER BY block_order_number ASC";
+            ResultSet rs = stmt.executeQuery(selectSQL);
 
-                    String updateSQL = "UPDATE block SET  "
-                            + " block_order_number = " + block.getBlockOrderNumber()
-                            + " WHERE id = " + block.getBlockId();
+            int newOrderNumber = 1;
+            // Iterate through the result set and build BlockOrderDetailDTO list
+            while (rs.next()) {
+                int blockId = rs.getInt("id");
 
-                    int rowsAffected = stmt.executeUpdate(updateSQL);
-                    if (rowsAffected > 0) {
-                        ABRLogger.getInstance(ABRWebDriver.class)
-                                .info(String.format(
-                                        "Block Order Number updated blockId: %s  blockOrderNumber: %s",
-                                        block.getBlockId(), block.getBlockOrderNumber()));
-                    } else {
-                        ABRLogger.getInstance(ABRWebDriver.class)
-                                .warning(String.format(
-                                        "UpdateBlockOrderNumber - No matching record found to update blockId: ",
-                                        block.getBlockId()));
-                    }
-                    sendMessageToAll("deleteBlock");
-                }
-            } catch (SQLException e) {
-                ABRLogger.getInstance(ABRWebDriver.class)
-                        .severe(String.format(
-                                "This '%s' \n cannot be updated.\nError: %s",
-                                reorderBlockDTO.getType(), e.getMessage()));
+                // Create a BlockOrderDetailDTO object with blockId and the new order number
+                BlockOrderDetailDTO blockDetail = BlockOrderDetailDTO.builder()
+                        .blockId(blockId)
+                        .botJobId(botJobId)
+                        .blockOrderNumber(newOrderNumber)
+                        .build();
+
+                // Add the block detail to the list
+                blockOrderDetails.add(blockDetail);
+
+                // Increment the order number for the next block
+                newOrderNumber++;
             }
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid ID format.");
-            ABRLogger.getInstance(ABRWebDriver.class).severe("Invalid ID format.\nCause: " + e.getMessage());
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "Error selecting blocks for botJobId ID %d. Error: %s", botJobId, e.getMessage()));
+        }
+        return blockOrderDetails;
+    }
+
+    // Handle DELETE_BLOCK message
+    private void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
+
+                // Update each block's block_order_number starting from 1
+                String updateSQL = "UPDATE block SET block_order_number = " + blockOrderDetailDTO.getBlockOrderNumber()
+                        + " WHERE id = "
+                        + blockOrderDetailDTO.getBlockId()
+                        + " and bot_job_id = " + blockOrderDetailDTO.getBotJobId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+
+                if (rowsAffected > 0) {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .info(String.format(
+                                    "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
+                                    blockOrderDetailDTO.getBlockId(), blockOrderDetailDTO.getBlockOrderNumber()));
+                } else {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "UpdateBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
+                                    blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
+                }
+            }
+
+            sendMessageToAll("updateBlockOrderNumber");
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
         }
     }
 
@@ -271,8 +291,9 @@ public class WebSocketStompServer {
         if (deleteVariable((int) deleteInstructionDTO.getBotJobId(), (int) deleteInstructionDTO.getInstructionId()))
             if (deleteReferences(
                     (int) deleteInstructionDTO.getBotJobId(), (int) deleteInstructionDTO.getInstructionId()))
-                if (deleteRow((int) deleteInstructionDTO.getBlockId(), (int) deleteInstructionDTO.getInstructionId()))
+                if (deleteRow((int) deleteInstructionDTO.getBlockId(), (int) deleteInstructionDTO.getInstructionId())) {
                     deleteNullBlocks((int) deleteInstructionDTO.getBotJobId());
+                }
     }
 
     // Handle DELETE_BLOCK message
@@ -283,11 +304,15 @@ public class WebSocketStompServer {
         if (deleteList.size() > 0) {
             for (DeleteInstructionDTO deleteDTO : deleteList) {
                 deleteInstruction(deleteDTO);
+                //                updateOtherBlocks()
             }
-        } else {
-
-            deleteBlock((int) deleteBlockDTO.getBotJobId(), (int) deleteBlockDTO.getBlockId());
-            deleteNullBlocks((int) deleteBlockDTO.getBotJobId());
+        }
+        deleteBlock((int) deleteBlockDTO.getBotJobId(), (int) deleteBlockDTO.getBlockId());
+        //        updateOtherBlocks(deleteBlockDTO.getUpdatedBlockDTO());
+        deleteNullBlocks((int) deleteBlockDTO.getBotJobId());
+        if (deleteBlockDTO.getUpdatedBlocks().size() > 0) {
+            updateBlockOrderNumber(
+                    selectAllBlocks(deleteBlockDTO.getUpdatedBlocks().get(0).getBotJobId()));
         }
 
         sendMessageToAll("deleteBlock");
@@ -339,34 +364,6 @@ public class WebSocketStompServer {
             e.printStackTrace();
             return -1;
         }
-    }
-
-    private boolean updateOtherBlocks(List<UpdatedBlockDTO> updatedBlockList) {
-        // Build the SQL insert query
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            for (UpdatedBlockDTO updatedBlock : updatedBlockList) {
-
-                String updateSQL = "UPDATE block SET  "
-                        + " id = " + updatedBlock.getBlockId() + ","
-                        + " block_order_number = " + updatedBlock.getBlockOrderNumber()
-                        + " WHERE id = " + updatedBlock.getBlockId()
-                        + " and bot_job_id = " + updatedBlock.getBotJobId();
-
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                } else {
-                    ABRLogger.getInstance(ABRWebDriver.class)
-                            .warning("updateOtherBlocks - No matching record found to update blocks Order Numbers");
-                }
-            }
-            return true;
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
-                    .severe(String.format(
-                            "This Block List (%d) blocks \n cannot be updated.\nError: %s",
-                            updatedBlockList.size(), e.getMessage()));
-        }
-        return false;
     }
 
     private boolean updateInstructionsSplitter(List<InstructionDTO> instructions, int originalBlockId, int newBlockId) {

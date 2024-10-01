@@ -1,8 +1,8 @@
 package com.allinweb.ch.tests;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
+import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
-import com.allinweb.ch.component.model.UpdatedBlockDTO;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.util.List;
@@ -23,7 +23,7 @@ public class BlockSplitTest {
             // Accessing parts of the parsed DTO
             BlockDetailsDTO originalBlock = blockSplitDTO.getDetails().getOriginalBlock();
             BlockDetailsDTO newBlock = blockSplitDTO.getDetails().getNewBlock();
-            List<UpdatedBlockDTO> updatedBlocks = blockSplitDTO.getDetails().getUpdatedBlocks();
+            List<BlockOrderDetailDTO> updatedBlocks = blockSplitDTO.getDetails().getUpdatedBlocks();
 
             // Print out the values to verify the parsing
             System.out.println("Original Block ID: " + originalBlock.getBlockId());
