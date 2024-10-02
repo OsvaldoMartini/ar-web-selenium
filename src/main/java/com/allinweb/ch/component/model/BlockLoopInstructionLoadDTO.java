@@ -49,7 +49,9 @@ public class BlockLoopInstructionLoadDTO {
             int blockId,
             int blockOrderNumber,
             String blockName,
-            String actions) {
+            String actions,
+            int parentId,
+            String operation) {
         this.botJobId = botJobId;
         this.id = id;
         this.instructionOrderNumber = instructionOrderNumber;
@@ -59,6 +61,8 @@ public class BlockLoopInstructionLoadDTO {
         this.blockOrderNumber = blockOrderNumber;
         this.blockName = blockName;
         this.actions = actions;
+        this.parentId = parentId;
+        this.operation = operation;
     }
 
     public int getBotJobId() {

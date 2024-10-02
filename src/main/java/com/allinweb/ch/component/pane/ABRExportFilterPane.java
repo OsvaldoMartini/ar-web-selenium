@@ -51,13 +51,13 @@ public class ABRExportFilterPane extends ABRPane {
                         BlockLoopInstructionDTO.class,
                         (exp) -> exp.getExportToABR()
                                 && exp.getActions().contains(ABRConstants.INSERT)
-                                && exp.getBlock().getBotJob().getId() == botJob.getId());
+                                && exp.getBlock().getBotJobDTO().getId() == botJob.getId());
         ObservableList<BlockLoopInstructionDTO> filteredList = ABRSharedResources.getInstance()
                 .getEntityList(
                         BlockLoopInstructionDTO.class,
                         (exp) -> !exp.getExportToABR()
                                 && exp.getActions().contains(ABRConstants.INSERT)
-                                && exp.getBlock().getBotJob().getId() == botJob.getId());
+                                && exp.getBlock().getBotJobDTO().getId() == botJob.getId());
         exportedFieldList = new ListView<>(exportedList);
         filteredFieldList = new ListView<>(filteredList);
         exportedFieldList.setCellFactory(new ABRCellFactory<>(BlockLoopInstructionListCell.class)::call);

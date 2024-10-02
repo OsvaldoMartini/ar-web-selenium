@@ -38,7 +38,7 @@ public class ABRViewBotJobScene extends ABRScene {
     @Override
     public IABRPane buildPane() {
 
-        ABRSharedResources.getInstance().cacheEntitiesFromDB();
+        //        ABRSharedResources.getInstance().cacheEntitiesFromDB();
 
         BotJobDTO botJobDTO = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJobId);
 

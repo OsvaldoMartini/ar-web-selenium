@@ -75,7 +75,7 @@ public class BlockDTO extends BaseDTO {
         this.typeId = typeId;
     }
 
-    public BotJobDTO getBotJob() {
+    public BotJobDTO getBotJobDTO() {
         return botJobDTO;
     }
 

@@ -44,7 +44,7 @@ public class BlockListCell extends ListCell<BlockDTO> {
         super.updateItem(item, empty);
 
         Node graphic = null;
-        if (!empty && item != null && item.getBotJob() != null) {
+        if (!empty && item != null && item.getBotJobDTO() != null) {
             try {
 
                 BooleanProperty editingElement = new SimpleBooleanProperty(false);
@@ -151,8 +151,8 @@ public class BlockListCell extends ListCell<BlockDTO> {
                     FilteredList<BlockDTO> list = ABRSharedResources.getInstance()
                             .getEntityList(BlockDTO.class)
                             .filtered((blockx) -> {
-                                return blockx.getBotJob().getId()
-                                                == item.getBotJob().getId()
+                                return blockx.getBotJobDTO().getId()
+                                                == item.getBotJobDTO().getId()
                                         && blockx.getBlockOrderNumber() <= item.getBlockOrderNumber()
                                         && blockx.getId() != item.getId();
                             });

@@ -25,7 +25,8 @@ public class Repository {
     private SessionFactory sessionFactory = null;
     private Transaction transaction = null;
 
-    public Repository() {
+    public Repository(SessionFactory sessionFactory) {
+        this.sessionFactory = sessionFactory;
         openSession();
     }
 

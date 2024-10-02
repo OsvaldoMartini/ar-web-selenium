@@ -19,7 +19,7 @@ public class MoveBlockListCell extends ListCell<BlockDTO> {
 
         Node graphic = null;
 
-        if (!empty && item != null && item.getBotJob() != null) {
+        if (!empty && item != null && item.getBotJobDTO() != null) {
             Label blockNameLabel = new Label(item.getName());
             blockNameLabel.setAlignment(Pos.CENTER_LEFT);
             blockNameLabel.setTextFill(Color.BLACK);

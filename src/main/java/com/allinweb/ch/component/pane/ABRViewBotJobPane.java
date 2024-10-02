@@ -79,12 +79,6 @@ public class ABRViewBotJobPane extends ABRPane {
 
     // Postgres
     private static final boolean POSTGRES_DB = true;
-    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
-    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
-    private static final String DB_PORT = "5432"; // default PostgreSQL port
-    private static final String DB_NAME = "abr_web"; // your database name
-    private static final String USERNAME = "postgres"; // your database username
-    private static final String PASSWORD = "martini"; // your database password
 
     private Connection conn = null;
     private ObservableList<VariableUserDTO> variablesList;
@@ -298,7 +292,9 @@ public class ABRViewBotJobPane extends ABRPane {
                                 blockLoadDTO.getId(), // block ID from BlockLoadDTO
                                 blockLoadDTO.getBlockOrderNumber(),
                                 blockLoadDTO.getName(),
-                                blockLoopInstructionDTO.getActions())))
+                                blockLoopInstructionDTO.getActions(),
+                                blockLoopInstructionDTO.getParentId(),
+                                blockLoopInstructionDTO.getOperation())))
                 .collect(Collectors.toList());
 
         webEngine = webView.getEngine();
@@ -805,7 +801,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Initialize WebSocket container
         wsContainer = WebSocketServerContainerInitializer.configureContext(context);
-        wsContainer.setDefaultMaxSessionIdleTimeout(600000);
+        //        wsContainer.setDefaultMaxSessionIdleTimeout(600000);
         wsContainer.addEndpoint(WebSocketStompServer.class);
 
         // Start Jetty server

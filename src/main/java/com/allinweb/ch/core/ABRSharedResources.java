@@ -328,7 +328,7 @@ public class ABRSharedResources {
 
             cleanList(BotJobDTO.class, (botJob) -> botJob.getHomeBanking() == null);
 
-            cleanList(BlockDTO.class, (block) -> block.getBotJob() == null);
+            cleanList(BlockDTO.class, (block) -> block.getBotJobDTO() == null);
             cleanList(BlockLoopInstructionDTO.class, (instruction) -> instruction.getBlock() == null);
             cleanList(SavedBlockLoopInstructionDTO.class, (instruction) -> {
                 return instruction.getBlock() == null;

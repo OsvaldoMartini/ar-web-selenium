@@ -13,7 +13,6 @@ import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -155,26 +154,26 @@ public class ABRWebElement {
     }
 
     public ABRWebElement(BlockLoopInstructionDTO instruction) {
-        botJobId = instruction.getBlock().getBotJob().getId();
+        botJobId = instruction.getBlock().getBotJobDTO().getId();
         updatePriorities(null, instruction);
         initFromBlockLoopInstruction(instruction);
     }
 
     private void updatePriorities(String priority, BlockLoopInstructionDTO instruction) {
-        botJobId = instruction.getBlock().getBotJob().getId();
+        botJobId = instruction.getBlock().getBotJobDTO().getId();
         if (abrPriorities.getJobId() == null) {
             abrPriorities.setJobId(botJobId);
-            if (instruction.getBlock().getBotJob().getHomeBanking().getPriority() != null) {
+            if (instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority() != null) {
                 abrPriorities.loadPrioritiesFromString(
-                        instruction.getBlock().getBotJob().getHomeBanking().getPriority());
+                        instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
         } else if (abrPriorities.getJobId() != botJobId) {
             abrPriorities.setJobId(botJobId);
-            if (instruction.getBlock().getBotJob().getHomeBanking().getPriority() != null) {
+            if (instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority() != null) {
                 abrPriorities.loadPrioritiesFromString(
-                        instruction.getBlock().getBotJob().getHomeBanking().getPriority());
+                        instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
@@ -650,7 +649,7 @@ public class ABRWebElement {
             List<BlockLoopInstructionDTO> items = list.subList(index, list.size());
             BlockDTO previousBlock = item.getBlock();
             BlockDTO defaultBlock = new BlockDTO();
-            defaultBlock.setBotJob(item.getBlock().getBotJob());
+            defaultBlock.setBotJob(item.getBlock().getBotJobDTO());
             defaultBlock.setBlockLoopInstructions(items);
             ABRSharedResources.getInstance().addEntity(defaultBlock, BlockDTO.class, () -> {
                 System.out.println("added : " + defaultBlock.getId());
@@ -1131,7 +1130,7 @@ public class ABRWebElement {
     private void deleteBlockInstruction(int instructionId) throws SQLException {
         String deleteBlockInstruction = "delete FROM block_loop_instruction " + " where id = " + instructionId;
 
-        try (Statement stmt = getConnection().createStatement()) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
@@ -1145,7 +1144,7 @@ public class ABRWebElement {
         String deleteSQL =
                 "delete FROM instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
 
-        try (Statement stmt = getConnection().createStatement()) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
@@ -1157,7 +1156,7 @@ public class ABRWebElement {
 
     private boolean existVariables(int instructionId) throws SQLException {
         String query = "select id FROM variable " + " where block_loop_instruction_id =  " + instructionId;
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
                 return true;
@@ -1172,7 +1171,7 @@ public class ABRWebElement {
     private void forceDeleteOrphan() throws SQLException {
         String deleteSQL = "delete FROM instruction_reference " + " where block_loop_instruction_id is null ";
 
-        try (Statement stmt = getConnection().createStatement()) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
@@ -1191,39 +1190,13 @@ public class ABRWebElement {
                 + "    AND bli.name NOT IN ('Check', 'GetValue', 'SetValue')"
                 + ") ";
 
-        try (Statement stmt = getConnection().createStatement()) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
             } else {
                 ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
             }
-        }
-    }
-
-    private Connection getConnection() {
-        if (!POSTGRES_DB) {
-            if (conn == null) {
-                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                try {
-                    conn = DriverManager.getConnection(dbUrl);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
-        } else {
-
-            if (conn == null) {
-                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                try {
-                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
         }
     }
 }

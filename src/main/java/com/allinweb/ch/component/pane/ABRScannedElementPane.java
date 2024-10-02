@@ -2713,7 +2713,7 @@ public class ABRScannedElementPane extends ABRPane {
                     abrWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
 
-        repository = new Repository();
+        repository = new Repository(ABRSharedResources.getInstance().getSession());
 
         try {
             baseLogFile = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG)
@@ -2775,11 +2775,6 @@ public class ABRScannedElementPane extends ABRPane {
                 + Constants.FIELDS_SEPARATOR
                 + labelsValue.getProperty(Labels.START);
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
-        ExcelReportDTO report = new ExcelReportDTO(selectedJob);
-        report.setOrder((short) 0);
-        report.setStartDate(LocalDateTime.now());
-        report.setBatchJobId(0);
-        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
         ExcelWriter.ExcelChain writer =
                 new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("report");
         writer.insertReportHead();
@@ -2793,6 +2788,13 @@ public class ABRScannedElementPane extends ABRPane {
         Map<String, String> dataExcel = null;
 
         clearFields();
+
+        ExcelReportDTO report = new ExcelReportDTO();
+        report.setOrder((short) blocksLoaded.get(0).getId());
+        report.setStartDate(LocalDateTime.now());
+        report.setBatchJobId(selectedJob.getId());
+        report.setBotJobDTO(selectedJob);
+        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
         mapOperators = new HashMap<>();
 
@@ -2838,11 +2840,13 @@ public class ABRScannedElementPane extends ABRPane {
                                         .findFirst()
                                         .get()
                                         .getPath();
+
                                 parentField = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
                                         .filter(f -> f.getId() == currentInstruction.getParentId())
                                         .findFirst()
                                         .get()
                                         .getName();
+
                             } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
                                 parentField = blockList.get(j).getBlockLoopInstructionLoadDTOS().stream()
                                         .filter(f -> f.getId() == currentInstruction.getParentId())
@@ -3199,7 +3203,12 @@ public class ABRScannedElementPane extends ABRPane {
         if (totalExecutionTime == 0) {
             report.setDuration(0);
             writer.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
-            repository.write(report);
+            try {
+                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ABRScannedElementPane.class)
+                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
+            }
         }
 
         // PRINT END BASE LOG//
@@ -3207,7 +3216,12 @@ public class ABRScannedElementPane extends ABRPane {
             report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
             report.setDuration(totalExecutionTime / 100);
             writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-            repository.write(report);
+            try {
+                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ABRScannedElementPane.class)
+                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
+            }
             baseLogString = selectedJob.getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
@@ -3223,11 +3237,22 @@ public class ABRScannedElementPane extends ABRPane {
             report.setStatus(status);
             report.setDuration(totalExecutionTime / 100);
             writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-            repository.write(report);
+            try {
+                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
+                repository.write(report);
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ABRScannedElementPane.class)
+                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
+            }
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
-        repository.closeSession();
+        try {
+            repository.closeSession();
+        } catch (Exception ex) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .warning("Repository.closeSession Error:\n" + ex.getMessage());
+        }
         return true;
     }
 
@@ -3377,9 +3402,11 @@ public class ABRScannedElementPane extends ABRPane {
 
                         Optional<ButtonType> quitResult = alert.showAndWait();
                         if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
+                            ABRSharedResources.getInstance().cacheEntitiesFromDB();
                             result = "Close Browser";
                             quit(1);
                         } else {
+                            ABRSharedResources.getInstance().cacheEntitiesFromDB();
                             result = "Close Browser Cancelled";
                         }
                         break;

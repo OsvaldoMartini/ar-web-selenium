@@ -51,8 +51,8 @@ public class ABRMoveBlockPane extends ABRPane {
                 .getEntityList(
                         BlockDTO.class,
                         Comparator.comparingInt(BlockDTO::getId),
-                        (block) -> this.block.getBotJob().getId()
-                                        == block.getBotJob().getId()
+                        (block) -> this.block.getBotJobDTO().getId()
+                                        == block.getBotJobDTO().getId()
                                 && this.block.getId() != block.getId());
 
         if (blockList.size() > 0) {
@@ -114,8 +114,8 @@ public class ABRMoveBlockPane extends ABRPane {
                         .getEntityList(
                                 BlockDTO.class,
                                 Comparator.comparingInt(BlockDTO::getBlockOrderNumber),
-                                (block) -> block.getBotJob().getId()
-                                                == block.getBotJob().getId()
+                                (block) -> block.getBotJobDTO().getId()
+                                                == block.getBotJobDTO().getId()
                                         && block.getBlockOrderNumber() >= selectBlockOrderNumber);
 
                 for (BlockDTO blockDTO : blockObservableList) {

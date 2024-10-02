@@ -76,7 +76,7 @@ public class BotJobListCell extends ListCell<BotJobDTO> {
 
     private void deleteBotJob(BotJobDTO botJob) {
         Queue<BlockDTO> blocks = new LinkedList<>(ABRSharedResources.getInstance()
-                .getEntityList(BlockDTO.class, block -> block.getBotJob().getId() == botJob.getId()));
+                .getEntityList(BlockDTO.class, block -> block.getBotJobDTO().getId() == botJob.getId()));
         ABRSharedResources.getInstance().removeAllEntity(blocks, BlockDTO.class, () -> ABRSharedResources.getInstance()
                 .removeEntity(
                         botJob,
