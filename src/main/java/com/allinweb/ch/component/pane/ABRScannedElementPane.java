@@ -2602,71 +2602,71 @@ public class ABRScannedElementPane extends ABRPane {
                 + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
                 + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
                 + " where bot_job_id = " + botJobId
-                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
+                + " ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
-            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
-            Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
-            Map<Integer, BlockLoopInstructionLoadDTO> instructionMap = new HashMap<>();
-
             botLoadJobs.clear();
 
+            int previousBotJobId = -1;
+            int previousBlockId = -1;
+            int previousInstructionId = -1;
+
+            BotJobLoadDTO previousBotJob = null;
+            BlockLoadDTO previousBlock = null;
+            BlockLoopInstructionLoadDTO previousInstruction = null;
+
             while (rs.next()) {
-                botJobId = rs.getInt("bot_job_id");
-                BotJobLoadDTO botJobDTO = botJobMap.get(botJobId);
-
-                if (botJobDTO == null) {
-                    botJobDTO = new BotJobLoadDTO();
-                    botJobDTO.setId(botJobId);
-                    botJobDTO.setName(rs.getString("bot_job_name"));
-                    botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-                    botJobMap.put(botJobId, botJobDTO);
-                    botLoadJobs.add(botJobDTO);
+                int currentBotJobId = rs.getInt("bot_job_id");
+                if (previousBotJobId < 0 || previousBotJobId != currentBotJobId) {
+                    previousBotJob = new BotJobLoadDTO();
+                    previousBotJob.setId(currentBotJobId);
+                    previousBotJob.setName(rs.getString("bot_job_name"));
+                    previousBotJob.setBlockLoadDTOList(new ArrayList<>());
+                    botLoadJobs.add(previousBotJob);
+                    previousBotJobId = currentBotJobId;
                 }
 
-                int blockId = rs.getInt("block_id");
-                BlockLoadDTO blockDTO = blockMap.get(blockId);
+                int currentBlockId = rs.getInt("block_id");
+                if (previousBlockId < 0 || previousBlockId != currentBlockId) {
+                    previousBlock = new BlockLoadDTO();
+                    previousBlock.setId(currentBlockId);
+                    previousBlock.setBlockOrderNumber(rs.getInt("block_order_number"));
+                    previousBlock.setName(rs.getString("block_name"));
+                    previousBlock.setDescription(rs.getString("block_description"));
+                    previousBlock.setTypeId(rs.getInt("type_id"));
+                    previousBlock.setBotJobLoadDTO(previousBotJob);
 
-                if (blockDTO == null) {
-                    blockDTO = new BlockLoadDTO();
-                    blockDTO.setId(blockId);
-                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    blockDTO.setName(rs.getString("block_name"));
-                    blockDTO.setDescription(rs.getString("block_description"));
-                    blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setBotJobLoadDTO(botJobDTO);
+                    previousBlockId = currentBlockId;
 
-                    blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
-                    botJobDTO.getBlockLoadDTOList().add(blockDTO);
-                    blockMap.put(blockId, blockDTO);
+                    previousBlock.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
+                    previousBotJob.getBlockLoadDTOList().add(previousBlock);
                 }
 
-                int instructionId = rs.getInt("block_loop_instruction_id");
-                BlockLoopInstructionLoadDTO instruction = instructionMap.get(instructionId);
+                int currentInstructionId = rs.getInt("block_loop_instruction_id");
+                if (previousInstructionId < 0 || previousInstructionId != currentInstructionId) {
+                    previousInstruction = new BlockLoopInstructionLoadDTO();
+                    previousInstruction.setId(currentInstructionId);
+                    previousInstruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                    previousInstruction.setActions(rs.getString("actions"));
+                    previousInstruction.setName(rs.getString("instruction_name"));
+                    previousInstruction.setPath(rs.getString("path"));
+                    previousInstruction.setDescription(rs.getString("instruction_description"));
+                    previousInstruction.setOptional(rs.getInt("optional"));
+                    previousInstruction.setBlockMarked(rs.getBoolean("block_marked"));
+                    previousInstruction.setDefault_val(rs.getString("default_val"));
+                    previousInstruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                    previousInstruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                    previousInstruction.setEncrypted(rs.getInt("encrypted"));
+                    previousInstruction.setExportToABR(rs.getInt("export_to_abr"));
+                    previousInstruction.setOperation(rs.getString("operation"));
+                    previousInstruction.setParentId(rs.getInt("parent_id"));
 
-                if (instruction == null) {
-                    instruction = new BlockLoopInstructionLoadDTO();
-                    instruction.setId(instructionId);
-                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                    instruction.setActions(rs.getString("actions"));
-                    instruction.setName(rs.getString("instruction_name"));
-                    instruction.setPath(rs.getString("path"));
-                    instruction.setDescription(rs.getString("instruction_description"));
-                    instruction.setOptional(rs.getInt("optional"));
-                    instruction.setBlockMarked(rs.getBoolean("block_marked"));
-                    instruction.setDefault_val(rs.getString("default_val"));
-                    instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                    instruction.setEncrypted(rs.getInt("encrypted"));
-                    instruction.setExportToABR(rs.getInt("export_to_abr"));
-                    instruction.setOperation(rs.getString("operation"));
-                    instruction.setParentId(rs.getInt("parent_id"));
+                    previousInstructionId = currentInstructionId;
 
-                    instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
-                    blockDTO.getBlockLoopInstructionLoadDTOS().add(instruction);
-                    instructionMap.put(instructionId, instruction);
+                    previousInstruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
+                    previousBlock.getBlockLoopInstructionLoadDTOS().add(previousInstruction);
                 }
 
                 String referenceType = rs.getString("reference_type");
@@ -2674,7 +2674,7 @@ public class ABRScannedElementPane extends ABRPane {
                     InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
                     reference.setReferenceType(referenceType);
                     reference.setValue(rs.getString("value"));
-                    instruction.getInstructionReferenceLoadDTOList().add(reference);
+                    previousInstruction.getInstructionReferenceLoadDTOList().add(reference);
                 }
             }
         } catch (SQLException e) {
@@ -2801,7 +2801,7 @@ public class ABRScannedElementPane extends ABRPane {
         mapOperators = new HashMap<>();
 
         if (extractedData.getNumberOfDataRows() > 0) {
-            for (int j = 0; success && j < blocksLoaded.size(); j++) {
+            for (BlockLoadDTO instructionsLoad : blocksLoaded.stream().collect(Collectors.toList())) {
                 instructionsExecuted.clear();
                 if (stopAll) {
                     break;
@@ -2811,11 +2811,11 @@ public class ABRScannedElementPane extends ABRPane {
                         break;
                     }
 
-                    writer.insertBlockSeparation(blocksLoaded.get(j).getName());
+                    writer.insertBlockSeparation(instructionsLoad.getName());
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                            instructionsExecuted, blocksLoaded.get(j).getBlockLoopInstructionLoadDTOS());
+                            instructionsExecuted, instructionsLoad.getBlockLoopInstructionLoadDTOS());
 
                     for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                         if (stopAll) {
@@ -2838,7 +2838,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 execOperation = true;
                                 try {
-                                    xPathOperation = blocksLoaded.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                    xPathOperation = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())
                                             .findFirst()
                                             .get()
@@ -2856,7 +2856,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     resultAcions = String.format(
                                             "This ParentId: %d does not belong to this block: %d",
-                                            currentInstruction.getParentId(), j + 1);
+                                            currentInstruction.getParentId(), instructionsLoad.getId());
                                     success = false;
 
                                     lastInstructionExecuted = "";
@@ -2871,14 +2871,14 @@ public class ABRScannedElementPane extends ABRPane {
                                     break;
                                 }
 
-                                parentField = blocksLoaded.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
                                         .filter(f -> f.getId() == currentInstruction.getParentId())
                                         .findFirst()
                                         .get()
                                         .getName();
 
                             } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
-                                parentField = blocksLoaded.get(j).getBlockLoopInstructionLoadDTOS().stream()
+                                parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
                                         .filter(f -> f.getId() == currentInstruction.getParentId())
                                         .findFirst()
                                         .get()
@@ -2900,10 +2900,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             + Constants.BLANK_STRING
                                             + currentInstruction.getPath();
                                     resultAcions = performActions(
-                                            dataExcel,
-                                            currentInstruction,
-                                            botJobId,
-                                            blocksLoaded.get(j).getName());
+                                            dataExcel, currentInstruction, botJobId, instructionsLoad.getName());
                                     long currentInstructionEndTime = System.nanoTime();
                                     totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 

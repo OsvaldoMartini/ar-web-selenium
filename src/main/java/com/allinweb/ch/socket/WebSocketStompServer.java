@@ -604,12 +604,11 @@ public class WebSocketStompServer {
 
             String deleteSQL = "DELETE FROM block b "
                     + "WHERE b.bot_job_id = " + botJobId
-                    + " AND b.block_order_number != 1 "  // Exclude block with blockOrderNumber = 1
+                    + " AND b.block_order_number != 1 " // Exclude block with blockOrderNumber = 1
                     + " AND NOT EXISTS ( "
                     + "     SELECT 1 "
                     + "     FROM public.block_loop_instruction bli "
                     + "     WHERE bli.block_id = b.id);";
-
 
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);

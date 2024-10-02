@@ -1,9 +1,15 @@
 package com.allinweb.ch.component.model;
 
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class BlockLoopInstructionLoadDTO {
     private int id;
     private int botJobId;
@@ -28,18 +34,10 @@ public class BlockLoopInstructionLoadDTO {
     private String blockName;
     private boolean editMode = false; // Add an editMode flag
 
-    // Getters and setters for 'editMode'
-    public boolean isEditMode() {
-        return editMode;
-    }
+    private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
+    private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
 
-    public void setEditMode(boolean editMode) {
-        this.editMode = editMode;
-    }
-
-    public BlockLoopInstructionLoadDTO() {}
-
-    // Constructor
+    // Custom constructor
     public BlockLoopInstructionLoadDTO(
             int botJobId,
             int id,
@@ -65,22 +63,6 @@ public class BlockLoopInstructionLoadDTO {
         this.operation = operation;
     }
 
-    public int getBotJobId() {
-        return botJobId;
-    }
-
-    public void setBotJobId(int botJobId) {
-        this.botJobId = botJobId;
-    }
-
-    public String getDefaultValue() {
-        return default_val;
-    }
-
-    public void setDefaultValue(String default_val) {
-        this.default_val = default_val;
-    }
-
     public boolean isOptional() {
         return optional >= 1;
     }
@@ -89,44 +71,7 @@ public class BlockLoopInstructionLoadDTO {
         return encrypted >= 1;
     }
 
-    public String getOperation() {
-        return operation;
-    }
-
-    public void setOperation(String operation) {
-        this.operation = operation;
-    }
-
-    public int getParentId() {
-        return parentId;
-    }
-
-    public void setParentId(int parentId) {
-        this.parentId = parentId;
-    }
-
-    private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
-    private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
-
-    @Override
-    public String toString() {
-        return "BlockLoopInstructionLoadDTO{" + "id="
-                + id + ", instructionOrderNumber="
-                + instructionOrderNumber + ", actions='"
-                + actions + '\'' + ", name='"
-                + name + '\'' + ", path='"
-                + path + '\'' + ", description='"
-                + description + '\'' + ", optional="
-                + optional + ", blockMarked="
-                + blockMarked + ", default_val='"
-                + default_val + '\'' + ", actionCustomMaxWaitSec="
-                + actionCustomMaxWaitSec + ", onHoldSeconds="
-                + onHoldSeconds + ", encrypted="
-                + encrypted + ", exportToABR="
-                + exportToABR + ", executed="
-                + executed + ", priority='"
-                + priority + '\'' + ", complexInstructionLoadDTOList="
-                + complexInstructionLoadDTOList + ", instructionReferenceLoadDTOList="
-                + instructionReferenceLoadDTOList + '}';
+    public String getDefaultValue() {
+        return default_val;
     }
 }
