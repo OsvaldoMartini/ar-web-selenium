@@ -157,11 +157,14 @@ public class ABRSharedResources {
                         callback.execute();
                     }
                 } catch (NullPointerException e) {
-                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .severe(String.format("Error Creating %s  Error: %s\n", clazz.getName(), e));
                 } catch (UnsupportedOperationException e) {
-                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .severe(String.format("Error Creating %s  Error: %s\n", clazz.getName(), e));
                 } catch (Exception e) {
-                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error Creating JOB \n" + e);
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .severe(String.format("Error Creating %s  Error: %s\n", clazz.getName(), e));
                 }
                 return null;
             }

@@ -197,6 +197,7 @@ public class ABRNewBotJobPane extends ABRPane {
         BlockDTO defaultBlock = new BlockDTO();
         defaultBlock.setName(createdBotJob.getName() + " default block");
         defaultBlock.setDescription(createdBotJob.getName() + " block description");
+        defaultBlock.setBlockOrderNumber(1);
         defaultBlock.setTypeId(1);
         defaultBlock.setBotJob(createdBotJob);
         ABRSharedResources.getInstance().addEntity(defaultBlock, BlockDTO.class, () -> {

@@ -56,7 +56,7 @@ public class ABRViewBotJobScene extends ABRScene {
             BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobDTO.getId());
             blockDTO.setTypeId(1);
             blockDTO.setBotJob(botJob);
-            blockDTO.setBlockOrderNumber(botJob.getBlocks().size() + 1);
+            blockDTO.setBlockOrderNumber(1);
 
             ABRSharedResources.getInstance().addEntity(blockDTO, BlockDTO.class);
         }
