@@ -452,6 +452,11 @@ public class WebSocketStompServer {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "RollBackBlocks - InstructionId %d for blockId: %d updated successfully",
+                                    instruction.getInstructionId(), rollBackBlocksDTO.getBlockId()));
+
                 } else {
                     ABRLogger.getInstance(ABRWebDriver.class)
                             .warning(String.format(
