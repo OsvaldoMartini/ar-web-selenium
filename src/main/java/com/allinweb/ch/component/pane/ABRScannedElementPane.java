@@ -1228,7 +1228,7 @@ public class ABRScannedElementPane extends ABRPane {
                     closeInstruction.setName("Close Browser");
                     closeInstruction.setDescription("Close Browser");
                     closeInstruction.setEncrypted(false);
-                    closeInstruction.setInstructionOrderNumber(instructionList.size());
+                    closeInstruction.setInstructionOrderNumber(instructionList.size() + 1);
                     closeInstruction.setOptional(false);
                     closeInstruction.setActions(ABRConstants.QUIT);
                     closeInstruction.setOnHoldSeconds(0);
