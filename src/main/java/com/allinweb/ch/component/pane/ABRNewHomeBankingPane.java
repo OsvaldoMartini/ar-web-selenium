@@ -36,7 +36,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -79,6 +79,14 @@ public class ABRNewHomeBankingPane extends ABRPane {
 
     @Override
     public void initUIComponents() {
+
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+        } else {
+            POSTGRES_DB = false;
+        }
 
         // Initialize database IF IS ACCESS TO BE USED
         if (!POSTGRES_DB) {
@@ -452,32 +460,6 @@ public class ABRNewHomeBankingPane extends ABRPane {
         }
     }
 
-    private Connection getConnection() {
-        if (!POSTGRES_DB) {
-            if (conn == null) {
-                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                try {
-                    conn = DriverManager.getConnection(dbUrl);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
-        } else {
-
-            if (conn == null) {
-                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                try {
-                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            return conn;
-        }
-    }
-
     private void loadUserData() {
         databaseList.clear();
         String selectSQL =
@@ -485,7 +467,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
                         + " FROM home_banking bank "
                         + " left join bot_job bot on bot.home_banking_id = bank.id "
                         + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
@@ -510,7 +492,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
     private Integer loadNexIdData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM home_banking";
-        try (Statement stmt = getConnection().createStatement();
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -540,7 +522,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
                         + "'" + optionsConfig + "', "
                         + "'" + user.getUsername() + "', "
                         + "'" + user.getPassword() + "')";
-        try (Statement stmt = getConnection().createStatement()) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
@@ -561,7 +543,8 @@ public class ABRNewHomeBankingPane extends ABRPane {
                     + " search_config = '" + searchConfig + "', "
                     + " options_config = '" + optionsConfig + "' "
                     + " WHERE ID = " + userId;
-            try (Statement stmt = getConnection().createStatement()) {
+            try (Statement stmt =
+                    ABRSharedResources.getInstance().getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
                     showAlert(Alert.AlertType.INFORMATION, "Success", "Updated", "Data updated successfully.");
@@ -596,7 +579,8 @@ public class ABRNewHomeBankingPane extends ABRPane {
         try {
             int honeBankingId = Integer.parseInt(Id);
             String deleteSQL = "DELETE FROM home_banking WHERE ID = " + honeBankingId;
-            try (Statement stmt = getConnection().createStatement()) {
+            try (Statement stmt =
+                    ABRSharedResources.getInstance().getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(deleteSQL);
                 if (rowsAffected > 0) {
                     ABRLogger.getInstance(Thread.class).finer("Data deleted successfully.\n " + Id);

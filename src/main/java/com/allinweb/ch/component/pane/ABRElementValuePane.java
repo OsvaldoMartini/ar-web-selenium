@@ -34,7 +34,7 @@ public class ABRElementValuePane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static boolean POSTGRES_DB = false;
     private Connection conn = null;
 
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
@@ -71,6 +71,14 @@ public class ABRElementValuePane extends ABRPane {
 
     @Override
     public void initUIComponents() {
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+        } else {
+            POSTGRES_DB = false;
+        }
+
         // Initialize database IF IS ACCESS TO BE USED
         if (!POSTGRES_DB) {
             initializeDatabase();

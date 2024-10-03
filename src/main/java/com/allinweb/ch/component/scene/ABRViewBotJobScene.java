@@ -128,7 +128,7 @@ public class ABRViewBotJobScene extends ABRScene {
                 + "  bli.operation, bli.parent_id "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
-                + " LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id "
+                + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
                 + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
                 + " where bot_job_id = " + botJobId
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";

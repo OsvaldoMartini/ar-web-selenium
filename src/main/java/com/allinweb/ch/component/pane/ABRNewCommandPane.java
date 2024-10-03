@@ -54,7 +54,7 @@ public class ABRNewCommandPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -100,6 +100,14 @@ public class ABRNewCommandPane extends ABRPane {
     public ABRNewCommandPane(int botJobId, ObservableList<ComboBoxVars> webPageItems) {
         this.botJobId = botJobId;
         this.webPageItems = webPageItems;
+
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+        } else {
+            POSTGRES_DB = false;
+        }
 
         // Initialize database IF IS ACCESS TO BE USED
         if (!POSTGRES_DB) {

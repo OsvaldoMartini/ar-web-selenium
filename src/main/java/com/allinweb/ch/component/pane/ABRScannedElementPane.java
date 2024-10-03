@@ -2848,8 +2848,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     alert.setTitle("Parent Id Error");
                                     alert.setHeaderText("Check Parent Id");
                                     alert.setContentText("The Parent Id: " + currentInstruction.getParentId()
-                                            + "\nFor the : " + currentInstruction.getOperation()
-                                            + "\nDoes not belong to this block");
+                                            + "\nFor the : "
+                                            + currentInstruction.getOperation() + "\nDoes not belong to this block");
                                     alert.showAndWait();
 
                                     stopAll = true;
@@ -2961,7 +2961,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                                             currentInstruction.setExecuted(true);
 
-                                            // Assuming currentInstruction and instructionsExecuted are already defined
+                                            // Assuming currentInstruction and instructionsExecuted are already
+                                            // defined
                                             if (currentInstruction != null
                                                     && instructionsExecuted.stream()
                                                             .noneMatch(instruction ->
@@ -2988,14 +2989,14 @@ public class ABRScannedElementPane extends ABRPane {
                                             + currentInstruction.getOperation();
 
                                     if (operations.length == 3) {
-                                        //                                        mapOperators =
-                                        // performActionOperator(currentInstruction, xPathOperation, mapOperators,
-                                        // actions[0],operations[1]);
-                                        resultAcions = "(" + parentField + ")" + String.join(":", operations);
-                                        boolean isOperationValid = false;
-
                                         if (mapOperators.containsKey(parentField)) {
 
+                                            //                                        mapOperators =
+                                            // performActionOperator(currentInstruction, xPathOperation,
+                                            // mapOperators,
+                                            // actions[0],operations[1]);
+                                            resultAcions = "(" + parentField + ")" + String.join(":", operations);
+                                            boolean isOperationValid = false;
                                             if (operations[1].equalsIgnoreCase("=")) {
                                                 isOperationValid = mapOperators
                                                         .get(parentField)
@@ -3035,23 +3036,25 @@ public class ABRScannedElementPane extends ABRPane {
                                                 Alert alert = new Alert(Alert.AlertType.ERROR);
                                                 alert.setTitle("Validation Error");
                                                 alert.setHeaderText("Check Validation Error");
-                                                alert.setContentText("The Value: "
-                                                        + operations[2] + "\nis not " + operations[1]
-                                                        + " "
-                                                        + mapOperators.get(parentField) + " Length: ("
+                                                alert.setContentText("The Value: " + operations[2]
+                                                        + "\nis not " + operations[1] + " "
+                                                        + mapOperators.get(parentField)
+                                                        + " Length: ("
                                                         + mapOperators
                                                                 .get(parentField)
-                                                                .length() + ")"
-                                                        + "\n --------------------- "
-                                                        + "\nCheck the SET/GET of " + operations[0] + " for "
-                                                        + parentField
-                                                        + "\nCurrent value: " + operations[2] + " Length: ("
-                                                        + operations[2].length() + ")"
-                                                        + "\nExpected value: "
-                                                        + mapOperators.get(parentField) + " Length: ("
+                                                                .length()
+                                                        + ")" + "\n --------------------- "
+                                                        + "\nCheck the SET/GET of "
+                                                        + operations[0] + " for " + parentField
+                                                        + "\nCurrent value: "
+                                                        + operations[2] + " Length: (" + operations[2].length()
+                                                        + ")" + "\nExpected value: "
+                                                        + mapOperators.get(parentField)
+                                                        + " Length: ("
                                                         + mapOperators
                                                                 .get(parentField)
-                                                                .length() + ")");
+                                                                .length()
+                                                        + ")");
                                                 alert.showAndWait();
 
                                                 stopAll = true;
@@ -3065,7 +3068,8 @@ public class ABRScannedElementPane extends ABRPane {
                                             alert.setHeaderText("GET/SET is Not Defined");
                                             alert.setContentText("There is NOT GET VALUE defined for: " + parentField
                                                     + "\n --------------------- "
-                                                    + "\nCheck the SET/GET for " + parentField);
+                                                    + "\nCheck the SET/GET for "
+                                                    + parentField);
                                             alert.showAndWait();
 
                                             stopAll = true;
@@ -3087,9 +3091,9 @@ public class ABRScannedElementPane extends ABRPane {
                                     long currentInstructionEndTime = System.nanoTime();
                                     long duration = currentInstructionEndTime - botJobStartTime;
                                     ABRLogger.getInstance(ABRScannedElementPane.class)
-                                            .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions
-                                                    + " Cmd: "
-                                                    + lastInstructionExecuted + "- Duration: "
+                                            .fine("FAILED OPTIONAL INSTRUCTION on element: " + resultAcions + " Cmd: "
+                                                    + lastInstructionExecuted
+                                                    + "- Duration: "
                                                     + LocalTime.ofNanoOfDay(duration)
                                                             .format(FORMAT_TIME));
                                     writer.insertInstructionResult(
@@ -3104,9 +3108,9 @@ public class ABRScannedElementPane extends ABRPane {
                                     long currentInstructionEndTime = System.nanoTime();
                                     long duration = currentInstructionEndTime - botJobStartTime;
                                     ABRLogger.getInstance(ABRScannedElementPane.class)
-                                            .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions
-                                                    + " Cmd: "
-                                                    + lastInstructionExecuted + "- Duration: "
+                                            .fine("FAILED MANDATORY INSTRUCTION on element: " + resultAcions + " Cmd: "
+                                                    + lastInstructionExecuted
+                                                    + "- Duration: "
                                                     + LocalTime.ofNanoOfDay(duration)
                                                             .format(FORMAT_TIME));
                                     writer.insertInstructionResult(

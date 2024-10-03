@@ -33,9 +33,11 @@ public class ABRConfigurationPane extends ABRPane {
     // Label pathExtRefLabel; //Added by morandi 15-04
     Label pathLogLabel;
     Label sizeLogLabel;
-    Label reduceSearchCriteriaLabel;
+    Label reduceSearchLabel;
     Label pathJavaLabel;
     Label pathDBLabel;
+    Label dbTypeLabel;
+    Label socketPortLabel;
     Label pathReportLabel;
     Label pathPriorityLabel;
     Label pathJavaFXLabel;
@@ -47,9 +49,12 @@ public class ABRConfigurationPane extends ABRPane {
     // TextField pathExtRef; //Added by morandi 15-04
     TextField pathLog;
     TextField sizeLog;
-    TextField reduceSearchCriteria;
+    TextField reduceSearch;
     TextField pathJava;
     TextField pathDB;
+    TextField dbType;
+    TextField socketPort;
+
     TextField pathReport;
     TextField pathPriority;
     TextField pathJavaFX;
@@ -112,13 +117,16 @@ public class ABRConfigurationPane extends ABRPane {
         pathExcel = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXCEL);
         pathExcelButton = createPathButton();
         AnchorPane excelGroup = new AnchorPane(pathExcel, pathExcelButton);
+
+        // LOGs
         pathLogLabel = new Label("Log Path:");
         pathLog = createPathTextField(ABRPropertyEnum.FOLDER_PATH_LOG);
         pathLogButton = createPathButton();
         sizeLogLabel = new Label("Max Size Log");
         sizeLog = createPathTextField(ABRPropertyEnum.MAX_LOG_SIZE);
-        reduceSearchCriteriaLabel = new Label("Limit Max Search");
-        reduceSearchCriteria = createPathTextField(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA);
+        reduceSearchLabel = new Label("Limit Max Search");
+        reduceSearch = createPathTextField(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA);
+
         GridPane gridPaneLog = new GridPane();
         //        gridPaneLog.setVgap(10);
         gridPaneLog.setHgap(10);
@@ -140,12 +148,12 @@ public class ABRConfigurationPane extends ABRPane {
         // Add labels in the first row
         gridPaneLog.add(pathLogLabel, 0, 0);
         gridPaneLog.add(sizeLogLabel, 1, 0);
-        gridPaneLog.add(reduceSearchCriteriaLabel, 2, 0);
+        gridPaneLog.add(reduceSearchLabel, 2, 0);
 
         // Add text fields in the second row
         gridPaneLog.add(pathLog, 0, 1);
         gridPaneLog.add(sizeLog, 1, 1);
-        gridPaneLog.add(reduceSearchCriteria, 2, 1);
+        gridPaneLog.add(reduceSearch, 2, 1);
 
         // Add button in the second row, third column
         gridPaneLog.add(pathLogButton, 3, 1);
@@ -153,31 +161,75 @@ public class ABRConfigurationPane extends ABRPane {
         // Set margin for pathLogButton to create spacing from right border
         GridPane.setMargin(pathLogButton, new Insets(0, 0, 0, 5));
 
+        // DB Type
+        pathDBLabel = new Label("Database Path:");
+        pathDB = createPathTextField(ABRPropertyEnum.FOLDER_PATH_DB);
+        pathDBButton = createPathButton();
+        dbTypeLabel = new Label("DB Type");
+        dbType = createPathTextField(ABRPropertyEnum.DATABASE_TYPE);
+        socketPortLabel = new Label("Socket Port");
+        socketPort = createPathTextField(ABRPropertyEnum.PORT_SOCKET);
+
+        GridPane gridPaneDB = new GridPane();
+        //        gridPaneDB.setVgap(10);
+        gridPaneDB.setHgap(10);
+        // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
+        ColumnConstraints col1DB = new ColumnConstraints();
+        col1DB.setPercentWidth(65);
+
+        ColumnConstraints col2DB = new ColumnConstraints();
+        col2DB.setPercentWidth(15);
+
+        ColumnConstraints col3DB = new ColumnConstraints();
+        col3DB.setPercentWidth(15);
+
+        ColumnConstraints col4DB = new ColumnConstraints();
+        col4DB.setPercentWidth(5);
+
+        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB, col3DB, col4DB);
+
+        // Add labels in the first row
+        gridPaneDB.add(pathDBLabel, 0, 0);
+        gridPaneDB.add(dbTypeLabel, 1, 0);
+        gridPaneDB.add(socketPortLabel, 2, 0);
+
+        // Add text fields in the second row
+        gridPaneDB.add(pathDB, 0, 1);
+        gridPaneDB.add(dbType, 1, 1);
+        gridPaneDB.add(socketPort, 2, 1);
+
+        // Add button in the second row, third column
+        gridPaneDB.add(pathDBButton, 3, 1);
+
+        // Set margin for pathDBButton to create spacing from right border
+        GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
+
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         pathJavaLabel = new Label("Java Path:");
         pathJava = createPathTextField(ABRPropertyEnum.FOLDER_PATH_JAVA);
         pathJavaButton = createPathButton();
         AnchorPane javaGroup = new AnchorPane(pathJava, pathJavaButton);
-        pathDBLabel = new Label("Database Path:");
-        pathDB = createPathTextField(ABRPropertyEnum.FOLDER_PATH_DB);
-        pathDBButton = createPathButton();
-        AnchorPane dbGroup = new AnchorPane(pathDB, pathDBButton);
+
         pathReportLabel = new Label("Report Path:");
         pathReport = createPathTextField(ABRPropertyEnum.FOLDER_PATH_REPORT);
         pathReportButton = createPathButton();
         AnchorPane reportGroup = new AnchorPane(pathReport, pathReportButton);
+
         pathPriorityLabel = new Label("Priority Path:");
         pathPriority = createPathTextField(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
         pathPriorityButton = createPathButton();
         AnchorPane priorityGroup = new AnchorPane(pathPriority, pathPriorityButton);
+
         pathJavaFXLabel = new Label("JavaFX Path:");
         pathJavaFX = createPathTextField(ABRPropertyEnum.FOLDER_PATH_JAVA_FX);
         pathJavaFXButton = createPathButton();
         AnchorPane javaFXGroup = new AnchorPane(pathJavaFX, pathJavaFXButton);
+
         pathEngineLabel = new Label("Engine Path:");
         pathEngine = createPathTextField(ABRPropertyEnum.PATH_ENGINE);
         pathEngineButton = createPathButton();
         AnchorPane engineGroup = new AnchorPane(pathEngine, pathEngineButton);
+
         pathWebDriverLabel = new Label("Web Driver Path:");
         pathWebDriver = createPathTextField(ABRPropertyEnum.PATH_WEBDRIVER);
         pathWebDriverButton = createPathButton();
@@ -198,8 +250,7 @@ public class ABRConfigurationPane extends ABRPane {
                 pathExcelLabel,
                 excelGroup,
                 gridPaneLog,
-                pathDBLabel,
-                dbGroup,
+                gridPaneDB,
                 pathReportLabel,
                 reportGroup,
                 pathPriorityLabel,
@@ -308,9 +359,11 @@ public class ABRConfigurationPane extends ABRPane {
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.MAX_LOG_SIZE.getValue(), sizeLog.getText());
             ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearchCriteria.getText());
+                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), dbType.getText());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), pathReport.getText());
@@ -329,9 +382,11 @@ public class ABRConfigurationPane extends ABRPane {
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.MAX_LOG_SIZE.getValue(), sizeLog.getText());
             ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearchCriteria.getText());
+                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), dbType.getText());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), pathReport.getText());

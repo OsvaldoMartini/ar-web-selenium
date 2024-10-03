@@ -139,10 +139,18 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIComponents() {
+        int port = 8080;
+
+        String portSocket = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PORT_SOCKET);
+        if (portSocket != null) {
+            port = Integer.parseInt(portSocket);
+        }
+
         // Start WebSocket server in a background thread
+        int finalPort = port;
         new Thread(() -> {
                     try {
-                        startWebSocketServer();
+                        startWebSocketServer(finalPort);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -759,7 +767,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 + "  bli.operation      "
                 + " FROM bot_job bj  "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id  "
-                + " LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id  "
+                + " JOIN block_loop_instruction bli ON bli.block_id = b.id  "
                 + " where bj.id = " + this.botJob.getId()
                 + "   and operation is null  "
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number ASC;";
@@ -785,8 +793,7 @@ public class ABRViewBotJobPane extends ABRPane {
         }
     }
 
-    public void startWebSocketServer() throws Exception {
-        int port = 8080;
+    public void startWebSocketServer(int port) throws Exception {
         // Check if the port is available
         if (isPortInUse(port)) {
             System.out.println("Port " + port + " is already in use.");
@@ -879,7 +886,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 + "  bli.operation, bli.parent_id "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
-                + " LEFT JOIN block_loop_instruction bli ON bli.block_id = b.id "
+                + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
                 + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
                 + " where bot_job_id = " + botJobId
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";

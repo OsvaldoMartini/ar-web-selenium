@@ -69,6 +69,8 @@ public class ABRPropertyManager {
                 setProperty(
                         ABRPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(),
                         ABRConstants.CURRENT_PATH + ABRConstants.DEFAULT_PATH_JAVA_FX);
+                setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), "");
+                setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), "");
                 setProperty(ABRPropertyEnum.PATH_ENGINE.getValue(), ABRConstants.CURRENT_PATH);
