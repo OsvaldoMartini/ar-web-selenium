@@ -4,8 +4,10 @@ import lombok.Data;
 
 @Data
 public class InstructionDTO {
-    private Integer instructionId;
-    private Integer blockId;
-    private Integer blockOrderNumber;
-    private Integer instructionOrderNumber;
+    private String type;
+    private int botJobId;
+    private int instructionId;
+    private int blockId;
+    private int blockOrderNumber;
+    private int instructionOrderNumber;
 }

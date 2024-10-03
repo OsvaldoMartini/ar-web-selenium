@@ -539,7 +539,7 @@ public class ABRViewBotJobPane extends ABRPane {
         });
         this.addNewStepButton.setOnMouseClicked((e) -> {
             loadWebPageFields();
-            ABRNewCommandScene newCommandScene = new ABRNewCommandScene(this.botJob.getId(), webPageItems);
+            ABRNewCommandScene newCommandScene = new ABRNewCommandScene(this.botJob.getId(), null, this.webPageItems);
             newCommandScene.showModal();
         });
 
@@ -814,7 +814,9 @@ public class ABRViewBotJobPane extends ABRPane {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "loadWebPageFields - Error selecting Web Page Fields.\n Error: %s", e.getMessage()));
         }
     }
 

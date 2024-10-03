@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRElementValueScene;
@@ -74,7 +75,7 @@ public class ABRNewCommandPane extends ABRPane {
     private int botJobId;
     private int instructionId;
     private String instructionName;
-
+    private RowMoveDTO rowMoveDTO;
     private Pane mainPane;
 
     TextField nameField;
@@ -97,8 +98,9 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems;
 
-    public ABRNewCommandPane(int botJobId, ObservableList<ComboBoxVars> webPageItems) {
+    public ABRNewCommandPane(int botJobId, RowMoveDTO rowMoveDTO, ObservableList<ComboBoxVars> webPageItems) {
         this.botJobId = botJobId;
+        this.rowMoveDTO = rowMoveDTO;
         this.webPageItems = webPageItems;
 
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);

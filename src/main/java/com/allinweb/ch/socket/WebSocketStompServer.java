@@ -1,19 +1,22 @@
 package com.allinweb.ch.socket;
 
+import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockMoveDTO;
 import com.allinweb.ch.component.model.BlockOrderDTO;
 import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
-import com.allinweb.ch.component.model.DeleteInstructionDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.scene.ABRNewCommandScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BotJobDTO;
+import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
+import com.allinweb.ch.util.ComboBoxVars;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -28,6 +31,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -47,6 +53,7 @@ public class WebSocketStompServer {
 
     private StompHandler stompHandler = new StompHandler();
     private Gson gson = new GsonBuilder().setPrettyPrinting().create(); // Initialize Gson
+    private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     @OnOpen
     public void onOpen(Session session) {
@@ -93,6 +100,14 @@ public class WebSocketStompServer {
                     RowMoveDTO rowMoveDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
                     rowMove(rowMoveDTO);
                     break;
+                case "INSERT_BEFORE":
+                    RowMoveDTO insertBeforeDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
+                    insertStepBefore(insertBeforeDTO);
+                    break;
+                case "INSERT_AFTER":
+                    RowMoveDTO insertAfterDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
+                    insertStepAfter(insertAfterDTO);
+                    break;
                 case "BLOCK_ORDER":
                     BlockOrderDTO blockReorder = gson.fromJson(frame.getBody(), BlockOrderDTO.class);
                     if (blockReorder.getUpdatedBlocks().size() > 0) {
@@ -103,9 +118,8 @@ public class WebSocketStompServer {
                     break;
 
                 case "DELETE_INSTRUCTION":
-                    DeleteInstructionDTO deleteInstructionDTO =
-                            gson.fromJson(frame.getBody(), DeleteInstructionDTO.class);
-                    deleteInstruction(deleteInstructionDTO);
+                    InstructionDTO deleteInstructionDTO = gson.fromJson(frame.getBody(), InstructionDTO.class);
+                    deleteInstruction(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO);
                     break;
 
                 case "DELETE_BLOCK":
@@ -226,6 +240,60 @@ public class WebSocketStompServer {
         // Add business logic to handle ROW_MOVE
     }
 
+    private void insertStepBefore(RowMoveDTO rowMoveDTO) {
+
+        if (rowMoveDTO.getUpdatedRows().size() > 0) {
+            List<InstructionDTO> rowList =
+                    getInstructionsByBlockId(rowMoveDTO.getUpdatedRows().get(0));
+
+            loadWebPageFields(rowMoveDTO.getBotJobId());
+
+            //            insertStep(rowList);
+
+            // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+            Platform.runLater(() -> {
+                ABRNewCommandScene newCommandScene =
+                        new ABRNewCommandScene(rowMoveDTO.getBotJobId(), rowMoveDTO, this.webPageItems);
+                newCommandScene.showModal();
+            });
+        }
+    }
+
+    private boolean insertStep(List<InstructionDTO> rowList) {
+
+        // Build the SQL update statement
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            for (InstructionDTO instruction : rowList) {
+
+                String updateSQL = "UPDATE block_loop_instruction SET  "
+                        + " instruction_order_number = " + instruction.getInstructionOrderNumber()
+                        + " WHERE id = " + instruction.getInstructionId()
+                        + " and block_id = " + instruction.getBlockId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+                if (rowsAffected > 0) {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "UpdateMoveRowsOrder - InstructionId: %s now have order number: %d",
+                                    instruction.getInstructionId(), instruction.getInstructionOrderNumber()));
+                } else {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "UpdateMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: $d",
+                                    instruction.getBlockId(), instruction.getInstructionId()));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "This Order Number for Instructions\n cannot be updated.\nError: %s", e.getMessage()));
+        }
+        return false;
+    }
+
+    private void insertStepAfter(RowMoveDTO rowMoveDTO) {}
+
     private List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
@@ -296,22 +364,21 @@ public class WebSocketStompServer {
     }
 
     // Handle DELETE_INSTRUCTION message
-    private void deleteInstruction(DeleteInstructionDTO deleteInstructionDTO) {
-        if (deleteVariable((int) deleteInstructionDTO.getBotJobId(), (int) deleteInstructionDTO.getInstructionId()))
-            if (deleteReferences(
-                    (int) deleteInstructionDTO.getBotJobId(), (int) deleteInstructionDTO.getInstructionId()))
-                if (deleteRow((int) deleteInstructionDTO.getBlockId(), (int) deleteInstructionDTO.getInstructionId())) {
-                    deleteNullBlocks((int) deleteInstructionDTO.getBotJobId());
+    private void deleteInstruction(int botJobId, InstructionDTO deleteInstructionDTO) {
+        if (deleteVariable(botJobId, deleteInstructionDTO.getInstructionId()))
+            if (deleteReferences(botJobId, deleteInstructionDTO.getInstructionId()))
+                if (deleteRow(deleteInstructionDTO.getBlockId(), (int) deleteInstructionDTO.getInstructionId())) {
+                    deleteNullBlocks(botJobId);
                 }
     }
 
     // Handle DELETE_BLOCK message
     private void deleteBlock(DeleteBlockDTO deleteBlockDTO) {
-        List<DeleteInstructionDTO> deleteList =
-                getInstructionsByBlockId((int) deleteBlockDTO.getBotJobId(), (int) deleteBlockDTO.getBlockId());
+        List<InstructionDTO> deleteList =
+                getInstructionsByBlockId(deleteBlockDTO.getBotJobId(), deleteBlockDTO.getBlockId());
         if (deleteList.size() > 0) {
-            for (DeleteInstructionDTO deleteDTO : deleteList) {
-                deleteInstruction(deleteDTO);
+            for (InstructionDTO deleteDTO : deleteList) {
+                deleteInstruction(deleteBlockDTO.getBotJobId(), deleteDTO);
                 //                updateOtherBlocks()
             }
         }
@@ -538,9 +605,47 @@ public class WebSocketStompServer {
         return false;
     }
 
-    private List<DeleteInstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
+    private List<InstructionDTO> getInstructionsByBlockId(InstructionDTO instructionDTO) {
         // List to store the fetched instructions
-        List<DeleteInstructionDTO> instructions = new ArrayList<>();
+        List<InstructionDTO> instructions = new ArrayList<>();
+
+        // Build the SQL query statement
+        String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + instructionDTO.getBlockId();
+
+        // Execute the query and process the result set
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(querySQL)) {
+
+            while (rs.next()) {
+                // Assuming you have an Instruction class, populate it with data from the ResultSet
+                InstructionDTO instruction = new InstructionDTO();
+                instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                instruction.setBlockId(rs.getInt("block_id"));
+                instruction.setBlockOrderNumber(instructionDTO.getBlockOrderNumber());
+                instruction.setBotJobId(instructionDTO.getBotJobId());
+                // Add the instruction to the list
+                instructions.add(instruction);
+            }
+
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .info(String.format(
+                            "Fetched %d instructions for Block ID %d:",
+                            instructions.size(), instructionDTO.getBlockId()));
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "Error fetching instructions for Block ID %d. Error: %s: ",
+                            instructionDTO.getBlockId(), e.getMessage()));
+        }
+
+        return instructions;
+    }
+
+    private List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
+        // List to store the fetched instructions
+        List<InstructionDTO> instructions = new ArrayList<>();
 
         // Build the SQL query statement
         String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + blockId;
@@ -551,9 +656,11 @@ public class WebSocketStompServer {
 
             while (rs.next()) {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
-                DeleteInstructionDTO instruction = new DeleteInstructionDTO();
+                InstructionDTO instruction = new InstructionDTO();
                 instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instruction.setBlockId(rs.getInt("block_id"));
+                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
                 instruction.setBotJobId(botJobId);
                 // Add the instruction to the list
                 instructions.add(instruction);
@@ -701,5 +808,45 @@ public class WebSocketStompServer {
                             "loadNextIdBlockData - Error selecting Next Id Block. Error: %s", e.getMessage()));
         }
         return null;
+    }
+
+    private void loadWebPageFields(int botJobId) {
+        webPageItems.clear();
+        String selectSQL = " SELECT  "
+                + "  bj.id AS bot_job_id,  "
+                + "  bli.id AS block_loop_instruction_id,  "
+                + "  bli.instruction_order_number,  "
+                + "  bli.actions,  "
+                + "  bli.name AS instruction_name,  "
+                + "  bli.path,  "
+                + "  bli.operation      "
+                + " FROM bot_job bj  "
+                + " LEFT JOIN block b ON b.bot_job_id = bj.id  "
+                + " JOIN block_loop_instruction bli ON bli.block_id = b.id  "
+                + " where bj.id = " + botJobId
+                + "   and operation is null  "
+                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number ASC;";
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                int id = rs.getInt("block_loop_instruction_id");
+                String name = rs.getString("instruction_name");
+                String actions = rs.getString("actions");
+
+                // Filter out "SET", "GET", "CK", adn "H"
+                if (actions != null
+                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())
+                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
+                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())
+                        && !actions.equalsIgnoreCase(ABRConstants.HOLD)) {
+                    webPageItems.add(new ComboBoxVars(name, name, id, -1));
+                }
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "loadWebPageFields - Error selecting Web Page Fields.\n Error: %s", e.getMessage()));
+        }
     }
 }

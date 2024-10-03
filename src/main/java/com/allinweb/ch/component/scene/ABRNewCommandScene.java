@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ABRNewCommandPane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
@@ -15,17 +16,19 @@ public class ABRNewCommandScene extends ABRScene {
     private static final Double SCENE_WIDTH = 650D;
     private static final String TITLE = "Add Command";
     private int botJobId;
+    private RowMoveDTO rowMoveDTO;
     private ObservableList<ComboBoxVars> webPageItems;
 
-    public ABRNewCommandScene(int botJobId, ObservableList<ComboBoxVars> webPageItems) {
+    public ABRNewCommandScene(int botJobId, RowMoveDTO rowMoveDTO, ObservableList<ComboBoxVars> webPageItems) {
         super();
         this.botJobId = botJobId;
+        this.rowMoveDTO = rowMoveDTO;
         this.webPageItems = webPageItems;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRNewCommandPane(botJobId, webPageItems);
+        return new ABRNewCommandPane(botJobId, rowMoveDTO, webPageItems);
     }
 
     @Override
