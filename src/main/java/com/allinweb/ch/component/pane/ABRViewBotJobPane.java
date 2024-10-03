@@ -161,7 +161,17 @@ public class ABRViewBotJobPane extends ABRPane {
                     try {
                         startWebSocketServer(finalPort);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        ABRLogger.getInstance(ABRWebDriver.class).fine("port Alrey in Use: " + finalPort);
+
+                        Alert alert = new Alert(Alert.AlertType.ERROR);
+                        alert.setTitle("Port Error");
+                        alert.setHeaderText("Change the Port configuration\"");
+                        alert.setContentText(String.format("Port %d already in Use!", finalPort));
+                        alert.showAndWait();
+
+                        //                        Stage stage = (Stage) ((Button) .getSource()).getScene().getWindow();
+                        //                        stage.close();
+                        return;
                     }
                 })
                 .start();
@@ -326,7 +336,7 @@ public class ABRViewBotJobPane extends ABRPane {
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
-        buildWebView(jsonData);
+        buildWebView(jsonData, finalPort);
 
         // Send a message to all connected clients after 5 seconds
         WebSocketStompServer.sendMessageToAll(jsonData);
@@ -353,7 +363,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
     }
 
-    private void buildWebView(String jsonData) {
+    private void buildWebView(String jsonData, int finalPort) {
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
@@ -361,7 +371,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 // After the page has successfully loaded
                 try {
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData + ")) }, 1000)");
+                            + jsonData + "), " + finalPort + ") }, 1000)");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -811,8 +821,7 @@ public class ABRViewBotJobPane extends ABRPane {
     public void startWebSocketServer(int port) throws Exception {
         // Check if the port is available
         if (isPortInUse(port)) {
-            System.out.println("Port " + port + " is already in use.");
-            return;
+            throw new Exception("Port " + port + " is already in use.");
         }
 
         // Set up Jetty server to run WebSocket endpoint

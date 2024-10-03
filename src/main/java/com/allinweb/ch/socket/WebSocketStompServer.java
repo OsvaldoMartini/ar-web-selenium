@@ -307,7 +307,6 @@ public class WebSocketStompServer {
 
     // Handle DELETE_BLOCK message
     private void deleteBlock(DeleteBlockDTO deleteBlockDTO) {
-        System.out.println("Deleting Block ID: " + deleteBlockDTO.getBlockId());
         List<DeleteInstructionDTO> deleteList =
                 getInstructionsByBlockId((int) deleteBlockDTO.getBotJobId(), (int) deleteBlockDTO.getBlockId());
         if (deleteList.size() > 0) {
@@ -511,7 +510,7 @@ public class WebSocketStompServer {
 
             String deleteSQL = "DELETE FROM variable WHERE "
                     + " block_loop_instruction_id = " + instructionId
-                    + "AND bot_job_id = " + bot_job_id;
+                    + " AND bot_job_id = " + bot_job_id;
 
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -533,7 +532,7 @@ public class WebSocketStompServer {
         } catch (SQLException e) {
             ABRLogger.getInstance(ABRWebDriver.class)
                     .severe(String.format(
-                            "Error deleting instruction ID %d from botJobId ID %d. Error: %s: ",
+                            "Error deleting  Variable ID %d from botJobId ID %d. Error: %s: ",
                             instructionId, bot_job_id, e.getMessage()));
         }
         return false;
