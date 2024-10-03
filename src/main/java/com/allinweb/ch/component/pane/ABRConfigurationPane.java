@@ -30,7 +30,6 @@ public class ABRConfigurationPane extends ABRPane {
     // UI Components
     Label title;
     Label pathExcelLabel;
-    // Label pathExtRefLabel; //Added by morandi 15-04
     Label pathLogLabel;
     Label sizeLogLabel;
     Label reduceSearchLabel;
