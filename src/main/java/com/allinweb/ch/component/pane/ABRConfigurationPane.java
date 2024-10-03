@@ -273,7 +273,9 @@ public class ABRConfigurationPane extends ABRPane {
         AnchorPane.setTopAnchor(
                 saveButton,
                 (pathGroup.getChildren().size() * (ABRConstants.SPACE_M + ABRConstants.SPACE_XS))
-                        + (ABRConstants.SPACE_XL + ABRConstants.SPACE_SM));
+                        + (ABRConstants.SPACE_XL + ABRConstants.SPACE_SM)
+                        + 20 // Add 10 pixels to the top anchor
+                );
         AnchorPane.setLeftAnchor(saveButton, ABRConstants.SPACE_M);
         AnchorPane.setRightAnchor(saveButton, ABRConstants.SPACE_M);
         mainPane = new AnchorPane(title, pathGroup, saveButton, homeBankingGroup);
