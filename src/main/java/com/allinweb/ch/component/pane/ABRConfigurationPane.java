@@ -166,13 +166,22 @@ public class ABRConfigurationPane extends ABRPane {
         pathDBButton = createPathButton();
         dbTypeLabel = new Label("DB Type");
         dbType = createPathTextField(ABRPropertyEnum.DATABASE_TYPE);
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+        if (dataBaseType == null) {
+            dbType.setText("excel");
+        }
+
         socketPortLabel = new Label("Socket Port");
         socketPort = createPathTextField(ABRPropertyEnum.PORT_SOCKET);
+        String portSocket = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PORT_SOCKET);
+        if (portSocket == null) {
+            socketPort.setText("8080");
+        }
 
         GridPane gridPaneDB = new GridPane();
         //        gridPaneDB.setVgap(10);
         gridPaneDB.setHgap(10);
-        // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
+        // Set column constraints for pathDB (80%), dbType (15%), socketPort (15%) and pathDBButton (5%)
         ColumnConstraints col1DB = new ColumnConstraints();
         col1DB.setPercentWidth(65);
 
@@ -326,6 +335,17 @@ public class ABRConfigurationPane extends ABRPane {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Java Path must be filed!", ButtonType.OK);
             validfields = false;
         }
+
+        if (Strings.isNullOrEmpty(dbType.getText())) {
+            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "DB Type must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+
+        if (Strings.isNullOrEmpty(socketPort.getText())) {
+            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Socket Port must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+
         if (Strings.isNullOrEmpty(pathDB.getText())) {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Database Path must be filed!", ButtonType.OK);
             validfields = false;
