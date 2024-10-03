@@ -8,6 +8,7 @@ import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebElement;
+import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.VariableUserDTO;
@@ -32,6 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -73,8 +75,6 @@ public class ABRNewCommandPane extends ABRPane {
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
 
     private int botJobId;
-    private int instructionId;
-    private String instructionName;
     private RowMoveDTO rowMoveDTO;
     private Pane mainPane;
 
@@ -498,14 +498,16 @@ public class ABRNewCommandPane extends ABRPane {
                         "SetValue",
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":" + setValueTo,
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getInstructionId());
+                        comboBoxVars.getValue().getInstructionId(),
+                        this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
                 addInstruction(
                         "GetValue",
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
                                 + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getInstructionId());
+                        comboBoxVars.getValue().getInstructionId(),
+                        this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("check")) {
                 String checkValueFor =
                         Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
@@ -517,7 +519,8 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getText().toLowerCase() + ":"
                                 + comboBoxOperator.getValue().getOperator() + ":" + checkValueFor,
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getInstructionId());
+                        comboBoxVars.getValue().getInstructionId(),
+                        this.rowMoveDTO);
             }
         });
 
@@ -540,13 +543,31 @@ public class ABRNewCommandPane extends ABRPane {
         });
 
         variableButton.setOnAction(e -> {
-            ABRLogger.getInstance(ABRWebElement.class)
-                    .info("creating variable for instruction Name " + instructionName);
-            ABRElementValueScene elementValueScene = new ABRElementValueScene(
-                    botJobId,
-                    comboBoxWebPage.getValue().getVarId(),
-                    comboBoxWebPage.getValue().getText());
-            elementValueScene.showModal();
+            if (this.rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+                ABRLogger.getInstance(ABRWebElement.class)
+                        .info("creating variable for instruction Name "
+                                + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
+                ABRElementValueScene elementValueScene = new ABRElementValueScene(
+                        botJobId,
+                        rowMoveDTO.getUpdatedRows().get(0).getInstructionId(),
+                        rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
+                elementValueScene.showModal();
+                loadJobVariables(comboBoxWebPage.getValue().getVarId());
+                reloadComboVars();
+                // Set ComboBox to first item
+                comboBoxVars.getSelectionModel().selectFirst();
+
+            } else {
+                ABRLogger.getInstance(ABRWebElement.class)
+                        .info("creating variable for instruction Name "
+                                + comboBoxWebPage.getValue().getText());
+                ABRElementValueScene elementValueScene = new ABRElementValueScene(
+                        botJobId,
+                        comboBoxWebPage.getValue().getVarId(),
+                        comboBoxWebPage.getValue().getText());
+                elementValueScene.showModal();
+            }
+
             loadJobVariables(comboBoxWebPage.getValue().getVarId());
             reloadComboVars();
             // Set ComboBox to first item
@@ -773,64 +794,104 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
-    private void addInstruction(String name, String operation, Integer varId, Integer instructionId) {
-        // Create a label to display the countdown
-        Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
-        newInstruction.setStyle("-fx-font-size: 18px;");
+    private void addInstruction(
+            String name, String operation, Integer varId, Integer instructionId, RowMoveDTO rowMoveDTO) {
 
-        StackPane stackPane = new StackPane(newInstruction);
-        stackPane.setPadding(new Insets(20));
-        alertToShow.getDialogPane().setContent(stackPane);
+        // Create and show alert inside Platform.runLater
+        Platform.runLater(() -> {
+            // Create a label to display the instruction
+            Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
+            newInstruction.setStyle("-fx-font-size: 18px;");
 
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-        alert.setHeaderText("Are you sure you want to Add the Instruction to the Bot-Job?");
-        alert.getDialogPane().setContent(stackPane);
+            StackPane stackPane = new StackPane(newInstruction);
+            stackPane.setPadding(new Insets(20));
 
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-            Task<Void> waitTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    //                    List<BlockLoopInstructionDTO> instructionList =
-                    //                            botJob.getBlocks().get(0).getBlockLoopInstructions();
-                    BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
-                    List<BlockLoopInstructionDTO> instructionList =
-                            botJob.getBlocks().get(0).getBlockLoopInstructions();
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+            alert.setHeaderText("Are you sure you want to Add the Instruction to the Bot-Job?");
+            alert.getDialogPane().setContent(stackPane);
 
-                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
-                    instruction.setName(name);
-                    instruction.setDescription("loop desc");
-                    instruction.setOperation(operation);
-                    instruction.setVariableId(varId);
-                    instruction.setParentId(instructionId);
-                    instruction.setEncrypted(false);
-                    instruction.setExportToABR(true);
-                    instruction.setInstructionOrderNumber(instructionList.size());
-                    instruction.setOptional(false);
-                    if (name.equalsIgnoreCase("setValue")) {
-                        instruction.setActions(ABRConstants.SET_VALUE);
-                    } else if (name.equalsIgnoreCase("getValue")) {
-                        instruction.setActions(ABRConstants.GET_VALUE);
-                    } else if (name.equalsIgnoreCase("check")) {
-                        instruction.setActions(ABRConstants.CHECK_VALUE);
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.YES) {
+                List<BlockLoopInstructionDTO> instructionList = null;
+                BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
+                List<BlockDTO> matchingBlocks = null;
+                if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+                    int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
+
+                    matchingBlocks = botJob.getBlocks().stream()
+                            .filter(block -> block.getId() == targetBlockId)
+                            .collect(Collectors.toList());
+
+                    if (!matchingBlocks.isEmpty()) {
+                        instructionList = matchingBlocks.get(0).getBlockLoopInstructions();
+                    } else {
+                        instructionList = botJob.getBlocks().get(0).getBlockLoopInstructions();
                     }
-                    instruction.setActionCustomMaxWaitSec(30);
-                    instruction.setOnHoldSeconds(1);
-                    instruction.setBlock(botJob.getBlocks().get(0));
-                    instruction.setExportToABR(false);
-                    ABRSharedResources.getInstance()
-                            .addEntity(
-                                    instruction,
-                                    BlockLoopInstructionDTO.class,
-                                    () -> new ABRAlertScene(
-                                            Alert.AlertType.INFORMATION,
-                                            "Instruction Added",
-                                            "Instruction " + instruction.getName() + " has been added successfully",
-                                            ButtonType.OK));
-                    return null;
                 }
-            };
-            new Thread(waitTask).start();
-        }
+
+                List<BlockLoopInstructionDTO> finalInstructionList = instructionList;
+                List<BlockDTO> finalMatchingBlocks = matchingBlocks;
+
+                Task<Void> waitTask = new Task<>() {
+                    @Override
+                    protected Void call() throws Exception {
+                        try {
+                            BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+                            instruction.setName(name);
+                            instruction.setDescription("loop desc");
+                            instruction.setOperation(operation);
+                            instruction.setVariableId(varId);
+                            instruction.setParentId(instructionId);
+                            instruction.setEncrypted(false);
+                            instruction.setExportToABR(true);
+                            if (rowMoveDTO != null
+                                    && rowMoveDTO.getUpdatedRows().size() > 0) {
+                                instruction.setInstructionOrderNumber(
+                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+                            } else {
+                                instruction.setInstructionOrderNumber(finalInstructionList.size());
+                            }
+                            instruction.setOptional(false);
+                            if (name.equalsIgnoreCase("setValue")) {
+                                instruction.setActions(ABRConstants.SET_VALUE);
+                            } else if (name.equalsIgnoreCase("getValue")) {
+                                instruction.setActions(ABRConstants.GET_VALUE);
+                            } else if (name.equalsIgnoreCase("check")) {
+                                instruction.setActions(ABRConstants.CHECK_VALUE);
+                            }
+                            instruction.setActionCustomMaxWaitSec(30);
+                            instruction.setOnHoldSeconds(1);
+                            if (finalMatchingBlocks != null) {
+                                instruction.setBlock(finalMatchingBlocks.get(0));
+                            } else {
+                                instruction.setBlock(botJob.getBlocks().get(0));
+                            }
+                            instruction.setExportToABR(false);
+
+                            // Wrap the persistence in a try-catch block
+                            try {
+                                ABRSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
+                            } catch (Exception e) {
+                                System.err.println("Error while saving instruction: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+
+                            // Move the UI update to the JavaFX Application Thread
+                            Platform.runLater(() -> {
+                                new ABRAlertScene(
+                                        Alert.AlertType.INFORMATION,
+                                        "Instruction Added",
+                                        "Instruction " + instruction.getName() + " has been added successfully",
+                                        ButtonType.OK);
+                            });
+                        } catch (Exception ex) {
+                            ex.printStackTrace(); // Handle any exception
+                        }
+                        return null;
+                    }
+                };
+                new Thread(waitTask).start();
+            }
+        });
     }
 }

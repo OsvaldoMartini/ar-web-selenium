@@ -96,6 +96,7 @@ public class ABRElementValuePane extends ABRPane {
         // Create text fields
         idField = new TextField();
         idField.setEditable(false);
+        idField.setText(String.valueOf(instructionId));
         idField.setStyle("-fx-control-inner-background: D3D3D3; -fx-pref-width: 50px;");
         idField.setPrefHeight(30);
 

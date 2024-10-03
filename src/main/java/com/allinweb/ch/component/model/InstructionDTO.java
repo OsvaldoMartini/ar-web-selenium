@@ -10,4 +10,5 @@ public class InstructionDTO {
     private int blockId;
     private int blockOrderNumber;
     private int instructionOrderNumber;
+    private String instructionName;
 }
