@@ -37,7 +37,7 @@ public class ABRSharedResources {
     private static final String lock = "locked";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static boolean POSTGRES_DB = false;
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
@@ -393,6 +393,14 @@ public class ABRSharedResources {
 
             if (priorityPath != null && !priorityPath.isBlank()) {
                 abrPriorities.loadPriorities();
+            }
+
+            String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+
+            if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+                POSTGRES_DB = true;
+            } else {
+                POSTGRES_DB = false;
             }
 
             if (POSTGRES_DB) {

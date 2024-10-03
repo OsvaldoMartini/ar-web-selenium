@@ -78,7 +78,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static final boolean POSTGRES_DB = true;
+    private static boolean POSTGRES_DB = false;
 
     private Connection conn = null;
     private ObservableList<VariableUserDTO> variablesList;
@@ -131,6 +131,15 @@ public class ABRViewBotJobPane extends ABRPane {
         this.botJob = botJob;
         // Initialize database IF IS ACCESS TO BE USED
         variablesList = FXCollections.observableArrayList();
+
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+        } else {
+            POSTGRES_DB = false;
+        }
+
         if (!POSTGRES_DB) {
             initializeDatabase();
         }
@@ -288,28 +297,34 @@ public class ABRViewBotJobPane extends ABRPane {
 
         loadBlockAll(botJob.getId());
 
+        Gson gson = new Gson();
+        String jsonData = "";
+
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
-        List<BlockLoopInstructionLoadDTO> blockLoopInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
-                .flatMap(blockLoadDTO -> blockLoadDTO.getBlockLoopInstructionLoadDTOS().stream()
-                        .map(blockLoopInstructionDTO -> new BlockLoopInstructionLoadDTO(
-                                botLoadJobs.get(0).getId(), // Use botJobLoadDTO instead of botJob
-                                blockLoopInstructionDTO.getId(),
-                                blockLoopInstructionDTO.getInstructionOrderNumber(),
-                                blockLoopInstructionDTO.getName(),
-                                blockLoopInstructionDTO.getDescription(),
-                                blockLoadDTO.getId(), // block ID from BlockLoadDTO
-                                blockLoadDTO.getBlockOrderNumber(),
-                                blockLoadDTO.getName(),
-                                blockLoopInstructionDTO.getActions(),
-                                blockLoopInstructionDTO.getParentId(),
-                                blockLoopInstructionDTO.getOperation())))
-                .collect(Collectors.toList());
+        if (botLoadJobs.size() > 0) {
+            List<BlockLoopInstructionLoadDTO> blockLoopInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
+                    .flatMap(blockLoadDTO -> blockLoadDTO.getBlockLoopInstructionLoadDTOS().stream()
+                            .map(blockLoopInstructionDTO -> new BlockLoopInstructionLoadDTO(
+                                    botLoadJobs.get(0).getId(), // Use botJobLoadDTO instead of botJob
+                                    blockLoopInstructionDTO.getId(),
+                                    blockLoopInstructionDTO.getInstructionOrderNumber(),
+                                    blockLoopInstructionDTO.getName(),
+                                    blockLoopInstructionDTO.getDescription(),
+                                    blockLoadDTO.getId(), // block ID from BlockLoadDTO
+                                    blockLoadDTO.getBlockOrderNumber(),
+                                    blockLoadDTO.getName(),
+                                    blockLoopInstructionDTO.getActions(),
+                                    blockLoopInstructionDTO.getParentId(),
+                                    blockLoopInstructionDTO.getOperation())))
+                    .collect(Collectors.toList());
+
+            jsonData = gson.toJson(blockLoopInstructions);
+        } else {
+            jsonData = "[]";
+        }
 
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
-
-        Gson gson = new Gson();
-        String jsonData = gson.toJson(blockLoopInstructions);
 
         buildWebView(jsonData);
 

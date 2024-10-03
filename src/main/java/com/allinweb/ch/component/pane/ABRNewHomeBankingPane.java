@@ -37,12 +37,6 @@ public class ABRNewHomeBankingPane extends ABRPane {
 
     // Postgres
     private static boolean POSTGRES_DB = false;
-    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
-    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
-    private static final String DB_PORT = "5432"; // default PostgreSQL port
-    private static final String DB_NAME = "abr_web"; // your database name
-    private static final String USERNAME = "postgres"; // your database username
-    private static final String PASSWORD = "martini"; // your database password
 
     //    private static final String FILE_NAME =
     //            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\user_data.mdb";

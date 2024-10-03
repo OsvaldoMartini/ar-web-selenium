@@ -104,18 +104,6 @@ public class ABRScannedElementPane extends ABRPane {
     private static final Random RANDOM = new Random();
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-
-    // Postgres
-    private static final boolean POSTGRES_DB = true;
-    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
-    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
-    private static final String DB_PORT = "5432"; // default PostgreSQL port
-    private static final String DB_NAME = "abr_web"; // your database name
-    private static final String USERNAME = "postgres"; // your database username
-    private static final String PASSWORD = "martini"; // your database password
-
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
     private DatabaseUserDTO databaseUserDto;

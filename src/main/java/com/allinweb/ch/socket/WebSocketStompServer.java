@@ -114,7 +114,8 @@ public class WebSocketStompServer {
                     break;
                 case "BLOCK_ROLLBACK":
                     RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(frame.getBody(), RollBackBlocksDTO.class);
-                    rollBackBlocks(rollBackBlocksDTO);
+                    rollBackBlocksRows(rollBackBlocksDTO);
+                    rollBackBlocksOrder(rollBackBlocksDTO);
                     deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
                     break;
 
@@ -438,7 +439,7 @@ public class WebSocketStompServer {
         return false;
     }
 
-    private void rollBackBlocks(RollBackBlocksDTO rollBackBlocksDTO) {
+    private void rollBackBlocksRows(RollBackBlocksDTO rollBackBlocksDTO) {
         // Build the SQL update statement
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
@@ -463,6 +464,37 @@ public class WebSocketStompServer {
                     .severe(String.format(
                             "This BlockId '%d' \n cannot be updated.\nError: %s",
                             rollBackBlocksDTO.getBlockId(), e.getMessage()));
+            return;
+        }
+    }
+
+    private void rollBackBlocksOrder(RollBackBlocksDTO rollBackBlocksDTO) {
+        // Build the SQL update statement
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            String updateSQL = "UPDATE block SET  "
+                    + " block_order_number = " + 1
+                    + " WHERE id = " + rollBackBlocksDTO.getBlockId()
+                    + " and bot_job_id = " + rollBackBlocksDTO.getBotJobId();
+
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .warning(String.format(
+                                "rollBackBlocksOrder - Block Order Reset for blockId: %d - Name: %s",
+                                rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
+            } else {
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .warning(String.format(
+                                "RollBackBlocks - No matching record found to update for blockId: %d - Name: %s",
+                                rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "This BlockId '%d' - Name: %s \n cannot be updated.\nError: %s",
+                            rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName(), e.getMessage()));
             return;
         }
     }
