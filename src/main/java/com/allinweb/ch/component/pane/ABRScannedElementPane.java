@@ -2768,6 +2768,10 @@ public class ABRScannedElementPane extends ABRPane {
         ExcelWriter.ExcelChain writer =
                 new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("report");
         writer.insertReportHead();
+
+        ExcelWriter.ExcelChain writerExport =
+                new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("export");
+
         boolean success = true;
         boolean stopAll = false;
         long botJobStartTime = System.nanoTime();
@@ -3091,12 +3095,11 @@ public class ABRScannedElementPane extends ABRPane {
                                     if (operations.length == 2) {
                                         if (mapOperators.containsKey(parentField)) {
 
-                                            resultAcions = "insertValueFieldNameInExcel-->"
-                                                    + insertValueFieldNameInExcel(
-                                                            parentField,
-                                                            mapOperators.get(parentField),
-                                                            currentInstruction.getOperation(),
-                                                            selectedJob.getName());
+                                            resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
+                                                    + mapOperators.get(parentField);
+                                            writerExport.insertValueFieldName(
+                                                    parentField, mapOperators.get(parentField));
+
                                             onHoldForSeconds(null);
 
                                             long currentInstructionEndTime = System.nanoTime();

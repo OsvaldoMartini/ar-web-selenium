@@ -30,6 +30,7 @@ public class ABRConfigurationPane extends ABRPane {
     // UI Components
     Label title;
     Label pathExcelLabel;
+    Label pathExportLabel;
     Label pathLogLabel;
     Label sizeLogLabel;
     Label reduceSearchLabel;
@@ -42,10 +43,12 @@ public class ABRConfigurationPane extends ABRPane {
     Label pathJavaFXLabel;
     Label pathEngineLabel;
     Label browserLabel;
+    Label reloadDBLabel;
+    Label insertSitesLabel;
     Label pathWebDriverLabel;
 
     TextField pathExcel;
-    // TextField pathExtRef; //Added by morandi 15-04
+    TextField pathExport;
     TextField pathLog;
     TextField sizeLog;
     TextField reduceSearch;
@@ -63,6 +66,7 @@ public class ABRConfigurationPane extends ABRPane {
     ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
 
     Button pathExcelButton;
+    Button pathExportButton;
     Button pathLogButton;
     Button pathJavaButton;
     Button pathDBButton;
@@ -72,8 +76,8 @@ public class ABRConfigurationPane extends ABRPane {
     Button pathEngineButton;
     Button pathWebDriverButton;
 
-    Button addHomeBankingButton;
     Button saveButton;
+    Button addHomeBankingButton;
 
     ListView<HomeBankingDTO> homeBankingListView;
 
@@ -98,25 +102,25 @@ public class ABRConfigurationPane extends ABRPane {
         AnchorPane.setLeftAnchor(title, ABRConstants.SPACE_M);
         AnchorPane.setRightAnchor(title, ABRConstants.SPACE_M);
 
-        ButtonBar homeBankingActionGroup = new ButtonBar();
+//        ButtonBar homeBankingActionGroup = new ButtonBar();
         addHomeBankingButton = builder.buildButton("Insert / Update / Config Scan");
-        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
+//        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
         ObservableList<HomeBankingDTO> homeBankingList =
                 ABRSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
         homeBankingListView = new ListView<>(homeBankingList);
         homeBankingListView.setCellFactory(new ABRCellFactory<>(HomeBankingListCell.class)::call);
 
-        homeBankingGroup = new VBox(homeBankingActionGroup, homeBankingListView);
-        AnchorPane.setBottomAnchor(homeBankingGroup, ABRConstants.SPACE_L + ABRConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(homeBankingGroup, ABRConstants.SPACE_M);
-        AnchorPane.setRightAnchor(homeBankingGroup, ABRConstants.SPACE_M);
-
         pathExcelLabel = new Label("Excel Path:");
         pathExcel = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXCEL);
         pathExcelButton = createPathButton();
         AnchorPane excelGroup = new AnchorPane(pathExcel, pathExcelButton);
 
+        pathExportLabel = new Label("Export Path:");
+        pathExport = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXPORT);
+        pathExportButton = createPathButton();
+        AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
+        
         // LOGs
         pathLogLabel = new Label("Log Path:");
         pathLog = createPathTextField(ABRPropertyEnum.FOLDER_PATH_LOG);
@@ -212,6 +216,41 @@ public class ABRConfigurationPane extends ABRPane {
         // Set margin for pathDBButton to create spacing from right border
         GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
 
+
+        GridPane gridPaneButton = new GridPane();
+        gridPaneButton.setHgap(10);
+
+// Set column constraints for each column to take up 33.33% of the grid width
+        ColumnConstraints col1Button = new ColumnConstraints();
+        col1Button.setPercentWidth(33.33);
+
+        ColumnConstraints col2Button = new ColumnConstraints();
+        col2Button.setPercentWidth(33.33);
+
+        ColumnConstraints col3Button = new ColumnConstraints();
+        col3Button.setPercentWidth(33.33);
+
+        gridPaneButton.getColumnConstraints().addAll(col1Button, col2Button, col3Button);
+
+        browserLabel = new Label("Browser");
+        reloadDBLabel = new Label("Reload DB");
+        insertSitesLabel = new Label("Insert Sites");
+
+        saveButton = builder.buildButton("Reload Configs");
+        saveButton.setMaxHeight(ABRConstants.SPACE_L);
+
+// Add labels in the first row
+        gridPaneButton.add(browserLabel, 0, 0);
+        gridPaneButton.add(reloadDBLabel, 1, 0);
+        gridPaneButton.add(insertSitesLabel, 2, 0);
+
+// Add components in the second row, each occupying 33.33% of the width
+        gridPaneButton.add(browserChoiceBox, 0, 1);
+        gridPaneButton.add(saveButton, 1, 1);
+        gridPaneButton.add(addHomeBankingButton, 2, 1);
+
+
+
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         pathJavaLabel = new Label("Java Path:");
         pathJava = createPathTextField(ABRPropertyEnum.FOLDER_PATH_JAVA);
@@ -243,7 +282,7 @@ public class ABRConfigurationPane extends ABRPane {
         pathWebDriverButton = createPathButton();
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
-        browserLabel = new Label("Browser");
+        
         ObservableList<String> browserList =
                 FXCollections.observableArrayList(ABRConstants.CHROME, ABRConstants.EDGE, ABRConstants.FIREFOX);
         browserChoiceBox.setItems(browserList);
@@ -257,6 +296,8 @@ public class ABRConfigurationPane extends ABRPane {
         pathGroup = new VBox(
                 pathExcelLabel,
                 excelGroup,
+                pathExportLabel,
+                exportGroup,
                 gridPaneLog,
                 gridPaneDB,
                 pathReportLabel,
@@ -271,23 +312,19 @@ public class ABRConfigurationPane extends ABRPane {
                 engineGroup,
                 pathWebDriverLabel,
                 driverGroup,
-                browserLabel,
-                browserChoiceBox); // , pathExtRefLabel, pathExtRef);
+                gridPaneButton); // , pathExtRefLabel, pathExtRef);
+
+        homeBankingGroup = new VBox(homeBankingListView);
+        AnchorPane.setBottomAnchor(homeBankingGroup, ABRConstants.SPACE_L + ABRConstants.SPACE_M);
+        AnchorPane.setLeftAnchor(homeBankingGroup, ABRConstants.SPACE_M);
+        AnchorPane.setRightAnchor(homeBankingGroup, ABRConstants.SPACE_M);
+        
+        
         AnchorPane.setTopAnchor(pathGroup, ABRConstants.SPACE_L + ABRConstants.SPACE_M);
         AnchorPane.setLeftAnchor(pathGroup, ABRConstants.SPACE_M);
         AnchorPane.setRightAnchor(pathGroup, ABRConstants.SPACE_M);
 
-        saveButton = builder.buildButton("Reload Configs");
-        saveButton.setMaxHeight(ABRConstants.SPACE_L);
-        AnchorPane.setTopAnchor(
-                saveButton,
-                (pathGroup.getChildren().size() * (ABRConstants.SPACE_M + ABRConstants.SPACE_XS))
-                        + (ABRConstants.SPACE_XL + ABRConstants.SPACE_SM)
-                        + 20 // Add 10 pixels to the top anchor
-                );
-        AnchorPane.setLeftAnchor(saveButton, ABRConstants.SPACE_M);
-        AnchorPane.setRightAnchor(saveButton, ABRConstants.SPACE_M);
-        mainPane = new AnchorPane(title, pathGroup, saveButton, homeBankingGroup);
+        mainPane = new AnchorPane(title, pathGroup, homeBankingGroup);
     }
 
     @Override

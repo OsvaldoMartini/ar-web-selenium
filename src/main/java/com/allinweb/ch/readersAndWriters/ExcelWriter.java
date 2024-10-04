@@ -40,9 +40,19 @@ public class ExcelWriter {
         this.botJobName = botJobName;
         this.abrWebDriver = abrWebDriver;
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
+        boolean existExport = ManagedExcel.checkIfExcelExist(botJobName + "_export", "export");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
-        managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
-        managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
+        try {
+            managedExcelMap.put("export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
+
+            managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
+            managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
+        }catch (Exception ex){
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe(String.format(
+                            "Excel Folder maybe not configured. %s\nError",
+                            botJobName, ex.getMessage()));
+        }
     }
 
     public ExcelChain withPurpose(String purpose) {
@@ -62,7 +72,8 @@ public class ExcelWriter {
             } catch (Exception ex) {
                 ABRLogger.getInstance(ABRScannedElementPane.class)
                         .severe(String.format(
-                                "Excel Writer insertValueFieldName.\nCheck if the file exist.\nFile: %s\nError", botJobName, ex.getMessage()));
+                                "Excel Writer insertValueFieldName.\nCheck if the file exist.\nFile: %s\nError",
+                                botJobName, ex.getMessage()));
             }
         }
 
@@ -170,6 +181,7 @@ public class ExcelWriter {
                     switch (purpose) {
                         case "report" -> ABRPropertyEnum.FOLDER_PATH_REPORT;
                         case "excel" -> ABRPropertyEnum.FOLDER_PATH_EXCEL;
+                        case "export" -> ABRPropertyEnum.FOLDER_PATH_EXPORT;
                         default -> throw new UnsupportedOperationException("Purpose: " + purpose + " not supported");
                     };
             String fileNamePath = "\\" + fileName + Constants.FILE_FORMAT;
