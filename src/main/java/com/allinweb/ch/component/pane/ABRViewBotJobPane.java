@@ -373,7 +373,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
                             + jsonData + "), " + finalPort + ") }, 1000)");
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    ABRLogger.getInstance(ABRViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
                 }
             }
         });
@@ -750,10 +750,11 @@ public class ABRViewBotJobPane extends ABRPane {
                 }
                 System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
             } catch (SQLException e) {
-                e.printStackTrace();
+                ABRLogger.getInstance(ABRViewBotJobPane.class).severe("initializeDatabase\nError: " + e.getMessage());
             }
         } else {
-            System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
+            ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    .info(String.format("Database '%s' Already exist!", dbFile.getName()));
         }
     }
 
@@ -776,7 +777,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 variablesList.add(new VariableUserDTO(id, type, name, value, this.botJob.getId(), -1, usedVars));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadJobVariables  \nError: " + e.getMessage());
         }
     }
 
@@ -869,7 +870,7 @@ public class ABRViewBotJobPane extends ABRPane {
             System.out.println("Block data saved successfully.");
             return nextId;
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("saveBlock  \nError: " + e.getMessage());
             return -1;
         }
     }
@@ -883,7 +884,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -893,10 +894,12 @@ public class ABRViewBotJobPane extends ABRPane {
             try {
                 jettyServer.stop();
             } catch (Exception e) {
-                e.printStackTrace();
+                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                        .severe("stopWebSocketServer  \nError: " + e.getMessage());
             }
             jettyServer.destroy();
-            System.out.println("WebSocket server stopped.");
+            ABRLogger.getInstance(ABRViewBotJobPane.class).info("WebSocket server stopped.");
+            //            System.out.println("WebSocket server stopped.");
         }
     }
 
@@ -991,7 +994,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadBlockAll  \nError: " + e.getMessage());
         }
     }
 }

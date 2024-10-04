@@ -53,6 +53,7 @@ public class ABRSharedResources {
     private List<DatabaseUserDTO> databaseList = new ArrayList<>();
     // Very important sequence on initiation
     private static ABRPriorities abrPriorities;
+    private String previousDB;
 
     // Static block to initialize
     static {
@@ -396,6 +397,12 @@ public class ABRSharedResources {
             }
 
             String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+            if (previousDB != null && previousDB != dataBaseType) {
+                this.conn = null;
+                previousDB = dataBaseType;
+            } else {
+                previousDB = dataBaseType;
+            }
 
             if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
                 POSTGRES_DB = true;

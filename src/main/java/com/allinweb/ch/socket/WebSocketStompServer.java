@@ -779,7 +779,7 @@ public class WebSocketStompServer {
                     + " AND b.block_order_number != 1 " // Exclude block with blockOrderNumber = 1
                     + " AND NOT EXISTS ( "
                     + "     SELECT 1 "
-                    + "     FROM public.block_loop_instruction bli "
+                    + "     FROM block_loop_instruction bli "
                     + "     WHERE bli.block_id = b.id);";
 
             // Execute the update statement and check if any rows were affected
