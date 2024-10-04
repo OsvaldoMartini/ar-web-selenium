@@ -121,7 +121,8 @@ public class ABRNewCommandPane extends ABRPane {
                         "setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN), WebElementTagNameEnum.SET.getValue()),
                 new ComboBoxItem(
                         "getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN), WebElementTagNameEnum.GET.getValue()),
-                new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK), WebElementTagNameEnum.CK.getValue()));
+                new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK), WebElementTagNameEnum.CK.getValue()),
+        new ComboBoxItem("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), WebElementTagNameEnum.E.getValue()));
 
         operatorsItems = FXCollections.observableArrayList(
                 new ComboBoxOperator("Equals", new Image(ABRConstants.ICON_EQUAL), "="),
@@ -521,6 +522,14 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getInstructionId(),
                         this.rowMoveDTO);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("excelWrite")) {
+                addInstruction(
+                        "ExcelWrite",
+                         "ExcelWrite" +":"
+                                + comboBoxVars.getValue().getText().toUpperCase(),
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getInstructionId(),
+                        this.rowMoveDTO);
             }
         });
 
@@ -549,8 +558,8 @@ public class ABRNewCommandPane extends ABRPane {
                                 + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
                 ABRElementValueScene elementValueScene = new ABRElementValueScene(
                         botJobId,
-//                        rowMoveDTO.getUpdatedRows().get(0).getInstructionId(),
-//                        rowMoveDTO.getUpdatedRows().get(0).getInstructionName()
+                        //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionId(),
+                        //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionName()
                         comboBoxWebPage.getValue().getVarId(),
                         comboBoxWebPage.getValue().getText());
                 elementValueScene.showModal();
@@ -860,7 +869,9 @@ public class ABRNewCommandPane extends ABRPane {
                                 instruction.setActions(ABRConstants.GET_VALUE);
                             } else if (name.equalsIgnoreCase("check")) {
                                 instruction.setActions(ABRConstants.CHECK_VALUE);
-                            }
+                            }  else if (name.equalsIgnoreCase("ExcelWrite")) {
+                            instruction.setActions(ABRConstants.EXTRACT);
+                        }
                             instruction.setActionCustomMaxWaitSec(30);
                             instruction.setOnHoldSeconds(1);
                             if (finalMatchingBlocks != null) {

@@ -3384,6 +3384,7 @@ public class ABRScannedElementPane extends ABRPane {
         if (instructionElement != null
                 || actions[0].equals(Constants.HOLD)
                 || actions[0].equals(Constants.QUIT)
+                || actions[0].equals(Constants.SCREEN)
                 || actions[0].equals(Constants.SCREEN)) {
 
             for (String action : actions) {

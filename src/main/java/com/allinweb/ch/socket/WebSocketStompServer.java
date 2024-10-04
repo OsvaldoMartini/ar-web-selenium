@@ -10,9 +10,12 @@ import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRNewCommandScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.persistence.BlockDTO;
+import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -30,10 +33,20 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
+import javafx.geometry.Insets;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
+
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -95,7 +108,10 @@ public class WebSocketStompServer {
                     BlockMoveDTO blockMoveDTO = gson.fromJson(frame.getBody(), BlockMoveDTO.class);
                     moveBlock(blockMoveDTO);
                     break;
-
+                case "ROW_UPDATE":
+                    RowMoveDTO rowUpdateDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
+                    rowUpdate(rowUpdateDTO);
+                    break;
                 case "ROW_MOVE":
                     RowMoveDTO rowMoveDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
                     rowMove(rowMoveDTO);
@@ -227,6 +243,15 @@ public class WebSocketStompServer {
     private void moveBlock(BlockMoveDTO blockMoveDTO) {
         List<BlockOrderDetailDTO> updatedBlocks = blockMoveDTO.getUpdatedBlocks();
         updateBlockOrderNumber(updatedBlocks);
+    }
+
+    // Handle ROW_MOVE message
+    private void rowUpdate(RowMoveDTO rowUpdateDTO) {
+        if (rowUpdateDTO.getUpdatedRows().size() > 0) {
+            rowsUpdateName(rowUpdateDTO.getUpdatedRows());
+        }
+
+        // Add business logic to handle ROW_MOVE
     }
 
     // Handle ROW_MOVE message
@@ -497,6 +522,37 @@ public class WebSocketStompServer {
             ABRLogger.getInstance(ABRWebDriver.class)
                     .severe(String.format(
                             "This '%s' \n cannot be updated.\nError: %s", originalBlockId, e.getMessage()));
+        }
+        return false;
+    }
+
+    private boolean rowsUpdateName(List<InstructionDTO> instructions) {
+        // Build the SQL update statement
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            for (InstructionDTO instruction : instructions) {
+
+                String updateSQL = "UPDATE block_loop_instruction SET  "
+                        + " name = '" + instruction.getInstructionName() + "'"
+                        + " WHERE id = " + instruction.getInstructionId()
+                        + " and block_id = " + instruction.getBlockId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+                if (rowsAffected > 0) {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "RowsUpdateName - InstructionId: %s now have name: %s",
+                                    instruction.getInstructionId(), instruction.getInstructionName()));
+                } else {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: $s",
+                                    instruction.getInstructionId(), instruction.getInstructionName()));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
         }
         return false;
     }
@@ -878,4 +934,107 @@ public class WebSocketStompServer {
                             "loadWebPageFields - Error selecting Web Page Fields.\n Error: %s", e.getMessage()));
         }
     }
+
+    private void addInstruction(String name, String operation, Integer variableId, Integer parentId, RowMoveDTO rowMoveDTO) {
+
+        // Create and show alert inside Platform.runLater
+        Platform.runLater(() -> {
+            // Create a label to display the instruction
+            Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
+            newInstruction.setStyle("-fx-font-size: 18px;");
+
+            StackPane stackPane = new StackPane(newInstruction);
+            stackPane.setPadding(new Insets(20));
+
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+            alert.setHeaderText("Are you sure you want to Add the Instruction to the Bot-Job?");
+            alert.getDialogPane().setContent(stackPane);
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.YES) {
+                List<BlockLoopInstructionDTO> instructionList = null;
+                BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
+                List<BlockDTO> matchingBlocks = null;
+                if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+                    int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
+
+                    matchingBlocks = botJob.getBlocks().stream()
+                            .filter(block -> block.getId() == targetBlockId)
+                            .collect(Collectors.toList());
+
+                    if (!matchingBlocks.isEmpty()) {
+                        instructionList = matchingBlocks.get(0).getBlockLoopInstructions();
+                    } else {
+                        instructionList = botJob.getBlocks().get(0).getBlockLoopInstructions();
+                    }
+                }
+
+                List<BlockLoopInstructionDTO> finalInstructionList = instructionList;
+                List<BlockDTO> finalMatchingBlocks = matchingBlocks;
+
+                Task<Void> waitTask = new Task<>() {
+                    @Override
+                    protected Void call() throws Exception {
+                        try {
+                            BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+                            instruction.setName(name);
+                            instruction.setDescription("loop desc");
+                            instruction.setOperation(operation);
+                            instruction.setVariableId(variableId);
+                            instruction.setParentId(parentId);
+                            instruction.setEncrypted(false);
+                            instruction.setExportToABR(true);
+                            if (rowMoveDTO != null
+                                    && rowMoveDTO.getUpdatedRows().size() > 0) {
+                                instruction.setInstructionOrderNumber(
+                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+                            } else {
+                                instruction.setInstructionOrderNumber(finalInstructionList.size());
+                            }
+                            instruction.setOptional(false);
+                            if (name.equalsIgnoreCase("setValue")) {
+                                instruction.setActions(ABRConstants.SET_VALUE);
+                            } else if (name.equalsIgnoreCase("getValue")) {
+                                instruction.setActions(ABRConstants.GET_VALUE);
+                            } else if (name.equalsIgnoreCase("check")) {
+                                instruction.setActions(ABRConstants.CHECK_VALUE);
+                            }  else if (name.equalsIgnoreCase("ExcelWrite")) {
+                                instruction.setActions(ABRConstants.EXTRACT);
+                            }
+                            instruction.setActionCustomMaxWaitSec(30);
+                            instruction.setOnHoldSeconds(1);
+                            if (finalMatchingBlocks != null) {
+                                instruction.setBlock(finalMatchingBlocks.get(0));
+                            } else {
+                                instruction.setBlock(botJob.getBlocks().get(0));
+                            }
+                            instruction.setExportToABR(false);
+
+                            // Wrap the persistence in a try-catch block
+                            try {
+                                ABRSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
+                            } catch (Exception e) {
+                                System.err.println("Error while saving instruction: " + e.getMessage());
+                                e.printStackTrace();
+                            }
+
+                            // Move the UI update to the JavaFX Application Thread
+                            Platform.runLater(() -> {
+                                new ABRAlertScene(
+                                        Alert.AlertType.INFORMATION,
+                                        "Instruction Added",
+                                        "Instruction " + instruction.getName() + " has been added successfully",
+                                        ButtonType.OK);
+                            });
+                        } catch (Exception ex) {
+                            ex.printStackTrace(); // Handle any exception
+                        }
+                        return null;
+                    }
+                };
+                new Thread(waitTask).start();
+            }
+        });
+    }
+    
 }
