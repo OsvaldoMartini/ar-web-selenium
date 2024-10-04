@@ -2812,6 +2812,8 @@ public class ABRScannedElementPane extends ABRPane {
                         if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
                             boolean execOperation = false;
                             boolean checkOperation = false;
+                            boolean excelWriteOperation = false;
+
                             String xPathOperation = null;
                             String parentField = null;
 
@@ -2873,6 +2875,14 @@ public class ABRScannedElementPane extends ABRPane {
                                         .getName();
 
                                 checkOperation = true;
+                            } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.E.getValue())) {
+                                parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                        .filter(f -> f.getId() == currentInstruction.getParentId())
+                                        .findFirst()
+                                        .get()
+                                        .getName();
+
+                                excelWriteOperation = true;
                             }
 
                             long currentInstructionStartTime = System.nanoTime();
@@ -2881,7 +2891,7 @@ public class ABRScannedElementPane extends ABRPane {
                             fillUpCurretLocators(currentInstruction);
 
                             try {
-                                if (!execOperation && !checkOperation) {
+                                if (!execOperation && !checkOperation && !excelWriteOperation) {
                                     dataExcel = extractedData.getRowFieldValues(i);
 
                                     lastInstructionExecuted = currentInstruction.getName()
@@ -2969,7 +2979,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         success = false;
                                     }
                                 } else if (checkOperation) {
-                                    // Special Operators
+                                    // Check Validation Operator
                                     lastInstructionExecuted = currentInstruction.getName()
                                             + Constants.BLANK_STRING
                                             + currentInstruction.getActions()
@@ -3052,11 +3062,78 @@ public class ABRScannedElementPane extends ABRPane {
                                             }
                                         } else {
                                             Alert alert = new Alert(Alert.AlertType.ERROR);
-                                            alert.setTitle("Validation Error");
-                                            alert.setHeaderText("GET/SET is Not Defined");
+                                            alert.setTitle("Check Validation Error");
+                                            alert.setHeaderText("Check Validation - GET is Not Defined");
                                             alert.setContentText("There is NOT GET VALUE defined for: " + parentField
                                                     + "\n --------------------- "
-                                                    + "\nCheck the SET/GET for "
+                                                    + "\nCheck the GET for "
+                                                    + parentField);
+                                            alert.showAndWait();
+
+                                            stopAll = true;
+
+                                            resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                            success = false;
+                                        }
+
+                                    } else {
+                                        resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                        success = false;
+                                    }
+                                } else if (excelWriteOperation) {
+                                    // Excel Write Operator
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getActions()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getOperation();
+
+                                    if (operations.length == 2) {
+                                        if (mapOperators.containsKey(parentField)) {
+
+                                            resultAcions = "insertValueFieldNameInExcel-->"
+                                                    + insertValueFieldNameInExcel(
+                                                            parentField,
+                                                            mapOperators.get(parentField),
+                                                            currentInstruction.getOperation(),
+                                                            selectedJob.getName());
+                                            onHoldForSeconds(null);
+
+                                            long currentInstructionEndTime = System.nanoTime();
+                                            totalExecutionTime +=
+                                                    currentInstructionEndTime - currentInstructionStartTime;
+
+                                            if (resultAcions != null) {
+
+                                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                        .fine("SUCCESSFUL INSTRUCTION on element: " + resultAcions
+                                                                + " Cmd: " + lastInstructionExecuted);
+
+                                                currentInstruction.setExecuted(true);
+
+                                                // Assuming currentInstruction and instructionsExecuted are already
+                                                // defined
+                                                if (currentInstruction != null
+                                                        && instructionsExecuted.stream()
+                                                                .noneMatch(instruction ->
+                                                                        instruction.getInstructionOrderNumber()
+                                                                                == currentInstruction
+                                                                                        .getInstructionOrderNumber())) {
+                                                    instructionsExecuted.add(currentInstruction);
+                                                }
+                                                success = true;
+                                            } else {
+                                                resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                                success = false;
+                                            }
+
+                                        } else {
+                                            Alert alert = new Alert(Alert.AlertType.ERROR);
+                                            alert.setTitle("Excel Writer Error");
+                                            alert.setHeaderText("Excel Writer - GET is Not Defined");
+                                            alert.setContentText("There is NOT GET VALUE defined for: " + parentField
+                                                    + "\n --------------------- "
+                                                    + "\nCheck the GET for "
                                                     + parentField);
                                             alert.showAndWait();
 
@@ -3384,7 +3461,6 @@ public class ABRScannedElementPane extends ABRPane {
         if (instructionElement != null
                 || actions[0].equals(Constants.HOLD)
                 || actions[0].equals(Constants.QUIT)
-                || actions[0].equals(Constants.SCREEN)
                 || actions[0].equals(Constants.SCREEN)) {
 
             for (String action : actions) {
@@ -3430,10 +3506,11 @@ public class ABRScannedElementPane extends ABRPane {
                             result = "Close Browser Cancelled";
                         }
                         break;
-                    case Constants.EXTRACT:
-                        result = "insertValueFieldNameInExcel-->"
-                                + insertValueFieldNameInExcel(instructionElement, instruction, action, blockJobName);
-                        break;
+                        //                    case Constants.EXTRACT:
+                        //                        result = "insertValueFieldNameInExcel-->"
+                        //                                + insertValueFieldNameInExcel(instructionElement, instruction,
+                        // action, blockJobName);
+                        //                        break;
                     case Constants.SCREEN:
                         result = instruction.getName() + " --> " + blockJobName;
                         break;
@@ -3773,8 +3850,9 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private String insertValueFieldNameInExcel(
-            WebElement element, BlockLoopInstructionLoadDTO instruction, String action, String botJobName) {
-        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
+            String parentId, String innerHTMLValue, String action, String botJobName) {
+        //        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
+
         if (innerHTMLValue.contains("<div")) {
             int lastIndexOfDiv = innerHTMLValue.lastIndexOf("<div");
             innerHTMLValue = innerHTMLValue.substring(lastIndexOfDiv + 1);
@@ -3790,7 +3868,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         new ExcelWriter(botJobName, abrWebDriver.getDriver())
                 .withPurpose("excel")
-                .insertValueFieldName(fieldName, innerHTMLValue);
+                .insertValueFieldName(parentId + "-" + fieldName, innerHTMLValue);
         return action + " fieldName " + fieldName;
     }
 

@@ -1,6 +1,7 @@
 package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.util.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -51,11 +52,18 @@ public class ExcelWriter {
     public record ExcelChain(ManagedExcel managedExcel, String botJobName) {
 
         public void insertValueFieldName(String fieldName, String value) {
-            managedExcel
-                    .onSheet(0)
-                    .insertValueAfterLastColumnOfRow(fieldName, INSTRUCTION_FIELDS_ROW_INDEX)
-                    .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
-            managedExcel.save();
+            try {
+
+                managedExcel
+                        .onSheet(0)
+                        .insertValueAfterLastColumnOfRow(fieldName, INSTRUCTION_FIELDS_ROW_INDEX)
+                        .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
+                managedExcel.save();
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ABRScannedElementPane.class)
+                        .severe(String.format(
+                                "Excel Writer insertValueFieldName.\nCheck if the file exist.\nFile: %s\nError", botJobName, ex.getMessage()));
+            }
         }
 
         public void insertReportHead() {

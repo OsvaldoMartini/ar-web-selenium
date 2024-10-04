@@ -36,7 +36,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -46,7 +45,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
-
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -935,7 +933,8 @@ public class WebSocketStompServer {
         }
     }
 
-    private void addInstruction(String name, String operation, Integer variableId, Integer parentId, RowMoveDTO rowMoveDTO) {
+    private void addInstruction(
+            String name, String operation, Integer variableId, Integer parentId, RowMoveDTO rowMoveDTO) {
 
         // Create and show alert inside Platform.runLater
         Platform.runLater(() -> {
@@ -953,7 +952,8 @@ public class WebSocketStompServer {
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.YES) {
                 List<BlockLoopInstructionDTO> instructionList = null;
-                BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
+                BotJobDTO botJob =
+                        ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
                 List<BlockDTO> matchingBlocks = null;
                 if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
                     int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
@@ -998,7 +998,7 @@ public class WebSocketStompServer {
                                 instruction.setActions(ABRConstants.GET_VALUE);
                             } else if (name.equalsIgnoreCase("check")) {
                                 instruction.setActions(ABRConstants.CHECK_VALUE);
-                            }  else if (name.equalsIgnoreCase("ExcelWrite")) {
+                            } else if (name.equalsIgnoreCase("ExcelWrite")) {
                                 instruction.setActions(ABRConstants.EXTRACT);
                             }
                             instruction.setActionCustomMaxWaitSec(30);
@@ -1036,5 +1036,4 @@ public class WebSocketStompServer {
             }
         });
     }
-    
 }
