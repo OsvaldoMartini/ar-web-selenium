@@ -42,6 +42,9 @@ public class ConfigurationDTO extends BaseDTO {
     @Column(name = "browser")
     private String browser;
 
+    @Column(name = "dataBaseType")
+    private String dataBaseType;
+
     @Column(name = "pageUpdateTimeoutSec")
     private String pageUpdateTimeoutSec;
 
@@ -53,6 +56,12 @@ public class ConfigurationDTO extends BaseDTO {
 
     @Column(name = "pathExcel")
     private String pathExcel;
+
+    @Column(name = "pathExport")
+    private String pathExport;
+
+    @Column(name = "socketPort")
+    private String socketPort;
 
     @Column(name = "pathJavaFx")
     private String pathJavaFx;
@@ -129,6 +138,30 @@ public class ConfigurationDTO extends BaseDTO {
 
     public void setBrowser(String browser) {
         this.browser = browser;
+    }
+
+    public String getDataBaseType() {
+        return dataBaseType;
+    }
+
+    public void setDataBaseType(String dataBaseType) {
+        this.dataBaseType = dataBaseType;
+    }
+
+    public String getPathExport() {
+        return pathExport;
+    }
+
+    public void setPathExport(String pathExport) {
+        this.pathExport = pathExport;
+    }
+
+    public String getSocketPort() {
+        return socketPort;
+    }
+
+    public void setSocketPort(String socketPort) {
+        this.socketPort = socketPort;
     }
 
     public String getPageUpdateTimeoutSec() {

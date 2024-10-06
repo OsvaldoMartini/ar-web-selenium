@@ -36,7 +36,7 @@ public class ABRConfigurationPane extends ABRPane {
     Label reduceSearchLabel;
     Label pathJavaLabel;
     Label pathDBLabel;
-    Label dbTypeLabel;
+    Label databaseLabel;
     Label socketPortLabel;
     Label pathReportLabel;
     Label pathPriorityLabel;
@@ -54,7 +54,6 @@ public class ABRConfigurationPane extends ABRPane {
     TextField reduceSearch;
     TextField pathJava;
     TextField pathDB;
-    TextField dbType;
     TextField socketPort;
 
     TextField pathReport;
@@ -64,6 +63,11 @@ public class ABRConfigurationPane extends ABRPane {
     TextField pathWebDriver;
 
     ChoiceBox<String> browserChoiceBox = new ChoiceBox<>();
+    ChoiceBox<String> databaseChoiceBox = new ChoiceBox<>();
+    ObservableList<String> browserList =
+            FXCollections.observableArrayList(ABRConstants.CHROME, ABRConstants.EDGE, ABRConstants.FIREFOX);
+    ObservableList<String> databaseList =
+            FXCollections.observableArrayList(ABRConstants.ACCESS, ABRConstants.POSTGRES, ABRConstants.SQLSERVER);
 
     Button pathExcelButton;
     Button pathExportButton;
@@ -82,7 +86,6 @@ public class ABRConfigurationPane extends ABRPane {
     ListView<HomeBankingDTO> homeBankingListView;
 
     VBox pathGroup;
-    VBox homeBankingGroup;
 
     AnchorPane mainPane;
 
@@ -102,14 +105,20 @@ public class ABRConfigurationPane extends ABRPane {
         AnchorPane.setLeftAnchor(title, ABRConstants.SPACE_M);
         AnchorPane.setRightAnchor(title, ABRConstants.SPACE_M);
 
-//        ButtonBar homeBankingActionGroup = new ButtonBar();
+        //        ButtonBar homeBankingActionGroup = new ButtonBar();
         addHomeBankingButton = builder.buildButton("Insert / Update / Config Scan");
-//        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
+        //        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
         ObservableList<HomeBankingDTO> homeBankingList =
                 ABRSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
         homeBankingListView = new ListView<>(homeBankingList);
         homeBankingListView.setCellFactory(new ABRCellFactory<>(HomeBankingListCell.class)::call);
+        // Setting the preferred height for homeBankingListView
+        homeBankingListView.setPrefHeight(100); // Set the height to 50px
+
+        // Add homeBankingListView to a VBox if needed (optional, not mandatory for height adjustment)
+        VBox homeBankingContainer = new VBox(homeBankingListView);
+        //        homeBankingContainer.setSpacing(2); // O
 
         pathExcelLabel = new Label("Excel Path:");
         pathExcel = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXCEL);
@@ -120,7 +129,7 @@ public class ABRConfigurationPane extends ABRPane {
         pathExport = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXPORT);
         pathExportButton = createPathButton();
         AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
-        
+
         // LOGs
         pathLogLabel = new Label("Log Path:");
         pathLog = createPathTextField(ABRPropertyEnum.FOLDER_PATH_LOG);
@@ -168,12 +177,6 @@ public class ABRConfigurationPane extends ABRPane {
         pathDBLabel = new Label("Database Path:");
         pathDB = createPathTextField(ABRPropertyEnum.FOLDER_PATH_DB);
         pathDBButton = createPathButton();
-        dbTypeLabel = new Label("DB Type");
-        dbType = createPathTextField(ABRPropertyEnum.DATABASE_TYPE);
-        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
-        if (dataBaseType == null) {
-            dbType.setText("excel");
-        }
 
         socketPortLabel = new Label("Socket Port");
         socketPort = createPathTextField(ABRPropertyEnum.PORT_SOCKET);
@@ -183,73 +186,76 @@ public class ABRConfigurationPane extends ABRPane {
         }
 
         GridPane gridPaneDB = new GridPane();
-        //        gridPaneDB.setVgap(10);
         gridPaneDB.setHgap(10);
+
         // Set column constraints for pathDB (80%), dbType (15%), socketPort (15%) and pathDBButton (5%)
         ColumnConstraints col1DB = new ColumnConstraints();
         col1DB.setPercentWidth(65);
 
         ColumnConstraints col2DB = new ColumnConstraints();
-        col2DB.setPercentWidth(15);
+        col2DB.setPercentWidth(30);
 
         ColumnConstraints col3DB = new ColumnConstraints();
-        col3DB.setPercentWidth(15);
+        col3DB.setPercentWidth(5);
 
-        ColumnConstraints col4DB = new ColumnConstraints();
-        col4DB.setPercentWidth(5);
-
-        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB, col3DB, col4DB);
+        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB, col3DB);
 
         // Add labels in the first row
         gridPaneDB.add(pathDBLabel, 0, 0);
-        gridPaneDB.add(dbTypeLabel, 1, 0);
-        gridPaneDB.add(socketPortLabel, 2, 0);
+        gridPaneDB.add(socketPortLabel, 1, 0);
 
         // Add text fields in the second row
         gridPaneDB.add(pathDB, 0, 1);
-        gridPaneDB.add(dbType, 1, 1);
-        gridPaneDB.add(socketPort, 2, 1);
+        //        gridPaneDB.add(databaseChoiceBox, 1, 1);
+        gridPaneDB.add(socketPort, 1, 1);
 
         // Add button in the second row, third column
-        gridPaneDB.add(pathDBButton, 3, 1);
+        gridPaneDB.add(pathDBButton, 2, 1);
 
         // Set margin for pathDBButton to create spacing from right border
         GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
 
-
         GridPane gridPaneButton = new GridPane();
         gridPaneButton.setHgap(10);
 
-// Set column constraints for each column to take up 33.33% of the grid width
+        // Set column constraints for each column to take up 33.33% of the grid width
         ColumnConstraints col1Button = new ColumnConstraints();
-        col1Button.setPercentWidth(33.33);
+        col1Button.setPercentWidth(25);
 
         ColumnConstraints col2Button = new ColumnConstraints();
-        col2Button.setPercentWidth(33.33);
+        col2Button.setPercentWidth(25);
 
         ColumnConstraints col3Button = new ColumnConstraints();
-        col3Button.setPercentWidth(33.33);
+        col3Button.setPercentWidth(25);
 
-        gridPaneButton.getColumnConstraints().addAll(col1Button, col2Button, col3Button);
+        ColumnConstraints col4Button = new ColumnConstraints();
+        col4Button.setPercentWidth(25);
+
+        gridPaneButton.getColumnConstraints().addAll(col1Button, col2Button, col3Button, col4Button);
 
         browserLabel = new Label("Browser");
+        databaseLabel = new Label("DB Type");
+
         reloadDBLabel = new Label("Reload DB");
         insertSitesLabel = new Label("Insert Sites");
 
         saveButton = builder.buildButton("Reload Configs");
         saveButton.setMaxHeight(ABRConstants.SPACE_L);
 
-// Add labels in the first row
+        browserChoiceBox.setItems(browserList);
+        databaseChoiceBox.setItems(databaseList);
+
+        // Add labels in the first row
         gridPaneButton.add(browserLabel, 0, 0);
-        gridPaneButton.add(reloadDBLabel, 1, 0);
-        gridPaneButton.add(insertSitesLabel, 2, 0);
+        gridPaneButton.add(databaseLabel, 1, 0);
+        gridPaneButton.add(reloadDBLabel, 2, 0);
+        gridPaneButton.add(insertSitesLabel, 3, 0);
 
-// Add components in the second row, each occupying 33.33% of the width
+        // Add components in the second row, each occupying 25% of the width
         gridPaneButton.add(browserChoiceBox, 0, 1);
-        gridPaneButton.add(saveButton, 1, 1);
-        gridPaneButton.add(addHomeBankingButton, 2, 1);
-
-
+        gridPaneButton.add(databaseChoiceBox, 1, 1);
+        gridPaneButton.add(saveButton, 2, 1);
+        gridPaneButton.add(addHomeBankingButton, 3, 1);
 
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         pathJavaLabel = new Label("Java Path:");
@@ -282,17 +288,6 @@ public class ABRConfigurationPane extends ABRPane {
         pathWebDriverButton = createPathButton();
         AnchorPane driverGroup = new AnchorPane(pathWebDriver, pathWebDriverButton);
 
-        
-        ObservableList<String> browserList =
-                FXCollections.observableArrayList(ABRConstants.CHROME, ABRConstants.EDGE, ABRConstants.FIREFOX);
-        browserChoiceBox.setItems(browserList);
-        // Added by morandi 15-04-24
-        /* pathExtRefLabel = new Label("CSS Ext. Reference:");
-        pathExtRef = createPathTextField(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
-        pathExtRefButton = createPathButton(); */
-        // AnchorPane refGroup = new AnchorPane(pathExtRef,pathExtRefButton);
-        // END Add Morandi
-
         pathGroup = new VBox(
                 pathExcelLabel,
                 excelGroup,
@@ -312,33 +307,29 @@ public class ABRConfigurationPane extends ABRPane {
                 engineGroup,
                 pathWebDriverLabel,
                 driverGroup,
-                gridPaneButton); // , pathExtRefLabel, pathExtRef);
+                gridPaneButton,
+                homeBankingContainer);
 
-        homeBankingGroup = new VBox(homeBankingListView);
-        AnchorPane.setBottomAnchor(homeBankingGroup, ABRConstants.SPACE_L + ABRConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(homeBankingGroup, ABRConstants.SPACE_M);
-        AnchorPane.setRightAnchor(homeBankingGroup, ABRConstants.SPACE_M);
-        
-        
         AnchorPane.setTopAnchor(pathGroup, ABRConstants.SPACE_L + ABRConstants.SPACE_M);
         AnchorPane.setLeftAnchor(pathGroup, ABRConstants.SPACE_M);
         AnchorPane.setRightAnchor(pathGroup, ABRConstants.SPACE_M);
 
-        mainPane = new AnchorPane(title, pathGroup, homeBankingGroup);
+        mainPane = new AnchorPane(title, pathGroup);
     }
 
     @Override
     public void initUIBehaviour() {
-        homeBankingGroup
-                .maxHeightProperty()
-                .bind(mainPane.heightProperty()
-                        .subtract(title.heightProperty())
-                        .subtract(pathGroup.heightProperty())
-                        .subtract(saveButton.heightProperty())
-                        .subtract(ABRConstants.SPACE_M * 2)
-                        .subtract(ABRConstants.SPACE_L * 2));
+        //        homeBankingGroup
+        //                .maxHeightProperty()
+        //                .bind(mainPane.heightProperty()
+        //                        .subtract(title.heightProperty())
+        //                        .subtract(pathGroup.heightProperty())
+        //                        .subtract(saveButton.heightProperty())
+        //                        .subtract(ABRConstants.SPACE_M * 2)
+        //                        .subtract(ABRConstants.SPACE_L * 2));
         addHomeBankingButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
         pathExcelButton.setOnMouseClicked(e -> openChooserFor(pathExcel, true));
+        pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, true));
         pathLogButton.setOnMouseClicked(e -> openChooserFor(pathLog, true));
         // pathExtRefButton.setOnMouseClicked(e -> openChooserFor(pathExtRef, true));
         pathJavaButton.setOnMouseClicked(e -> openChooserFor(pathJava, true));
@@ -349,6 +340,7 @@ public class ABRConfigurationPane extends ABRPane {
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, true));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, false));
         browserChoiceBox.setValue(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER));
+        databaseChoiceBox.setValue(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE));
 
         saveButton.setOnMouseClicked(e -> saveConfigurations());
     }
@@ -359,6 +351,11 @@ public class ABRConfigurationPane extends ABRPane {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Excel Path must be filed!", ButtonType.OK);
             validfields = false;
         }
+        if (Strings.isNullOrEmpty(pathExport.getText())) {
+            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Export Path must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+
         if (Strings.isNullOrEmpty(pathLog.getText())) {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Log Path must be filed!", ButtonType.OK);
             validfields = false;
@@ -370,11 +367,6 @@ public class ABRConfigurationPane extends ABRPane {
 
         if (Strings.isNullOrEmpty(pathJava.getText())) {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Java Path must be filed!", ButtonType.OK);
-            validfields = false;
-        }
-
-        if (Strings.isNullOrEmpty(dbType.getText())) {
-            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "DB Type must be filed!", ButtonType.OK);
             validfields = false;
         }
 
@@ -414,49 +406,32 @@ public class ABRConfigurationPane extends ABRPane {
 
         if (validfields) {
 
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.MAX_LOG_SIZE.getValue(), sizeLog.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), dbType.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), pathReport.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY.getValue(), pathPriority.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(), pathJavaFX.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PATH_ENGINE.getValue(), pathEngine.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
-
+            ABRPropertyManager.getInstance()
+                    .setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), pathExcel.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.MAX_LOG_SIZE.getValue(), sizeLog.getText());
             ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
+                    .setProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT.getValue(), pathExport.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), dbType.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
-            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
             ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), pathReport.getText());
+                    .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(), pathJavaFX.getText());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY.getValue(), pathPriority.getText());
             ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(), pathJavaFX.getText());
+                    .setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), pathReport.getText());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.MAX_LOG_SIZE.getValue(), sizeLog.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PATH_ENGINE.getValue(), pathEngine.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
+            ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
             ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
+                    .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
 
             /*ABRPropertyManager.getInstance().setProperty(
             ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(), pathExtRef.getText()); */

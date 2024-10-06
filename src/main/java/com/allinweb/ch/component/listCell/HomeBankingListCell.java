@@ -19,7 +19,11 @@ public class HomeBankingListCell extends ListCell<HomeBankingDTO> {
             TilePane pane = new TilePane(name, url);
             pane.setPrefColumns(2);
             pane.setPrefRows(1);
-            pane.prefTileWidthProperty().bind(pane.widthProperty().divide(2).subtract(ABRConstants.SPACE_SM));
+            pane.setVgap(10); // Add vertical spacing between rows (not used much with one row)
+            pane.setHgap(10); // Add horizontal spacing between columns (adjust as needed)
+            pane.prefTileWidthProperty()
+                    .bind(pane.widthProperty().divide(2).subtract(ABRConstants.SPACE_SM)); // Adjust width
+
             graphic = pane;
         }
         Node finalGraphic = graphic;

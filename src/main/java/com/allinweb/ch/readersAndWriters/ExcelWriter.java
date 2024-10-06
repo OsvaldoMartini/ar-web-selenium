@@ -43,15 +43,14 @@ public class ExcelWriter {
         boolean existExport = ManagedExcel.checkIfExcelExist(botJobName + "_export", "export");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
         try {
-            managedExcelMap.put("export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
+            managedExcelMap.put(
+                    "export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
 
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
-        }catch (Exception ex){
+        } catch (Exception ex) {
             ABRLogger.getInstance(ABRScannedElementPane.class)
-                    .severe(String.format(
-                            "Excel Folder maybe not configured. %s\nError",
-                            botJobName, ex.getMessage()));
+                    .severe(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
         }
     }
 
@@ -72,7 +71,21 @@ public class ExcelWriter {
             } catch (Exception ex) {
                 ABRLogger.getInstance(ABRScannedElementPane.class)
                         .severe(String.format(
-                                "Excel Writer insertValueFieldName.\nCheck if the file exist.\nFile: %s\nError",
+                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                                botJobName, ex.getMessage()));
+            }
+        }
+
+        public void insertFieldNameAndValueLastColumn(String fieldName, String value) {
+            try {
+
+                managedExcel.onSheet(0).insertColumValueOnLastRow(fieldName, value);
+                //                        .insertColumValueOnLastRow(value);
+                managedExcel.save();
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ABRScannedElementPane.class)
+                        .severe(String.format(
+                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
                                 botJobName, ex.getMessage()));
             }
         }
@@ -255,6 +268,12 @@ public class ExcelWriter {
             return insertValueAtCoordinates(value, rowIndex, afterLastColumnIndex);
         }
 
+        public ManagedExcelAction insertValueAfterLastColumnOfRow(String value) {
+            int lastRowIndex = sheet.getLastRowNum();
+            int afterLastColumnIndex = sheet.getRow(lastRowIndex).getLastCellNum();
+            return insertValueAtCoordinates(value, lastRowIndex, afterLastColumnIndex);
+        }
+
         public ManagedExcelAction insertValueAfterLastRowOfColumn(String value, int columnIndex) {
             int afterLastRowIndex = sheet.getLastRowNum() + 1;
             return insertValueAtCoordinates(value, afterLastRowIndex, columnIndex);
@@ -264,6 +283,22 @@ public class ExcelWriter {
             int lastRowIndex = sheet.getLastRowNum();
             int lastColumnIndex = sheet.getRow(lastRowIndex).getLastCellNum();
             return insertValueAtCoordinates(value, lastRowIndex, lastColumnIndex);
+        }
+
+        public ManagedExcelAction insertColumValueOnLastRow(String columnName, String value) {
+            // Get the current last row index
+            int lastRowIndex = sheet.getLastRowNum() + 1;
+
+            // Insert the column name at the last row
+            Row rowForColumnName = getOrCreateRow(lastRowIndex);
+            int columnIndex = rowForColumnName.getLastCellNum() > 0 ? rowForColumnName.getLastCellNum() : 0;
+            insertValueAtCoordinates(columnName, lastRowIndex, columnIndex);
+
+            // Insert the value on the next row, below the column name
+            Row rowForValue = getOrCreateRow(lastRowIndex + 1);
+            insertValueAtCoordinates(value, lastRowIndex + 1, columnIndex);
+
+            return this;
         }
 
         public ManagedExcelAction insertImageAtCoordinates(String value, int rowIndex, int columnIndex) {

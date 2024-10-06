@@ -2765,12 +2765,13 @@ public class ABRScannedElementPane extends ABRPane {
                 + Constants.FIELDS_SEPARATOR
                 + labelsValue.getProperty(Labels.START);
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
-        ExcelWriter.ExcelChain writer =
+        ExcelWriter.ExcelChain writerReport =
                 new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("report");
-        writer.insertReportHead();
+        writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport =
                 new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("export");
+        writerExport.insertReportHead();
 
         boolean success = true;
         boolean stopAll = false;
@@ -2803,7 +2804,8 @@ public class ABRScannedElementPane extends ABRPane {
                         break;
                     }
 
-                    writer.insertBlockSeparation(instructionsLoad.getName());
+                    writerReport.insertBlockSeparation(instructionsLoad.getName());
+                    writerExport.insertBlockSeparation(instructionsLoad.getName());
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
@@ -2929,7 +2931,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         success = false;
                                     }
 
-                                    writer.insertInstructionResult(
+                                    writerReport.insertInstructionResult(
                                             currentInstruction,
                                             dataExcel,
                                             LocalTime.ofNanoOfDay(
@@ -3097,7 +3099,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                             resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
                                                     + mapOperators.get(parentField);
-                                            writerExport.insertValueFieldName(
+                                            writerExport.insertFieldNameAndValueLastColumn(
                                                     parentField, mapOperators.get(parentField));
 
                                             onHoldForSeconds(null);
@@ -3164,7 +3166,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                     + "- Duration: "
                                                     + LocalTime.ofNanoOfDay(duration)
                                                             .format(FORMAT_TIME));
-                                    writer.insertInstructionResult(
+                                    writerReport.insertInstructionResult(
                                             currentInstruction,
                                             dataExcel,
                                             LocalTime.ofNanoOfDay(
@@ -3181,7 +3183,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                     + "- Duration: "
                                                     + LocalTime.ofNanoOfDay(duration)
                                                             .format(FORMAT_TIME));
-                                    writer.insertInstructionResult(
+                                    writerReport.insertInstructionResult(
                                             currentInstruction,
                                             null,
                                             LocalTime.ofNanoOfDay(
@@ -3252,7 +3254,7 @@ public class ABRScannedElementPane extends ABRPane {
                             resultAcions = "Failed to Execute -> " + currentInstruction.getName();
                             success = false;
                         }
-                        writer.insertInstructionResult(
+                        writerReport.insertInstructionResult(
                                 currentInstruction,
                                 dataDynamic,
                                 LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
@@ -3269,7 +3271,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             + " Cmd: "
                                             + lastInstructionExecuted + "- Duration: "
                                             + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
-                            writer.insertInstructionResult(
+                            writerReport.insertInstructionResult(
                                     currentInstruction,
                                     dataDynamic,
                                     LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
@@ -3283,7 +3285,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             + " Cmd: "
                                             + lastInstructionExecuted + "- Duration: "
                                             + LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME));
-                            writer.insertInstructionResult(
+                            writerReport.insertInstructionResult(
                                     currentInstruction,
                                     null,
                                     LocalTime.ofNanoOfDay(currentInstructionEndTime - currentInstructionStartTime),
@@ -3299,7 +3301,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         if (totalExecutionTime == 0) {
             report.setDuration(0);
-            writer.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
+            writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
             try {
                 ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
             } catch (Exception ex) {
@@ -3312,7 +3314,7 @@ public class ABRScannedElementPane extends ABRPane {
         if (success) {
             report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
             report.setDuration(totalExecutionTime / 100);
-            writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
+            writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
             try {
                 ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
             } catch (Exception ex) {
@@ -3333,7 +3335,7 @@ public class ABRScannedElementPane extends ABRPane {
                     + lastInstructionExecuted;
             report.setStatus(status);
             report.setDuration(totalExecutionTime / 100);
-            writer.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
+            writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
             try {
                 ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
                 //                repository.write(report);

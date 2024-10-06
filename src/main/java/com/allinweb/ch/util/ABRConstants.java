@@ -124,4 +124,8 @@ public class ABRConstants {
     public static final String EDGE = "edge";
     public static final String FIREFOX = "firefox";
     public static final String SAFARI = "safari";
+
+    public static final String POSTGRES = "PostGres";
+    public static final String ACCESS = "Access";
+    public static final String SQLSERVER = "SQLServer";
 }

@@ -837,6 +837,8 @@ public class ABRNewCommandPane extends ABRPane {
                     } else {
                         instructionList = botJob.getBlocks().get(0).getBlockLoopInstructions();
                     }
+                } else {
+                    instructionList = botJob.getBlocks().get(0).getBlockLoopInstructions();
                 }
 
                 List<BlockLoopInstructionDTO> finalInstructionList = instructionList;
@@ -857,9 +859,9 @@ public class ABRNewCommandPane extends ABRPane {
                             if (rowMoveDTO != null
                                     && rowMoveDTO.getUpdatedRows().size() > 0) {
                                 instruction.setInstructionOrderNumber(
-                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
                             } else {
-                                instruction.setInstructionOrderNumber(finalInstructionList.size());
+                                instruction.setInstructionOrderNumber(finalInstructionList.size() + 1);
                             }
                             instruction.setOptional(false);
                             if (name.equalsIgnoreCase("setValue")) {

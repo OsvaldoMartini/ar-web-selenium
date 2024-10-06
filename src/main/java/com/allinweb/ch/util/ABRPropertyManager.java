@@ -63,14 +63,15 @@ public class ABRPropertyManager {
                 loadProperties();
                 setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), "");
+                setProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT.getValue(), "");
                 setProperty(
                         ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(),
                         ABRConstants.CURRENT_PATH + ABRConstants.DEFAULT_PATH_JAVA);
                 setProperty(
                         ABRPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(),
                         ABRConstants.CURRENT_PATH + ABRConstants.DEFAULT_PATH_JAVA_FX);
-                setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), "excel");
-                setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), "808");
+                setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), "Access");
+                setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), "8080");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), "");
                 setProperty(ABRPropertyEnum.PATH_ENGINE.getValue(), ABRConstants.CURRENT_PATH);
