@@ -172,6 +172,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Boolean withoutNameAndId = false;
 
     private Map<String, String> mapOperators;
+    private Map<String, String> mapExport;
 
     List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
 
@@ -2792,6 +2793,7 @@ public class ABRScannedElementPane extends ABRPane {
         report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
         mapOperators = new HashMap<>();
+        mapExport = new HashMap<>();
 
         if (extractedData.getNumberOfDataRows() > 0) {
             for (BlockLoadDTO instructionsLoad : blocksLoaded.stream().collect(Collectors.toList())) {
@@ -3099,8 +3101,9 @@ public class ABRScannedElementPane extends ABRPane {
 
                                             resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
                                                     + mapOperators.get(parentField);
+                                            mapExport.put(parentField, mapOperators.get(parentField));
                                             writerExport.insertFieldNameAndValueLastColumn(
-                                                    parentField, mapOperators.get(parentField));
+                                                    mapExport);
 
                                             onHoldForSeconds(null);
 
