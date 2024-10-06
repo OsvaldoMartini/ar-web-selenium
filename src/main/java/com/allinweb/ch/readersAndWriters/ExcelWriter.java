@@ -79,7 +79,9 @@ public class ExcelWriter {
         public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport) {
             try {
 
-                managedExcel.onSheet(0).insertFieldNameAndValueLastColumn(mapExport);
+                managedExcel.onSheet(0)
+                        .insertValueAfterLastRowOfColumn("", 0)
+                        .insertFieldNameAndValueLastColumn(mapExport);
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {

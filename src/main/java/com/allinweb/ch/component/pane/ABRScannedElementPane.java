@@ -2806,8 +2806,13 @@ public class ABRScannedElementPane extends ABRPane {
                         break;
                     }
 
+                    mapExport.clear();
+
                     writerReport.insertBlockSeparation(instructionsLoad.getName());
                     writerExport.insertBlockSeparation(instructionsLoad.getName());
+
+                    // Insert the field name and value rows below the block name
+                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
@@ -3102,8 +3107,9 @@ public class ABRScannedElementPane extends ABRPane {
                                             resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
                                                     + mapOperators.get(parentField);
                                             mapExport.put(parentField, mapOperators.get(parentField));
-                                            writerExport.insertFieldNameAndValueLastColumn(
-                                                    mapExport);
+
+                                            // Insert the updated mapExport into the Excel after each instruction
+                                            writerExport.insertFieldNameAndValueLastColumn(mapExport);
 
                                             onHoldForSeconds(null);
 
