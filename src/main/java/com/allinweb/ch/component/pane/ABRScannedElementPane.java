@@ -2795,6 +2795,7 @@ public class ABRScannedElementPane extends ABRPane {
         mapOperators = new HashMap<>();
         mapExport = new HashMap<>();
 
+        int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
             for (BlockLoadDTO instructionsLoad : blocksLoaded.stream().collect(Collectors.toList())) {
                 instructionsExecuted.clear();
@@ -2807,12 +2808,10 @@ public class ABRScannedElementPane extends ABRPane {
                     }
 
                     mapExport.clear();
-
                     writerReport.insertBlockSeparation(instructionsLoad.getName());
-                    writerExport.insertBlockSeparation(instructionsLoad.getName());
 
                     // Insert the field name and value rows below the block name
-                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
+                    //                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
@@ -2852,13 +2851,14 @@ public class ABRScannedElementPane extends ABRPane {
                                     alert.setHeaderText("Check Parent Id");
                                     alert.setContentText("The Parent Id: " + currentInstruction.getParentId()
                                             + "\nFor the : "
-                                            + currentInstruction.getOperation() + "\nDoes not belong to this block");
+                                            + currentInstruction.getOperation() + "\nDoes not belong to this block"
+                                            + "\nCheck the Field Names and Fields Ids");
                                     alert.showAndWait();
 
                                     stopAll = true;
 
                                     resultAcions = String.format(
-                                            "This ParentId: %d does not belong to this block: %d",
+                                            "This ParentId: %d does not belong to this block: %d. Check the Field Names and Fields Ids",
                                             currentInstruction.getParentId(), instructionsLoad.getId());
                                     success = false;
 
@@ -2889,13 +2889,29 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 checkOperation = true;
                             } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.E.getValue())) {
-                                parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                        .filter(f -> f.getId() == currentInstruction.getParentId())
-                                        .findFirst()
-                                        .get()
-                                        .getName();
+                                try {
+                                    parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getName();
 
-                                excelWriteOperation = true;
+                                    excelWriteOperation = true;
+                                } catch (Exception ex) {
+                                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                                    alert.setTitle("Check Validation Error");
+                                    alert.setHeaderText("Check Validation - GET is Not Defined");
+                                    alert.setContentText("There is NOT GET VALUE defined for: " + parentField
+                                            + "\n --------------------- "
+                                            + "\nCheck the GET for "
+                                            + parentField);
+                                    alert.showAndWait();
+
+                                    stopAll = true;
+
+                                    resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                    success = false;
+                                }
                             }
 
                             long currentInstructionStartTime = System.nanoTime();
@@ -3055,7 +3071,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                                 .get(parentField)
                                                                 .length()
                                                         + ")" + "\n --------------------- "
-                                                        + "\nCheck the SET/GET of "
+                                                        + "\nCheck the GET of "
                                                         + operations[0] + " for " + parentField
                                                         + "\nCurrent value: "
                                                         + operations[2] + " Length: (" + operations[2].length()
@@ -3106,10 +3122,14 @@ public class ABRScannedElementPane extends ABRPane {
 
                                             resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
                                                     + mapOperators.get(parentField);
-                                            mapExport.put(parentField, mapOperators.get(parentField));
+                                            if (mapExport.size() == 0) {
+                                                writerExport.insertBlockSeparation(instructionsLoad.getName());
+                                                exportIndex *= 2;
+                                            }
 
+                                            mapExport.put(parentField, mapOperators.get(parentField));
                                             // Insert the updated mapExport into the Excel after each instruction
-                                            writerExport.insertFieldNameAndValueLastColumn(mapExport);
+                                            writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex);
 
                                             onHoldForSeconds(null);
 

@@ -36,6 +36,8 @@ public class ExcelWriter {
     private String botJobName;
     private static WebDriver abrWebDriver;
 
+    private static int CURRENT_ROW_INDEX = 0;
+
     public ExcelWriter(String botJobName, WebDriver abrWebDriver) {
         this.botJobName = botJobName;
         this.abrWebDriver = abrWebDriver;
@@ -76,12 +78,10 @@ public class ExcelWriter {
             }
         }
 
-        public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport) {
+        public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport, int exportIndex) {
             try {
 
-                managedExcel.onSheet(0)
-                        .insertValueAfterLastRowOfColumn("", 0)
-                        .insertFieldNameAndValueLastColumn(mapExport);
+                managedExcel.onSheet(0).insertFieldNameAndValueLastColumn(mapExport, exportIndex);
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
@@ -105,6 +105,15 @@ public class ExcelWriter {
             managedExcel
                     .onSheet(0)
                     .insertValueAfterLastRowOfColumn(blockName, 0)
+                    .fillRowBackgroundColorOfLastRow(IndexedColors.ROYAL_BLUE)
+                    .setRowTextColorOfLastRow(IndexedColors.WHITE);
+            managedExcel.save();
+        }
+
+        public void insertBlockSeparationExport(String blockName, int exportIndex) {
+            managedExcel
+                    .onSheet(0)
+                    .insertValueAfterLastRowOfColumn(blockName, exportIndex, 0)
                     .fillRowBackgroundColorOfLastRow(IndexedColors.ROYAL_BLUE)
                     .setRowTextColorOfLastRow(IndexedColors.WHITE);
             managedExcel.save();
@@ -281,19 +290,23 @@ public class ExcelWriter {
             return insertValueAtCoordinates(value, afterLastRowIndex, columnIndex);
         }
 
+        public ManagedExcelAction insertValueAfterLastRowOfColumn(String value, int exportIndex, int columnIndex) {
+            return insertValueAtCoordinates(value, exportIndex, columnIndex);
+        }
+
         public ManagedExcelAction insertValueOnLastRowAfterLastColumn(String value) {
             int lastRowIndex = sheet.getLastRowNum();
             int lastColumnIndex = sheet.getRow(lastRowIndex).getLastCellNum();
             return insertValueAtCoordinates(value, lastRowIndex, lastColumnIndex);
         }
 
-        public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport) {
+        public void insertFieldNameAndValueLastColumn(Map<String, String> mapExport, int exportIndex) {
             try {
                 // Get the current last row index
                 int lastRowIndex = sheet.getLastRowNum();
                 // Get the row where field names (column names) are stored
-                Row headerRow = getOrCreateRow(INSTRUCTION_FIELDS_ROW_INDEX);
-                Row valueRow = getOrCreateRow(INSTRUCTION_FIELDS_ROW_INDEX + 1);
+                Row headerRow = getOrCreateRow(exportIndex);
+                Row valueRow = getOrCreateRow(exportIndex + 1);
 
                 // Iterate over the map and insert/replace values
                 for (Map.Entry<String, String> entry : mapExport.entrySet()) {
@@ -302,7 +315,7 @@ public class ExcelWriter {
 
                     // Check if column already exists
                     boolean columnExists = false;
-                    int columnIndex = -1;
+                    int columnIndex = 0; // Start at the first column (index 0)
 
                     for (int i = 0; i < headerRow.getLastCellNum(); i++) {
                         Cell cell = headerRow.getCell(i);
@@ -315,25 +328,30 @@ public class ExcelWriter {
 
                     // If column exists, replace the value
                     if (columnExists) {
-                        insertValueAtCoordinates(value, INSTRUCTION_FIELDS_ROW_INDEX + 1, columnIndex);
+                        insertValueAtCoordinates(value, exportIndex + 1, columnIndex);
                     }
                     // If column does not exist, add a new column
                     else {
-                        columnIndex = headerRow.getLastCellNum();  // Get the next available column index
-                        insertValueAtCoordinates(columnName, INSTRUCTION_FIELDS_ROW_INDEX, columnIndex);
-                        insertValueAtCoordinates(value, INSTRUCTION_FIELDS_ROW_INDEX + 1, columnIndex);
+                        // Check if the first column (index 0) is empty and start there
+                        if (headerRow.getCell(0) == null
+                                || headerRow.getCell(0).getStringCellValue().isEmpty()) {
+                            columnIndex = 0; // Start writing in the first column
+                        } else {
+                            columnIndex = headerRow.getLastCellNum(); // Otherwise, find the next available column
+                        }
+                        insertValueAtCoordinates(columnName, exportIndex, columnIndex);
+                        insertValueAtCoordinates(value, exportIndex + 1, columnIndex);
                     }
                 }
+
+                // Save the Excel after modification
+
             } catch (Exception ex) {
                 ABRLogger.getInstance(ABRScannedElementPane.class)
                         .severe(String.format(
-                                "Excel Writer insertValueOnLastRowAfterLastColumn: \nError", ex.getMessage()));
+                                "Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
             }
-            
-            
         }
-        
-
 
         public ManagedExcelAction insertImageAtCoordinates(String value, int rowIndex, int columnIndex) {
             // TODO: to implement if needed
