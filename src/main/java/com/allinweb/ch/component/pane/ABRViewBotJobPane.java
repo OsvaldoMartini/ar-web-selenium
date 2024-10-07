@@ -251,11 +251,11 @@ public class ABRViewBotJobPane extends ABRPane {
         leftGridPane.add(launchBotJobButton, 5, 0);
 
         // Add the bottom row of buttons
-//        saveBotJobButton.setPrefWidth(buttonWidth);
-//        leftGridPane.add(saveBotJobButton, 0, 1);
+        //        saveBotJobButton.setPrefWidth(buttonWidth);
+        //        leftGridPane.add(saveBotJobButton, 0, 1);
 
-//        saveAsBotJobButton.setPrefWidth(buttonWidth);
-//        leftGridPane.add(saveAsBotJobButton, 1, 1);
+        //        saveAsBotJobButton.setPrefWidth(buttonWidth);
+        //        leftGridPane.add(saveAsBotJobButton, 1, 1);
 
         openExcelFileButton.setPrefWidth(buttonWidth);
         leftGridPane.add(openExcelFileButton, 2, 1);
@@ -289,12 +289,12 @@ public class ABRViewBotJobPane extends ABRPane {
                 new StackPane(new Node[] {this.botJobNameLabel, this.botJobName, this.componentButton});
         StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
         StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
-        
+
         this.botJobDescriptionLabel = new Label(this.botJob.getDescription());
         this.botJobDescriptionLabel.setPrefWidth(botJobNameWidth);
         this.botJobDescription = new TextField(this.botJob.getDescription());
         this.botJobDescription.setPrefWidth(botJobNameWidth);
-        
+
         StackPane botJobDescriptionGroup =
                 new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescription});
 

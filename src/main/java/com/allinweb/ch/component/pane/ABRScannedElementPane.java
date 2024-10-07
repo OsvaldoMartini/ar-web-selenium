@@ -2797,7 +2797,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
-            for (BlockLoadDTO instructionsLoad : blocksLoaded.stream().collect(Collectors.toList())) {
+            for (BlockLoadDTO blockLoad : blocksLoaded.stream().collect(Collectors.toList())) {
                 instructionsExecuted.clear();
                 if (stopAll) {
                     break;
@@ -2808,14 +2808,14 @@ public class ABRScannedElementPane extends ABRPane {
                     }
 
                     mapExport.clear();
-                    writerReport.insertBlockSeparation(instructionsLoad.getName());
+                    writerReport.insertBlockSeparation(blockLoad.getName());
 
                     // Insert the field name and value rows below the block name
                     //                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
 
                     // Call the method to get the filtered list
                     List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                            instructionsExecuted, instructionsLoad.getBlockLoopInstructionLoadDTOS());
+                            instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
 
                     for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                         if (stopAll) {
@@ -2840,7 +2840,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 execOperation = true;
                                 try {
-                                    xPathOperation = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                    xPathOperation = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())
                                             .findFirst()
                                             .get()
@@ -2851,15 +2851,16 @@ public class ABRScannedElementPane extends ABRPane {
                                     alert.setHeaderText("Check Parent Id");
                                     alert.setContentText("The Parent Id: " + currentInstruction.getParentId()
                                             + "\nFor the : "
-                                            + currentInstruction.getOperation() + "\nDoes not belong to this block"
+                                            + currentInstruction.getOperation() + "\nDoes not belong to this block: "
+                                            + blockLoad.getId() + "-" + blockLoad.getName()
                                             + "\nCheck the Field Names and Fields Ids");
                                     alert.showAndWait();
 
                                     stopAll = true;
 
                                     resultAcions = String.format(
-                                            "This ParentId: %d does not belong to this block: %d. Check the Field Names and Fields Ids",
-                                            currentInstruction.getParentId(), instructionsLoad.getId());
+                                            "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
+                                            currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
                                     success = false;
 
                                     lastInstructionExecuted = "";
@@ -2867,21 +2868,22 @@ public class ABRScannedElementPane extends ABRPane {
                                     ABRLogger.getInstance(ABRScannedElementPane.class)
                                             .severe(String.format(
                                                     "Parent Id Error\nCheck Parent Id: %d"
-                                                            + "\nFor the %s \nDoes not belong to this block",
+                                                            + "\nFor the %s \nDoes not belong to this block: "
+                                                            + blockLoad.getId() + "-" + blockLoad.getName(),
                                                     currentInstruction.getParentId(),
                                                     currentInstruction.getOperation()));
 
                                     break;
                                 }
 
-                                parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                         .filter(f -> f.getId() == currentInstruction.getParentId())
                                         .findFirst()
                                         .get()
                                         .getName();
 
                             } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
-                                parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                         .filter(f -> f.getId() == currentInstruction.getParentId())
                                         .findFirst()
                                         .get()
@@ -2890,7 +2892,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 checkOperation = true;
                             } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.E.getValue())) {
                                 try {
-                                    parentField = instructionsLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())
                                             .findFirst()
                                             .get()
@@ -2927,7 +2929,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             + Constants.BLANK_STRING
                                             + currentInstruction.getPath();
                                     resultAcions = performActions(
-                                            dataExcel, currentInstruction, botJobId, instructionsLoad.getName());
+                                            dataExcel, currentInstruction, botJobId, blockLoad.getName());
                                     long currentInstructionEndTime = System.nanoTime();
                                     totalExecutionTime += currentInstructionEndTime - currentInstructionStartTime;
 
@@ -3123,7 +3125,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
                                                     + mapOperators.get(parentField);
                                             if (mapExport.size() == 0) {
-                                                writerExport.insertBlockSeparation(instructionsLoad.getName());
+                                                writerExport.insertBlockSeparation(blockLoad.getName());
                                                 exportIndex *= 2;
                                             }
 

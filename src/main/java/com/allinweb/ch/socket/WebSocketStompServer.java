@@ -127,6 +127,11 @@ public class WebSocketStompServer {
                         deleteNullBlocks(blockReorder.getUpdatedBlocks().get(0).getBotJobId());
                     }
                     break;
+                case "BLOCK_UPDATE":
+                    RowMoveDTO blockUpdateDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
+                    updateBlockName(
+                            blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
+                    break;
 
                 case "DELETE_INSTRUCTION":
                     InstructionDTO deleteInstructionDTO = gson.fromJson(frame.getBody(), InstructionDTO.class);
@@ -333,6 +338,34 @@ public class WebSocketStompServer {
                                     "UpdateBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
                                     blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
                 }
+            }
+
+            sendMessageToAll("updateBlockOrderNumber");
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
+        }
+    }
+
+    // Handle DELETE_BLOCK message
+    private void updateBlockName(int botJobId, int blockId, String blockName) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            // Update each block's block_order_number starting from 1
+            String updateSQL = "UPDATE block SET name = '" + blockName + "'"
+                    + " WHERE id = " + blockId
+                    + " and bot_job_id = " + botJobId;
+
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .info(String.format("Block Name updated blockId: %s, name: %s", blockId, blockName));
+            } else {
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .warning(String.format(
+                                "UpdateBlockOrderName - No matching record found to update botJobId: %d blockId: %d",
+                                botJobId, blockId));
             }
 
             sendMessageToAll("updateBlockOrderNumber");
@@ -812,7 +845,7 @@ public class WebSocketStompServer {
                         && !actions.equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
                         && !actions.equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())
                         && !actions.equalsIgnoreCase(ABRConstants.HOLD)) {
-                    webPageItems.add(new ComboBoxVars(name, name, id, -1));
+                    webPageItems.add(new ComboBoxVars(name + "(" + id + ")", name, id, -1));
                 }
             }
         } catch (SQLException e) {

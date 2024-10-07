@@ -1,7 +1,6 @@
 package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
-import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.util.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -51,7 +50,7 @@ public class ExcelWriter {
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));
         } catch (Exception ex) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(ExcelWriter.class)
                     .severe(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
         }
     }
@@ -71,7 +70,7 @@ public class ExcelWriter {
                         .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
                 managedExcel.save();
             } catch (Exception ex) {
-                ABRLogger.getInstance(ABRScannedElementPane.class)
+                ABRLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
                                 "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
                                 botJobName, ex.getMessage()));
@@ -85,7 +84,7 @@ public class ExcelWriter {
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
-                ABRLogger.getInstance(ABRScannedElementPane.class)
+                ABRLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
                                 "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
                                 botJobName, ex.getMessage()));
@@ -347,7 +346,7 @@ public class ExcelWriter {
                 // Save the Excel after modification
 
             } catch (Exception ex) {
-                ABRLogger.getInstance(ABRScannedElementPane.class)
+                ABRLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
                                 "Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
             }
