@@ -1,12 +1,14 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.driver.ABRWebElement;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
@@ -74,7 +76,6 @@ public class ABRNewCommandPane extends ABRPane {
 
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
 
-    private int botJobId;
     private RowMoveDTO rowMoveDTO;
     private Pane mainPane;
 
@@ -82,6 +83,12 @@ public class ABRNewCommandPane extends ABRPane {
     TextField valueCheckField;
 
     private Button variableButton;
+
+    private Button addWaitButton30;
+    private Button addWaitButton15;
+    private Button addWaitButton5;
+    private Button addCloseActionButton;
+    private Button addScreenButton;
 
     Button addInstructionButton;
     Button cancelButton;
@@ -98,8 +105,7 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems;
 
-    public ABRNewCommandPane(int botJobId, RowMoveDTO rowMoveDTO, ObservableList<ComboBoxVars> webPageItems) {
-        this.botJobId = botJobId;
+    public ABRNewCommandPane(RowMoveDTO rowMoveDTO, ObservableList<ComboBoxVars> webPageItems) {
         this.rowMoveDTO = rowMoveDTO;
         this.webPageItems = webPageItems;
 
@@ -377,8 +383,38 @@ public class ABRNewCommandPane extends ABRPane {
         variableButton = componentBuilder.buildButton(
                 "Variables", ABRConstants.SPACE_L, ABRConstants.ICON_VARIABLES, ABRConstants.SPACE_M, Insets.EMPTY);
 
+        addWaitButton30 = componentBuilder.buildButton(
+                "30s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+
+        addWaitButton15 = componentBuilder.buildButton(
+                "15s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+
+        addWaitButton5 = componentBuilder.buildButton(
+                "5s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+
+        addCloseActionButton = componentBuilder.buildButton(
+                "Add Close Browser",
+                ABRConstants.SPACE_L,
+                ABRConstants.ICON_CROSS,
+                ABRConstants.SPACE_M,
+                new Insets(5));
+        addScreenButton = componentBuilder.buildButton(
+                "Add Screenshot", ABRConstants.SPACE_L, ABRConstants.ICON_SCREEN, ABRConstants.SPACE_M, new Insets(5));
+
         // Define a uniform width for the buttons
         double buttonWidth = 200;
+
+        // Set the preferred width for the new buttons
+        //        addWaitButton30.setPrefWidth(80);
+        //        addWaitButton15.setPrefWidth(50);
+        //        addWaitButton5.setPrefWidth(50);
+
+        // Create a new HBox for the new buttons
+        HBox buttonBox = new HBox(10); // 10 is the spacing between buttons
+        buttonBox
+                .getChildren()
+                .addAll(addWaitButton30, addWaitButton15, addWaitButton5, addCloseActionButton, addScreenButton);
+        buttonBox.setAlignment(Pos.BASELINE_LEFT); // Align buttons to the left
 
         // Create layout and add components
         GridPane gridPane = new GridPane();
@@ -402,6 +438,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         variableButton.setPrefWidth(buttonWidth);
         gridPane.add(variableButton, 0, 2);
+        gridPane.add(buttonBox, 0, 3, 3, 1); // Add buttonBox to a new row, spanning 3 columns
 
         // Set the preferred width of valueCheckField
         valueCheckField.setPrefWidth(150);
@@ -414,10 +451,10 @@ public class ABRNewCommandPane extends ABRPane {
         gridPane.add(hbox, 1, 2); // Row 2 for HBox
 
         addInstructionButton.setPrefWidth(buttonWidth);
-        gridPane.add(addInstructionButton, 2, 2);
+        gridPane.add(addInstructionButton, 2, 5);
 
         cancelButton.setPrefWidth(buttonWidth);
-        gridPane.add(cancelButton, 2, 3);
+        gridPane.add(cancelButton, 2, 6);
 
         ////        gridPane.add(buttonsBox, 2, 1);
         ////
@@ -456,6 +493,18 @@ public class ABRNewCommandPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
+        addWaitButton30.setOnAction(e -> addInstruction(
+                "Wait 30second(s)", "Waiting action", ABRConstants.HOLD, 30, "", null, null, rowMoveDTO));
+        addWaitButton15.setOnAction(e -> addInstruction(
+                "Wait 15second(s)", "Waiting action", ABRConstants.HOLD, 15, "", null, null, rowMoveDTO));
+        addWaitButton5.setOnAction(e ->
+                addInstruction("Wait 5second(s)", "Waiting action", ABRConstants.HOLD, 5, "", null, null, rowMoveDTO));
+        addCloseActionButton.setOnAction(e ->
+                addInstruction("Close Browser", "Close Browser", ABRConstants.QUIT, 0, "", null, null, rowMoveDTO));
+
+        addScreenButton.setOnAction(e -> addInstruction(
+                "Screenshot Browser", "Screenshot Browser", ABRConstants.SCREEN, 0, "", null, null, rowMoveDTO));
+
         comboBoxOperator.setVisible(false);
 
         // Add a listener to comboBoxInstruc to handle selection changes
@@ -497,6 +546,9 @@ public class ABRNewCommandPane extends ABRPane {
                                 : comboBoxVars.getValue().getValue();
                 addInstruction(
                         "SetValue",
+                        "SetValue",
+                        ABRConstants.SET_VALUE,
+                        1,
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":" + setValueTo,
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getInstructionId(),
@@ -504,6 +556,9 @@ public class ABRNewCommandPane extends ABRPane {
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
                 addInstruction(
                         "GetValue",
+                        "GetValue",
+                        ABRConstants.GET_VALUE,
+                        1,
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
                                 + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
@@ -517,6 +572,9 @@ public class ABRNewCommandPane extends ABRPane {
 
                 addInstruction(
                         "Check",
+                        "Check Value",
+                        ABRConstants.CHECK_VALUE,
+                        1,
                         comboBoxVars.getValue().getText().toLowerCase() + ":"
                                 + comboBoxOperator.getValue().getOperator() + ":" + checkValueFor,
                         comboBoxVars.getValue().getVarId(),
@@ -525,6 +583,9 @@ public class ABRNewCommandPane extends ABRPane {
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("excelWrite")) {
                 addInstruction(
                         "ExcelWrite",
+                        "ExcelWrite",
+                        ABRConstants.EXTRACT,
+                        2,
                         "ExcelWrite" + ":" + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getInstructionId(),
@@ -556,7 +617,7 @@ public class ABRNewCommandPane extends ABRPane {
                         .info("creating variable for instruction Name "
                                 + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
                 ABRElementValueScene elementValueScene = new ABRElementValueScene(
-                        botJobId,
+                        rowMoveDTO.getBotJobId(),
                         //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionId(),
                         //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionName()
                         comboBoxWebPage.getValue().getVarId(),
@@ -572,7 +633,7 @@ public class ABRNewCommandPane extends ABRPane {
                         .info("creating variable for instruction Name "
                                 + comboBoxWebPage.getValue().getText());
                 ABRElementValueScene elementValueScene = new ABRElementValueScene(
-                        botJobId,
+                        rowMoveDTO.getBotJobId(),
                         comboBoxWebPage.getValue().getVarId(),
                         comboBoxWebPage.getValue().getText());
                 elementValueScene.showModal();
@@ -672,7 +733,7 @@ public class ABRNewCommandPane extends ABRPane {
         String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "
                 + " left join block_loop_instruction blk on blk.variable_id = vars.id "
-                + " where bot_job_id = " + botJobId
+                + " where bot_job_id = " + rowMoveDTO.getBotJobId()
                 + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
@@ -683,7 +744,8 @@ public class ABRNewCommandPane extends ABRPane {
                 String name = rs.getString("name");
                 String value = rs.getString("value");
                 String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, instructionId, usedVars));
+                variablesList.add(
+                        new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -805,12 +867,26 @@ public class ABRNewCommandPane extends ABRPane {
     }
 
     private void addInstruction(
-            String name, String operation, Integer varId, Integer instructionId, RowMoveDTO rowMoveDTO) {
+            String name,
+            String description,
+            String actions,
+            Integer onHold,
+            String operation,
+            Integer varId,
+            Integer instructionId,
+            RowMoveDTO rowMoveDTO) {
 
         // Create and show alert inside Platform.runLater
         Platform.runLater(() -> {
+            BotJobDTO botJob =
+                    ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
+
             // Create a label to display the instruction
-            Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
+            Label newInstruction = new Label("\"" + name + "\" -> \""
+                    + (operation.length() > 0
+                            ? operation
+                            : rowMoveDTO != null ? rowMoveDTO.getBlockName() : botJob.getName())
+                    + "\"");
             newInstruction.setStyle("-fx-font-size: 18px;");
 
             StackPane stackPane = new StackPane(newInstruction);
@@ -822,8 +898,15 @@ public class ABRNewCommandPane extends ABRPane {
 
             Optional<ButtonType> result = alert.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.YES) {
+
+                List<InstructionDTO> rowList = null;
+                if (rowMoveDTO != null) {
+                    rowList = ABRSharedResources.getInstance().getInstructionsByBlockId(rowMoveDTO.getBlockId());
+                }
+
+                preInsertStep(rowMoveDTO, rowList);
+
                 List<BlockLoopInstructionDTO> instructionList = null;
-                BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
                 List<BlockDTO> matchingBlocks = null;
                 if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
                     int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
@@ -850,7 +933,7 @@ public class ABRNewCommandPane extends ABRPane {
                         try {
                             BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
                             instruction.setName(name);
-                            instruction.setDescription("loop desc");
+                            instruction.setDescription(description);
                             instruction.setOperation(operation);
                             instruction.setVariableId(varId);
                             instruction.setParentId(instructionId);
@@ -864,17 +947,18 @@ public class ABRNewCommandPane extends ABRPane {
                                 instruction.setInstructionOrderNumber(finalInstructionList.size() + 1);
                             }
                             instruction.setOptional(false);
-                            if (name.equalsIgnoreCase("setValue")) {
-                                instruction.setActions(ABRConstants.SET_VALUE);
-                            } else if (name.equalsIgnoreCase("getValue")) {
-                                instruction.setActions(ABRConstants.GET_VALUE);
-                            } else if (name.equalsIgnoreCase("check")) {
-                                instruction.setActions(ABRConstants.CHECK_VALUE);
-                            } else if (name.equalsIgnoreCase("ExcelWrite")) {
-                                instruction.setActions(ABRConstants.EXTRACT);
-                            }
+                            //                            if (name.equalsIgnoreCase("setValue")) {
+                            //                                instruction.setActions(ABRConstants.SET_VALUE);
+                            //                            } else if (name.equalsIgnoreCase("getValue")) {
+                            //                                instruction.setActions(ABRConstants.GET_VALUE);
+                            //                            } else if (name.equalsIgnoreCase("check")) {
+                            //                                instruction.setActions(ABRConstants.CHECK_VALUE);
+                            //                            } else if (name.equalsIgnoreCase("ExcelWrite")) {
+                            //                                instruction.setActions(ABRConstants.EXTRACT);
+                            //                            }
+                            instruction.setActions(actions);
                             instruction.setActionCustomMaxWaitSec(30);
-                            instruction.setOnHoldSeconds(1);
+                            instruction.setOnHoldSeconds(onHold);
                             if (finalMatchingBlocks != null) {
                                 instruction.setBlock(finalMatchingBlocks.get(0));
                             } else {
@@ -907,5 +991,69 @@ public class ABRNewCommandPane extends ABRPane {
                 new Thread(waitTask).start();
             }
         });
+    }
+
+    private boolean preInsertStep(RowMoveDTO rowMoveDTO, List<InstructionDTO> rowList) {
+
+        // Check if the operation type is either "INSERT_BEFORE" or "INSERT_AFTER"
+        String operationType = rowMoveDTO.getType();
+        if ("INSERT_BEFORE".equals(operationType) || "INSERT_AFTER".equals(operationType)) {
+            // Get the instruction order number from the first instruction in the updated rows
+            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+
+            // Check if the targetOrderNumber exists in the rowList
+            boolean orderNumberExists = rowList.stream()
+                    .anyMatch(instruction -> instruction.getInstructionOrderNumber() == targetOrderNumber);
+
+            if (!orderNumberExists) {
+                // If the target order number doesn't exist, return false without shifting
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .warning(String.format(
+                                "preInsertStep - Target order number %d does not exist in the row list.",
+                                targetOrderNumber));
+                return false;
+            }
+
+            // Build the SQL update statement
+            try (Statement stmt =
+                    ABRSharedResources.getInstance().getConnection().createStatement()) {
+                // Loop through each instruction in the rowList
+                for (InstructionDTO instruction : rowList) {
+                    // For "INSERT_BEFORE", shift instructions with an order number greater than or equal to the target
+                    // For "INSERT_AFTER", shift instructions with an order number strictly greater than the target
+                    boolean shouldShift = "INSERT_BEFORE".equals(operationType)
+                            ? instruction.getInstructionOrderNumber() >= targetOrderNumber
+                            : instruction.getInstructionOrderNumber() > targetOrderNumber;
+
+                    if (shouldShift) {
+                        // Increment the instructionOrderNumber by 1 for each instruction
+                        String updateSQL = "UPDATE block_loop_instruction SET  "
+                                + " instruction_order_number = " + (instruction.getInstructionOrderNumber() + 1)
+                                + " WHERE id = " + instruction.getInstructionId()
+                                + " AND block_id = " + instruction.getBlockId();
+
+                        int rowsAffected = stmt.executeUpdate(updateSQL);
+                        if (rowsAffected > 0) {
+                            ABRLogger.getInstance(ABRWebDriver.class)
+                                    .warning(String.format(
+                                            "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
+                                            instruction.getInstructionId(),
+                                            instruction.getBlockId(),
+                                            instruction.getInstructionOrderNumber() + 1));
+                        } else {
+                            ABRLogger.getInstance(ABRWebDriver.class)
+                                    .warning(String.format(
+                                            "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
+                                            instruction.getBlockId(), instruction.getInstructionId()));
+                        }
+                    }
+                }
+                return true;
+            } catch (SQLException e) {
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
+            }
+        }
+        return false;
     }
 }

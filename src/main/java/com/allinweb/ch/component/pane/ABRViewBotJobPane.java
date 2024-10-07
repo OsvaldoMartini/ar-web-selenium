@@ -93,8 +93,6 @@ public class ABRViewBotJobPane extends ABRPane {
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
     Button refreshButton;
-    Button addWaitButton30;
-    Button addWaitButton15;
     Button openScannerButton;
     Button editBotJobButton;
     Button launchBotJobButton;
@@ -105,7 +103,6 @@ public class ABRViewBotJobPane extends ABRPane {
     Button openExcelFileButton;
     Button generateExcelButton;
     Button openExcelFilterPanelButton;
-    Button addNewStepButton;
     Button closeBotJobButton;
 
     Label botJobNameLabel;
@@ -200,10 +197,6 @@ public class ABRViewBotJobPane extends ABRPane {
             }
         }));
 
-        this.addWaitButton30 = builder.buildButton(
-                "30s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
-        this.addWaitButton15 = builder.buildButton(
-                "15s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
         this.refreshButton = builder.buildButton(
                 "Refresh", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.openScannerButton = builder.buildButton(
@@ -230,9 +223,6 @@ public class ABRViewBotJobPane extends ABRPane {
         this.closeBotJobButton = builder.buildButton(
                 "Close", ABRConstants.SPACE_ZERO, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, new Insets(5.0D));
 
-        this.addNewStepButton = builder.buildButton(
-                "New Step", ABRConstants.SPACE_ZERO, ABRConstants.ICON_STEP, ABRConstants.SPACE_M, new Insets(5.0D));
-
         // Create a GridPane for the left side buttons
         GridPane leftGridPane = new GridPane();
         leftGridPane.setVgap(10); // Vertical spacing between elements
@@ -248,11 +238,11 @@ public class ABRViewBotJobPane extends ABRPane {
         openScannerButton.setPrefWidth(buttonWidth);
         leftGridPane.add(openScannerButton, 1, 0);
 
-        addWaitButton30.setPrefWidth(buttonWidth);
-        leftGridPane.add(addWaitButton30, 2, 0);
+        saveBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(saveBotJobButton, 2, 0);
 
-        addWaitButton15.setPrefWidth(buttonWidth);
-        leftGridPane.add(addWaitButton15, 3, 0);
+        saveAsBotJobButton.setPrefWidth(buttonWidth);
+        leftGridPane.add(saveAsBotJobButton, 3, 0);
 
         editBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(editBotJobButton, 4, 0);
@@ -260,15 +250,12 @@ public class ABRViewBotJobPane extends ABRPane {
         launchBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(launchBotJobButton, 5, 0);
 
-        addNewStepButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(addNewStepButton, 6, 0);
-
         // Add the bottom row of buttons
-        saveBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(saveBotJobButton, 0, 1);
+//        saveBotJobButton.setPrefWidth(buttonWidth);
+//        leftGridPane.add(saveBotJobButton, 0, 1);
 
-        saveAsBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(saveAsBotJobButton, 1, 1);
+//        saveAsBotJobButton.setPrefWidth(buttonWidth);
+//        leftGridPane.add(saveAsBotJobButton, 1, 1);
 
         openExcelFileButton.setPrefWidth(buttonWidth);
         leftGridPane.add(openExcelFileButton, 2, 1);
@@ -288,8 +275,13 @@ public class ABRViewBotJobPane extends ABRPane {
         }
 
         // Other UI components
+
+        double botJobNameWidth = 100;
+
         this.botJobNameLabel = new Label(this.botJob.getName());
+        this.botJobNameLabel.setPrefWidth(botJobNameWidth);
         this.botJobName = new TextField(this.botJob.getName());
+        this.botJobName.setPrefWidth(botJobNameWidth);
 
         this.initComponentUI();
 
@@ -297,8 +289,12 @@ public class ABRViewBotJobPane extends ABRPane {
                 new StackPane(new Node[] {this.botJobNameLabel, this.botJobName, this.componentButton});
         StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
         StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
+        
         this.botJobDescriptionLabel = new Label(this.botJob.getDescription());
+        this.botJobDescriptionLabel.setPrefWidth(botJobNameWidth);
         this.botJobDescription = new TextField(this.botJob.getDescription());
+        this.botJobDescription.setPrefWidth(botJobNameWidth);
+        
         StackPane botJobDescriptionGroup =
                 new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescription});
 
@@ -380,8 +376,6 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     public void initUIBehaviour() {
-        addWaitButton30.setOnAction(e -> addWaitTask(30));
-        addWaitButton15.setOnAction(e -> addWaitTask(15));
         refreshButton.setOnMouseClicked(e -> {
             stopWebSocketServer();
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
@@ -537,12 +531,6 @@ public class ABRViewBotJobPane extends ABRPane {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
         });
-        this.addNewStepButton.setOnMouseClicked((e) -> {
-            loadWebPageFields();
-            ABRNewCommandScene newCommandScene = new ABRNewCommandScene(this.botJob.getId(), null, this.webPageItems);
-            newCommandScene.showModal();
-        });
-
         this.openExcelFileButton.setOnMouseClicked((e) -> {
             try {
                 String excelFilePath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);

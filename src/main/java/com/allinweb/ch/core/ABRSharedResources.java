@@ -1,5 +1,6 @@
 package com.allinweb.ch.core;
 
+import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRCallback;
@@ -600,5 +601,41 @@ public class ABRSharedResources {
             session = sessionFactory.openSession();
         }
         return session;
+    }
+
+    public List<InstructionDTO> getInstructionsByBlockId(int blockId) {
+        // List to store the fetched instructions
+        List<InstructionDTO> instructions = new ArrayList<>();
+
+        // Build the SQL query statement
+        String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + blockId;
+
+        // Execute the query and process the result set
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(querySQL)) {
+
+            while (rs.next()) {
+                // Assuming you have an Instruction class, populate it with data from the ResultSet
+                InstructionDTO instruction = new InstructionDTO();
+                instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                instruction.setInstructionName(rs.getString("name"));
+                instruction.setBlockId(rs.getInt("block_id"));
+                instruction.setBlockOrderNumber(rs.getInt("block_order_number"));
+                instruction.setBotJobId(rs.getInt("bot_job_id"));
+                // Add the instruction to the list
+                instructions.add(instruction);
+            }
+
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
+        }
+
+        return instructions;
     }
 }
