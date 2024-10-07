@@ -42,6 +42,7 @@ public class ABRElementValuePane extends ABRPane {
     private int botJobId;
     private int instructionId;
     private String instructionName;
+    private String varName;
 
     private List<BankingDTO> dtoList;
     private int currentIndex = 0;
@@ -58,10 +59,11 @@ public class ABRElementValuePane extends ABRPane {
     Button updateButton;
     Button deleteButton;
 
-    public ABRElementValuePane(int botJobId, int instructionId, String instructionName) {
+    public ABRElementValuePane(int botJobId, int instructionId, String instructionName, String varName) {
         this.botJobId = botJobId;
         this.instructionId = instructionId;
         this.instructionName = instructionName;
+        this.varName = varName;
     }
 
     @Override
@@ -106,7 +108,7 @@ public class ABRElementValuePane extends ABRPane {
         parentField.setStyle("-fx-control-inner-background: white; -fx-font-weight: bold;");
 
         nameField = new TextField();
-        nameField.setText(instructionName);
+        nameField.setText(varName);
         nameField.setStyle("-fx-control-inner-background: FFDA33;");
         nameField.requestFocus();
 

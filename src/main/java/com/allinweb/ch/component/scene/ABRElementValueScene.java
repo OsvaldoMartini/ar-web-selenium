@@ -15,17 +15,19 @@ public class ABRElementValueScene extends ABRScene {
     private int botJobId;
     private int instructionId;
     private String instructionName;
+    private String varName;
 
-    public ABRElementValueScene(int botJobId, int instructionId, String instructionName) {
+    public ABRElementValueScene(int botJobId, int instructionId, String instructionName, String varName) {
         super();
         this.botJobId = botJobId;
         this.instructionId = instructionId;
         this.instructionName = instructionName;
+        this.varName = varName;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRElementValuePane(botJobId, instructionId, instructionName);
+        return new ABRElementValuePane(botJobId, instructionId, instructionName, varName);
     }
 
     @Override

@@ -126,12 +126,7 @@ public class ABRScannedElementPane extends ABRPane {
     private ListView<ABRWebElement> scannedElements2;
     private ListView<ABRWebElement> scannedElements3;
     private Button scanButton;
-    private Button addWaitButton30;
-    private Button addWaitButton15;
-    private Button addWaitButton5;
     private Button addNewElement;
-    private Button addCloseActionButton;
-    private Button addScreenButton;
     private Button configureButton;
     private Button launchBotJobButton;
     private Button recallJobButton;
@@ -254,26 +249,9 @@ public class ABRScannedElementPane extends ABRPane {
 
         scanButton = componentBuilder.buildButton(
                 "Scan", ABRConstants.SPACE_L, ABRConstants.ICON_SEARCH, ABRConstants.SPACE_M, new Insets(5));
-        addWaitButton30 = componentBuilder.buildButton(
-                "30s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
-
-        addWaitButton15 = componentBuilder.buildButton(
-                "15s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
-
-        addWaitButton5 = componentBuilder.buildButton(
-                "5s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
-
         addNewElement = componentBuilder.buildButton(
                 "Add Element", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_M, new Insets(5));
 
-        addCloseActionButton = componentBuilder.buildButton(
-                "Add Close Browser",
-                ABRConstants.SPACE_L,
-                ABRConstants.ICON_CROSS,
-                ABRConstants.SPACE_M,
-                new Insets(5));
-        addScreenButton = componentBuilder.buildButton(
-                "Add Screenshot", ABRConstants.SPACE_L, ABRConstants.ICON_SCREEN, ABRConstants.SPACE_M, new Insets(5));
         searchWithIdsButton = componentBuilder.buildButton(
                 "With IDs", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         searchWithNamesButton = componentBuilder.buildButton(
@@ -363,11 +341,13 @@ public class ABRScannedElementPane extends ABRPane {
 
             // Add buttons and checkbox to the GridPane
             gridPaneTop.add(scanButton, 0, 0);
-            gridPaneTop.add(addWaitButton30, 1, 0);
-            gridPaneTop.add(addWaitButton15, 2, 0);
-            gridPaneTop.add(addWaitButton5, 3, 0);
-            gridPaneTop.add(addCloseActionButton, 4, 0);
-            gridPaneTop.add(addScreenButton, 5, 0);
+            gridPaneTop.add(refreshInputFieldsButton, 1, 0);
+            gridPaneTop.add(searchWithIdsButton, 2, 0);
+            gridPaneTop.add(searchWithNamesButton, 3, 0);
+            gridPaneTop.add(searchWithoutIdsAndNamesBtn, 4, 0);
+            gridPaneTop.add(refreshOutputFieldsButton, 5, 0);
+            gridPaneTop.add(refreshOtherFieldsButton, 6, 0);
+
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
             //        gridPaneTop.add(checkActiveHover, 6, 0);
@@ -387,17 +367,17 @@ public class ABRScannedElementPane extends ABRPane {
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
             // Create a GridPane for the middle section
-            GridPane gridPane = new GridPane();
-            gridPane.setPadding(new Insets(10));
-            gridPane.setHgap(10); // Set horizontal gap between columns
+            //            GridPane gridPane = new GridPane();
+            //            gridPane.setPadding(new Insets(10));
+            //            gridPane.setHgap(10); // Set horizontal gap between columns
 
             // Add buttons and checkbox to the GridPane
-            gridPane.add(refreshInputFieldsButton, 0, 0);
-            gridPane.add(searchWithIdsButton, 1, 0);
-            gridPane.add(searchWithNamesButton, 2, 0);
-            gridPane.add(searchWithoutIdsAndNamesBtn, 3, 0);
-            gridPane.add(refreshOutputFieldsButton, 4, 0);
-            gridPane.add(refreshOtherFieldsButton, 5, 0);
+            //            gridPane.add(refreshInputFieldsButton, 0, 0);
+            //            gridPane.add(searchWithIdsButton, 1, 0);
+            //            gridPane.add(searchWithNamesButton, 2, 0);
+            //            gridPane.add(searchWithoutIdsAndNamesBtn, 3, 0);
+            //            gridPane.add(refreshOutputFieldsButton, 4, 0);
+            //            gridPane.add(refreshOtherFieldsButton, 5, 0);
             //        gridPane.add(checkBoxAction, 6, 0);
             //        gridPane.add(originalTagNameField, 7, 0);
             //        gridPane.add(coordsTextField, 8, 0);
@@ -475,7 +455,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
-            verticalBox.getChildren().addAll(gridPane, boxListViews);
+            verticalBox.getChildren().addAll(boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
             VBox.setVgrow(bottomPane, Priority.NEVER);
@@ -612,16 +592,11 @@ public class ABRScannedElementPane extends ABRPane {
             }
         });
         scanButton.setOnAction(e -> manageUIScan());
-        addWaitButton30.setOnAction(e -> addWaitTask(30));
-        addWaitButton15.setOnAction(e -> addWaitTask(15));
-        addWaitButton5.setOnAction(e -> addWaitTask(5));
         addNewElement.setOnAction(e -> {
             if (searchReturn.getElement() != null) {
                 insertNewElement();
             }
         });
-        addCloseActionButton.setOnAction(e -> addCloseBrowserTask());
-        addScreenButton.setOnAction(e -> addScreenTask());
 
         refreshInputFieldsButton.setOnAction(e -> refreshInputBtn());
         refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn());
@@ -1172,82 +1147,6 @@ public class ABRScannedElementPane extends ABRPane {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
             ABRLogger.getInstance(ABRWebDriver.class).severe("ExecutorService did not terminate\n" + e.getMessage());
-        }
-    }
-
-    private void addWaitTask(Integer secondsToWait) {
-        Alert alert = new Alert(
-                Alert.AlertType.CONFIRMATION,
-                "Are you sure you want to add a wait of " + secondsToWait + " seconds to the botjob?",
-                ButtonType.YES,
-                ButtonType.NO);
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-            Task<Void> waitTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    List<BlockLoopInstructionDTO> instructionList = block.getBlockLoopInstructions();
-                    BlockLoopInstructionDTO waitInstruction = new BlockLoopInstructionDTO();
-                    waitInstruction.setName("Wait " + secondsToWait + "second(s)");
-                    waitInstruction.setDescription("Waiting action");
-                    waitInstruction.setEncrypted(false);
-                    waitInstruction.setInstructionOrderNumber(instructionList.size());
-                    waitInstruction.setOptional(false);
-                    waitInstruction.setActions(ABRConstants.HOLD);
-                    waitInstruction.setOnHoldSeconds(secondsToWait);
-                    waitInstruction.setBlock(block);
-                    waitInstruction.setExportToABR(false);
-                    ABRSharedResources.getInstance()
-                            .addEntity(
-                                    waitInstruction,
-                                    BlockLoopInstructionDTO.class,
-                                    () -> new ABRAlertScene(
-                                            Alert.AlertType.INFORMATION,
-                                            "Instruction Added",
-                                            "Instruction Wait 30 second(s) has been added successfully",
-                                            ButtonType.OK));
-                    return null;
-                }
-            };
-            new Thread(waitTask).start();
-        }
-    }
-
-    private void addCloseBrowserTask() {
-        Alert alert = new Alert(
-                Alert.AlertType.CONFIRMATION,
-                "Are you sure you want to add the browser closing action to the bot job?",
-                ButtonType.YES,
-                ButtonType.NO);
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-            Task<Void> addCloseTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    List<BlockLoopInstructionDTO> instructionList = block.getBlockLoopInstructions();
-                    BlockLoopInstructionDTO closeInstruction = new BlockLoopInstructionDTO();
-                    closeInstruction.setName("Close Browser");
-                    closeInstruction.setDescription("Close Browser");
-                    closeInstruction.setEncrypted(false);
-                    closeInstruction.setInstructionOrderNumber(instructionList.size() + 1);
-                    closeInstruction.setOptional(false);
-                    closeInstruction.setActions(ABRConstants.QUIT);
-                    closeInstruction.setOnHoldSeconds(0);
-                    closeInstruction.setBlock(block);
-                    closeInstruction.setExportToABR(false);
-                    ABRSharedResources.getInstance()
-                            .addEntity(
-                                    closeInstruction,
-                                    BlockLoopInstructionDTO.class,
-                                    () -> new ABRAlertScene(
-                                            Alert.AlertType.INFORMATION,
-                                            "Instruction Added",
-                                            "Instruction Close Browser has been added successfully",
-                                            ButtonType.OK));
-                    return null;
-                }
-            };
-            new Thread(addCloseTask).start();
         }
     }
 
@@ -2845,6 +2744,13 @@ public class ABRScannedElementPane extends ABRPane {
                                             .findFirst()
                                             .get()
                                             .getPath();
+
+                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getName();
+
                                 } catch (Exception ex) {
                                     Alert alert = new Alert(Alert.AlertType.ERROR);
                                     alert.setTitle("Parent Id Error");
@@ -2876,20 +2782,30 @@ public class ABRScannedElementPane extends ABRPane {
                                     break;
                                 }
 
-                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                        .filter(f -> f.getId() == currentInstruction.getParentId())
-                                        .findFirst()
-                                        .get()
-                                        .getName();
-
                             } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
-                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                        .filter(f -> f.getId() == currentInstruction.getParentId())
-                                        .findFirst()
-                                        .get()
-                                        .getName();
+                                try {
+                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                            .filter(f -> f.getId() == currentInstruction.getParentId())
+                                            .findFirst()
+                                            .get()
+                                            .getName();
+                                    checkOperation = true;
+                                } catch (Exception ex) {
 
-                                checkOperation = true;
+                                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                                    alert.setTitle("Check Validation Error");
+                                    alert.setHeaderText("Check Validation - GET is Not Defined");
+                                    alert.setContentText("There is NOT GET VALUE defined for: " + parentField
+                                            + "\n --------------------- "
+                                            + "\nCheck the GET for "
+                                            + parentField);
+                                    alert.showAndWait();
+
+                                    stopAll = true;
+
+                                    resultAcions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                    success = false;
+                                }
                             } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.E.getValue())) {
                                 try {
                                     parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()

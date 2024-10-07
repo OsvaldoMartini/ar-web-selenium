@@ -621,7 +621,8 @@ public class ABRNewCommandPane extends ABRPane {
                         //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionId(),
                         //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionName()
                         comboBoxWebPage.getValue().getVarId(),
-                        comboBoxWebPage.getValue().getText());
+                        comboBoxWebPage.getValue().getText(),
+                        comboBoxWebPage.getValue().getValue());
                 elementValueScene.showModal();
                 loadJobVariables(comboBoxWebPage.getValue().getVarId());
                 reloadComboVars();
@@ -635,7 +636,8 @@ public class ABRNewCommandPane extends ABRPane {
                 ABRElementValueScene elementValueScene = new ABRElementValueScene(
                         rowMoveDTO.getBotJobId(),
                         comboBoxWebPage.getValue().getVarId(),
-                        comboBoxWebPage.getValue().getText());
+                        comboBoxWebPage.getValue().getText(),
+                        comboBoxWebPage.getValue().getValue());
                 elementValueScene.showModal();
             }
 
