@@ -31,6 +31,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -316,14 +317,18 @@ public class WebSocketStompServer {
 
     // Handle DELETE_BLOCK message
     private void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList) {
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
+        // Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
+        blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
 
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            int newOrderNumber = 1; // Start reordering from 1
+
+            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
                 // Update each block's block_order_number starting from 1
-                String updateSQL = "UPDATE block SET block_order_number = " + blockOrderDetailDTO.getBlockOrderNumber()
+                String updateSQL = "UPDATE block SET block_order_number = " + newOrderNumber
                         + " WHERE id = "
                         + blockOrderDetailDTO.getBlockId()
-                        + " and bot_job_id = " + blockOrderDetailDTO.getBotJobId();
+                        + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
 
@@ -331,13 +336,15 @@ public class WebSocketStompServer {
                     ABRLogger.getInstance(ABRWebDriver.class)
                             .info(String.format(
                                     "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
-                                    blockOrderDetailDTO.getBlockId(), blockOrderDetailDTO.getBlockOrderNumber()));
+                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
                 } else {
                     ABRLogger.getInstance(ABRWebDriver.class)
                             .warning(String.format(
                                     "UpdateBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
                                     blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
                 }
+
+                newOrderNumber++; // Increment the new order number for the next block
             }
 
             sendMessageToAll("updateBlockOrderNumber");
@@ -346,6 +353,7 @@ public class WebSocketStompServer {
                     .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
         }
     }
+
 
     // Handle DELETE_BLOCK message
     private void updateBlockName(int botJobId, int blockId, String blockName) {
