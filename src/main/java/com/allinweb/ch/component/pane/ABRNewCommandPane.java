@@ -28,6 +28,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -903,8 +904,12 @@ public class ABRNewCommandPane extends ABRPane {
 
                 List<InstructionDTO> rowList = null;
                 if (rowMoveDTO != null) {
-                    rowList = ABRSharedResources.getInstance().getInstructionsByBlockId(rowMoveDTO.getBlockId());
+                    //                    rowList =
+                    // ABRSharedResources.getInstance().getInstructionsByBlockId(rowMoveDTO.getBlockId());
+                    rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
                 }
+
+                reorderInstructions(rowList);
 
                 preInsertStep(rowMoveDTO, rowList);
 
@@ -995,8 +1000,50 @@ public class ABRNewCommandPane extends ABRPane {
         });
     }
 
-    private boolean preInsertStep(RowMoveDTO rowMoveDTO, List<InstructionDTO> rowList) {
+    private boolean reorderInstructions(List<InstructionDTO> rowList) {
+        int orderNumber = 1;
 
+        // Iterate through the list and update the instructionOrderNumber
+        for (InstructionDTO instruction : rowList) {
+            instruction.setInstructionOrderNumber(orderNumber);
+            orderNumber++; // Increment the order number for the next instruction
+        }
+
+        // Build the SQL update statement
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            // Loop through each instruction in the rowList
+            for (InstructionDTO instruction : rowList) {
+                // Increment the instructionOrderNumber by 1 for each instruction
+                String updateSQL = "UPDATE block_loop_instruction SET  "
+                        + " instruction_order_number = " + instruction.getInstructionOrderNumber()
+                        + " WHERE id = " + instruction.getInstructionId()
+                        + " AND block_id = " + instruction.getBlockId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+                if (rowsAffected > 0) {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
+                                    instruction.getInstructionId(),
+                                    instruction.getBlockId(),
+                                    instruction.getInstructionOrderNumber() + 1));
+                } else {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
+                                    instruction.getBlockId(), instruction.getInstructionId()));
+                }
+            }
+
+            return true;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
+        }
+        return false;
+    }
+
+    private boolean preInsertStep(RowMoveDTO rowMoveDTO, List<InstructionDTO> rowList) {
         // Check if the operation type is either "INSERT_BEFORE" or "INSERT_AFTER"
         String operationType = rowMoveDTO.getType();
         if ("INSERT_BEFORE".equals(operationType) || "INSERT_AFTER".equals(operationType)) {
@@ -1057,5 +1104,41 @@ public class ABRNewCommandPane extends ABRPane {
             }
         }
         return false;
+    }
+
+    private List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
+        // List to store the fetched instructions
+        List<InstructionDTO> instructions = new ArrayList<>();
+
+        // Build the SQL query statement
+        String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + blockId
+                + " order by instruction_order_number ASC";
+
+        // Execute the query and process the result set
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(querySQL)) {
+
+            while (rs.next()) {
+                // Assuming you have an Instruction class, populate it with data from the ResultSet
+                InstructionDTO instruction = new InstructionDTO();
+                instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                instruction.setBlockId(rs.getInt("block_id"));
+                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
+                instruction.setBotJobId(botJobId);
+                // Add the instruction to the list
+                instructions.add(instruction);
+            }
+
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
+        }
+
+        return instructions;
     }
 }

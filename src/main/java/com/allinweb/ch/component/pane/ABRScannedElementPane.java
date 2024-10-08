@@ -2524,7 +2524,8 @@ public class ABRScannedElementPane extends ABRPane {
                     previousBlock.setName(rs.getString("block_name"));
                     previousBlock.setDescription(rs.getString("block_description"));
                     previousBlock.setTypeId(rs.getInt("type_id"));
-                    previousBlock.setBotJobLoadDTO(previousBotJob);
+                    previousBlock.setBotJobId(previousBotJob.getId());
+                    previousBlock.setBotJobName(previousBotJob.getName());
 
                     previousBlockId = currentBlockId;
 
@@ -2616,7 +2617,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         //        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
         String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-        excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobLoadDTO().getName() + ".xlsx";
+        excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobName() + ".xlsx";
         if (!(new File(excelPath)).exists()) {
             new ABRAlertScene(
                     Alert.AlertType.WARNING,
@@ -2656,12 +2657,12 @@ public class ABRScannedElementPane extends ABRPane {
         //        String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
         //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
 
-        int botJobId = blocksLoaded.get(0).getBotJobLoadDTO().getId();
+        int botJobId = blocksLoaded.get(0).getBotJobId();
 
         // Original BotJobDTO
         BotJobDTO selectedJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
 
-        String baseLogString = blocksLoaded.get(0).getBotJobLoadDTO().getName()
+        String baseLogString = blocksLoaded.get(0).getBotJobName()
                 + Constants.FIELDS_SEPARATOR
                 + labelsValue.getProperty(Labels.START);
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);

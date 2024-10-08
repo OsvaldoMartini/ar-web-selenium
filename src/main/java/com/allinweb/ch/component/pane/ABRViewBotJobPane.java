@@ -8,6 +8,7 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.*;
@@ -49,6 +50,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
+import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -66,6 +68,7 @@ import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import javax.swing.*;
 import javax.websocket.server.ServerContainer;
 import org.eclipse.jetty.server.Server;
@@ -160,7 +163,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     } catch (Exception e) {
                         ABRLogger.getInstance(ABRWebDriver.class).fine("port Alrey in Use: " + finalPort);
 
-                        Alert alert = new Alert(Alert.AlertType.ERROR);
+                        Alert alert = new Alert(AlertType.ERROR);
                         alert.setTitle("Port Error");
                         alert.setHeaderText("Change the Port configuration\"");
                         alert.setContentText(String.format("Port %d already in Use!", finalPort));
@@ -181,14 +184,14 @@ public class ABRViewBotJobPane extends ABRPane {
         StackPane stackPane = new StackPane(countdownLabel);
         stackPane.setPadding(new Insets(20));
         // Create a dialog for the alert
-        alertToShow = new Alert(Alert.AlertType.INFORMATION);
+        alertToShow = new Alert(AlertType.INFORMATION);
         alertToShow.setTitle("Countdown Alert");
         alertToShow.setHeaderText("Count Down");
         alertToShow.initModality(Modality.APPLICATION_MODAL);
         // Set the content of the alert
         alertToShow.getDialogPane().setContent(stackPane);
         // Create a timeline to update the countdown
-        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
+        timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
             remainingSeconds--;
             countdownLabel.setText(String.valueOf(remainingSeconds));
             if (remainingSeconds <= 0) {
@@ -271,7 +274,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Center the buttons
         for (Node node : leftGridPane.getChildren()) {
-            GridPane.setHalignment(node, javafx.geometry.HPos.CENTER);
+            GridPane.setHalignment(node, HPos.CENTER);
         }
 
         // Other UI components
@@ -313,6 +316,13 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (botLoadJobs.size() > 0) {
+
+            List<InstructionDTO> rowList = null;
+            for (BlockLoadDTO block : botLoadJobs.get(0).getBlockLoadDTOList()) {
+                rowList = getInstructionsByBlockId(botLoadJobs.get(0).getId(), block.getId());
+                reorderInstructions(rowList);
+            }
+
             List<BlockLoopInstructionLoadDTO> blockLoopInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
                     .flatMap(blockLoadDTO -> blockLoadDTO.getBlockLoopInstructionLoadDTOS().stream()
                             .map(blockLoopInstructionDTO -> new BlockLoopInstructionLoadDTO(
@@ -942,7 +952,9 @@ public class ABRViewBotJobPane extends ABRPane {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setBotJobLoadDTO(botJobDTO);
+                    //                    blockDTO.setBotJobLoadDTO(botJobDTO);
+                    blockDTO.setBotJobId(botJobDTO.getId());
+                    blockDTO.setBotJobName(botJobDTO.getName());
 
                     blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
                     botJobDTO.getBlockLoadDTOList().add(blockDTO);
@@ -986,5 +998,84 @@ public class ABRViewBotJobPane extends ABRPane {
         } catch (SQLException e) {
             ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadBlockAll  \nError: " + e.getMessage());
         }
+    }
+
+    public List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
+        // List to store the fetched instructions
+        List<InstructionDTO> instructions = new ArrayList<>();
+
+        // Build the SQL query statement
+        String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + blockId
+                + " order by instruction_order_number ASC";
+
+        // Execute the query and process the result set
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(querySQL)) {
+
+            while (rs.next()) {
+                // Assuming you have an Instruction class, populate it with data from the ResultSet
+                InstructionDTO instruction = new InstructionDTO();
+                instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                instruction.setBlockId(rs.getInt("block_id"));
+                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
+                instruction.setBotJobId(botJobId);
+                // Add the instruction to the list
+                instructions.add(instruction);
+            }
+
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
+        }
+
+        return instructions;
+    }
+
+    public boolean reorderInstructions(List<InstructionDTO> rowList) {
+        int orderNumber = 1;
+
+        // Iterate through the list and update the instructionOrderNumber
+        for (InstructionDTO instruction : rowList) {
+            instruction.setInstructionOrderNumber(orderNumber);
+            orderNumber++; // Increment the order number for the next instruction
+        }
+
+        // Build the SQL update statement
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            // Loop through each instruction in the rowList
+            for (InstructionDTO instruction : rowList) {
+                // Increment the instructionOrderNumber by 1 for each instruction
+                String updateSQL = "UPDATE block_loop_instruction SET  "
+                        + " instruction_order_number = " + instruction.getInstructionOrderNumber()
+                        + " WHERE id = " + instruction.getInstructionId()
+                        + " AND block_id = " + instruction.getBlockId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+                if (rowsAffected > 0) {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
+                                    instruction.getInstructionId(),
+                                    instruction.getBlockId(),
+                                    instruction.getInstructionOrderNumber() + 1));
+                } else {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .warning(String.format(
+                                    "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
+                                    instruction.getBlockId(), instruction.getInstructionId()));
+                }
+            }
+
+            return true;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
+        }
+        return false;
     }
 }

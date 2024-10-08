@@ -165,7 +165,7 @@ public class ABRViewBotJobScene extends ABRScene {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setBotJobLoadDTO(botJobDTO);
+                    //                    blockDTO.setBotJobLoadDTO(botJobDTO);
 
                     blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
                     botJobDTO.getBlockLoadDTOList().add(blockDTO);
