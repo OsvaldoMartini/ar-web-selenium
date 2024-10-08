@@ -948,8 +948,13 @@ public class ABRNewCommandPane extends ABRPane {
                             instruction.setExportToABR(true);
                             if (rowMoveDTO != null
                                     && rowMoveDTO.getUpdatedRows().size() > 0) {
-                                instruction.setInstructionOrderNumber(
-                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
+                                if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
+                                    instruction.setInstructionOrderNumber(
+                                            rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+                                } else {
+                                    instruction.setInstructionOrderNumber(
+                                            rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
+                                }
                             } else {
                                 instruction.setInstructionOrderNumber(finalInstructionList.size() + 1);
                             }

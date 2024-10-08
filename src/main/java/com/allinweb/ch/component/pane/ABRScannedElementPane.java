@@ -2672,7 +2672,8 @@ public class ABRScannedElementPane extends ABRPane {
 
         ExcelWriter.ExcelChain writerExport =
                 new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("export");
-        writerExport.insertReportHead();
+        boolean excelExportOnceCreation = true;
+        //        writerExport.insertReportHead();
 
         boolean success = true;
         boolean stopAll = false;
@@ -3038,6 +3039,11 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     if (operations.length == 2) {
                                         if (mapOperators.containsKey(parentField)) {
+
+                                            if (excelExportOnceCreation) {
+                                                writerExport.insertReportHead();
+                                                excelExportOnceCreation = false;
+                                            }
 
                                             resultAcions = "insertValueFieldNameInExcel-->" + parentField + "-"
                                                     + mapOperators.get(parentField);

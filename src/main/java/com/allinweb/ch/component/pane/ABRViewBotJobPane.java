@@ -952,7 +952,6 @@ public class ABRViewBotJobPane extends ABRPane {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
-                    //                    blockDTO.setBotJobLoadDTO(botJobDTO);
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
 
