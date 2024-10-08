@@ -301,6 +301,11 @@ public class ABRViewBotJobPane extends ABRPane {
         //        this.blockDTOObservableList = FXCollections.observableArrayList(ABRSharedResources.getInstance()
         //                .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId()));
 
+        // Send a message to all connected clients after 5 seconds
+        //        WebSocketStompServer.sendMessageToAll(jsonData);
+        WebSocketStompServer.deleteNullBlocks(this.botJob.getId());
+        WebSocketStompServer.updateBlockOrderNumber(WebSocketStompServer.selectAllBlocks(this.botJob.getId()));
+
         loadBlockAll(botJob.getId());
 
         Gson gson = new Gson();
@@ -333,9 +338,6 @@ public class ABRViewBotJobPane extends ABRPane {
         webEngine.javaScriptEnabledProperty().set(true);
 
         buildWebView(jsonData, finalPort);
-
-        // Send a message to all connected clients after 5 seconds
-        WebSocketStompServer.sendMessageToAll(jsonData);
 
         //        this.uiBlockList = new ListView<>(blockDTOObservableList);
         //

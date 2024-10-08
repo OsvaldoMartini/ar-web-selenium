@@ -69,9 +69,15 @@ public class WebSocketStompServer {
 
     @OnOpen
     public void onOpen(Session session) {
-        sessions.add(session);
-        ABRLogger.getInstance(ABRWebDriver.class)
-                .info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
+        // Check if the session is already in the sessions set before adding it
+        if (!sessions.contains(session)) {
+            sessions.add(session);
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
+        } else {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .info(String.format("Reusing existing Socket Connection - Session Id: %s", session.getId()));
+        }
     }
 
     @OnMessage
@@ -79,90 +85,21 @@ public class WebSocketStompServer {
         try {
             // Parse the incoming STOMP frame
             StompFrame frame = StompParser.parse(message);
+
             // Handle the STOMP frame (e.g., CONNECT, SEND, SUBSCRIBE)
             stompHandler.handleFrame(frame, session);
 
-            // Example: Assume the message is a STOMP SUBSCRIBE frame for a topic
-            //            if (message.contains("SUBSCRIBE") && message.contains("/topic/messages")) {
-            //                try {
-            //                    // Send a STOMP-compatible message to the client
-            //                    session.getBasicRemote().sendText("MESSAGE\nsubscription:/topic/messages\n\nHello
-            // React! This is a test message from Java.\u0000");
-            //                    System.out.println("Sent test message to client " + session.getId());
-            //                } catch (IOException e) {
-            //                    e.printStackTrace();
-            //                }
-            //            }
-
+            // Extract and handle the message type
             String type = extractType(frame.getBody());
+            handleMessageByType(type, frame.getBody(), session);
 
-            // Dispatch to the correct method based on the message type
-            switch (type) {
-                case "BLOCKS_SPLITTER":
-                    BlockSplitDTO blockSplitDTO = gson.fromJson(frame.getBody(), BlockSplitDTO.class);
-                    splitBlocks(blockSplitDTO);
-                    break;
-
-                case "BLOCK_MOVE":
-                    BlockMoveDTO blockMoveDTO = gson.fromJson(frame.getBody(), BlockMoveDTO.class);
-                    moveBlock(blockMoveDTO);
-                    break;
-                case "ROW_UPDATE":
-                    RowMoveDTO rowUpdateDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
-                    rowUpdate(rowUpdateDTO);
-                    break;
-                case "ROW_MOVE":
-                    RowMoveDTO rowMoveDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
-                    rowMove(rowMoveDTO);
-                    break;
-                case "INSERT_BEFORE":
-                case "INSERT_AFTER":
-                    RowMoveDTO insertBeforeDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
-                    injectStepAfterOrBefore(insertBeforeDTO);
-                    break;
-                case "BLOCK_ORDER":
-                    BlockOrderDTO blockReorder = gson.fromJson(frame.getBody(), BlockOrderDTO.class);
-                    if (blockReorder.getUpdatedBlocks().size() > 0) {
-                        updateBlockOrderNumber(selectAllBlocks(
-                                blockReorder.getUpdatedBlocks().get(0).getBotJobId()));
-                        deleteNullBlocks(blockReorder.getUpdatedBlocks().get(0).getBotJobId());
-                    }
-                    break;
-                case "BLOCK_UPDATE":
-                    RowMoveDTO blockUpdateDTO = gson.fromJson(frame.getBody(), RowMoveDTO.class);
-                    updateBlockName(
-                            blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-                    break;
-
-                case "DELETE_INSTRUCTION":
-                    InstructionDTO deleteInstructionDTO = gson.fromJson(frame.getBody(), InstructionDTO.class);
-                    deleteInstruction(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO);
-                    break;
-
-                case "DELETE_BLOCK":
-                    DeleteBlockDTO deleteBlockDTO = gson.fromJson(frame.getBody(), DeleteBlockDTO.class);
-                    deleteBlock(deleteBlockDTO);
-                    break;
-                case "BLOCK_ROLLBACK":
-                    RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(frame.getBody(), RollBackBlocksDTO.class);
-                    rollBackBlocksRows(rollBackBlocksDTO);
-                    rollBackBlocksOrder(rollBackBlocksDTO);
-                    deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                    break;
-
-                default:
-                    //                    System.err.println("Unknown message type: " + type);
-                    break;
-            }
-
+            // Send a ping to keep the connection alive
             session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
         } catch (IOException e) {
             ABRLogger.getInstance(ABRWebDriver.class)
-                    .warning(String.format("onMessage - IO Error:  %s", e.getMessage()));
-
+                    .warning(String.format("onMessage - IO Error: %s", e.getMessage()));
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
-                    .warning((String.format("onMessage - Error:  %s", e.getMessage())));
+            ABRLogger.getInstance(ABRWebDriver.class).warning(String.format("onMessage - Error: %s", e.getMessage()));
         }
     }
 
@@ -174,10 +111,9 @@ public class WebSocketStompServer {
                         String stompMessage = "MESSAGE\nsubscription:/topic/messages\ncontent-length:"
                                 + message.length() + "\n\n" + message + "\u0000";
                         session.getBasicRemote().sendText(stompMessage);
-                        System.out.println("Sent message to session " + session.getId());
                     } catch (IOException e) {
                         ABRLogger.getInstance(ABRWebDriver.class)
-                                .warning((String.format("sendMessageToAll - IO Error:  %s", e.getMessage())));
+                                .warning(String.format("sendMessageToAll - IO Error: %s", e.getMessage()));
                     }
                 }
             }
@@ -186,40 +122,93 @@ public class WebSocketStompServer {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        // Log the error and attempt to handle it (e.g., reconnect or clean up resources)
-        System.err.println("WebSocket error: " + throwable.getMessage());
-        throwable.printStackTrace();
-
-        // Attempt to reconnect or clean up session
+        ABRLogger.getInstance(ABRWebDriver.class).warning(String.format("WebSocket error: %s", throwable.getMessage()));
         try {
             if (session.isOpen()) {
                 session.close();
             }
         } catch (IOException e) {
-            ABRLogger.getInstance(ABRWebDriver.class).warning(String.format("onError - IO Error:  %s", e.getMessage()));
+            ABRLogger.getInstance(ABRWebDriver.class).warning(String.format("onError - IO Error: %s", e.getMessage()));
         }
     }
 
     @OnClose
     public void onClose(Session session) {
-        System.out.println("Client disconnected: " + session.getId());
+        sessions.remove(session);
+        ABRLogger.getInstance(ABRWebDriver.class).info(String.format("Client disconnected: %s", session.getId()));
+    }
+
+    private void handleMessageByType(String type, String body, Session session) {
+        // Dispatch to the correct method based on the message type
+        switch (type) {
+            case "BLOCKS_SPLITTER":
+                BlockSplitDTO blockSplitDTO = gson.fromJson(body, BlockSplitDTO.class);
+                splitBlocks(blockSplitDTO);
+                break;
+
+            case "BLOCK_MOVE":
+                BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
+                moveBlock(blockMoveDTO);
+                break;
+            case "ROW_UPDATE":
+                RowMoveDTO rowUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
+                rowUpdate(rowUpdateDTO);
+                break;
+            case "ROW_MOVE":
+                RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
+                rowMove(rowMoveDTO);
+                break;
+            case "INSERT_BEFORE":
+            case "INSERT_AFTER":
+                RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
+                injectStepAfterOrBefore(insertBeforeDTO);
+                break;
+            case "BLOCK_ORDER":
+                BlockOrderDTO blockReorder = gson.fromJson(body, BlockOrderDTO.class);
+                if (blockReorder.getUpdatedBlocks().size() > 0) {
+                    updateBlockOrderNumber(selectAllBlocks(
+                            blockReorder.getUpdatedBlocks().get(0).getBotJobId()));
+                    deleteNullBlocks(blockReorder.getUpdatedBlocks().get(0).getBotJobId());
+                }
+                break;
+            case "BLOCK_UPDATE":
+                RowMoveDTO blockUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
+                updateBlockName(
+                        blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
+                break;
+
+            case "DELETE_INSTRUCTION":
+                InstructionDTO deleteInstructionDTO = gson.fromJson(body, InstructionDTO.class);
+                deleteInstruction(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO);
+                break;
+
+            case "DELETE_BLOCK":
+                DeleteBlockDTO deleteBlockDTO = gson.fromJson(body, DeleteBlockDTO.class);
+                deleteBlock(deleteBlockDTO);
+                break;
+            case "BLOCK_ROLLBACK":
+                RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
+                rollBackBlocksRows(rollBackBlocksDTO);
+                rollBackBlocksOrder(rollBackBlocksDTO);
+                deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
+                break;
+
+            default:
+                //                    System.err.println("Unknown message type: " + type);
+                break;
+        }
     }
 
     // Method to extract the type field from a JSON string
     public static String extractType(String json) {
         try {
-            // Parse the JSON into a JsonObject
             JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
-
-            // Check if the "type" field exists and return its value
             if (jsonObject.has("type")) {
                 return jsonObject.get("type").getAsString();
             } else {
                 return "Unknown type";
             }
         } catch (Exception e) {
-            // Handle the case where the JSON might be malformed
-            //            e.printStackTrace();
             return "Invalid JSON";
         }
     }
@@ -279,7 +268,7 @@ public class WebSocketStompServer {
         }
     }
 
-    private List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
+    public static List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
@@ -316,7 +305,7 @@ public class WebSocketStompServer {
     }
 
     // Handle DELETE_BLOCK message
-    private void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList) {
+    public static void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList) {
         // Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
         blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
 
@@ -354,8 +343,7 @@ public class WebSocketStompServer {
         }
     }
 
-
-    // Handle DELETE_BLOCK message
+    // Handle BLOCK_UPDATE message
     private void updateBlockName(int botJobId, int blockId, String blockName) {
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
@@ -754,13 +742,13 @@ public class WebSocketStompServer {
         return false;
     }
 
-    private void deleteNullBlocks(int botJobId) {
+    public static void deleteNullBlocks(int botJobId) {
         // Build the SQL delete statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
             String deleteSQL = "DELETE FROM block b "
                     + "WHERE b.bot_job_id = " + botJobId
-                    + " AND b.block_order_number != 1 " // Exclude block with blockOrderNumber = 1
+//                    + " AND b.block_order_number != 1 " // Exclude block with blockOrderNumber = 1
                     + " AND NOT EXISTS ( "
                     + "     SELECT 1 "
                     + "     FROM block_loop_instruction bli "
