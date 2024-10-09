@@ -395,6 +395,7 @@ public class WebSocketStompServer {
             if (deleteReferences(botJobId, deleteInstructionDTO.getInstructionId()))
                 if (deleteRow(deleteInstructionDTO.getBlockId(), (int) deleteInstructionDTO.getInstructionId())) {
                     deleteNullBlocks(botJobId);
+                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionDTO.getBlockId()));
                 }
     }
 
