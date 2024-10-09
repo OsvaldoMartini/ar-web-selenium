@@ -110,8 +110,8 @@ public class ABRScannedElementPane extends ABRPane {
 
     private ABRWebDriver abrWebDriver;
     private BotJobDTO botJob;
-    private BlockDTO block;
-
+    private BlockDTO blockJob;
+    private int currentBlockId;
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
 
@@ -186,7 +186,7 @@ public class ABRScannedElementPane extends ABRPane {
         managerProps = ABRPropertyManager.getInstance();
     }
 
-    public ABRScannedElementPane(String priority, BotJobDTO botJob, BlockDTO block, ABRWebDriver abrWebDriver) {
+    public ABRScannedElementPane(String priority, BotJobDTO botJob, BlockDTO blockJob, ABRWebDriver abrWebDriver) {
         super();
 
         ABRLogger.getInstance(ABRWebDriver.class).fine("Calling ABRScannedElementPane");
@@ -203,7 +203,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         this.botJob = botJob;
-        this.block = block;
+        this.blockJob = blockJob;
         this.abrWebDriver = abrWebDriver;
     }
 
@@ -1167,44 +1167,6 @@ public class ABRScannedElementPane extends ABRPane {
         manageUIScanPriorities();
     }
 
-    private void addScreenTask() {
-        Alert alert = new Alert(
-                Alert.AlertType.CONFIRMATION,
-                "Are you sure you want to add a screenshot of the browser to the bot job?",
-                ButtonType.YES,
-                ButtonType.NO);
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-            Task<Void> addCloseTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    List<BlockLoopInstructionDTO> instructionList = block.getBlockLoopInstructions();
-                    BlockLoopInstructionDTO screenInstruction = new BlockLoopInstructionDTO();
-                    screenInstruction.setName("Screenshot Browser");
-                    screenInstruction.setDescription("Screenshot Browser");
-                    screenInstruction.setEncrypted(false);
-                    screenInstruction.setInstructionOrderNumber(instructionList.size());
-                    screenInstruction.setOptional(false);
-                    screenInstruction.setActions(ABRConstants.SCREEN);
-                    screenInstruction.setOnHoldSeconds(0);
-                    screenInstruction.setBlock(block);
-                    screenInstruction.setExportToABR(false);
-                    ABRSharedResources.getInstance()
-                            .addEntity(
-                                    screenInstruction,
-                                    BlockLoopInstructionDTO.class,
-                                    () -> new ABRAlertScene(
-                                            Alert.AlertType.INFORMATION,
-                                            "Instruction Added",
-                                            "Instruction Screenshot Browser has been added successfully",
-                                            ButtonType.OK));
-                    return null;
-                }
-            };
-            new Thread(addCloseTask).start();
-        }
-    }
-
     private void addBehaviourToAddedElements(ListChangeListener.Change<? extends ABRWebElement> change) {
         while (change.next()) {
             change.getAddedSubList().forEach(this::addBehaviourToAbrWebElement);
@@ -1284,7 +1246,6 @@ public class ABRScannedElementPane extends ABRPane {
                     Optional<ButtonType> result = alert.showAndWait();
                     ABRLogger.getInstance(ABRScannedElementPane.class).finer("result got: " + result.get());
                     if (result.isPresent() && result.get() == ButtonType.YES) {
-
                         loadBlocksForBotJob(this.botJob.getId());
 
                         // It Prevents Start without blocks
@@ -1305,14 +1266,23 @@ public class ABRScannedElementPane extends ABRPane {
 
                             //            ABRSharedResources.getInstance().addEntity(blockDTO, BlockDTO.class);
 
-                            int newBlockId = createBlock(blockDTO);
+                            currentBlockId = createBlock(blockDTO);
+                            setBlockJob(ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
                             ABRLogger.getInstance(Thread.class)
                                     .info(String.format(
-                                            "Created a new Block id %d for bot job Id %d", newBlockId, botJob.getId()));
+                                            "Created a new Block id %d for bot job Id %d",
+                                            currentBlockId, botJob.getId()));
+
+                        } else {
+                            if (blockLoadList.size() > 0 && this.blockJob == null) {
+                                currentBlockId = blockLoadList.get(0).getId();
+                                setBlockJob(
+                                        ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
+                            } else if (this.blockJob != null) {
+                                currentBlockId = this.blockJob.getId();
+                            }
                         }
 
-                        ABRLogger.getInstance(ABRScannedElementPane.class).info("Clicked on YES");
-                        ABRLogger.getInstance(ABRScannedElementPane.class).fine("Creating Thread");
                         Task<Void> handleEvent = new Task<>() {
                             @Override
                             protected Void call() throws Exception {
@@ -1349,11 +1319,11 @@ public class ABRScannedElementPane extends ABRPane {
                                 ObservableList<BlockLoopInstructionDTO> list = ABRSharedResources.getInstance()
                                         .getEntityList(
                                                 BlockLoopInstructionDTO.class,
-                                                (instr) -> instr.getBlock().getId() == block.getId());
+                                                (instr) -> instr.getBlock().getId() == currentBlockId);
                                 ABRLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
                                 BlockLoopInstructionDTO instruction =
                                         abrWebElement.buildBlockLoopInstruction(list.size());
-                                instruction.setBlock(block);
+                                instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);
                                 ABRLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
                                 ABRSharedResources.getInstance()
@@ -4529,5 +4499,9 @@ public class ABRScannedElementPane extends ABRPane {
             ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
+    }
+
+    public void setBlockJob(BlockDTO blockJob) {
+        this.blockJob = blockJob;
     }
 }

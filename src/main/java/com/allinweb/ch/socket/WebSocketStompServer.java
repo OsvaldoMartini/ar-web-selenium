@@ -379,7 +379,7 @@ public class WebSocketStompServer {
     }
 
     // Handle DELETE_INSTRUCTION message
-    private void deleteInstruction(int botJobId, InstructionDTO deleteInstructionDTO) {
+    public static void deleteInstruction(int botJobId, InstructionDTO deleteInstructionDTO) {
         if (deleteVariable(botJobId, deleteInstructionDTO.getInstructionId()))
             if (deleteReferences(botJobId, deleteInstructionDTO.getInstructionId()))
                 if (deleteRow(deleteInstructionDTO.getBlockId(), (int) deleteInstructionDTO.getInstructionId())) {
@@ -619,7 +619,7 @@ public class WebSocketStompServer {
         }
     }
 
-    private boolean deleteVariable(int bot_job_id, int instructionId) {
+    private static boolean deleteVariable(int bot_job_id, int instructionId) {
         // Build the SQL delete statement
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
@@ -654,13 +654,13 @@ public class WebSocketStompServer {
         return false;
     }
 
-    private boolean deleteRow(int blockId, int instructionId) {
+    private static boolean deleteRow(int blockId, int instructionId) {
         // Build the SQL delete statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
             String deleteSQL = "DELETE FROM block_loop_instruction" + " WHERE id = "
                     + instructionId
-                    + " AND block_id = " + blockId;
+                    + (blockId > 0 ? " AND block_id = " + blockId : " AND block_id IS NULL");
 
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -686,7 +686,7 @@ public class WebSocketStompServer {
         return false;
     }
 
-    private boolean deleteReferences(int botJobId, int instructionId) {
+    private static boolean deleteReferences(int botJobId, int instructionId) {
         // Build the SQL delete statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
@@ -723,7 +723,7 @@ public class WebSocketStompServer {
 
             String deleteSQL = "DELETE FROM block b "
                     + "WHERE b.bot_job_id = " + botJobId
-                    //                    + " AND b.block_order_number != 1 " // Exclude block with blockOrderNumber = 1
+                    + " AND b.block_order_number != 1 " // Exclude block with blockOrderNumber = 1
                     + " AND NOT EXISTS ( "
                     + "     SELECT 1 "
                     + "     FROM block_loop_instruction bli "
@@ -742,6 +742,37 @@ public class WebSocketStompServer {
                     .severe(String.format(
                             "Error deleting Null Blocks with BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
+    }
+
+    public static List<InstructionDTO> getBlockLoopInstructionIdsWithNullBlock(int botJobId) {
+        // List to store IDs of block loop instructions where block_id is null
+        List<InstructionDTO> instructions = new ArrayList<>();
+
+        // SQL query to select block_loop_instruction IDs where block_id is null
+        String selectSQL = "SELECT i.id FROM block_loop_instruction i " + " WHERE i.block_id IS NULL";
+
+        // Try-with-resources to handle the SQL statement and result set
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            ResultSet rs = stmt.executeQuery(selectSQL);
+
+            // Iterate through the result set and add each ID to the list
+            while (rs.next()) {
+                InstructionDTO instructionDTO = new InstructionDTO();
+                instructionDTO.setInstructionId(rs.getInt("id"));
+                instructionDTO.setBlockId(-1);
+                instructions.add(instructionDTO);
+            }
+
+        } catch (SQLException e) {
+            // Log the error if any SQL exception occurs
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format(
+                            "Error fetching block loop instruction IDs with null block_id for botJobId %d. Error: %s",
+                            botJobId, e.getMessage()));
+        }
+
+        // Return the list of block loop instruction IDs
+        return instructions;
     }
 
     private void deleteBlock(int botJobId, int blockId) {

@@ -306,6 +306,11 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Send a message to all connected clients after 5 seconds
         //        WebSocketStompServer.sendMessageToAll(jsonData);
+        List<InstructionDTO> listForDeletion =
+                WebSocketStompServer.getBlockLoopInstructionIdsWithNullBlock(this.botJob.getId());
+        for (InstructionDTO instruction : listForDeletion) {
+            WebSocketStompServer.deleteInstruction(this.botJob.getId(), instruction);
+        }
         WebSocketStompServer.deleteNullBlocks(this.botJob.getId());
         WebSocketStompServer.updateBlockOrderNumber(WebSocketStompServer.selectAllBlocks(this.botJob.getId()));
 
