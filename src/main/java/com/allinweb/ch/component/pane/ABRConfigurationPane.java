@@ -7,12 +7,17 @@ import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRNewHomeBankingScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Optional;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -44,6 +49,7 @@ public class ABRConfigurationPane extends ABRPane {
     Label pathEngineLabel;
     Label browserLabel;
     Label reloadDBLabel;
+    Label deleteAllDBLabel;
     Label insertSitesLabel;
     Label pathWebDriverLabel;
 
@@ -81,6 +87,7 @@ public class ABRConfigurationPane extends ABRPane {
     Button pathWebDriverButton;
 
     Button saveButton;
+    Button deleteAllDBButton;
     Button addHomeBankingButton;
 
     ListView<HomeBankingDTO> homeBankingListView;
@@ -216,31 +223,39 @@ public class ABRConfigurationPane extends ABRPane {
         GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
 
         GridPane gridPaneButton = new GridPane();
-        gridPaneButton.setHgap(10);
+        gridPaneButton.setHgap(5);
 
         // Set column constraints for each column to take up 33.33% of the grid width
         ColumnConstraints col1Button = new ColumnConstraints();
-        col1Button.setPercentWidth(25);
+        col1Button.setPercentWidth(20);
 
         ColumnConstraints col2Button = new ColumnConstraints();
-        col2Button.setPercentWidth(25);
+        col2Button.setPercentWidth(20);
 
         ColumnConstraints col3Button = new ColumnConstraints();
-        col3Button.setPercentWidth(25);
+        col3Button.setPercentWidth(20);
 
         ColumnConstraints col4Button = new ColumnConstraints();
-        col4Button.setPercentWidth(25);
+        col4Button.setPercentWidth(20);
 
-        gridPaneButton.getColumnConstraints().addAll(col1Button, col2Button, col3Button, col4Button);
+        ColumnConstraints col5Button = new ColumnConstraints();
+        col5Button.setPercentWidth(20);
+
+        gridPaneButton.getColumnConstraints().addAll(col1Button, col2Button, col3Button, col4Button, col5Button);
 
         browserLabel = new Label("Browser");
         databaseLabel = new Label("DB Type");
 
         reloadDBLabel = new Label("Reload DB");
+        deleteAllDBLabel = new Label("Delete ALL DB");
         insertSitesLabel = new Label("Insert Sites");
 
         saveButton = builder.buildButton("Reload Configs");
         saveButton.setMaxHeight(ABRConstants.SPACE_L);
+
+        deleteAllDBButton = builder.buildButton("Delete DB");
+        deleteAllDBButton.setMaxHeight(ABRConstants.SPACE_L);
+        deleteAllDBButton.setStyle("-fx-background-color: lightcoral; -fx-text-fill: blue;");
 
         browserChoiceBox.setItems(browserList);
         databaseChoiceBox.setItems(databaseList);
@@ -249,13 +264,15 @@ public class ABRConfigurationPane extends ABRPane {
         gridPaneButton.add(browserLabel, 0, 0);
         gridPaneButton.add(databaseLabel, 1, 0);
         gridPaneButton.add(reloadDBLabel, 2, 0);
-        gridPaneButton.add(insertSitesLabel, 3, 0);
+        gridPaneButton.add(deleteAllDBLabel, 3, 0);
+        gridPaneButton.add(insertSitesLabel, 4, 0);
 
         // Add components in the second row, each occupying 25% of the width
         gridPaneButton.add(browserChoiceBox, 0, 1);
         gridPaneButton.add(databaseChoiceBox, 1, 1);
         gridPaneButton.add(saveButton, 2, 1);
-        gridPaneButton.add(addHomeBankingButton, 3, 1);
+        gridPaneButton.add(deleteAllDBButton, 3, 1);
+        gridPaneButton.add(addHomeBankingButton, 4, 1);
 
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         pathJavaLabel = new Label("Java Path:");
@@ -343,6 +360,7 @@ public class ABRConfigurationPane extends ABRPane {
         databaseChoiceBox.setValue(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE));
 
         saveButton.setOnMouseClicked(e -> saveConfigurations());
+        deleteAllDBButton.setOnMouseClicked(e -> deleteAllDB());
     }
 
     private void saveConfigurations() {
@@ -442,6 +460,73 @@ public class ABRConfigurationPane extends ABRPane {
                     "The configuration has been saved and the data has been reloaded",
                     ButtonType.OK);
         }
+    }
+
+    private void deleteAllDB() {
+
+        Label newInstruction = new Label("DELETE ALL JOB DETAILS");
+        newInstruction.setStyle("-fx-font-size: 18px;");
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+        alert.setHeaderText("Are you sure you want to DELETE ALL JOB TABLES ROWS?");
+        alert.getDialogPane().setContent(newInstruction);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.YES) {
+
+            if (deleteAllJobDetails()) {
+                ABRSharedResources.getInstance().changeDbConnection();
+                new ABRAlertScene(
+                        Alert.AlertType.INFORMATION,
+                        "All Job Details has been deleted!",
+                        "The All Instructions and Job Details has been deleted and the data has been reloaded",
+                        ButtonType.OK);
+
+            } else {
+                ABRSharedResources.getInstance().changeDbConnection();
+                new ABRAlertScene(
+                        Alert.AlertType.WARNING,
+                        "Not possible  to delete All Job Details!",
+                        "The Instructions and Job Details cannot be deleted and the data has been reloaded",
+                        ButtonType.OK);
+            }
+        }
+    }
+
+    private boolean deleteAllJobDetails() {
+        // Build the SQL delete statement
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            String deleteSQL = "DELETE FROM variable;"
+                    + "DELETE FROM instruction_reference;"
+                    + "DELETE FROM block_loop_instruction;"
+                    + "DELETE FROM block;"
+                    + "DELETE FROM bot_job;";
+
+            // Execute the update statement and check if any rows were affected
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .info("All Rows DELETED for:\n"
+                                + "Variables;\n"
+                                + "Instructions References;\n"
+                                + "Instructions;\n"
+                                + "Blocks;\n"
+                                + "Bot Jobs;");
+            }
+            return true;
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe("Not Possible delete the  Rows was for these tables:\n"
+                            + "Variables;\n"
+                            + "Instructions References;\n"
+                            + "Instructions;\n"
+                            + "Blocks;\n"
+                            + "Bot Jobs;\n"
+                            + e.getMessage());
+        }
+        return false;
     }
 
     private TextField createPathTextField(ABRPropertyEnum property) {
