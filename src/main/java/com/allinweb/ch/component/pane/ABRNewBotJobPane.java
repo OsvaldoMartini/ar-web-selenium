@@ -7,7 +7,11 @@ import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
 import com.google.common.base.Strings;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -183,27 +187,122 @@ public class ABRNewBotJobPane extends ABRPane {
             remainingSeconds = SECONDS;
             executorService.shutdown();
         }
-        if (!existName && !Strings.isNullOrEmpty(homeBankingChoiceBox.getValue().toString())) {
-            BotJobDTO createdBotJob = new BotJobDTO();
-            createdBotJob.setName(botJobName.getText());
-            createdBotJob.setDescription(botJobDescription.getText());
-            createdBotJob.setHomeBanking(homeBankingChoiceBox.getValue());
-            ABRSharedResources.getInstance()
-                    .addEntity(createdBotJob, BotJobDTO.class, () -> createBotJobBlock(createdBotJob));
+        try {
+            // Check if name doesn't exist and the selected value from homeBankingChoiceBox is not null or empty
+            if (!existName
+                    && !Strings.isNullOrEmpty(homeBankingChoiceBox.getValue().toString())) {
+
+                // Create a new BotJobDTO object and set its properties
+                BotJobDTO createdBotJob = new BotJobDTO();
+                createdBotJob.setName(botJobName.getText());
+                createdBotJob.setDescription(botJobDescription.getText());
+                createdBotJob.setHomeBanking(homeBankingChoiceBox.getValue());
+
+                try {
+                    // Ensure any UI-related updates are done on the JavaFX application thread
+                    ABRSharedResources.getInstance().addEntity(createdBotJob, BotJobDTO.class, () -> {
+                        try {
+                            // Ensure any UI-related updates are done on the JavaFX application thread
+                            Platform.runLater(() -> {
+                                int blockId = createBlock(createdBotJob);
+                                if (blockId > 0) {
+                                    new ABRViewBotJobScene(createdBotJob.getId()).show();
+                                } else {
+
+                                    ABRLogger.getInstance(Thread.class)
+                                            .severe("Error creating BotJobDTO check the Block Creation!");
+                                }
+                            });
+                        } catch (Exception e) {
+                            ABRLogger.getInstance(Thread.class)
+                                    .severe(String.format(
+                                            "Error in callback after creating BotJobDTO: \nError: %s", e.getMessage()));
+                        }
+                    });
+                } catch (Exception e) {
+                    ABRLogger.getInstance(Thread.class)
+                            .severe(String.format(
+                                    "Error in callback after creating BotJobDTO: \nError: %s", e.getMessage()));
+                }
+            }
+        } catch (Exception e) {
+            ABRLogger.getInstance(Thread.class)
+                    .severe(String.format("Error during BotJobDTO creation.\nError: %s", e.getMessage()));
         }
     }
 
-    private void createBotJobBlock(BotJobDTO createdBotJob) {
-        BlockDTO defaultBlock = new BlockDTO();
-        defaultBlock.setName(createdBotJob.getName() + " default block");
-        defaultBlock.setDescription(createdBotJob.getName() + " block description");
-        defaultBlock.setBlockOrderNumber(1);
-        defaultBlock.setTypeId(1);
-        defaultBlock.setBotJob(createdBotJob);
-        ABRSharedResources.getInstance().addEntity(defaultBlock, BlockDTO.class, () -> {
-            Platform.runLater(() -> {
-                new ABRViewBotJobScene(createdBotJob.getId()).show();
-            });
-        });
+    private int createBlock(BotJobDTO createdBotJob) {
+        try {
+            // Create a new BlockDTO object and set its properties
+            BlockDTO defaultBlock = new BlockDTO();
+            defaultBlock.setName(createdBotJob.getName() + " default block");
+            defaultBlock.setDescription(createdBotJob.getName() + " block description");
+            defaultBlock.setBlockOrderNumber(1);
+            defaultBlock.setTypeId(1);
+            defaultBlock.setBotJob(createdBotJob);
+
+            return saveBlock(defaultBlock);
+
+        } catch (Exception e) {
+            ABRLogger.getInstance(Thread.class)
+                    .severe(String.format(
+                            "Error creating and saving BlockDTO for BotJob Name %S\nError: %s",
+                            createdBotJob.getName(), e.getMessage()));
+        }
+
+        return -1;
+    }
+
+    private int saveBlock(BlockDTO blockDTO) {
+        // Generate a Unique-ID for the block
+        Integer nextId = loadNextIdBlockData() + 1;
+        Integer nextBlockOrder =
+                loadNextBlockOrderNUmber(blockDTO.getBotJobDTO().getId()) + 1;
+
+        // Build the SQL insert query
+        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
+                + nextId + ", "
+                + nextBlockOrder + ", " // block_order_number
+                + "'" + blockDTO.getDescription() + "', " // description
+                + "'" + blockDTO.getName() + "', " // name
+                + 1 + ", " // type_id
+                + blockDTO.getBotJobDTO().getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            stmt.executeUpdate(insertSQL);
+            ABRLogger.getInstance(ABRViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
+            return nextId;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("saveBlock  \nError: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    private Integer loadNextIdBlockData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private Integer loadNextBlockOrderNUmber(int botJobId) {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block where bot_job_id = " + botJobId;
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+        }
+        return null;
     }
 }

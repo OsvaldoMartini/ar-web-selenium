@@ -855,11 +855,12 @@ public class ABRViewBotJobPane extends ABRPane {
     private int saveBlock(BlockDetailsDTO blockDTO) {
         // Generate a Unique-ID for the block
         Integer nextId = loadNextIdBlockData() + 1;
+        Integer nextBlockOrder = loadNextBlockOrderNUmber(blockDTO.getBotJobId());
 
         // Build the SQL insert query
         String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
                 + nextId + ", "
-                + blockDTO.getBlockOrderNumber() + ", " // block_order_number
+                + nextBlockOrder + ", " // block_order_number
                 + "'" + blockDTO.getBlockName() + " description', " // description
                 + "'" + blockDTO.getBlockName() + "', " // name
                 + 1 + ", " // type_id
@@ -878,6 +879,20 @@ public class ABRViewBotJobPane extends ABRPane {
     private Integer loadNextIdBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private Integer loadNextBlockOrderNUmber(int botJobId) {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block where bot_job_id = " + botJobId;
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {

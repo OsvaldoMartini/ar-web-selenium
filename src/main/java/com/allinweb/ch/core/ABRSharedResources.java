@@ -159,13 +159,22 @@ public class ABRSharedResources {
                     }
                 } catch (NullPointerException e) {
                     ABRLogger.getInstance(ABRWebDriver.class)
-                            .severe(String.format("Error Creating %s  Error: %s\n", clazz.getName(), e));
+                            .severe(String.format("Error Creating %s\n", e.getMessage()));
+                    ABRLogger.getInstance(Thread.class)
+                            .severe(String.format(
+                                    "USE \"Platform Runner\" for JavaFX Threads!!!\nError: %s", e.getMessage()));
                 } catch (UnsupportedOperationException e) {
                     ABRLogger.getInstance(ABRWebDriver.class)
-                            .severe(String.format("Error Creating %s  Error: %s\n", clazz.getName(), e));
+                            .severe(String.format("Error Creating %s\n", clazz.getName()));
+                    ABRLogger.getInstance(Thread.class)
+                            .severe(String.format(
+                                    "USE \"Platform Runner\" for JavaFX Threads!!!\nError: %s", e.getMessage()));
                 } catch (Exception e) {
                     ABRLogger.getInstance(ABRWebDriver.class)
-                            .severe(String.format("Error Creating %s  Error: %s\n", clazz.getName(), e));
+                            .severe(String.format("Error Creating %s\n", clazz.getName()));
+                    ABRLogger.getInstance(Thread.class)
+                            .severe(String.format(
+                                    "USE \"Platform Runner\" for JavaFX Threads!!!\nError: %s", e.getMessage()));
                 }
                 return null;
             }
@@ -419,6 +428,7 @@ public class ABRSharedResources {
                         .setProperty("hibernate.connection.password", PASSWORD)
                         .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
                         .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
+                        //                        .setProperty("hibernate.hbm2ddl.auto", "update")
                         .buildSessionFactory();
                 session = sessionFactory.openSession();
                 cacheEntitiesFromDB();
@@ -432,6 +442,7 @@ public class ABRSharedResources {
                     sessionFactory = new Configuration()
                             .configure()
                             .setProperty("hibernate.connection.url", dbUrl)
+                            //                            .setProperty("hibernate.hbm2ddl.auto", "update")
                             .buildSessionFactory();
                     session = sessionFactory.openSession();
                     cacheEntitiesFromDB();

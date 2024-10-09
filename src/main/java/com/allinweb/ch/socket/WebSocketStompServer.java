@@ -10,6 +10,7 @@ import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.pane.ABRViewBotJobPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRNewCommandScene;
 import com.allinweb.ch.core.ABRSharedResources;
@@ -436,11 +437,12 @@ public class WebSocketStompServer {
     private int saveBlock(BlockDetailsDTO blockDTO, int botJobId) {
         // Generate a Unique-ID for the block
         Integer nextId = loadNextIdBlockData() + 1;
+        Integer nextBlockOrder = loadNextBlockOrderNUmber(blockDTO.getBotJobId());
 
         // Build the SQL insert query
         String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
                 + nextId + ", "
-                + blockDTO.getBlockOrderNumber() + ", " // block_order_number
+                + nextBlockOrder + ", " // block_order_number
                 + "'" + blockDTO.getBlockName() + " description', " // description
                 + "'" + blockDTO.getBlockName() + "', " // name
                 + 1 + ", " // type_id
@@ -506,7 +508,7 @@ public class WebSocketStompServer {
                 } else {
                     ABRLogger.getInstance(ABRWebDriver.class)
                             .warning(String.format(
-                                    "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: $s",
+                                    "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
                                     instruction.getInstructionId(), instruction.getInstructionName()));
                 }
             }
@@ -780,6 +782,20 @@ public class WebSocketStompServer {
             ABRLogger.getInstance(ABRWebDriver.class)
                     .severe(String.format(
                             "loadNextIdBlockData - Error selecting Next Id Block. Error: %s", e.getMessage()));
+        }
+        return null;
+    }
+
+    private Integer loadNextBlockOrderNUmber(int botJobId) {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block where bot_job_id = " + botJobId;
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }

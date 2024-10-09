@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
@@ -12,6 +11,7 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.util.ABRLogger;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -23,6 +23,7 @@ import java.util.Map;
 public class ABRViewBotJobScene extends ABRScene {
 
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
+    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
 
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 1100D;
@@ -42,10 +43,11 @@ public class ABRViewBotJobScene extends ABRScene {
 
         BotJobDTO botJobDTO = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJobId);
 
+        loadBlocksForBotJob(this.botJobId);
         loadBlockAll(this.botJobId);
 
         // It Prevents Start without blocks
-        if (botLoadJobs.isEmpty()) {
+        if (blockLoadList.isEmpty()) {
 
             // It Prevents Start without blocks
             SavedBlocksDTO savedBlocksDTO = new SavedBlocksDTO();
@@ -56,9 +58,14 @@ public class ABRViewBotJobScene extends ABRScene {
             BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobDTO.getId());
             blockDTO.setTypeId(1);
             blockDTO.setBotJob(botJob);
-            blockDTO.setBlockOrderNumber(1);
+            blockDTO.setName("Default Block");
+            blockDTO.setDescription("Default Block description");
 
-            ABRSharedResources.getInstance().addEntity(blockDTO, BlockDTO.class);
+            //            ABRSharedResources.getInstance().addEntity(blockDTO, BlockDTO.class);
+
+            int newBlockId = createBlock(blockDTO);
+            ABRLogger.getInstance(Thread.class)
+                    .info(String.format("Created a new Block id %d for bot job Id %d", newBlockId, botJob.getId()));
         }
 
         return new ABRViewBotJobPane(botJobDTO);
@@ -79,41 +86,54 @@ public class ABRViewBotJobScene extends ABRScene {
         return TITLE;
     }
 
-    private int saveBlock(BlockDetailsDTO blockDTO) {
-        // Generate a Unique-ID for the block
-        Integer nextId = loadNextIdBlockData() + 1;
+    public List<BlockLoadDTO> loadBlocksForBotJob(int botJobId) {
+        // SQL query to get the blocks for a specific bot job
+        String query = "SELECT " + "b.id AS block_id, "
+                + "b.block_order_number, "
+                + "b.name AS block_name, "
+                + "b.description AS block_description, "
+                + "b.type_id, "
+                + "bj.id AS bot_job_id, "
+                + "bj.name AS bot_job_name "
+                + "FROM bot_job bj "
+                + "JOIN block b ON b.bot_job_id = bj.id "
+                + "WHERE bj.id = "
+                + botJobId + " " + // Use the botJobId directly in the query string
+                "ORDER BY b.block_order_number ASC";
 
-        // Build the SQL insert query
-        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
-                + nextId + ", "
-                + blockDTO.getBlockOrderNumber() + ", " // block_order_number
-                + "'" + blockDTO.getBlockName() + " description', " // description
-                + "'" + blockDTO.getBlockName() + "', " // name
-                + 1 + ", " // type_id
-                + blockDTO.getBotJobId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
+        // Initialize the necessary data structures
+        blockLoadList.clear();
+        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            System.out.println("Block data saved successfully.");
-            return nextId;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return -1;
-        }
-    }
-
-    private Integer loadNextIdBlockData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
+        // Use Statement to execute the query
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+                ResultSet rs = stmt.executeQuery(query)) {
+
             while (rs.next()) {
-                return rs.getInt("max_id");
+                // Load the Block information
+                int blockId = rs.getInt("block_id");
+                BlockLoadDTO blockDTO = blockMap.get(blockId);
+
+                if (blockDTO == null) {
+                    blockDTO = new BlockLoadDTO();
+                    blockDTO.setId(blockId);
+                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+                    blockDTO.setName(rs.getString("block_name"));
+                    blockDTO.setDescription(rs.getString("block_description"));
+                    blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
+                    blockDTO.setBotJobName(rs.getString("bot_job_name"));
+
+                    blockMap.put(blockId, blockDTO);
+                    blockLoadList.add(blockDTO);
+                }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(Thread.class)
+                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
-        return null;
+
+        return blockLoadList;
     }
 
     private void loadBlockAll(int botJobId) {
@@ -208,7 +228,61 @@ public class ABRViewBotJobScene extends ABRScene {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(Thread.class)
+                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
+    }
+
+    private int createBlock(BlockDTO blockDTO) {
+        // Generate a Unique-ID for the block
+        Integer nextId = loadNextIdBlockData() + 1;
+        Integer nextBlockOrder =
+                loadNextBlockOrderNUmber(blockDTO.getBotJobDTO().getId()) + 1;
+
+        // Build the SQL insert query
+        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
+                + nextId + ", "
+                + nextBlockOrder + ", " // block_order_number
+                + "'" + blockDTO.getDescription() + "', " // description
+                + "'" + blockDTO.getName() + "', " // name
+                + 1 + ", " // type_id
+                + blockDTO.getBotJobDTO().getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            stmt.executeUpdate(insertSQL);
+            ABRLogger.getInstance(ABRViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
+            return nextId;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("saveBlock  \nError: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    private Integer loadNextIdBlockData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private Integer loadNextBlockOrderNUmber(int botJobId) {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block where bot_job_id = " + botJobId;
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+        }
+        return null;
     }
 }
