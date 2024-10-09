@@ -2752,15 +2752,15 @@ public class ABRScannedElementPane extends ABRPane {
                                             .getName();
 
                                 } catch (Exception ex) {
-                                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                                    alert.setTitle("Parent Id Error");
-                                    alert.setHeaderText("Check Parent Id");
-                                    alert.setContentText("The Parent Id: " + currentInstruction.getParentId()
-                                            + "\nFor the : "
-                                            + currentInstruction.getOperation() + "\nDoes not belong to this block: "
-                                            + blockLoad.getId() + "-" + blockLoad.getName()
-                                            + "\nCheck the Field Names and Fields Ids");
-                                    alert.showAndWait();
+                                    showAlertError(
+                                            "Parent Id Error",
+                                            "Check Parent Id",
+                                            "The Parent Id: " + currentInstruction.getParentId()
+                                                    + "\nFor the : "
+                                                    + currentInstruction.getOperation()
+                                                    + "\nDoes not belong to this block: "
+                                                    + blockLoad.getId() + "-" + blockLoad.getName()
+                                                    + "\nCheck the Field Names and Fields Ids");
 
                                     stopAll = true;
 
@@ -2791,15 +2791,14 @@ public class ABRScannedElementPane extends ABRPane {
                                             .getName();
                                     checkOperation = true;
                                 } catch (Exception ex) {
-
-                                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                                    alert.setTitle("Check Validation Error");
-                                    alert.setHeaderText("Check Validation - GET is Not Defined");
-                                    alert.setContentText("There is NOT GET VALUE defined for: " + parentField
-                                            + "\n --------------------- "
-                                            + "\nCheck the GET for "
-                                            + parentField);
-                                    alert.showAndWait();
+                                    showAlertError(
+                                            "Check Validation Error",
+                                            "Check Validation - GET is Not Defined",
+                                            "There is NOT GET VALUE defined for: " + currentInstruction.getName()
+                                                    + "\n --------------------- "
+                                                    + "\nCheck the GET for "
+                                                    + currentInstruction.getParentId() + "-"
+                                                    + currentInstruction.getOperation());
 
                                     stopAll = true;
 
@@ -2816,14 +2815,14 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     excelWriteOperation = true;
                                 } catch (Exception ex) {
-                                    Alert alert = new Alert(Alert.AlertType.ERROR);
-                                    alert.setTitle("Check Validation Error");
-                                    alert.setHeaderText("Check Validation - GET is Not Defined");
-                                    alert.setContentText("There is NOT GET VALUE defined for: " + parentField
-                                            + "\n --------------------- "
-                                            + "\nCheck the GET for "
-                                            + parentField);
-                                    alert.showAndWait();
+                                    showAlertError(
+                                            "Check Validation Error",
+                                            "Check Validation - GET is Not Defined",
+                                            "There is NOT GET VALUE defined for: " + currentInstruction.getName()
+                                                    + "\n --------------------- "
+                                                    + "\nCheck the GET for "
+                                                    + currentInstruction.getParentId() + "-"
+                                                    + currentInstruction.getOperation());
 
                                     stopAll = true;
 
@@ -2978,29 +2977,28 @@ public class ABRScannedElementPane extends ABRPane {
                                                 success = true;
 
                                             } else {
-                                                Alert alert = new Alert(Alert.AlertType.ERROR);
-                                                alert.setTitle("Validation Error");
-                                                alert.setHeaderText("Check Validation Error");
-                                                alert.setContentText("The Value: " + operations[2]
-                                                        + "\nis not " + operations[1] + " "
-                                                        + mapOperators.get(parentField)
-                                                        + " Length: ("
-                                                        + mapOperators
-                                                                .get(parentField)
-                                                                .length()
-                                                        + ")" + "\n --------------------- "
-                                                        + "\nCheck the GET of "
-                                                        + operations[0] + " for " + parentField
-                                                        + "\nCurrent value: "
-                                                        + operations[2] + " Length: (" + operations[2].length()
-                                                        + ")" + "\nExpected value: "
-                                                        + mapOperators.get(parentField)
-                                                        + " Length: ("
-                                                        + mapOperators
-                                                                .get(parentField)
-                                                                .length()
-                                                        + ")");
-                                                alert.showAndWait();
+                                                showAlertError(
+                                                        "Validation Error",
+                                                        "Check Validation Error",
+                                                        "The Value: " + operations[2]
+                                                                + "\nis not " + operations[1] + " "
+                                                                + mapOperators.get(parentField)
+                                                                + " Length: ("
+                                                                + mapOperators
+                                                                        .get(parentField)
+                                                                        .length()
+                                                                + ")" + "\n --------------------- "
+                                                                + "\nCheck the GET of "
+                                                                + operations[0] + " for " + parentField
+                                                                + "\nCurrent value: "
+                                                                + operations[2] + " Length: (" + operations[2].length()
+                                                                + ")" + "\nExpected value: "
+                                                                + mapOperators.get(parentField)
+                                                                + " Length: ("
+                                                                + mapOperators
+                                                                        .get(parentField)
+                                                                        .length()
+                                                                + ")");
 
                                                 stopAll = true;
 
@@ -3008,14 +3006,15 @@ public class ABRScannedElementPane extends ABRPane {
                                                 success = false;
                                             }
                                         } else {
-                                            Alert alert = new Alert(Alert.AlertType.ERROR);
-                                            alert.setTitle("Check Validation Error");
-                                            alert.setHeaderText("Check Validation - GET is Not Defined");
-                                            alert.setContentText("There is NOT GET VALUE defined for: " + parentField
-                                                    + "\n --------------------- "
-                                                    + "\nCheck the GET for "
-                                                    + parentField);
-                                            alert.showAndWait();
+                                            showAlertError(
+                                                    "Check Validation Error",
+                                                    "Check Validation - GET is Not Defined",
+                                                    "There is NOT GET VALUE defined for: "
+                                                            + currentInstruction.getName()
+                                                            + "\n --------------------- "
+                                                            + "\nCheck the GET for "
+                                                            + currentInstruction.getParentId() + "-"
+                                                            + currentInstruction.getOperation());
 
                                             stopAll = true;
 
@@ -3085,14 +3084,16 @@ public class ABRScannedElementPane extends ABRPane {
                                             }
 
                                         } else {
-                                            Alert alert = new Alert(Alert.AlertType.ERROR);
-                                            alert.setTitle("Excel Writer Error");
-                                            alert.setHeaderText("Excel Writer - GET is Not Defined");
-                                            alert.setContentText("There is NOT GET VALUE defined for: " + parentField
-                                                    + "\n --------------------- "
-                                                    + "\nCheck the GET for "
-                                                    + parentField);
-                                            alert.showAndWait();
+
+                                            showAlertError(
+                                                    "Excel Writer Error",
+                                                    "Excel Writer - GET is Not Defined\"",
+                                                    "There is NOT GET VALUE defined for: "
+                                                            + currentInstruction.getName()
+                                                            + "\n --------------------- "
+                                                            + "\nCheck the GET for "
+                                                            + currentInstruction.getParentId() + "-"
+                                                            + currentInstruction.getOperation());
 
                                             stopAll = true;
 
@@ -4503,5 +4504,21 @@ public class ABRScannedElementPane extends ABRPane {
 
     public void setBlockJob(BlockDTO blockJob) {
         this.blockJob = blockJob;
+    }
+
+    private static void showAlertInfo(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private void showAlertError(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 }
