@@ -831,4 +831,13 @@ public class PerformActions {
         long currentInstructionEndTime = System.nanoTime();
         return currentInstructionEndTime - startTime;
     }
+
+    public String blockGotoFailed(String resultActions) {
+        showAlertError("Block GO TO Error", "Check Correct Block Existence", "CMD: \n" + resultActions);
+
+        ABRLogger.getInstance(ABRScannedElementPane.class)
+                .severe("Block GO TO Error.\n" + "Check Correct Block Existence!\n" + "CMD: \n" + resultActions);
+
+        return resultActions;
+    }
 }

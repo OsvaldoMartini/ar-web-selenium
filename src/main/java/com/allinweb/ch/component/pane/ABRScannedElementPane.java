@@ -2721,7 +2721,11 @@ public class ABRScannedElementPane extends ABRPane {
                     //                    List<BlockLoopInstructionLoadDTO> unProcessedInstructions =
                     // getUnexecutedInstructions(
                     //                            instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
-
+                    //                    for (BlockLoopInstructionLoadDTO currentInstruction : unProcessedInstructions)
+                    // {
+                    //                        if (stopAll) {
+                    //                            break;
+                    //                        }
                     for (int j = 0;
                             j < blockLoad.getBlockLoopInstructionLoadDTOS().size() && !stopAll;
                             j++) {
@@ -2845,6 +2849,8 @@ public class ABRScannedElementPane extends ABRPane {
                                         resultActions = "Failed to Execute -> " + currentInstruction.getName() + " --> "
                                                 + currentInstruction.getOperation();
                                         success = false;
+
+                                        resultActions = performAction.blockGotoFailed(resultActions);
                                     }
 
                                     long duration = performAction.duration(currentInstructionStartTime);
