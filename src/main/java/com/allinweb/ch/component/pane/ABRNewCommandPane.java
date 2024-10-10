@@ -294,9 +294,6 @@ public class ABRNewCommandPane extends ABRPane {
         //            variablesItems.add(new ComboBoxVars("no variables added", -1, ""));
         //        }
         comboBoxVars = new ComboBox<>(variablesItems);
-        if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() > 0) {
-            valueCheckField.setText(comboBoxVars.getValue().getValue());
-        }
         comboBoxVars.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxVars item, boolean empty) {
@@ -330,6 +327,9 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
         comboBoxVars.getSelectionModel().selectFirst();
+        if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() > 0) {
+            valueCheckField.setText(comboBoxVars.getValue().getValue());
+        }
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
         comboBoxBlocks.setPrefWidth(80);
@@ -465,6 +465,10 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxVars.setPrefWidth(buttonWidth);
         gridPane.add(comboBoxVars, 1, 1);
 
+        comboBoxBlocks.setPrefWidth(buttonWidth);
+        comboBoxBlocks.setVisible(false);
+        gridPane.add(comboBoxBlocks, 1, 1);
+        
         comboBoxWebPage.setPrefWidth(buttonWidth);
         gridPane.add(comboBoxWebPage, 2, 1);
 
@@ -543,16 +547,27 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
-                if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())) {
+                if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue()) || ABRConstants.IF_ELSE.equalsIgnoreCase(newValue.getValue()) ) {
+                    comboBoxBlocks.setVisible(false);
                     comboBoxOperator.setVisible(true);
-                } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
-                    comboBoxVars.setVisible(false);
-                    comboBoxWebPage.setVisible(false);
-                    comboBoxOperator.setVisible(false);
-                } else {
                     comboBoxVars.setVisible(true);
                     comboBoxWebPage.setVisible(true);
+                    valueCheckField.setVisible(true);
+                    variableButton.setVisible(true);
+                } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
                     comboBoxOperator.setVisible(false);
+                    comboBoxVars.setVisible(false);
+                    comboBoxWebPage.setVisible(false);
+                    valueCheckField.setVisible(false);
+                    variableButton.setVisible(false);
+                    comboBoxBlocks.setVisible(true);
+                } else {
+                    comboBoxOperator.setVisible(false);
+                    comboBoxBlocks.setVisible(false);
+                    comboBoxVars.setVisible(true);
+                    comboBoxWebPage.setVisible(true);
+                    valueCheckField.setVisible(true);
+                    variableButton.setVisible(true);
                 }
             }
         });
