@@ -1,11 +1,13 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPriorities;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -13,9 +15,12 @@ import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ABRWebUtil;
 import com.allinweb.ch.util.Constants;
 import com.allinweb.ch.util.CryptationAlgorithm;
+import com.allinweb.ch.util.ExcelReportStatusEnum;
 import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import java.time.Duration;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -57,6 +62,7 @@ public class PerformActions {
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<PerformActions> instance = () -> new PerformActions();
 
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     // Private constructor to prevent instantiation
     private PerformActions() {
         // Initialize if necessary
@@ -154,7 +160,8 @@ public class PerformActions {
             String targetXPath,
             String action,
             String[] operations,
-            String parentField)
+            String parentField,
+            Map<String, String> mapOperators)
             throws Exception {
 
         WebElement instructionElement = null;
@@ -723,5 +730,105 @@ public class PerformActions {
         if (status == 0) {
             System.exit(status);
         }
+    }
+
+    public short operationLog(
+            boolean success, String mainMsg, String resultActions, String lastInstructionExecuted, long duration) {
+
+        ABRLogger.getInstance(ABRScannedElementPane.class)
+                .severe(String.format(
+                        success
+                                ? "SUCCESS %s Previous: %s --> Current Cmd: %s - Duration: %s"
+                                : "FAILED %s Previous: %s --> Current Cmd: %s - Duration: %s",
+                        mainMsg,
+                        resultActions,
+                        lastInstructionExecuted,
+                        LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
+
+        return (short) (success ? ExcelReportStatusEnum.SUCCESS.ordinal() : ExcelReportStatusEnum.ERROR.ordinal());
+    }
+
+    public String getValueIsNotDefined(BlockLoopInstructionLoadDTO currentInstruction, String lastInstructionExecuted) {
+        showAlertError(
+                "GET is Not Defined for \"+" + currentInstruction.getName() + "\"",
+                "\"" + currentInstruction.getName() + "\" - GET is Not Defined",
+                "There is NOT GET VALUE defined for: "
+                        + currentInstruction.getName()
+                        + "\n --------------------- "
+                        + "\nCheck the GET for "
+                        + currentInstruction.getParentId() + "-"
+                        + currentInstruction.getOperation());
+
+        return "Failed to Execute Cmd: " + lastInstructionExecuted;
+    }
+
+    public String checkValidationFailed(String parentField, String lastInstructionExecuted, String[] operations) {
+        showAlertError(
+                "Validation Error",
+                "Check Validation Error",
+                "The Value: " + operations[2]
+                        + "\nis not " + operations[1] + " "
+                        + mapOperators.get(parentField)
+                        + " Length: ("
+                        + mapOperators.get(parentField).length()
+                        + ")" + "\n --------------------- "
+                        + "\nCheck the GET of "
+                        + operations[0] + " for " + parentField
+                        + "\nCurrent value: "
+                        + operations[2] + " Length: (" + operations[2].length()
+                        + ")" + "\nExpected value: "
+                        + mapOperators.get(parentField)
+                        + " Length: ("
+                        + mapOperators.get(parentField).length()
+                        + ")");
+
+        return "Failed to Execute Cmd: " + lastInstructionExecuted;
+    }
+
+    private void showAlertError(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    public String parentIdWrongBlock(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+        showAlertError(
+                "Parent Id Error",
+                "Check Parent Id",
+                "The Parent Id: " + currentInstruction.getParentId()
+                        + "\nFor the : "
+                        + currentInstruction.getOperation()
+                        + "\nDoes not belong to this block: "
+                        + blockLoad.getId() + "-" + blockLoad.getName()
+                        + "\nCheck the Field Names and Fields Ids");
+
+        ABRLogger.getInstance(ABRScannedElementPane.class)
+                .severe(String.format(
+                        "Parent Id Error\nCheck Parent Id: %d"
+                                + "\nFor the %s \nDoes not belong to this block: "
+                                + blockLoad.getId() + "-" + blockLoad.getName(),
+                        currentInstruction.getParentId(),
+                        currentInstruction.getOperation()));
+
+        return String.format(
+                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
+                currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
+    }
+
+    public void excelReportWrite(
+            boolean success,
+            BlockLoopInstructionLoadDTO currentInstruction,
+            long duration,
+            Map<String, String> dataExcel,
+            ExcelWriter.ExcelChain writerReport) {
+        writerReport.insertInstructionResult(
+                currentInstruction, dataExcel, LocalTime.ofNanoOfDay(duration), success ? "success" : "failed");
+    }
+
+    public long duration(long startTime) {
+        long currentInstructionEndTime = System.nanoTime();
+        return currentInstructionEndTime - startTime;
     }
 }
