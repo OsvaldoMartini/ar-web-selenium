@@ -134,7 +134,11 @@ public class ExcelWriter {
                             case ABRConstants.REFRESH -> "REFRESH";
                             case ABRConstants.VISUALIZE -> "VISUALIZE";
                             case ABRConstants.SEARCH -> "SEARCH";
-                            case ABRConstants.SCREEN -> "SCREEN";
+                            case ABRConstants.SET_VALUE -> "SET VALUE";
+                            case ABRConstants.GET_VALUE -> "GET VALUE";
+                            case ABRConstants.CHECK_VALUE -> "CHECK VALUE";
+                            case ABRConstants.GOTO -> "GO TO";
+                            case ABRConstants.IF_ELSE -> "IF ELSE";
                             default -> "Unsupported action";
                         };
                 String value = "";

@@ -468,7 +468,7 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxBlocks.setPrefWidth(buttonWidth);
         comboBoxBlocks.setVisible(false);
         gridPane.add(comboBoxBlocks, 1, 1);
-        
+
         comboBoxWebPage.setPrefWidth(buttonWidth);
         gridPane.add(comboBoxWebPage, 2, 1);
 
@@ -547,7 +547,8 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
-                if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue()) || ABRConstants.IF_ELSE.equalsIgnoreCase(newValue.getValue()) ) {
+                if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())
+                        || ABRConstants.IF_ELSE.equalsIgnoreCase(newValue.getValue())) {
                     comboBoxBlocks.setVisible(false);
                     comboBoxOperator.setVisible(true);
                     comboBoxVars.setVisible(true);
@@ -650,8 +651,8 @@ public class ABRNewCommandPane extends ABRPane {
                         ABRConstants.GOTO,
                         1,
                         comboBoxBlocks.getValue().getText(),
-                        comboBoxBlocks.getValue().getVarId(),  // Block Order Number as VarId
-                        comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id 
+                        comboBoxBlocks.getValue().getVarId(), // Block Order Number as VarId
+                        comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             }
         });
@@ -821,7 +822,11 @@ public class ABRNewCommandPane extends ABRPane {
         blocksItems.clear();
         for (BlockLoadDTO block : blockLoadDTOList) {
             if (block.getId() != blockToAvoid)
-            blocksItems.add(new ComboBoxVars(block.getBlockOrderNumber() + "# " +block.getName(), block.getName(), block.getBlockOrderNumber(), block.getId()));
+                blocksItems.add(new ComboBoxVars(
+                        block.getBlockOrderNumber() + "# " + block.getName(),
+                        block.getName(),
+                        block.getBlockOrderNumber(),
+                        block.getId()));
         }
     }
 

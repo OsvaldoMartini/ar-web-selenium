@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.Date;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -2568,7 +2569,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void recallJob() {
         executeJob();
         // Review if Has Not Executed Instructions
-        boolean hasUnexecutedInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
+        boolean hasUnexecutsssssssedInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
                 .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())
                 .anyMatch(instruction -> instruction.getExecuted() == null || !instruction.getExecuted());
 
@@ -2692,15 +2693,14 @@ public class ABRScannedElementPane extends ABRPane {
 
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
-            for (BlockLoadDTO blockLoad : blocksLoaded.stream().collect(Collectors.toList())) {
+            int currentBlock = 0;
+            outerLoop:
+            while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
                 instructionsExecuted.clear();
-                if (stopAll) {
-                    break;
-                }
-                for (int i = 0; success && i < extractedData.getNumberOfDataRows(); i++) {
-                    if (stopAll) {
-                        break;
-                    }
+                BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+                boolean jumpGoto = false;
+
+                for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
 
                     mapExport.clear();
                     writerReport.insertBlockSeparation(blockLoad.getName());
@@ -2709,13 +2709,12 @@ public class ABRScannedElementPane extends ABRPane {
                     //                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
 
                     // Call the method to get the filtered list
-                    List<BlockLoopInstructionLoadDTO> unProcessedInstructions = getUnexecutedInstructions(
-                            instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
+//                    List<BlockLoopInstructionLoadDTO> unProcessedInstructions = getUnexecutedInstructions(
+//                            instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
 
-                    for (BlockLoopInstructionLoadDTO currentInstruction : unProcessedInstructions) {
-                        if (stopAll) {
-                            break;
-                        }
+                    for (int j = 0; j < blockLoad.getBlockLoopInstructionLoadDTOS().size() && !stopAll; j++) {
+                        BlockLoopInstructionLoadDTO currentInstruction = blockLoad.getBlockLoopInstructionLoadDTOS().get(j);
+                                                
                         if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
                             boolean execOperation = false;
                             boolean checkOperation = false;
@@ -2730,7 +2729,10 @@ public class ABRScannedElementPane extends ABRPane {
                                     ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
-                            if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
+                            if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
+                                jumpGoto = true;
+
+                            } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                     || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
                                 execOperation = true;
@@ -2794,7 +2796,64 @@ public class ABRScannedElementPane extends ABRPane {
                             fillUpCurretLocators(currentInstruction);
 
                             try {
-                                if (!execOperation && !checkOperation && !excelWriteOperation) {
+                                if (jumpGoto) {
+
+                                    lastInstructionExecuted = currentInstruction.getName()
+                                            + Constants.BLANK_STRING
+                                            + currentInstruction.getOperation();
+
+                                    try {
+                                        int blockOrderNumber = blocksLoaded.stream()
+                                                .filter(block -> block.getId()
+                                                        == currentInstruction.getParentId()) // Filter by blockId
+                                                .findFirst() // Get the first matching block
+                                                .map(BlockLoadDTO::getBlockOrderNumber) // Map to blockOrderNumber
+                                                .orElseThrow(() -> new NoSuchElementException(
+                                                        "No block found with the given blockId")); // Handle if no
+                                        // block is found
+                                        currentBlock = blockOrderNumber - 1;
+                                        currentInstruction.setExecuted(true);
+
+                                        resultActions = "GO TO -->" + currentInstruction.getName() + " --> "
+                                                + currentInstruction.getOperation();
+
+                                        // Assuming currentInstruction and instructionsExecuted are already defined
+                                        if (currentInstruction != null
+                                                && instructionsExecuted.stream()
+                                                        .noneMatch(
+                                                                instruction -> instruction.getInstructionOrderNumber()
+                                                                        == currentInstruction
+                                                                                .getInstructionOrderNumber())) {
+                                            instructionsExecuted.add(currentInstruction);
+                                        }
+
+                                        success = true;
+                                    } catch (Exception ex) {
+                                        resultActions = "Failed to Execute -> " + currentInstruction.getName() + " --> "
+                                                + currentInstruction.getOperation();
+                                        success = false;
+                                    }
+
+                                    long duration = performAction.duration(currentInstructionStartTime);
+                                    performAction.excelReportWrite(
+                                            success, currentInstruction, duration, dataExcel, writerReport);
+                                    totalExecutionTime += duration;
+
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions,
+                                            lastInstructionExecuted,
+                                            duration);
+                                    if (success) {
+                                        continue outerLoop;
+                                    } else {
+                                        stopAll = true;
+                                    }
+
+                                } else if (!execOperation && !checkOperation && !excelWriteOperation) {
                                     dataExcel = extractedData.getRowFieldValues(i);
 
                                     lastInstructionExecuted = currentInstruction.getName()
