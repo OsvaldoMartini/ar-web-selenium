@@ -2569,7 +2569,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void recallJob() {
         executeJob();
         // Review if Has Not Executed Instructions
-        boolean hasUnexecutsssssssedInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
+        boolean hasUnexecutedInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
                 .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())
                 .anyMatch(instruction -> instruction.getExecuted() == null || !instruction.getExecuted());
 
@@ -2624,10 +2624,19 @@ public class ABRScannedElementPane extends ABRPane {
         Labels.initializeLabelsInSpecLang("en");
         Properties labelsValue = Labels.labelsValue;
 
+        // Assuming blocksLoaded is your List<BlockLoadDTO>
+        List<String> allActions = blocksLoaded.stream()
+                .flatMap(
+                        blockLoadDTO -> blockLoadDTO
+                                .getBlockLoopInstructionLoadDTOS()
+                                .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
+                .map(BlockLoopInstructionLoadDTO::getActions) // Extract the actions
+                .collect(Collectors.toList()); // Collect all actions into a List
+
         ExcelReader excelReader = new ExcelReader();
         ExtractedData extractedData = null;
         try {
-            extractedData = excelReader.extractData(excelPath, blocksLoaded);
+            extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -2709,12 +2718,16 @@ public class ABRScannedElementPane extends ABRPane {
                     //                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
 
                     // Call the method to get the filtered list
-//                    List<BlockLoopInstructionLoadDTO> unProcessedInstructions = getUnexecutedInstructions(
-//                            instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
+                    //                    List<BlockLoopInstructionLoadDTO> unProcessedInstructions =
+                    // getUnexecutedInstructions(
+                    //                            instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
 
-                    for (int j = 0; j < blockLoad.getBlockLoopInstructionLoadDTOS().size() && !stopAll; j++) {
-                        BlockLoopInstructionLoadDTO currentInstruction = blockLoad.getBlockLoopInstructionLoadDTOS().get(j);
-                                                
+                    for (int j = 0;
+                            j < blockLoad.getBlockLoopInstructionLoadDTOS().size() && !stopAll;
+                            j++) {
+                        BlockLoopInstructionLoadDTO currentInstruction =
+                                blockLoad.getBlockLoopInstructionLoadDTOS().get(j);
+
                         if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
                             boolean execOperation = false;
                             boolean checkOperation = false;

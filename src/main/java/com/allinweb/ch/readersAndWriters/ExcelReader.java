@@ -1,7 +1,5 @@
 package com.allinweb.ch.readersAndWriters;
 
-import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
@@ -27,55 +25,65 @@ public class ExcelReader {
 
     public ExcelReader() {}
 
-    public ExtractedData extractData(String paymentsFilePath, List<BlockLoadDTO> blockLoadDTOs) throws Exception {
+    public ExtractedData extractData(String paymentsFilePath, List<String> allActions) throws Exception {
 
         // getting first Excel sheet
-        XSSFWorkbook workbook = new XSSFWorkbook(new File(paymentsFilePath));
-        Sheet firstSheet = workbook.getSheetAt(0);
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new File(paymentsFilePath))) {
+            Sheet firstSheet = workbook.getSheetAt(0);
 
-        if (blockLoadDTOs == null) {
-            throw new Exception("botJob not found");
-        }
-
-        Row fieldNamesRow = firstSheet.getRow(EXCEL_DATA_COLUMN_INTESTATION_ROW);
-        Set<String> blockFields = blockLoadDTOs.stream()
-                .map(BlockLoadDTO::getBlockLoopInstructionLoadDTOS)
-                .reduce((identity, accumulated) -> {
-                    accumulated.addAll(identity);
-                    return accumulated;
-                })
-                .get()
-                .stream()
-                .map(BlockLoopInstructionLoadDTO::getActions)
-                .filter(action ->
-                        action.contains(Constants.INSERT) && action.contains(Constants.ACTION_SPECIFICATIONS_SPLITTER))
-                .map(action -> action.split(Constants.ACTION_SPECIFICATIONS_SPLITTER)[1])
-                .collect(Collectors.toSet());
-        ExtractedData extractedData = new ExtractedData();
-        for (int i = fieldNamesRow.getFirstCellNum(); i < fieldNamesRow.getLastCellNum(); i++) {
-            extractedData.addField(getCellValue(fieldNamesRow.getCell(i)));
-        }
-
-        boolean fieldCheckPassed = blockFields.stream().allMatch(extractedData::containsField);
-
-        if (!fieldCheckPassed) {
-            extractedData.setErrorMessage("Fields in the excel not matching the botjob requirements");
-            //			throw new Exception("fields in the excel not matching the botjob requirements");
-        }
-
-        for (int currentRowIndex = EXCEL_DATA_COLUMN_INTESTATION_ROW + 1;
-                currentRowIndex <= firstSheet.getLastRowNum() && firstSheet.getRow(currentRowIndex) != null;
-                currentRowIndex++) {
-            Row currentRow = firstSheet.getRow(currentRowIndex);
-            for (int currentCellIndex = currentRow.getFirstCellNum();
-                    currentCellIndex < currentRow.getLastCellNum() && currentRow.getCell(currentCellIndex) != null;
-                    currentCellIndex++) {
-                String fieldName = getCellValue(fieldNamesRow.getCell(currentCellIndex));
-                String value = getCellValue(currentRow.getCell(currentCellIndex));
-                extractedData.addFieldValue(fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
+            if (allActions == null || allActions.isEmpty()) {
+                throw new Exception("No actions provided");
             }
+
+            Row fieldNamesRow = firstSheet.getRow(EXCEL_DATA_COLUMN_INTESTATION_ROW);
+            if (fieldNamesRow == null) {
+                throw new Exception("Field names row is missing in the Excel sheet");
+            }
+
+            // Directly use allActions to filter and map
+            Set<String> blockFields = allActions.stream()
+                    .filter(action -> action.contains(Constants.INSERT)
+                            && action.contains(Constants.ACTION_SPECIFICATIONS_SPLITTER))
+                    .map(action -> action.split(Constants.ACTION_SPECIFICATIONS_SPLITTER)[1])
+                    .collect(Collectors.toSet());
+
+            ExtractedData extractedData = new ExtractedData();
+
+            // Cache field names in the extracted data
+            for (int i = fieldNamesRow.getFirstCellNum(); i < fieldNamesRow.getLastCellNum(); i++) {
+                extractedData.addField(getCellValue(fieldNamesRow.getCell(i)));
+            }
+
+            // Validate the fields
+            boolean fieldCheckPassed = blockFields.stream().allMatch(extractedData::containsField);
+
+            if (!fieldCheckPassed) {
+                extractedData.setErrorMessage("Fields in the excel not matching the botjob requirements");
+                return extractedData;
+            }
+
+            // Iterate over rows and cache row access
+            for (int currentRowIndex = EXCEL_DATA_COLUMN_INTESTATION_ROW + 1;
+                    currentRowIndex <= firstSheet.getLastRowNum();
+                    currentRowIndex++) {
+                Row currentRow = firstSheet.getRow(currentRowIndex);
+                if (currentRow == null) {
+                    continue;
+                }
+
+                // Cache field names and values for the current row
+                for (int currentCellIndex = currentRow.getFirstCellNum();
+                        currentCellIndex < currentRow.getLastCellNum();
+                        currentCellIndex++) {
+                    String fieldName = getCellValue(fieldNamesRow.getCell(currentCellIndex));
+                    String value = getCellValue(currentRow.getCell(currentCellIndex));
+                    extractedData.addFieldValue(
+                            fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
+                }
+            }
+
+            return extractedData;
         }
-        return extractedData;
     }
 
     public File createLogFile(String filePath) {
