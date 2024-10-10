@@ -143,7 +143,7 @@ public class ABRNewCommandPane extends ABRPane {
         }
 
         if (this.blockLoadList != null && this.blockLoadList.size() > 0) {
-            loadBlockItems(this.blockLoadList);
+            loadBlockItems(this.blockLoadList, rowMoveDTO.getBlockId());
         }
     }
 
@@ -643,6 +643,16 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getInstructionId(),
                         this.rowMoveDTO);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("GO TO")) {
+                addInstruction(
+                        "GOTO",
+                        "GOTO",
+                        ABRConstants.GOTO,
+                        1,
+                        comboBoxBlocks.getValue().getText(),
+                        comboBoxBlocks.getValue().getVarId(),  // Block Order Number as VarId
+                        comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id 
+                        this.rowMoveDTO);
             }
         });
 
@@ -807,11 +817,11 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
-    private void loadBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
+    private void loadBlockItems(List<BlockLoadDTO> blockLoadDTOList, int blockToAvoid) {
         blocksItems.clear();
         for (BlockLoadDTO block : blockLoadDTOList) {
-
-            blocksItems.add(new ComboBoxVars(block.getBlockOrderNumber() + "# " +block.getName(), block.getName(), block.getBotJobId(), block.getId()));
+            if (block.getId() != blockToAvoid)
+            blocksItems.add(new ComboBoxVars(block.getBlockOrderNumber() + "# " +block.getName(), block.getName(), block.getBlockOrderNumber(), block.getId()));
         }
     }
 
