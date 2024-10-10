@@ -128,7 +128,7 @@ public class ExcelWriter {
                         switch (splittedAction[0]) {
                             case ABRConstants.CLICK -> "CLICK";
                             case ABRConstants.INSERT -> "INSERT";
-                            case ABRConstants.EXTRACT -> "EXTRACT";
+                            case ABRConstants.EXTRACT_FIELD -> "EXTRACT";
                             case ABRConstants.QUIT -> "QUIT";
                             case ABRConstants.HOLD -> "WAIT";
                             case ABRConstants.REFRESH -> "REFRESH";

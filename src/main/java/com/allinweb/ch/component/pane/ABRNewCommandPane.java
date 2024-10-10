@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
@@ -20,7 +19,7 @@ import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
-import com.allinweb.ch.util.ComboBoxItem;
+import com.allinweb.ch.util.ComboBoxImage;
 import com.allinweb.ch.util.ComboBoxOperator;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
@@ -73,9 +72,6 @@ public class ABRNewCommandPane extends ABRPane {
     private ExecutorService executorService;
     private Alert alertToShow;
 
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
-
     private RowMoveDTO rowMoveDTO;
     private Pane mainPane;
 
@@ -93,23 +89,28 @@ public class ABRNewCommandPane extends ABRPane {
     Button addInstructionButton;
     Button cancelButton;
 
-    private ComboBox<ComboBoxItem> comboBoxInstruc;
-    private ObservableList<ComboBoxItem> itemsInstructions;
+    private ComboBox<ComboBoxImage> comboBoxInstruc;
+    private ObservableList<ComboBoxImage> itemsInstructions;
 
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
 
+    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
+
     private ComboBox<ComboBoxVars> comboBoxWebPage;
-    private List<BlockLoadDTO> blockLoadDTOList;
     private ObservableList<ComboBoxVars> webPageItems;
 
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems;
 
+    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+    private ComboBox<ComboBoxVars> comboBoxBlocks;
+    private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
+
     public ABRNewCommandPane(
-            RowMoveDTO rowMoveDTO, List<BlockLoadDTO> blockLoadDTOList, ObservableList<ComboBoxVars> webPageItems) {
+            RowMoveDTO rowMoveDTO, List<BlockLoadDTO> blockLoadList, ObservableList<ComboBoxVars> webPageItems) {
         this.rowMoveDTO = rowMoveDTO;
-        this.blockLoadDTOList = blockLoadDTOList;
+        this.blockLoadList = blockLoadList;
         this.webPageItems = webPageItems;
 
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
@@ -126,19 +127,23 @@ public class ABRNewCommandPane extends ABRPane {
         }
 
         itemsInstructions = FXCollections.observableArrayList(
-                new ComboBoxItem(
-                        "setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN), WebElementTagNameEnum.SET.getValue()),
-                new ComboBoxItem(
-                        "getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN), WebElementTagNameEnum.GET.getValue()),
-                new ComboBoxItem("Check", new Image(ABRConstants.ICON_CHECK), WebElementTagNameEnum.CK.getValue()),
-                new ComboBoxItem("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), WebElementTagNameEnum.E.getValue()));
+                new ComboBoxImage("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN), ABRConstants.SET_VALUE),
+                new ComboBoxImage("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN), ABRConstants.GET_VALUE),
+                new ComboBoxImage("Check", new Image(ABRConstants.ICON_CHECK), ABRConstants.CHECK_VALUE),
+                new ComboBoxImage("IF ELSE", new Image(ABRConstants.ICON_IF_ELSE), ABRConstants.IF_ELSE),
+                new ComboBoxImage("GO TO", new Image(ABRConstants.ICON_GOTO), ABRConstants.GOTO),
+                new ComboBoxImage("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), ABRConstants.EXTRACT_FIELD));
 
         operatorsItems = FXCollections.observableArrayList(
                 new ComboBoxOperator("Equals", new Image(ABRConstants.ICON_EQUAL), "="),
                 new ComboBoxOperator("Greater", new Image(ABRConstants.ICON_GREATER), ">"));
 
-        if (webPageItems != null && webPageItems.size() > 0) {
+        if (this.webPageItems != null && this.webPageItems.size() > 0) {
             loadJobVariables(webPageItems.get(0).getVarId());
+        }
+
+        if (this.blockLoadList != null && this.blockLoadList.size() > 0) {
+            loadBlockItems(this.blockLoadList);
         }
     }
 
@@ -185,11 +190,9 @@ public class ABRNewCommandPane extends ABRPane {
 
         comboBoxInstruc = new ComboBox<>(itemsInstructions);
         comboBoxInstruc.setPrefWidth(120); // Set preferred width of ComboBox
-
-        // Set cell factory to display images and text
         comboBoxInstruc.setButtonCell(new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxItem item, boolean empty) {
+            protected void updateItem(ComboBoxImage item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
@@ -206,10 +209,9 @@ public class ABRNewCommandPane extends ABRPane {
                 }
             }
         });
-
         comboBoxInstruc.setCellFactory(param -> new ListCell<>() {
             @Override
-            protected void updateItem(ComboBoxItem item, boolean empty) {
+            protected void updateItem(ComboBoxImage item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
@@ -234,7 +236,6 @@ public class ABRNewCommandPane extends ABRPane {
 
         comboBoxOperator = new ComboBox<>(operatorsItems);
         comboBoxOperator.setPrefWidth(50);
-
         // Set cell factory to display images and text
         comboBoxOperator.setButtonCell(new ListCell<>() {
             @Override
@@ -255,7 +256,6 @@ public class ABRNewCommandPane extends ABRPane {
                 }
             }
         });
-
         comboBoxOperator.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxOperator item, boolean empty) {
@@ -294,13 +294,9 @@ public class ABRNewCommandPane extends ABRPane {
         //            variablesItems.add(new ComboBoxVars("no variables added", -1, ""));
         //        }
         comboBoxVars = new ComboBox<>(variablesItems);
-        comboBoxVars.getSelectionModel().selectFirst();
-
-        if (comboBoxVars.getValue().getVarId() > 0) {
+        if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() > 0) {
             valueCheckField.setText(comboBoxVars.getValue().getValue());
         }
-
-        // Set cell factory to display images and text
         comboBoxVars.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxVars item, boolean empty) {
@@ -315,7 +311,6 @@ public class ABRNewCommandPane extends ABRPane {
                 }
             }
         });
-
         comboBoxVars.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxVars item, boolean empty) {
@@ -336,10 +331,45 @@ public class ABRNewCommandPane extends ABRPane {
         });
         comboBoxVars.getSelectionModel().selectFirst();
 
+        comboBoxBlocks = new ComboBox<>(blocksItems);
+        comboBoxBlocks.setPrefWidth(80);
+        comboBoxBlocks.getSelectionModel().selectFirst();
+        comboBoxBlocks.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+        comboBoxBlocks.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+        comboBoxBlocks.getSelectionModel().selectFirst();
+
         comboBoxWebPage = new ComboBox<>(webPageItems);
         comboBoxWebPage.setPrefWidth(50);
-
-        // Set cell factory to display images and text
         comboBoxWebPage.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxVars item, boolean empty) {
@@ -354,7 +384,6 @@ public class ABRNewCommandPane extends ABRPane {
                 }
             }
         });
-
         comboBoxWebPage.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxVars item, boolean empty) {
@@ -514,9 +543,15 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
-                if (WebElementTagNameEnum.CK.getValue().equalsIgnoreCase(newValue.getValue())) {
+                if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())) {
                     comboBoxOperator.setVisible(true);
+                } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
+                    comboBoxVars.setVisible(false);
+                    comboBoxWebPage.setVisible(false);
+                    comboBoxOperator.setVisible(false);
                 } else {
+                    comboBoxVars.setVisible(true);
+                    comboBoxWebPage.setVisible(true);
                     comboBoxOperator.setVisible(false);
                 }
             }
@@ -532,7 +567,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         this.addInstructionButton.setOnMouseClicked((e) -> {
             // Check if the current selected index is greater than the first index
-            if (comboBoxVars.getValue().getVarId() < 0) {
+            if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
                 showAlert(
                         "No Variable Defined",
                         "Define a variable for: \"" + comboBoxWebPage.getValue().getText() + "\"");
@@ -587,7 +622,7 @@ public class ABRNewCommandPane extends ABRPane {
                 addInstruction(
                         "ExcelWrite",
                         "ExcelWrite",
-                        ABRConstants.EXTRACT,
+                        ABRConstants.EXTRACT_FIELD,
                         2,
                         "ExcelWrite" + ":" + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
@@ -755,8 +790,14 @@ public class ABRNewCommandPane extends ABRPane {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        //        jobUserList.clear();
-        //        loadBotJobData();
+    }
+
+    private void loadBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
+        blocksItems.clear();
+        for (BlockLoadDTO block : blockLoadDTOList) {
+
+            blocksItems.add(new ComboBoxVars(block.getBlockOrderNumber() + "# " +block.getName(), block.getName(), block.getBotJobId(), block.getId()));
+        }
     }
 
     private void saveUserData(VariableUserDTO user) {

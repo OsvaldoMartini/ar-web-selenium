@@ -2730,8 +2730,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                     : null;
 
-                            if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
-                                    || actions[0].equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())) {
+                            if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
+                                    || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
                                 execOperation = true;
                                 try {
@@ -2754,7 +2754,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     break;
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())) {
+                            } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
                                 try {
                                     parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())
@@ -2769,7 +2769,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     success = false;
                                     break;
                                 }
-                            } else if (actions[0].equalsIgnoreCase(WebElementTagNameEnum.E.getValue())) {
+                            } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
                                 try {
                                     parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                                             .filter(f -> f.getId() == currentInstruction.getParentId())

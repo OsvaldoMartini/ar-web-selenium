@@ -1,6 +1,5 @@
 package com.allinweb.ch.socket;
 
-import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
@@ -966,9 +965,9 @@ public class WebSocketStompServer {
 
                 // Filter out "SET", "GET", "CK", adn "H"
                 if (actions != null
-                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.SET.getValue())
-                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.GET.getValue())
-                        && !actions.equalsIgnoreCase(WebElementTagNameEnum.CK.getValue())
+                        && !actions.equalsIgnoreCase(ABRConstants.SET_VALUE)
+                        && !actions.equalsIgnoreCase(ABRConstants.GET_VALUE)
+                        && !actions.equalsIgnoreCase(ABRConstants.CHECK_VALUE)
                         && !actions.equalsIgnoreCase(ABRConstants.HOLD)) {
                     webPageItems.add(new ComboBoxVars(name + "(" + id + ")", name, id, -1));
                 }
@@ -1046,7 +1045,11 @@ public class WebSocketStompServer {
                             } else if (name.equalsIgnoreCase("check")) {
                                 instruction.setActions(ABRConstants.CHECK_VALUE);
                             } else if (name.equalsIgnoreCase("ExcelWrite")) {
-                                instruction.setActions(ABRConstants.EXTRACT);
+                                instruction.setActions(ABRConstants.EXTRACT_FIELD);
+                            } else if (name.equalsIgnoreCase("GoTo")) {
+                                instruction.setActions(ABRConstants.GOTO);
+                            } else if (name.equalsIgnoreCase("IF")) {
+                                instruction.setActions(ABRConstants.IF_ELSE);
                             }
                             instruction.setActionCustomMaxWaitSec(30);
                             instruction.setOnHoldSeconds(1);

@@ -242,11 +242,11 @@ public class ABRWebElement {
                 if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
                     // OR BUTTON SOMETHING CLICKABLE
                     clickElement.setValue(true);
-                } else if (forceTagEnum.equals(WebElementTagNameEnum.SET)) {
+                } else if (forceTagEnum.equals(ABRConstants.SET_VALUE)) {
                     setValueElem.setValue(true);
-                } else if (forceTagEnum.equals(WebElementTagNameEnum.GET)) {
+                } else if (forceTagEnum.equals(ABRConstants.GET_VALUE)) {
                     getValueElem.setValue(true);
-                } else if (forceTagEnum.equals(WebElementTagNameEnum.CK)) {
+                } else if (forceTagEnum.equals(ABRConstants.CHECK_VALUE)) {
                     checkValueElem.setValue(true);
                 } else {
                     // OR INPUT SOMETHING IMPUTABLE
@@ -827,7 +827,7 @@ public class ABRWebElement {
         String action;
         // TODO: Make a better thing than this
         if (isIdElement.get()) {
-            action = ABRConstants.EXTRACT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + "EXTERNAL_REFERENCE";
+            action = ABRConstants.EXTRACT_FIELD + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + "EXTERNAL_REFERENCE";
         } else {
             action = clickElement.get()
                     ? ABRConstants.CLICK
