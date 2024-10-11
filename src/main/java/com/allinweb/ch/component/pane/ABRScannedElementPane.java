@@ -1231,7 +1231,16 @@ public class ABRScannedElementPane extends ABRPane {
                 } else {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .info("Double clicked the element: " + abrWebElement.getXPath());
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("Going to show the confirmation Alert");
+
+                    if (abrWebElement.getSavedReferences().size() > 0) {
+                        showAlertError(
+                                "ERROR ADD WEB ELEMENT",
+                                "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
+                                "The Instruction \""
+                                        + abrWebElement.getElement().getTagName() + "\" don't have any locators");
+                        return;
+                    }
+
                     Alert alert = new Alert(
                             Alert.AlertType.CONFIRMATION,
                             "Are you sure you want to Add the Instruction Selected to the Bot-Job?",
@@ -1240,6 +1249,7 @@ public class ABRScannedElementPane extends ABRPane {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine("Confirmation Alert shown. Waiting for result");
                     Optional<ButtonType> result = alert.showAndWait();
+
                     ABRLogger.getInstance(ABRScannedElementPane.class).finer("result got: " + result.get());
                     if (result.isPresent() && result.get() == ButtonType.YES) {
                         loadBlocksForBotJob(this.botJob.getId());
@@ -1317,10 +1327,12 @@ public class ABRScannedElementPane extends ABRPane {
                                                 BlockLoopInstructionDTO.class,
                                                 (instr) -> instr.getBlock().getId() == currentBlockId);
                                 ABRLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
+
                                 BlockLoopInstructionDTO instruction =
                                         abrWebElement.buildBlockLoopInstruction(list.size());
                                 instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);
+
                                 ABRLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
                                 ABRSharedResources.getInstance()
                                         .addEntity(instruction, BlockLoopInstructionDTO.class, () -> {
@@ -1342,23 +1354,24 @@ public class ABRScannedElementPane extends ABRPane {
 
                                                 Platform.runLater(() -> {
                                                     boolean saved = insertReferences(queue, instruction.getId());
-
                                                     if (saved) {
 
                                                         new ABRAlertScene(
                                                                 Alert.AlertType.INFORMATION,
-                                                                queue.size() + " Instructions were Added!",
-                                                                "Instruction " + instruction.getName() + " with "
-                                                                        + queue.size() + " references"
-                                                                        + "\nhas been added successfully",
+                                                                "Web Instruction Add",
+                                                                "The Web Instruction \"" + instruction.getName()
+                                                                        + "\" with "
+                                                                        + queue.size() + " reference locators"
+                                                                        + "\nHas been added successfully!",
                                                                 ButtonType.OK);
                                                     } else {
                                                         new ABRAlertScene(
                                                                 Alert.AlertType.ERROR,
-                                                                queue.size() + " Instructions FAILED TO BE ADDED!",
+                                                                "Add Web Instruction FAILED",
                                                                 "The Instruction " + instruction.getName() + " with "
-                                                                        + queue.size() + " references"
-                                                                        + "\nFAILED TO BE ADDED!",
+                                                                        + queue.size() + " reference locators"
+                                                                        + "\nWas Added!"
+                                                                        + "\nTHE ENGINE IS GOING TO FAIL FOR THIS ELEMENT",
                                                                 ButtonType.OK);
                                                     }
                                                 });
@@ -3905,6 +3918,14 @@ public class ABRScannedElementPane extends ABRPane {
 
     private static void showAlertInfo(String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
+    private void showAlertError(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);

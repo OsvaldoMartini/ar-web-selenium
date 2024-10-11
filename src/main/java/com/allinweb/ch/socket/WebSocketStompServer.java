@@ -537,9 +537,9 @@ public class WebSocketStompServer {
             for (InstructionDTO instruction : instructions) {
 
                 String updateSQL = "UPDATE block_loop_instruction SET  "
-                        + " instruction_order_number = " + instruction.getInstructionOrderNumber()
-                        + " WHERE id = " + instruction.getInstructionId()
-                        + " and block_id = " + instruction.getBlockId();
+                        + " instruction_order_number = " + instruction.getInstructionOrderNumber() + ","
+                        + " block_id = " + instruction.getBlockId()
+                        + " WHERE id = " + instruction.getInstructionId();
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {

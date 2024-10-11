@@ -171,7 +171,12 @@ public class ABRWebElement {
 
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
+
         try {
+            if (abrPriorities.getAllPriorityList().size() == 0) {
+                abrPriorities.loadPriorities();
+                ABRLogger.getInstance(Thread.class).finer("Reloaded abrPriorities.loadPriorities()");
+            }
 
             if (searchReturn == null && abrPriorities.getJobId() != null) {
                 for (Priority priority : abrPriorities.getAllPriorityList()) {
