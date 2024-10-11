@@ -63,6 +63,9 @@ public class ConfigurationDTO extends BaseDTO {
     @Column(name = "socketPort")
     private String socketPort;
 
+    @Column(name = "processLimit")
+    private String processLimit;
+
     @Column(name = "pathJavaFx")
     private String pathJavaFx;
 
@@ -162,6 +165,14 @@ public class ConfigurationDTO extends BaseDTO {
 
     public void setSocketPort(String socketPort) {
         this.socketPort = socketPort;
+    }
+
+    public String getProcessLimit() {
+        return processLimit;
+    }
+
+    public void setProcessLimit(String processLimit) {
+        this.processLimit = processLimit;
     }
 
     public String getPageUpdateTimeoutSec() {

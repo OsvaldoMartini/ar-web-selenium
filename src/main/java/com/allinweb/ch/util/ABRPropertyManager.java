@@ -72,6 +72,7 @@ public class ABRPropertyManager {
                         ABRConstants.CURRENT_PATH + ABRConstants.DEFAULT_PATH_JAVA_FX);
                 setProperty(ABRPropertyEnum.DATABASE_TYPE.getValue(), "Access");
                 setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), "8080");
+                setProperty(ABRPropertyEnum.PROCESS_LIMIT.getValue(), "200");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_REPORT.getValue(), "");
                 setProperty(ABRPropertyEnum.PATH_ENGINE.getValue(), ABRConstants.CURRENT_PATH);

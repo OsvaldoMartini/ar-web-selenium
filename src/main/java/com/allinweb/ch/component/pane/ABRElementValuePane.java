@@ -494,32 +494,31 @@ public class ABRElementValuePane extends ABRPane {
     }
 
     private void updateUserData(Integer userId, VariableUserDTO user) {
-        try {
-            String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
-                    + " type = '" + user.getType() + "', "
-                    + " value = '" + user.getValue() + "' "
-                    + " WHERE ID = " + userId;
-            try (Statement stmt =
-                    ABRSharedResources.getInstance().getConnection().createStatement()) {
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                    System.out.println("Data updated successfully.");
-                } else {
-                    System.out.println("No matching record found to update.");
-                }
-            } catch (SQLException e) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
-                        "MAX CHARACTERS LIMIT FOR ACCESS",
-                        String.format(
-                                "This '%s' \n cannot be updated with same name.\nError: %s",
-                                user.getName(), e.getMessage()));
-                return;
+        //        try {
+        String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
+                + " type = '" + user.getType() + "', "
+                + " value = '" + user.getValue() + "' "
+                + " WHERE ID = " + userId;
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+            if (rowsAffected > 0) {
+                System.out.println("Data updated successfully.");
+            } else {
+                System.out.println("No matching record found to update.");
             }
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid ID format.");
+        } catch (SQLException e) {
+            showAlert(
+                    Alert.AlertType.ERROR,
+                    "Error",
+                    "MAX CHARACTERS LIMIT FOR ACCESS",
+                    String.format(
+                            "This '%s' \n cannot be updated with same name.\nError: %s",
+                            user.getName(), e.getMessage()));
+            return;
         }
+        //        } catch (NumberFormatException e) {
+        //            System.out.println("Invalid ID format.");
+        //        }
     }
 
     private void deleteUserData(String Id) {

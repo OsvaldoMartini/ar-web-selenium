@@ -840,4 +840,13 @@ public class PerformActions {
 
         return resultActions;
     }
+
+    public void alertExecutionTimes(int executionTimes, String lastInstructionExecuted) {
+        showAlertError(
+                "Execution Time LIMIT",
+                "Attention The Process Reached the LIMIT of Loop Executions",
+                String.format(
+                        "Attention the Process Reached the LOOP LIMIT of %d\nLast Instruction Executed : %s\nWe are Exiting All of processes Now!",
+                        executionTimes, lastInstructionExecuted));
+    }
 }

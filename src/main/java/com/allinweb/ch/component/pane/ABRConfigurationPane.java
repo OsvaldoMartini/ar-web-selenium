@@ -43,6 +43,7 @@ public class ABRConfigurationPane extends ABRPane {
     Label pathDBLabel;
     Label databaseLabel;
     Label socketPortLabel;
+    Label processLimitLabel;
     Label pathReportLabel;
     Label pathPriorityLabel;
     Label pathJavaFXLabel;
@@ -61,7 +62,7 @@ public class ABRConfigurationPane extends ABRPane {
     TextField pathJava;
     TextField pathDB;
     TextField socketPort;
-
+    TextField processLimit;
     TextField pathReport;
     TextField pathPriority;
     TextField pathJavaFX;
@@ -188,8 +189,15 @@ public class ABRConfigurationPane extends ABRPane {
         socketPortLabel = new Label("Socket Port");
         socketPort = createPathTextField(ABRPropertyEnum.PORT_SOCKET);
         String portSocket = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PORT_SOCKET);
-        if (portSocket == null) {
+        if (Strings.isNullOrEmpty(portSocket)) {
             socketPort.setText("8080");
+        }
+
+        processLimitLabel = new Label("Process Limit");
+        processLimit = createPathTextField(ABRPropertyEnum.PROCESS_LIMIT);
+        String processReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PROCESS_LIMIT);
+        if (Strings.isNullOrEmpty(processReach)) {
+            processLimit.setText("200");
         }
 
         GridPane gridPaneDB = new GridPane();
@@ -200,24 +208,29 @@ public class ABRConfigurationPane extends ABRPane {
         col1DB.setPercentWidth(65);
 
         ColumnConstraints col2DB = new ColumnConstraints();
-        col2DB.setPercentWidth(30);
+        col2DB.setPercentWidth(15);
 
         ColumnConstraints col3DB = new ColumnConstraints();
-        col3DB.setPercentWidth(5);
+        col3DB.setPercentWidth(15);
 
-        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB, col3DB);
+        ColumnConstraints col4DB = new ColumnConstraints();
+        col4DB.setPercentWidth(5);
+
+        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB, col3DB, col4DB);
 
         // Add labels in the first row
         gridPaneDB.add(pathDBLabel, 0, 0);
         gridPaneDB.add(socketPortLabel, 1, 0);
+        gridPaneDB.add(processLimitLabel, 2, 0);
 
         // Add text fields in the second row
         gridPaneDB.add(pathDB, 0, 1);
         //        gridPaneDB.add(databaseChoiceBox, 1, 1);
         gridPaneDB.add(socketPort, 1, 1);
+        gridPaneDB.add(processLimit, 2, 1);
 
         // Add button in the second row, third column
-        gridPaneDB.add(pathDBButton, 2, 1);
+        gridPaneDB.add(pathDBButton, 3, 1);
 
         // Set margin for pathDBButton to create spacing from right border
         GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
@@ -393,6 +406,11 @@ public class ABRConfigurationPane extends ABRPane {
             validfields = false;
         }
 
+        if (Strings.isNullOrEmpty(processLimit.getText())) {
+            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Process Limit must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+
         if (Strings.isNullOrEmpty(pathDB.getText())) {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Database Path must be filed!", ButtonType.OK);
             validfields = false;
@@ -449,6 +467,8 @@ public class ABRConfigurationPane extends ABRPane {
                     .setProperty(ABRPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
             ABRPropertyManager.getInstance()
+                    .setProperty(ABRPropertyEnum.PROCESS_LIMIT.getValue(), processLimit.getText());
+            ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
 
             /*ABRPropertyManager.getInstance().setProperty(
@@ -463,18 +483,18 @@ public class ABRConfigurationPane extends ABRPane {
     }
 
     private void deleteAllDB() {
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
 
-        Label newInstruction = new Label("DELETE ALL JOB DETAILS");
+        Label newInstruction = new Label("DELETE ALL JOB DETAILS\nDatabase Selected: \"" + dataBaseType + "\"");
         newInstruction.setStyle("-fx-font-size: 18px;");
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-        alert.setHeaderText("Are you sure you want to DELETE ALL JOB TABLES ROWS?");
+        alert.setHeaderText("Are you sure you want to DELETE ALL JOB TABLES ROWS (\"" + dataBaseType + "\")?");
         alert.getDialogPane().setContent(newInstruction);
 
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.YES) {
-
-            if (deleteAllJobDetails()) {
+            if (deleteAllJobDetails(dataBaseType)) {
                 ABRSharedResources.getInstance().changeDbConnection();
                 new ABRAlertScene(
                         Alert.AlertType.INFORMATION,
@@ -485,45 +505,73 @@ public class ABRConfigurationPane extends ABRPane {
             } else {
                 ABRSharedResources.getInstance().changeDbConnection();
                 new ABRAlertScene(
-                        Alert.AlertType.WARNING,
-                        "Not possible  to delete All Job Details!",
-                        "The Instructions and Job Details cannot be deleted and the data has been reloaded",
+                        Alert.AlertType.ERROR,
+                        "\"" + dataBaseType + "\" Problems\nNot possible  to delete All Job Details!",
+                        "\"" + dataBaseType + "\" Problems!\n"
+                                                        + "The Instructions and Job Details cannot be deleted and the data has been reloaded\n"
+                                                        + dataBaseType
+                                                != null
+                                        && dataBaseType.equalsIgnoreCase("ACCESS")
+                                ? dataBaseType + " database Recommendation:\nDelete interelly \"database.mdb\" file!"
+                                : "",
                         ButtonType.OK);
             }
         }
     }
 
-    private boolean deleteAllJobDetails() {
+    private boolean deleteAllJobDetails(String dataBaseType) {
         // Build the SQL delete statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            String deleteSQL = "DELETE FROM variable;"
+            String deleteSQL = "DELETE FROM job_run_report;"
+                    + "DELETE FROM variable;"
                     + "DELETE FROM instruction_reference;"
                     + "DELETE FROM block_loop_instruction;"
                     + "DELETE FROM block;"
-                    + "DELETE FROM bot_job;";
+                    + "DELETE FROM bot_job;"
+                    + "DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";"
+                    + "DROP SEQUENCE IF EXISTS \"blockSeq\";"
+                    + "DROP SEQUENCE IF EXISTS \"botJobSeq\";"
+                    + "DROP SEQUENCE IF EXISTS \"variableSeq\";"
+                    + "DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";"
+                    + "DROP SEQUENCE IF EXISTS \"excelReportSeq\";";
 
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(ABRWebDriver.class)
                         .info("All Rows DELETED for:\n"
+                                + "ExcelReportDTO;\n"
                                 + "Variables;\n"
                                 + "Instructions References;\n"
                                 + "Instructions;\n"
                                 + "Blocks;\n"
-                                + "Bot Jobs;");
+                                + "Bot Jobs;"
+                                + "SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";"
+                                + "SEQUENCE IF EXISTS \"blockSeq\";"
+                                + "SEQUENCE IF EXISTS \"botJobSeq\";"
+                                + "SEQUENCE IF EXISTS \"variableSeq\";"
+                                + "SEQUENCE IF EXISTS \"instructionReferenceSeq\";"
+                                + "SEQUENCE IF EXISTS \"excelReportSeq\";");
             }
             return true;
 
         } catch (SQLException e) {
             ABRLogger.getInstance(ABRWebDriver.class)
-                    .severe("Not Possible delete the  Rows was for these tables:\n"
+                    .severe(dataBaseType + " Problems:\n"
+                            + "Not Possible delete the  Rows was for these tables:\n"
+                            + "ExcelReportDTO;\n"
                             + "Variables;\n"
                             + "Instructions References;\n"
                             + "Instructions;\n"
                             + "Blocks;\n"
                             + "Bot Jobs;\n"
+                            + "SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";\n"
+                            + "SEQUENCE IF EXISTS \"blockSeq\";\n"
+                            + "SEQUENCE IF EXISTS \"botJobSeq\";\n"
+                            + "SEQUENCE IF EXISTS \"variableSeq\";\n"
+                            + "SEQUENCE IF EXISTS \"instructionReferenceSeq\";\n"
+                            + "SEQUENCE IF EXISTS \"excelReportSeq\";\n"
                             + e.getMessage());
         }
         return false;

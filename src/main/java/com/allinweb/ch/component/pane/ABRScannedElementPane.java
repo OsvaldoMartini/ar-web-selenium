@@ -36,7 +36,6 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -1326,8 +1325,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 ABRSharedResources.getInstance()
                                         .addEntity(instruction, BlockLoopInstructionDTO.class, () -> {
                                             abrWebElement.setInstructionId(instruction.getId());
-                                            LinkedBlockingQueue<InstructionReferenceDTO> queue =
-                                                    new LinkedBlockingQueue<>();
+                                            List<InstructionReferenceDTO> queue = new ArrayList<>();
                                             for (String key : abrWebElement
                                                     .getSavedReferences()
                                                     .keySet()) {
@@ -1336,26 +1334,34 @@ public class ABRScannedElementPane extends ABRPane {
                                                 reference.setValue(abrWebElement
                                                         .getSavedReferences()
                                                         .get(key));
-                                                reference.setBlockLoopInstructionDTO(instruction);
+                                                //
+                                                // reference.setBlockLoopInstructionDTO(instruction);
                                                 queue.add(reference);
-                                                ABRLogger.getInstance(Task.class)
-                                                        .fine("THREAD: reference added to queue");
                                             }
-                                            ABRLogger.getInstance(Task.class)
-                                                    .fine("THREAD: adding " + queue.size() + "Instruction elements");
                                             try {
-                                                ABRSharedResources.getInstance()
-                                                        .addAllEntity(queue, InstructionReferenceDTO.class, () -> {
-                                                            Platform.runLater(() -> {
-                                                                new ABRAlertScene(
-                                                                        Alert.AlertType.INFORMATION,
-                                                                        "Instruction Added",
-                                                                        "Instruction " + instruction.getName()
-                                                                                + " has been added successfully",
-                                                                        ButtonType.OK);
-                                                            });
-                                                        });
 
+                                                Platform.runLater(() -> {
+                                                    boolean saved = insertReferences(queue, instruction.getId());
+
+                                                    if (saved) {
+
+                                                        new ABRAlertScene(
+                                                                Alert.AlertType.INFORMATION,
+                                                                queue.size() + " Instructions were Added!",
+                                                                "Instruction " + instruction.getName() + " with "
+                                                                        + queue.size() + " references"
+                                                                        + "\nhas been added successfully",
+                                                                ButtonType.OK);
+                                                    } else {
+                                                        new ABRAlertScene(
+                                                                Alert.AlertType.ERROR,
+                                                                queue.size() + " Instructions FAILED TO BE ADDED!",
+                                                                "The Instruction " + instruction.getName() + " with "
+                                                                        + queue.size() + " references"
+                                                                        + "\nFAILED TO BE ADDED!",
+                                                                ButtonType.OK);
+                                                    }
+                                                });
                                             } catch (Exception ex) {
                                                 ABRLogger.getInstance(Task.class)
                                                         .severe("Error Adding Instruction elements");
@@ -2699,14 +2705,23 @@ public class ABRScannedElementPane extends ABRPane {
 
         mapOperators = new HashMap<>();
         mapExport = new HashMap<>();
+        int executionTimes = 200;
+        String limitReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PROCESS_LIMIT);
+        if (limitReach != null) {
+            executionTimes = Integer.parseInt(limitReach);
+        }
 
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
             int currentBlock = 0;
             outerLoop:
-            while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
+            while (currentBlock <= blocksLoaded.size() - 1
+                    && blocksLoaded.size() > 0
+                    && !stopAll
+                    && executionTimes < 200) {
                 instructionsExecuted.clear();
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+                executionTimes++;
                 boolean jumpGoto = false;
 
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
@@ -3155,7 +3170,13 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                     }
                 }
+                //                currentBlock++;
             }
+
+            if (executionTimes >= 200) {
+                performAction.alertExecutionTimes(executionTimes, lastInstructionExecuted);
+            }
+
         } else { //  if dataExel is NULL
             // Creating Dynamic Data if Default is Null
             Map<String, String> dataDynamic = new HashMap<>();
@@ -3825,6 +3846,58 @@ public class ABRScannedElementPane extends ABRPane {
             }
         } catch (SQLException e) {
             ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private boolean insertReferences(List<InstructionReferenceDTO> queue, int instructionId) {
+        // Generate a Unique-ID for the block
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            for (InstructionReferenceDTO reference : queue) {
+
+                Integer nextId = loadNextIdBReferenceData() + 1;
+
+                // Build the SQL insert query
+                String insertSQL =
+                        "INSERT INTO instruction_reference(id, reference_type, value, block_loop_instruction_id) VALUES ("
+                                + nextId + ", "
+                                + "'" + reference.getReferenceType() + "', "
+                                + "'" + reference.getValue() + "', " // name
+                                + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
+
+                int rowsAffected = stmt.executeUpdate(insertSQL);
+                if (rowsAffected > 0) {
+                    ABRLogger.getInstance(ABRViewBotJobPane.class)
+                            .info(String.format(
+                                    "Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
+                                    nextId, reference.getReferenceType(), reference.getValue(), instructionId));
+                } else {
+                    ABRLogger.getInstance(ABRViewBotJobPane.class)
+                            .warning(String.format(
+                                    "Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
+                                    nextId, reference.getReferenceType(), reference.getValue(), instructionId));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Cannot Insert References\nError " + e.getMessage());
+            return false;
+        }
+    }
+
+    private Integer loadNextIdBReferenceData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction_reference";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }
