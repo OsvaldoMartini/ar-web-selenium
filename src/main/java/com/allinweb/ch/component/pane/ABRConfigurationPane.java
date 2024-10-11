@@ -43,7 +43,7 @@ public class ABRConfigurationPane extends ABRPane {
     Label pathDBLabel;
     Label databaseLabel;
     Label socketPortLabel;
-    Label processLimitLabel;
+    Label blockLimitLabel;
     Label pathReportLabel;
     Label pathPriorityLabel;
     Label pathJavaFXLabel;
@@ -62,7 +62,7 @@ public class ABRConfigurationPane extends ABRPane {
     TextField pathJava;
     TextField pathDB;
     TextField socketPort;
-    TextField processLimit;
+    TextField blockLimit;
     TextField pathReport;
     TextField pathPriority;
     TextField pathJavaFX;
@@ -193,11 +193,11 @@ public class ABRConfigurationPane extends ABRPane {
             socketPort.setText("8080");
         }
 
-        processLimitLabel = new Label("Process Limit");
-        processLimit = createPathTextField(ABRPropertyEnum.PROCESS_LIMIT);
-        String processReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PROCESS_LIMIT);
+        blockLimitLabel = new Label("Block Exec. Limit");
+        blockLimit = createPathTextField(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
+        String processReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
         if (Strings.isNullOrEmpty(processReach)) {
-            processLimit.setText("200");
+            blockLimit.setText("50");
         }
 
         GridPane gridPaneDB = new GridPane();
@@ -221,13 +221,13 @@ public class ABRConfigurationPane extends ABRPane {
         // Add labels in the first row
         gridPaneDB.add(pathDBLabel, 0, 0);
         gridPaneDB.add(socketPortLabel, 1, 0);
-        gridPaneDB.add(processLimitLabel, 2, 0);
+        gridPaneDB.add(blockLimitLabel, 2, 0);
 
         // Add text fields in the second row
         gridPaneDB.add(pathDB, 0, 1);
         //        gridPaneDB.add(databaseChoiceBox, 1, 1);
         gridPaneDB.add(socketPort, 1, 1);
-        gridPaneDB.add(processLimit, 2, 1);
+        gridPaneDB.add(blockLimit, 2, 1);
 
         // Add button in the second row, third column
         gridPaneDB.add(pathDBButton, 3, 1);
@@ -406,7 +406,7 @@ public class ABRConfigurationPane extends ABRPane {
             validfields = false;
         }
 
-        if (Strings.isNullOrEmpty(processLimit.getText())) {
+        if (Strings.isNullOrEmpty(blockLimit.getText())) {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Process Limit must be filed!", ButtonType.OK);
             validfields = false;
         }
@@ -467,7 +467,7 @@ public class ABRConfigurationPane extends ABRPane {
                     .setProperty(ABRPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
             ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.PROCESS_LIMIT.getValue(), processLimit.getText());
+                    .setProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT.getValue(), blockLimit.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
 

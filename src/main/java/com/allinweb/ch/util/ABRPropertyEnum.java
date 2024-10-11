@@ -3,7 +3,7 @@ package com.allinweb.ch.util;
 public enum ABRPropertyEnum {
     DATABASE_TYPE("data_base"),
     PORT_SOCKET("port_socket"),
-    PROCESS_LIMIT("process_limit"),
+    BLOCK_EXEC_LIMIT("block_exec_limit"),
     FOLDER_PATH_EXCEL("path_excel"),
     FOLDER_PATH_EXPORT("path_export"),
     FOLDER_PATH_LOG("path_log"),

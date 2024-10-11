@@ -2707,7 +2707,7 @@ public class ABRScannedElementPane extends ABRPane {
         mapExport = new HashMap<>();
         int executionTimes = 0;
         int execLimitReach = 0;
-        String limitReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PROCESS_LIMIT);
+        String limitReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
         if (limitReach != null) {
             execLimitReach = Integer.parseInt(limitReach);
         }
@@ -2748,159 +2748,206 @@ public class ABRScannedElementPane extends ABRPane {
                         BlockLoopInstructionLoadDTO currentInstruction =
                                 blockLoad.getBlockLoopInstructionLoadDTOS().get(j);
 
-                        if (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted()) {
-                            boolean execOperation = false;
-                            boolean checkOperation = false;
-                            boolean excelWriteOperation = false;
+                        // Allow Re-Execute Instructions in Previous Blocks
+                        //                        if (currentInstruction.getExecuted() == null ||
+                        // !currentInstruction.getExecuted()) {
+                        boolean execOperation = false;
+                        boolean checkOperation = false;
+                        boolean excelWriteOperation = false;
 
-                            String xPathOperation = null;
-                            String parentField = null;
+                        String xPathOperation = null;
+                        String parentField = null;
 
-                            String[] actions =
-                                    currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
-                            String[] operations = currentInstruction.getOperation() != null
-                                    ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
-                                    : null;
+                        String[] actions = currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
+                        String[] operations = currentInstruction.getOperation() != null
+                                ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
+                                : null;
 
-                            if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
-                                jumpGoto = true;
+                        if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
+                            jumpGoto = true;
 
-                            } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
-                                    || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
+                                || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
-                                execOperation = true;
-                                try {
-                                    xPathOperation = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                            .filter(f -> f.getId() == currentInstruction.getParentId())
-                                            .findFirst()
-                                            .get()
-                                            .getPath();
+                            execOperation = true;
+                            try {
+                                xPathOperation = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                        .filter(f -> f.getId() == currentInstruction.getParentId())
+                                        .findFirst()
+                                        .get()
+                                        .getPath();
 
-                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                            .filter(f -> f.getId() == currentInstruction.getParentId())
-                                            .findFirst()
-                                            .get()
-                                            .getName();
+                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                        .filter(f -> f.getId() == currentInstruction.getParentId())
+                                        .findFirst()
+                                        .get()
+                                        .getName();
 
-                                } catch (Exception ex) {
-                                    resultActions = performAction.parentIdWrongBlock(currentInstruction, blockLoad);
-                                    stopAll = true;
-                                    success = false;
-                                    break;
-                                }
-
-                            } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
-                                try {
-                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                            .filter(f -> f.getId() == currentInstruction.getParentId())
-                                            .findFirst()
-                                            .get()
-                                            .getName();
-                                    checkOperation = true;
-                                } catch (Exception ex) {
-                                    resultActions = performAction.getValueIsNotDefined(
-                                            currentInstruction, lastInstructionExecuted);
-                                    stopAll = true;
-                                    success = false;
-                                    break;
-                                }
-                            } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
-                                try {
-                                    parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                            .filter(f -> f.getId() == currentInstruction.getParentId())
-                                            .findFirst()
-                                            .get()
-                                            .getName();
-
-                                    excelWriteOperation = true;
-                                } catch (Exception ex) {
-                                    resultActions = performAction.getValueIsNotDefined(
-                                            currentInstruction, lastInstructionExecuted);
-
-                                    stopAll = true;
-                                    success = false;
-                                    break;
-                                }
+                            } catch (Exception ex) {
+                                resultActions = performAction.parentIdWrongBlock(currentInstruction, blockLoad);
+                                stopAll = true;
+                                success = false;
+                                break;
                             }
 
-                            long currentInstructionStartTime = System.nanoTime();
-                            File logFileForSingleExcel = excelReader.createLogFile(excelPath);
-
-                            fillUpCurretLocators(currentInstruction);
-
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
                             try {
-                                if (jumpGoto) {
+                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                        .filter(f -> f.getId() == currentInstruction.getParentId())
+                                        .findFirst()
+                                        .get()
+                                        .getName();
+                                checkOperation = true;
+                            } catch (Exception ex) {
+                                resultActions =
+                                        performAction.getValueIsNotDefined(currentInstruction, lastInstructionExecuted);
+                                stopAll = true;
+                                success = false;
+                                break;
+                            }
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
+                            try {
+                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                                        .filter(f -> f.getId() == currentInstruction.getParentId())
+                                        .findFirst()
+                                        .get()
+                                        .getName();
 
-                                    lastInstructionExecuted = currentInstruction.getName()
-                                            + Constants.BLANK_STRING
+                                excelWriteOperation = true;
+                            } catch (Exception ex) {
+                                resultActions =
+                                        performAction.getValueIsNotDefined(currentInstruction, lastInstructionExecuted);
+
+                                stopAll = true;
+                                success = false;
+                                break;
+                            }
+                        }
+
+                        long currentInstructionStartTime = System.nanoTime();
+                        File logFileForSingleExcel = excelReader.createLogFile(excelPath);
+
+                        fillUpCurretLocators(currentInstruction);
+
+                        try {
+                            if (jumpGoto) {
+
+                                lastInstructionExecuted = currentInstruction.getName()
+                                        + Constants.BLANK_STRING
+                                        + currentInstruction.getOperation();
+
+                                try {
+                                    int blockOrderNumber = blocksLoaded.stream()
+                                            .filter(block -> block.getId()
+                                                    == currentInstruction.getParentId()) // Filter by blockId
+                                            .findFirst() // Get the first matching block
+                                            .map(BlockLoadDTO::getBlockOrderNumber) // Map to blockOrderNumber
+                                            .orElseThrow(() -> new NoSuchElementException(
+                                                    "No block found with the given blockId")); // Handle if no
+                                    // block is found
+                                    currentBlock = blockOrderNumber - 1;
+                                    currentInstruction.setExecuted(true);
+
+                                    resultActions = "GO TO -->" + currentInstruction.getName() + " --> "
                                             + currentInstruction.getOperation();
 
-                                    try {
-                                        int blockOrderNumber = blocksLoaded.stream()
-                                                .filter(block -> block.getId()
-                                                        == currentInstruction.getParentId()) // Filter by blockId
-                                                .findFirst() // Get the first matching block
-                                                .map(BlockLoadDTO::getBlockOrderNumber) // Map to blockOrderNumber
-                                                .orElseThrow(() -> new NoSuchElementException(
-                                                        "No block found with the given blockId")); // Handle if no
-                                        // block is found
-                                        currentBlock = blockOrderNumber - 1;
-                                        currentInstruction.setExecuted(true);
-
-                                        resultActions = "GO TO -->" + currentInstruction.getName() + " --> "
-                                                + currentInstruction.getOperation();
-
-                                        // Assuming currentInstruction and instructionsExecuted are already defined
-                                        if (currentInstruction != null
-                                                && instructionsExecuted.stream()
-                                                        .noneMatch(
-                                                                instruction -> instruction.getInstructionOrderNumber()
-                                                                        == currentInstruction
-                                                                                .getInstructionOrderNumber())) {
-                                            instructionsExecuted.add(currentInstruction);
-                                        }
-
-                                        success = true;
-                                    } catch (Exception ex) {
-                                        resultActions = "Failed to Execute -> " + currentInstruction.getName() + " --> "
-                                                + currentInstruction.getOperation();
-                                        success = false;
-
-                                        resultActions = performAction.blockGotoFailed(resultActions);
+                                    // Assuming currentInstruction and instructionsExecuted are already defined
+                                    if (currentInstruction != null
+                                            && instructionsExecuted.stream()
+                                                    .noneMatch(instruction -> instruction.getInstructionOrderNumber()
+                                                            == currentInstruction.getInstructionOrderNumber())) {
+                                        instructionsExecuted.add(currentInstruction);
                                     }
 
-                                    long duration = performAction.duration(currentInstructionStartTime);
-                                    performAction.excelReportWrite(
-                                            success, currentInstruction, duration, dataExcel, writerReport);
-                                    totalExecutionTime += duration;
+                                    success = true;
+                                } catch (Exception ex) {
+                                    resultActions = "Failed to Execute -> " + currentInstruction.getName() + " --> "
+                                            + currentInstruction.getOperation();
+                                    success = false;
 
-                                    status = performAction.operationLog(
-                                            success,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            resultActions,
-                                            lastInstructionExecuted,
-                                            duration);
-                                    if (success) {
-                                        continue outerLoop;
-                                    } else {
-                                        stopAll = true;
+                                    resultActions = performAction.blockGotoFailed(resultActions);
+                                }
+
+                                long duration = performAction.duration(currentInstructionStartTime);
+                                performAction.excelReportWrite(
+                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                totalExecutionTime += duration;
+
+                                status = performAction.operationLog(
+                                        success,
+                                        currentInstruction.isOptional()
+                                                ? "OPTIONAL INSTRUCTION"
+                                                : "MANDATORY INSTRUCTION",
+                                        resultActions,
+                                        lastInstructionExecuted,
+                                        duration);
+                                if (success) {
+                                    continue outerLoop;
+                                } else {
+                                    stopAll = true;
+                                }
+
+                            } else if (!execOperation && !checkOperation && !excelWriteOperation) {
+                                dataExcel = extractedData.getRowFieldValues(i);
+
+                                lastInstructionExecuted = currentInstruction.getName()
+                                        + Constants.BLANK_STRING
+                                        + currentInstruction.getPath();
+
+                                resultActions = performAction.performActions(
+                                        dataExcel, currentInstruction, botJobId, blockLoad.getName());
+
+                                if (resultActions != null) {
+                                    currentInstruction.setExecuted(true);
+                                    // Assuming currentInstruction and instructionsExecuted are already defined
+                                    if (currentInstruction != null
+                                            && instructionsExecuted.stream()
+                                                    .noneMatch(instruction -> instruction.getInstructionOrderNumber()
+                                                            == currentInstruction.getInstructionOrderNumber())) {
+                                        instructionsExecuted.add(currentInstruction);
                                     }
+                                    success = true;
+                                } else {
+                                    resultActions = "Failed to Execute -> " + currentInstruction.getName();
+                                    success = false;
+                                }
 
-                                } else if (!execOperation && !checkOperation && !excelWriteOperation) {
-                                    dataExcel = extractedData.getRowFieldValues(i);
+                                long duration = performAction.duration(currentInstructionStartTime);
+                                performAction.excelReportWrite(
+                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                totalExecutionTime += duration;
 
-                                    lastInstructionExecuted = currentInstruction.getName()
-                                            + Constants.BLANK_STRING
-                                            + currentInstruction.getPath();
+                                status = performAction.operationLog(
+                                        success,
+                                        currentInstruction.isOptional()
+                                                ? "OPTIONAL INSTRUCTION"
+                                                : "MANDATORY INSTRUCTION",
+                                        resultActions,
+                                        lastInstructionExecuted,
+                                        duration);
 
-                                    resultActions = performAction.performActions(
-                                            dataExcel, currentInstruction, botJobId, blockLoad.getName());
+                            } else if (execOperation) {
+                                // Special Operators
+                                lastInstructionExecuted = currentInstruction.getName()
+                                        + Constants.BLANK_STRING
+                                        + currentInstruction.getActions()
+                                        + Constants.BLANK_STRING
+                                        + currentInstruction.getOperation();
+
+                                if (operations.length == 2) {
+                                    resultActions = performAction.performActionOperator(
+                                            currentInstruction,
+                                            xPathOperation,
+                                            actions[0],
+                                            operations,
+                                            parentField,
+                                            mapOperators);
 
                                     if (resultActions != null) {
                                         currentInstruction.setExecuted(true);
-                                        // Assuming currentInstruction and instructionsExecuted are already defined
+
+                                        // Assuming currentInstruction and instructionsExecuted are already
+                                        // defined
                                         if (currentInstruction != null
                                                 && instructionsExecuted.stream()
                                                         .noneMatch(
@@ -2911,40 +2958,129 @@ public class ABRScannedElementPane extends ABRPane {
                                         }
                                         success = true;
                                     } else {
-                                        resultActions = "Failed to Execute -> " + currentInstruction.getName();
+                                        resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
                                         success = false;
                                     }
 
-                                    long duration = performAction.duration(currentInstructionStartTime);
-                                    performAction.excelReportWrite(
-                                            success, currentInstruction, duration, dataExcel, writerReport);
-                                    totalExecutionTime += duration;
+                                } else {
+                                    resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                    success = false;
+                                }
 
-                                    status = performAction.operationLog(
-                                            success,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            resultActions,
-                                            lastInstructionExecuted,
-                                            duration);
+                                long duration = performAction.duration(currentInstructionStartTime);
+                                performAction.excelReportWrite(
+                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                totalExecutionTime += duration;
 
-                                } else if (execOperation) {
-                                    // Special Operators
-                                    lastInstructionExecuted = currentInstruction.getName()
-                                            + Constants.BLANK_STRING
-                                            + currentInstruction.getActions()
-                                            + Constants.BLANK_STRING
-                                            + currentInstruction.getOperation();
+                                status = performAction.operationLog(
+                                        success,
+                                        currentInstruction.isOptional()
+                                                ? "OPTIONAL INSTRUCTION"
+                                                : "MANDATORY INSTRUCTION",
+                                        resultActions,
+                                        lastInstructionExecuted,
+                                        duration);
 
-                                    if (operations.length == 2) {
-                                        resultActions = performAction.performActionOperator(
-                                                currentInstruction,
-                                                xPathOperation,
-                                                actions[0],
-                                                operations,
-                                                parentField,
-                                                mapOperators);
+                            } else if (checkOperation) {
+                                // Check Validation Operator
+                                lastInstructionExecuted = currentInstruction.getName()
+                                        + Constants.BLANK_STRING
+                                        + currentInstruction.getActions()
+                                        + Constants.BLANK_STRING
+                                        + currentInstruction.getOperation();
+
+                                if (operations.length == 3) {
+                                    if (mapOperators.containsKey(parentField)) {
+                                        resultActions = "(" + parentField + ")" + String.join(":", operations);
+                                        boolean isOperationValid = false;
+                                        if (operations[1].equalsIgnoreCase("=")) {
+                                            isOperationValid = mapOperators
+                                                    .get(parentField)
+                                                    .equalsIgnoreCase(operations[2]);
+
+                                        } else if (operations[1].equalsIgnoreCase(">")) {
+                                            isOperationValid = mapOperators
+                                                    .get(parentField)
+                                                    .equalsIgnoreCase(operations[2]);
+                                        }
+
+                                        if (isOperationValid) {
+                                            currentInstruction.setExecuted(true);
+
+                                            // Assuming currentInstruction and instructionsExecuted are already
+                                            // defined
+                                            if (currentInstruction != null
+                                                    && instructionsExecuted.stream()
+                                                            .noneMatch(instruction ->
+                                                                    instruction.getInstructionOrderNumber()
+                                                                            == currentInstruction
+                                                                                    .getInstructionOrderNumber())) {
+                                                instructionsExecuted.add(currentInstruction);
+                                            }
+                                            success = true;
+
+                                        } else {
+                                            resultActions = performAction.checkValidationFailed(
+                                                    parentField, lastInstructionExecuted, operations);
+
+                                            stopAll = true;
+                                            success = false;
+                                        }
+
+                                    } else {
+                                        resultActions = performAction.getValueIsNotDefined(
+                                                currentInstruction, lastInstructionExecuted);
+                                        stopAll = true;
+                                        success = false;
+                                    }
+
+                                } else {
+                                    resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                    success = false;
+                                }
+
+                                long duration = performAction.duration(currentInstructionStartTime);
+                                performAction.excelReportWrite(
+                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                totalExecutionTime += duration;
+
+                                status = performAction.operationLog(
+                                        success,
+                                        currentInstruction.isOptional()
+                                                ? "OPTIONAL INSTRUCTION"
+                                                : "MANDATORY INSTRUCTION",
+                                        resultActions,
+                                        lastInstructionExecuted,
+                                        duration);
+
+                            } else if (excelWriteOperation) {
+                                // Excel Write Operator
+                                lastInstructionExecuted = currentInstruction.getName()
+                                        + Constants.BLANK_STRING
+                                        + currentInstruction.getActions()
+                                        + Constants.BLANK_STRING
+                                        + currentInstruction.getOperation();
+
+                                if (operations.length == 2) {
+                                    if (mapOperators.containsKey(parentField)) {
+
+                                        if (excelExportOnceCreation) {
+                                            writerExport.insertReportHead();
+                                            excelExportOnceCreation = false;
+                                        }
+
+                                        resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
+                                                + mapOperators.get(parentField);
+                                        if (mapExport.size() == 0) {
+                                            writerExport.insertBlockSeparation(blockLoad.getName());
+                                            exportIndex *= 2;
+                                        }
+
+                                        mapExport.put(parentField, mapOperators.get(parentField));
+                                        // Insert the updated mapExport into the Excel after each instruction
+                                        writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex);
+
+                                        performAction.onHoldForSeconds(null);
 
                                         if (resultActions != null) {
                                             currentInstruction.setExecuted(true);
@@ -2966,209 +3102,69 @@ public class ABRScannedElementPane extends ABRPane {
                                         }
 
                                     } else {
-                                        resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                        resultActions = performAction.getValueIsNotDefined(
+                                                currentInstruction, lastInstructionExecuted);
+                                        stopAll = true;
                                         success = false;
+                                        break;
                                     }
 
-                                    long duration = performAction.duration(currentInstructionStartTime);
-                                    performAction.excelReportWrite(
-                                            success, currentInstruction, duration, dataExcel, writerReport);
-                                    totalExecutionTime += duration;
-
-                                    status = performAction.operationLog(
-                                            success,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            resultActions,
-                                            lastInstructionExecuted,
-                                            duration);
-
-                                } else if (checkOperation) {
-                                    // Check Validation Operator
-                                    lastInstructionExecuted = currentInstruction.getName()
-                                            + Constants.BLANK_STRING
-                                            + currentInstruction.getActions()
-                                            + Constants.BLANK_STRING
-                                            + currentInstruction.getOperation();
-
-                                    if (operations.length == 3) {
-                                        if (mapOperators.containsKey(parentField)) {
-                                            resultActions = "(" + parentField + ")" + String.join(":", operations);
-                                            boolean isOperationValid = false;
-                                            if (operations[1].equalsIgnoreCase("=")) {
-                                                isOperationValid = mapOperators
-                                                        .get(parentField)
-                                                        .equalsIgnoreCase(operations[2]);
-
-                                            } else if (operations[1].equalsIgnoreCase(">")) {
-                                                isOperationValid = mapOperators
-                                                        .get(parentField)
-                                                        .equalsIgnoreCase(operations[2]);
-                                            }
-
-                                            if (isOperationValid) {
-                                                currentInstruction.setExecuted(true);
-
-                                                // Assuming currentInstruction and instructionsExecuted are already
-                                                // defined
-                                                if (currentInstruction != null
-                                                        && instructionsExecuted.stream()
-                                                                .noneMatch(instruction ->
-                                                                        instruction.getInstructionOrderNumber()
-                                                                                == currentInstruction
-                                                                                        .getInstructionOrderNumber())) {
-                                                    instructionsExecuted.add(currentInstruction);
-                                                }
-                                                success = true;
-
-                                            } else {
-                                                resultActions = performAction.checkValidationFailed(
-                                                        parentField, lastInstructionExecuted, operations);
-
-                                                stopAll = true;
-                                                success = false;
-                                            }
-
-                                        } else {
-                                            resultActions = performAction.getValueIsNotDefined(
-                                                    currentInstruction, lastInstructionExecuted);
-                                            stopAll = true;
-                                            success = false;
-                                        }
-
-                                    } else {
-                                        resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                        success = false;
-                                    }
-
-                                    long duration = performAction.duration(currentInstructionStartTime);
-                                    performAction.excelReportWrite(
-                                            success, currentInstruction, duration, dataExcel, writerReport);
-                                    totalExecutionTime += duration;
-
-                                    status = performAction.operationLog(
-                                            success,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            resultActions,
-                                            lastInstructionExecuted,
-                                            duration);
-
-                                } else if (excelWriteOperation) {
-                                    // Excel Write Operator
-                                    lastInstructionExecuted = currentInstruction.getName()
-                                            + Constants.BLANK_STRING
-                                            + currentInstruction.getActions()
-                                            + Constants.BLANK_STRING
-                                            + currentInstruction.getOperation();
-
-                                    if (operations.length == 2) {
-                                        if (mapOperators.containsKey(parentField)) {
-
-                                            if (excelExportOnceCreation) {
-                                                writerExport.insertReportHead();
-                                                excelExportOnceCreation = false;
-                                            }
-
-                                            resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
-                                                    + mapOperators.get(parentField);
-                                            if (mapExport.size() == 0) {
-                                                writerExport.insertBlockSeparation(blockLoad.getName());
-                                                exportIndex *= 2;
-                                            }
-
-                                            mapExport.put(parentField, mapOperators.get(parentField));
-                                            // Insert the updated mapExport into the Excel after each instruction
-                                            writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex);
-
-                                            performAction.onHoldForSeconds(null);
-
-                                            if (resultActions != null) {
-                                                currentInstruction.setExecuted(true);
-
-                                                // Assuming currentInstruction and instructionsExecuted are already
-                                                // defined
-                                                if (currentInstruction != null
-                                                        && instructionsExecuted.stream()
-                                                                .noneMatch(instruction ->
-                                                                        instruction.getInstructionOrderNumber()
-                                                                                == currentInstruction
-                                                                                        .getInstructionOrderNumber())) {
-                                                    instructionsExecuted.add(currentInstruction);
-                                                }
-                                                success = true;
-                                            } else {
-                                                resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                                success = false;
-                                            }
-
-                                        } else {
-                                            resultActions = performAction.getValueIsNotDefined(
-                                                    currentInstruction, lastInstructionExecuted);
-                                            stopAll = true;
-                                            success = false;
-                                            break;
-                                        }
-
-                                    } else {
-                                        resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
-                                        success = false;
-                                    }
-
-                                    long duration = performAction.duration(currentInstructionStartTime);
-                                    performAction.excelReportWrite(
-                                            success, currentInstruction, duration, dataExcel, writerReport);
-                                    totalExecutionTime += duration;
-
-                                    status = performAction.operationLog(
-                                            success,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            resultActions,
-                                            lastInstructionExecuted,
-                                            duration);
+                                } else {
+                                    resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                    success = false;
                                 }
-
-                            } catch (Throwable t) {
-                                stopAll = true;
-                                success = false;
-                                currentInstruction.setExecuted(false);
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        false, currentInstruction, duration, dataExcel, writerReport);
+                                        success, currentInstruction, duration, dataExcel, writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
-                                        false,
+                                        success,
                                         currentInstruction.isOptional()
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
                                         resultActions,
                                         lastInstructionExecuted,
                                         duration);
-
-                                //                            throw new RuntimeException(t);
                             }
 
-                            printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
+                        } catch (Throwable t) {
+                            stopAll = true;
+                            success = false;
+                            currentInstruction.setExecuted(false);
 
-                            if (!success) {
-                                countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
-                                countdownTextField.setText(resultActions);
-                                stopAll = true;
-                                break;
-                                //                                return false;
-                            }
+                            long duration = performAction.duration(currentInstructionStartTime);
+                            performAction.excelReportWrite(
+                                    false, currentInstruction, duration, dataExcel, writerReport);
+                            totalExecutionTime += duration;
 
-                            if (resultActions.equalsIgnoreCase("Close Browser")) {
-                                stopAll = true;
-                                break;
-                            }
+                            status = performAction.operationLog(
+                                    false,
+                                    currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
+                                    resultActions,
+                                    lastInstructionExecuted,
+                                    duration);
+
+                            //                            throw new RuntimeException(t);
                         }
+
+                        printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
+
+                        if (!success) {
+                            countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
+                            countdownTextField.setText(resultActions);
+                            stopAll = true;
+                            break;
+                            //                                return false;
+                        }
+
+                        if (resultActions.equalsIgnoreCase("Close Browser")) {
+                            stopAll = true;
+                            break;
+                        }
+                        // }     END IF (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted())
+                        // ...
                     }
                 }
                 currentBlock++;

@@ -1049,6 +1049,10 @@ public class ABRNewCommandPane extends ABRPane {
 
                             // Move the UI update to the JavaFX Application Thread
                             Platform.runLater(() -> {
+                                // This makes insertion in a Roll after the Target Position
+                                int targetOrderNumber =
+                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+                                rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
                                 new ABRAlertScene(
                                         Alert.AlertType.INFORMATION,
                                         "Instruction Added",
