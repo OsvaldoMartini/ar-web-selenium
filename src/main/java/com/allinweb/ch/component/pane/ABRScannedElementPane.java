@@ -2705,10 +2705,11 @@ public class ABRScannedElementPane extends ABRPane {
 
         mapOperators = new HashMap<>();
         mapExport = new HashMap<>();
-        int executionTimes = 200;
+        int executionTimes = 0;
+        int execLimitReach = 0;
         String limitReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.PROCESS_LIMIT);
         if (limitReach != null) {
-            executionTimes = Integer.parseInt(limitReach);
+            execLimitReach = Integer.parseInt(limitReach);
         }
 
         int exportIndex = 1;
@@ -2718,7 +2719,7 @@ public class ABRScannedElementPane extends ABRPane {
             while (currentBlock <= blocksLoaded.size() - 1
                     && blocksLoaded.size() > 0
                     && !stopAll
-                    && executionTimes < 200) {
+                    && executionTimes < execLimitReach) {
                 instructionsExecuted.clear();
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                 executionTimes++;
@@ -3170,10 +3171,10 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                     }
                 }
-                //                currentBlock++;
+                currentBlock++;
             }
 
-            if (executionTimes >= 200) {
+            if (executionTimes >= execLimitReach) {
                 performAction.alertExecutionTimes(executionTimes, lastInstructionExecuted);
             }
 

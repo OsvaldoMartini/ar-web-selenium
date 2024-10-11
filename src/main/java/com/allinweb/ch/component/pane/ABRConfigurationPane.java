@@ -523,37 +523,33 @@ public class ABRConfigurationPane extends ABRPane {
         // Build the SQL delete statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            String deleteSQL = "DELETE FROM job_run_report;"
-                    + "DELETE FROM variable;"
-                    + "DELETE FROM instruction_reference;"
-                    + "DELETE FROM block_loop_instruction;"
-                    + "DELETE FROM block;"
-                    + "DELETE FROM bot_job;"
-                    + "DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";"
-                    + "DROP SEQUENCE IF EXISTS \"blockSeq\";"
-                    + "DROP SEQUENCE IF EXISTS \"botJobSeq\";"
-                    + "DROP SEQUENCE IF EXISTS \"variableSeq\";"
-                    + "DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";"
-                    + "DROP SEQUENCE IF EXISTS \"excelReportSeq\";";
+            // Execute each statement individually
+            stmt.executeUpdate("DELETE FROM job_run_report;");
+            stmt.executeUpdate("DELETE FROM variable;");
+            stmt.executeUpdate("DELETE FROM instruction_reference;");
+            stmt.executeUpdate("DELETE FROM block_loop_instruction;");
+            stmt.executeUpdate("DELETE FROM block;");
+            stmt.executeUpdate("DELETE FROM bot_job;");
 
-            // Execute the update statement and check if any rows were affected
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
-                        .info("All Rows DELETED for:\n"
-                                + "ExcelReportDTO;\n"
-                                + "Variables;\n"
-                                + "Instructions References;\n"
-                                + "Instructions;\n"
-                                + "Blocks;\n"
-                                + "Bot Jobs;"
-                                + "SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";"
-                                + "SEQUENCE IF EXISTS \"blockSeq\";"
-                                + "SEQUENCE IF EXISTS \"botJobSeq\";"
-                                + "SEQUENCE IF EXISTS \"variableSeq\";"
-                                + "SEQUENCE IF EXISTS \"instructionReferenceSeq\";"
-                                + "SEQUENCE IF EXISTS \"excelReportSeq\";");
+            // Drop sequences if they exist
+            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
             }
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .info("All Rows DELETED for:\n"
+                            + "ExcelReportDTO;\n"
+                            + "Variables;\n"
+                            + "Instructions References;\n"
+                            + "Instructions;\n"
+                            + "Blocks;\n"
+                            + "Bot Jobs;\n"
+                            + "Sequences dropped.");
+
             return true;
 
         } catch (SQLException e) {
@@ -566,12 +562,7 @@ public class ABRConfigurationPane extends ABRPane {
                             + "Instructions;\n"
                             + "Blocks;\n"
                             + "Bot Jobs;\n"
-                            + "SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";\n"
-                            + "SEQUENCE IF EXISTS \"blockSeq\";\n"
-                            + "SEQUENCE IF EXISTS \"botJobSeq\";\n"
-                            + "SEQUENCE IF EXISTS \"variableSeq\";\n"
-                            + "SEQUENCE IF EXISTS \"instructionReferenceSeq\";\n"
-                            + "SEQUENCE IF EXISTS \"excelReportSeq\";\n"
+                            + "Sequences Not dropped\n"
                             + e.getMessage());
         }
         return false;
