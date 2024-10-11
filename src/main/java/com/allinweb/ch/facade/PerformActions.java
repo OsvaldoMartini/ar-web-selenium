@@ -565,9 +565,23 @@ public class PerformActions {
     }
 
     private void waitPage() {
-        waitForPage.until(driver -> ((JavascriptExecutor) abrWebDriver.getDriver())
-                .executeScript("return document.readyState")
-                .equals("complete"));
+        WebDriver driver = abrWebDriver.getDriver();
+        if (driver != null) {
+            try {
+
+                waitForPage.until(d -> ((JavascriptExecutor) driver)
+                        .executeScript("return document.readyState")
+                        .equals("complete"));
+            } catch (Exception ex) {
+                ABRLogger.getInstance(PerformActions.class)
+                        .warning(String.format(
+                                "WaitForPage.until(d -> ((JavascriptExecutor) driver) error:\n%s", ex.getMessage()));
+            }
+        } else {
+            // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning("WaitForPage.until(d -> ((JavascriptExecutor) driver) is returning nulls");
+        }
     }
 
     public void scrollToElement(WebElement element) throws Exception {

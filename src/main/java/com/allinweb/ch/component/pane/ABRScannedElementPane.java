@@ -1232,7 +1232,7 @@ public class ABRScannedElementPane extends ABRPane {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .info("Double clicked the element: " + abrWebElement.getXPath());
 
-                    if (abrWebElement.getSavedReferences().size() > 0) {
+                    if (abrWebElement.getSavedReferences().size() == 0) {
                         showAlertError(
                                 "ERROR ADD WEB ELEMENT",
                                 "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
