@@ -678,14 +678,20 @@ public class ABRNewCommandPane extends ABRPane {
 
         this.addInstructionButton.setOnMouseClicked((e) -> {
             // Check if the current selected index is greater than the first index
-            if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
-                showAlert(
-                        "No Variable Defined",
-                        "Define a variable for: \"" + comboBoxWebPage.getValue().getText() + "\"");
-                return;
-            } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
-                showAlert("No Web Fields Defined", "Select Web Fields (Web Elements)!");
-                return;
+
+            if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.IF_ELSE)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)) {
+
+                if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
+                    showAlert(
+                            "No Variable Defined",
+                            "Define a variable for: \""
+                                    + comboBoxWebPage.getValue().getText() + "\"");
+                    return;
+                } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
+                    showAlert("No Web Fields Defined", "Select Web Fields (Web Elements)!");
+                    return;
+                }
             }
 
             if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("setValue")) {
@@ -1181,7 +1187,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                 // Run the loop for adding multiple instructions
                 String nextAction = null;
-                for (int added = endifCount - 1; added >= 0; added--) {
+                for (int added = endifCount; added >= 1; added--) {
 
                     boolean isShowAlert = added == 1;
 
