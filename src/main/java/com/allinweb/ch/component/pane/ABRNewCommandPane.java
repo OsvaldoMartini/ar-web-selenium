@@ -582,8 +582,7 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
-                if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())
-                        || ABRConstants.IF_ELSE.equalsIgnoreCase(newValue.getValue())) {
+                if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())) {
                     botJobVarsLabel.setText("Bot-Job Variable");
 
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
@@ -602,9 +601,12 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setPrefWidth(buttonWidth);
                     comboBoxBlocks.setVisible(false);
                 } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
-                    botJobVarsLabel.setText("Block Destine");
+                    defineTextFlow(comboBoxInstruc.getValue().getValue());
 
-                    textFlow.setVisible(false);
+                    botJobVarsLabel.setText("Block Destination");
+
+                    textFlow.setVisible(true);
+                    textFlow.setPrefWidth(buttonWidth + 100);
 
                     webPageLabel.setVisible(false);
                     comboBoxOperator.setVisible(false);
@@ -615,6 +617,20 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setVisible(false);
                     comboBoxBlocks.setVisible(true);
                     comboBoxBlocks.setPrefWidth(buttonWidth);
+                } else if (ABRConstants.IF_ELSE.equalsIgnoreCase(newValue.getValue())) {
+                    defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+                    textFlow.setVisible(true);
+                    textFlow.setPrefWidth(buttonWidth + 100);
+
+                    botJobVarsLabel.setVisible(false);
+                    webPageLabel.setVisible(false);
+                    comboBoxBlocks.setVisible(false);
+                    comboBoxOperator.setVisible(false);
+                    comboBoxWebPage.setVisible(false);
+                    valueToBeChecked.setVisible(false);
+                    variableButton.setVisible(false);
+                    comboBoxVars.setVisible(false);
                 } else {
                     botJobVarsLabel.setText("Bot-Job Variable");
 
@@ -632,7 +648,8 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setPrefWidth(buttonWidth);
                     comboBoxBlocks.setVisible(false);
 
-                    if (ABRConstants.GET_VALUE.equalsIgnoreCase(newValue.getValue())) {
+                    if (ABRConstants.GET_VALUE.equalsIgnoreCase(newValue.getValue())
+                            || ABRConstants.EXTRACT_FIELD.equalsIgnoreCase(newValue.getValue())) {
                         valueToBeChecked.setVisible(false);
                         textFlow.setPrefWidth(buttonWidth + 100);
                     } else {
@@ -643,8 +660,16 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
 
-        // Add a listener to comboBoxInstruc to handle selection changes
+        // Add a listener to comboBoxVars to handle selection changes
         comboBoxVars.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                // Set the visibility of comboBoxOperator based on the selected value
+                defineTextFlow(comboBoxInstruc.getValue().getValue());
+            }
+        });
+
+        // Add a listener to comboBoxBlocks to handle selection changes
+        comboBoxBlocks.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
                 defineTextFlow(comboBoxInstruc.getValue().getValue());
@@ -719,6 +744,16 @@ public class ABRNewCommandPane extends ABRPane {
                         "GOTO",
                         "GOTO",
                         ABRConstants.GOTO,
+                        1,
+                        comboBoxBlocks.getValue().getText(),
+                        comboBoxBlocks.getValue().getVarId(), // Block Order Number as VarId
+                        comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
+                        this.rowMoveDTO);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF ELSE")) {
+                addInstruction(
+                        "IF",
+                        "IF",
+                        ABRConstants.IF_ELSE,
                         1,
                         comboBoxBlocks.getValue().getText(),
                         comboBoxBlocks.getValue().getVarId(), // Block Order Number as VarId
@@ -806,23 +841,40 @@ public class ABRNewCommandPane extends ABRPane {
             webFieldName = comboBoxWebPage.getValue().getText();
         }
 
-        regularText.setText(
-                ABRConstants.GET_VALUE.equalsIgnoreCase(newValue)
-                        ? "GET: "
-                        : ABRConstants.SET_VALUE.equalsIgnoreCase(newValue) ? "SET: " : " CHECK: ");
-
         if (comboBoxWebPage != null && comboBoxWebPage.getValue() != null) {
-            variableText1.setText(
-                    ABRConstants.GET_VALUE.equalsIgnoreCase(newValue)
-                            ? " Get Variable value from  "
-                            : ABRConstants.SET_VALUE.equalsIgnoreCase(newValue)
-                                    ? " Set Web Field "
-                                    : " Check variable ");
-            variableText2.setText(
-                    ABRConstants.GET_VALUE.equalsIgnoreCase(newValue)
-                                    || ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue)
-                            ? variableName
-                            : webFieldName);
+            // Switch based on newValue and update variableText1 accordingly
+            switch (newValue.toUpperCase()) {
+                case ABRConstants.EXTRACT_FIELD:
+                    regularText.setText("Excel Write: ");
+                    variableText1.setText(" Excel Write value from ");
+                    variableText2.setText(variableName);
+                    break;
+                case ABRConstants.GET_VALUE:
+                    regularText.setText("GET: ");
+                    variableText1.setText(" Get Variable value from ");
+                    variableText2.setText(variableName);
+                    break;
+                case ABRConstants.SET_VALUE:
+                    regularText.setText("SET: ");
+                    variableText1.setText(" Set Web Field ");
+                    variableText2.setText(webFieldName);
+                    break;
+                case ABRConstants.GOTO:
+                    regularText.setText("GO TO: ");
+                    variableText1.setText(" Go to The Block ");
+                    variableText2.setText(comboBoxBlocks.getValue().getText());
+                    break;
+                case ABRConstants.IF_ELSE:
+                    regularText.setText("IF: ");
+                    variableText1.setText(" IF ELSE ");
+                    variableText2.setText("SPECIAL COMMAND");
+                    break;
+                default:
+                    regularText.setText("CHECK: ");
+                    variableText1.setText(" Check variable ");
+                    variableText2.setText(variableName);
+                    break;
+            }
         }
     }
 
@@ -1074,15 +1126,6 @@ public class ABRNewCommandPane extends ABRPane {
 
             loadBlocksForBotJob(rowMoveDTO.getBotJobId());
 
-            //            // Create a label to display the instruction
-            //            Label newInstruction = new Label("\"" + name + "\" -> \""
-            //                    + (operation.length() > 0
-            //                            ? operation
-            //                            : rowMoveDTO != null ? rowMoveDTO.getBlockName() : botJob.getName())
-            //                    + "\"");
-            //
-            //            newInstruction.setStyle("-fx-font-size: 18px;");
-
             Text newText = new Text("");
             newText.setFill(Color.DARKCYAN); // Set regular text color to black
             newText.setText(valueToBeChecked.getText());
@@ -1195,11 +1238,11 @@ public class ABRNewCommandPane extends ABRPane {
                     }
                 };
                 new Thread(waitTask).start();
-            } else {
-                textFlow.getChildren().clear();
-                textFlow.getChildren().addAll(regularText, variableText1, variableText2);
             }
         });
+
+        textFlow.getChildren().clear();
+        textFlow.getChildren().addAll(regularText, variableText1, variableText2);
     }
 
     private boolean reorderInstructions(List<InstructionDTO> rowList) {
