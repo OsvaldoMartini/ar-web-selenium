@@ -755,7 +755,7 @@ public class ABRNewCommandPane extends ABRPane {
                         "IF",
                         ABRConstants.IF_ELSE,
                         1,
-                        comboBoxBlocks.getValue().getText(),
+                        "IF",
                         comboBoxBlocks.getValue().getVarId(), // Block Order Number as VarId
                         comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
@@ -1147,7 +1147,10 @@ public class ABRNewCommandPane extends ABRPane {
             combinedTextContainer.setSpacing(5); // Add some spacing between the texts
 
             // Combine the texts using TextFlow
-            TextFlow textFlow2;
+
+            Text extra = new Text(" value ");
+            extra.setStyle("-fx-font-size: 18px;");
+
             if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)
                     || (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE))) {
                 combinedTextContainer
@@ -1157,7 +1160,7 @@ public class ABRNewCommandPane extends ABRPane {
                                 variableText1Styled,
                                 arrowText,
                                 variableText2Styled,
-                                new Text(" value "),
+                                extra,
                                 newTextStyled);
             } else {
                 combinedTextContainer
@@ -1173,95 +1176,32 @@ public class ABRNewCommandPane extends ABRPane {
 
             if (alertResponse) {
 
-                List<InstructionDTO> rowList = null;
-                if (rowMoveDTO != null) {
-                    //                    rowList =
-                    // ABRSharedResources.getInstance().getInstructionsByBlockId(rowMoveDTO.getBlockId());
-                    rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
-                }
+                // Handle loop outside Platform.runLater to ensure multiple iterations
+                int endifCount = actions.equalsIgnoreCase(ABRConstants.IF_ELSE) ? 2 : 1;
 
-                reorderInstructions(rowList);
+                // Run the loop for adding multiple instructions
+                String nextAction = null;
+                for (int added = endifCount - 1; added >= 0; added--) {
 
-                preInsertStep(rowMoveDTO, rowList);
+                    boolean isShowAlert = added == 1;
 
-                List<BlockLoopInstructionLoadDTO> instructionList = null;
-                List<BlockLoadDTO> matchingBlocks = null;
+                    // Run the instruction add in a separate Task
+                    runAddInstructionTask(
+                            nextAction == null ? name : nextAction,
+                            nextAction == null ? description : nextAction,
+                            nextAction == null ? actions : nextAction,
+                            nextAction == null ? operation : nextAction,
+                            onHold,
+                            varId,
+                            instructionId,
+                            rowMoveDTO,
+                            botJob,
+                            isShowAlert);
 
-                if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-                    int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
-
-                    matchingBlocks = blockLoadList.stream()
-                            .filter(block -> block.getId() == targetBlockId)
-                            .collect(Collectors.toList());
-                }
-
-                List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
-                List<InstructionDTO> finalInstructionList = rowList;
-                Task<Void> waitTask = new Task<>() {
-                    @Override
-                    protected Void call() throws Exception {
-                        try {
-                            BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
-                            instruction.setName(name);
-                            instruction.setDescription(description);
-                            instruction.setOperation(operation);
-                            instruction.setVariableId(varId);
-                            instruction.setParentId(instructionId);
-                            instruction.setEncrypted(false);
-                            instruction.setExportToABR(true);
-                            if (rowMoveDTO != null
-                                    && rowMoveDTO.getUpdatedRows().size() > 0) {
-                                if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
-                                    instruction.setInstructionOrderNumber(
-                                            rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
-                                } else {
-                                    instruction.setInstructionOrderNumber(
-                                            rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
-                                }
-                            } else {
-                                instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
-                            }
-                            instruction.setOptional(false);
-                            instruction.setActions(actions);
-                            instruction.setActionCustomMaxWaitSec(30);
-                            instruction.setOnHoldSeconds(onHold);
-                            if (finalMatchingBlocks != null) {
-                                instruction.setBlock(ABRSharedResources.getInstance()
-                                        .getEntityById(
-                                                BlockDTO.class,
-                                                finalMatchingBlocks.get(0).getId()));
-                            } else {
-                                instruction.setBlock(botJob.getBlocks().get(0));
-                            }
-                            instruction.setExportToABR(false);
-
-                            // Wrap the persistence in a try-catch block
-                            try {
-                                ABRSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
-                            } catch (Exception e) {
-                                System.err.println("Error while saving instruction: " + e.getMessage());
-                                e.printStackTrace();
-                            }
-
-                            // Move the UI update to the JavaFX Application Thread
-                            Platform.runLater(() -> {
-                                // This makes insertion in a Roll after the Target Position
-                                int targetOrderNumber =
-                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
-                                rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
-                                new ABRAlertScene(
-                                        Alert.AlertType.INFORMATION,
-                                        "Instruction Added",
-                                        "Instruction " + instruction.getName() + " has been added successfully",
-                                        ButtonType.OK);
-                            });
-                        } catch (Exception ex) {
-                            ex.printStackTrace(); // Handle any exception
-                        }
-                        return null;
+                    if (Strings.isNullOrEmpty(nextAction)) {
+                        nextAction = ABRConstants.ENDIF;
                     }
-                };
-                new Thread(waitTask).start();
+                }
             }
         });
     }
@@ -1458,11 +1398,119 @@ public class ABRNewCommandPane extends ABRPane {
         return blockLoadList;
     }
 
-    private void showAlertConfirm(String title, String header, String content) {
+    private void showAlertError(String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private void runAddInstructionTask(
+            String name,
+            String description,
+            String actions,
+            String operation,
+            Integer onHold,
+            Integer varId,
+            Integer instructionId,
+            RowMoveDTO rowMoveDTO,
+            BotJobDTO botJob,
+            boolean isShowAlert) {
+
+        List<InstructionDTO> rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
+
+        reorderInstructions(rowList);
+
+        preInsertStep(rowMoveDTO, rowList);
+
+        List<BlockLoopInstructionLoadDTO> instructionList = null;
+        List<BlockLoadDTO> matchingBlocks = null;
+
+        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+            int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
+
+            matchingBlocks = blockLoadList.stream()
+                    .filter(block -> block.getId() == targetBlockId)
+                    .collect(Collectors.toList());
+        }
+
+        List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
+        List<InstructionDTO> finalInstructionList = rowList;
+        Task<Void> waitTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+
+                    instruction.setName(name);
+
+                    instruction.setEncrypted(false);
+                    instruction.setExportToABR(true);
+                    if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+                        if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
+                            instruction.setInstructionOrderNumber(
+                                    rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+                        } else {
+                            instruction.setInstructionOrderNumber(
+                                    rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
+                        }
+                    } else {
+                        instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
+                    }
+                    instruction.setOptional(false);
+
+                    instruction.setVariableId(varId);
+                    instruction.setParentId(instructionId);
+
+                    instruction.setOperation(operation);
+                    instruction.setActions(actions);
+                    instruction.setDescription(description);
+
+                    instruction.setActionCustomMaxWaitSec(30);
+                    instruction.setOnHoldSeconds(onHold);
+                    if (finalMatchingBlocks != null) {
+                        instruction.setBlock(ABRSharedResources.getInstance()
+                                .getEntityById(
+                                        BlockDTO.class,
+                                        finalMatchingBlocks.get(0).getId()));
+                    } else {
+                        instruction.setBlock(botJob.getBlocks().get(0));
+                    }
+                    instruction.setExportToABR(false);
+
+                    // Wrap the persistence in a try-catch block
+                    try {
+                        ABRSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
+                    } catch (Exception e) {
+                        System.err.println("Error while saving instruction: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+
+                    // Move the UI update to the JavaFX Application Thread
+                    Platform.runLater(() -> {
+                        // This makes insertion in a Roll after the Target Position
+                        int targetOrderNumber =
+                                rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+                        rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
+                        if (isShowAlert) {
+                            new ABRAlertScene(
+                                    Alert.AlertType.INFORMATION,
+                                    "Instruction Added",
+                                    "Instruction " + instruction.getName() + " has been added successfully",
+                                    ButtonType.OK);
+                        }
+                    });
+                } catch (Exception ex) {
+                    ABRLogger.getInstance(ABRWebDriver.class)
+                            .severe(String.format("Error Adding new instruction.\nError: %s", ex.getMessage()));
+
+                    showAlertError("Error Add New Instruction", "Not possible to inser new Operation", ex.getMessage());
+                }
+                return null;
+            }
+        };
+
+        new Thread(waitTask).start();
     }
 }

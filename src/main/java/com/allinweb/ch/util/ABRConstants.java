@@ -101,6 +101,7 @@ public class ABRConstants {
     public static final String GET_VALUE = "GET";
     public static final String CHECK_VALUE = "CK";
     public static final String IF_ELSE = "IF";
+    public static final String ENDIF = "ENDIF";
     public static final String GOTO = "GOTO";
     public static final String FIND_ALL_CHILD_ELEMENTS = ".//*";
 
