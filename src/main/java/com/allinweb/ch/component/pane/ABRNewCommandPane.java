@@ -52,6 +52,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
@@ -78,10 +80,13 @@ public class ABRNewCommandPane extends ABRPane {
     Label commandLabel;
     Label botJobVarsLabel;
     Label webPageLabel;
-    Label valueLabel;
+    Text regularText;
+    Text variableText1;
+    Text variableText2;
+    TextFlow textFlow;
 
     TextField nameField;
-    TextField valueCheckField;
+    TextField valueToBeChecked;
 
     private Button variableButton;
 
@@ -90,6 +95,9 @@ public class ABRNewCommandPane extends ABRPane {
     private Button addWaitButton5;
     private Button addCloseActionButton;
     private Button addScreenButton;
+
+    double buttonWidth = 200;
+    double comboxWidth = 50;
 
     Button addInstructionButton;
     Button cancelButton;
@@ -189,11 +197,19 @@ public class ABRNewCommandPane extends ABRPane {
         commandLabel = new Label("Command:");
         botJobVarsLabel = new Label("Bot-Job Variable");
         webPageLabel = new Label("WebPage Field");
-        valueLabel = new Label("Value Attached");
-        valueLabel.setVisible(false);
 
-        valueCheckField = new TextField();
-        valueCheckField.setEditable(false);
+        textFlow = new TextFlow();
+        // Create regular Text for the first part of the label
+        regularText = new Text("Variable to SET : ");
+        // Create Text for the variable part and set the color to red
+        variableText1 = new Text("");
+        variableText2 = new Text("");
+        variableText1.setFill(Color.BLUE); // Set font color to blue
+        variableText2.setFill(Color.RED); // Set font color to red
+
+        textFlow.getChildren().addAll(regularText, variableText1, variableText2);
+
+        valueToBeChecked = new TextField();
 
         comboBoxInstruc = new ComboBox<>(itemsInstructions);
         comboBoxInstruc.setPrefWidth(120); // Set preferred width of ComboBox
@@ -287,19 +303,8 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
         comboBoxOperator.getSelectionModel().selectFirst();
-
         reloadComboVars();
-        //        if (variablesList != null && variablesList.size() > 0) {
-        //            List<ComboBoxVars> variablesNames = variablesList.stream()
-        //                    .map(variable -> new ComboBoxVars(
-        //                            variable.getType().substring(0, 1) + variable.getName(),
-        //                            variable.getInstructionId(),
-        //                            variable.getValue()))
-        //                    .collect(Collectors.toList());
-        //            variablesItems.addAll(variablesNames);
-        //        } else {
-        //            variablesItems.add(new ComboBoxVars("no variables added", -1, ""));
-        //        }
+
         comboBoxVars = new ComboBox<>(variablesItems);
         comboBoxVars.setButtonCell(new ListCell<>() {
             @Override
@@ -334,9 +339,6 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
         comboBoxVars.getSelectionModel().selectFirst();
-        if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() > 0) {
-            valueCheckField.setText(comboBoxVars.getValue().getValue());
-        }
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
         comboBoxBlocks.setPrefWidth(80);
@@ -411,6 +413,8 @@ public class ABRNewCommandPane extends ABRPane {
         });
         comboBoxWebPage.getSelectionModel().selectFirst();
 
+        defineTextFlow(comboBoxInstruc.getValue().getValue());
+
         String css = getClass().getResource("/button.css").toExternalForm();
 
         addInstructionButton = componentBuilder.buildButton("OK", ABRConstants.SPACE_L, Insets.EMPTY);
@@ -440,14 +444,6 @@ public class ABRNewCommandPane extends ABRPane {
         addScreenButton = componentBuilder.buildButton(
                 "Add Screenshot", ABRConstants.SPACE_L, ABRConstants.ICON_SCREEN, ABRConstants.SPACE_M, new Insets(5));
 
-        // Define a uniform width for the buttons
-        double buttonWidth = 200;
-
-        // Set the preferred width for the new buttons
-        //        addWaitButton30.setPrefWidth(80);
-        //        addWaitButton15.setPrefWidth(50);
-        //        addWaitButton5.setPrefWidth(50);
-
         // Create a new HBox for the new buttons
         HBox buttonBox = new HBox(10); // 10 is the spacing between buttons
         buttonBox
@@ -455,69 +451,101 @@ public class ABRNewCommandPane extends ABRPane {
                 .addAll(addWaitButton30, addWaitButton15, addWaitButton5, addCloseActionButton, addScreenButton);
         buttonBox.setAlignment(Pos.BASELINE_LEFT); // Align buttons to the left
 
-        // Create layout and add components
-        GridPane gridPane = new GridPane();
-        gridPane.setHgap(10);
-        gridPane.setVgap(10);
-        //  gridPane.setPadding(new Insets(10)); // Padding around the gridPane
+        // Create an HBox and add all three labels into the same row
+        HBox labelRow = new HBox(10); // 10 is the spacing between the labels
+        labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
+        labelRow.setAlignment(Pos.BASELINE_LEFT); // Align the labels to the left
 
-        // Add components to the grid
-        gridPane.add(commandLabel, 0, 0);
-        gridPane.add(botJobVarsLabel, 1, 0);
-        gridPane.add(webPageLabel, 2, 0);
+        // Create HBox for comboBoxes
+        HBox comboBoxesRow = new HBox(10);
 
         comboBoxInstruc.setPrefWidth(buttonWidth);
-        gridPane.add(comboBoxInstruc, 0, 1);
-
         comboBoxVars.setPrefWidth(buttonWidth);
-        gridPane.add(comboBoxVars, 1, 1);
-
-        comboBoxBlocks.setPrefWidth(buttonWidth);
-        comboBoxBlocks.setVisible(false);
-        gridPane.add(comboBoxBlocks, 1, 1);
-
         comboBoxWebPage.setPrefWidth(buttonWidth);
-        gridPane.add(comboBoxWebPage, 2, 1);
 
-        variableButton.setPrefWidth(buttonWidth);
-        gridPane.add(variableButton, 0, 2);
-        gridPane.add(buttonBox, 0, 3, 3, 1); // Add buttonBox to a new row, spanning 3 columns
+        // Handle the visibility of comboBoxBlocks
+        comboBoxBlocks.setVisible(false); // Initially hidden
+        comboBoxBlocks.setManaged(false); // Ensure it does not take up space when hidden
 
-        // Set the preferred width of valueCheckField
-        valueCheckField.setPrefWidth(150);
+        // Create a listener (optional) to toggle visibility dynamically
+        comboBoxBlocks.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            comboBoxBlocks.setManaged(newValue); // Set managed based on visibility
+            if (newValue) {
+                comboBoxBlocks.setPrefWidth(buttonWidth); // Restore width when visible
+            }
+        });
 
-        // Add valueCheckField to the GridPane in its own row
-//        gridPane.add(valueCheckField, 1, 1); // Row 1 for valueCheckField
+        // Create a listener (optional) to toggle visibility dynamically
+        comboBoxVars.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            comboBoxVars.setManaged(newValue); // Set managed based on visibility
+            if (newValue) {
+                comboBoxVars.setPrefWidth(buttonWidth); // Restore width when visible
+            }
+        });
 
-        // Create the HBox and add it to the GridPane
-        HBox hbox = new HBox(valueLabel, comboBoxOperator, valueCheckField);
-        gridPane.add(hbox, 1, 2); // Row 2 for HBox
+        HBox boxCombos = new HBox(comboBoxVars, comboBoxBlocks);
 
+        VBox commandBox = new VBox(commandLabel, comboBoxInstruc);
+        VBox varsBox = new VBox(botJobVarsLabel, boxCombos); // Here for the visualization
+        VBox webFieldsBox = new VBox(webPageLabel, comboBoxWebPage);
+
+        comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
+
+        variableButton.setPrefWidth(buttonWidth - 50);
+        valueToBeChecked.setPrefWidth(buttonWidth - 50);
+        textFlow.setPrefWidth(buttonWidth);
+
+        comboBoxOperator.setVisible(false);
+        comboBoxOperator.setManaged(false);
+
+        // Create a listener (optional) to toggle visibility dynamically
+        comboBoxOperator.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            comboBoxOperator.setManaged(newValue); // Set managed based on visibility
+            if (newValue) {
+                comboBoxOperator.setPrefWidth(comboxWidth); // Restore width when visible
+            }
+        });
+
+        // Create a listener (optional) to toggle visibility dynamically
+        valueToBeChecked.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            valueToBeChecked.setManaged(newValue); // Set managed based on visibility
+            if (newValue) {
+                valueToBeChecked.setPrefWidth(buttonWidth - 50); // Restore width when visible
+            }
+        });
+
+        textFlow.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            textFlow.setManaged(newValue); // Set managed based on visibility
+            if (newValue) {
+                textFlow.setPrefWidth(buttonWidth + 50); // Restore width when visible
+            }
+        });
+
+        // Create an HBox for the variable button
+        HBox variableButtonRow = new HBox(10, variableButton, textFlow, comboBoxOperator, valueToBeChecked);
+        variableButtonRow.setAlignment(Pos.BASELINE_LEFT); // Align variableButton to the left
+
+        // Create HBox for instruction and cancel buttons
+        HBox instructionButtonsRow = new HBox(10, addInstructionButton, cancelButton);
         addInstructionButton.setPrefWidth(buttonWidth);
-        gridPane.add(addInstructionButton, 2, 5);
-
         cancelButton.setPrefWidth(buttonWidth);
-        gridPane.add(cancelButton, 2, 6);
+        instructionButtonsRow.setAlignment(Pos.BASELINE_RIGHT); // Align buttons to the right
 
-        ////        gridPane.add(buttonsBox, 2, 1);
-        ////
-        //        VBox buttonsBox = new VBox(10, addInstructionButton, cancelButton);
-        //        buttonsBox.setAlignment(Pos.CENTER);
-        //        buttonsBox.setSpacing(10);
-        //
-        //        gridPane.add(buttonsBox, 3, 1);
-
-        HBox hBoxGridPane = new HBox(gridPane);
-        hBoxGridPane.setAlignment(Pos.CENTER);
-        hBoxGridPane.setSpacing(10); // Horizontal spacing around the gridPane
-
-        // Create main layout
-        VBox vbox = new VBox(20, hBoxGridPane);
+        // Combine all HBoxes into a VBox for vertical alignment
+        VBox vbox = new VBox(20);
+        vbox.getChildren()
+                .addAll(
+                        labelRow, // Web Page Label row
+                        comboBoxesRow, // ComboBoxes row
+                        variableButtonRow, // Variable Button row
+                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                        instructionButtonsRow // Add Instruction and Cancel Buttons row
+                        );
         vbox.setAlignment(Pos.CENTER);
         vbox.setPadding(new Insets(10)); // Padding around the VBox
 
         // Adjust VBox properties for better alignment
-        VBox.setVgrow(hBoxGridPane, Priority.ALWAYS);
+        VBox.setVgrow(vbox, Priority.ALWAYS);
 
         // Use AnchorPane to ensure the VBox resizes with the window
         mainPane = new AnchorPane(vbox);
@@ -531,7 +559,7 @@ public class ABRNewCommandPane extends ABRPane {
 
     private void clearData() {
         nameField.clear();
-        valueCheckField.clear();
+        valueToBeChecked.clear();
     }
 
     @Override
@@ -557,34 +585,60 @@ public class ABRNewCommandPane extends ABRPane {
                 if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())
                         || ABRConstants.IF_ELSE.equalsIgnoreCase(newValue.getValue())) {
                     botJobVarsLabel.setText("Bot-Job Variable");
-                    valueLabel.setVisible(false);
+
+                    defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+                    textFlow.setVisible(true);
+                    textFlow.setPrefWidth(buttonWidth + 100);
+
                     webPageLabel.setVisible(true);
-                    comboBoxBlocks.setVisible(false);
                     comboBoxOperator.setVisible(true);
-                    comboBoxVars.setVisible(true);
                     comboBoxWebPage.setVisible(true);
-                    valueCheckField.setVisible(true);
+
+                    valueToBeChecked.setVisible(true);
                     variableButton.setVisible(true);
+
+                    comboBoxVars.setVisible(true);
+                    comboBoxVars.setPrefWidth(buttonWidth);
+                    comboBoxBlocks.setVisible(false);
                 } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
                     botJobVarsLabel.setText("Block Destine");
-                    valueLabel.setVisible(true);
+
+                    textFlow.setVisible(false);
+
                     webPageLabel.setVisible(false);
                     comboBoxOperator.setVisible(false);
-                    comboBoxVars.setVisible(false);
                     comboBoxWebPage.setVisible(false);
-                    valueCheckField.setVisible(false);
+                    valueToBeChecked.setVisible(false);
                     variableButton.setVisible(false);
+
+                    comboBoxVars.setVisible(false);
                     comboBoxBlocks.setVisible(true);
+                    comboBoxBlocks.setPrefWidth(buttonWidth);
                 } else {
                     botJobVarsLabel.setText("Bot-Job Variable");
-                    valueLabel.setVisible(true);
+
+                    defineTextFlow(newValue.getValue());
+
+                    textFlow.setVisible(true);
+                    textFlow.setPrefWidth(buttonWidth);
+
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(false);
-                    comboBoxBlocks.setVisible(false);
-                    comboBoxVars.setVisible(true);
                     comboBoxWebPage.setVisible(true);
-                    valueCheckField.setVisible(true);
                     variableButton.setVisible(true);
+
+                    comboBoxVars.setVisible(true);
+                    comboBoxVars.setPrefWidth(buttonWidth);
+                    comboBoxBlocks.setVisible(false);
+
+                    if (ABRConstants.GET_VALUE.equalsIgnoreCase(newValue.getValue())) {
+                        valueToBeChecked.setVisible(false);
+                        textFlow.setPrefWidth(buttonWidth + 100);
+                    } else {
+                        valueToBeChecked.setVisible(true);
+                        textFlow.setPrefWidth(buttonWidth);
+                    }
                 }
             }
         });
@@ -593,7 +647,7 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxVars.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
-                valueCheckField.setText(comboBoxVars.getValue().getValue());
+                defineTextFlow(comboBoxInstruc.getValue().getValue());
             }
         });
 
@@ -682,6 +736,9 @@ public class ABRNewCommandPane extends ABRPane {
                     loadJobVariables(newValue.getVarId());
                     reloadComboVars();
                     comboBoxVars.getSelectionModel().selectFirst();
+                    if (comboBoxVars.getValue() != null) {
+                        defineTextFlow(comboBoxInstruc.getValue().getValue());
+                    }
                 }
             }
         });
@@ -708,6 +765,9 @@ public class ABRNewCommandPane extends ABRPane {
                 reloadComboVars();
                 // Set ComboBox to first item
                 comboBoxVars.getSelectionModel().selectFirst();
+                if (comboBoxVars.getValue() != null) {
+                    defineTextFlow(comboBoxInstruc.getValue().getValue());
+                }
 
             } else {
                 ABRLogger.getInstance(ABRWebElement.class)
@@ -725,7 +785,45 @@ public class ABRNewCommandPane extends ABRPane {
             reloadComboVars();
             // Set ComboBox to first item
             comboBoxVars.getSelectionModel().selectFirst();
+            if (comboBoxVars.getValue() != null) {
+                defineTextFlow(comboBoxInstruc.getValue().getValue());
+            }
         });
+    }
+
+    private void defineTextFlow(String newValue) {
+
+        String variableName = "NO VARIABLE";
+        if (comboBoxVars != null && comboBoxVars.getValue() != null) {
+            valueToBeChecked.setText(comboBoxVars.getValue().getValue());
+            variableName = comboBoxVars.getValue().getText();
+        } else {
+            valueToBeChecked.setText("NO VARIABLES");
+        }
+
+        String webFieldName = "NO WEB FIELD";
+        if (comboBoxVars != null && comboBoxVars.getValue() != null) {
+            webFieldName = comboBoxWebPage.getValue().getText();
+        }
+
+        regularText.setText(
+                ABRConstants.GET_VALUE.equalsIgnoreCase(newValue)
+                        ? "GET: "
+                        : ABRConstants.SET_VALUE.equalsIgnoreCase(newValue) ? "SET: " : " CHECK: ");
+
+        if (comboBoxWebPage != null && comboBoxWebPage.getValue() != null) {
+            variableText1.setText(
+                    ABRConstants.GET_VALUE.equalsIgnoreCase(newValue)
+                            ? " Get Variable value from  "
+                            : ABRConstants.SET_VALUE.equalsIgnoreCase(newValue)
+                                    ? " Set Web Field "
+                                    : " Check variable ");
+            variableText2.setText(
+                    ABRConstants.GET_VALUE.equalsIgnoreCase(newValue)
+                                    || ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue)
+                            ? variableName
+                            : webFieldName);
+        }
     }
 
     private void reloadComboVars() {
@@ -747,11 +845,12 @@ public class ABRNewCommandPane extends ABRPane {
 
     private void clearFields() {}
 
-    private boolean showConfirmationDialog(String name) {
+    private boolean showConfirmationDialog(String title, String header, String content, TextFlow textFlow) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle("Confirmation Dialog");
-        alert.setHeaderText("Delete Confirmation");
-        alert.setContentText("Are you sure you want to delete the record for '" + name + "'?");
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.getDialogPane().setContent(textFlow);
 
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
@@ -975,23 +1074,37 @@ public class ABRNewCommandPane extends ABRPane {
 
             loadBlocksForBotJob(rowMoveDTO.getBotJobId());
 
-            // Create a label to display the instruction
-            Label newInstruction = new Label("\"" + name + "\" -> \""
-                    + (operation.length() > 0
-                            ? operation
-                            : rowMoveDTO != null ? rowMoveDTO.getBlockName() : botJob.getName())
-                    + "\"");
-            newInstruction.setStyle("-fx-font-size: 18px;");
+            //            // Create a label to display the instruction
+            //            Label newInstruction = new Label("\"" + name + "\" -> \""
+            //                    + (operation.length() > 0
+            //                            ? operation
+            //                            : rowMoveDTO != null ? rowMoveDTO.getBlockName() : botJob.getName())
+            //                    + "\"");
+            //
+            //            newInstruction.setStyle("-fx-font-size: 18px;");
 
-            StackPane stackPane = new StackPane(newInstruction);
-            stackPane.setPadding(new Insets(20));
+            Text newText = new Text("");
+            newText.setFill(Color.DARKCYAN); // Set regular text color to black
+            newText.setText(valueToBeChecked.getText());
 
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-            alert.setHeaderText("Are you sure you want to Add the Instruction to the Bot-Job?");
-            alert.getDialogPane().setContent(stackPane);
+            // Combine the texts using TextFlow
+            TextFlow textFlow2;
+            if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)
+                    || (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE))) {
+                textFlow2 = new TextFlow(
+                        regularText, variableText1, new Text(" -> "), variableText2, new Text(" value "), newText);
+            } else {
+                textFlow2 = new TextFlow(regularText, variableText1, new Text(" -> "), variableText2);
+            }
+            textFlow2.setStyle("-fx-font-size: 18px;"); // Set the overall font size for the TextFlow
 
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.YES) {
+            boolean alertResponse = showConfirmationDialog(
+                    "Add new Instruciton",
+                    "Are you sure you want to Add the Instruction to the Bot-Job?",
+                    "",
+                    textFlow2);
+
+            if (alertResponse) {
 
                 List<InstructionDTO> rowList = null;
                 if (rowMoveDTO != null) {
@@ -1082,6 +1195,9 @@ public class ABRNewCommandPane extends ABRPane {
                     }
                 };
                 new Thread(waitTask).start();
+            } else {
+                textFlow.getChildren().clear();
+                textFlow.getChildren().addAll(regularText, variableText1, variableText2);
             }
         });
     }
@@ -1276,5 +1392,13 @@ public class ABRNewCommandPane extends ABRPane {
         }
 
         return blockLoadList;
+    }
+
+    private void showAlertConfirm(String title, String header, String content) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.showAndWait();
     }
 }
