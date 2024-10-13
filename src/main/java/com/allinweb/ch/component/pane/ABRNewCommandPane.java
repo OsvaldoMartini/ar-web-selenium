@@ -75,6 +75,11 @@ public class ABRNewCommandPane extends ABRPane {
     private RowMoveDTO rowMoveDTO;
     private Pane mainPane;
 
+    Label commandLabel;
+    Label botJobVarsLabel;
+    Label webPageLabel;
+    Label valueLabel;
+
     TextField nameField;
     TextField valueCheckField;
 
@@ -181,9 +186,11 @@ public class ABRNewCommandPane extends ABRPane {
         }));
 
         // Create labels
-        Label commandLabel = new Label("Command:");
-        Label botJobVarsLabel = new Label("Bot-Job Variable");
-        Label webPageLabel = new Label("WebPage Field");
+        commandLabel = new Label("Command:");
+        botJobVarsLabel = new Label("Bot-Job Variable");
+        webPageLabel = new Label("WebPage Field");
+        valueLabel = new Label("Value Attached");
+        valueLabel.setVisible(false);
 
         valueCheckField = new TextField();
         valueCheckField.setEditable(false);
@@ -480,10 +487,10 @@ public class ABRNewCommandPane extends ABRPane {
         valueCheckField.setPrefWidth(150);
 
         // Add valueCheckField to the GridPane in its own row
-        gridPane.add(valueCheckField, 1, 1); // Row 1 for valueCheckField
+//        gridPane.add(valueCheckField, 1, 1); // Row 1 for valueCheckField
 
         // Create the HBox and add it to the GridPane
-        HBox hbox = new HBox(comboBoxOperator, valueCheckField);
+        HBox hbox = new HBox(valueLabel, comboBoxOperator, valueCheckField);
         gridPane.add(hbox, 1, 2); // Row 2 for HBox
 
         addInstructionButton.setPrefWidth(buttonWidth);
@@ -549,6 +556,9 @@ public class ABRNewCommandPane extends ABRPane {
                 // Set the visibility of comboBoxOperator based on the selected value
                 if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())
                         || ABRConstants.IF_ELSE.equalsIgnoreCase(newValue.getValue())) {
+                    botJobVarsLabel.setText("Bot-Job Variable");
+                    valueLabel.setVisible(false);
+                    webPageLabel.setVisible(true);
                     comboBoxBlocks.setVisible(false);
                     comboBoxOperator.setVisible(true);
                     comboBoxVars.setVisible(true);
@@ -556,6 +566,9 @@ public class ABRNewCommandPane extends ABRPane {
                     valueCheckField.setVisible(true);
                     variableButton.setVisible(true);
                 } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
+                    botJobVarsLabel.setText("Block Destine");
+                    valueLabel.setVisible(true);
+                    webPageLabel.setVisible(false);
                     comboBoxOperator.setVisible(false);
                     comboBoxVars.setVisible(false);
                     comboBoxWebPage.setVisible(false);
@@ -563,6 +576,9 @@ public class ABRNewCommandPane extends ABRPane {
                     variableButton.setVisible(false);
                     comboBoxBlocks.setVisible(true);
                 } else {
+                    botJobVarsLabel.setText("Bot-Job Variable");
+                    valueLabel.setVisible(true);
+                    webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(false);
                     comboBoxBlocks.setVisible(false);
                     comboBoxVars.setVisible(true);
