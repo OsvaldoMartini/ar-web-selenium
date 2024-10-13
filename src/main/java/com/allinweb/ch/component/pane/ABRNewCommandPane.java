@@ -897,12 +897,12 @@ public class ABRNewCommandPane extends ABRPane {
 
     private void clearFields() {}
 
-    private boolean showConfirmationDialog(String title, String header, String content, TextFlow textFlow) {
+    private boolean showConfirmationDialog(String title, String header, String content, HBox combinedTextContainer) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);
-        alert.getDialogPane().setContent(textFlow);
+        alert.getDialogPane().setContent(combinedTextContainer);
 
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
@@ -1126,26 +1126,50 @@ public class ABRNewCommandPane extends ABRPane {
 
             loadBlocksForBotJob(rowMoveDTO.getBotJobId());
 
-            Text newText = new Text("");
-            newText.setFill(Color.DARKCYAN); // Set regular text color to black
-            newText.setText(valueToBeChecked.getText());
+            // Create individual text elements with the necessary styling
+            Text regularTextStyled = new Text(regularText.getText());
+            regularTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: black;");
+
+            Text variableText1Styled = new Text(variableText1.getText());
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            Text arrowText = new Text(" -> ");
+            arrowText.setStyle("-fx-font-size: 18px; -fx-fill: black;");
+
+            Text variableText2Styled = new Text(variableText2.getText());
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
+            Text newTextStyled = new Text(valueToBeChecked.getText()); // Use the provided text
+            newTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: darkcyan;");
+
+            // Create an HBox to hold the individual text elements
+            HBox combinedTextContainer = new HBox();
+            combinedTextContainer.setSpacing(5); // Add some spacing between the texts
 
             // Combine the texts using TextFlow
             TextFlow textFlow2;
             if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)
                     || (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE))) {
-                textFlow2 = new TextFlow(
-                        regularText, variableText1, new Text(" -> "), variableText2, new Text(" value "), newText);
+                combinedTextContainer
+                        .getChildren()
+                        .addAll(
+                                regularTextStyled,
+                                variableText1Styled,
+                                arrowText,
+                                variableText2Styled,
+                                new Text(" value "),
+                                newTextStyled);
             } else {
-                textFlow2 = new TextFlow(regularText, variableText1, new Text(" -> "), variableText2);
+                combinedTextContainer
+                        .getChildren()
+                        .addAll(regularTextStyled, variableText1Styled, arrowText, variableText2Styled);
             }
-            textFlow2.setStyle("-fx-font-size: 18px;"); // Set the overall font size for the TextFlow
 
             boolean alertResponse = showConfirmationDialog(
-                    "Add new Instruciton",
+                    "Add new Instruction",
                     "Are you sure you want to Add the Instruction to the Bot-Job?",
                     "",
-                    textFlow2);
+                    combinedTextContainer);
 
             if (alertResponse) {
 
@@ -1240,9 +1264,6 @@ public class ABRNewCommandPane extends ABRPane {
                 new Thread(waitTask).start();
             }
         });
-
-        textFlow.getChildren().clear();
-        textFlow.getChildren().addAll(regularText, variableText1, variableText2);
     }
 
     private boolean reorderInstructions(List<InstructionDTO> rowList) {
