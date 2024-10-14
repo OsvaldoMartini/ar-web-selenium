@@ -50,6 +50,7 @@ import javafx.concurrent.Task;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -448,7 +449,25 @@ public class ABRScannedElementPane extends ABRPane {
             HBox.setHgrow(scannedElements2, Priority.ALWAYS);
             HBox.setHgrow(scannedElements3, Priority.ALWAYS);
 
-            boxListViews.getChildren().addAll(scannedElements1, scannedElements2, scannedElements3, textFieldVBox);
+            Label labelInput = new Label("Input/IDs/Names(No Ids/Names)/Buttons");
+            StackPane stackLabelInput = new StackPane();
+            stackLabelInput.getChildren().add(labelInput);
+            stackLabelInput.setAlignment(Pos.CENTER);
+            VBox elements1VBox = new VBox(stackLabelInput, scannedElements1);
+
+            Label labelOutput = new Label("Output Fields Results");
+            StackPane stackLabelOutput = new StackPane();
+            stackLabelOutput.getChildren().add(labelOutput);
+            stackLabelOutput.setAlignment(Pos.CENTER);
+            VBox elements2VBox = new VBox(stackLabelOutput, scannedElements2);
+
+            Label labelOthers = new Label("Other Elements Results (Config)");
+            StackPane stackLabelOthers = new StackPane();
+            stackLabelOthers.getChildren().add(labelOthers);
+            stackLabelOthers.setAlignment(Pos.CENTER);
+            VBox elements3VBox = new VBox(stackLabelOthers, scannedElements3);
+
+            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, elements3VBox, textFieldVBox);
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
@@ -2657,12 +2676,14 @@ public class ABRScannedElementPane extends ABRPane {
         try {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            performAction.showAlertError("Excel File Empty", "IS MANDATORY TO HAVE DATA FOR TESTS", excelPath);
         }
         if (extractedData.getErrorMessage() != null) {
             //				showAlert("Excel Data File", "Warning: Excel File exist" , "Fields in the excel not matching the
             // botjob requirements");
-            System.out.println("Fields in the excel not matching the botjob requirements");
+            //            System.out.println("Fields in the excel not matching the botjob requirements");
+            //            performAction.showAlertError("Excel File Empty", "IS MANDATORY TO HAVE DATA FOR TESTS",
+            // excelPath);
         }
 
         //        Set<String> blockClickables = blocksLoaded.stream()

@@ -799,7 +799,7 @@ public class PerformActions {
         return "Failed to Execute Cmd: " + lastInstructionExecuted;
     }
 
-    private void showAlertError(String title, String header, String content) {
+    public void showAlertError(String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle(title);
         alert.setHeaderText(header);

@@ -1130,6 +1130,21 @@ public class ABRNewCommandPane extends ABRPane {
 
         loadBlocksForBotJob(rowMoveDTO.getBotJobId());
 
+        // Combine the texts using TextFlow
+
+        Text extra = new Text(" value ");
+        extra.setStyle("-fx-font-size: 18px;");
+
+        if (actions.equalsIgnoreCase(ABRConstants.HOLD)
+                || (actions.equalsIgnoreCase(ABRConstants.SCREEN))
+                || actions.equalsIgnoreCase(ABRConstants.QUIT)) {
+            extra.setText("");
+            regularText.setText("");
+            variableText1.setText(actions.equalsIgnoreCase(ABRConstants.HOLD) ? name : "Action:");
+            variableText2.setText(name);
+            valueToBeChecked.setText("");
+        }
+
         // Create individual text elements with the necessary styling
         Text regularTextStyled = new Text(regularText.getText());
         regularTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: black;");
@@ -1149,11 +1164,6 @@ public class ABRNewCommandPane extends ABRPane {
         // Create an HBox to hold the individual text elements
         HBox combinedTextContainer = new HBox();
         combinedTextContainer.setSpacing(5); // Add some spacing between the texts
-
-        // Combine the texts using TextFlow
-
-        Text extra = new Text(" value ");
-        extra.setStyle("-fx-font-size: 18px;");
 
         if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)
                 || (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE))) {
