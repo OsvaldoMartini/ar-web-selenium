@@ -1588,16 +1588,13 @@ public class ABRNewCommandPane extends ABRPane {
 
         try {
             response = insertInstruction(instruction);
+
+            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+            rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
+
             boolean finalResponse = response;
             Platform.runLater(() -> {
-                System.out.println("UI thread execution starts");
-
-                int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
-                rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
-
                 if (isShowAlert) {
-                    System.out.println("Showing alert");
-
                     if (finalResponse) {
                         new ABRAlertScene(
                                 Alert.AlertType.INFORMATION,
@@ -1611,7 +1608,8 @@ public class ABRNewCommandPane extends ABRPane {
             });
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Cannot Insert Instruction\nError: " + e.getMessage());
+            ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    .severe("Cannot Insert Instruction\nError: " + e.getMessage());
         }
         //
         //        // Move the UI update to the JavaFX Application Thread
