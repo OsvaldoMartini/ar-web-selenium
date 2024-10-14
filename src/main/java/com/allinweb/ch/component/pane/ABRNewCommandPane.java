@@ -1584,32 +1584,56 @@ public class ABRNewCommandPane extends ABRPane {
         }
         instruction.setExportToABR(false);
         // Wrap the persistence in a try-catch block
-        boolean response = false;
+        boolean response;
+
         try {
             response = insertInstruction(instruction);
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Cannot Insert Instruction\nError " + e.getMessage());
-        }
+            boolean finalResponse = response;
+            Platform.runLater(() -> {
+                System.out.println("UI thread execution starts");
 
-        // Move the UI update to the JavaFX Application Thread
-        boolean finalResponse = response;
-        Platform.runLater(() -> {
-            // This makes insertion in a Roll after the Target Position
-            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
-            rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
-            if (isShowAlert) {
+                int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+                rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
 
-                if (finalResponse) {
-                    new ABRAlertScene(
-                            Alert.AlertType.INFORMATION,
-                            "Instruction Added",
-                            "Instruction " + instruction.getName() + " has been added successfully",
-                            ButtonType.OK);
-                } else {
-                    showAlertError("Error Add New Instruction", "Not possible to inser new Operation", "response");
+                if (isShowAlert) {
+                    System.out.println("Showing alert");
+
+                    if (finalResponse) {
+                        new ABRAlertScene(
+                                Alert.AlertType.INFORMATION,
+                                "Instruction Added",
+                                "Instruction " + instruction.getName() + " has been added successfully",
+                                ButtonType.OK);
+                    } else {
+                        showAlertError("Error Add New Instruction", "Not possible to insert new Operation", "response");
+                    }
                 }
-            }
-        });
+            });
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Cannot Insert Instruction\nError: " + e.getMessage());
+        }
+        //
+        //        // Move the UI update to the JavaFX Application Thread
+        //        boolean finalResponse = response;
+        //        Platform.runLater(() -> {
+        //            // This makes insertion in a Roll after the Target Position
+        //            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+        //            rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
+        //            if (isShowAlert) {
+        //
+        //                if (finalResponse) {
+        //                    new ABRAlertScene(
+        //                            Alert.AlertType.INFORMATION,
+        //                            "Instruction Added",
+        //                            "Instruction " + instruction.getName() + " has been added successfully",
+        //                            ButtonType.OK);
+        //                } else {
+        //                    showAlertError("Error Add New Instruction", "Not possible to inser new Operation",
+        // "response");
+        //                }
+        //            }
+        //        });
     }
 
     private boolean insertInstruction(BlockLoopInstructionDTO instructionDTO) throws SQLException {
@@ -1619,7 +1643,10 @@ public class ABRNewCommandPane extends ABRPane {
 
             Integer nextId = loadNextIdBInstructionData() + 1;
 
+            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "null";
+
             // Build the SQL insert query
+
             String insertSQL = "INSERT INTO public.block_loop_instruction(\n" + "id, "
                     + "action_custom_max_wait_sec, "
                     + "actions, "
@@ -1652,34 +1679,31 @@ public class ABRNewCommandPane extends ABRPane {
                     + ", '" + instructionDTO.getOperation() + "'"
                     + ", " + (instructionDTO.isOptional() ? 1 : 0)
                     + ", " + instructionDTO.getParentId()
-                    + ", "
-                    + (instructionDTO.getPath() != null
-                            ? ", '" + instructionDTO.getPath() + "'"
-                            : instructionDTO.getPath())
+                    + ", " + pathValue
                     + ", " + instructionDTO.getVariableId()
                     + ", " + instructionDTO.getBlock().getId()
                     + ");";
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                ABRLogger.getInstance(ABRNewCommandPane.class)
                         .info(String.format(
-                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperartion: %d",
+                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
                                 nextId,
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
                                 instructionDTO.getOperation()));
+                return true;
             } else {
-                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                ABRLogger.getInstance(ABRNewCommandPane.class)
                         .warning(String.format(
-                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %d",
+                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
                                 nextId,
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
                                 instructionDTO.getOperation()));
+                return false;
             }
-
-            return true;
         }
     }
 
