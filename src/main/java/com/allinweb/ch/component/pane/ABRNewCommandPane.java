@@ -1126,90 +1126,87 @@ public class ABRNewCommandPane extends ABRPane {
             RowMoveDTO rowMoveDTO) {
 
         // Create and show alert inside Platform.runLater
-        Platform.runLater(() -> {
-            BotJobDTO botJob =
-                    ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
+        BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
 
-            loadBlocksForBotJob(rowMoveDTO.getBotJobId());
+        loadBlocksForBotJob(rowMoveDTO.getBotJobId());
 
-            // Create individual text elements with the necessary styling
-            Text regularTextStyled = new Text(regularText.getText());
-            regularTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: black;");
+        // Create individual text elements with the necessary styling
+        Text regularTextStyled = new Text(regularText.getText());
+        regularTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: black;");
 
-            Text variableText1Styled = new Text(variableText1.getText());
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+        Text variableText1Styled = new Text(variableText1.getText());
+        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
-            Text arrowText = new Text(" -> ");
-            arrowText.setStyle("-fx-font-size: 18px; -fx-fill: black;");
+        Text arrowText = new Text(" -> ");
+        arrowText.setStyle("-fx-font-size: 18px; -fx-fill: black;");
 
-            Text variableText2Styled = new Text(variableText2.getText());
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+        Text variableText2Styled = new Text(variableText2.getText());
+        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
 
-            Text newTextStyled = new Text(valueToBeChecked.getText()); // Use the provided text
-            newTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: darkcyan;");
+        Text newTextStyled = new Text(valueToBeChecked.getText()); // Use the provided text
+        newTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: darkcyan;");
 
-            // Create an HBox to hold the individual text elements
-            HBox combinedTextContainer = new HBox();
-            combinedTextContainer.setSpacing(5); // Add some spacing between the texts
+        // Create an HBox to hold the individual text elements
+        HBox combinedTextContainer = new HBox();
+        combinedTextContainer.setSpacing(5); // Add some spacing between the texts
 
-            // Combine the texts using TextFlow
+        // Combine the texts using TextFlow
 
-            Text extra = new Text(" value ");
-            extra.setStyle("-fx-font-size: 18px;");
+        Text extra = new Text(" value ");
+        extra.setStyle("-fx-font-size: 18px;");
 
-            if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)
-                    || (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE))) {
-                combinedTextContainer
-                        .getChildren()
-                        .addAll(
-                                regularTextStyled,
-                                variableText1Styled,
-                                arrowText,
-                                variableText2Styled,
-                                extra,
-                                newTextStyled);
-            } else {
-                combinedTextContainer
-                        .getChildren()
-                        .addAll(regularTextStyled, variableText1Styled, arrowText, variableText2Styled);
-            }
+        if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)
+                || (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE))) {
+            combinedTextContainer
+                    .getChildren()
+                    .addAll(
+                            regularTextStyled,
+                            variableText1Styled,
+                            arrowText,
+                            variableText2Styled,
+                            extra,
+                            newTextStyled);
+        } else {
+            combinedTextContainer
+                    .getChildren()
+                    .addAll(regularTextStyled, variableText1Styled, arrowText, variableText2Styled);
+        }
 
-            boolean alertResponse = showConfirmationDialog(
-                    "Add new Instruction",
-                    "Are you sure you want to Add the Instruction to the Bot-Job?",
-                    "",
-                    combinedTextContainer);
+        boolean alertResponse = showConfirmationDialog(
+                "Add new Instruction",
+                "Are you sure you want to Add the Instruction to the Bot-Job?",
+                "",
+                combinedTextContainer);
 
-            if (alertResponse) {
+        if (alertResponse) {
 
-                // Handle loop outside Platform.runLater to ensure multiple iterations
-                int endifCount = actions.equalsIgnoreCase(ABRConstants.IF_ELSE) ? 2 : 1;
+            // Handle loop outside Platform.runLater to ensure multiple iterations
+            int endifCount = actions.equalsIgnoreCase(ABRConstants.IF_ELSE) ? 2 : 1;
 
-                // Run the loop for adding multiple instructions
-                String nextAction = null;
-                for (int added = endifCount; added >= 1; added--) {
+            // Run the loop for adding multiple instructions
+            String nextAction = null;
+            for (int added = endifCount; added >= 1; added--) {
 
-                    boolean isShowAlert = added == 1;
+                boolean isShowAlert = added == 1;
 
-                    // Run the instruction add in a separate Task
-                    runAddInstructionTask(
-                            nextAction == null ? name : nextAction,
-                            nextAction == null ? description : nextAction,
-                            nextAction == null ? actions : nextAction,
-                            nextAction == null ? operation : nextAction,
-                            onHold,
-                            varId,
-                            instructionId,
-                            rowMoveDTO,
-                            botJob,
-                            isShowAlert);
+                // Run the instruction add in a separate Task
+                preFillInstruction(
+                        nextAction == null ? name : nextAction,
+                        nextAction == null ? description : nextAction,
+                        nextAction == null ? actions : nextAction,
+                        nextAction == null ? operation : nextAction,
+                        onHold,
+                        varId,
+                        instructionId,
+                        rowMoveDTO,
+                        botJob,
+                        isShowAlert);
 
-                    if (Strings.isNullOrEmpty(nextAction)) {
-                        nextAction = ABRConstants.ENDIF;
-                    }
+                if (Strings.isNullOrEmpty(nextAction)) {
+                    nextAction = ABRConstants.ENDIF;
                 }
             }
-        });
+        }
     }
 
     private boolean reorderInstructions(List<InstructionDTO> rowList) {
@@ -1518,5 +1515,186 @@ public class ABRNewCommandPane extends ABRPane {
         };
 
         new Thread(waitTask).start();
+    }
+
+    private void preFillInstruction(
+            String name,
+            String description,
+            String actions,
+            String operation,
+            Integer onHold,
+            Integer varId,
+            Integer instructionId,
+            RowMoveDTO rowMoveDTO,
+            BotJobDTO botJob,
+            boolean isShowAlert) {
+
+        List<InstructionDTO> rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
+
+        reorderInstructions(rowList);
+
+        preInsertStep(rowMoveDTO, rowList);
+
+        List<BlockLoopInstructionLoadDTO> instructionList = null;
+        List<BlockLoadDTO> matchingBlocks = null;
+
+        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+            int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
+
+            matchingBlocks = blockLoadList.stream()
+                    .filter(block -> block.getId() == targetBlockId)
+                    .collect(Collectors.toList());
+        }
+
+        List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
+        List<InstructionDTO> finalInstructionList = rowList;
+        BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+
+        instruction.setName(name);
+
+        instruction.setEncrypted(false);
+        instruction.setExportToABR(true);
+        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+            if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
+                instruction.setInstructionOrderNumber(
+                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+            } else {
+                instruction.setInstructionOrderNumber(
+                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
+            }
+        } else {
+            instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
+        }
+        instruction.setOptional(false);
+
+        instruction.setVariableId(varId);
+        instruction.setParentId(instructionId);
+
+        instruction.setOperation(operation);
+        instruction.setActions(actions);
+        instruction.setDescription(description);
+
+        instruction.setActionCustomMaxWaitSec(30);
+        instruction.setOnHoldSeconds(onHold);
+        if (finalMatchingBlocks != null) {
+            instruction.setBlock(ABRSharedResources.getInstance()
+                    .getEntityById(BlockDTO.class, finalMatchingBlocks.get(0).getId()));
+        } else {
+            instruction.setBlock(botJob.getBlocks().get(0));
+        }
+        instruction.setExportToABR(false);
+        // Wrap the persistence in a try-catch block
+        boolean response = false;
+        try {
+            response = insertInstruction(instruction);
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Cannot Insert Instruction\nError " + e.getMessage());
+        }
+
+        // Move the UI update to the JavaFX Application Thread
+        boolean finalResponse = response;
+        Platform.runLater(() -> {
+            // This makes insertion in a Roll after the Target Position
+            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+            rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
+            if (isShowAlert) {
+
+                if (finalResponse) {
+                    new ABRAlertScene(
+                            Alert.AlertType.INFORMATION,
+                            "Instruction Added",
+                            "Instruction " + instruction.getName() + " has been added successfully",
+                            ButtonType.OK);
+                } else {
+                    showAlertError("Error Add New Instruction", "Not possible to inser new Operation", "response");
+                }
+            }
+        });
+    }
+
+    private boolean insertInstruction(BlockLoopInstructionDTO instructionDTO) throws SQLException {
+        // Generate a Unique-ID for the block
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            Integer nextId = loadNextIdBInstructionData() + 1;
+
+            // Build the SQL insert query
+            String insertSQL = "INSERT INTO public.block_loop_instruction(\n" + "id, "
+                    + "action_custom_max_wait_sec, "
+                    + "actions, "
+                    + "block_marked, "
+                    + "default_val, "
+                    + "description, "
+                    + "encrypted, "
+                    + "export_to_abr, "
+                    + "instruction_order_number, "
+                    + "name, "
+                    + "on_hold_seconds, "
+                    + "operation, "
+                    + "optional, "
+                    + "parent_id, "
+                    + "path, "
+                    + "variable_id, "
+                    + "block_id)\n"
+                    + "VALUES ("
+                    + nextId
+                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
+                    + ", '" + instructionDTO.getActions() + "'"
+                    + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
+                    + ", '" + instructionDTO.getDefaultValue() + "'"
+                    + ", '" + instructionDTO.getDescription() + "'"
+                    + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
+                    + ", " + (instructionDTO.getExportToABR() ? 1 : 0)
+                    + ", " + instructionDTO.getInstructionOrderNumber()
+                    + ", '" + instructionDTO.getName() + "'"
+                    + ", " + instructionDTO.getOnHoldSeconds()
+                    + ", '" + instructionDTO.getOperation() + "'"
+                    + ", " + (instructionDTO.isOptional() ? 1 : 0)
+                    + ", " + instructionDTO.getParentId()
+                    + ", "
+                    + (instructionDTO.getPath() != null
+                            ? ", '" + instructionDTO.getPath() + "'"
+                            : instructionDTO.getPath())
+                    + ", " + instructionDTO.getVariableId()
+                    + ", " + instructionDTO.getBlock().getId()
+                    + ");";
+
+            int rowsAffected = stmt.executeUpdate(insertSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                        .info(String.format(
+                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperartion: %d",
+                                nextId,
+                                instructionDTO.getName(),
+                                instructionDTO.getActions(),
+                                instructionDTO.getOperation()));
+            } else {
+                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                        .warning(String.format(
+                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %d",
+                                nextId,
+                                instructionDTO.getName(),
+                                instructionDTO.getActions(),
+                                instructionDTO.getOperation()));
+            }
+
+            return true;
+        }
+    }
+
+    private Integer loadNextIdBInstructionData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+        }
+        return null;
     }
 }
