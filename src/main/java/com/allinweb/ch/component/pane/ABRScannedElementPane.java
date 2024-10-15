@@ -58,6 +58,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.net.ssl.*;
@@ -73,7 +74,6 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ABRScannedElementPane extends ABRPane {
 
-    private List<String> windowHandlesList; // List to store browser tab handles
     private int currentTabIndex = 0; // Track the currently active tab index
 
     private ExecutorService executorService;
@@ -144,6 +144,8 @@ public class ABRScannedElementPane extends ABRPane {
     private Label customXPathLabel;
     private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
+
+    private Text currentURL;
 
     private TextField defineNameField;
     private TextArea countdownTextField;
@@ -256,7 +258,8 @@ public class ABRScannedElementPane extends ABRPane {
                 botJob.getHomeBanking().getUrl(),
                 botJob.getHomeBanking().getOptionsConfig().toString());
 
-        updateWindowHandlesList();
+        currentURL.setText(abrWebDriver.getDriver().getCurrentUrl());
+        performAction.updateWindowHandlesList();
 
         topPane = componentBuilder.createTopPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
         bottomPane = componentBuilder.createBottomPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
@@ -354,9 +357,10 @@ public class ABRScannedElementPane extends ABRPane {
         rightButton = componentBuilder.buildButton(
                 "Next", ABRConstants.SPACE_M, ABRConstants.ICON_RIGHT, ABRConstants.SPACE_M, new Insets(5.0D));
 
-        leftButton.setOnAction(e -> switchToLeftTab());
+        leftButton.setDisable(true);
+        rightButton.setDisable(true);
 
-        // Button action to switch to the next tab
+        leftButton.setOnAction(e -> switchToLeftTab());
         rightButton.setOnAction(e -> switchToRightTab());
 
         try {
@@ -388,6 +392,9 @@ public class ABRScannedElementPane extends ABRPane {
             vBoxCheckBox.getChildren().addAll(checkClickElement, checkInputText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
             //        gridPaneTop.add(vBox, 9, 0);
+
+            currentURL = new Text("");
+            currentURL.setFill(Color.BLUE); // Set font color to blue
 
             topPane.getChildren().add(gridPaneTop); // Add gridPaneTop to topPane
 
@@ -509,7 +516,7 @@ public class ABRScannedElementPane extends ABRPane {
             VBox.setVgrow(bottomPane, Priority.NEVER);
             VBox.setVgrow(bottomPaneTime, Priority.NEVER);
 
-            contentPane.getChildren().addAll(topPane, verticalBox, bottomPaneTime, bottomPane);
+            contentPane.getChildren().addAll(currentURL, topPane, verticalBox, bottomPaneTime, bottomPane);
 
             AnchorPane.setBottomAnchor(bottomPane, -15.0);
 
@@ -554,25 +561,43 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    // Update the list of window handles (tabs)
-    private void updateWindowHandlesList() {
-        Set<String> windowHandles = abrWebDriver.getDriver().getWindowHandles();
-        windowHandlesList = new ArrayList<>(windowHandles);
+    // Enable or disable the tab switching buttons based on the number of tabs
+    private void updateButtonState() {
+        if (performAction.windowHandlesList.size() > 1) {
+            leftButton.setDisable(false); // Enable the buttons if more than one tab is open
+            rightButton.setDisable(false);
+        } else {
+            leftButton.setDisable(true); // Disable the buttons if there's only one or no tab
+            rightButton.setDisable(true);
+        }
     }
 
     // Switch to the previous tab (left)
     private void switchToLeftTab() {
-        if (windowHandlesList.size() > 1) {
-            currentTabIndex = (currentTabIndex - 1 + windowHandlesList.size()) % windowHandlesList.size();
-            abrWebDriver.getDriver().switchTo().window(windowHandlesList.get(currentTabIndex));
+        if (abrWebDriver.getDriver().getWindowHandles().size() > 1) {
+            if (abrWebDriver.getDriver().getWindowHandles().size() != performAction.windowHandlesList.size()) {
+                performAction.updateWindowHandlesList();
+                updateButtonState();
+            }
+
+            currentTabIndex = (currentTabIndex - 1 + performAction.windowHandlesList.size())
+                    % performAction.windowHandlesList.size();
+            abrWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
+            currentURL.setText(abrWebDriver.getDriver().getCurrentUrl());
         }
     }
 
     // Switch to the next tab (right)
     private void switchToRightTab() {
-        if (windowHandlesList.size() > 1) {
-            currentTabIndex = (currentTabIndex + 1) % windowHandlesList.size();
-            abrWebDriver.getDriver().switchTo().window(windowHandlesList.get(currentTabIndex));
+        if (abrWebDriver.getDriver().getWindowHandles().size() > 1) {
+            if (abrWebDriver.getDriver().getWindowHandles().size() != performAction.windowHandlesList.size()) {
+                performAction.updateWindowHandlesList();
+                updateButtonState();
+            }
+
+            currentTabIndex = (currentTabIndex + 1) % performAction.windowHandlesList.size();
+            abrWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
+            currentURL.setText(abrWebDriver.getDriver().getCurrentUrl());
         }
     }
 
@@ -1510,7 +1535,6 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             }
         };
-
         abrWebElement.addEventHandler(MouseEvent.MOUSE_ENTERED, mouseEnteredHandler);
         abrWebElement.addEventHandler(MouseEvent.MOUSE_EXITED, mouseExitedHandler);
         abrWebElement.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickedHandler);
@@ -2706,6 +2730,9 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void recallJob() {
         executeJob();
+
+        performAction.updateWindowHandlesList();
+
         // Review if Has Not Executed Instructions
         boolean hasUnexecutedInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
                 .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())

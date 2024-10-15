@@ -16,6 +16,9 @@ public class TabSwitcherApp extends Application {
     private List<String> windowHandlesList; // List to store browser tab handles
     private int currentTabIndex = 0; // Track the currently active tab index
 
+    private Button leftButton; // Button for switching to previous tab
+    private Button rightButton; // Button for switching to next tab
+
     @Override
     public void start(Stage primaryStage) {
         // Initialize EdgeDriver with the correct path to msedgedriver
@@ -29,18 +32,22 @@ public class TabSwitcherApp extends Application {
         // Open a second tab
         ((EdgeDriver) driver).executeScript("window.open('https://www.bing.com', '_blank');");
 
-        // Get all window handles (tabs)
-        updateWindowHandlesList();
-
         // Create buttons for switching left and right between tabs
-        Button leftButton = new Button("<< Previous Tab");
-        Button rightButton = new Button("Next Tab >>");
+        leftButton = new Button("<< Previous Tab");
+        rightButton = new Button("Next Tab >>");
+        leftButton.setDisable(true);
+        rightButton.setDisable(true);
+
+        updateWindowHandlesList();
 
         // Button action to switch to the previous tab
         leftButton.setOnAction(e -> switchToLeftTab());
 
         // Button action to switch to the next tab
         rightButton.setOnAction(e -> switchToRightTab());
+
+        // Enable/Disable buttons based on the number of tabs
+        updateButtonState();
 
         // Create a layout for the buttons
         HBox hbox = new HBox(10, leftButton, rightButton);
@@ -56,6 +63,22 @@ public class TabSwitcherApp extends Application {
     private void updateWindowHandlesList() {
         Set<String> windowHandles = driver.getWindowHandles();
         windowHandlesList = new ArrayList<>(windowHandles);
+        updateButtonState(); // Update button states after updating the window handles
+    }
+
+    // Enable or disable the tab switching buttons based on the number of tabs
+    private void updateButtonState() {
+        if (windowHandlesList.size() > 1) {
+            if (leftButton != null && rightButton != null) {
+                leftButton.setDisable(false); // Enable the buttons if more than one tab is open
+                rightButton.setDisable(false);
+            }
+        } else {
+            if (leftButton != null && rightButton != null) {
+                leftButton.setDisable(true); // Disable the buttons if there's only one or no tab
+                rightButton.setDisable(true);
+            }
+        }
     }
 
     // Switch to the previous tab (left)
@@ -84,9 +107,6 @@ public class TabSwitcherApp extends Application {
     }
 
     public static void main(String[] args) {
-        // Set the path to your WebDriver (ChromeDriver)
-        System.setProperty("webdriver.chrome.driver", "path/to/chromedriver");
-
         // Launch the JavaFX application
         launch(args);
     }

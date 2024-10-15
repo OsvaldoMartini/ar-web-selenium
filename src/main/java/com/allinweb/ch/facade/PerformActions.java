@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -39,8 +40,6 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * PerformActions.
@@ -49,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * @version 1.0
  */
 public class PerformActions {
-    private static final Logger logger = LoggerFactory.getLogger(PerformActions.class);
+    public List<String> windowHandlesList;
 
     private ABRPriorities abrPriorities;
     private ABRWebDriver abrWebDriver;
@@ -862,5 +861,11 @@ public class PerformActions {
                 String.format(
                         "Attention the Process Reached the Block LOOP LIMIT of %d\nLast Instruction Executed : %s\nWe are Exiting All of processes Now!",
                         executionTimes, lastInstructionExecuted));
+    }
+
+    // Update the list of window handles (tabs)
+    public void updateWindowHandlesList() {
+        Set<String> windowHandles = abrWebDriver.getDriver().getWindowHandles();
+        windowHandlesList = new ArrayList<>(windowHandles);
     }
 }
