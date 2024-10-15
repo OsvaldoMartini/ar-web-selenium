@@ -10,6 +10,7 @@ import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 public abstract class ABRScene implements IABRScene {
 
@@ -76,28 +77,32 @@ public abstract class ABRScene implements IABRScene {
         createScene(); // Create the scene before showing
         Platform.runLater(() -> {
             if (stage != null) {
-                configureStage();
+                stage.setTitle(getTitle());
+                stage.getIcons().add(icon);
+                stage.setScene(scene);
                 stage.show(); // Show the stage
-                handleWindowCloseLogic();
+
+                if (stage.getTitle().equalsIgnoreCase("ABR Web Scanner")) {
+                    handleCloseApp(stage);
+                } else {
+                    handleCloseThreads(); // Close threads on other scenes
+                }
             }
         });
     }
 
-    private void configureStage() {
-        stage.setTitle(getTitle());
-        stage.getIcons().add(icon);
-        stage.setScene(scene);
-    }
-
-    private void handleWindowCloseLogic() {
-        handleCloseThreads();
+    private void handleCloseApp(Stage stage) {
+        stage.setOnCloseRequest(event -> {
+            handleCloseThreads();
+            // Notify the command prompt
+            handleWindowClose(event);
+        });
     }
 
     protected void handleCloseThreads() {
         if (!isCloseHandlerSet) {
             System.out.println("Setting close handler for the first time");
             this.stage.setOnCloseRequest(event -> {
-                System.out.println("Handle Close Exiting Threads");
                 threadList.forEach(this::interruptThread);
             });
             isCloseHandlerSet = true; // Mark the flag as true after setting
@@ -121,5 +126,11 @@ public abstract class ABRScene implements IABRScene {
         Thread thread = new Thread(task);
         threadList.add(thread);
         thread.start();
+    }
+
+    private void handleWindowClose(WindowEvent event) {
+        ABRLogger.getInstance(ABRScene.class).info("X button clicked. Window is closing.");
+        // Platform.exit();
+        System.exit(0);
     }
 }

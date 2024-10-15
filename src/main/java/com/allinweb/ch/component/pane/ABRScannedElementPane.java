@@ -350,9 +350,9 @@ public class ABRScannedElementPane extends ABRPane {
         coordsTextField.setPromptText("Coordinates");
 
         leftButton = componentBuilder.buildButton(
-                "Previous Tab", ABRConstants.SPACE_M, ABRConstants.ICON_LEFT, ABRConstants.SPACE_M, new Insets(5.0D));
+                "Previous", ABRConstants.SPACE_M, ABRConstants.ICON_LEFT, ABRConstants.SPACE_M, new Insets(5.0D));
         rightButton = componentBuilder.buildButton(
-                "Next Tab", ABRConstants.SPACE_M, ABRConstants.ICON_RIGHT, ABRConstants.SPACE_M, new Insets(5.0D));
+                "Next", ABRConstants.SPACE_M, ABRConstants.ICON_RIGHT, ABRConstants.SPACE_M, new Insets(5.0D));
 
         leftButton.setOnAction(e -> switchToLeftTab());
 
@@ -2752,11 +2752,12 @@ public class ABRScannedElementPane extends ABRPane {
         String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
         excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobName() + ".xlsx";
         if (!(new File(excelPath)).exists()) {
-            new ABRAlertScene(
-                    Alert.AlertType.WARNING,
+            performAction.showAlertError(
                     "Missing file excel",
-                    "Please generate and compile the data of the file excel first before launching the bot job",
-                    new ButtonType[] {ButtonType.OK});
+                    "IS MANDATORY TO HAVE EXCEL FILE FOR TESTS"
+                            + "\nPlease generate and compile the data of the file excel first before launching the bot job",
+                    excelPath);
+            return false;
         }
 
         Labels.initializeLabelsInSpecLang("en");
@@ -2777,6 +2778,8 @@ public class ABRScannedElementPane extends ABRPane {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
             performAction.showAlertError("Excel File Empty", "IS MANDATORY TO HAVE DATA FOR TESTS", excelPath);
+            return false;
+            //            Platform.exit();
         }
         if (extractedData.getErrorMessage() != null) {
             //				showAlert("Excel Data File", "Warning: Excel File exist" , "Fields in the excel not matching the
