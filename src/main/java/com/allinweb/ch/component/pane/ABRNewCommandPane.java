@@ -1577,12 +1577,24 @@ public class ABRNewCommandPane extends ABRPane {
         }
         instruction.setOptional(false);
 
-        instruction.setVariableId(varId);
-        instruction.setParentId(instructionId);
-
         instruction.setOperation(operation);
         instruction.setActions(actions);
         instruction.setDescription(description);
+
+        instruction.setVariableId(varId);
+
+        Integer nextId = loadNextIdBInstructionData() + 1;
+
+        if (actions.equalsIgnoreCase(ABRConstants.IF_ELSE)) {
+            instruction.setId(nextId);
+            instruction.setParentId(nextId + 1);
+        } else if (actions.equalsIgnoreCase(ABRConstants.ENDIF)) {
+            instruction.setId(nextId);
+            instruction.setParentId(nextId - 1);
+        } else {
+            instruction.setId(nextId);
+            instruction.setParentId(instructionId);
+        }
 
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
@@ -1649,7 +1661,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            Integer nextId = loadNextIdBInstructionData() + 1;
+            //            Integer nextId = loadNextIdBInstructionData() + 1;
 
             String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "null";
 
@@ -1673,7 +1685,7 @@ public class ABRNewCommandPane extends ABRPane {
                     + "variable_id, "
                     + "block_id)\n"
                     + "VALUES ("
-                    + nextId
+                    + instructionDTO.getId()
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
                     + ", '" + instructionDTO.getActions() + "'"
                     + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
@@ -1697,7 +1709,7 @@ public class ABRNewCommandPane extends ABRPane {
                 ABRLogger.getInstance(ABRNewCommandPane.class)
                         .info(String.format(
                                 "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
-                                nextId,
+                                instructionDTO.getId(),
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
                                 instructionDTO.getOperation()));
@@ -1706,7 +1718,7 @@ public class ABRNewCommandPane extends ABRPane {
                 ABRLogger.getInstance(ABRNewCommandPane.class)
                         .warning(String.format(
                                 "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
-                                nextId,
+                                instructionDTO.getId(),
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
                                 instructionDTO.getOperation()));
