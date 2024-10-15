@@ -7,6 +7,9 @@ import lombok.Data;
 public class BotJobLoadDTO {
     private int id;
     private String name;
+    private String description;
+    private String priority;
+    private int homeBankingId;
     private List<BlockLoadDTO> blockLoadDTOList;
 
     @Override

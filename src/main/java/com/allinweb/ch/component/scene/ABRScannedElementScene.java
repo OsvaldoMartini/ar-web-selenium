@@ -8,17 +8,18 @@ import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 
 public class ABRScannedElementScene extends ABRScene {
 
     private static final Double SCENE_HEIGHT = 950D;
-    private static final Double SCENE_WIDTH = 1380D;
+    private static final Double SCENE_WIDTH = 1000D;
     private static final String TITLE = "Scanner Tool";
 
     private ABRWebDriver abrWebDriver;
     private final Integer botJobId;
     private final Integer blockId;
-    private String priority;
+    private final String priority;
 
     public ABRScannedElementScene(String priority, Integer botJobId, Integer blockId) {
         super();
@@ -29,9 +30,8 @@ public class ABRScannedElementScene extends ABRScene {
 
     @Override
     public IABRPane buildPane() {
-        abrWebDriver = new ABRWebDriver();
+        abrWebDriver = new ABRWebDriver(); // Initialize WebDriver
         return new ABRScannedElementPane(
-                priority,
                 ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId),
                 blockId != null ? ABRSharedResources.getInstance().getEntityById(BlockDTO.class, blockId) : null,
                 abrWebDriver);
@@ -39,8 +39,30 @@ public class ABRScannedElementScene extends ABRScene {
 
     @Override
     public void setStageBehaviour(Stage stage) {
-        super.setStageBehaviour(stage);
-        stage.setOnCloseRequest(windowEvent -> abrWebDriver.closeDriver());
+        super.setStageBehaviour(stage); // Call the parent class method
+
+        // Only set the close request handler if it's not already set
+        if (!isCloseHandlerSet) {
+            stage.setOnCloseRequest(this::handleCloseRequest);
+            isCloseHandlerSet = true; // Update the flag to prevent setting it again
+        }
+    }
+
+    private void handleCloseRequest(WindowEvent event) {
+        System.out.println("Handle Close: Exiting Threads and Quitting WebDriver");
+
+        // Interrupt running threads
+        threadList.forEach(this::interruptThread);
+
+        // Close WebDriver if it's initialized
+        if (abrWebDriver != null) {
+            try {
+                abrWebDriver.getDriver().quit(); // Quit WebDriver
+                System.out.println("WebDriver quit successfully.");
+            } catch (Exception e) {
+                System.err.println("Error closing WebDriver: " + e.getMessage());
+            }
+        }
     }
 
     @Override

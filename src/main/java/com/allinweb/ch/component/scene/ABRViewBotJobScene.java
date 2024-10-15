@@ -22,6 +22,8 @@ import java.util.Map;
 
 public class ABRViewBotJobScene extends ABRScene {
 
+    private ABRScene currentScene;
+
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
 
@@ -34,6 +36,7 @@ public class ABRViewBotJobScene extends ABRScene {
     public ABRViewBotJobScene(Integer botJobId) {
         super();
         this.botJobId = botJobId;
+        this.currentScene = currentScene;
     }
 
     @Override
@@ -68,7 +71,7 @@ public class ABRViewBotJobScene extends ABRScene {
                     .info(String.format("Created a new Block id %d for bot job Id %d", newBlockId, botJob.getId()));
         }
 
-        return new ABRViewBotJobPane(botJobDTO);
+        return new ABRViewBotJobPane(botJobDTO, this);
     }
 
     @Override
@@ -284,5 +287,10 @@ public class ABRViewBotJobScene extends ABRScene {
             ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
+    }
+
+    // Now you can access currentScene anywhere in this class
+    public ABRScene getCurrentScene() {
+        return currentScene;
     }
 }

@@ -11,6 +11,7 @@ import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.*;
+import com.allinweb.ch.component.scene.base.ABRScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
@@ -125,8 +126,10 @@ public class ABRViewBotJobPane extends ABRPane {
     private ServerContainer wsContainer;
     private WebView webView = new WebView();
     private WebEngine webEngine;
+    private ABRScene abrScene;
 
-    public ABRViewBotJobPane(BotJobDTO botJob) {
+    public ABRViewBotJobPane(BotJobDTO botJob, ABRScene abrScene) {
+        this.abrScene = abrScene;
         this.botJob = botJob;
         // Initialize database IF IS ACCESS TO BE USED
         variablesList = FXCollections.observableArrayList();
@@ -418,35 +421,7 @@ public class ABRViewBotJobPane extends ABRPane {
         this.openScannerButton.setOnMouseClicked((e) -> {
             ABRLogger.getInstance(ABRWebDriver.class).fine("Calling openScannerButton");
 
-            try {
-                (new ABRScannedElementScene(
-                                this.botJob.getHomeBanking().getPriority(),
-                                this.botJob.getId(),
-                                this.botJob.getBlocks() != null
-                                                && this.botJob.getBlocks().size() > 0
-                                        ? this.botJob.getBlocks().get(0).getId()
-                                        : null))
-                        .show();
-            } catch (Exception ex) {
-                // Retrieve the root cause of the exception
-                //                Throwable rootCause = ex;
-                //                while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
-                //                    rootCause = rootCause.getCause();
-                //                }
-
-                // Log the main exception and the root cause
-                ABRLogger.getInstance(ABRWebDriver.class)
-                        .severe("ERROR Calling openScannerButton\n" + ex.getMessage() + "\nRoot cause: "
-                                + ex.getMessage());
-
-                // Display a message with both the exception message and the root cause
-                JOptionPane.showMessageDialog(
-                        null,
-                        "An error has occurred Calling SCAN: \nError: " + ex.getMessage() + "\nCause: "
-                                + ex.getMessage(),
-                        "Error calling in SCAN",
-                        JOptionPane.ERROR_MESSAGE);
-            }
+            abrScene.startNewThread(() -> executeScannerTask());
         });
 
         this.generateExcelButton.setOnMouseClicked((e) -> {
@@ -564,6 +539,43 @@ public class ABRViewBotJobPane extends ABRPane {
                 this.componentContainer.setVisible(true);
                 this.componentContainer.setManaged(true);
             }
+        });
+    }
+
+    private void executeScannerTask() {
+        try {
+            Platform.runLater(() -> {
+                try {
+                    // Call the ABRScannedElementScene here
+                    ABRScannedElementScene scene = new ABRScannedElementScene(
+                            this.botJob.getHomeBanking().getPriority(),
+                            this.botJob.getId(),
+                            this.botJob.getBlocks() != null
+                                            && this.botJob.getBlocks().size() > 0
+                                    ? this.botJob.getBlocks().get(0).getId()
+                                    : null);
+                    scene.show(); // Make sure the scene is shown
+                } catch (Exception ex) {
+                    handleExceptionScan(ex);
+                }
+            });
+        } catch (Exception ex) {
+            handleExceptionScan(ex);
+        }
+    }
+
+    private void handleExceptionScan(Exception ex) {
+        // Log the exception
+        ABRLogger.getInstance(ABRWebDriver.class)
+                .severe("ERROR Calling openScannerButton\n" + ex.getMessage() + "\nRoot cause: " + ex.getMessage());
+
+        // Display the error message to the user
+        Platform.runLater(() -> {
+            JOptionPane.showMessageDialog(
+                    null,
+                    "An error has occurred Calling SCAN: \nError: " + ex.getMessage() + "\nCause: " + ex.getMessage(),
+                    "Error calling in SCAN",
+                    JOptionPane.ERROR_MESSAGE);
         });
     }
 

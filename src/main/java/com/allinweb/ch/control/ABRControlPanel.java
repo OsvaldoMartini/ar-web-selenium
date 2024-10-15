@@ -11,7 +11,14 @@ public class ABRControlPanel extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
-        new ABRMainScene().show();
+        ABRMainScene primaryStage = new ABRMainScene();
+        primaryStage.show();
+        // Capture the close button click (X button on the window)
+        //        primaryStage.hsetOnCloseRequest(event -> {
+        //            // Call your method here when the X button is clicked
+        //            handleWindowClose(event);
+        //        });
+
     }
 
     public static void main(String[] args) {

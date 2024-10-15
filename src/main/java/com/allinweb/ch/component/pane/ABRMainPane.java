@@ -147,7 +147,10 @@ public class ABRMainPane extends ABRPane {
         );*/
         configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
         infoButton.setOnMouseClicked(e -> new ABRInfoScene().show());
-        exitButton.setOnMouseClicked(e -> Platform.exit());
+        exitButton.setOnMouseClicked(e -> {
+            //            Platform.exit();
+            System.exit(0);
+        });
 
         editBotJobButton.setOnMouseClicked(e -> {
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();

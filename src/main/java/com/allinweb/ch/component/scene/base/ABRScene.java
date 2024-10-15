@@ -1,9 +1,10 @@
 package com.allinweb.ch.component.scene.base;
 
 import com.allinweb.ch.component.pane.base.IABRPane;
-import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -12,10 +13,17 @@ import javafx.stage.Stage;
 
 public abstract class ABRScene implements IABRScene {
 
-    private Image icon = null;
+    private Image icon;
+    protected Stage stage; // Make stage protected to allow access in subclass
+    private Scene scene;
+    protected final List<Thread> threadList = new ArrayList<>();
+    // Flag to track if the close request handler has been set
+    protected boolean isCloseHandlerSet = false;
 
-    private Stage stage = null;
-    private Scene scene = null;
+    public ABRScene() {
+        setupStage(); // Initialize the stage and set its behavior
+        loadIcon();
+    }
 
     public abstract IABRPane buildPane();
 
@@ -24,34 +32,40 @@ public abstract class ABRScene implements IABRScene {
     public abstract Double getSceneWidth();
 
     public void setStageBehaviour(Stage stage) {
-        // no stage behaviour changed by default
+        // By default, do nothing. The subclass will define behavior.
     }
 
-    public ABRScene() {
+    private void setupStage() {
         try {
-            stage = new Stage();
-            setStageBehaviour(stage);
+            stage = new Stage(); // Create the stage here
+            setStageBehaviour(stage); // Ensure stage behavior is set at creation time
         } catch (IllegalStateException e) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe("ABRScene (1) IllegalStateException\n" + e);
-            try {
-                Platform.runLater(() -> {
-                    stage = new Stage();
-                    setStageBehaviour(stage);
-                });
-            } catch (IllegalStateException ex) {
-                ABRLogger.getInstance(ABRWebDriver.class).severe("ABRScene (2) IllegalStateException\n" + ex);
-            }
+            handleIllegalState(e);
         }
+    }
+
+    private void handleIllegalState(IllegalStateException e) {
+        ABRLogger.getInstance(ABRScene.class).severe("ABRScene IllegalStateException\n" + e);
+        Platform.runLater(() -> {
+            try {
+                stage = new Stage(); // Retry stage creation if failed
+                setStageBehaviour(stage); // Ensure stage behavior is set
+            } catch (IllegalStateException ex) {
+                ABRLogger.getInstance(ABRScene.class).severe("ABRScene IllegalStateException\n" + ex);
+            }
+        });
+    }
+
+    private void loadIcon() {
         try {
             icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream(ABRConstants.ICON_APPLICATION)));
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe("ABRScene\n" + e);
+            ABRLogger.getInstance(ABRScene.class).severe("Error loading icon in ABRScene\n" + e);
         }
     }
 
     public void createScene() {
         IABRPane mainPane = buildPane();
-        // new Alert(AlertType.WARNING, "Error" + (mainPane == null)).show();
         if (mainPane != null) {
             scene = new Scene(mainPane.createPane(), getSceneWidth(), getSceneHeight());
         }
@@ -59,17 +73,53 @@ public abstract class ABRScene implements IABRScene {
 
     @Override
     public void show() {
-        createScene();
+        createScene(); // Create the scene before showing
         Platform.runLater(() -> {
             if (stage != null) {
-                stage.setTitle(getTitle());
-                stage.getIcons().add(icon);
-                stage.setScene(scene);
-                // stage.setResizable(false);
-                stage.show();
-            } else {
-                show();
+                configureStage();
+                stage.show(); // Show the stage
+                handleWindowCloseLogic();
             }
         });
+    }
+
+    private void configureStage() {
+        stage.setTitle(getTitle());
+        stage.getIcons().add(icon);
+        stage.setScene(scene);
+    }
+
+    private void handleWindowCloseLogic() {
+        handleCloseThreads();
+    }
+
+    protected void handleCloseThreads() {
+        if (!isCloseHandlerSet) {
+            System.out.println("Setting close handler for the first time");
+            this.stage.setOnCloseRequest(event -> {
+                System.out.println("Handle Close Exiting Threads");
+                threadList.forEach(this::interruptThread);
+            });
+            isCloseHandlerSet = true; // Mark the flag as true after setting
+        } else {
+            System.out.println("Close handler already set, skipping...");
+        }
+    }
+
+    protected void interruptThread(Thread thread) {
+        if (thread != null && thread.isAlive()) {
+            try {
+                thread.interrupt();
+                thread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    public void startNewThread(Runnable task) {
+        Thread thread = new Thread(task);
+        threadList.add(thread);
+        thread.start();
     }
 }

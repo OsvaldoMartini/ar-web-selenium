@@ -37,10 +37,10 @@ public class BotJobDTO extends BaseDTO implements Serializable {
     @Fetch(FetchMode.SUBSELECT)
     private List<VariableDTO> variableDTOS = new ArrayList<>();
 
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "bot_job_id")
-    @Fetch(FetchMode.SUBSELECT)
-    private List<ExcelReportDTO> excelReportDTO = new ArrayList<>();
+    //    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    //    @JoinColumn(name = "bot_job_id")
+    //    @Fetch(FetchMode.SUBSELECT)
+    //    private List<ExcelReportDTO> excelReportDTO = new ArrayList<>();
 
     public BotJobDTO() {
         super();
@@ -106,14 +106,14 @@ public class BotJobDTO extends BaseDTO implements Serializable {
         this.variableDTOS = variableDTOS;
     }
 
-    public List<ExcelReportDTO> getExcelReportDTO() {
-        return ABRSharedResources.getInstance()
-                .getEntityList(
-                        ExcelReportDTO.class,
-                        excelReportDTO -> excelReportDTO.getBotJobDTO().getId() == this.getId());
-    }
-
-    public void setExcelReportDTO(List<ExcelReportDTO> excelReportDTO) {
-        this.excelReportDTO = excelReportDTO;
-    }
+    //    public List<ExcelReportDTO> getExcelReportDTO() {
+    //        return ABRSharedResources.getInstance()
+    //                .getEntityList(
+    //                        ExcelReportDTO.class,
+    //                        excelReportDTO -> excelReportDTO.getBotJobDTO().getId() == this.getId());
+    //    }
+    //
+    //    public void setExcelReportDTO(List<ExcelReportDTO> excelReportDTO) {
+    //        this.excelReportDTO = excelReportDTO;
+    //    }
 }

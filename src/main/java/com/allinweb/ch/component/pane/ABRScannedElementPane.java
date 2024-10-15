@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.Date;
 import java.util.NoSuchElementException;
@@ -74,7 +73,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ABRScannedElementPane extends ABRPane {
 
-    private Connection conn = null;
+    private List<String> windowHandlesList; // List to store browser tab handles
+    private int currentTabIndex = 0; // Track the currently active tab index
 
     private ExecutorService executorService;
     private static final int SECONDS = 3; // Total seconds for the countdown
@@ -99,7 +99,8 @@ public class ABRScannedElementPane extends ABRPane {
 
     private DatabaseUserDTO databaseUserDto;
 
-    private ABRWebDriver abrWebDriver;
+    public ABRWebDriver abrWebDriver;
+    private Set<String> windowHandles;
     private BotJobDTO botJob;
     private BlockDTO blockJob;
     private int currentBlockId;
@@ -128,6 +129,8 @@ public class ABRScannedElementPane extends ABRPane {
     private Button refreshInputFieldsButton;
     private Button refreshOutputFieldsButton;
     private Button refreshOtherFieldsButton;
+    private Button leftButton;
+    private Button rightButton;
     private CheckBox checkBoxAction;
     private CheckBox checkActiveHover;
     private CheckBox checkClickElement;
@@ -179,26 +182,40 @@ public class ABRScannedElementPane extends ABRPane {
         managerProps = ABRPropertyManager.getInstance();
     }
 
-    public ABRScannedElementPane(String priority, BotJobDTO botJob, BlockDTO blockJob, ABRWebDriver abrWebDriver) {
-        super();
+    public ABRWebDriver getAbrWebDriver() {
+        return abrWebDriver;
+    }
 
+    public ABRScannedElementPane(BotJobDTO botJob, BlockDTO blockJob, ABRWebDriver abrWebDriver) {
         ABRLogger.getInstance(ABRWebDriver.class).fine("Calling ABRScannedElementPane");
 
-        if ((botJob != null && abrPriorities.getJobId() == null) || (abrPriorities.getJobId() != botJob.getId())) {
-            abrPriorities.setJobId(botJob.getId());
-            if (botJob.getHomeBanking().getPriority() != null) {
-                abrPriorities.loadPrioritiesFromString(botJob.getHomeBanking().getPriority());
-                abrPriorities.loadSearchElementsConfig(botJob.getHomeBanking().getSearchConfig());
-            } else {
-                abrPriorities.loadPriorities();
-                abrPriorities.loadSearchElementsConfig(botJob.getHomeBanking().getSearchConfig());
-            }
+        // Ensure botJob and abrPriorities are not null before accessing their methods
+        if (botJob != null && abrPriorities != null) {
+            // Check if we need to update abrPriorities
+            if (abrPriorities.getJobId() == null || !abrPriorities.getJobId().equals(botJob.getId())) {
+                // Set Job ID in abrPriorities
+                abrPriorities.setJobId(botJob.getId());
 
-            if (abrPriorities != null) {
+                // Check for non-null HomeBanking and Priority
+                if (botJob.getHomeBanking() != null) {
+                    String priorityValue = botJob.getHomeBanking().getPriority();
+                    String searchConfig = botJob.getHomeBanking().getSearchConfig();
+
+                    if (priorityValue != null) {
+                        abrPriorities.loadPrioritiesFromString(priorityValue);
+                    } else {
+                        abrPriorities.loadPriorities();
+                    }
+
+                    abrPriorities.loadSearchElementsConfig(searchConfig);
+                }
+
+                // Initialize performAction with abrPriorities and abrWebDriver
                 performAction.initializePerformActions(abrPriorities, abrWebDriver);
             }
         }
 
+        // Assign instance variables
         this.botJob = botJob;
         this.blockJob = blockJob;
         this.abrWebDriver = abrWebDriver;
@@ -238,6 +255,8 @@ public class ABRScannedElementPane extends ABRPane {
         abrWebDriver.openDriver(
                 botJob.getHomeBanking().getUrl(),
                 botJob.getHomeBanking().getOptionsConfig().toString());
+
+        updateWindowHandlesList();
 
         topPane = componentBuilder.createTopPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
         bottomPane = componentBuilder.createBottomPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
@@ -329,6 +348,17 @@ public class ABRScannedElementPane extends ABRPane {
         originalTagNameField.setPromptText("Tag Name");
         coordsTextField = new TextField();
         coordsTextField.setPromptText("Coordinates");
+
+        leftButton = componentBuilder.buildButton(
+                "Previous Tab", ABRConstants.SPACE_M, ABRConstants.ICON_LEFT, ABRConstants.SPACE_M, new Insets(5.0D));
+        rightButton = componentBuilder.buildButton(
+                "Next Tab", ABRConstants.SPACE_M, ABRConstants.ICON_RIGHT, ABRConstants.SPACE_M, new Insets(5.0D));
+
+        leftButton.setOnAction(e -> switchToLeftTab());
+
+        // Button action to switch to the next tab
+        rightButton.setOnAction(e -> switchToRightTab());
+
         try {
             // Starting the View
 
@@ -345,6 +375,8 @@ public class ABRScannedElementPane extends ABRPane {
             gridPaneTop.add(searchWithoutIdsAndNamesBtn, 4, 0);
             gridPaneTop.add(refreshOutputFieldsButton, 5, 0);
             gridPaneTop.add(refreshOtherFieldsButton, 6, 0);
+            gridPaneTop.add(leftButton, 7, 0);
+            gridPaneTop.add(rightButton, 8, 0);
 
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
@@ -522,6 +554,28 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
+    // Update the list of window handles (tabs)
+    private void updateWindowHandlesList() {
+        Set<String> windowHandles = abrWebDriver.getDriver().getWindowHandles();
+        windowHandlesList = new ArrayList<>(windowHandles);
+    }
+
+    // Switch to the previous tab (left)
+    private void switchToLeftTab() {
+        if (windowHandlesList.size() > 1) {
+            currentTabIndex = (currentTabIndex - 1 + windowHandlesList.size()) % windowHandlesList.size();
+            abrWebDriver.getDriver().switchTo().window(windowHandlesList.get(currentTabIndex));
+        }
+    }
+
+    // Switch to the next tab (right)
+    private void switchToRightTab() {
+        if (windowHandlesList.size() > 1) {
+            currentTabIndex = (currentTabIndex + 1) % windowHandlesList.size();
+            abrWebDriver.getDriver().switchTo().window(windowHandlesList.get(currentTabIndex));
+        }
+    }
+
     private Node createSpacer() {
         // Create a Region as a spacer
         Region spacer = new Region();
@@ -575,6 +629,9 @@ public class ABRScannedElementPane extends ABRPane {
         configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
         launchBotJobButton.setOnMouseClicked(e -> {
             //                        loadBotJob(botJob);
+
+            lastBrowserTab();
+
             loadBlockAll(botJob.getId());
             instructionsExecuted.clear();
 
@@ -626,6 +683,17 @@ public class ABRScannedElementPane extends ABRPane {
         scannedElements3.getItems().addListener(this::addBehaviourToAddedElements);
 
         //        manageUIScan();
+    }
+
+    private void lastBrowserTab() {
+        // Get all window handles (all open tabs/windows)
+        windowHandles = abrWebDriver.getDriver().getWindowHandles();
+
+        // Convert the window handles set to a list
+        List<String> windowHandlesList = new ArrayList<>(windowHandles);
+
+        // Switch to the last window (newly opened tab)
+        abrWebDriver.getDriver().switchTo().window(windowHandlesList.get(windowHandlesList.size() - 1));
     }
 
     private void insertNewElement() {
@@ -1273,6 +1341,23 @@ public class ABRScannedElementPane extends ABRPane {
                     if (result.isPresent() && result.get() == ButtonType.YES) {
                         loadBlocksForBotJob(this.botJob.getId());
 
+                        BotJobLoadDTO botJobLoadDTO = loadBotJob(this.botJob.getId());
+
+                        if (botJobLoadDTO == null) {
+                            performAction.showAlertError(
+                                    "Bot Job DOES NOT EXIST",
+                                    "Verify the Bot Job Name if have any: ",
+                                    String.format(
+                                            "Check if you already have a Bot Job \"%\" Created!",
+                                            this.botJob.getName()));
+
+                            ABRLogger.getInstance(Thread.class)
+                                    .severe(String.format(
+                                            "Check if you already have a Bot Job \"%\" Created!",
+                                            this.botJob.getName()));
+                            return;
+                        }
+
                         // It Prevents Start without blocks
                         if (blockLoadList.isEmpty()) {
 
@@ -1292,12 +1377,27 @@ public class ABRScannedElementPane extends ABRPane {
                             //            ABRSharedResources.getInstance().addEntity(blockDTO, BlockDTO.class);
 
                             currentBlockId = createBlock(blockDTO);
-                            setBlockJob(ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
-                            ABRLogger.getInstance(Thread.class)
-                                    .info(String.format(
-                                            "Created a new Block id %d for bot job Id %d",
-                                            currentBlockId, botJob.getId()));
 
+                            if (currentBlockId < 0) {
+                                performAction.showAlertError(
+                                        "Error Creating new Block",
+                                        "Verify the BVot Job Name if have any",
+                                        "Check if you already have a Bot Job Created!");
+
+                                ABRLogger.getInstance(Thread.class)
+                                        .severe(String.format(
+                                                "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
+                                                botJob.getId()));
+                                return;
+                            } else {
+
+                                setBlockJob(
+                                        ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
+                                ABRLogger.getInstance(Thread.class)
+                                        .info(String.format(
+                                                "Created a new Block id %d for bot job Id %d",
+                                                currentBlockId, botJob.getId()));
+                            }
                         } else {
                             if (blockLoadList.size() > 0 && this.blockJob == null) {
                                 currentBlockId = blockLoadList.get(0).getId();
@@ -2730,12 +2830,12 @@ public class ABRScannedElementPane extends ABRPane {
 
         clearFields();
 
-        ExcelReportDTO report = new ExcelReportDTO();
-        report.setOrder((short) blocksLoaded.get(0).getId());
-        report.setStartDate(LocalDateTime.now());
-        report.setBatchJobId(selectedJob.getId());
-        report.setBotJobDTO(selectedJob);
-        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
+        //        ExcelReportDTO report = new ExcelReportDTO();
+        //        report.setOrder((short) blocksLoaded.get(0).getId());
+        //        report.setStartDate(LocalDateTime.now());
+        //        report.setBatchJobId(selectedJob.getId());
+        //        report.setBotJobDTO(selectedJob);
+        //        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
         mapOperators = new HashMap<>();
         mapExport = new HashMap<>();
@@ -3186,6 +3286,8 @@ public class ABRScannedElementPane extends ABRPane {
                         printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
 
                         if (!success) {
+                            resultActions =
+                                    String.format("BotJob : %s has finished successfully!", this.botJob.getName());
                             countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
                             countdownTextField.setText(resultActions);
                             stopAll = true;
@@ -3287,27 +3389,27 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         if (totalExecutionTime == 0) {
-            report.setDuration(0);
+            //            report.setDuration(0);
             writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
-            try {
-                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
-            } catch (Exception ex) {
-                ABRLogger.getInstance(ABRScannedElementPane.class)
-                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
-            }
+            //            try {
+            //                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
+            //            } catch (Exception ex) {
+            //                ABRLogger.getInstance(ABRScannedElementPane.class)
+            //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
+            //            }
         }
 
         // PRINT END BASE LOG//
         if (success) {
-            report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
-            report.setDuration(totalExecutionTime / 100);
+            //            report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
+            //            report.setDuration(totalExecutionTime / 100);
             writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-            try {
-                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
-            } catch (Exception ex) {
-                ABRLogger.getInstance(ABRScannedElementPane.class)
-                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
-            }
+            //            try {
+            //                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
+            //            } catch (Exception ex) {
+            //                ABRLogger.getInstance(ABRScannedElementPane.class)
+            //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
+            //            }
             baseLogString = selectedJob.getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
@@ -3320,16 +3422,16 @@ public class ABRScannedElementPane extends ABRPane {
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
                     + lastInstructionExecuted;
-            report.setStatus(status);
-            report.setDuration(totalExecutionTime / 100);
+            //            report.setStatus(status);
+            //            report.setDuration(totalExecutionTime / 100);
             writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-            try {
-                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
-                //                repository.write(report);
-            } catch (Exception ex) {
-                ABRLogger.getInstance(ABRScannedElementPane.class)
-                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
-            }
+            //            try {
+            //                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
+            //                //                repository.write(report);
+            //            } catch (Exception ex) {
+            //                ABRLogger.getInstance(ABRScannedElementPane.class)
+            //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
+            //            }
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
         return true;
@@ -3826,6 +3928,42 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         return blockLoadList;
+    }
+
+    public BotJobLoadDTO loadBotJob(int botJobId) {
+        // SQL query to get the blocks for a specific bot job
+        String query = "SELECT bj.id, "
+                + " bj.name, "
+                + " bj.description, "
+                + " bj.home_banking_id, "
+                + " bj.priority "
+                + " FROM bot_job bj "
+                + " WHERE bj.id = " + botJobId;
+
+        // Initialize the necessary data structures
+
+        // Use Statement to execute the query
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+            BotJobLoadDTO botJobLoadDTO = new BotJobLoadDTO();
+
+            while (rs.next()) {
+                botJobLoadDTO = new BotJobLoadDTO();
+
+                botJobLoadDTO.setId(rs.getInt("id"));
+                botJobLoadDTO.setName(rs.getString("name"));
+                botJobLoadDTO.setDescription(rs.getString("description"));
+                botJobLoadDTO.setPriority(rs.getString("priority"));
+                botJobLoadDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+            }
+            return botJobLoadDTO;
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(Thread.class)
+                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
+        }
+
+        return null;
     }
 
     private int createBlock(BlockDTO blockDTO) {
