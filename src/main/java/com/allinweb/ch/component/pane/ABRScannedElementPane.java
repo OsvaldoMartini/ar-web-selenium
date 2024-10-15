@@ -58,6 +58,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.net.ssl.*;
@@ -73,7 +74,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ABRScannedElementPane extends ABRPane {
 
-    private Stage compStage;
+    //    private Stage compStage;
 
     private int currentTabIndex = 0; // Track the currently active tab index
 
@@ -146,6 +147,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
 
+    private Text currentURL;
     private TextField defineNameField;
     private TextArea countdownTextField;
     private TextField attribIdTextField;
@@ -257,7 +259,7 @@ public class ABRScannedElementPane extends ABRPane {
                 botJob.getHomeBanking().getUrl(),
                 botJob.getHomeBanking().getOptionsConfig().toString());
 
-        performAction.updateWindowHandlesList();
+        handleWindowHandlesChange();
 
         topPane = componentBuilder.createTopPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
         bottomPane = componentBuilder.createBottomPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
@@ -360,6 +362,12 @@ public class ABRScannedElementPane extends ABRPane {
 
         leftButton.setOnAction(e -> switchToLeftTab());
         rightButton.setOnAction(e -> switchToRightTab());
+
+        currentURL = new Text("");
+        currentURL.setFill(Color.BLUE);
+        currentURL.setStyle("-fx-font-size: 16px;");
+
+        updateSceneTitleWithCurrentURL(botJob.getHomeBanking().getUrl());
 
         try {
             // Starting the View
@@ -483,6 +491,11 @@ public class ABRScannedElementPane extends ABRPane {
             HBox.setHgrow(scannedElements2, Priority.ALWAYS);
             HBox.setHgrow(scannedElements3, Priority.ALWAYS);
 
+            StackPane stackCurrentURL = new StackPane();
+            stackCurrentURL.getChildren().add(currentURL);
+            stackCurrentURL.setAlignment(Pos.CENTER);
+            HBox currentURLBox = new HBox(stackCurrentURL);
+
             Label labelInput = new Label("Input/IDs/Names(No Ids/Names)/Buttons");
             StackPane stackLabelInput = new StackPane();
             stackLabelInput.getChildren().add(labelInput);
@@ -505,7 +518,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
-            verticalBox.getChildren().addAll(boxListViews);
+            verticalBox.getChildren().addAll(currentURLBox, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
             VBox.setVgrow(bottomPane, Priority.NEVER);
@@ -558,50 +571,79 @@ public class ABRScannedElementPane extends ABRPane {
 
     // Enable or disable the tab switching buttons based on the number of tabs
     private void updateButtonState() {
+        // If more than one tab is open
         if (performAction.windowHandlesList.size() > 1) {
-            leftButton.setDisable(false); // Enable the buttons if more than one tab is open
-            rightButton.setDisable(false);
+            // Disable the left button if we are on the first tab
+            leftButton.setDisable(currentTabIndex == 0);
+
+            // Disable the right button if we are on the last tab
+            rightButton.setDisable(currentTabIndex == performAction.windowHandlesList.size() - 1);
         } else {
-            leftButton.setDisable(true); // Disable the buttons if there's only one or no tab
+            // Disable both buttons if there's only one tab or no tabs
+            leftButton.setDisable(true);
             rightButton.setDisable(true);
         }
     }
 
     // Switch to the previous tab (left)
     private void switchToLeftTab() {
-        if (abrWebDriver.getDriver().getWindowHandles().size() > 1) {
-            if (abrWebDriver.getDriver().getWindowHandles().size() != performAction.windowHandlesList.size()) {
-                performAction.updateWindowHandlesList();
-                updateButtonState();
-            }
+        if (abrWebDriver.getDriver().getWindowHandles().size() > 1 && currentTabIndex > 0) {
+            // Decrease the index to move to the left
+            currentTabIndex--;
 
-            currentTabIndex = (currentTabIndex - 1 + performAction.windowHandlesList.size())
-                    % performAction.windowHandlesList.size();
+            // Switch to the previous tab
             abrWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
-            updateSceneTitleWithCurrentURL(compStage, abrWebDriver.getDriver().getCurrentUrl());
-        }
-    }
+            updateSceneTitleWithCurrentURL(abrWebDriver.getDriver().getCurrentUrl());
 
-    // Assuming you have access to the Stage object
-    public void updateSceneTitleWithCurrentURL(Stage stage, String currentUrl) {
-        if (compStage == null) {
-            compStage = (Stage) leftButton.getScene().getWindow();
+            // Disable the left button if we are at the first tab
+            leftButton.setDisable(currentTabIndex == 0);
+
+            // Enable the right button since we're no longer on the last tab
+            rightButton.setDisable(false);
         }
-        // Update the title of the Stage with the current URL
-        stage.setTitle("Current URL: " + currentUrl);
     }
 
     // Switch to the next tab (right)
     private void switchToRightTab() {
-        if (abrWebDriver.getDriver().getWindowHandles().size() > 1) {
-            if (abrWebDriver.getDriver().getWindowHandles().size() != performAction.windowHandlesList.size()) {
-                performAction.updateWindowHandlesList();
-                updateButtonState();
-            }
+        if (abrWebDriver.getDriver().getWindowHandles().size() > 1
+                && currentTabIndex < performAction.windowHandlesList.size() - 1) {
+            // Increase the index to move to the right
+            currentTabIndex++;
 
-            currentTabIndex = (currentTabIndex + 1) % performAction.windowHandlesList.size();
+            // Switch to the next tab
             abrWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
-            updateSceneTitleWithCurrentURL(compStage, abrWebDriver.getDriver().getCurrentUrl());
+            updateSceneTitleWithCurrentURL(abrWebDriver.getDriver().getCurrentUrl());
+
+            // Disable the right button if we are at the last tab
+            rightButton.setDisable(currentTabIndex == performAction.windowHandlesList.size() - 1);
+
+            // Enable the left button since we're no longer on the first tab
+            leftButton.setDisable(false);
+        }
+    }
+
+    // Method to handle the scenario where the window handles size changes
+    private void handleWindowHandlesChange() {
+        Set<String> currentWindowHandles = abrWebDriver.getDriver().getWindowHandles();
+
+        // If the number of window handles has changed
+        if (currentWindowHandles.size() != performAction.windowHandlesList.size()) {
+            // Update the window handles list with the new handles
+            performAction.updateWindowHandlesList();
+
+            // Switch to the last window (most recent tab)
+            currentTabIndex = performAction.windowHandlesList.size() - 1; // The last index in the list
+            abrWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
+
+            // Update the scene title with the current URL of the last tab
+            updateSceneTitleWithCurrentURL(abrWebDriver.getDriver().getCurrentUrl());
+        }
+    }
+
+    // Assuming you have access to the Stage object
+    public void updateSceneTitleWithCurrentURL(String currentUrl) {
+        if (currentURL != null) {
+            currentURL.setText("Current URL:      " + currentUrl);
         }
     }
 
@@ -2735,7 +2777,10 @@ public class ABRScannedElementPane extends ABRPane {
     private void recallJob() {
         executeJob();
 
-        performAction.updateWindowHandlesList();
+        if (abrWebDriver.getDriver().getWindowHandles().size() != performAction.windowHandlesList.size()) {
+            performAction.updateWindowHandlesList();
+            updateButtonState();
+        }
 
         // Review if Has Not Executed Instructions
         boolean hasUnexecutedInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
@@ -3320,8 +3365,9 @@ public class ABRScannedElementPane extends ABRPane {
                         printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
 
                         if (!success) {
-                            resultActions =
-                                    String.format("BotJob : %s has finished successfully!", this.botJob.getName());
+                            //                            resultActions =
+                            //                                    String.format("BotJob : %s failed",
+                            // this.botJob.getName());
                             countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
                             countdownTextField.setText(resultActions);
                             stopAll = true;

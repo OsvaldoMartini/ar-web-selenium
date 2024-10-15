@@ -48,7 +48,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  * @version 1.0
  */
 public class PerformActions {
-    public List<String> windowHandlesList;
+    public List<String> windowHandlesList = new ArrayList<>();
 
     private ABRPriorities abrPriorities;
     private ABRWebDriver abrWebDriver;
