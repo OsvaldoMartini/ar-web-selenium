@@ -58,7 +58,6 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.net.ssl.*;
@@ -73,6 +72,8 @@ import org.openqa.selenium.support.pagefactory.ByChained;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ABRScannedElementPane extends ABRPane {
+
+    private Stage compStage;
 
     private int currentTabIndex = 0; // Track the currently active tab index
 
@@ -144,8 +145,6 @@ public class ABRScannedElementPane extends ABRPane {
     private Label customXPathLabel;
     private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
-
-    private Text currentURL;
 
     private TextField defineNameField;
     private TextArea countdownTextField;
@@ -258,7 +257,6 @@ public class ABRScannedElementPane extends ABRPane {
                 botJob.getHomeBanking().getUrl(),
                 botJob.getHomeBanking().getOptionsConfig().toString());
 
-        currentURL.setText(abrWebDriver.getDriver().getCurrentUrl());
         performAction.updateWindowHandlesList();
 
         topPane = componentBuilder.createTopPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_SM);
@@ -393,9 +391,6 @@ public class ABRScannedElementPane extends ABRPane {
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
             //        gridPaneTop.add(vBox, 9, 0);
 
-            currentURL = new Text("");
-            currentURL.setFill(Color.BLUE); // Set font color to blue
-
             topPane.getChildren().add(gridPaneTop); // Add gridPaneTop to topPane
 
             VBox verticalBox = new VBox();
@@ -516,7 +511,7 @@ public class ABRScannedElementPane extends ABRPane {
             VBox.setVgrow(bottomPane, Priority.NEVER);
             VBox.setVgrow(bottomPaneTime, Priority.NEVER);
 
-            contentPane.getChildren().addAll(currentURL, topPane, verticalBox, bottomPaneTime, bottomPane);
+            contentPane.getChildren().addAll(topPane, verticalBox, bottomPaneTime, bottomPane);
 
             AnchorPane.setBottomAnchor(bottomPane, -15.0);
 
@@ -583,8 +578,17 @@ public class ABRScannedElementPane extends ABRPane {
             currentTabIndex = (currentTabIndex - 1 + performAction.windowHandlesList.size())
                     % performAction.windowHandlesList.size();
             abrWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
-            currentURL.setText(abrWebDriver.getDriver().getCurrentUrl());
+            updateSceneTitleWithCurrentURL(compStage, abrWebDriver.getDriver().getCurrentUrl());
         }
+    }
+
+    // Assuming you have access to the Stage object
+    public void updateSceneTitleWithCurrentURL(Stage stage, String currentUrl) {
+        if (compStage == null) {
+            compStage = (Stage) leftButton.getScene().getWindow();
+        }
+        // Update the title of the Stage with the current URL
+        stage.setTitle("Current URL: " + currentUrl);
     }
 
     // Switch to the next tab (right)
@@ -597,7 +601,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             currentTabIndex = (currentTabIndex + 1) % performAction.windowHandlesList.size();
             abrWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
-            currentURL.setText(abrWebDriver.getDriver().getCurrentUrl());
+            updateSceneTitleWithCurrentURL(compStage, abrWebDriver.getDriver().getCurrentUrl());
         }
     }
 
