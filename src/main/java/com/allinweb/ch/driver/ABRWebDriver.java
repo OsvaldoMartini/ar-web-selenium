@@ -39,7 +39,7 @@ public class ABRWebDriver {
                     driver = new ChromeDriver(options);
                 }
                 case ABRConstants.EDGE -> {
-                    System.setProperty("webdriver.edge.driver", "D/:/Projects/AllinWeb/abr-web-selenium-archive/abr-web-selenium-files/ProgramFiles/edgedriver-versions/msedgedriver_64-(129.0.2792.65).exe");
+                    System.setProperty("webdriver.edge.driver", "D:/Projects/AllinWeb/abr-web-selenium-archive/abr-web-selenium-files/ProgramFiles/edgedriver-versions/msedgedriver_64-(129.0.2792.65).exe");
                     EdgeOptions options = new EdgeOptions();
                     // options.setBinary(ABRConstants.CURRENT_PATH + "\\msedgedriver.exe");
                     options.setExperimentalOption("useAutomationExtension", false);
