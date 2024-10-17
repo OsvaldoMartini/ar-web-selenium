@@ -341,6 +341,9 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxVars.getSelectionModel().selectFirst();
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
+        if (blocksItems.size() == 0) {
+            blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1));
+        }
         comboBoxBlocks.setPrefWidth(80);
         comboBoxBlocks.getSelectionModel().selectFirst();
         comboBoxBlocks.setButtonCell(new ListCell<>() {
@@ -583,13 +586,13 @@ public class ABRNewCommandPane extends ABRPane {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
                 if (ABRConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())) {
-                    botJobVarsLabel.setText("Bot-Job Variable");
-
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
                     textFlow.setVisible(true);
                     textFlow.setPrefWidth(buttonWidth + 100);
 
+                    botJobVarsLabel.setText("Bot-Job Variable");
+                    botJobVarsLabel.setVisible(true);
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(true);
                     comboBoxWebPage.setVisible(true);
@@ -603,11 +606,11 @@ public class ABRNewCommandPane extends ABRPane {
                 } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
-                    botJobVarsLabel.setText("Block Destination");
-
                     textFlow.setVisible(true);
                     textFlow.setPrefWidth(buttonWidth + 100);
 
+                    botJobVarsLabel.setText("Block Destination");
+                    botJobVarsLabel.setVisible(true);
                     webPageLabel.setVisible(false);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(false);
@@ -632,13 +635,13 @@ public class ABRNewCommandPane extends ABRPane {
                     variableButton.setVisible(false);
                     comboBoxVars.setVisible(false);
                 } else {
-                    botJobVarsLabel.setText("Bot-Job Variable");
-
                     defineTextFlow(newValue.getValue());
 
                     textFlow.setVisible(true);
                     textFlow.setPrefWidth(buttonWidth);
 
+                    botJobVarsLabel.setText("Bot-Job Variable");
+                    botJobVarsLabel.setVisible(true);
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(true);
@@ -692,6 +695,13 @@ public class ABRNewCommandPane extends ABRPane {
                     showAlert("No Web Fields Defined", "Select Web Fields (Web Elements)!");
                     return;
                 }
+            }
+
+            if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
+                    && blocksItems.size() == 1
+                    && (comboBoxBlocks.getValue().getInstructionId() == -1)) {
+                showAlert("No Blocks Defined", "It must have ate least Two Blocks defined ");
+                return;
             }
 
             if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("setValue")) {
@@ -752,7 +762,7 @@ public class ABRNewCommandPane extends ABRPane {
                         ABRConstants.GOTO,
                         1,
                         comboBoxBlocks.getValue().getText(),
-                        comboBoxBlocks.getValue().getVarId(), // Block Order Number as VarId
+                        null, // Block Order Number as VarId
                         comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF ELSE")) {
@@ -762,8 +772,8 @@ public class ABRNewCommandPane extends ABRPane {
                         ABRConstants.IF_ELSE,
                         1,
                         "IF",
-                        comboBoxBlocks.getValue().getVarId(), // Block Order Number as VarId
-                        comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
+                        null, // Block Order Number as VarId
+                        null, // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             }
         });
