@@ -387,6 +387,12 @@ public class PerformActions {
                         case jsoup -> {} // System.out.println("Default case");
                     }
 
+                    if (abrWebDriver.getDriver() == null) {
+                        showAlertError(
+                                "ABR Web Driver is NULL", "Restart the APP", "Close all Browser or Restart the APP");
+                        return null;
+                    }
+
                     // Actualy here is Calling the Actions
                     if (criterias != null) {
 

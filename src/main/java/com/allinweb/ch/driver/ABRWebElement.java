@@ -180,30 +180,34 @@ public class ABRWebElement {
 
             if (searchReturn == null && abrPriorities.getJobId() != null) {
                 for (Priority priority : abrPriorities.getAllPriorityList()) {
-                    switch (priority.getPriorityType()) {
-                        case attribute -> {
-                            String attributeValue =
-                                    element.getAttribute(priority.getName().get(0));
-                            if (attributeValue != null && !attributeValue.isBlank()) {
-                                savedReferences.put(priority.getName().get(0), attributeValue);
+                    try {
+                        switch (priority.getPriorityType()) {
+                            case attribute -> {
+                                String attributeValue =
+                                        element.getAttribute(priority.getName().get(0));
+                                if (attributeValue != null && !attributeValue.isBlank()) {
+                                    savedReferences.put(priority.getName().get(0), attributeValue);
+                                }
                             }
-                        }
-                        case xpath, ByXPath -> {
-                            if (Strings.isNullOrEmpty(xPath)) {
-                                savedReferences.put(
-                                        priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
-                            } else {
-                                savedReferences.put(priority.getName().get(0), xPath);
+                            case xpath, ByXPath -> {
+                                if (Strings.isNullOrEmpty(xPath)) {
+                                    savedReferences.put(
+                                            priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
+                                } else {
+                                    savedReferences.put(priority.getName().get(0), xPath);
+                                }
                             }
-                        }
 
-                        case coordinates -> {
-                            Rectangle coordinates = element.getRect();
-                            savedReferences.put(
-                                    priority.getName().get(0),
-                                    (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                                            + (coordinates.getY() + (coordinates.getHeight() / 2)));
+                            case coordinates -> {
+                                Rectangle coordinates = element.getRect();
+                                savedReferences.put(
+                                        priority.getName().get(0),
+                                        (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                                                + (coordinates.getY() + (coordinates.getHeight() / 2)));
+                            }
                         }
+                    } catch (EnumConstantNotPresentException ex) {
+                        throw ex;
                     }
                 }
             } else {
@@ -261,8 +265,6 @@ public class ABRWebElement {
             } else {
                 clickElement.setValue(isClickable(element));
             }
-        } catch (EnumConstantNotPresentException ex) {
-            throw ex;
         } catch (Exception ex) {
             throw ex;
         }

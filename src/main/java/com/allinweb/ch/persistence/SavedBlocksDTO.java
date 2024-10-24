@@ -13,6 +13,9 @@ import org.hibernate.annotations.GenericGenerator;
 @GenericGenerator(name = "idgen", strategy = "native")
 public class SavedBlocksDTO extends BaseDTO {
 
+    @Column(name = "block_order_number")
+    private int blockOrderNumber;
+
     @Column(name = "name")
     private String name;
 
@@ -21,6 +24,10 @@ public class SavedBlocksDTO extends BaseDTO {
 
     @Column(name = "type_id")
     private Integer typeId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bot_job_id")
+    private BotJobDTO botJobDTO;
 
     @OneToMany(cascade = CascadeType.ALL)
     @OrderBy("instruction_order_number ASC")
@@ -31,8 +38,29 @@ public class SavedBlocksDTO extends BaseDTO {
         super();
     }
 
+    public SavedBlocksDTO(BotJobDTO botJobDTO) {
+        super();
+        this.botJobDTO = botJobDTO;
+    }
+
+    public BotJobDTO getBotJobDTO() {
+        return botJobDTO;
+    }
+
+    public void setBotJob(BotJobDTO botJobDTO) {
+        this.botJobDTO = botJobDTO;
+    }
+
     public SavedBlocksDTO(int id) {
         super(id);
+    }
+
+    public int getBlockOrderNumber() {
+        return blockOrderNumber;
+    }
+
+    public void setBlockOrderNumber(int blockOrderNumber) {
+        this.blockOrderNumber = blockOrderNumber;
     }
 
     public String getName() {

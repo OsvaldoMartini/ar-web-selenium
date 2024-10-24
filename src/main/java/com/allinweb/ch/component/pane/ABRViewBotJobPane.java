@@ -651,7 +651,7 @@ public class ABRViewBotJobPane extends ABRPane {
             this.componentList.refresh();
         });
 
-        createMockSavedBlocksDTOs();
+        //        createMockSavedBlocksDTOs();
 
         HBox searchPaneBox = new HBox(new Node[] {searchLabel, searchTextField});
         searchPaneBox.setMaxHeight(ABRConstants.SPACE_XL);

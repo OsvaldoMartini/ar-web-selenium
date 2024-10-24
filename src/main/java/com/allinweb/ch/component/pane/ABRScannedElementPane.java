@@ -1197,13 +1197,12 @@ public class ABRScannedElementPane extends ABRPane {
 
                     } catch (EnumConstantNotPresentException ex) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .severe("ENUM Property not Defined of Web Element\n " + ex.getMessage() + " Cause: "
-                                        + ex.getCause());
+                                .severe("ENUM Property not Defined of Web Element\n " + ex.getMessage());
                         performAction.showAlertError(
                                 "ERROR ADD WEB ELEMENT",
                                 "Enum Constant Not Present!",
                                 "Contact ADM to verify the \"Constant Locator Used\"\n"
-                                        + "\"XPath , Attribute, Coordinates\" ... ");
+                                        + "\"XPath , Attribute, Coordinates\" ... \n" + ex.getMessage());
                         return;
 
                     } catch (Exception e) {
@@ -4078,7 +4077,7 @@ public class ABRScannedElementPane extends ABRPane {
         // Generate a Unique-ID for the block
         Integer nextId = loadNextIdBlockData() + 1;
         Integer nextBlockOrder =
-                loadNextBlockOrderNUmber(blockDTO.getBotJobDTO().getId()) + 1;
+                loadNextBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
 
         // Build the SQL insert query
         String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
@@ -4113,7 +4112,7 @@ public class ABRScannedElementPane extends ABRPane {
         return null;
     }
 
-    private Integer loadNextBlockOrderNUmber(int botJobId) {
+    private Integer loadNextBlockOrderNumber(int botJobId) {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block where bot_job_id = " + botJobId;
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();

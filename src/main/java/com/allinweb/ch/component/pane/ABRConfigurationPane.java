@@ -531,6 +531,10 @@ public class ABRConfigurationPane extends ABRPane {
             stmt.executeUpdate("DELETE FROM block;");
             stmt.executeUpdate("DELETE FROM bot_job;");
 
+            stmt.executeUpdate("DELETE FROM saved_instruction_reference;");
+            stmt.executeUpdate("DELETE FROM saved_block_loop_instructions;");
+            stmt.executeUpdate("DELETE FROM saved_blocks;");
+
             // Drop sequences if they exist
             if (!dataBaseType.equalsIgnoreCase("ACCESS")) {
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
@@ -538,6 +542,7 @@ public class ABRConfigurationPane extends ABRPane {
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
             }
             ABRLogger.getInstance(ABRWebDriver.class)
@@ -548,6 +553,7 @@ public class ABRConfigurationPane extends ABRPane {
                             + "Instructions;\n"
                             + "Blocks;\n"
                             + "Bot Jobs;\n"
+                            + "Saved Components;\n"
                             + "Sequences dropped.");
 
             return true;
@@ -562,6 +568,7 @@ public class ABRConfigurationPane extends ABRPane {
                             + "Instructions;\n"
                             + "Blocks;\n"
                             + "Bot Jobs;\n"
+                            + "Saved Components;\n"
                             + "Sequences Not dropped\n"
                             + e.getMessage());
         }
