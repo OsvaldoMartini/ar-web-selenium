@@ -145,7 +145,12 @@ public class BlockListCell extends ListCell<BlockDTO> {
                 });
                 saveBlockButton.setOnAction((e) -> {
                     SavedBlocksDTO savedBlocksDTO = SavedBlocksDTO.createSavedBlocksDTOFromBlocksDTO(item);
-                    (new ABRSaveBlockScene(savedBlocksDTO, item)).show();
+                    //                    (new ABRSaveBlockScene(savedBlocksDTO, item)).show();
+                    // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+                    Platform.runLater(() -> {
+                        ABRSaveBlockScene newSaveBlockScene = new ABRSaveBlockScene(savedBlocksDTO, item, null);
+                        newSaveBlockScene.showModal();
+                    });
                 });
                 removeBlockButton.setOnAction((e) -> {
                     FilteredList<BlockDTO> list = ABRSharedResources.getInstance()

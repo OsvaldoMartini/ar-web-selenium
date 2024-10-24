@@ -900,8 +900,8 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                 } catch (Exception e) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine(String.format(
-                                    "Cannot locate anWeb Element with Regular XPath\n%s",
+                            .warning(String.format(
+                                    "Cannot locate a Web Element with Regular XPath\n%s",
                                     searchReturn.getCurrentXPath()));
                 }
             }
@@ -915,8 +915,8 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                 } catch (Exception e) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine(String.format(
-                                    "Cannot locate anWeb Element with Absolut XPath\n%s",
+                            .warning(String.format(
+                                    "Cannot locate a Web Element with Absolut XPath\n%s",
                                     searchReturn.getAbsolutXPath()));
                 }
             }
@@ -933,7 +933,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                     } catch (Exception e) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine(String.format(
+                                .warning(String.format(
                                         "Cannot locate a Web Element with ID: \n%s", searchReturn.getAttribId()));
                     }
                 }
@@ -948,7 +948,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                     } catch (Exception e) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine(String.format(
+                                .warning(String.format(
                                         "Cannot locate a Web Element with Name: \n%s", searchReturn.getAttribName()));
                     }
                 }
@@ -970,7 +970,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void refreshWithoutIdsAndNamesBtn() {
         webElementObservableList1.clear();
-        manageUIScanWithoudNameAndId();
+        manageUIScanWithoutNameAndId();
     }
 
     private void refreshWithNamesBtn() {
@@ -1006,7 +1006,7 @@ public class ABRScannedElementPane extends ABRPane {
         webElementObservableList3.clear();
         manageUIScanIdsFirst();
         manageUIScanAttributeNameFirst();
-        manageUIScanWithoudNameAndId();
+        manageUIScanWithoutNameAndId();
 
         manageUIScanPriorities();
         manageUIScanInputs();
@@ -1014,14 +1014,16 @@ public class ABRScannedElementPane extends ABRPane {
         //        manageUIScanOutputs();
     }
 
-    private void manageUIScanWithoudNameAndId() {
+    private void manageUIScanWithoutNameAndId() {
         idAttributeFirst = false;
         nameAttributeFirst = false;
         withoutNameAndId = true;
         // addProgressBar();
-        scanABRElementsAsync(null, null, null, webElementObservableList1, "input");
+        scanABRElementsAsync(
+                null, null, null, webElementObservableList1, "input", "UI Scan \"Inputs\" Without Name And Id");
         // addProgressBar();
-        scanABRElementsAsync(null, null, null, webElementObservableList1, "button");
+        scanABRElementsAsync(
+                null, null, null, webElementObservableList1, "button", "UI Scan \"Buttons\" Without Name And Id");
     }
 
     private void addProgressBar(int items) {
@@ -1046,14 +1048,14 @@ public class ABRScannedElementPane extends ABRPane {
         idAttributeFirst = false;
         nameAttributeFirst = true;
         withoutNameAndId = false;
-        scanABRElementsAsync(null, null, null, webElementObservableList1, "name");
+        scanABRElementsAsync(null, null, null, webElementObservableList1, "name", "UI Scan Attribute Name First");
     }
 
     private void manageUIScanIdsFirst() {
         idAttributeFirst = true;
         nameAttributeFirst = false;
         withoutNameAndId = false;
-        scanABRElementsAsync(null, null, null, webElementObservableList1, "id");
+        scanABRElementsAsync(null, null, null, webElementObservableList1, "id", "UI Scan Ids First");
     }
 
     private void manageUIScanInputs() {
@@ -1061,7 +1063,12 @@ public class ABRScannedElementPane extends ABRPane {
         for (WebElementTagNameEnum tag : inputTags) {
             // addProgressBar();
             scanABRElementsAsync(
-                    null, By.tagName(tag.getValue()), ABRWebElement::isNotClickable, webElementObservableList1, null);
+                    null,
+                    By.tagName(tag.getValue()),
+                    ABRWebElement::isNotClickable,
+                    webElementObservableList1,
+                    null,
+                    "UI Scan Inputs");
         }
     }
 
@@ -1070,7 +1077,12 @@ public class ABRScannedElementPane extends ABRPane {
         for (WebElementTagNameEnum tag : clickableTags) {
             // addProgressBar();
             scanABRElementsAsync(
-                    null, By.tagName(tag.getValue()), ABRWebElement::isClickable, webElementObservableList2, null);
+                    null,
+                    By.tagName(tag.getValue()),
+                    ABRWebElement::isClickable,
+                    webElementObservableList2,
+                    null,
+                    "UI Scan Clickable");
         }
     }
 
@@ -1081,7 +1093,7 @@ public class ABRScannedElementPane extends ABRPane {
         try {
             if (webElements != null && webElements.size() > 0) {
                 // addProgressBar();
-                scanABRElementsAsync(webElements, null, null, webElementObservableList3, null);
+                scanABRElementsAsync(webElements, null, null, webElementObservableList3, null, "UI Scan By Priorities");
             }
         } catch (Exception e) {
             System.out.println("Error " + e.getMessage());
@@ -1091,11 +1103,12 @@ public class ABRScannedElementPane extends ABRPane {
     private void manageUIScanOutputs() {
         String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
         // addProgressBar();
-        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2);
+        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2, "UI Scan Outputs");
     }
 
-    private void scanABRElementsAsync(By criteria, ObservableList<ABRWebElement> listToAddNewElements) {
-        scanABRElementsAsync(null, criteria, null, listToAddNewElements, null);
+    private void scanABRElementsAsync(
+            By criteria, ObservableList<ABRWebElement> listToAddNewElements, String criteriaMSG) {
+        scanABRElementsAsync(null, criteria, null, listToAddNewElements, null, criteriaMSG);
     }
 
     private void scanABRElementsAsync(
@@ -1103,7 +1116,8 @@ public class ABRScannedElementPane extends ABRPane {
             By criteria,
             Predicate<ABRWebElement> filterCondition,
             ObservableList<ABRWebElement> listToAddNewElements,
-            String elementType) {
+            String elementType,
+            String criteriaMSG) {
 
         executorService = Executors.newCachedThreadPool();
 
@@ -1121,7 +1135,8 @@ public class ABRScannedElementPane extends ABRPane {
                     // Separation between creation of ABR Elements
                     try {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
-                                .fine("Starting scan of elements for criteria: " + criteria);
+                                .fine("Starting scan of elements for criteria: "
+                                        + (criteria != null ? criteria : criteriaMSG));
 
                         if (idAttributeFirst || nameAttributeFirst) {
                             mapAdvanced = findElementsWithXPath(abrWebDriver.getDriver(), elementType);
@@ -1179,6 +1194,17 @@ public class ABRScannedElementPane extends ABRPane {
                                         .fine("Final size of scannedElementList: " + scannedElementListSize.get());
                             }
                         }
+
+                    } catch (EnumConstantNotPresentException ex) {
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .severe("ENUM Property not Defined of Web Element\n " + ex.getMessage() + " Cause: "
+                                        + ex.getCause());
+                        performAction.showAlertError(
+                                "ERROR ADD WEB ELEMENT",
+                                "Enum Constant Not Present!",
+                                "Contact ADM to verify the \"Constant Locator Used\"\n"
+                                        + "\"XPath , Attribute, Coordinates\" ... ");
+                        return;
 
                     } catch (Exception e) {
                         shutDownExecutorService();
@@ -1391,7 +1417,7 @@ public class ABRScannedElementPane extends ABRPane {
                             .info("Double clicked the element: " + abrWebElement.getXPath());
 
                     if (abrWebElement.getSavedReferences().size() == 0) {
-                        showAlertError(
+                        performAction.showAlertError(
                                 "ERROR ADD WEB ELEMENT",
                                 "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
                                 "The Instruction \""
@@ -3803,6 +3829,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                 try {
                     listABRElements.add(new ABRWebElement(entry, attribute, botJob.getId()));
+                } catch (EnumConstantNotPresentException ex) {
+                    throw ex;
                 } catch (Exception ex) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine(String.format(

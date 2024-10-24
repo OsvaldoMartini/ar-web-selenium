@@ -188,7 +188,7 @@ public class ABRWebElement {
                                 savedReferences.put(priority.getName().get(0), attributeValue);
                             }
                         }
-                        case xpath -> {
+                        case xpath, ByXPath -> {
                             if (Strings.isNullOrEmpty(xPath)) {
                                 savedReferences.put(
                                         priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
@@ -261,10 +261,10 @@ public class ABRWebElement {
             } else {
                 clickElement.setValue(isClickable(element));
             }
+        } catch (EnumConstantNotPresentException ex) {
+            throw ex;
         } catch (Exception ex) {
-            ABRLogger.getInstance(Thread.class)
-                    .finer("An exception has occurred creation of Web Element\n " + ex.getMessage() + " Cause: "
-                            + ex.getCause());
+            throw ex;
         }
 
         String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
@@ -367,10 +367,8 @@ public class ABRWebElement {
                 // testIdAttributeValue.equals("web-banking-payment-core.payment-details.external-reference"));
                 isIdElement.setValue(hasTestId && testIdAttributeValue.equals(extRefSub));
             }
-        } catch (Exception e) {
-            ABRLogger.getInstance(Thread.class)
-                    .finer("an exception has occurred in the thread for extRefSub " + e.getMessage() + " Cause: "
-                            + e.getCause());
+        } catch (Exception ex) {
+            throw ex;
         }
 
         // this is goign to be done before and match the case
@@ -729,7 +727,7 @@ public class ABRWebElement {
                                 .forEach(ref -> ref.setBlockLoopInstructionDTO(null));
                     } catch (Exception ef) {
                         ABRLogger.getInstance(Thread.class)
-                                .finer("getInstructionReferenceDTOList Error: \nCause: " + ef.getMessage());
+                                .severe("getInstructionReferenceDTOList Error: \nCause: " + ef.getMessage());
                     }
                     try {
                         ABRSharedResources.getInstance()

@@ -16,11 +16,14 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ABRViewBotJobPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRNewCommandScene;
+import com.allinweb.ch.component.scene.ABRSaveBlockScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
+import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
+import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -150,11 +153,14 @@ public class WebSocketStompServer {
     private void handleMessageByType(String type, String body, Session session) {
         // Dispatch to the correct method based on the message type
         switch (type) {
+            case "BLOCKS_COMPONENT":
+                BlockSplitDTO blockComponentDTO = gson.fromJson(body, BlockSplitDTO.class);
+                createBlockComponent(blockComponentDTO);
+                break;
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(body, BlockSplitDTO.class);
                 splitBlocks(blockSplitDTO);
                 break;
-
             case "BLOCK_MOVE":
                 BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
                 moveBlock(blockMoveDTO);
@@ -224,6 +230,21 @@ public class WebSocketStompServer {
         } catch (Exception e) {
             return "Invalid JSON";
         }
+    }
+
+    private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
+        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+        SavedBlocksDTO savedBlocksDTO = createSavedBlockDTO(blockSplitDTO);
+
+        BlockDTO blockDTO = new BlockDTO();
+        blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());
+        //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
+
+        Platform.runLater(() -> {
+            ABRSaveBlockScene newSaveBlockScene = new ABRSaveBlockScene(
+                    savedBlocksDTO, blockDTO, blockSplitDTO.getDetails().getNewBlock());
+            newSaveBlockScene.showModal();
+        });
     }
 
     // Handle BLOCKS_SPLITTED message
@@ -1103,10 +1124,21 @@ public class WebSocketStompServer {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
                 InstructionDTO instruction = new InstructionDTO();
                 instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionName(rs.getString("name"));
                 instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instruction.setBlockId(rs.getInt("block_id"));
                 instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
                 instruction.setBotJobId(botJobId);
+
+                instruction.setActions(rs.getString("actions"));
+                instruction.setPath(rs.getString("path"));
+                instruction.setDescription(rs.getString("description"));
+                instruction.setOptional(rs.getInt("optional"));
+                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                instruction.setEncrypted(rs.getInt("encrypted"));
+                instruction.setExportToABR(rs.getInt("export_to_abr"));
+
                 // Add the instruction to the list
                 instructions.add(instruction);
             }
@@ -1164,5 +1196,40 @@ public class WebSocketStompServer {
                     .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
         }
         return false;
+    }
+
+    private SavedBlocksDTO createSavedBlockDTO(BlockSplitDTO blockSplitDTO) {
+
+        List<InstructionDTO> instructions = getInstructionsByBlockId(
+                blockSplitDTO.getDetails().getNewBlock().getBotJobId(),
+                blockSplitDTO.getDetails().getNewBlock().getBlockId());
+
+        List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructions = new ArrayList<>();
+
+        for (InstructionDTO instructionDTO : instructions) {
+            // Create mock SavedBlockLoopInstructionDTO entries
+            SavedBlockLoopInstructionDTO instruction = new SavedBlockLoopInstructionDTO();
+
+            instruction.setInstructionOrderNumber(1);
+            instruction.setActions(instructionDTO.getActions());
+            instruction.setName(instructionDTO.getInstructionName());
+            instruction.setPath(instructionDTO.getPath());
+            instruction.setDescription(instructionDTO.getDescription());
+            instruction.setOptional(instructionDTO.getOptional() == 1 ? true : false);
+            instruction.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
+            instruction.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
+            instruction.setEncrypted(instructionDTO.getEncrypted() == 1 ? true : false);
+            instruction.setExportToABR(instructionDTO.getExportToABR() == 1 ? true : false);
+
+            savedBlockLoopInstructions.add(instruction);
+        }
+
+        // Assign mock instructions to mock blocks
+        SavedBlocksDTO savedBlock = new SavedBlocksDTO();
+        savedBlock.setName("Comp-" + blockSplitDTO.getDetails().getNewBlock().getBlockName());
+        savedBlock.setDescription("Component for: ...");
+        savedBlock.setTypeId(1);
+        savedBlock.setSavedBlockLoopInstructions(savedBlockLoopInstructions);
+        return savedBlock;
     }
 }

@@ -18,6 +18,7 @@ import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
+import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.socket.WebSocketStompServer;
@@ -634,6 +635,7 @@ public class ABRViewBotJobPane extends ABRPane {
         searchLabel.setFont(
                 Font.font((String) null, FontWeight.BOLD, FontPosture.REGULAR, ABRConstants.SPACE_SM + 2.0D));
         TextField searchTextField = new TextField();
+
         searchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
             ObservableList<SavedBlocksDTO> savedBlocksDTOs;
             if (!newValue.equals("")) {
@@ -648,6 +650,8 @@ public class ABRViewBotJobPane extends ABRPane {
             this.componentList.setItems(savedBlocksDTOs);
             this.componentList.refresh();
         });
+
+        createMockSavedBlocksDTOs();
 
         HBox searchPaneBox = new HBox(new Node[] {searchLabel, searchTextField});
         searchPaneBox.setMaxHeight(ABRConstants.SPACE_XL);
@@ -1051,10 +1055,21 @@ public class ABRViewBotJobPane extends ABRPane {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
                 InstructionDTO instruction = new InstructionDTO();
                 instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionName(rs.getString("name"));
                 instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instruction.setBlockId(rs.getInt("block_id"));
                 instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
                 instruction.setBotJobId(botJobId);
+
+                instruction.setActions(rs.getString("actions"));
+                instruction.setPath(rs.getString("path"));
+                instruction.setDescription(rs.getString("description"));
+                instruction.setOptional(rs.getInt("optional"));
+                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                instruction.setEncrypted(rs.getInt("encrypted"));
+                instruction.setExportToABR(rs.getInt("export_to_abr"));
+
                 // Add the instruction to the list
                 instructions.add(instruction);
             }
@@ -1112,5 +1127,67 @@ public class ABRViewBotJobPane extends ABRPane {
                     .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
         }
         return false;
+    }
+
+    private void createMockSavedBlocksDTOs() {
+        // Create mock data for SavedBlocksDTO
+        ObservableList<SavedBlocksDTO> savedBlocksDTOs = FXCollections.observableArrayList();
+
+        // Create mock SavedBlockLoopInstructionDTO entries
+        SavedBlockLoopInstructionDTO instruction1 = new SavedBlockLoopInstructionDTO();
+        instruction1.setInstructionOrderNumber(1);
+        instruction1.setActions("Action 1");
+        instruction1.setName("Instruction 1");
+        instruction1.setPath("/path/to/instruction1");
+        instruction1.setDescription("Description for Instruction 1");
+        instruction1.setOptional(false);
+        instruction1.setDefaultValue("default1");
+        instruction1.setActionCustomMaxWaitSec(10);
+        instruction1.setOnHoldSeconds(5);
+        instruction1.setEncrypted(false);
+        instruction1.setExportToABR(true);
+
+        SavedBlockLoopInstructionDTO instruction2 = new SavedBlockLoopInstructionDTO();
+        instruction2.setInstructionOrderNumber(2);
+        instruction2.setActions("Action 2");
+        instruction2.setName("Instruction 2");
+        instruction2.setPath("/path/to/instruction2");
+        instruction2.setDescription("Description for Instruction 2");
+        instruction2.setOptional(false);
+        instruction2.setDefaultValue("default2");
+        instruction2.setActionCustomMaxWaitSec(20);
+        instruction2.setOnHoldSeconds(10);
+        instruction2.setEncrypted(false);
+        instruction2.setExportToABR(true);
+
+        // Assign mock instructions to mock blocks
+        SavedBlocksDTO block1 = new SavedBlocksDTO();
+        block1.setName("Block One");
+        block1.setDescription("Description for Block One");
+        block1.setTypeId(1);
+        block1.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction1))); // Assign instruction1 to block1
+
+        SavedBlocksDTO block2 = new SavedBlocksDTO();
+        block2.setName("Block Two");
+        block2.setDescription("Description for Block Two");
+        block2.setTypeId(2);
+        block2.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction2))); // Assign instruction2 to block2
+
+        SavedBlocksDTO block3 = new SavedBlocksDTO();
+        block3.setName("Another Block");
+        block3.setDescription("Description for Another Block");
+        block3.setTypeId(3);
+        block3.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
+
+        SavedBlocksDTO block4 = new SavedBlocksDTO();
+        block4.setName("Sample Block");
+        block4.setDescription("Description for Sample Block");
+        block4.setTypeId(4);
+        block4.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
+
+        // Add mock blocks to the ObservableList
+        savedBlocksDTOs.addAll(block1, block2, block3, block4);
+
+        this.componentList.setItems(savedBlocksDTOs);
     }
 }

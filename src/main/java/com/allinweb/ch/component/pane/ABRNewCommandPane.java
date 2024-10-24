@@ -1335,7 +1335,7 @@ public class ABRNewCommandPane extends ABRPane {
         return false;
     }
 
-    private List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
+    public List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
         // List to store the fetched instructions
         List<InstructionDTO> instructions = new ArrayList<>();
 
@@ -1351,10 +1351,21 @@ public class ABRNewCommandPane extends ABRPane {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
                 InstructionDTO instruction = new InstructionDTO();
                 instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionName(rs.getString("name"));
                 instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instruction.setBlockId(rs.getInt("block_id"));
                 instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
                 instruction.setBotJobId(botJobId);
+
+                instruction.setActions(rs.getString("actions"));
+                instruction.setPath(rs.getString("path"));
+                instruction.setDescription(rs.getString("description"));
+                instruction.setOptional(rs.getInt("optional"));
+                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                instruction.setEncrypted(rs.getInt("encrypted"));
+                instruction.setExportToABR(rs.getInt("export_to_abr"));
+
                 // Add the instruction to the list
                 instructions.add(instruction);
             }
