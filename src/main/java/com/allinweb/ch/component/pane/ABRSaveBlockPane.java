@@ -242,9 +242,26 @@ public class ABRSaveBlockPane extends ABRPane {
                             ABRLogger.getInstance(ABRSaveBlockPane.class)
                                     .fine("originalReferences Size: " + originalReferences.size());
 
+                            boolean success = false;
+                            for (SavedInstructionReferenceDTO reference : originalReferences) {
+
+                                SavedBlockLoopInstructionDTO instructionDTO =
+                                        reference.getSavedBlockLoopInstructionDTO();
+                                if (instructionDTO == null) {
+                                    ABRLogger.getInstance(ABRViewBotJobPane.class)
+                                            .warning("SavedBlockLoopInstructionDTO is null for reference: "
+                                                    + reference.getReferenceType());
+                                    continue;
+                                }
+
+                                success = insertComponentReferences(reference, instructionDTO.getId());
+                                if (!success) {
+                                    break;
+                                }
+                            }
+                            final boolean successFinal = success;
                             Platform.runLater(() -> {
-                                boolean success = insertComponentReferences(originalReferences);
-                                if (success) {
+                                if (successFinal) {
                                     performAction.showAlert(
                                             Alert.AlertType.INFORMATION,
                                             "Web Reference Locators Added",
@@ -340,28 +357,29 @@ public class ABRSaveBlockPane extends ABRPane {
             newId = insertSavedInstruction(instruction);
 
             if (newId > 0) {
-                performAction.showAlert(
-                        Alert.AlertType.INFORMATION,
-                        "Add New \"Component\" Instruction",
-                        "Component Instruction Added",
-                        String.format(
-                                "\"Component\" Instruction \"%s\"\nhas been added successfully!",
-                                instruction.getName()));
-
-                ABRLogger.getInstance(ABRViewBotJobPane.class)
-                        .info(String.format(
-                                "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
-                                instruction.getName()));
+                //                performAction.showAlert(
+                //                        Alert.AlertType.INFORMATION,
+                //                        "Add New \"Component\" Instruction",
+                //                        "Component Instruction Added",
+                //                        String.format(
+                //                                "\"Component\" Instruction \"%s\"\nhas been added successfully!",
+                //                                instruction.getName()));
+                //
+                //                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                //                        .info(String.format(
+                //                                "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
+                //                                instruction.getName()));
             } else {
-                performAction.showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error Add New \"Component\" Instruction",
-                        "Not possible to insert new Operation",
-                        String.format("\"Component\" Instruction \"%s\"\nCannot be saved", instruction.getName()));
-                ABRLogger.getInstance(ABRViewBotJobPane.class)
-                        .severe(String.format(
-                                "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
-                                instruction.getName()));
+                //                performAction.showAlert(
+                //                        Alert.AlertType.ERROR,
+                //                        "Error Add New \"Component\" Instruction",
+                //                        "Not possible to insert new Operation",
+                //                        String.format("\"Component\" Instruction \"%s\"\nCannot be saved",
+                // instruction.getName()));
+                //                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                //                        .severe(String.format(
+                //                                "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
+                //                                instruction.getName()));
             }
 
         } catch (SQLException e) {
@@ -451,50 +469,36 @@ public class ABRSaveBlockPane extends ABRPane {
         }
     }
 
-    private boolean insertComponentReferences(List<SavedInstructionReferenceDTO> queue) {
+    private boolean insertComponentReferences(SavedInstructionReferenceDTO referenceDTO, int instructionId) {
 
         // Generate a Unique-ID for the block
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            for (SavedInstructionReferenceDTO reference : queue) {
+            // Fetch instructionId from savedBlockLoopInstructionDTO
 
-                // Fetch instructionId from savedBlockLoopInstructionDTO
-                SavedBlockLoopInstructionDTO instructionDTO = reference.getSavedBlockLoopInstructionDTO();
-                if (instructionDTO == null) {
-                    ABRLogger.getInstance(ABRViewBotJobPane.class)
-                            .warning("SavedBlockLoopInstructionDTO is null for reference: " + reference);
-                    continue; // Skip this reference if it doesn't have an associated instruction
-                }
+            Integer nextId = loadNextIdBReferenceData() + 1;
 
-                Integer nextId = loadNextIdBReferenceData() + 1;
+            // Build the SQL insert query
+            String insertSQL =
+                    "INSERT INTO saved_instruction_reference(id, reference_type, value, saved_block_loop_instruction_id) VALUES ("
+                            + nextId + ", "
+                            + "'" + referenceDTO.getReferenceType() + "', "
+                            + "'" + referenceDTO.getValue() + "', " // name
+                            + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
 
-                // Build the SQL insert query
-                String insertSQL =
-                        "INSERT INTO saved_instruction_reference(id, reference_type, value, saved_block_loop_instruction_id) VALUES ("
-                                + nextId + ", "
-                                + "'" + reference.getReferenceType() + "', "
-                                + "'" + reference.getValue() + "', " // name
-                                + instructionDTO.getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
-
-                int rowsAffected = stmt.executeUpdate(insertSQL);
-                if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRViewBotJobPane.class)
-                            .info(String.format(
-                                    "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
-                                    nextId,
-                                    reference.getReferenceType(),
-                                    reference.getValue(),
-                                    instructionDTO.getId()));
-                } else {
-                    ABRLogger.getInstance(ABRViewBotJobPane.class)
-                            .warning(String.format(
-                                    "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
-                                    nextId,
-                                    reference.getReferenceType(),
-                                    reference.getValue(),
-                                    instructionDTO.getId()));
-                }
+            int rowsAffected = stmt.executeUpdate(insertSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                        .info(String.format(
+                                "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
+                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
+            } else {
+                ABRLogger.getInstance(ABRViewBotJobPane.class)
+                        .warning(String.format(
+                                "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
+                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
             }
+
             return true;
         } catch (SQLException e) {
             ABRLogger.getInstance(ABRViewBotJobPane.class)
@@ -505,7 +509,7 @@ public class ABRSaveBlockPane extends ABRPane {
 
     private Integer loadNextIdBReferenceData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction_reference";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_instruction_reference";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
