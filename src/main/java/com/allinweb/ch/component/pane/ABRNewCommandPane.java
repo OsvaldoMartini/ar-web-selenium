@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -951,17 +950,6 @@ public class ABRNewCommandPane extends ABRPane {
 
     private void clearFields() {}
 
-    private boolean showConfirmationDialog(String title, String header, String content, HBox combinedTextContainer) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.getDialogPane().setContent(combinedTextContainer);
-
-        Optional<ButtonType> result = alert.showAndWait();
-        return result.isPresent() && result.get() == ButtonType.OK;
-    }
-
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
@@ -1232,7 +1220,7 @@ public class ABRNewCommandPane extends ABRPane {
                     .addAll(regularTextStyled, variableText1Styled, arrowText, variableText2Styled);
         }
 
-        boolean alertResponse = showConfirmationDialog(
+        boolean alertResponse = performAction.showCombinedConfirmationDialog(
                 "Add new Instruction",
                 "Are you sure you want to Add the Instruction to the Bot-Job?",
                 "",

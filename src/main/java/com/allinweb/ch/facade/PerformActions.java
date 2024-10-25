@@ -16,6 +16,7 @@ import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.persistence.SavedInstructionReferenceDTO;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
+import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPriorities;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -39,9 +40,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.ElementClickInterceptedException;
@@ -834,6 +838,16 @@ public class PerformActions {
         });
     }
 
+    public void showAlertDialog(Alert.AlertType alertType, String title, String header, String content) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(alertType);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(content);
+            alert.showAndWait();
+        });
+    }
+
     public String parentIdWrongBlock(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
         showAlert(
                 Alert.AlertType.ERROR,
@@ -929,7 +943,9 @@ public class PerformActions {
                         BlockLoopInstructionDTO.class,
                         instruction -> instruction.getBlock().getId() == blockDTO.getId());
 
-        for (BlockLoopInstructionDTO blockLoopInstructionDTO : instructionList) {
+        List<BlockLoopInstructionDTO> instructionFiltered = filterInstructions(instructionList);
+
+        for (BlockLoopInstructionDTO blockLoopInstructionDTO : instructionFiltered) {
             savedBlockLoopInstructionDTO = new SavedBlockLoopInstructionDTO();
 
             savedBlockLoopInstructionDTO.setActionCustomMaxWaitSec(blockLoopInstructionDTO.getActionCustomMaxWaitSec());
@@ -1074,5 +1090,38 @@ public class PerformActions {
             ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
+    }
+
+    public static List<BlockLoopInstructionDTO> filterInstructions(List<BlockLoopInstructionDTO> instructionList) {
+        return instructionList.stream()
+                .filter(instruction -> !ABRConstants.EXTRACT_FIELD.equals(instruction.getActions())
+                        && !ABRConstants.SET_VALUE.equals(instruction.getActions())
+                        && !ABRConstants.GET_VALUE.equals(instruction.getActions())
+                        && !ABRConstants.CHECK_VALUE.equals(instruction.getActions()))
+                .collect(Collectors.toList());
+    }
+
+    public boolean showCombinedConfirmationDialog(
+            String title, String header, String content, HBox combinedTextContainer) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.getDialogPane().setContent(combinedTextContainer);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        return result.isPresent() && result.get() == ButtonType.OK;
+    }
+
+    public boolean showCombinedDialog(
+            Alert.AlertType alertType, String title, String header, String content, VBox combinedTextContainer) {
+        Alert alert = new Alert(alertType);
+        alert.setTitle(title);
+        alert.setHeaderText(header);
+        alert.setContentText(content);
+        alert.getDialogPane().setContent(combinedTextContainer);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        return result.isPresent() && result.get() == ButtonType.OK;
     }
 }

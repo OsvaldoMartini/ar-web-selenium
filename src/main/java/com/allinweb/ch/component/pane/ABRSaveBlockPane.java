@@ -28,6 +28,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 public class ABRSaveBlockPane extends ABRPane {
@@ -49,6 +50,10 @@ public class ABRSaveBlockPane extends ABRPane {
 
     TextField nameTextField;
     TextArea descriptionTextField;
+
+    Text regularText;
+    Text variableText1;
+    Text variableText2;
 
     Label warningLabel;
 
@@ -86,6 +91,12 @@ public class ABRSaveBlockPane extends ABRPane {
 
         Label descriptionLabel = new Label("Description : ");
         descriptionTextField = new TextArea(savedBlocksDTO.getDescription());
+
+        regularText = new Text("Excluded Special Operations: ");
+        variableText1 = new Text("Set Value" + " / " + "Get Value");
+        variableText2 = new Text("Check Value" + " / " + "Excel Save");
+        variableText1.setFill(Color.BLUE);
+        variableText2.setFill(Color.BLUE);
 
         HBox descriptionHBox = new HBox(descriptionLabel, descriptionTextField);
         HBox.setHgrow(descriptionTextField, Priority.ALWAYS);
@@ -206,9 +217,7 @@ public class ABRSaveBlockPane extends ABRPane {
                                 task.getOnHoldSeconds(),
                                 task.getVariableId(),
                                 task.getInstructionOrderNumber(),
-                                this.blockDTO, // blockDTO
-                                this.botJobDTO,
-                                false);
+                                this.blockDTO);
 
                         task.setId(newId);
 
@@ -259,19 +268,41 @@ public class ABRSaveBlockPane extends ABRPane {
                                 }
                             }
                             final boolean successFinal = success;
+
+                            // Create individual text elements with the necessary styling
+                            Text regularTextStyled = new Text(regularText.getText());
+                            regularTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: black;");
+
+                            Text variableText1Styled = new Text(variableText1.getText());
+                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                            Text variableText2Styled = new Text(variableText2.getText());
+                            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
+                            // Create an VBox to hold the individual text elements
+                            VBox combinedTextContainer = new VBox();
+                            combinedTextContainer.setSpacing(1);
+
+                            combinedTextContainer
+                                    .getChildren()
+                                    .addAll(regularTextStyled, variableText1Styled, variableText2Styled);
+
                             Platform.runLater(() -> {
                                 if (successFinal) {
-                                    performAction.showAlert(
+
+                                    // Create Text for the variable part and set the color to red
+                                    performAction.showCombinedDialog(
                                             Alert.AlertType.INFORMATION,
                                             "Created Web Component",
-                                            "Web Component was Created",
                                             String.format(
                                                     "Created Web Component:\n" + "Added Block Name: %s"
                                                             + "" + "\nAdded %d Instructions"
                                                             + "\nAdded %d references locators",
                                                     this.blockDTO.getName(),
                                                     originalLoopInstruction.size(),
-                                                    originalReferences.size()));
+                                                    originalReferences.size()),
+                                            "",
+                                            combinedTextContainer);
 
                                     ABRLogger.getInstance(Thread.class)
                                             .info(String.format(
@@ -345,9 +376,7 @@ public class ABRSaveBlockPane extends ABRPane {
             Integer onHold,
             Integer varId,
             Integer instructionOrderNumber,
-            BlockDTO blockDTO,
-            BotJobDTO botJob,
-            boolean isShowAlert) {
+            BlockDTO blockDTO) {
 
         BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
 
@@ -375,32 +404,6 @@ public class ABRSaveBlockPane extends ABRPane {
 
         try {
             newId = insertSavedInstruction(instruction);
-
-            if (newId > 0) {
-                //                performAction.showAlert(
-                //                        Alert.AlertType.INFORMATION,
-                //                        "Add New \"Component\" Instruction",
-                //                        "Component Instruction Added",
-                //                        String.format(
-                //                                "\"Component\" Instruction \"%s\"\nhas been added successfully!",
-                //                                instruction.getName()));
-                //
-                //                ABRLogger.getInstance(ABRViewBotJobPane.class)
-                //                        .info(String.format(
-                //                                "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
-                //                                instruction.getName()));
-            } else {
-                //                performAction.showAlert(
-                //                        Alert.AlertType.ERROR,
-                //                        "Error Add New \"Component\" Instruction",
-                //                        "Not possible to insert new Operation",
-                //                        String.format("\"Component\" Instruction \"%s\"\nCannot be saved",
-                // instruction.getName()));
-                //                ABRLogger.getInstance(ABRViewBotJobPane.class)
-                //                        .severe(String.format(
-                //                                "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
-                //                                instruction.getName()));
-            }
 
         } catch (SQLException e) {
             performAction.showAlert(
@@ -487,6 +490,21 @@ public class ABRSaveBlockPane extends ABRPane {
                 return -1;
             }
         }
+    }
+
+    private Integer loadNextIdSavedInstructionData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_block_loop_instruction";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+        }
+        return null;
     }
 
     private boolean insertComponentReferences(SavedInstructionReferenceDTO referenceDTO, int instructionId) {
@@ -648,21 +666,6 @@ public class ABRSaveBlockPane extends ABRPane {
             }
         } catch (SQLException e) {
             ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private Integer loadNextIdSavedInstructionData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_block_loop_instruction";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class)
-                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }
