@@ -8,6 +8,7 @@ import com.allinweb.ch.component.pane.ABRViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
@@ -30,6 +31,12 @@ public class ABRViewBotJobScene extends ABRScene {
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 1100D;
     private static final String TITLE = "Bot Job Details";
+
+    private static final PerformActions performAction;
+    // Static block to initialize
+    static {
+        performAction = PerformActions.getInstance();
+    }
 
     private final Integer botJobId;
 
@@ -57,7 +64,7 @@ public class ABRViewBotJobScene extends ABRScene {
 
             savedBlocksDTO.setDescription("Default Block description");
             savedBlocksDTO.setName("Default Block");
-            BlockDTO blockDTO = BlockDTO.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, botJobDTO);
+            BlockDTO blockDTO = performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, botJobDTO);
             BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobDTO.getId());
             blockDTO.setTypeId(1);
             blockDTO.setBotJob(botJob);

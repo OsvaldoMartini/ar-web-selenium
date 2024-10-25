@@ -37,16 +37,15 @@ public class ABRSaveBlockPane extends ABRPane {
     private BlockDTO blockDTO;
     private BotJobDTO botJobDTO;
 
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+    private List<BlockLoadDTO> savedBlockLoadList = new ArrayList<>();
+    private List<SavedBlockLoopInstructionDTO> originalLoopInstruction;
+    private List<SavedInstructionReferenceDTO> originalReferences;
 
     private static final PerformActions performAction;
     // Static block to initialize
     static {
         performAction = PerformActions.getInstance();
     }
-
-    private List<SavedBlockLoopInstructionDTO> originalLoopInstruction;
-    private List<SavedInstructionReferenceDTO> originalReferences;
 
     TextField nameTextField;
     TextArea descriptionTextField;
@@ -129,7 +128,7 @@ public class ABRSaveBlockPane extends ABRPane {
                     && !descriptionTextField.getText().trim().isEmpty()) {
                 try {
                     // Ensure UI update happens on the JavaFX Application Thread
-                    Platform.runLater(() -> warningLabel.setText(""));
+                    warningMSG("");
 
                     savedBlocksDTO.setName(nameTextField.getText());
                     savedBlocksDTO.setDescription(descriptionTextField.getText());
@@ -138,13 +137,13 @@ public class ABRSaveBlockPane extends ABRPane {
                     loadSavedBlocksForBotJob(this.botJobDTO.getId());
 
                     originalLoopInstruction =
-                            SavedBlocksDTO.createSavedBlockLoopInstructionsFromBlocksDTO(this.blockDTO, savedBlocksDTO);
+                            performAction.createSavedBlockLoopInstructionsFromBlocksDTO(this.blockDTO, savedBlocksDTO);
 
                     // Debugging: Ensure originalLoopInstruction has the right data
                     ABRLogger.getInstance(ABRSaveBlockPane.class)
                             .fine("originalLoopInstruction Size: " + originalLoopInstruction.size());
 
-                    boolean existName = blockLoadList.stream().anyMatch(block -> block.getName()
+                    boolean existName = savedBlockLoadList.stream().anyMatch(block -> block.getName()
                             .equalsIgnoreCase(nameTextField.getText().trim()));
 
                     if (existName) {
@@ -153,16 +152,16 @@ public class ABRSaveBlockPane extends ABRPane {
                                 "Name Already Taken!",
                                 "Change the Component Name",
                                 "The Name: \"" + nameTextField.getText().trim() + "\"\nHas been take!");
-                        Platform.runLater(() -> warningLabel.setText(
-                                "The Name: \"" + nameTextField.getText().trim() + "\" Has been take!"));
+                        warningMSG("The Name: \"" + nameTextField.getText().trim() + "\" Has been take!");
                         return;
                     }
 
                     // Debugging: Print statements to track data
-                    ABRLogger.getInstance(ABRSaveBlockPane.class).fine("Saving Block: " + savedBlocksDTO.getName());
+                    ABRLogger.getInstance(ABRSaveBlockPane.class)
+                            .fine("Saving Component Block: " + savedBlocksDTO.getName());
 
                     // Here Always Creating a New Component Block
-                    BlockDTO blockDTO = BlockDTO.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
+                    BlockDTO blockDTO = performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
                     blockDTO.setTypeId(1);
                     blockDTO.setBotJob(botJobDTO);
                     blockDTO.setName(savedBlocksDTO.getName());
@@ -190,8 +189,8 @@ public class ABRSaveBlockPane extends ABRPane {
                                 .severe(String.format(
                                         "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
                                         this.botJobDTO.getId()));
-                        Platform.runLater(() -> warningLabel.setText(String.format(
-                                "Error Creating a new Block for bot job Id %d!", this.botJobDTO.getId())));
+                        warningMSG(
+                                String.format("Error Creating a new Block for bot job Id %d!", this.botJobDTO.getId()));
 
                         return;
                     }
@@ -215,9 +214,9 @@ public class ABRSaveBlockPane extends ABRPane {
 
                         if (newId < 0) {
                             savedInstStatus = false;
-                            Platform.runLater(() -> warningLabel.setText(String.format(
+                            warningMSG(String.format(
                                     "Error Creating a Instructions %s! - Actions: %s",
-                                    task.getName(), task.getActions())));
+                                    task.getName(), task.getActions()));
                         } else {
                             savedInstStatus = true;
                         }
@@ -226,7 +225,7 @@ public class ABRSaveBlockPane extends ABRPane {
                     if (savedInstStatus) {
                         ABRSharedResources.getInstance().cacheEntitiesFromDB();
                     } else {
-                        warningLabel.setText("Error: Unable to save the block. Please try again.");
+                        warningMSG("Error: Unable to save the block. Please try again.");
                         return;
                     }
 
@@ -284,7 +283,7 @@ public class ABRSaveBlockPane extends ABRPane {
                                                     "Was Not Added %d reference locators to the Block: %s"
                                                             + "\nTHE ENGINE IS GOING TO FAIL WITHOUT IT",
                                                     originalReferences.size(), this.blockDTO.getName()));
-                                    warningLabel.setText("Error: Unable to save the block. Please try again.");
+                                    warningMSG("Error: Unable to save the block. Please try again.");
                                     return;
                                 }
                             });
@@ -298,10 +297,9 @@ public class ABRSaveBlockPane extends ABRPane {
 
                 } catch (Exception ex) {
                     // Handle the exception and display a warning message on the JavaFX Application Thread
-                    Platform.runLater(() -> {
-                        warningLabel.setText("Error: Unable to save the block. Please try again.");
-                    });
-                    ex.printStackTrace(); // Optionally log the error for debugging purposes
+
+                    ABRLogger.getInstance(Task.class)
+                            .severe("Error: Unable to save the block. Please try again.\nError: " + ex.getMessage());
                 }
 
                 ABRSharedResources.getInstance().changeDbConnection();
@@ -310,7 +308,7 @@ public class ABRSaveBlockPane extends ABRPane {
             } else {
 
                 // Ensure UI update happens on the JavaFX Application Thread
-                Platform.runLater(() -> warningLabel.setText("Warning: give the correct name and description"));
+                warningMSG("Warning: give the correct name and description");
             }
         });
 
@@ -544,7 +542,7 @@ public class ABRSaveBlockPane extends ABRPane {
                 + botJobId + " ";
 
         // Initialize the necessary data structures
-        blockLoadList.clear();
+        savedBlockLoadList.clear();
         Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
 
         // Use Statement to execute the query
@@ -567,7 +565,7 @@ public class ABRSaveBlockPane extends ABRPane {
                     blockDTO.setBotJobName(rs.getString("bot_job_name"));
 
                     blockMap.put(blockId, blockDTO);
-                    blockLoadList.add(blockDTO);
+                    savedBlockLoadList.add(blockDTO);
                 }
             }
         } catch (SQLException e) {
@@ -575,7 +573,7 @@ public class ABRSaveBlockPane extends ABRPane {
                     .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
 
-        return blockLoadList;
+        return savedBlockLoadList;
     }
 
     private int createSavedBlock(BlockDTO blockDTO) {
@@ -693,6 +691,12 @@ public class ABRSaveBlockPane extends ABRPane {
         }
 
         return instructions;
+    }
+
+    private void warningMSG(String msg) {
+        Platform.runLater(() -> {
+            warningLabel.setText(msg);
+        });
     }
 
     public void setBlockJob(BlockDTO blockJob) {

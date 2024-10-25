@@ -1468,7 +1468,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                             savedBlocksDTO.setDescription("Default Block description");
                             savedBlocksDTO.setName("Default Block");
-                            BlockDTO blockDTO = BlockDTO.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJob);
+                            BlockDTO blockDTO =
+                                    performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJob);
                             BotJobDTO botJob = ABRSharedResources.getInstance()
                                     .getEntityById(BotJobDTO.class, this.botJob.getId());
                             blockDTO.setTypeId(1);

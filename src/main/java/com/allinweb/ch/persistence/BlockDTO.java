@@ -94,54 +94,6 @@ public class BlockDTO extends BaseDTO {
         this.blockLoopInstructionDTOS = blockLoopInstructionDTOS;
     }
 
-    public static BlockDTO createBlocksDTOFromSavedBlocksDTO(SavedBlocksDTO savedBlocksDTO, BotJobDTO botJobDTO) {
-        BlockDTO blocksDTO = new BlockDTO();
-        blocksDTO.setName(savedBlocksDTO.getName());
-        blocksDTO.setBotJob(botJobDTO);
-        blocksDTO.setDescription(savedBlocksDTO.getDescription());
-        blocksDTO.setTypeId(savedBlocksDTO.getTypeId());
-        return blocksDTO;
-    }
-
-    public static Queue<BlockLoopInstructionDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
-            SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO) {
-        Queue<BlockLoopInstructionDTO> blockLoopInstructionDTOs = new LinkedList<>();
-
-        BlockLoopInstructionDTO blockLoopInstructionDTO;
-
-        List<SavedBlockLoopInstructionDTO> savedInstructions = ABRSharedResources.getInstance()
-                .getEntityList(
-                        SavedBlockLoopInstructionDTO.class,
-                        saved -> saved.getBlock().getId() == savedBlocksDTO.getId());
-
-        for (SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO : savedInstructions) {
-            blockLoopInstructionDTO = new BlockLoopInstructionDTO();
-
-            blockLoopInstructionDTO.setActionCustomMaxWaitSec(savedBlockLoopInstructionDTO.getActionCustomMaxWaitSec());
-            blockLoopInstructionDTO.setActions(savedBlockLoopInstructionDTO.getActions());
-
-            blockLoopInstructionDTO.setBlock(blockDTO);
-            blockLoopInstructionDTO.setDefaultValue(savedBlockLoopInstructionDTO.getDefaultValue());
-            blockLoopInstructionDTO.setDescription(savedBlockLoopInstructionDTO.getDescription());
-            blockLoopInstructionDTO.setEncrypted(savedBlockLoopInstructionDTO.isEncrypted());
-            blockLoopInstructionDTO.setExportToABR(savedBlockLoopInstructionDTO.getExportToABR());
-            blockLoopInstructionDTO.setInstructionOrderNumber(savedBlockLoopInstructionDTO.getInstructionOrderNumber());
-            blockLoopInstructionDTO.setName(savedBlockLoopInstructionDTO.getName());
-            blockLoopInstructionDTO.setOnHoldSeconds(savedBlockLoopInstructionDTO.getOnHoldSeconds());
-            blockLoopInstructionDTO.setOptional(savedBlockLoopInstructionDTO.isOptional());
-            blockLoopInstructionDTO.setPath(savedBlockLoopInstructionDTO.getPath());
-
-            List<InstructionReferenceDTO> referenceDTOList =
-                    new ArrayList<>(InstructionReferenceDTO.createReferencesFromSavedInstructionForInstruction(
-                            savedBlockLoopInstructionDTO, blockLoopInstructionDTO));
-            blockLoopInstructionDTO.setInstructionReferenceDTOList(referenceDTOList);
-
-            blockLoopInstructionDTOs.add(blockLoopInstructionDTO);
-        }
-
-        return blockLoopInstructionDTOs;
-    }
-
     public List<BlockLoopInstructionDTO> getBlockLoopInstructionDTOS() {
         return blockLoopInstructionDTOS;
     }

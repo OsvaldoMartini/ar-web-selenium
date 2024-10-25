@@ -4,6 +4,7 @@ import com.allinweb.ch.component.scene.ABRMoveBlockScene;
 import com.allinweb.ch.component.scene.ABRSaveBlockScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
@@ -38,6 +39,12 @@ import javafx.scene.paint.Color;
 public class BlockListCell extends ListCell<BlockDTO> {
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
+
+    private static final PerformActions performAction;
+    // Static block to initialize
+    static {
+        performAction = PerformActions.getInstance();
+    }
 
     @Override
     protected void updateItem(BlockDTO item, boolean empty) {
@@ -144,7 +151,7 @@ public class BlockListCell extends ListCell<BlockDTO> {
                     }
                 });
                 saveBlockButton.setOnAction((e) -> {
-                    SavedBlocksDTO savedBlocksDTO = SavedBlocksDTO.createSavedBlocksDTOFromBlocksDTO(item);
+                    SavedBlocksDTO savedBlocksDTO = performAction.createSavedBlocksDTOFromBlocksDTO(item);
                     //                    (new ABRSaveBlockScene(savedBlocksDTO, item)).show();
                     // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                     Platform.runLater(() -> {
