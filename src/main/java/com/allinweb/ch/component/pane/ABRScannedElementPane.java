@@ -77,6 +77,8 @@ public class ABRScannedElementPane extends ABRPane {
     //    private Stage compStage;
 
     private int currentTabIndex = 0; // Track the currently active tab index
+    public ABRWebDriver abrWebDriver;
+    private Set<String> windowHandles;
 
     private ExecutorService executorService;
     private static final int SECONDS = 3; // Total seconds for the countdown
@@ -101,8 +103,6 @@ public class ABRScannedElementPane extends ABRPane {
 
     private DatabaseUserDTO databaseUserDto;
 
-    public ABRWebDriver abrWebDriver;
-    private Set<String> windowHandles;
     private BotJobDTO botJob;
     private BlockDTO blockJob;
     private int currentBlockId;
@@ -255,6 +255,9 @@ public class ABRScannedElementPane extends ABRPane {
             }
         }));
 
+        //        if (abrWebDriver.getDriver() == null) {
+        //            abrWebDriver = new ABRWebDriver(); // Initialize WebDriver
+        //        }
         abrWebDriver.openDriver(
                 botJob.getHomeBanking().getUrl(),
                 botJob.getHomeBanking().getOptionsConfig().toString());

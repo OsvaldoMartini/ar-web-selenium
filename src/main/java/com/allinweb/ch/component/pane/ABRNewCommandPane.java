@@ -5,7 +5,6 @@ import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
-import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
@@ -59,7 +58,7 @@ import javafx.stage.Stage;
 public class ABRNewCommandPane extends ABRPane {
 
     private static final PerformActions performAction;
-    // Static block to initialize
+
     static {
         performAction = PerformActions.getInstance();
     }
@@ -120,7 +119,7 @@ public class ABRNewCommandPane extends ABRPane {
     private ObservableList<ComboBoxVars> webPageItems;
 
     private ComboBox<ComboBoxOperator> comboBoxOperator;
-    private ObservableList<ComboBoxOperator> operatorsItems;
+    private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private ComboBox<ComboBoxVars> comboBoxBlocks;
@@ -155,13 +154,27 @@ public class ABRNewCommandPane extends ABRPane {
                     new ComboBoxImage("GO TO", new Image(ABRConstants.ICON_GOTO), ABRConstants.GOTO),
                     new ComboBoxImage("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), ABRConstants.EXTRACT_FIELD));
 
+        } catch (Exception ex) {
+            ABRLogger.getInstance(ABRNewCommandPane.class)
+                    .severe("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
+        }
+
+        try {
             operatorsItems = FXCollections.observableArrayList(
                     new ComboBoxOperator("Equals", new Image(ABRConstants.ICON_EQUAL), "="),
                     new ComboBoxOperator("Greater", new Image(ABRConstants.ICON_GREATER), ">"));
         } catch (Exception ex) {
             ABRLogger.getInstance(ABRNewCommandPane.class)
-                    .severe("Error creating \"DropBox Instructions\" and  \"DropBox Operators\"\nError: "
-                            + ex.getMessage());
+                    .severe("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
+        }
+
+        if (itemsInstructions.size() == 0) {
+            itemsInstructions.add(
+                    new ComboBoxImage("No Instructions", new Image(ABRConstants.ICON_GREATER), ABRConstants.NO_VALUE));
+        }
+        if (operatorsItems.size() == 0) {
+            operatorsItems.add(
+                    new ComboBoxOperator("No Operators", new Image(ABRConstants.ICON_GREATER), ABRConstants.NO_VALUE));
         }
 
         if (this.webPageItems != null && this.webPageItems.size() > 0) {
@@ -699,14 +712,19 @@ public class ABRNewCommandPane extends ABRPane {
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)) {
 
                 if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
-                    showAlert(
+                    performAction.showAlert(
                             Alert.AlertType.ERROR,
+                            "Error",
                             "No Variable Defined",
                             "Define a variable for: \""
                                     + comboBoxWebPage.getValue().getText() + "\"");
                     return;
                 } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
-                    showAlert(Alert.AlertType.ERROR, "No Web Fields Defined", "Select Web Fields (Web Elements)!");
+                    performAction.showAlert(
+                            Alert.AlertType.ERROR,
+                            "Error",
+                            "No Web Fields Defined",
+                            "Select Web Fields (Web Elements)!");
 
                     return;
                 }
@@ -715,7 +733,11 @@ public class ABRNewCommandPane extends ABRPane {
             if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
                     && blocksItems.size() == 1
                     && (comboBoxBlocks.getValue().getInstructionId() == -1)) {
-                showAlert(Alert.AlertType.ERROR, "No Blocks Defined", "It must have ate least Two Blocks defined ");
+                performAction.showAlert(
+                        Alert.AlertType.ERROR,
+                        "Error",
+                        "No Blocks Defined",
+                        "It must have ate least Two Blocks defined ");
 
                 return;
             }
@@ -1068,8 +1090,9 @@ public class ABRNewCommandPane extends ABRPane {
                     System.out.println("No matching record found to update.");
                 }
             } catch (SQLException e) {
-                showAlert(
+                performAction.showAlert(
                         Alert.AlertType.ERROR,
+                        "Error",
                         "MAX CHARACTERS LIMIT FOR ACCESS",
                         String.format(
                                 "This '%s' \n cannot be updated with same name.\nError: %s",
@@ -1112,7 +1135,7 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
-    private void showAlert(Alert.AlertType alertType, String title, String header, String content) {
+    private void showAlertTimer(Alert.AlertType alertType, String title, String header, String content) {
         executorService = Executors.newSingleThreadExecutor();
         alertToShow.setAlertType(alertType);
         alertToShow.setTitle(title);
@@ -1658,15 +1681,16 @@ public class ABRNewCommandPane extends ABRPane {
             Platform.runLater(() -> {
                 if (isShowAlert) {
                     if (finalResponse) {
-                        new ABRAlertScene(
-                                Alert.AlertType.INFORMATION,
-                                "Instruction Added",
-                                "Instruction \"" + instruction.getName() + "\" has been added successfully",
-                                ButtonType.OK);
+
                         ABRLogger.getInstance(ABRViewBotJobPane.class)
                                 .info(String.format(
                                         "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
                                         instruction.getName()));
+                        showAlertTimer(
+                                Alert.AlertType.INFORMATION,
+                                "Add Instruction",
+                                "Instruction Added",
+                                "Instruction \"" + instruction.getName() + "\" has been added successfully");
                     } else {
 
                         ABRLogger.getInstance(ABRViewBotJobPane.class)
@@ -1674,11 +1698,11 @@ public class ABRNewCommandPane extends ABRPane {
                                         "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
                                         instruction.getName()));
 
-                        new ABRAlertScene(
+                        showAlertTimer(
                                 Alert.AlertType.ERROR,
+                                "Error",
                                 "Error Add New Instruction",
-                                "Not possible to insert new Operation:  \"" + instruction.getName() + "\"",
-                                ButtonType.OK);
+                                "Not possible to insert new Operation:  \"" + instruction.getName() + "\"");
                     }
                 }
             });
@@ -1703,7 +1727,8 @@ public class ABRNewCommandPane extends ABRPane {
         //                            "Instruction " + instruction.getName() + " has been added successfully",
         //                            ButtonType.OK);
         //                } else {
-        //                    showAlert(Alert.AlertType.ERROR,"Error Add New Instruction", "Not possible to inser new
+        //                    performAction.showAlert(Alert.AlertType.ERROR,"Error Add New Instruction", "Not possible
+        // to inser new
         // Operation",
         // "response");
         //                }

@@ -38,6 +38,7 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -395,6 +396,8 @@ public class PerformActions {
                                 "Close all Browser or Restart the APP");
                         return null;
                     }
+
+                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("WebDriver Session ID: " + getSessionId());
 
                     // Actualy here is Calling the Actions
                     if (criterias != null) {
@@ -884,5 +887,13 @@ public class PerformActions {
     public void updateWindowHandlesList() {
         Set<String> windowHandles = abrWebDriver.getDriver().getWindowHandles();
         windowHandlesList = new ArrayList<>(windowHandles);
+    }
+
+    public String getSessionId() {
+        if (abrWebDriver.getDriver() instanceof RemoteWebDriver) {
+            return ((RemoteWebDriver) abrWebDriver.getDriver()).getSessionId().toString();
+        } else {
+            throw new IllegalStateException("Driver is not an instance of RemoteWebDriver");
+        }
     }
 }

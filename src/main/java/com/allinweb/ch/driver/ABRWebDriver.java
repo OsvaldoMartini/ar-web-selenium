@@ -31,7 +31,7 @@ import org.openqa.selenium.logging.LoggingPreferences;
 
 public class ABRWebDriver {
 
-    private WebDriver driver = null;
+    private static WebDriver driver = null;
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
 
     public static String identifyLineSeparator(String text) {
@@ -322,11 +322,15 @@ public class ABRWebDriver {
     }
 
     public void closeDriver() {
-        driver.quit();
-        driver = null;
+        this.driver.quit();
+        this.driver = null;
     }
 
     public WebDriver getDriver() {
-        return driver;
+        return this.driver;
+    }
+
+    public void setDriver(WebDriver webDriver) {
+        this.driver = webDriver;
     }
 }

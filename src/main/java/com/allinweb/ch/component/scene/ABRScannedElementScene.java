@@ -57,7 +57,10 @@ public class ABRScannedElementScene extends ABRScene {
         // Close WebDriver if it's initialized
         if (abrWebDriver != null) {
             try {
+                //                abrWebDriver.closeDriver(); // Quit WebDriver
                 abrWebDriver.getDriver().quit(); // Quit WebDriver
+                abrWebDriver.setDriver(null);
+                //                abrWebDriver.setDriver(null);
                 System.out.println("WebDriver quit successfully.");
             } catch (Exception e) {
                 System.err.println("Error closing WebDriver: " + e.getMessage());

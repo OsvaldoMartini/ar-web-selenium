@@ -2,9 +2,7 @@ package com.allinweb.ch.persistence;
 
 import com.allinweb.ch.core.ABRSharedResources;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 import javax.persistence.*;
 import org.hibernate.annotations.GenericGenerator;
 
@@ -107,10 +105,10 @@ public class SavedBlocksDTO extends BaseDTO {
         return savedBlocksDTO;
     }
 
-    public static Queue<SavedBlockLoopInstructionDTO> createSavedBlockLoopInstructionsFromBlocksDTO(
+    public static List<SavedBlockLoopInstructionDTO> createSavedBlockLoopInstructionsFromBlocksDTO(
             BlockDTO blockDTO, SavedBlocksDTO savedBlocksDTO) {
         SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO;
-        Queue<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionDTOs = new LinkedList<>();
+        List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionDTOs = new ArrayList<>();
 
         List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
                 .getEntityList(

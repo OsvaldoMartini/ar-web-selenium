@@ -532,7 +532,7 @@ public class ABRConfigurationPane extends ABRPane {
             stmt.executeUpdate("DELETE FROM bot_job;");
 
             stmt.executeUpdate("DELETE FROM saved_instruction_reference;");
-            stmt.executeUpdate("DELETE FROM saved_block_loop_instructions;");
+            stmt.executeUpdate("DELETE FROM saved_block_loop_instruction;");
             stmt.executeUpdate("DELETE FROM saved_blocks;");
 
             // Drop sequences if they exist

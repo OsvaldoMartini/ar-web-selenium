@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
-import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
@@ -18,7 +17,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
@@ -46,6 +44,9 @@ public class ABRSaveBlockPane extends ABRPane {
     static {
         performAction = PerformActions.getInstance();
     }
+
+    private List<SavedBlockLoopInstructionDTO> originalLoopInstruction;
+    private List<SavedInstructionReferenceDTO> originalReferences;
 
     TextField nameTextField;
     TextArea descriptionTextField;
@@ -136,6 +137,13 @@ public class ABRSaveBlockPane extends ABRPane {
 
                     loadSavedBlocksForBotJob(this.botJobDTO.getId());
 
+                    originalLoopInstruction =
+                            SavedBlocksDTO.createSavedBlockLoopInstructionsFromBlocksDTO(this.blockDTO, savedBlocksDTO);
+
+                    // Debugging: Ensure originalLoopInstruction has the right data
+                    ABRLogger.getInstance(ABRSaveBlockPane.class)
+                            .fine("originalLoopInstruction Size: " + originalLoopInstruction.size());
+
                     boolean existName = blockLoadList.stream().anyMatch(block -> block.getName()
                             .equalsIgnoreCase(nameTextField.getText().trim()));
 
@@ -145,170 +153,125 @@ public class ABRSaveBlockPane extends ABRPane {
                                 "Name Already Taken!",
                                 "Change the Component Name",
                                 "The Name: \"" + nameTextField.getText().trim() + "\"\nHas been take!");
+                        Platform.runLater(() -> warningLabel.setText(
+                                "The Name: \"" + nameTextField.getText().trim() + "\" Has been take!"));
                         return;
                     }
 
                     // Debugging: Print statements to track data
                     ABRLogger.getInstance(ABRSaveBlockPane.class).fine("Saving Block: " + savedBlocksDTO.getName());
 
-                    Queue<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionList =
-                            SavedBlocksDTO.createSavedBlockLoopInstructionsFromBlocksDTO(blockDTO, savedBlocksDTO);
+                    // Here Always Creating a New Component Block
+                    BlockDTO blockDTO = BlockDTO.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
+                    blockDTO.setTypeId(1);
+                    blockDTO.setBotJob(botJobDTO);
+                    blockDTO.setName(savedBlocksDTO.getName());
+                    blockDTO.setDescription(savedBlocksDTO.getDescription());
+                    int currentBlockId = createSavedBlock(blockDTO);
 
-                    // Debugging: Ensure savedBlockLoopInstructionList has the right data
-                    ABRLogger.getInstance(ABRSaveBlockPane.class)
-                            .fine("SavedBlockLoopInstructionList Size: " + savedBlockLoopInstructionList.size());
+                    if (currentBlockId > 0) {
+                        blockDTO.setId(currentBlockId);
+                        setBlockJob(blockDTO);
 
-                    List<SavedInstructionReferenceDTO> savedReferenceQueue = new ArrayList<>();
-                    savedBlockLoopInstructionList.forEach(savedInstruction -> {
-                        savedReferenceQueue.addAll(savedInstruction.getSavedInstructionReferenceDTOList());
-                        //                        savedInstruction.setSavedInstructionReferenceDTOList(null); // Reset
-                        // to avoid reuse
-                    });
+                        ABRSharedResources.getInstance().cacheEntitiesFromDB();
 
-                    // Debugging: Check the size of savedReferenceQueue before proceeding
-                    ABRLogger.getInstance(ABRSaveBlockPane.class)
-                            .fine("SavedReferenceQueue Size: " + savedReferenceQueue.size());
-
-                    // Ensure that we only add the entity once
-                    //                    ABRSharedResources.getInstance()
-                    //                            .addEntity(savedBlocksDTO, SavedBlocksDTO.class, () ->
-                    // ABRSharedResources.getInstance()
-                    //                                    .addAllEntity(
-                    //                                            savedBlockLoopInstructionList,
-                    // SavedBlockLoopInstructionDTO.class, () -> {
-                    //                                                // Check if savedReferenceQueue has elements
-                    // before proceeding
-                    //                                                if (savedReferenceQueue.size() > 0) {
-                    //                                                    ABRSharedResources.getInstance()
-                    //                                                            .addAllEntity(
-                    //                                                                    savedReferenceQueue,
-                    //
-                    // SavedInstructionReferenceDTO.class,
-                    //                                                                    () -> {
-                    //                                                                        // Ensure alert UI is
-                    // shown on the JavaFX
-                    //                                                                        // Application Thread
-                    //                                                                        Platform.runLater(() -> {
-                    //                                                                            System.out.println(
-                    //                                                                                    "Showing Block
-                    // Saved Alert");
-                    //                                                                            new ABRAlertScene(
-                    //
-                    // Alert.AlertType.INFORMATION,
-                    //                                                                                    "Block Saved",
-                    //                                                                                    "The block has
-                    // been saved successfully",
-                    //
-                    // ButtonType.OK);
-                    //                                                                        });
-                    //                                                                    });
-                    //                                                } else {
-                    //                                                    // If there are no references, still show the
-                    // success message
-                    //                                                    Platform.runLater(() -> {
-                    //                                                        System.out.println("Showing Block Saved
-                    // Alert (No References)");
-                    //                                                        new ABRAlertScene(
-                    //                                                                Alert.AlertType.INFORMATION,
-                    //                                                                "Block Saved",
-                    //                                                                "The block has been saved
-                    // successfully",
-                    //                                                                ButtonType.OK);
-                    //                                                    });
-                    //                                                }
-                    //                                            }));
-
-                    int currentBlockId = this.blockDTO.getId();
-
-                    if (blockLoadList.isEmpty()) {
-
-                        // It Prevents Start without blocks
-                        SavedBlocksDTO savedBlocksDTO = new SavedBlocksDTO();
-
-                        savedBlocksDTO.setDescription("Default Block description");
-                        savedBlocksDTO.setName("Default Block");
-                        BlockDTO blockDTO = BlockDTO.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
-                        //                        BotJobDTO botJob =
-                        //
-                        // ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJobDTO.getId());
-                        blockDTO.setTypeId(1);
-                        blockDTO.setBotJob(botJobDTO);
-                        blockDTO.setName("Default Block");
-                        blockDTO.setDescription("Default Block description");
-
-                        //            ABRSharedResources.getInstance().addEntity(blockDTO, BlockDTO.class);
-
-                        currentBlockId = createSavedBlock(blockDTO);
-
-                        if (currentBlockId < 0) {
-                            performAction.showAlert(
-                                    Alert.AlertType.ERROR,
-                                    "Error Creating new Block",
-                                    "Verify the Bot Job Name if have any",
-                                    "Check if you already have a Bot Job Created!");
-
-                            ABRLogger.getInstance(Thread.class)
-                                    .severe(String.format(
-                                            "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
-                                            this.botJobDTO.getId()));
-                            return;
-                        } else {
-
-                            setBlockJob(ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
-                            ABRLogger.getInstance(Thread.class)
-                                    .info(String.format(
-                                            "Created a new Block id %d for bot job Id %d",
-                                            currentBlockId, this.botJobDTO.getId()));
-                        }
+                        ABRLogger.getInstance(Thread.class)
+                                .info(String.format(
+                                        "Created a new Block id %d for bot job Id %d",
+                                        currentBlockId, this.botJobDTO.getId()));
                     } else {
-                        if (blockLoadList.size() > 0 && this.blockDTO == null) {
-                            currentBlockId = blockLoadList.get(0).getId();
-                            setBlockJob(ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
-                        } else if (this.blockDTO != null) {
-                            currentBlockId = this.blockDTO.getId();
-                        }
+                        performAction.showAlert(
+                                Alert.AlertType.ERROR,
+                                "Error Creating new Block",
+                                "Verify the Bot Job Name if have any",
+                                "Check if you already have a Bot Job Created!");
+
+                        ABRLogger.getInstance(Thread.class)
+                                .severe(String.format(
+                                        "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
+                                        this.botJobDTO.getId()));
+                        Platform.runLater(() -> warningLabel.setText(String.format(
+                                "Error Creating a new Block for bot job Id %d!", this.botJobDTO.getId())));
+
+                        return;
                     }
 
-                    while (!savedBlockLoopInstructionList.isEmpty()) {
-                        SavedBlockLoopInstructionDTO task = savedBlockLoopInstructionList.poll();
-                        preFillSavedInstruction(
+                    boolean savedInstStatus = false;
+                    for (int j = 0; j < originalLoopInstruction.size(); j++) {
+                        SavedBlockLoopInstructionDTO task = originalLoopInstruction.get(j);
+                        int newId = preFillSavedInstruction(
                                 task.getName(),
                                 task.getDescription(),
                                 task.getActions(),
                                 task.getOperation(),
                                 task.getOnHoldSeconds(),
                                 task.getVariableId(),
-                                task.getId(),
+                                task.getInstructionOrderNumber(),
                                 this.blockDTO, // blockDTO
                                 this.botJobDTO,
                                 false);
+
+                        task.setId(newId);
+
+                        if (newId < 0) {
+                            savedInstStatus = false;
+                            Platform.runLater(() -> warningLabel.setText(String.format(
+                                    "Error Creating a Instructions %s! - Actions: %s",
+                                    task.getName(), task.getActions())));
+                        } else {
+                            savedInstStatus = true;
+                        }
+                    }
+
+                    if (savedInstStatus) {
+                        ABRSharedResources.getInstance().cacheEntitiesFromDB();
+                    } else {
+                        warningLabel.setText("Error: Unable to save the block. Please try again.");
+                        return;
                     }
 
                     try {
 
-                        Platform.runLater(() -> {
-                            boolean saved = insertReferences(savedReferenceQueue);
-                            if (saved) {
-
-                                new ABRAlertScene(
-                                        Alert.AlertType.INFORMATION,
-                                        "Web Instruction Add",
-                                        "The Block  \"" + this.blockDTO.getName()
-                                                + "\" with "
-                                                + savedReferenceQueue.size() + " references locators"
-                                                + "\nHas been added successfully!",
-                                        ButtonType.OK);
-                            } else {
-                                new ABRAlertScene(
-                                        Alert.AlertType.ERROR,
-                                        "Add Web Instruction FAILED",
-                                        "The Bock " + this.blockDTO.getName() + " with "
-                                                + savedReferenceQueue.size() + " reference locators"
-                                                + "\nWas Added!"
-                                                + "\nTHE ENGINE IS GOING TO FAIL FOR THIS ELEMENT",
-                                        ButtonType.OK);
-                            }
+                        // Build Saved Components References
+                        originalReferences = new ArrayList<>();
+                        originalLoopInstruction.forEach(savedInstruction -> {
+                            originalReferences.addAll(savedInstruction.getSavedInstructionReferenceDTOList());
                         });
+
+                        if (savedInstStatus && originalReferences.size() > 0) {
+                            ABRLogger.getInstance(ABRSaveBlockPane.class)
+                                    .fine("originalReferences Size: " + originalReferences.size());
+
+                            Platform.runLater(() -> {
+                                boolean success = insertComponentReferences(originalReferences);
+                                if (success) {
+                                    performAction.showAlert(
+                                            Alert.AlertType.INFORMATION,
+                                            "Web Reference Locators Added",
+                                            "All Web Instruction Reference was Added",
+                                            String.format(
+                                                    "It was included %d references locators for the Block: %s",
+                                                    originalReferences.size(), this.blockDTO.getName()));
+
+                                    ABRLogger.getInstance(Thread.class)
+                                            .info(String.format(
+                                                    "It was included %d references locators for the Block: %s",
+                                                    originalReferences.size(), this.blockDTO.getName()));
+
+                                } else {
+                                    performAction.showAlert(
+                                            Alert.AlertType.ERROR,
+                                            "Web Reference Locators Error",
+                                            "Add Web Instruction FAILED",
+                                            String.format(
+                                                    "Was Not Added %d reference locators to the Block: %s"
+                                                            + "\nTHE ENGINE IS GOING TO FAIL WITHOUT IT",
+                                                    originalReferences.size(), this.blockDTO.getName()));
+                                    warningLabel.setText("Error: Unable to save the block. Please try again.");
+                                    return;
+                                }
+                            });
+                        }
                     } catch (Exception ex) {
                         ABRLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
                     }
@@ -324,26 +287,27 @@ public class ABRSaveBlockPane extends ABRPane {
                     ex.printStackTrace(); // Optionally log the error for debugging purposes
                 }
 
+                ABRSharedResources.getInstance().changeDbConnection();
+
                 //                Close();
             } else {
 
                 // Ensure UI update happens on the JavaFX Application Thread
                 Platform.runLater(() -> warningLabel.setText("Warning: give the correct name and description"));
-                ;
             }
         });
 
         closeButton.setOnAction(e -> Close());
     }
 
-    private void preFillSavedInstruction(
+    private int preFillSavedInstruction(
             String name,
             String description,
             String actions,
             String operation,
             Integer onHold,
             Integer varId,
-            Integer instructionId,
+            Integer instructionOrderNumber,
             BlockDTO blockDTO,
             BotJobDTO botJob,
             boolean isShowAlert) {
@@ -355,7 +319,7 @@ public class ABRSaveBlockPane extends ABRPane {
         instruction.setEncrypted(false);
         instruction.setExportToABR(true);
 
-        instruction.setInstructionOrderNumber(1);
+        instruction.setInstructionOrderNumber(instructionOrderNumber);
 
         instruction.setOptional(false);
 
@@ -365,30 +329,24 @@ public class ABRSaveBlockPane extends ABRPane {
 
         instruction.setVariableId(varId);
 
-        Integer nextId = loadNextIdSavedInstructionData() + 1;
-        instruction.setId(nextId);
-
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
         instruction.setBlock(blockDTO);
         instruction.setExportToABR(false);
         // Wrap the persistence in a try-catch block
-        boolean response;
+        int newId = -1;
 
         try {
-            response = insertSavedInstruction(instruction);
+            newId = insertSavedInstruction(instruction);
 
-            if (response) {
-                new ABRAlertScene(
-                        Alert.AlertType.INFORMATION,
-                        "Component Instruction Added",
-                        "\"Component\" Instruction \"" + instruction.getName() + "\" has been added successfully",
-                        ButtonType.OK);
+            if (newId > 0) {
                 performAction.showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error Add New \"Component\" Instruction",
-                        "Not possible to insert new Operation",
-                        String.format("\"Component\" Instruction \"%s\"\nCannot be saved", instruction.getName()));
+                        Alert.AlertType.INFORMATION,
+                        "Add New \"Component\" Instruction",
+                        "Component Instruction Added",
+                        String.format(
+                                "\"Component\" Instruction \"%s\"\nhas been added successfully!",
+                                instruction.getName()));
 
                 ABRLogger.getInstance(ABRViewBotJobPane.class)
                         .info(String.format(
@@ -418,14 +376,16 @@ public class ABRSaveBlockPane extends ABRPane {
                             "Cannot Insert \"Component\" Instruction \"%s\"\nCannot be saved!\nError: %s",
                             instruction.getName(), e.getMessage()));
         }
+        return newId;
     }
 
-    private boolean insertSavedInstruction(BlockLoopInstructionDTO instructionDTO) throws SQLException {
+    private int insertSavedInstruction(BlockLoopInstructionDTO instructionDTO) throws SQLException {
         // Generate a Unique-ID for the block
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            //            Integer nextId = loadNextIdBInstructionData() + 1;
+            Integer nextId = loadNextIdSavedInstructionData() + 1;
+            instructionDTO.setId(nextId);
 
             String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "null";
 
@@ -447,7 +407,7 @@ public class ABRSaveBlockPane extends ABRPane {
                     + "parent_id, "
                     + "path, "
                     + "variable_id, "
-                    + "block_id)\n"
+                    + "saved_block_id)\n"
                     + "VALUES ("
                     + instructionDTO.getId()
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
@@ -477,7 +437,7 @@ public class ABRSaveBlockPane extends ABRPane {
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
                                 instructionDTO.getOperation()));
-                return true;
+                return nextId;
             } else {
                 ABRLogger.getInstance(ABRNewCommandPane.class)
                         .warning(String.format(
@@ -486,12 +446,12 @@ public class ABRSaveBlockPane extends ABRPane {
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
                                 instructionDTO.getOperation()));
-                return false;
+                return -1;
             }
         }
     }
 
-    private boolean insertReferences(List<SavedInstructionReferenceDTO> queue) {
+    private boolean insertComponentReferences(List<SavedInstructionReferenceDTO> queue) {
 
         // Generate a Unique-ID for the block
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
@@ -510,7 +470,7 @@ public class ABRSaveBlockPane extends ABRPane {
 
                 // Build the SQL insert query
                 String insertSQL =
-                        "INSERT INTO saved_instruction_reference(id, reference_type, value, block_loop_instruction_id) VALUES ("
+                        "INSERT INTO saved_instruction_reference(id, reference_type, value, saved_block_loop_instruction_id) VALUES ("
                                 + nextId + ", "
                                 + "'" + reference.getReferenceType() + "', "
                                 + "'" + reference.getValue() + "', " // name
@@ -520,7 +480,7 @@ public class ABRSaveBlockPane extends ABRPane {
                 if (rowsAffected > 0) {
                     ABRLogger.getInstance(ABRViewBotJobPane.class)
                             .info(String.format(
-                                    "Saved Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
+                                    "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
                                     nextId,
                                     reference.getReferenceType(),
                                     reference.getValue(),
@@ -528,7 +488,7 @@ public class ABRSaveBlockPane extends ABRPane {
                 } else {
                     ABRLogger.getInstance(ABRViewBotJobPane.class)
                             .warning(String.format(
-                                    "Saved Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
+                                    "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
                                     nextId,
                                     reference.getReferenceType(),
                                     reference.getValue(),
@@ -537,7 +497,8 @@ public class ABRSaveBlockPane extends ABRPane {
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Cannot Insert References\nError " + e.getMessage());
+            ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
             return false;
         }
     }
