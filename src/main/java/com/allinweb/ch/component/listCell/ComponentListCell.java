@@ -146,7 +146,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                             loadBotJob(savedBlocksDTO.getBotJobDTO().getId());
 
                     if (botJobLoadDTO == null) {
-                        performAction.showAlertError(
+                        performAction.showAlert(
+                                Alert.AlertType.ERROR,
                                 "Bot Job DOES NOT EXIST",
                                 "Verify the Bot Job Name if have any: ",
                                 String.format(
@@ -172,7 +173,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                 .severe("I was not able to load the BotJod id: "
                                         + savedBlocksDTO.getBotJobDTO().getId());
 
-                        performAction.showAlertError(
+                        performAction.showAlert(
+                                Alert.AlertType.ERROR,
                                 "Error Loading BotJob",
                                 "Bot Job Loading Error",
                                 "I was not able to load the BotJod id: "

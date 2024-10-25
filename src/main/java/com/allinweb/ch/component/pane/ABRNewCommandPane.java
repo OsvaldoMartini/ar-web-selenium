@@ -9,8 +9,7 @@ import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.driver.ABRWebDriver;
-import com.allinweb.ch.driver.ABRWebElement;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -59,6 +58,12 @@ import javafx.stage.Stage;
 
 public class ABRNewCommandPane extends ABRPane {
 
+    private static final PerformActions performAction;
+    // Static block to initialize
+    static {
+        performAction = PerformActions.getInstance();
+    }
+
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
@@ -103,7 +108,8 @@ public class ABRNewCommandPane extends ABRPane {
     Button cancelButton;
 
     private ComboBox<ComboBoxImage> comboBoxInstruc;
-    private ObservableList<ComboBoxImage> itemsInstructions;
+    private ObservableList<ComboBoxImage> itemsInstructions = FXCollections.observableArrayList();
+    ;
 
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
@@ -139,17 +145,24 @@ public class ABRNewCommandPane extends ABRPane {
             initializeDatabase();
         }
 
-        itemsInstructions = FXCollections.observableArrayList(
-                new ComboBoxImage("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN), ABRConstants.SET_VALUE),
-                new ComboBoxImage("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN), ABRConstants.GET_VALUE),
-                new ComboBoxImage("Check", new Image(ABRConstants.ICON_CHECK), ABRConstants.CHECK_VALUE),
-                new ComboBoxImage("IF ELSE", new Image(ABRConstants.ICON_IF_ELSE), ABRConstants.IF_ELSE),
-                new ComboBoxImage("GO TO", new Image(ABRConstants.ICON_GOTO), ABRConstants.GOTO),
-                new ComboBoxImage("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), ABRConstants.EXTRACT_FIELD));
+        try {
 
-        operatorsItems = FXCollections.observableArrayList(
-                new ComboBoxOperator("Equals", new Image(ABRConstants.ICON_EQUAL), "="),
-                new ComboBoxOperator("Greater", new Image(ABRConstants.ICON_GREATER), ">"));
+            itemsInstructions = FXCollections.observableArrayList(
+                    new ComboBoxImage("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN), ABRConstants.SET_VALUE),
+                    new ComboBoxImage("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN), ABRConstants.GET_VALUE),
+                    new ComboBoxImage("Check", new Image(ABRConstants.ICON_CHECK), ABRConstants.CHECK_VALUE),
+                    new ComboBoxImage("IF ELSE", new Image(ABRConstants.ICON_IF_ELSE), ABRConstants.IF_ELSE),
+                    new ComboBoxImage("GO TO", new Image(ABRConstants.ICON_GOTO), ABRConstants.GOTO),
+                    new ComboBoxImage("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), ABRConstants.EXTRACT_FIELD));
+
+            operatorsItems = FXCollections.observableArrayList(
+                    new ComboBoxOperator("Equals", new Image(ABRConstants.ICON_EQUAL), "="),
+                    new ComboBoxOperator("Greater", new Image(ABRConstants.ICON_GREATER), ">"));
+        } catch (Exception ex) {
+            ABRLogger.getInstance(ABRNewCommandPane.class)
+                    .severe("Error creating \"DropBox Instructions\" and  \"DropBox Operators\"\nError: "
+                            + ex.getMessage());
+        }
 
         if (this.webPageItems != null && this.webPageItems.size() > 0) {
             loadJobVariables(webPageItems.get(0).getVarId());
@@ -687,12 +700,14 @@ public class ABRNewCommandPane extends ABRPane {
 
                 if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
                     showAlert(
+                            Alert.AlertType.ERROR,
                             "No Variable Defined",
                             "Define a variable for: \""
                                     + comboBoxWebPage.getValue().getText() + "\"");
                     return;
                 } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
-                    showAlert("No Web Fields Defined", "Select Web Fields (Web Elements)!");
+                    showAlert(Alert.AlertType.ERROR, "No Web Fields Defined", "Select Web Fields (Web Elements)!");
+
                     return;
                 }
             }
@@ -700,7 +715,8 @@ public class ABRNewCommandPane extends ABRPane {
             if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
                     && blocksItems.size() == 1
                     && (comboBoxBlocks.getValue().getInstructionId() == -1)) {
-                showAlert("No Blocks Defined", "It must have ate least Two Blocks defined ");
+                showAlert(Alert.AlertType.ERROR, "No Blocks Defined", "It must have ate least Two Blocks defined ");
+
                 return;
             }
 
@@ -801,7 +817,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         variableButton.setOnAction(e -> {
             if (this.rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-                ABRLogger.getInstance(ABRWebElement.class)
+                ABRLogger.getInstance(ABRNewCommandPane.class)
                         .info("creating variable for instruction Name "
                                 + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
                 ABRElementValueScene elementValueScene = new ABRElementValueScene(
@@ -821,7 +837,7 @@ public class ABRNewCommandPane extends ABRPane {
                 }
 
             } else {
-                ABRLogger.getInstance(ABRWebElement.class)
+                ABRLogger.getInstance(ABRNewCommandPane.class)
                         .info("creating variable for instruction Name "
                                 + comboBoxWebPage.getValue().getText());
                 ABRElementValueScene elementValueScene = new ABRElementValueScene(
@@ -1096,11 +1112,12 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
-    private void showAlert(String title, String content) {
+    private void showAlert(Alert.AlertType alertType, String title, String header, String content) {
         executorService = Executors.newSingleThreadExecutor();
-        alertToShow.setAlertType(Alert.AlertType.ERROR);
-        alertToShow.setTitle("Error");
-        alertToShow.setHeaderText(title);
+        alertToShow.setAlertType(alertType);
+        alertToShow.setTitle(title);
+        alertToShow.setHeaderText(header);
+        alertToShow.setContentText(content);
 
         // Create a label to display the countdown
         Label countdownLabel = new Label(content);
@@ -1250,14 +1267,14 @@ public class ABRNewCommandPane extends ABRPane {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(ABRNewCommandPane.class)
                             .warning(String.format(
                                     "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
                                     instruction.getInstructionId(),
                                     instruction.getBlockId(),
                                     instruction.getInstructionOrderNumber() + 1));
                 } else {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(ABRNewCommandPane.class)
                             .warning(String.format(
                                     "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
                                     instruction.getBlockId(), instruction.getInstructionId()));
@@ -1266,7 +1283,7 @@ public class ABRNewCommandPane extends ABRPane {
 
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(ABRNewCommandPane.class)
                     .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
         }
         return false;
@@ -1285,7 +1302,7 @@ public class ABRNewCommandPane extends ABRPane {
 
             if (!orderNumberExists) {
                 // If the target order number doesn't exist, return false without shifting
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(ABRNewCommandPane.class)
                         .warning(String.format(
                                 "preInsertStep - Target order number %d does not exist in the row list.",
                                 targetOrderNumber));
@@ -1312,14 +1329,14 @@ public class ABRNewCommandPane extends ABRPane {
 
                         int rowsAffected = stmt.executeUpdate(updateSQL);
                         if (rowsAffected > 0) {
-                            ABRLogger.getInstance(ABRWebDriver.class)
+                            ABRLogger.getInstance(ABRNewCommandPane.class)
                                     .warning(String.format(
                                             "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
                                             instruction.getInstructionId(),
                                             instruction.getBlockId(),
                                             instruction.getInstructionOrderNumber() + 1));
                         } else {
-                            ABRLogger.getInstance(ABRWebDriver.class)
+                            ABRLogger.getInstance(ABRNewCommandPane.class)
                                     .warning(String.format(
                                             "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
                                             instruction.getBlockId(), instruction.getInstructionId()));
@@ -1328,7 +1345,7 @@ public class ABRNewCommandPane extends ABRPane {
                 }
                 return true;
             } catch (SQLException e) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(ABRNewCommandPane.class)
                         .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
             }
         }
@@ -1370,11 +1387,11 @@ public class ABRNewCommandPane extends ABRPane {
                 instructions.add(instruction);
             }
 
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(ABRNewCommandPane.class)
                     .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(ABRNewCommandPane.class)
                     .severe(String.format(
                             "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
         }
@@ -1430,14 +1447,6 @@ public class ABRNewCommandPane extends ABRPane {
         }
 
         return blockLoadList;
-    }
-
-    private void showAlertError(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 
     private void runAddInstructionTask(
@@ -1517,8 +1526,14 @@ public class ABRNewCommandPane extends ABRPane {
                     try {
                         ABRSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
                     } catch (Exception e) {
-                        System.err.println("Error while saving instruction: " + e.getMessage());
-                        e.printStackTrace();
+                        performAction.showAlert(
+                                Alert.AlertType.ERROR,
+                                "Error while saving instruction",
+                                "Error while saving instruction",
+                                "Error Inserting Instruction \n" + instruction.getName() + "\"!");
+
+                        ABRLogger.getInstance(ABRNewCommandPane.class)
+                                .severe(String.format("Error Adding new instruction.\nError: %s", e.getMessage()));
                     }
 
                     // Move the UI update to the JavaFX Application Thread
@@ -1528,18 +1543,22 @@ public class ABRNewCommandPane extends ABRPane {
                                 rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
                         rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
                         if (isShowAlert) {
-                            new ABRAlertScene(
+                            performAction.showAlert(
                                     Alert.AlertType.INFORMATION,
+                                    "News Instruction Add",
                                     "Instruction Added",
-                                    "Instruction " + instruction.getName() + " has been added successfully",
-                                    ButtonType.OK);
+                                    "Instruction " + instruction.getName() + " has been added successfully");
                         }
                     });
                 } catch (Exception ex) {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(ABRNewCommandPane.class)
                             .severe(String.format("Error Adding new instruction.\nError: %s", ex.getMessage()));
 
-                    showAlertError("Error Add New Instruction", "Not possible to inser new Operation", ex.getMessage());
+                    performAction.showAlert(
+                            Alert.AlertType.ERROR,
+                            "Error Add New Instruction",
+                            "Not possible to inser new Operation",
+                            ex.getMessage());
                 }
                 return null;
             }
@@ -1604,7 +1623,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         instruction.setVariableId(varId);
 
-        Integer nextId = loadNextIdBInstructionData() + 1;
+        Integer nextId = loadNextIdInstructionData() + 1;
 
         if (actions.equalsIgnoreCase(ABRConstants.IF_ELSE)) {
             instruction.setId(nextId);
@@ -1642,10 +1661,24 @@ public class ABRNewCommandPane extends ABRPane {
                         new ABRAlertScene(
                                 Alert.AlertType.INFORMATION,
                                 "Instruction Added",
-                                "Instruction " + instruction.getName() + " has been added successfully",
+                                "Instruction \"" + instruction.getName() + "\" has been added successfully",
                                 ButtonType.OK);
+                        ABRLogger.getInstance(ABRViewBotJobPane.class)
+                                .info(String.format(
+                                        "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
+                                        instruction.getName()));
                     } else {
-                        showAlertError("Error Add New Instruction", "Not possible to insert new Operation", "response");
+
+                        ABRLogger.getInstance(ABRViewBotJobPane.class)
+                                .severe(String.format(
+                                        "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
+                                        instruction.getName()));
+
+                        new ABRAlertScene(
+                                Alert.AlertType.ERROR,
+                                "Error Add New Instruction",
+                                "Not possible to insert new Operation:  \"" + instruction.getName() + "\"",
+                                ButtonType.OK);
                     }
                 }
             });
@@ -1670,7 +1703,8 @@ public class ABRNewCommandPane extends ABRPane {
         //                            "Instruction " + instruction.getName() + " has been added successfully",
         //                            ButtonType.OK);
         //                } else {
-        //                    showAlertError("Error Add New Instruction", "Not possible to inser new Operation",
+        //                    showAlert(Alert.AlertType.ERROR,"Error Add New Instruction", "Not possible to inser new
+        // Operation",
         // "response");
         //                }
         //            }
@@ -1682,13 +1716,13 @@ public class ABRNewCommandPane extends ABRPane {
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            //            Integer nextId = loadNextIdBInstructionData() + 1;
+            //            Integer nextId = loadNextIdInstructionData() + 1;
 
             String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "null";
 
             // Build the SQL insert query
 
-            String insertSQL = "INSERT INTO public.block_loop_instruction(\n" + "id, "
+            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
                     + "action_custom_max_wait_sec, "
                     + "actions, "
                     + "block_marked, "
@@ -1748,7 +1782,7 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
-    private Integer loadNextIdBInstructionData() {
+    private Integer loadNextIdInstructionData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();

@@ -388,8 +388,11 @@ public class PerformActions {
                     }
 
                     if (abrWebDriver.getDriver() == null) {
-                        showAlertError(
-                                "ABR Web Driver is NULL", "Restart the APP", "Close all Browser or Restart the APP");
+                        showAlert(
+                                Alert.AlertType.ERROR,
+                                "ABR Web Driver is NULL",
+                                "Restart the APP",
+                                "Close all Browser or Restart the APP");
                         return null;
                     }
 
@@ -769,7 +772,8 @@ public class PerformActions {
     }
 
     public String getValueIsNotDefined(BlockLoopInstructionLoadDTO currentInstruction, String lastInstructionExecuted) {
-        showAlertError(
+        showAlert(
+                Alert.AlertType.ERROR,
                 "GET is Not Defined for \"+" + currentInstruction.getName() + "\"",
                 "\"" + currentInstruction.getName() + "\" - GET is Not Defined",
                 "There is NOT GET VALUE defined for: "
@@ -783,7 +787,8 @@ public class PerformActions {
     }
 
     public String checkValidationFailed(String parentField, String lastInstructionExecuted, String[] operations) {
-        showAlertError(
+        showAlert(
+                Alert.AlertType.ERROR,
                 "Validation Error",
                 "Check Validation Error",
                 "The Value: " + operations[2]
@@ -805,9 +810,9 @@ public class PerformActions {
         return "Failed to Execute Cmd: " + lastInstructionExecuted;
     }
 
-    public void showAlertError(String title, String header, String content) {
+    public void showAlert(Alert.AlertType alertType, String title, String header, String content) {
         Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
+            Alert alert = new Alert(alertType);
             alert.setTitle(title);
             alert.setHeaderText(header);
             alert.setContentText(content);
@@ -816,7 +821,8 @@ public class PerformActions {
     }
 
     public String parentIdWrongBlock(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
-        showAlertError(
+        showAlert(
+                Alert.AlertType.ERROR,
                 "Parent Id Error",
                 "Check Parent Id",
                 "The Parent Id: " + currentInstruction.getParentId()
@@ -855,7 +861,8 @@ public class PerformActions {
     }
 
     public String blockGotoFailed(String resultActions) {
-        showAlertError("Block GO TO Error", "Check Correct Block Existence", "CMD: \n" + resultActions);
+        showAlert(
+                Alert.AlertType.ERROR, "Block GO TO Error", "Check Correct Block Existence", "CMD: \n" + resultActions);
 
         ABRLogger.getInstance(ABRScannedElementPane.class)
                 .severe("Block GO TO Error.\n" + "Check Correct Block Existence!\n" + "CMD: \n" + resultActions);
@@ -864,7 +871,8 @@ public class PerformActions {
     }
 
     public void alertExecutionTimes(int executionTimes, String lastInstructionExecuted) {
-        showAlertError(
+        showAlert(
+                Alert.AlertType.ERROR,
                 "Block Execution Time LIMIT",
                 "Attention The Process Reached the LIMIT of Block Loop Executions",
                 String.format(

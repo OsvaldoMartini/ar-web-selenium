@@ -2,7 +2,6 @@ package com.allinweb.ch.persistence;
 
 import java.util.List;
 import javax.persistence.*;
-import org.hibernate.annotations.GenericGenerator;
 
 /**
  * actions syntax: A -> type of action (in this case 'A' is a placeholder)
@@ -10,14 +9,14 @@ import org.hibernate.annotations.GenericGenerator;
  *                                           X -> name of field
  */
 @Entity
-@Table(name = "saved_block_loop_instructions")
-@GenericGenerator(name = "idgen", strategy = "native")
+@Table(name = "saved_block_loop_instruction")
+@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockLoopInstructionSeq", allocationSize = 1)
 public class SavedBlockLoopInstructionDTO extends BaseDTO {
 
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
 
-    @Column(name = "actions")
+    @Column(name = "actions", length = 1000)
     private String actions;
 
     @Column(name = "name")
@@ -29,8 +28,14 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "description")
     private String description;
 
+    @Column(name = "operation", length = 500)
+    private String operation;
+
     @Column(name = "optional")
     private int optional;
+
+    @Column(name = "block_marked")
+    private boolean blockMarked;
 
     @Column(name = "default_val")
     private String default_val;
@@ -50,6 +55,18 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "saved_block_id")
     private SavedBlocksDTO savedBlocksDTO;
+
+    @Transient
+    private Boolean executed;
+
+    @Transient
+    private String priority;
+
+    @Column(name = "variable_id")
+    private Integer variableId;
+
+    @Column(name = "parent_id")
+    private Integer parentId;
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "saved_block_loop_instruction_id")
@@ -116,6 +133,14 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
         this.description = description;
     }
 
+    public String getOperation() {
+        return operation;
+    }
+
+    public void setOperation(String operation) {
+        this.operation = operation;
+    }
+
     public SavedBlocksDTO getBlock() {
         return savedBlocksDTO;
     }
@@ -148,6 +173,14 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
         this.optional = optional ? 1 : 0;
     }
 
+    public void setBlockMarked(boolean isMarked) {
+        this.blockMarked = isMarked;
+    }
+
+    public boolean isBlockMarked() {
+        return blockMarked;
+    }
+
     public boolean isEncrypted() {
         return encrypted >= 1;
     }
@@ -171,5 +204,37 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
     public void setSavedInstructionReferenceDTOList(
             List<SavedInstructionReferenceDTO> savedInstructionReferenceDTOList) {
         this.savedInstructionReferenceDTOList = savedInstructionReferenceDTOList;
+    }
+
+    public String getPriority() {
+        return priority;
+    }
+
+    public void setPriority(String priority) {
+        this.priority = priority;
+    }
+
+    public Boolean getExecuted() {
+        return executed;
+    }
+
+    public void setExecuted(Boolean executed) {
+        this.executed = executed;
+    }
+
+    public Integer getVariableId() {
+        return variableId;
+    }
+
+    public void setVariableId(Integer variableId) {
+        this.variableId = variableId;
+    }
+
+    public Integer getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(Integer parentId) {
+        this.parentId = parentId;
     }
 }

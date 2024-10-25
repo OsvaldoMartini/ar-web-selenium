@@ -1198,7 +1198,8 @@ public class ABRScannedElementPane extends ABRPane {
                     } catch (EnumConstantNotPresentException ex) {
                         ABRLogger.getInstance(ABRScannedElementPane.class)
                                 .severe("ENUM Property not Defined of Web Element\n " + ex.getMessage());
-                        performAction.showAlertError(
+                        performAction.showAlert(
+                                Alert.AlertType.ERROR,
                                 "ERROR ADD WEB ELEMENT",
                                 "Enum Constant Not Present!",
                                 "Contact ADM to verify the \"Constant Locator Used\"\n"
@@ -1416,7 +1417,8 @@ public class ABRScannedElementPane extends ABRPane {
                             .info("Double clicked the element: " + abrWebElement.getXPath());
 
                     if (abrWebElement.getSavedReferences().size() == 0) {
-                        performAction.showAlertError(
+                        performAction.showAlert(
+                                Alert.AlertType.ERROR,
                                 "ERROR ADD WEB ELEMENT",
                                 "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
                                 "The Instruction \""
@@ -1440,7 +1442,8 @@ public class ABRScannedElementPane extends ABRPane {
                         BotJobLoadDTO botJobLoadDTO = loadBotJob(this.botJob.getId());
 
                         if (botJobLoadDTO == null) {
-                            performAction.showAlertError(
+                            performAction.showAlert(
+                                    Alert.AlertType.ERROR,
                                     "Bot Job DOES NOT EXIST",
                                     "Verify the Bot Job Name if have any: ",
                                     String.format(
@@ -1475,7 +1478,8 @@ public class ABRScannedElementPane extends ABRPane {
                             currentBlockId = createBlock(blockDTO);
 
                             if (currentBlockId < 0) {
-                                performAction.showAlertError(
+                                performAction.showAlert(
+                                        Alert.AlertType.ERROR,
                                         "Error Creating new Block",
                                         "Verify the BVot Job Name if have any",
                                         "Check if you already have a Bot Job Created!");
@@ -2853,7 +2857,8 @@ public class ABRScannedElementPane extends ABRPane {
         String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
         excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobName() + ".xlsx";
         if (!(new File(excelPath)).exists()) {
-            performAction.showAlertError(
+            performAction.showAlert(
+                    Alert.AlertType.ERROR,
                     "Missing file excel",
                     "IS MANDATORY TO HAVE EXCEL FILE FOR TESTS"
                             + "\nPlease generate and compile the data of the file excel first before launching the bot job",
@@ -2878,7 +2883,8 @@ public class ABRScannedElementPane extends ABRPane {
         try {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
-            performAction.showAlertError("Excel File Empty", "IS MANDATORY TO HAVE DATA FOR TESTS", excelPath);
+            performAction.showAlert(
+                    Alert.AlertType.ERROR, "Excel File Empty", "IS MANDATORY TO HAVE DATA FOR TESTS", excelPath);
             return false;
             //            Platform.exit();
         }
@@ -2886,7 +2892,8 @@ public class ABRScannedElementPane extends ABRPane {
             //				showAlert("Excel Data File", "Warning: Excel File exist" , "Fields in the excel not matching the
             // botjob requirements");
             //            System.out.println("Fields in the excel not matching the botjob requirements");
-            //            performAction.showAlertError("Excel File Empty", "IS MANDATORY TO HAVE DATA FOR TESTS",
+            //            performAction.showAlert(Alert.AlertType.ERROR,"Excel File Empty", "IS MANDATORY TO HAVE DATA
+            // FOR TESTS",
             // excelPath);
         }
 
@@ -4190,8 +4197,8 @@ public class ABRScannedElementPane extends ABRPane {
         alert.showAndWait();
     }
 
-    private void showAlertError(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
+    private void showAlert(Alert.AlertType alertType, String title, String header, String content) {
+        Alert alert = new Alert(alertType);
         alert.setTitle(title);
         alert.setHeaderText(header);
         alert.setContentText(content);
