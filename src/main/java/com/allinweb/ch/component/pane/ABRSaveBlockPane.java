@@ -263,26 +263,48 @@ public class ABRSaveBlockPane extends ABRPane {
                                 if (successFinal) {
                                     performAction.showAlert(
                                             Alert.AlertType.INFORMATION,
-                                            "Web Reference Locators Added",
-                                            "All Web Instruction Reference was Added",
+                                            "Created Web Component",
+                                            "Web Component was Created",
                                             String.format(
-                                                    "It was included %d references locators for the Block: %s",
-                                                    originalReferences.size(), this.blockDTO.getName()));
+                                                    "Created Web Component:\n" + "Added Block Name: %s"
+                                                            + "" + "\nAdded %d Instructions"
+                                                            + "\nAdded %d references locators",
+                                                    this.blockDTO.getName(),
+                                                    originalLoopInstruction.size(),
+                                                    originalReferences.size()));
 
                                     ABRLogger.getInstance(Thread.class)
                                             .info(String.format(
-                                                    "It was included %d references locators for the Block: %s",
-                                                    originalReferences.size(), this.blockDTO.getName()));
+                                                    "Created Web Component:\n" + "Added Block Name: %s"
+                                                            + "" + "\nAdded %d Instructions"
+                                                            + "\nAdded %d references locators",
+                                                    this.blockDTO.getName(),
+                                                    originalLoopInstruction.size(),
+                                                    originalReferences.size()));
 
                                 } else {
                                     performAction.showAlert(
                                             Alert.AlertType.ERROR,
-                                            "Web Reference Locators Error",
-                                            "Add Web Instruction FAILED",
+                                            "Error Creating Web Components",
+                                            "Add Web Components FAILED",
                                             String.format(
-                                                    "Was Not Added %d reference locators to the Block: %s"
-                                                            + "\nTHE ENGINE IS GOING TO FAIL WITHOUT IT",
-                                                    originalReferences.size(), this.blockDTO.getName()));
+                                                    "ERROR: Creating Web Components:\n"
+                                                            + "Block Name: %s\nWAS NOT INCLUDED"
+                                                            + "\nWAS NOT INCLUDED- %d Instructions"
+                                                            + "\nWAS NOT INCLUDED -  %d references locators",
+                                                    this.blockDTO.getName(),
+                                                    originalLoopInstruction.size(),
+                                                    originalReferences.size()));
+
+                                    ABRLogger.getInstance(Thread.class)
+                                            .severe(String.format(
+                                                    "ERROR: Creating Web Components:\n"
+                                                            + "Block Name: %s\nWAS NOT INCLUDED"
+                                                            + "\nWAS NOT INCLUDED- %d Instructions"
+                                                            + "\nWAS NOT INCLUDED -  %d references locators",
+                                                    this.blockDTO.getName(),
+                                                    originalLoopInstruction.size(),
+                                                    originalReferences.size()));
                                     warningMSG("Error: Unable to save the block. Please try again.");
                                     return;
                                 }

@@ -324,8 +324,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                         } else {
                                             performAction.showAlert(
                                                     Alert.AlertType.ERROR,
-                                                    "Web Reference Locators Error",
-                                                    "Add Web Instruction FAILED",
+                                                    "Error Re  utilize Web Components",
+                                                    "Re utilize Web Components FAILED",
                                                     String.format(
                                                             "ERROR: Re utilize Component:\n"
                                                                     + "Block Name: %s\nWAS NOT INCLUDED"
