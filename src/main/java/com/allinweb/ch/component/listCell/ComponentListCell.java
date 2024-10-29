@@ -249,9 +249,9 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                         task.getOnHoldSeconds(),
                                         task.getVariableId(),
                                         task.getInstructionOrderNumber(),
-                                        this.blockDTO, // blockDTO
-                                        this.botJobDTO,
-                                        false);
+                                        task.getExportToABR(),
+                                        task.getPath(),
+                                        this.blockDTO);
 
                                 task.setId(newId);
 
@@ -566,9 +566,9 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
             Integer onHold,
             Integer varId,
             Integer instructionOrderNumber,
-            BlockDTO blockDTO,
-            BotJobDTO botJob,
-            boolean isShowAlert) {
+            boolean exportABR,
+            String xPath,
+            BlockDTO blockDTO) {
 
         BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
 
@@ -590,7 +590,9 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
         instruction.setBlock(blockDTO);
-        instruction.setExportToABR(false);
+        instruction.setExportToABR(exportABR);
+        instruction.setPath(xPath);
+
         // Wrap the persistence in a try-catch block
         int newId = -1;
 

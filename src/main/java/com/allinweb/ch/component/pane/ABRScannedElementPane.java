@@ -3006,6 +3006,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                         String xPathOperation = null;
                         String parentField = null;
+                        int parentId = currentInstruction.getParentId();
 
                         String[] actions = currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
                         String[] operations = currentInstruction.getOperation() != null
@@ -3032,6 +3033,8 @@ public class ABRScannedElementPane extends ABRPane {
                                         .get()
                                         .getName();
 
+                                parentField = parentId + "-" + parentField;
+
                             } catch (Exception ex) {
                                 resultActions = performAction.parentIdWrongBlock(currentInstruction, blockLoad);
                                 stopAll = true;
@@ -3046,6 +3049,9 @@ public class ABRScannedElementPane extends ABRPane {
                                         .findFirst()
                                         .get()
                                         .getName();
+
+                                parentField = parentId + "-" + parentField;
+
                                 checkOperation = true;
                             } catch (Exception ex) {
                                 resultActions =
@@ -3061,6 +3067,8 @@ public class ABRScannedElementPane extends ABRPane {
                                         .findFirst()
                                         .get()
                                         .getName();
+
+                                parentField = parentId + "-" + parentField;
 
                                 excelWriteOperation = true;
                             } catch (Exception ex) {
@@ -3143,7 +3151,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         + Constants.BLANK_STRING
                                         + currentInstruction.getPath();
 
-                                resultActions = performAction.performActions(
+                                resultActions = performAction.performWebActions(
                                         dataExcel, currentInstruction, botJobId, blockLoad.getName());
 
                                 if (resultActions != null) {
@@ -3270,7 +3278,10 @@ public class ABRScannedElementPane extends ABRPane {
 
                                         } else {
                                             resultActions = performAction.checkValidationFailed(
-                                                    parentField, lastInstructionExecuted, operations);
+                                                    parentField,
+                                                    mapOperators.get(parentField),
+                                                    lastInstructionExecuted,
+                                                    operations);
 
                                             stopAll = true;
                                             success = false;
@@ -3458,7 +3469,7 @@ public class ABRScannedElementPane extends ABRPane {
                     try {
                         lastInstructionExecuted =
                                 currentInstruction.getName() + Constants.BLANK_STRING + currentInstruction.getPath();
-                        resultActions = performAction.performActions(
+                        resultActions = performAction.performWebActions(
                                 dataDynamic,
                                 currentInstruction,
                                 botJobId,

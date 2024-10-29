@@ -94,7 +94,7 @@ public class PerformActions {
         return instance.get();
     }
 
-    public String performActions(
+    public String performWebActions(
             Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId, String blockJobName)
             throws Exception {
         WebElement instructionElement = null;
@@ -194,7 +194,8 @@ public class PerformActions {
                 case "GET":
                     String valueElem = getValueInElement(instructionElement);
                     mapOperators.put(parentField, valueElem);
-                    return "GET_VALUE from (" + parentField + ") Var" + operations[1] + " <-- " + valueElem;
+                    return "GET_VALUE from (" + parentField + "-" + parentField + ") Var" + operations[1] + " <-- "
+                            + valueElem;
                     //                    case "CK":
                     //                        if (operator.equalsIgnoreCase("=")) {
                     //                            result = "Equals -> "
@@ -363,11 +364,6 @@ public class PerformActions {
                 // Print or process the first matching instruction reference
                 if (instructionReference.isPresent()) {
 
-                    System.out.println(String.format(
-                            "Search for %s   Type:  %s   Value: %s",
-                            priority.getName(),
-                            instructionReference.get().getReferenceType(),
-                            instructionReference.get().getValue()));
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .fine(String.format(
                                     "Search for %s   Type:  %s   Value: %s",
@@ -804,25 +800,24 @@ public class PerformActions {
         return "Failed to Execute Cmd: " + lastInstructionExecuted;
     }
 
-    public String checkValidationFailed(String parentField, String lastInstructionExecuted, String[] operations) {
+    public String checkValidationFailed(
+            String parent, String expected, String lastInstructionExecuted, String[] operations) {
         showAlert(
                 Alert.AlertType.ERROR,
                 "Validation Error",
                 "Check Validation Error",
-                "The Value: " + operations[2]
-                        + "\nis not " + operations[1] + " "
-                        + mapOperators.get(parentField)
-                        + " Length: ("
-                        + mapOperators.get(parentField).length()
+                "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
+                        + expected + "\" Length: ("
+                        + expected.length()
                         + ")" + "\n --------------------- "
-                        + "\nCheck the GET of "
-                        + operations[0] + " for " + parentField
-                        + "\nCurrent value: "
-                        + operations[2] + " Length: (" + operations[2].length()
+                        + "\nThe Variable \""
+                        + operations[0] + "\" holds value \"" + operations[2] + "\""
+                        + "\nCurrent Web Field \"" + parent + "\" value: \""
+                        + expected + "\" Length: (" + expected.length()
                         + ")" + "\nExpected value: "
-                        + mapOperators.get(parentField)
+                        + operations[2]
                         + " Length: ("
-                        + mapOperators.get(parentField).length()
+                        + operations[2].length()
                         + ")");
 
         return "Failed to Execute Cmd: " + lastInstructionExecuted;

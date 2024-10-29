@@ -4,11 +4,10 @@ import com.allinweb.ch.core.ABRSharedResources;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.*;
-import org.hibernate.annotations.GenericGenerator;
 
 @Entity
 @Table(name = "saved_blocks")
-@GenericGenerator(name = "idgen", strategy = "native")
+@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockSeq", allocationSize = 1)
 public class SavedBlocksDTO extends BaseDTO {
 
     @Column(name = "block_order_number")
