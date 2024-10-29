@@ -315,7 +315,7 @@ public class ABRViewBotJobPane extends ABRPane {
             WebSocketStompServer.deleteInstruction(this.botJob.getId(), instruction);
         }
         WebSocketStompServer.deleteNullBlocks(this.botJob.getId());
-        WebSocketStompServer.updateBlockOrderNumber(WebSocketStompServer.selectAllBlocks(this.botJob.getId()));
+        WebSocketStompServer.updateBlockOrderNumber(WebSocketStompServer.selectAllBlocks(this.botJob.getId()), true);
 
         loadBlockAll(botJob.getId());
 
@@ -834,7 +834,9 @@ public class ABRViewBotJobPane extends ABRPane {
                         && !actions.equalsIgnoreCase(ABRConstants.SCREEN)
                         && !actions.equalsIgnoreCase(ABRConstants.QUIT)
                         && !actions.equalsIgnoreCase(ABRConstants.HOLD)
-                        && !actions.equalsIgnoreCase(ABRConstants.IF_ELSE)
+                        && !actions.equalsIgnoreCase(ABRConstants.IF)
+                        && !actions.equalsIgnoreCase(ABRConstants.ELSE)
+                        && !actions.equalsIgnoreCase(ABRConstants.ENDIF)
                         && !actions.equalsIgnoreCase(ABRConstants.GOTO)) {
                     webPageItems.add(new ComboBoxVars(name, name, id, -1));
                 }

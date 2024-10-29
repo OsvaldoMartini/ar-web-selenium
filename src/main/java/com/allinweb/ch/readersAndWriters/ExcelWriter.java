@@ -138,7 +138,9 @@ public class ExcelWriter {
                             case ABRConstants.GET_VALUE -> "GET VALUE";
                             case ABRConstants.CHECK_VALUE -> "CHECK VALUE";
                             case ABRConstants.GOTO -> "GO TO";
-                            case ABRConstants.IF_ELSE -> "IF ELSE";
+                            case ABRConstants.IF -> "IF";
+                            case ABRConstants.ELSE -> "ELSE";
+                            case ABRConstants.ENDIF -> "ENDIF";
                             default -> "Unsupported action";
                         };
                 String value = "";

@@ -149,7 +149,7 @@ public class ABRNewCommandPane extends ABRPane {
                     new ComboBoxImage("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN), ABRConstants.SET_VALUE),
                     new ComboBoxImage("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN), ABRConstants.GET_VALUE),
                     new ComboBoxImage("Check", new Image(ABRConstants.ICON_CHECK), ABRConstants.CHECK_VALUE),
-                    new ComboBoxImage("IF ELSE", new Image(ABRConstants.ICON_IF_ELSE), ABRConstants.IF_ELSE),
+                    new ComboBoxImage("IF", new Image(ABRConstants.ICON_IF_ELSE), ABRConstants.IF),
                     new ComboBoxImage("GO TO", new Image(ABRConstants.ICON_GOTO), ABRConstants.GOTO),
                     new ComboBoxImage("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), ABRConstants.EXTRACT_FIELD));
 
@@ -645,7 +645,7 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setVisible(false);
                     comboBoxBlocks.setVisible(true);
                     comboBoxBlocks.setPrefWidth(buttonWidth);
-                } else if (ABRConstants.IF_ELSE.equalsIgnoreCase(newValue.getValue())) {
+                } else if (ABRConstants.IF.equalsIgnoreCase(newValue.getValue())) {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
                     textFlow.setVisible(true);
@@ -707,7 +707,7 @@ public class ABRNewCommandPane extends ABRPane {
         this.addInstructionButton.setOnMouseClicked((e) -> {
             // Check if the current selected index is greater than the first index
 
-            if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.IF_ELSE)
+            if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.IF)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)) {
 
                 if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
@@ -802,11 +802,11 @@ public class ABRNewCommandPane extends ABRPane {
                         null, // Block Order Number as VarId
                         comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
-            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF ELSE")) {
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF")) {
                 addInstruction(
                         "IF",
                         "IF",
-                        ABRConstants.IF_ELSE,
+                        ABRConstants.IF,
                         1,
                         "IF",
                         null, // Block Order Number as VarId
@@ -917,9 +917,9 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText1.setText(" Go to The Block ");
                     variableText2.setText(comboBoxBlocks.getValue().getText());
                     break;
-                case ABRConstants.IF_ELSE:
+                case ABRConstants.IF:
                     regularText.setText("IF: ");
-                    variableText1.setText(" IF ELSE ");
+                    variableText1.setText(" IF ELSE ENDIF ");
                     variableText2.setText("SPECIAL COMMAND");
                     break;
                 default:
@@ -1229,7 +1229,7 @@ public class ABRNewCommandPane extends ABRPane {
         if (alertResponse) {
 
             // Handle loop outside Platform.runLater to ensure multiple iterations
-            int endifCount = actions.equalsIgnoreCase(ABRConstants.IF_ELSE) ? 2 : 1;
+            int endifCount = actions.equalsIgnoreCase(ABRConstants.IF) ? 3 : 1;
 
             // Run the loop for adding multiple instructions
             String nextAction = null;
@@ -1251,6 +1251,8 @@ public class ABRNewCommandPane extends ABRPane {
                         isShowAlert);
 
                 if (Strings.isNullOrEmpty(nextAction)) {
+                    nextAction = ABRConstants.ELSE;
+                }else if (!Strings.isNullOrEmpty(nextAction) && nextAction.equals(ABRConstants.ELSE)) {
                     nextAction = ABRConstants.ENDIF;
                 }
             }
@@ -1636,7 +1638,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         Integer nextId = loadNextIdInstructionData() + 1;
 
-        if (actions.equalsIgnoreCase(ABRConstants.IF_ELSE)) {
+        if (actions.equalsIgnoreCase(ABRConstants.IF)) {
             instruction.setId(nextId);
             instruction.setParentId(nextId + 1);
         } else if (actions.equalsIgnoreCase(ABRConstants.ENDIF)) {

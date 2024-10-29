@@ -181,8 +181,10 @@ public class WebSocketStompServer {
             case "BLOCK_ORDER":
                 BlockOrderDTO blockReorder = gson.fromJson(body, BlockOrderDTO.class);
                 if (blockReorder.getUpdatedBlocks().size() > 0) {
-                    updateBlockOrderNumber(selectAllBlocks(
-                            blockReorder.getUpdatedBlocks().get(0).getBotJobId()));
+                    updateBlockOrderNumber(
+                            selectAllBlocks(
+                                    blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
+                            true);
                     deleteNullBlocks(blockReorder.getUpdatedBlocks().get(0).getBotJobId());
                 }
                 break;
@@ -259,7 +261,7 @@ public class WebSocketStompServer {
         int newBlockId = createNewBlock(newBlock);
         if (updateInstructionsSplitter(newBlock.getInstructions(), (int) originalBlock.getBlockId(), newBlockId)) {
             if (updatedBlock.size() > 0) {
-                updateBlockOrderNumber(selectAllBlocks(updatedBlock.get(0).getBotJobId()));
+                updateBlockOrderNumber(selectAllBlocks(updatedBlock.get(0).getBotJobId()), true);
             }
         }
 
@@ -269,7 +271,7 @@ public class WebSocketStompServer {
     // Handle BLOCK_MOVE message
     private void moveBlock(BlockMoveDTO blockMoveDTO) {
         List<BlockOrderDetailDTO> updatedBlocks = blockMoveDTO.getUpdatedBlocks();
-        updateBlockOrderNumber(updatedBlocks);
+        updateBlockOrderNumber(updatedBlocks, false);
     }
 
     // Handle ROW_MOVE message
@@ -343,7 +345,7 @@ public class WebSocketStompServer {
     }
 
     // Handle DELETE_BLOCK message
-    public static void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList) {
+    public static void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
         // Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
         blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
 
@@ -352,7 +354,8 @@ public class WebSocketStompServer {
 
             for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
                 // Update each block's block_order_number starting from 1
-                String updateSQL = "UPDATE block SET block_order_number = " + newOrderNumber
+                String updateSQL = "UPDATE block SET block_order_number = "
+                        + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
                         + " WHERE id = "
                         + blockOrderDetailDTO.getBlockId()
                         + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
@@ -415,7 +418,7 @@ public class WebSocketStompServer {
             if (deleteReferences(botJobId, deleteInstructionDTO.getInstructionId()))
                 if (deleteRow(deleteInstructionDTO.getBlockId(), (int) deleteInstructionDTO.getInstructionId())) {
                     deleteNullBlocks(botJobId);
-                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionDTO.getBlockId()));
+                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionDTO.getBlockId()), true);
                 }
     }
 
@@ -434,7 +437,7 @@ public class WebSocketStompServer {
         deleteNullBlocks((int) deleteBlockDTO.getBotJobId());
         if (deleteBlockDTO.getUpdatedBlocks().size() > 0) {
             updateBlockOrderNumber(
-                    selectAllBlocks(deleteBlockDTO.getUpdatedBlocks().get(0).getBotJobId()));
+                    selectAllBlocks(deleteBlockDTO.getUpdatedBlocks().get(0).getBotJobId()), true);
         }
 
         sendMessageToAll("deleteBlock");
@@ -1070,7 +1073,7 @@ public class WebSocketStompServer {
                             } else if (name.equalsIgnoreCase("GoTo")) {
                                 instruction.setActions(ABRConstants.GOTO);
                             } else if (name.equalsIgnoreCase("IF")) {
-                                instruction.setActions(ABRConstants.IF_ELSE);
+                                instruction.setActions(ABRConstants.IF);
                             }
                             instruction.setActionCustomMaxWaitSec(30);
                             instruction.setOnHoldSeconds(1);

@@ -2973,6 +2973,8 @@ public class ABRScannedElementPane extends ABRPane {
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                 executionTimes++;
                 boolean jumpGoto = false;
+                boolean ifClause = false;
+                boolean ifSuccess = true;
 
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
 
@@ -3015,6 +3017,15 @@ public class ABRScannedElementPane extends ABRPane {
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                             jumpGoto = true;
+
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
+                            ifClause = true;
+                            continue;
+
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
+                            if (ifClause && ifSuccess) {
+                                continue;
+                            }
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
