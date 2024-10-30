@@ -1233,12 +1233,13 @@ public class ABRNewCommandPane extends ABRPane {
 
             // Run the loop for adding multiple instructions
             String nextAction = null;
+            int parentId = 0;
             for (int added = endifCount; added >= 1; added--) {
 
                 boolean isShowAlert = added == 1;
 
                 // Run the instruction add in a separate Task
-                preFillInstruction(
+                int newRowId = preFillInstruction(
                         nextAction == null ? name : nextAction,
                         nextAction == null ? description : nextAction,
                         nextAction == null ? actions : nextAction,
@@ -1246,13 +1247,15 @@ public class ABRNewCommandPane extends ABRPane {
                         onHold,
                         varId,
                         instructionId,
+                        nextAction == null ? -1 : parentId,
                         rowMoveDTO,
                         botJob,
                         isShowAlert);
 
                 if (Strings.isNullOrEmpty(nextAction)) {
                     nextAction = ABRConstants.ELSE;
-                }else if (!Strings.isNullOrEmpty(nextAction) && nextAction.equals(ABRConstants.ELSE)) {
+                    parentId = newRowId;
+                } else if (!Strings.isNullOrEmpty(nextAction) && nextAction.equals(ABRConstants.ELSE)) {
                     nextAction = ABRConstants.ENDIF;
                 }
             }
@@ -1580,7 +1583,7 @@ public class ABRNewCommandPane extends ABRPane {
         new Thread(waitTask).start();
     }
 
-    private void preFillInstruction(
+    private int preFillInstruction(
             String name,
             String description,
             String actions,
@@ -1588,6 +1591,7 @@ public class ABRNewCommandPane extends ABRPane {
             Integer onHold,
             Integer varId,
             Integer instructionId,
+            Integer parentId,
             RowMoveDTO rowMoveDTO,
             BotJobDTO botJob,
             boolean isShowAlert) {
@@ -1640,10 +1644,13 @@ public class ABRNewCommandPane extends ABRPane {
 
         if (actions.equalsIgnoreCase(ABRConstants.IF)) {
             instruction.setId(nextId);
-            instruction.setParentId(nextId + 1);
+            instruction.setParentId(nextId);
+        } else if (actions.equalsIgnoreCase(ABRConstants.ELSE)) {
+            instruction.setId(nextId);
+            instruction.setParentId(parentId);
         } else if (actions.equalsIgnoreCase(ABRConstants.ENDIF)) {
             instruction.setId(nextId);
-            instruction.setParentId(nextId - 1);
+            instruction.setParentId(parentId);
         } else {
             instruction.setId(nextId);
             instruction.setParentId(instructionId);
@@ -1697,33 +1704,16 @@ public class ABRNewCommandPane extends ABRPane {
                 }
             });
 
+            if (response) {
+                return nextId;
+            }
+
         } catch (SQLException e) {
             ABRLogger.getInstance(ABRViewBotJobPane.class)
                     .severe("Cannot Insert Instruction\nError: " + e.getMessage());
         }
-        //
-        //        // Move the UI update to the JavaFX Application Thread
-        //        boolean finalResponse = response;
-        //        Platform.runLater(() -> {
-        //            // This makes insertion in a Roll after the Target Position
-        //            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
-        //            rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
-        //            if (isShowAlert) {
-        //
-        //                if (finalResponse) {
-        //                    new ABRAlertScene(
-        //                            Alert.AlertType.INFORMATION,
-        //                            "Instruction Added",
-        //                            "Instruction " + instruction.getName() + " has been added successfully",
-        //                            ButtonType.OK);
-        //                } else {
-        //                    performAction.showAlert(Alert.AlertType.ERROR,"Error Add New Instruction", "Not possible
-        // to inser new
-        // Operation",
-        // "response");
-        //                }
-        //            }
-        //        });
+
+        return -1;
     }
 
     private boolean insertInstruction(BlockLoopInstructionDTO instructionDTO) throws SQLException {

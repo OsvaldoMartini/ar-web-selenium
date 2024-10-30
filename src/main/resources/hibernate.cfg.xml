@@ -24,6 +24,5 @@
         <mapping class="com.allinweb.ch.persistence.SavedBlocksDTO"/>
         <mapping class="com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO"/>
         <mapping class="com.allinweb.ch.persistence.SavedInstructionReferenceDTO"/>
-<!--        <mapping class="com.allinweb.ch.persistence.ExcelReportDTO"/>-->
     </session-factory>
 </hibernate-configuration>

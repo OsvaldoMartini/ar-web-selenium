@@ -416,7 +416,7 @@ public class WebSocketStompServer {
     public static void deleteInstruction(int botJobId, InstructionDTO deleteInstructionDTO) {
         if (deleteVariable(botJobId, deleteInstructionDTO.getInstructionId()))
             if (deleteReferences(botJobId, deleteInstructionDTO.getInstructionId()))
-                if (deleteRow(deleteInstructionDTO.getBlockId(), (int) deleteInstructionDTO.getInstructionId())) {
+                if (deleteRow(deleteInstructionDTO)) {
                     deleteNullBlocks(botJobId);
                     updateBlockOrderNumber(selectAllBlocks(deleteInstructionDTO.getBlockId()), true);
                 }
@@ -689,21 +689,33 @@ public class WebSocketStompServer {
         return false;
     }
 
-    private static boolean deleteRow(int blockId, int instructionId) {
+    private static boolean deleteRow(InstructionDTO deleteInstructionDTO) {
         // Build the SQL delete statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
+            int rowsAffected = 0;
             String deleteSQL = "DELETE FROM block_loop_instruction" + " WHERE id = "
-                    + instructionId
-                    + (blockId > 0 ? " AND block_id = " + blockId : " AND block_id IS NULL");
+                    + deleteInstructionDTO.getInstructionId()
+                    + (deleteInstructionDTO.getBlockId() > 0
+                            ? " AND block_id = " + deleteInstructionDTO.getBlockId()
+                            : " AND block_id IS NULL");
+
+            if (deleteInstructionDTO.getActions().equals("IF")
+                    || deleteInstructionDTO.getActions().equals("ELSE")
+                    || deleteInstructionDTO.getActions().equals("ENDIF")) {
+                rowsAffected += stmt.executeUpdate(
+                        "DELETE FROM block_loop_instruction  WHERE parent_id = " + deleteInstructionDTO.getParentId());
+            } else {
+
+                rowsAffected += stmt.executeUpdate(deleteSQL);
+            }
 
             // Execute the update statement and check if any rows were affected
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(ABRWebDriver.class)
                         .info(String.format(
                                 "The instruction with ID %d has been successfully deleted from block %d.",
-                                instructionId, blockId));
+                                deleteInstructionDTO.getInstructionId(), deleteInstructionDTO.getBlockId()));
             } else {
                 //                ABRLogger.getInstance(ABRWebDriver.class)
                 //                        .warning(String.format(
@@ -716,7 +728,9 @@ public class WebSocketStompServer {
             ABRLogger.getInstance(ABRWebDriver.class)
                     .severe(String.format(
                             "Error deleting instruction ID %d from block ID %d. Error: %s",
-                            instructionId, blockId, e.getMessage()));
+                            deleteInstructionDTO.getInstructionId(),
+                            deleteInstructionDTO.getBlockId(),
+                            e.getMessage()));
         }
         return false;
     }
