@@ -143,16 +143,30 @@ public class ABRNewCommandPane extends ABRPane {
             initializeDatabase();
         }
 
+        String operationType = rowMoveDTO.getType();
+        String firstAction = rowMoveDTO.getUpdatedRows().get(0).getActions();
+
+        // Initialize itemsInstructions list conditionally
         try {
+            itemsInstructions = FXCollections.observableArrayList();
+            itemsInstructions.add(
+                    new ComboBoxImage("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN), ABRConstants.SET_VALUE));
+            itemsInstructions.add(
+                    new ComboBoxImage("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN), ABRConstants.GET_VALUE));
+            itemsInstructions.add(
+                    new ComboBoxImage("Check", new Image(ABRConstants.ICON_CHECK), ABRConstants.CHECK_VALUE));
 
-            itemsInstructions = FXCollections.observableArrayList(
-                    new ComboBoxImage("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN), ABRConstants.SET_VALUE),
-                    new ComboBoxImage("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN), ABRConstants.GET_VALUE),
-                    new ComboBoxImage("Check", new Image(ABRConstants.ICON_CHECK), ABRConstants.CHECK_VALUE),
-                    new ComboBoxImage("IF", new Image(ABRConstants.ICON_IF_ELSE), ABRConstants.IF),
-                    new ComboBoxImage("GO TO", new Image(ABRConstants.ICON_GOTO), ABRConstants.GOTO),
+            // Add "IF" only if it does not meet the exclusion conditions
+            if (!("INSERT_AFTER".equals(operationType) && "IF".equalsIgnoreCase(firstAction))
+                    && !"ELSE".equalsIgnoreCase(firstAction)
+                    && !("INSERT_BEFORE".equals(operationType) && "ENDIF".equalsIgnoreCase(firstAction))) {
+
+                itemsInstructions.add(new ComboBoxImage("IF", new Image(ABRConstants.ICON_IF_ELSE), ABRConstants.IF));
+            }
+
+            itemsInstructions.add(new ComboBoxImage("GO TO", new Image(ABRConstants.ICON_GOTO), ABRConstants.GOTO));
+            itemsInstructions.add(
                     new ComboBoxImage("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), ABRConstants.EXTRACT_FIELD));
-
         } catch (Exception ex) {
             ABRLogger.getInstance(ABRNewCommandPane.class)
                     .severe("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
@@ -167,7 +181,7 @@ public class ABRNewCommandPane extends ABRPane {
                     .severe("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
         }
 
-        if (itemsInstructions.size() == 0) {
+        if (itemsInstructions.isEmpty() || itemsInstructions.size() == 0) {
             itemsInstructions.add(
                     new ComboBoxImage("No Instructions", new Image(ABRConstants.ICON_GREATER), ABRConstants.NO_VALUE));
         }
