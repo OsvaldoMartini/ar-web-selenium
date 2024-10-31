@@ -2974,7 +2974,9 @@ public class ABRScannedElementPane extends ABRPane {
                 executionTimes++;
                 boolean jumpGoto = false;
                 boolean ifClause = false;
-                boolean ifSuccess = true;
+                boolean ifFailed = false;
+                boolean elseClause = false;
+                boolean elseFailed = false;
 
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
 
@@ -2982,17 +2984,6 @@ public class ABRScannedElementPane extends ABRPane {
                     writerReport.insertBlockSeparation(blockLoad.getName());
 
                     // Insert the field name and value rows below the block name
-                    //                    writerExport.insertFieldNameAndValueLastColumn(mapExport);
-
-                    // Call the method to get the filtered list
-                    //                    List<BlockLoopInstructionLoadDTO> unProcessedInstructions =
-                    // getUnexecutedInstructions(
-                    //                            instructionsExecuted, blockLoad.getBlockLoopInstructionLoadDTOS());
-                    //                    for (BlockLoopInstructionLoadDTO currentInstruction : unProcessedInstructions)
-                    // {
-                    //                        if (stopAll) {
-                    //                            break;
-                    //                        }
                     for (int j = 0;
                             j < blockLoad.getBlockLoopInstructionLoadDTOS().size() && !stopAll;
                             j++) {
@@ -3015,6 +3006,25 @@ public class ABRScannedElementPane extends ABRPane {
                                 ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                 : null;
 
+                        if (ifClause && ifFailed) {
+
+                            if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
+                                ifClause = false;
+                                ifFailed = false;
+                            } else {
+                                continue; // Till get ELSE
+                            }
+
+                        } else if (elseClause && elseFailed) {
+
+                            if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                                elseClause = false;
+                                elseFailed = false;
+                            } else {
+                                continue; // Till get ELSE
+                            }
+                        }
+
                         if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                             jumpGoto = true;
 
@@ -3027,10 +3037,17 @@ public class ABRScannedElementPane extends ABRPane {
                             continue;
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
-                            if (ifClause && ifSuccess) {
+                            if (ifClause && !ifFailed) {
                                 ABRLogger.getInstance(ABRScannedElementPane.class)
                                         .info("Success Finished \"IF\" for Block :\"" + blockLoad.getName() + "\"");
 
+                                continue;
+                            } else {
+
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .info("Initial Execution \"ELSE\" for Block :\"" + blockLoad.getName() + "\"");
+
+                                ifFailed = true;
                                 continue;
                             }
 
@@ -3055,9 +3072,16 @@ public class ABRScannedElementPane extends ABRPane {
 
                             } catch (Exception ex) {
                                 resultActions = performAction.parentIdWrongBlock(currentInstruction, blockLoad);
-                                stopAll = true;
-                                success = false;
-                                break;
+
+                                if (!ifClause && !elseClause) {
+                                    stopAll = true;
+                                    success = false;
+                                    break;
+                                } else if (ifClause) {
+                                    ifFailed = true;
+                                } else if (elseClause) {
+                                    elseFailed = true;
+                                }
                             }
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
