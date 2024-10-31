@@ -848,12 +848,15 @@ public class PerformActions {
                 Alert.AlertType.ERROR,
                 "Parent Id Error",
                 "Check Parent Id",
-                "The Parent Id: " + currentInstruction.getParentId()
-                        + "\nFor the : "
-                        + currentInstruction.getOperation()
-                        + "\nDoes not belong to this block: "
-                        + blockLoad.getId() + "-" + blockLoad.getName()
-                        + "\nCheck the Field Names and Fields Ids");
+                "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
+                        + currentInstruction
+                                .getOperation()
+                                .substring(0, currentInstruction.getOperation().indexOf(":")) + "\""
+                        + "\nDoes not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
+                        + blockLoad.getName() + "\""
+                        + "\nAttempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
+                        + currentInstruction.getOperation() + "\""
+                        + "\nCheck the Web Field Names and Web Fields Ids per Block");
 
         ABRLogger.getInstance(ABRScannedElementPane.class)
                 .severe(String.format(
