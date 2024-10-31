@@ -856,7 +856,7 @@ public class PerformActions {
                         + blockLoad.getName() + "\""
                         + "\nAttempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
                         + currentInstruction.getOperation() + "\""
-                        + "\nCheck the Web Field Names and Web Fields Ids per Block");
+                        + "\nCheck the Web Field \" ( ID ) <NAME> \" per Block");
 
         ABRLogger.getInstance(ABRScannedElementPane.class)
                 .severe(String.format(

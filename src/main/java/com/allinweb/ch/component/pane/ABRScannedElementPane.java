@@ -3019,11 +3019,18 @@ public class ABRScannedElementPane extends ABRPane {
                             jumpGoto = true;
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Initial Execution \"IF\" for Block :\"" + blockLoad.getName() + "\"");
+
                             ifClause = true;
                             continue;
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
                             if (ifClause && ifSuccess) {
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .info("Success Finished \"IF\" for Block :\"" + blockLoad.getName() + "\"");
+
                                 continue;
                             }
 
