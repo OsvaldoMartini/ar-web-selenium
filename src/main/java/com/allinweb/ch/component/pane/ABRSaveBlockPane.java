@@ -302,7 +302,7 @@ public class ABRSaveBlockPane extends ABRPane {
                                 if (successFinal) {
 
                                     // Create Text for the variable part and set the color to red
-                                    performAction.showCombinedDialog(
+                                    performAction.showAlertCombinedVBOX(
                                             Alert.AlertType.INFORMATION,
                                             "Created Web Component",
                                             String.format(

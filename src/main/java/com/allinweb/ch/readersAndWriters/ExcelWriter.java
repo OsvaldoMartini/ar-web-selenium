@@ -182,7 +182,7 @@ public class ExcelWriter {
             } catch (Exception ex) {
                 ABRLogger.getInstance(ExcelWriter.class)
                         .severe(String.format(
-                                "InsertInstructionResult(\n. %s\nError", instruction.getName(), ex.getMessage()));
+                                "InsertInstructionResult ( %s ) Error: %s ", instruction.getName(), ex.getMessage()));
             }
         }
 

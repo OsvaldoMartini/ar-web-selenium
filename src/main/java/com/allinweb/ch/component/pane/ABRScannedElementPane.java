@@ -1557,52 +1557,78 @@ public class ABRScannedElementPane extends ABRPane {
                                 instruction.setInstructionOrderNumber(list.size() + 1);
 
                                 ABRLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
-                                ABRSharedResources.getInstance()
-                                        .addEntity(instruction, BlockLoopInstructionDTO.class, () -> {
-                                            abrWebElement.setInstructionId(instruction.getId());
-                                            List<InstructionReferenceDTO> queue = new ArrayList<>();
-                                            for (String key : abrWebElement
-                                                    .getSavedReferences()
-                                                    .keySet()) {
-                                                InstructionReferenceDTO reference = new InstructionReferenceDTO();
-                                                reference.setReferenceType(key);
-                                                reference.setValue(abrWebElement
-                                                        .getSavedReferences()
-                                                        .get(key));
-                                                //
-                                                // reference.setBlockLoopInstructionDTO(instruction);
-                                                queue.add(reference);
-                                            }
-                                            try {
+                                //                                ABRSharedResources.getInstance()
+                                //                                        .addEntity(instruction,
+                                // BlockLoopInstructionDTO.class, () -> {
 
-                                                Platform.runLater(() -> {
-                                                    boolean saved = insertReferences(queue, instruction.getId());
-                                                    if (saved) {
+                                int newId = preFillAddInstruction(
+                                        instruction.getName(),
+                                        instruction.getDescription(),
+                                        instruction.getActions(),
+                                        instruction.getOperation(),
+                                        instruction.getOnHoldSeconds(),
+                                        instruction.getVariableId(),
+                                        instruction.getInstructionOrderNumber(),
+                                        instruction.getExportToABR(),
+                                        instruction.getPath(),
+                                        currentBlockId);
 
-                                                        new ABRAlertScene(
-                                                                Alert.AlertType.INFORMATION,
-                                                                "Web Instruction Add",
-                                                                "The Web Instruction \"" + instruction.getName()
-                                                                        + "\" with "
-                                                                        + queue.size() + " reference locators"
-                                                                        + "\nHas been added successfully!",
-                                                                ButtonType.OK);
-                                                    } else {
-                                                        new ABRAlertScene(
-                                                                Alert.AlertType.ERROR,
-                                                                "Add Web Instruction FAILED",
-                                                                "The Instruction " + instruction.getName() + " with "
-                                                                        + queue.size() + " reference locators"
-                                                                        + "\nWas Added!"
-                                                                        + "\nTHE ENGINE IS GOING TO FAIL FOR THIS ELEMENT",
-                                                                ButtonType.OK);
-                                                    }
-                                                });
-                                            } catch (Exception ex) {
-                                                ABRLogger.getInstance(Task.class)
-                                                        .severe("Error Adding Instruction elements");
-                                            }
-                                        });
+                                if (newId < 0) {
+
+                                    performAction.showAlert(
+                                            Alert.AlertType.ERROR,
+                                            "Error Add New \"Component\" Instruction",
+                                            "Not possible to insert new Operation",
+                                            String.format(
+                                                    "\"Component\" Instruction \"%s\"\nCannot be saved",
+                                                    instruction.getName()));
+
+                                    return null;
+                                }
+
+                                instruction.setId(newId);
+
+                                abrWebElement.setInstructionId(instruction.getId());
+                                List<InstructionReferenceDTO> queue = new ArrayList<>();
+                                for (String key :
+                                        abrWebElement.getSavedReferences().keySet()) {
+                                    InstructionReferenceDTO reference = new InstructionReferenceDTO();
+                                    reference.setReferenceType(key);
+                                    reference.setValue(
+                                            abrWebElement.getSavedReferences().get(key));
+                                    //
+                                    // reference.setBlockLoopInstructionDTO(instruction);
+                                    queue.add(reference);
+                                }
+                                try {
+
+                                    Platform.runLater(() -> {
+                                        boolean saved = insertReferences(queue, instruction.getId());
+                                        if (saved) {
+
+                                            new ABRAlertScene(
+                                                    Alert.AlertType.INFORMATION,
+                                                    "Web Instruction Add",
+                                                    "The Web Instruction \"" + instruction.getName()
+                                                            + "\" with "
+                                                            + queue.size() + " reference locators"
+                                                            + "\nHas been added successfully!",
+                                                    ButtonType.OK);
+                                        } else {
+                                            new ABRAlertScene(
+                                                    Alert.AlertType.ERROR,
+                                                    "Add Web Instruction FAILED",
+                                                    "The Instruction " + instruction.getName() + " with "
+                                                            + queue.size() + " reference locators"
+                                                            + "\nWas Added!"
+                                                            + "\nTHE ENGINE IS GOING TO FAIL FOR THIS ELEMENT",
+                                                    ButtonType.OK);
+                                        }
+                                    });
+                                } catch (Exception ex) {
+                                    ABRLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
+                                }
+                                //                                        });
                                 return null;
                             }
                         };
@@ -2973,13 +2999,12 @@ public class ABRScannedElementPane extends ABRPane {
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                 executionTimes++;
                 boolean jumpGoto = false;
-                boolean ifClause = false;
-                boolean ifFailed = false;
-                boolean elseClause = false;
-                boolean elseFailed = false;
 
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
-
+                    boolean ifClause = false;
+                    boolean ifFailed = false;
+                    boolean elseClause = false;
+                    boolean elseFailed = false;
                     mapExport.clear();
                     writerReport.insertBlockSeparation(blockLoad.getName());
 
@@ -3006,31 +3031,60 @@ public class ABRScannedElementPane extends ABRPane {
                                 ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                 : null;
 
-                        // If IF clause failed, skip to ELSE block
-                        if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
-                            if (ifClause && ifFailed) {
-                                // Start ELSE block only if IF clause was active and failed
+                        // If IF clause failed, look for ELSE to start executing the ELSE block
+
+                        if (ifClause && ifFailed) {
+                            if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .warning("Closing Block { IF -> ELSE} -> Failed Execution \"IF\" for Block :\""
+                                                + blockLoad.getName() + "\"");
+
+                                ifClause = false;
+                                ifFailed = false;
                                 elseClause = true;
+                                elseFailed = false; // Reset failure status for this ELSE clause
+                                continue;
+                            } else {
+                                // Skip until ELSE is found
+                                continue;
                             }
-                            // Reset IF-related flags when encountering ELSE
+                        } else if (elseClause && elseFailed) {
+                            if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .warning(
+                                                "Closing Block { ELSE -> ENDIF } -> Failed Execution \"ELSE\" for Block :\""
+                                                        + blockLoad.getName() + "\"");
+
+                                elseClause = false;
+                                elseFailed = false; // Reset failure status for this ELSE clause
+                                continue;
+                            } else {
+                                // Skip until ELSE is found
+                                continue;
+                            }
+                        }
+
+                        // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
+                        if (ifClause && !ifFailed && actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Closing Block { IF -> ELSE } -> Success Execution \"IF\" for Block :\""
+                                            + blockLoad.getName() + "\"");
+
                             ifClause = false;
                             ifFailed = false;
                             continue;
-                        } else if (ifClause && ifFailed) {
-                            // Skip all actions until ELSE is encountered
-                            continue;
-                        } else if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
-                            continue;
                         }
 
-                        // If ELSE clause failed, skip to ENDIF
-                        if (elseClause && elseFailed) {
-                            // Skip all actions until ENDIF is encountered
-                            if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
-                                // Reset ELSE-related flags when ENDIF is found
-                                elseClause = false;
-                                elseFailed = false;
-                            }
+                        // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
+                        if (elseClause && !elseFailed && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Closing Block { ELSE -> ENDIF } -> Success Execution \"ELSE\" for Block :\""
+                                            + blockLoad.getName() + "\"");
+
+                            elseClause = false;
+                            elseFailed = false;
                             continue;
                         }
 
@@ -3044,14 +3098,6 @@ public class ABRScannedElementPane extends ABRPane {
 
                             ifClause = true;
                             ifFailed = false; // Reset failure status for this IF clause
-                            continue;
-
-                        } else if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Initial Execution \"ELSE\" for Block :\"" + blockLoad.getName() + "\"");
-
-                            elseClause = true;
-                            elseFailed = false; // Reset failure status for this ELSE clause
                             continue;
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
@@ -3074,7 +3120,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 parentField = parentId + "-" + parentField;
 
                             } catch (Exception ex) {
-                                resultActions = performAction.parentIdWrongBlock(currentInstruction, blockLoad);
+                                resultActions = performAction.parentIdWrongBlock(
+                                        currentInstruction, blockLoad, ifClause, elseClause);
 
                                 if (!ifClause && !elseClause) {
                                     stopAll = true;
@@ -3515,8 +3562,11 @@ public class ABRScannedElementPane extends ABRPane {
                             // this.botJob.getName());
                             countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
                             countdownTextField.setText(resultActions);
-                            stopAll = true;
-                            break;
+                            if (!ifClause && !elseClause) {
+                                stopAll = true;
+                                success = false;
+                                break;
+                            }
                             //                                return false;
                         }
 
@@ -3646,6 +3696,7 @@ public class ABRScannedElementPane extends ABRPane {
                     + labelsValue.getProperty(Labels.END)
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
+                    + Constants.FIELDS_SEPARATOR
                     + lastInstructionExecuted;
             //            report.setStatus(status);
             //            report.setDuration(totalExecutionTime / 100);
@@ -4210,10 +4261,10 @@ public class ABRScannedElementPane extends ABRPane {
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
-            ABRLogger.getInstance(ABRViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
+            ABRLogger.getInstance(ABRScannedElementPane.class).info("Block data saved successfully id: " + nextId);
             return nextId;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("saveBlock  \nError: " + e.getMessage());
+            ABRLogger.getInstance(ABRScannedElementPane.class).severe("saveBlock  \nError: " + e.getMessage());
             return -1;
         }
     }
@@ -4227,7 +4278,8 @@ public class ABRScannedElementPane extends ABRPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -4241,7 +4293,8 @@ public class ABRScannedElementPane extends ABRPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -4265,12 +4318,12 @@ public class ABRScannedElementPane extends ABRPane {
 
                 int rowsAffected = stmt.executeUpdate(insertSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
                             .info(String.format(
                                     "Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
                                     nextId, reference.getReferenceType(), reference.getValue(), instructionId));
                 } else {
-                    ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
                             .warning(String.format(
                                     "Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
                                     nextId, reference.getReferenceType(), reference.getValue(), instructionId));
@@ -4278,7 +4331,8 @@ public class ABRScannedElementPane extends ABRPane {
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Cannot Insert References\nError " + e.getMessage());
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe("Cannot Insert References\nError " + e.getMessage());
             return false;
         }
     }
@@ -4292,7 +4346,7 @@ public class ABRScannedElementPane extends ABRPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class)
+            ABRLogger.getInstance(ABRScannedElementPane.class)
                     .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
@@ -4316,5 +4370,144 @@ public class ABRScannedElementPane extends ABRPane {
         alert.setHeaderText(header);
         alert.setContentText(content);
         alert.showAndWait();
+    }
+
+    private int preFillAddInstruction(
+            String name,
+            String description,
+            String actions,
+            String operation,
+            Integer onHold,
+            Integer varId,
+            Integer instructionOrderNumber,
+            boolean exportToABR,
+            String xPath,
+            int savedCurrentBlockId) {
+
+        BlockLoopInstructionDTO instructionDTO = new BlockLoopInstructionDTO();
+
+        instructionDTO.setName(name);
+
+        instructionDTO.setEncrypted(false);
+        instructionDTO.setExportToABR(true);
+
+        instructionDTO.setInstructionOrderNumber(instructionOrderNumber);
+
+        instructionDTO.setOptional(false);
+
+        instructionDTO.setOperation(operation);
+        instructionDTO.setActions(actions);
+        instructionDTO.setDescription(description);
+
+        instructionDTO.setVariableId(varId);
+
+        instructionDTO.setActionCustomMaxWaitSec(30);
+        instructionDTO.setOnHoldSeconds(onHold);
+        //        instructionDTO.setBlock(savedBlockDTO);
+        instructionDTO.setExportToABR(exportToABR);
+
+        instructionDTO.setPath(xPath);
+
+        // Wrap the persistence in a try-catch block
+        int newId = -1;
+
+        try {
+            newId = insertInstruction(instructionDTO, savedCurrentBlockId);
+
+        } catch (SQLException e) {
+
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe(String.format(
+                            "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
+                            instructionDTO.getName(), e.getMessage()));
+        }
+        return newId;
+    }
+
+    private int insertInstruction(BlockLoopInstructionDTO instructionDTO, int savedCurrentBlockId) throws SQLException {
+        // Generate a Unique-ID for the block
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            Integer nextId = loadNextIdInstructionData() + 1;
+            instructionDTO.setId(nextId);
+
+            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "null";
+
+            // Build the SQL insert query
+
+            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
+                    + "action_custom_max_wait_sec, "
+                    + "actions, "
+                    + "block_marked, "
+                    + "default_val, "
+                    + "description, "
+                    + "encrypted, "
+                    + "export_to_abr, "
+                    + "instruction_order_number, "
+                    + "name, "
+                    + "on_hold_seconds, "
+                    + "operation, "
+                    + "optional, "
+                    + "parent_id, "
+                    + "path, "
+                    + "variable_id, "
+                    + "block_id)\n"
+                    + "VALUES ("
+                    + instructionDTO.getId()
+                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
+                    + ", '" + instructionDTO.getActions() + "'"
+                    + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
+                    + ", '" + instructionDTO.getDefaultValue() + "'"
+                    + ", '" + instructionDTO.getDescription() + "'"
+                    + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
+                    + ", " + (instructionDTO.getExportToABR() ? 1 : 0)
+                    + ", " + instructionDTO.getInstructionOrderNumber()
+                    + ", '" + instructionDTO.getName() + "'"
+                    + ", " + instructionDTO.getOnHoldSeconds()
+                    + ", '" + instructionDTO.getOperation() + "'"
+                    + ", " + (instructionDTO.isOptional() ? 1 : 0)
+                    + ", " + instructionDTO.getParentId()
+                    + ", " + pathValue
+                    + ", " + instructionDTO.getVariableId()
+                    + ", " + savedCurrentBlockId
+                    + ");";
+
+            int rowsAffected = stmt.executeUpdate(insertSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRNewCommandPane.class)
+                        .info(String.format(
+                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
+                                instructionDTO.getId(),
+                                instructionDTO.getName(),
+                                instructionDTO.getActions(),
+                                instructionDTO.getOperation()));
+                return nextId;
+            } else {
+                ABRLogger.getInstance(ABRNewCommandPane.class)
+                        .warning(String.format(
+                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
+                                instructionDTO.getId(),
+                                instructionDTO.getName(),
+                                instructionDTO.getActions(),
+                                instructionDTO.getOperation()));
+                return -1;
+            }
+        }
+    }
+
+    private Integer loadNextIdInstructionData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe("loadNextIdInstructionData  \nError: " + e.getMessage());
+        }
+        return null;
     }
 }

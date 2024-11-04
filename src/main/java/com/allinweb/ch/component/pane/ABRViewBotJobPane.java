@@ -15,6 +15,7 @@ import com.allinweb.ch.component.scene.base.ABRScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -65,6 +66,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
@@ -94,6 +96,12 @@ public class ABRViewBotJobPane extends ABRPane {
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private ObservableList<BlockDTO> blockDTOObservableList;
     private ListView<BlockDTO> uiBlockList;
+
+    private static final PerformActions performAction;
+    // Static block to initialize
+    static {
+        performAction = PerformActions.getInstance();
+    }
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
     Button refreshButton;
@@ -425,36 +433,99 @@ public class ABRViewBotJobPane extends ABRPane {
             abrScene.startNewThread(() -> executeScannerTask());
         });
 
-        this.generateExcelButton.setOnMouseClicked((e) -> {
-            BotJobDTO botJobUpdated =
-                    (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJob.getId());
-            Task<Void> excel = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelWriter().generateExcelFiles(botJobUpdated);
-                    return null;
-                }
-            };
-            if (ExcelWriter.isFileExits(this.botJob)) {
-                System.out.println("warning");
-                new ABRAlertScene(
-                        AlertType.INFORMATION,
-                        "Warning: Excel File already exist",
-                        "Excel File already exists: overwrite it?",
-                        () -> {
-                            new Thread(excel).start();
-                        },
-                        new ButtonType[] {ButtonType.OK});
-            } else {
+        this.generateExcelButton.setOnMouseClicked(
+                (e) -> {
+                    // Cache entities from the database
+                    ABRSharedResources.getInstance().cacheEntitiesFromDB();
 
-                new ABRAlertScene(
-                        AlertType.INFORMATION,
-                        "Excel file generated",
-                        "The excel file has been generated successfully",
-                        new ButtonType[] {ButtonType.OK});
-                new Thread(excel).start();
-            }
-        });
+                    // Retrieve the updated BotJobDTO
+                    BotJobDTO botJobUpdated = (BotJobDTO)
+                            ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJob.getId());
+
+                    List<BlockDTO> blockList = botJob.getBlocks();
+
+                    boolean hasActionStartingWithI = blockList.stream()
+                            .flatMap(block -> block
+                                    .getBlockLoopInstructionDTOS()
+                                    .stream()) // Flatten all BlockLoopInstructionDTOs from each block
+                            .anyMatch(instruction -> instruction.getActions() != null
+                                    && instruction.getActions().startsWith("I:"));
+
+                    Text variableText1Styled = new Text("File name: " + this.botJob.getName()
+                            + ABRConstants.DEFAULT_FILENAME_FOR_ABR + ABRConstants.FILE_FORMAT_EXCEL);
+                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
+                    VBox combinedTextContainer = new VBox();
+                    combinedTextContainer.setSpacing(5); // Add some sp
+
+                    if (!hasActionStartingWithI) {
+                        Text variableText2Styled = new Text("Try to Refresh DB or Restart the APP");
+                        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                        combinedTextContainer.getChildren().addAll(variableText2Styled, variableText1Styled);
+
+                        performAction.showAlertCombinedVBOX(
+                                AlertType.ERROR,
+                                "Error: No \"INPUT\" Web Elements",
+                                "Error: Don't Have Any Web Element as INPUT", // No header text
+                                null,
+                                combinedTextContainer);
+                        return;
+                    }
+
+                    // Create an HBox to hold the individual text elements
+
+                    combinedTextContainer.getChildren().add(variableText1Styled);
+
+                    // Create a task for generating the Excel file
+                    Task<Void> excelTask = new Task<>() {
+                        @Override
+                        protected Void call() throws Exception {
+                            new ExcelWriter().generateExcelFiles(botJobUpdated);
+                            return null;
+                        }
+                    };
+
+                    // Check if the Excel file already exists
+                    if (ExcelWriter.isFileExists(this.botJob)) {
+
+                        // Prepare the combined text container for the dialog
+                        // You can add more content to the combinedTextContainer if needed
+
+                        // Show confirmation dialog
+                        boolean confirmed = performAction.showAlertCombinedVBOX(
+                                AlertType.CONFIRMATION,
+                                "Warning: Excel File Already Exists",
+                                "The Excel file already exists. Would you like to overwrite it?",
+                                null,
+                                combinedTextContainer);
+
+                        if (confirmed) {
+                            new Thread(excelTask).start();
+
+                            performAction.showAlertCombinedVBOX(
+                                    AlertType.INFORMATION,
+                                    "Warning: Excel File Already Exists",
+                                    "Success Excel File Override.", // No header text
+                                    null,
+                                    combinedTextContainer);
+                        }
+                    } else {
+                        // If file does not exist, start the Excel generation task directly
+                        new Thread(excelTask).start();
+                        // You can add more content to the combinedTextContainer if needed
+
+                        // Show confirmation dialog
+                        performAction.showAlertCombinedVBOX(
+                                AlertType.INFORMATION,
+                                "Warning: Excel File Already Exists",
+                                "Success Excel File Generated.", // No header text
+                                null,
+                                combinedTextContainer);
+                    }
+                });
         this.openExcelFilterPanelButton.setOnMouseClicked((e) -> {
             (new ABRExportFilterScene(this.botJob)).show();
         });

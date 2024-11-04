@@ -627,12 +627,12 @@ public class PerformActions {
             try {
                 return ABRWebUtil.extractXPath(element.toString());
             } catch (Exception e) {
-                return "Error: ON ABRWebUtil.extractXPath for " + element.toString();
+                return "Extract XPath Problem: ON ABRWebUtil.extractXPath for " + element.getTagName();
             }
         } catch (ElementClickInterceptedException e) {
             JavascriptExecutor jse = (JavascriptExecutor) abrWebDriver.getDriver();
             jse.executeScript("arguments[0].click()", element);
-            return "Error: " + ABRWebUtil.extractXPath(element.toString());
+            return "ElementClickIntercepted Exception: " + ABRWebUtil.extractXPath(element.toString());
         }
     }
 
@@ -772,15 +772,29 @@ public class PerformActions {
     public short operationLog(
             boolean success, String mainMsg, String resultActions, String lastInstructionExecuted, long duration) {
 
-        ABRLogger.getInstance(ABRScannedElementPane.class)
-                .severe(String.format(
-                        success
-                                ? "SUCCESS %s Previous: %s --> Current Cmd: %s - Duration: %s"
-                                : "FAILED %s Previous: %s --> Current Cmd: %s - Duration: %s",
-                        mainMsg,
-                        resultActions,
-                        lastInstructionExecuted,
-                        LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
+        if (success) {
+
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .info(String.format(
+                            success
+                                    ? "SUCCESS %s Previous: %s --> Current Cmd: %s - Duration: %s"
+                                    : "FAILED %s Previous: %s --> Current Cmd: %s - Duration: %s",
+                            mainMsg,
+                            resultActions,
+                            lastInstructionExecuted,
+                            LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
+        } else {
+
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe(String.format(
+                            success
+                                    ? "SUCCESS %s Previous: %s --> Current Cmd: %s - Duration: %s"
+                                    : "FAILED %s Previous: %s --> Current Cmd: %s - Duration: %s",
+                            mainMsg,
+                            resultActions,
+                            lastInstructionExecuted,
+                            LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
+        }
 
         return (short) (success ? ExcelReportStatusEnum.SUCCESS.ordinal() : ExcelReportStatusEnum.ERROR.ordinal());
     }
@@ -833,6 +847,19 @@ public class PerformActions {
         });
     }
 
+    public void showAlertCombinedHBox(
+            Alert.AlertType alertType, String title, String header, String content, HBox combinedTextContainer) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(alertType);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(content);
+            alert.getDialogPane().setContent(combinedTextContainer);
+
+            alert.showAndWait();
+        });
+    }
+
     public void showAlertDialog(Alert.AlertType alertType, String title, String header, String content) {
         Platform.runLater(() -> {
             Alert alert = new Alert(alertType);
@@ -843,28 +870,52 @@ public class PerformActions {
         });
     }
 
-    public String parentIdWrongBlock(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
-        showAlert(
-                Alert.AlertType.ERROR,
-                "Parent Id Error",
-                "Check Parent Id",
-                "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
-                        + currentInstruction
-                                .getOperation()
-                                .substring(0, currentInstruction.getOperation().indexOf(":")) + "\""
-                        + "\nDoes not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
-                        + blockLoad.getName() + "\""
-                        + "\nAttempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
-                        + currentInstruction.getOperation() + "\""
-                        + "\nCheck the Web Field \" ( ID ) <NAME> \" per Block");
+    public String parentIdWrongBlock(
+            BlockLoopInstructionLoadDTO currentInstruction,
+            BlockLoadDTO blockLoad,
+            boolean ifClause,
+            boolean elseClause) {
+        if (!ifClause && !elseClause) {
+            showAlert(
+                    Alert.AlertType.ERROR,
+                    "Parent Id Error",
+                    "Check Parent Id",
+                    "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
+                            + currentInstruction
+                                    .getOperation()
+                                    .substring(
+                                            0, currentInstruction.getOperation().indexOf(":"))
+                            + "\""
+                            + "\nDoes not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
+                            + blockLoad.getName() + "\""
+                            + "\nAttempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
+                            + currentInstruction.getOperation() + "\""
+                            + "\nCheck the Web Field \" ( ID ) <NAME> \" per Block");
+        }
 
-        ABRLogger.getInstance(ABRScannedElementPane.class)
-                .severe(String.format(
-                        "Parent Id Error\nCheck Parent Id: %d"
-                                + "\nFor the %s \nDoes not belong to this block: "
-                                + blockLoad.getId() + "-" + blockLoad.getName(),
-                        currentInstruction.getParentId(),
-                        currentInstruction.getOperation()));
+        String conditionalBlock = ifClause
+                ? "Closing Block { IF -> ELSE }  -> "
+                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
+
+        if (ifClause || elseClause) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .warning(String.format(
+                            "%s -> Parent Id Error Check Parent Id: %d "
+                                    + "For the \"%s\" Does not belong to this block: "
+                                    + blockLoad.getId() + "-" + blockLoad.getName(),
+                            conditionalBlock,
+                            currentInstruction.getParentId(),
+                            currentInstruction.getOperation()));
+
+        } else {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe(String.format(
+                            "Parent Id Error Check Parent Id: %d "
+                                    + "For the \"%s\" Does not belong to this block: "
+                                    + blockLoad.getId() + "-" + blockLoad.getName(),
+                            currentInstruction.getParentId(),
+                            currentInstruction.getOperation()));
+        }
 
         return String.format(
                 "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
@@ -1111,7 +1162,7 @@ public class PerformActions {
         return result.isPresent() && result.get() == ButtonType.OK;
     }
 
-    public boolean showCombinedDialog(
+    public boolean showAlertCombinedVBOX(
             Alert.AlertType alertType, String title, String header, String content, VBox combinedTextContainer) {
         Alert alert = new Alert(alertType);
         alert.setTitle(title);

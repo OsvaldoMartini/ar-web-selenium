@@ -213,14 +213,20 @@ public class ExcelWriter {
         }
     }
 
-    public static boolean isFileExits(BotJobDTO botJob) {
-        File excelFolder = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL));
-        if (excelFolder.exists()) {
-            String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                    + botJob.getName() + ABRConstants.DEFAULT_FILENAME_FOR_ABR + ABRConstants.FILE_FORMAT_EXCEL;
+    public static boolean isFileExists(BotJobDTO botJob) {
+
+        String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+
+        String fileName = String.format("%s/%s%s", excelFolderPath, botJob.getName(), ABRConstants.FILE_FORMAT_EXCEL);
+
+        // Create a File object
+        File fileCheck = new File(fileName);
+        if (fileCheck.exists() && !fileCheck.isDirectory()) {
+
             File file = new File(fileName);
-            return file.exists();
+            return true;
         } else {
+            // Return false if the directory does not exist
             return false;
         }
     }
