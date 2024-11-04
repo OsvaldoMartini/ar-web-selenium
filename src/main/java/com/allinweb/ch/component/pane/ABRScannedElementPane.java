@@ -3102,6 +3102,19 @@ public class ABRScannedElementPane extends ABRPane {
                             continue;
                         }
 
+                        // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
+                        if (!ifClause
+                                && !ifFailed
+                                && !elseClause
+                                && !elseFailed
+                                && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Skiping { ENDIF } -> Success Skipping \"ENDIF\" for Block :\""
+                                            + blockLoad.getName() + "\"");
+                            continue;
+                        }
+
                         if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                             jumpGoto = true;
 
