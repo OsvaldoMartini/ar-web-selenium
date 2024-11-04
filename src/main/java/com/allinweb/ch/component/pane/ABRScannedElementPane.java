@@ -1154,7 +1154,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                         if (listABRElements != null && listABRElements.size() > 0) {
                             listABRElementsSize.set(listABRElements.size());
-                            addProgressBar(listABRElements.size());
+                            //                            addProgressBar(listABRElements.size());
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .finer("list of Advanced Scanner elements has " + listABRElementsSize.get());
                         }
@@ -1217,7 +1217,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                     // After Creation of ABR Elements - > Update View List
                     if (listABRElements != null) {
-                        addProgressBar(listABRElements.size());
+                        //                        addProgressBar(listABRElements.size());
                         for (ABRWebElement element : listABRElements) {
                             Platform.runLater(() -> {
                                 listToAddNewElements.add(element);
@@ -1236,6 +1236,19 @@ public class ABRScannedElementPane extends ABRPane {
                                             .finer("added ABRWebElement with NO References!");
                                 }
                             });
+                        }
+
+                        if (bottomPane.getChildren().size() > 0) {
+                            int elementsToRemove = Math.min(
+                                    listABRElementsSize.get() + scannedElementListSize.get(),
+                                    bottomPane.getChildren().size());
+                            for (int x = 0; x < elementsToRemove; x++) {
+                                bottomPane
+                                        .getChildren()
+                                        .remove(bottomPane
+                                                .getChildren()
+                                                .get(bottomPane.getChildren().size() - 1));
+                            }
                         }
                     }
                     //                    Platform.runLater(() -> {
@@ -3999,7 +4012,9 @@ public class ABRScannedElementPane extends ABRPane {
                         + attributeValue + ", XPath: " + xpath);
 
                 try {
-                    addProgressBar(1);
+                    if (listABRElements.size() < 30) {
+                        addProgressBar(1);
+                    }
                     listABRElements.add(new ABRWebElement(entry, attribute, botJob.getId()));
                 } catch (EnumConstantNotPresentException ex) {
                     throw ex;
