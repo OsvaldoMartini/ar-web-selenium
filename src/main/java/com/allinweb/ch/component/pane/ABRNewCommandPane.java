@@ -190,6 +190,10 @@ public class ABRNewCommandPane extends ABRPane {
                     new ComboBoxOperator("No Operators", new Image(ABRConstants.ICON_GREATER), ABRConstants.NO_VALUE));
         }
 
+        if (webPageItems.size() == 0) {
+            webPageItems.add(new ComboBoxVars("No Web Fields", ABRConstants.NO_VALUE, -1, -1));
+        }
+
         if (this.webPageItems != null && this.webPageItems.size() > 0) {
             loadJobVariables(webPageItems.get(0).getVarId());
         }

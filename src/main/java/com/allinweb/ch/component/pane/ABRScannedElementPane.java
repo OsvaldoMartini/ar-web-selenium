@@ -1154,6 +1154,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                         if (listABRElements != null && listABRElements.size() > 0) {
                             listABRElementsSize.set(listABRElements.size());
+                            addProgressBar(listABRElements.size());
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .finer("list of Advanced Scanner elements has " + listABRElementsSize.get());
                         }
@@ -3998,6 +3999,7 @@ public class ABRScannedElementPane extends ABRPane {
                         + attributeValue + ", XPath: " + xpath);
 
                 try {
+                    addProgressBar(1);
                     listABRElements.add(new ABRWebElement(entry, attribute, botJob.getId()));
                 } catch (EnumConstantNotPresentException ex) {
                     throw ex;
@@ -4395,7 +4397,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         instructionDTO.setOptional(false);
 
-        instructionDTO.setOperation(operation);
+        //        instructionDTO.setOperation(operation);
         instructionDTO.setActions(actions);
         instructionDTO.setDescription(description);
 
@@ -4447,7 +4449,7 @@ public class ABRScannedElementPane extends ABRPane {
                     + "instruction_order_number, "
                     + "name, "
                     + "on_hold_seconds, "
-                    + "operation, "
+                    //                    + "operation, "
                     + "optional, "
                     + "parent_id, "
                     + "path, "
@@ -4465,7 +4467,7 @@ public class ABRScannedElementPane extends ABRPane {
                     + ", " + instructionDTO.getInstructionOrderNumber()
                     + ", '" + instructionDTO.getName() + "'"
                     + ", " + instructionDTO.getOnHoldSeconds()
-                    + ", '" + instructionDTO.getOperation() + "'"
+                    //                    + ", '" + instructionDTO.getOperation() + "'"
                     + ", " + (instructionDTO.isOptional() ? 1 : 0)
                     + ", " + instructionDTO.getParentId()
                     + ", " + pathValue
