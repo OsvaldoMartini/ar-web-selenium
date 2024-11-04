@@ -3006,23 +3006,32 @@ public class ABRScannedElementPane extends ABRPane {
                                 ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                 : null;
 
-                        if (ifClause && ifFailed) {
-
-                            if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
-                                ifClause = false;
-                                ifFailed = false;
-                            } else {
-                                continue; // Till get ELSE
+                        // If IF clause failed, skip to ELSE block
+                        if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
+                            if (ifClause && ifFailed) {
+                                // Start ELSE block only if IF clause was active and failed
+                                elseClause = true;
                             }
+                            // Reset IF-related flags when encountering ELSE
+                            ifClause = false;
+                            ifFailed = false;
+                            continue;
+                        } else if (ifClause && ifFailed) {
+                            // Skip all actions until ELSE is encountered
+                            continue;
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                            continue;
+                        }
 
-                        } else if (elseClause && elseFailed) {
-
+                        // If ELSE clause failed, skip to ENDIF
+                        if (elseClause && elseFailed) {
+                            // Skip all actions until ENDIF is encountered
                             if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                                // Reset ELSE-related flags when ENDIF is found
                                 elseClause = false;
                                 elseFailed = false;
-                            } else {
-                                continue; // Till get ELSE
                             }
+                            continue;
                         }
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
@@ -3034,22 +3043,16 @@ public class ABRScannedElementPane extends ABRPane {
                                     .info("Initial Execution \"IF\" for Block :\"" + blockLoad.getName() + "\"");
 
                             ifClause = true;
+                            ifFailed = false; // Reset failure status for this IF clause
                             continue;
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
-                            if (ifClause && !ifFailed) {
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .info("Success Finished \"IF\" for Block :\"" + blockLoad.getName() + "\"");
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Initial Execution \"ELSE\" for Block :\"" + blockLoad.getName() + "\"");
 
-                                continue;
-                            } else {
-
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .info("Initial Execution \"ELSE\" for Block :\"" + blockLoad.getName() + "\"");
-
-                                ifFailed = true;
-                                continue;
-                            }
+                            elseClause = true;
+                            elseFailed = false; // Reset failure status for this ELSE clause
+                            continue;
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
@@ -3098,8 +3101,17 @@ public class ABRScannedElementPane extends ABRPane {
                             } catch (Exception ex) {
                                 resultActions =
                                         performAction.getValueIsNotDefined(currentInstruction, lastInstructionExecuted);
-                                stopAll = true;
-                                success = false;
+
+                                if (!ifClause && !elseClause) {
+                                    stopAll = true;
+                                    success = false;
+                                    break;
+                                } else if (ifClause) {
+                                    ifFailed = true;
+                                } else if (elseClause) {
+                                    elseFailed = true;
+                                }
+
                                 break;
                             }
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
@@ -3117,8 +3129,16 @@ public class ABRScannedElementPane extends ABRPane {
                                 resultActions =
                                         performAction.getValueIsNotDefined(currentInstruction, lastInstructionExecuted);
 
-                                stopAll = true;
-                                success = false;
+                                if (!ifClause && !elseClause) {
+                                    stopAll = true;
+                                    success = false;
+                                    break;
+                                } else if (ifClause) {
+                                    ifFailed = true;
+                                } else if (elseClause) {
+                                    elseFailed = true;
+                                }
+
                                 break;
                             }
                         }
@@ -3183,7 +3203,15 @@ public class ABRScannedElementPane extends ABRPane {
                                 if (success) {
                                     continue outerLoop;
                                 } else {
-                                    stopAll = true;
+
+                                    if (!ifClause && !elseClause) {
+                                        stopAll = true;
+                                        break;
+                                    } else if (ifClause) {
+                                        ifFailed = true;
+                                    } else if (elseClause) {
+                                        elseFailed = true;
+                                    }
                                 }
 
                             } else if (!execOperation && !checkOperation && !excelWriteOperation) {
@@ -3325,15 +3353,29 @@ public class ABRScannedElementPane extends ABRPane {
                                                     lastInstructionExecuted,
                                                     operations);
 
-                                            stopAll = true;
-                                            success = false;
+                                            if (!ifClause && !elseClause) {
+                                                stopAll = true;
+                                                success = false;
+                                                break;
+                                            } else if (ifClause) {
+                                                ifFailed = true;
+                                            } else if (elseClause) {
+                                                elseFailed = true;
+                                            }
                                         }
 
                                     } else {
                                         resultActions = performAction.getValueIsNotDefined(
                                                 currentInstruction, lastInstructionExecuted);
-                                        stopAll = true;
-                                        success = false;
+                                        if (!ifClause && !elseClause) {
+                                            stopAll = true;
+                                            success = false;
+                                            break;
+                                        } else if (ifClause) {
+                                            ifFailed = true;
+                                        } else if (elseClause) {
+                                            elseFailed = true;
+                                        }
                                     }
 
                                 } else {
@@ -3406,8 +3448,15 @@ public class ABRScannedElementPane extends ABRPane {
                                     } else {
                                         resultActions = performAction.getValueIsNotDefined(
                                                 currentInstruction, lastInstructionExecuted);
-                                        stopAll = true;
-                                        success = false;
+                                        if (!ifClause && !elseClause) {
+                                            stopAll = true;
+                                            success = false;
+                                            break;
+                                        } else if (ifClause) {
+                                            ifFailed = true;
+                                        } else if (elseClause) {
+                                            elseFailed = true;
+                                        }
                                         break;
                                     }
 
@@ -3432,8 +3481,15 @@ public class ABRScannedElementPane extends ABRPane {
                             }
 
                         } catch (Throwable t) {
-                            stopAll = true;
-                            success = false;
+                            if (!ifClause && !elseClause) {
+                                stopAll = true;
+                                success = false;
+                                break;
+                            } else if (ifClause) {
+                                ifFailed = true;
+                            } else if (elseClause) {
+                                elseFailed = true;
+                            }
                             currentInstruction.setExecuted(false);
 
                             long duration = performAction.duration(currentInstructionStartTime);
