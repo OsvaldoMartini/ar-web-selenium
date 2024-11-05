@@ -799,75 +799,35 @@ public class PerformActions {
         return (short) (success ? ExcelReportStatusEnum.SUCCESS.ordinal() : ExcelReportStatusEnum.ERROR.ordinal());
     }
 
-    public String getValueIsNotDefined(BlockLoopInstructionLoadDTO currentInstruction, String lastInstructionExecuted) {
-        showAlert(
-                Alert.AlertType.ERROR,
-                "GET is Not Defined for \"+" + currentInstruction.getName() + "\"",
-                "\"" + currentInstruction.getName() + "\" - GET is Not Defined",
-                "There is NOT GET VALUE defined for: "
-                        + currentInstruction.getName()
-                        + "\n --------------------- "
-                        + "\nCheck the GET for "
-                        + currentInstruction.getParentId() + "-"
-                        + currentInstruction.getOperation());
+    public String getValueIsNotDefined(
+            BlockLoopInstructionLoadDTO currentInstruction,
+            String lastInstructionExecuted,
+            boolean ifClause,
+            boolean elseClause) {
 
-        return "Failed to Execute Cmd: " + lastInstructionExecuted;
-    }
+        if (!ifClause && !elseClause) {
+            showAlert(
+                    Alert.AlertType.ERROR,
+                    "GET is Not Defined for \"+" + currentInstruction.getName() + "\"",
+                    "\"" + currentInstruction.getName() + "\" - GET is Not Defined",
+                    "There is NOT GET VALUE defined for: "
+                            + currentInstruction.getName()
+                            + "\n --------------------- "
+                            + "\nCheck the GET for "
+                            + currentInstruction.getParentId() + "-"
+                            + currentInstruction.getOperation());
+        }
 
-    public String checkValidationFailed(
-            String parent, String expected, String lastInstructionExecuted, String[] operations) {
-        showAlert(
-                Alert.AlertType.ERROR,
-                "Validation Error",
-                "Check Validation Error",
-                "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
-                        + expected + "\" Length: ("
-                        + expected.length()
-                        + ")" + "\n --------------------- "
-                        + "\nThe Variable \""
-                        + operations[0] + "\" holds value \"" + operations[2] + "\""
-                        + "\nCurrent Web Field \"" + parent + "\" value: \""
-                        + expected + "\" Length: (" + expected.length()
-                        + ")" + "\nExpected value: "
-                        + operations[2]
-                        + " Length: ("
-                        + operations[2].length()
-                        + ")");
+        String conditionalBlock = ifClause
+                ? "Closing Block { IF -> ELSE }  -> "
+                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
 
-        return "Failed to Execute Cmd: " + lastInstructionExecuted;
-    }
+        if (ifClause || elseClause) {
+            return conditionalBlock + " -> Failed to Execute Cmd: " + lastInstructionExecuted;
 
-    public void showAlert(Alert.AlertType alertType, String title, String header, String content) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(alertType);
-            alert.setTitle(title);
-            alert.setHeaderText(header);
-            alert.setContentText(content);
-            alert.showAndWait();
-        });
-    }
-
-    public void showAlertCombinedHBox(
-            Alert.AlertType alertType, String title, String header, String content, HBox combinedTextContainer) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(alertType);
-            alert.setTitle(title);
-            alert.setHeaderText(header);
-            alert.setContentText(content);
-            alert.getDialogPane().setContent(combinedTextContainer);
-
-            alert.showAndWait();
-        });
-    }
-
-    public void showAlertDialog(Alert.AlertType alertType, String title, String header, String content) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(alertType);
-            alert.setTitle(title);
-            alert.setHeaderText(header);
-            alert.setContentText(content);
-            alert.showAndWait();
-        });
+        } else {
+            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+        }
     }
 
     public String parentIdWrongBlock(
@@ -920,6 +880,78 @@ public class PerformActions {
         return String.format(
                 "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
                 currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
+    }
+
+    public String checkValidationFailed(
+            String parent,
+            String expected,
+            String lastInstructionExecuted,
+            String[] operations,
+            boolean ifClause,
+            boolean elseClause) {
+        if (!ifClause && !elseClause) {
+            showAlert(
+                    Alert.AlertType.ERROR,
+                    "Validation Error",
+                    "Check Validation Error",
+                    "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
+                            + expected + "\" Length: ("
+                            + expected.length()
+                            + ")" + "\n --------------------- "
+                            + "\nThe Variable \""
+                            + operations[0] + "\" holds value \"" + operations[2] + "\""
+                            + "\nCurrent Web Field \"" + parent + "\" value: \""
+                            + expected + "\" Length: (" + expected.length()
+                            + ")" + "\nExpected value: "
+                            + operations[2]
+                            + " Length: ("
+                            + operations[2].length()
+                            + ")");
+        }
+
+        String conditionalBlock = ifClause
+                ? "Closing Block { IF -> ELSE }  -> "
+                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
+
+        if (ifClause || elseClause) {
+            return conditionalBlock + " -> Failed to Execute Cmd: " + lastInstructionExecuted;
+
+        } else {
+            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+        }
+    }
+
+    public void showAlert(Alert.AlertType alertType, String title, String header, String content) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(alertType);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(content);
+            alert.showAndWait();
+        });
+    }
+
+    public void showAlertCombinedHBox(
+            Alert.AlertType alertType, String title, String header, String content, HBox combinedTextContainer) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(alertType);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(content);
+            alert.getDialogPane().setContent(combinedTextContainer);
+
+            alert.showAndWait();
+        });
+    }
+
+    public void showAlertDialog(Alert.AlertType alertType, String title, String header, String content) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(alertType);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(content);
+            alert.showAndWait();
+        });
     }
 
     public void excelReportWrite(

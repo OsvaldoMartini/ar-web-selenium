@@ -3017,6 +3017,7 @@ public class ABRScannedElementPane extends ABRPane {
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
                     boolean ifClause = false;
                     boolean ifFailed = false;
+                    boolean ifDone = false;
                     boolean elseClause = false;
                     boolean elseFailed = false;
                     mapExport.clear();
@@ -3047,7 +3048,19 @@ public class ABRScannedElementPane extends ABRPane {
 
                         // If IF clause failed, look for ELSE to start executing the ELSE block
 
-                        if (ifClause && ifFailed) {
+                        if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Initial Execution \"IF\" for Block :\"" + blockLoad.getName() + "\"");
+
+                            ifClause = true;
+                            ifFailed = false; // Reset failure status for this IF clause
+                            ifDone = false;
+                            continue;
+                        }
+
+                        if (ifClause && ifFailed && !ifDone) {
+
                             if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
                                 ABRLogger.getInstance(ABRScannedElementPane.class)
                                         .warning("Closing Block { IF -> ELSE} -> Failed Execution \"IF\" for Block :\""
@@ -3087,6 +3100,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             ifClause = false;
                             ifFailed = false;
+                            ifDone = true;
                             continue;
                         }
 
@@ -3100,6 +3114,8 @@ public class ABRScannedElementPane extends ABRPane {
                             elseClause = false;
                             elseFailed = false;
                             continue;
+                        } else if (ifDone && !actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                            continue;
                         }
 
                         // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
@@ -3107,25 +3123,18 @@ public class ABRScannedElementPane extends ABRPane {
                                 && !ifFailed
                                 && !elseClause
                                 && !elseFailed
+                                && ifDone
                                 && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
-
+                            ifDone = false;
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .info("Skiping { ENDIF } -> Success Skipping \"ENDIF\" for Block :\""
                                             + blockLoad.getName() + "\"");
+
                             continue;
                         }
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                             jumpGoto = true;
-
-                        } else if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
-
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Initial Execution \"IF\" for Block :\"" + blockLoad.getName() + "\"");
-
-                            ifClause = true;
-                            ifFailed = false; // Reset failure status for this IF clause
-                            continue;
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
@@ -3173,8 +3182,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 checkOperation = true;
                             } catch (Exception ex) {
-                                resultActions =
-                                        performAction.getValueIsNotDefined(currentInstruction, lastInstructionExecuted);
+                                resultActions = performAction.getValueIsNotDefined(
+                                        currentInstruction, lastInstructionExecuted, ifClause, elseClause);
 
                                 if (!ifClause && !elseClause) {
                                     stopAll = true;
@@ -3200,8 +3209,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 excelWriteOperation = true;
                             } catch (Exception ex) {
-                                resultActions =
-                                        performAction.getValueIsNotDefined(currentInstruction, lastInstructionExecuted);
+                                resultActions = performAction.getValueIsNotDefined(
+                                        currentInstruction, lastInstructionExecuted, ifClause, elseClause);
 
                                 if (!ifClause && !elseClause) {
                                     stopAll = true;
@@ -3425,7 +3434,9 @@ public class ABRScannedElementPane extends ABRPane {
                                                     parentField,
                                                     mapOperators.get(parentField),
                                                     lastInstructionExecuted,
-                                                    operations);
+                                                    operations,
+                                                    ifClause,
+                                                    elseClause);
 
                                             if (!ifClause && !elseClause) {
                                                 stopAll = true;
@@ -3440,7 +3451,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     } else {
                                         resultActions = performAction.getValueIsNotDefined(
-                                                currentInstruction, lastInstructionExecuted);
+                                                currentInstruction, lastInstructionExecuted, ifClause, elseClause);
                                         if (!ifClause && !elseClause) {
                                             stopAll = true;
                                             success = false;
@@ -3521,7 +3532,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     } else {
                                         resultActions = performAction.getValueIsNotDefined(
-                                                currentInstruction, lastInstructionExecuted);
+                                                currentInstruction, lastInstructionExecuted, ifClause, elseClause);
                                         if (!ifClause && !elseClause) {
                                             stopAll = true;
                                             success = false;
