@@ -3051,7 +3051,8 @@ public class ABRScannedElementPane extends ABRPane {
                         if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Initial Execution \"IF\" for Block :\"" + blockLoad.getName() + "\"");
+                                    .info("Initial Execution { IF -> ELSE} ->  inside Block :\"" + blockLoad.getName()
+                                            + "\"");
 
                             ifClause = true;
                             ifFailed = false; // Reset failure status for this IF clause
@@ -3063,7 +3064,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
                                 ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .warning("Closing Block { IF -> ELSE} -> Failed Execution \"IF\" for Block :\""
+                                        .warning("Closing Block { IF -> ELSE} -> Failed Execution inside Block :\""
                                                 + blockLoad.getName() + "\"");
 
                                 ifClause = false;
@@ -3078,9 +3079,8 @@ public class ABRScannedElementPane extends ABRPane {
                         } else if (elseClause && elseFailed) {
                             if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
                                 ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .warning(
-                                                "Closing Block { ELSE -> ENDIF } -> Failed Execution \"ELSE\" for Block :\""
-                                                        + blockLoad.getName() + "\"");
+                                        .warning("Closing Block { ELSE -> ENDIF } -> Failed Execution inside Block :\""
+                                                + blockLoad.getName() + "\"");
 
                                 elseClause = false;
                                 elseFailed = false; // Reset failure status for this ELSE clause
@@ -3095,7 +3095,7 @@ public class ABRScannedElementPane extends ABRPane {
                         if (ifClause && !ifFailed && actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Closing Block { IF -> ELSE } -> Success Execution \"IF\" for Block :\""
+                                    .info("Closing Block { IF -> ELSE } -> Success Execution inside Block :\""
                                             + blockLoad.getName() + "\"");
 
                             ifClause = false;
@@ -3108,7 +3108,7 @@ public class ABRScannedElementPane extends ABRPane {
                         if (elseClause && !elseFailed && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Closing Block { ELSE -> ENDIF } -> Success Execution \"ELSE\" for Block :\""
+                                    .info("Closing Block { ELSE -> ENDIF } -> Success Execution inside Block :\""
                                             + blockLoad.getName() + "\"");
 
                             elseClause = false;
@@ -3127,8 +3127,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
                             ifDone = false;
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Skiping { ENDIF } -> Success Skipping \"ENDIF\" for Block :\""
-                                            + blockLoad.getName() + "\"");
+                                    .info("Skiping { ENDIF } -> Success Skipping inside Block :\"" + blockLoad.getName()
+                                            + "\"");
 
                             continue;
                         }
