@@ -3401,7 +3401,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 if (operations.length == 3) {
                                     if (mapOperators.containsKey(parentField)) {
-                                        resultActions = "(" + parentField + ")" + String.join(":", operations);
+                                        resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
+                                                + String.join(" ", operations);
                                         boolean isOperationValid = false;
                                         if (operations[1].equalsIgnoreCase("=")) {
                                             isOperationValid = mapOperators

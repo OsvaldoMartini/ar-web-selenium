@@ -190,12 +190,11 @@ public class PerformActions {
             switch (action) {
                 case "SET":
                     insertTargetElement(instructionElement, operations[0], operations[1]);
-                    return "SET_VALUE to (" + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
+                    return "SET_VALUE to (Parent: " + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
                 case "GET":
                     String valueElem = getValueInElement(instructionElement);
                     mapOperators.put(parentField, valueElem);
-                    return "GET_VALUE from (" + parentField + "-" + parentField + ") Var" + operations[1] + " <-- "
-                            + valueElem;
+                    return "GET_VALUE from (Parent: " + parentField + ") Var" + operations[1] + " <-- " + valueElem;
                     //                    case "CK":
                     //                        if (operator.equalsIgnoreCase("=")) {
                     //                            result = "Equals -> "
@@ -325,6 +324,8 @@ public class PerformActions {
                 abrPriorities.loadPriorities();
             }
         }
+
+        if (abrPriorities.getAllPriorityList().size() < 4) {}
 
         List<com.allinweb.ch.util.Priority> priorityList = abrPriorities.getAllPriorityList();
         if (abrPriorities.getAllPriorityList().size() > 0) {
@@ -823,7 +824,7 @@ public class PerformActions {
                 : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
 
         if (ifClause || elseClause) {
-            return conditionalBlock + " -> Failed to Execute Cmd: " + lastInstructionExecuted;
+            return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
 
         } else {
             return "Failed to Execute Cmd: " + lastInstructionExecuted;
@@ -860,7 +861,7 @@ public class PerformActions {
         if (ifClause || elseClause) {
             ABRLogger.getInstance(ABRScannedElementPane.class)
                     .warning(String.format(
-                            "%s -> Parent Id Error Check Parent Id: %d "
+                            "%sParent Id Error Check Parent Id: %d "
                                     + "For the \"%s\" Does not belong to this block: "
                                     + blockLoad.getId() + "-" + blockLoad.getName(),
                             conditionalBlock,
@@ -914,7 +915,7 @@ public class PerformActions {
                 : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
 
         if (ifClause || elseClause) {
-            return conditionalBlock + " -> Failed to Execute Cmd: " + lastInstructionExecuted;
+            return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
 
         } else {
             return "Failed to Execute Cmd: " + lastInstructionExecuted;
@@ -1178,7 +1179,11 @@ public class PerformActions {
                 .filter(instruction -> !ABRConstants.EXTRACT_FIELD.equals(instruction.getActions())
                         && !ABRConstants.SET_VALUE.equals(instruction.getActions())
                         && !ABRConstants.GET_VALUE.equals(instruction.getActions())
-                        && !ABRConstants.CHECK_VALUE.equals(instruction.getActions()))
+                        && !ABRConstants.CHECK_VALUE.equals(instruction.getActions())
+                        && !ABRConstants.GOTO.equals(instruction.getActions())
+                        && !ABRConstants.IF.equals(instruction.getActions())
+                        && !ABRConstants.ELSE.equals(instruction.getActions())
+                        && !ABRConstants.ENDIF.equals(instruction.getActions()))
                 .collect(Collectors.toList());
     }
 

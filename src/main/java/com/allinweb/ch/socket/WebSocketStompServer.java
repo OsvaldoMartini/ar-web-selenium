@@ -160,23 +160,28 @@ public class WebSocketStompServer {
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(body, BlockSplitDTO.class);
                 splitBlocks(blockSplitDTO);
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_MOVE":
                 BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
                 moveBlock(blockMoveDTO);
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "ROW_UPDATE":
                 RowMoveDTO rowUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
                 rowUpdate(rowUpdateDTO);
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
                 rowMove(rowMoveDTO);
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "INSERT_BEFORE":
             case "INSERT_AFTER":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
                 injectStepAfterOrBefore(insertBeforeDTO);
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_ORDER":
                 BlockOrderDTO blockReorder = gson.fromJson(body, BlockOrderDTO.class);
@@ -186,12 +191,14 @@ public class WebSocketStompServer {
                                     blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
                             true);
                     deleteNullBlocks(blockReorder.getUpdatedBlocks().get(0).getBotJobId());
+                    ABRSharedResources.getInstance().changeDbConnection();
                 }
                 break;
             case "BLOCK_UPDATE":
                 RowMoveDTO blockUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
                 updateBlockName(
                         blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
 
             case "DELETE_INSTRUCTION":
@@ -201,17 +208,20 @@ public class WebSocketStompServer {
                 List<InstructionDTO> rowList =
                         getInstructionsByBlockId(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
                 reorderInstructions(rowList);
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
 
             case "DELETE_BLOCK":
                 DeleteBlockDTO deleteBlockDTO = gson.fromJson(body, DeleteBlockDTO.class);
                 deleteBlock(deleteBlockDTO);
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
                 rollBackBlocksRows(rollBackBlocksDTO);
                 rollBackBlocksOrder(rollBackBlocksDTO);
                 deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
+                ABRSharedResources.getInstance().changeDbConnection();
                 break;
 
             default:
@@ -703,8 +713,8 @@ public class WebSocketStompServer {
             if (deleteInstructionDTO.getActions().equals("IF")
                     || deleteInstructionDTO.getActions().equals("ELSE")
                     || deleteInstructionDTO.getActions().equals("ENDIF")) {
-                rowsAffected += stmt.executeUpdate(
-                        "DELETE FROM block_loop_instruction  WHERE parent_id = " + deleteInstructionDTO.getParentId());
+                rowsAffected += stmt.executeUpdate("DELETE FROM block_loop_instruction  WHERE block_id = "
+                        + deleteInstructionDTO.getBlockId() + " AND name = 'IF' OR name = 'ELSE' or name='ENDIF';");
             } else {
 
                 rowsAffected += stmt.executeUpdate(deleteSQL);

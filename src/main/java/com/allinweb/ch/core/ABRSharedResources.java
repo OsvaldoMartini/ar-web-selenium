@@ -397,58 +397,59 @@ public class ABRSharedResources {
     }
 
     public void changeDbConnection() {
-        String priorityPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
+        //        String priorityPath =
+        // ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
+        //
+        //        if (priorityPath != null) {
+        //
+        //            if (priorityPath != null && !priorityPath.isBlank()) {
+        //                abrPriorities.loadPriorities();
+        //            }
 
-        if (priorityPath != null) {
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+        if (previousDB != null && previousDB != dataBaseType) {
+            this.conn = null;
+            previousDB = dataBaseType;
+        } else {
+            previousDB = dataBaseType;
+        }
 
-            if (priorityPath != null && !priorityPath.isBlank()) {
-                abrPriorities.loadPriorities();
-            }
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+        } else {
+            POSTGRES_DB = false;
+        }
 
-            String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
-            if (previousDB != null && previousDB != dataBaseType) {
-                this.conn = null;
-                previousDB = dataBaseType;
-            } else {
-                previousDB = dataBaseType;
-            }
+        if (POSTGRES_DB) {
+            String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+            sessionFactory = new Configuration()
+                    .configure()
+                    .setProperty("hibernate.connection.url", dbUrl)
+                    .setProperty("hibernate.connection.username", USERNAME)
+                    .setProperty("hibernate.connection.password", PASSWORD)
+                    .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
+                    .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
+                    //                        .setProperty("hibernate.hbm2ddl.auto", "update")
+                    .buildSessionFactory();
+            session = sessionFactory.openSession();
+            cacheEntitiesFromDB();
+        } else {
 
-            if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-                POSTGRES_DB = true;
-            } else {
-                POSTGRES_DB = false;
-            }
-
-            if (POSTGRES_DB) {
-                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+            if (!dbPath.isBlank()) {
+                File dbFolder = new File(dbPath);
+                dbFolder.mkdirs();
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                 sessionFactory = new Configuration()
                         .configure()
                         .setProperty("hibernate.connection.url", dbUrl)
-                        .setProperty("hibernate.connection.username", USERNAME)
-                        .setProperty("hibernate.connection.password", PASSWORD)
-                        .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
-                        .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
-                        //                        .setProperty("hibernate.hbm2ddl.auto", "update")
+                        //                            .setProperty("hibernate.hbm2ddl.auto", "update")
                         .buildSessionFactory();
                 session = sessionFactory.openSession();
                 cacheEntitiesFromDB();
-            } else {
-
-                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-                if (!dbPath.isBlank()) {
-                    File dbFolder = new File(dbPath);
-                    dbFolder.mkdirs();
-                    String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                    sessionFactory = new Configuration()
-                            .configure()
-                            .setProperty("hibernate.connection.url", dbUrl)
-                            //                            .setProperty("hibernate.hbm2ddl.auto", "update")
-                            .buildSessionFactory();
-                    session = sessionFactory.openSession();
-                    cacheEntitiesFromDB();
-                }
             }
         }
+        //        }
     }
 
     private void updateUserData(String priority, String searchConfig, String optionsConfig) {
