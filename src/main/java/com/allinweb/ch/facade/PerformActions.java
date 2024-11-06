@@ -1187,8 +1187,7 @@ public class PerformActions {
                 .collect(Collectors.toList());
     }
 
-    public boolean showCombinedConfirmationDialog(
-            String title, String header, String content, HBox combinedTextContainer) {
+    public boolean showCombinedConfirmation(String title, String header, String content, HBox combinedTextContainer) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle(title);
         alert.setHeaderText(header);
@@ -1207,7 +1206,16 @@ public class PerformActions {
         alert.setContentText(content);
         alert.getDialogPane().setContent(combinedTextContainer);
 
+        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
+            alert.getButtonTypes().set(0, ButtonType.YES);
+            alert.getButtonTypes().set(1, ButtonType.NO);
+        }
         Optional<ButtonType> result = alert.showAndWait();
-        return result.isPresent() && result.get() == ButtonType.OK;
+
+        if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
+            return result.isPresent() && result.get() == ButtonType.YES;
+        } else {
+            return result.isPresent() && result.get() == ButtonType.OK;
+        }
     }
 }

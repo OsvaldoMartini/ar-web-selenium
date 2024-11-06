@@ -104,6 +104,9 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
+    // Define a flag to prevent double clicks
+    private boolean isScannerButtonClicked = false;
+
     Button refreshButton;
     Button openScannerButton;
     Button editBotJobButton;
@@ -428,9 +431,16 @@ public class ABRViewBotJobPane extends ABRPane {
             ABRSharedResources.getInstance().updateEntity(this.botJob, BotJobDTO.class);
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
-            ABRLogger.getInstance(ABRWebDriver.class).fine("Calling openScannerButton");
+            if (!isScannerButtonClicked) { // Check if the button action was not already triggered
+                isScannerButtonClicked = true; // Set the flag to prevent further clicks
 
-            abrScene.startNewThread(() -> executeScannerTask());
+                ABRLogger.getInstance(ABRWebDriver.class).fine("Calling openScannerButton");
+
+                abrScene.startNewThread(() -> {
+                    executeScannerTask();
+                    isScannerButtonClicked = false; // Reset the flag after task completes
+                });
+            }
         });
 
         this.generateExcelButton.setOnMouseClicked(

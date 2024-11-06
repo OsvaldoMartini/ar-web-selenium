@@ -831,6 +831,8 @@ public class ABRNewCommandPane extends ABRPane {
                         null, // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             }
+
+            ABRSharedResources.getInstance().changeDbConnection();
         });
 
         // Add a listener to print the ID when the selection changes
@@ -1238,7 +1240,7 @@ public class ABRNewCommandPane extends ABRPane {
                     .addAll(regularTextStyled, variableText1Styled, arrowText, variableText2Styled);
         }
 
-        boolean alertResponse = performAction.showCombinedConfirmationDialog(
+        boolean alertResponse = performAction.showCombinedConfirmation(
                 "Add new Instruction",
                 "Are you sure you want to Add the Instruction to the Bot-Job?",
                 "",

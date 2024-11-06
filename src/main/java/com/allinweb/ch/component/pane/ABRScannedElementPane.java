@@ -10,7 +10,6 @@ import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
-import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRNewHomeBankingScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
@@ -137,6 +136,7 @@ public class ABRScannedElementPane extends ABRPane {
     private CheckBox checkActiveHover;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
+    private CheckBox checkOutputText;
 
     private Label defineNameLabel;
     private Label attribIdTextFieldLabel;
@@ -296,6 +296,7 @@ public class ABRScannedElementPane extends ABRPane {
         checkClickElement = new CheckBox("For Click");
         checkClickElement.setSelected(true);
         checkInputText = new CheckBox("For Input");
+        checkOutputText = new CheckBox("For Output (Excel Export)");
 
         webElementObservableList1 = FXCollections.observableArrayList();
 
@@ -398,7 +399,7 @@ public class ABRScannedElementPane extends ABRPane {
             //        gridPaneTop.add(currentXPathTextField, 8, 0);
 
             VBox vBoxCheckBox = new VBox();
-            vBoxCheckBox.getChildren().addAll(checkClickElement, checkInputText);
+            vBoxCheckBox.getChildren().addAll(checkClickElement, checkInputText, checkOutputText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
             //        gridPaneTop.add(vBox, 9, 0);
 
@@ -726,18 +727,24 @@ public class ABRScannedElementPane extends ABRPane {
         checkClickElement.setOnAction(event -> {
             if (checkClickElement.isSelected()) {
                 checkInputText.setSelected(false);
-            } else {
-                checkInputText.setSelected(true);
+                checkOutputText.setSelected(false);
             }
         });
 
         checkInputText.setOnAction(event -> {
             if (checkInputText.isSelected()) {
                 checkClickElement.setSelected(false);
-            } else {
-                checkClickElement.setSelected(true);
+                checkOutputText.setSelected(false);
             }
         });
+
+        checkOutputText.setOnAction(event -> {
+            if (checkOutputText.isSelected()) {
+                checkClickElement.setSelected(false);
+                checkInputText.setSelected(false);
+            }
+        });
+
         scanButton.setOnAction(e -> manageUIScan());
         addNewElement.setOnAction(e -> {
             if (searchReturn.getElement() != null) {
@@ -773,11 +780,18 @@ public class ABRScannedElementPane extends ABRPane {
     private void insertNewElement() {
 
         if (Strings.isNullOrEmpty(defineNameField.getText())) {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle("MANDATORY FIELD");
-            alert.setHeaderText("Define the Element Name");
-            alert.setContentText("Element name must be defined!");
-            alert.showAndWait();
+
+            Text variableText1Styled = new Text("Web Element \"NAME\" must be defined!");
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer.getChildren().add(variableText1Styled);
+
+            performAction.showAlertCombinedVBOX(
+                    Alert.AlertType.ERROR, "MANDATORY FIELD", "Define the Element Name", null, combinedTextContainer);
+
             return;
         }
 
@@ -1434,40 +1448,68 @@ public class ABRScannedElementPane extends ABRPane {
                             .info("Double clicked the element: " + abrWebElement.getXPath());
 
                     if (abrWebElement.getSavedReferences().size() == 0) {
-                        performAction.showAlert(
+
+                        Text variableText1Styled = new Text(String.format(
+                                "The Instruction \"%s\" don't have any locators!",
+                                abrWebElement.getElement().getTagName()));
+
+                        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                        VBox combinedTextContainer = new VBox();
+                        combinedTextContainer.setSpacing(5); // Add some sp
+
+                        combinedTextContainer.getChildren().add(variableText1Styled);
+
+                        performAction.showAlertCombinedVBOX(
                                 Alert.AlertType.ERROR,
                                 "ERROR ADD WEB ELEMENT",
                                 "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
-                                "The Instruction \""
-                                        + abrWebElement.getElement().getTagName() + "\" don't have any locators");
+                                null,
+                                combinedTextContainer);
+
                         return;
                     }
 
-                    Alert alert = new Alert(
-                            Alert.AlertType.CONFIRMATION,
-                            "Are you sure you want to Add the Instruction Selected to the Bot-Job?",
-                            ButtonType.YES,
-                            ButtonType.NO);
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .fine("Confirmation Alert shown. Waiting for result");
-                    Optional<ButtonType> result = alert.showAndWait();
+                    Text variableText1Styled = new Text(String.format(
+                            "Web Element Instruction \"%s\"",
+                            abrWebElement.getElement().getTagName()));
 
-                    ABRLogger.getInstance(ABRScannedElementPane.class).finer("result got: " + result.get());
-                    if (result.isPresent() && result.get() == ButtonType.YES) {
+                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                    VBox combinedTextContainer = new VBox();
+                    combinedTextContainer.setSpacing(5); // Add some sp
+
+                    combinedTextContainer.getChildren().add(variableText1Styled);
+
+                    boolean result = performAction.showAlertCombinedVBOX(
+                            Alert.AlertType.CONFIRMATION,
+                            "Add Instruction to Bot-Job",
+                            "Are you sure you want to Add the Instruction Selected to the Bot-Job?",
+                            null,
+                            combinedTextContainer);
+
+                    if (result) {
                         loadBlocksForBotJob(this.botJob.getId());
 
                         BotJobLoadDTO botJobLoadDTO = loadBotJob(this.botJob.getId());
 
                         if (botJobLoadDTO == null) {
-                            performAction.showAlert(
+
+                            variableText1Styled = new Text(String.format(
+                                    "Check if you already have a Bot Job \"%\" Created!", this.botJob.getName()));
+                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                            combinedTextContainer.getChildren().clear();
+                            combinedTextContainer.getChildren().add(variableText1Styled);
+
+                            performAction.showAlertCombinedVBOX(
                                     Alert.AlertType.ERROR,
                                     "Bot Job DOES NOT EXIST",
                                     "Verify the Bot Job Name if have any: ",
-                                    String.format(
-                                            "Check if you already have a Bot Job \"%\" Created!",
-                                            this.botJob.getName()));
+                                    null,
+                                    combinedTextContainer);
 
-                            ABRLogger.getInstance(Thread.class)
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .severe(String.format(
                                             "Check if you already have a Bot Job \"%\" Created!",
                                             this.botJob.getName()));
@@ -1589,13 +1631,22 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 if (newId < 0) {
 
-                                    performAction.showAlert(
+                                    Text variableText1Styled = new Text(String.format(
+                                            "\"Component\" Instruction \"%s\"\nCannot be saved",
+                                            instruction.getName()));
+                                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                                    VBox combinedTextContainer = new VBox();
+                                    combinedTextContainer.setSpacing(5); // Add some sp
+
+                                    combinedTextContainer.getChildren().add(variableText1Styled);
+
+                                    performAction.showAlertCombinedVBOX(
                                             Alert.AlertType.ERROR,
                                             "Error Add New \"Component\" Instruction",
                                             "Not possible to insert new Operation",
-                                            String.format(
-                                                    "\"Component\" Instruction \"%s\"\nCannot be saved",
-                                                    instruction.getName()));
+                                            null,
+                                            combinedTextContainer);
 
                                     return null;
                                 }
@@ -1620,23 +1671,54 @@ public class ABRScannedElementPane extends ABRPane {
                                         boolean saved = insertReferences(queue, instruction.getId());
                                         if (saved) {
 
-                                            new ABRAlertScene(
+                                            Text variableText1Styled =
+                                                    new Text("The Web Instruction \"" + instruction.getName());
+                                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                                            Text variableText2Styled =
+                                                    new Text("With " + queue.size() + " reference locators");
+                                            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                                            Text variableText3Styled = new Text("Has been added successfully!");
+                                            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                                            VBox combinedTextContainer = new VBox();
+                                            combinedTextContainer.setSpacing(5); // Add some sp
+
+                                            combinedTextContainer
+                                                    .getChildren()
+                                                    .addAll(
+                                                            variableText1Styled,
+                                                            variableText2Styled,
+                                                            variableText3Styled);
+
+                                            performAction.showAlertCombinedVBOX(
                                                     Alert.AlertType.INFORMATION,
                                                     "Web Instruction Add",
-                                                    "The Web Instruction \"" + instruction.getName()
-                                                            + "\" with "
-                                                            + queue.size() + " reference locators"
-                                                            + "\nHas been added successfully!",
-                                                    ButtonType.OK);
+                                                    "Added New \"Web Instruction\" Instruction",
+                                                    null,
+                                                    combinedTextContainer);
+
                                         } else {
-                                            new ABRAlertScene(
-                                                    Alert.AlertType.ERROR,
-                                                    "Add Web Instruction FAILED",
-                                                    "The Instruction " + instruction.getName() + " with "
+
+                                            Text variableText1Styled =
+                                                    new Text("The Instruction " + instruction.getName() + " with "
                                                             + queue.size() + " reference locators"
                                                             + "\nWas Added!"
-                                                            + "\nTHE ENGINE IS GOING TO FAIL FOR THIS ELEMENT",
-                                                    ButtonType.OK);
+                                                            + "\nTHE ENGINE IS GOING TO FAIL FOR THIS ELEMENT");
+                                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                                            VBox combinedTextContainer = new VBox();
+                                            combinedTextContainer.setSpacing(5); // Add some sp
+
+                                            combinedTextContainer.getChildren().add(variableText1Styled);
+
+                                            performAction.showAlertCombinedVBOX(
+                                                    Alert.AlertType.ERROR,
+                                                    "Web Instruction Failed",
+                                                    "Add Web Instruction FAILED",
+                                                    null,
+                                                    combinedTextContainer);
                                         }
                                     });
                                 } catch (Exception ex) {
@@ -2861,13 +2943,19 @@ public class ABRScannedElementPane extends ABRPane {
                 .anyMatch(instruction -> instruction.getExecuted() == null || !instruction.getExecuted());
 
         if (hasUnexecutedInstructions) {
-            Alert alert = new Alert(
-                    Alert.AlertType.CONFIRMATION,
-                    "Recall the Executions for this page?",
-                    ButtonType.YES,
-                    ButtonType.NO);
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.YES) {
+            Text variableText1Styled = new Text("Recall the Executions for this page?");
+
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer.getChildren().add(variableText1Styled);
+
+            boolean result = performAction.showAlertCombinedVBOX(
+                    Alert.AlertType.CONFIRMATION, "Recall Pre-Launch", "Recall Pre Test.", null, combinedTextContainer);
+
+            if (result) {
                 recallJob();
             }
         }
