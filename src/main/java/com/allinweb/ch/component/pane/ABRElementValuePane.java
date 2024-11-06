@@ -61,7 +61,8 @@ public class ABRElementValuePane extends ABRPane {
     Button updateButton;
     Button deleteButton;
 
-    public ABRElementValuePane(RowMoveDTO rowMoveDTO, int instructionId, String instructionName, String varName, String instructionType) {
+    public ABRElementValuePane(
+            RowMoveDTO rowMoveDTO, int instructionId, String instructionName, String varName, String instructionType) {
         this.rowMoveDTO = rowMoveDTO;
         this.instructionId = instructionId;
         this.instructionName = instructionName;
@@ -119,7 +120,7 @@ public class ABRElementValuePane extends ABRPane {
         if (instructionType.equals("GET")) {
             valueField.setStyle("-fx-control-inner-background: #c9cbce;");
             valueField.setDisable(true);
-        }else{
+        } else {
             valueField.setStyle("-fx-control-inner-background: FFDA33;");
         }
 

@@ -90,7 +90,6 @@ public class ABRNewCommandPane extends ABRPane {
     TextFlow textFlow;
 
     TextField nameField;
-    Text valueToBeChecked;
 
     private Button variableButton;
 
@@ -252,12 +251,7 @@ public class ABRNewCommandPane extends ABRPane {
         variableText1.setFill(Color.BLUE); // Set font color to blue
         variableText2.setFill(Color.RED); // Set font color to red
 
-        valueToBeChecked = new Text();
-        valueToBeChecked.setFill(Color.RED); // Set font color to red
-
-        textFlow.getChildren().addAll(regularText, variableText1, variableText2, variableText3, valueToBeChecked);
-
-        
+        textFlow.getChildren().addAll(regularText, variableText1, variableText2, variableText3);
 
         comboBoxInstruc = new ComboBox<>(itemsInstructions);
         comboBoxInstruc.setPrefWidth(120); // Set preferred width of ComboBox
@@ -543,8 +537,8 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
 
         variableButton.setPrefWidth(buttonWidth - 50);
-//        valueToBeChecked.setPrefWidth(buttonWidth - 50);
-//        textFlow.setPrefWidth(buttonWidth);
+        //        valueToBeChecked.setPrefWidth(buttonWidth - 50);
+        //        textFlow.setPrefWidth(buttonWidth);
 
         comboBoxOperator.setVisible(false);
         comboBoxOperator.setManaged(false);
@@ -558,12 +552,12 @@ public class ABRNewCommandPane extends ABRPane {
         });
 
         // Create a listener (optional) to toggle visibility dynamically
-//        valueToBeChecked.visibleProperty().addListener((obs, oldValue, newValue) -> {
-//            valueToBeChecked.setManaged(newValue); // Set managed based on visibility
-//            if (newValue) {
-//                valueToBeChecked.setPrefWidth(buttonWidth - 50); // Restore width when visible
-//            }
-//        });
+        //        valueToBeChecked.visibleProperty().addListener((obs, oldValue, newValue) -> {
+        //            valueToBeChecked.setManaged(newValue); // Set managed based on visibility
+        //            if (newValue) {
+        //                valueToBeChecked.setPrefWidth(buttonWidth - 50); // Restore width when visible
+        //            }
+        //        });
 
         textFlow.visibleProperty().addListener((obs, oldValue, newValue) -> {
             textFlow.setManaged(newValue); // Set managed based on visibility
@@ -610,7 +604,7 @@ public class ABRNewCommandPane extends ABRPane {
 
     private void clearData() {
         nameField.clear();
-//        valueToBeChecked.clear();
+        //        valueToBeChecked.clear();
     }
 
     @Override
@@ -645,7 +639,6 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxOperator.setVisible(true);
                     comboBoxWebPage.setVisible(true);
 
-                    valueToBeChecked.setVisible(true);
                     variableButton.setVisible(true);
 
                     comboBoxVars.setVisible(true);
@@ -662,7 +655,6 @@ public class ABRNewCommandPane extends ABRPane {
                     webPageLabel.setVisible(false);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(false);
-                    valueToBeChecked.setVisible(false);
                     variableButton.setVisible(false);
 
                     comboBoxVars.setVisible(false);
@@ -679,7 +671,6 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxBlocks.setVisible(false);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(false);
-                    valueToBeChecked.setVisible(false);
                     variableButton.setVisible(false);
                     comboBoxVars.setVisible(false);
                 } else {
@@ -699,14 +690,14 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setPrefWidth(buttonWidth);
                     comboBoxBlocks.setVisible(false);
 
-                    if (ABRConstants.GET_VALUE.equalsIgnoreCase(newValue.getValue())
-                            || ABRConstants.EXTRACT_FIELD.equalsIgnoreCase(newValue.getValue())) {
-                        valueToBeChecked.setVisible(false);
-                        textFlow.setPrefWidth(buttonWidth + 100);
-                    } else {
-                        valueToBeChecked.setVisible(true);
-                        textFlow.setPrefWidth(buttonWidth);
-                    }
+                    //                    if (ABRConstants.GET_VALUE.equalsIgnoreCase(newValue.getValue())
+                    //                            || ABRConstants.EXTRACT_FIELD.equalsIgnoreCase(newValue.getValue())) {
+                    //                        valueToBeChecked.setVisible(false);
+                    //                        textFlow.setPrefWidth(buttonWidth + 100);
+                    //                    } else {
+                    //                        valueToBeChecked.setVisible(true);
+                    //                        textFlow.setPrefWidth(buttonWidth);
+                    //                    }
                 }
             }
         });
@@ -721,6 +712,14 @@ public class ABRNewCommandPane extends ABRPane {
 
         // Add a listener to comboBoxBlocks to handle selection changes
         comboBoxBlocks.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                // Set the visibility of comboBoxOperator based on the selected value
+                defineTextFlow(comboBoxInstruc.getValue().getValue());
+            }
+        });
+
+        // Add a listener to comboBoxVars to handle selection changes
+        comboBoxOperator.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
                 defineTextFlow(comboBoxInstruc.getValue().getValue());
@@ -769,6 +768,7 @@ public class ABRNewCommandPane extends ABRPane {
                         Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
                                 ? "EMPTY"
                                 : comboBoxVars.getValue().getValue();
+                //                variableText3.setText(variableValue);
                 addInstruction(
                         "SetValue",
                         "SetValue",
@@ -909,11 +909,11 @@ public class ABRNewCommandPane extends ABRPane {
     private void defineTextFlow(String newValue) {
 
         String variableName = "NO VARIABLE";
+        String variableValue = "NO VARIABLE";
+
         if (comboBoxVars != null && comboBoxVars.getValue() != null) {
-            valueToBeChecked.setText(comboBoxVars.getValue().getValue());
+            variableValue = comboBoxVars.getValue().getValue();
             variableName = comboBoxVars.getValue().getText();
-        } else {
-            valueToBeChecked.setText("NO VARIABLES");
         }
 
         String webFieldName = "NO WEB FIELD";
@@ -926,26 +926,26 @@ public class ABRNewCommandPane extends ABRPane {
             switch (newValue.toUpperCase()) {
                 case ABRConstants.EXTRACT_FIELD:
                     regularText.setText(" Excel Write from variable: ");
-                    regularText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(variableName);
-                    variableText1.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
                     break;
                 case ABRConstants.GET_VALUE:
                     regularText.setText(" GET Web field: ");
-                    regularText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(comboBoxWebPage.getValue().getText());
-                    variableText1.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setText(" and PUT on Variable: ");
-                    variableText2.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText3.setText(variableName);
-                    variableText3.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
@@ -953,57 +953,52 @@ public class ABRNewCommandPane extends ABRPane {
                     break;
                 case ABRConstants.SET_VALUE:
                     regularText.setText("SET Web field: ");
-                    regularText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(webFieldName);
-                    variableText1.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setText(" with the value of: ");
-                    variableText2.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText3.setText(valueToBeChecked.getText());
-                    variableText3.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText3.setText(variableValue);
+                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
                     break;
                 case ABRConstants.GOTO:
                     regularText.setText("GO TO The Block : ");
-                    regularText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
                     variableText1.setText(comboBoxBlocks.getValue().getText());
-                    variableText1.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
                     break;
                 case ABRConstants.IF:
                     regularText.setText("{ IF -> ELSE } ");
-                    regularText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
                     variableText1.setText(" OR ");
-                    variableText1.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
                     variableText2.setText(" { ELSE -> ENDIF }");
-                    variableText2.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
                     variableText3.setText(" SPECIAL BLOCKS");
-                    variableText3.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
                     break;
                 default:
-                    regularText.setText("CHECK: ");
-                    variableText1.setText(" Check variable ");
-                    variableText2.setText(variableName);
-
-
                     regularText.setText("CHECK Variable: ");
-                    regularText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(variableName);
-                    variableText1.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    variableText2.setText(comboBoxOperator.getValue().getText());
-                    variableText2.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                    variableText2.setText(" " + comboBoxOperator.getValue().getText() + " ");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText3.setText(valueToBeChecked.getText());
-                    variableText3.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                    variableText3.setText(variableValue);
+                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
@@ -1252,7 +1247,7 @@ public class ABRNewCommandPane extends ABRPane {
         // Combine the texts using TextFlow
 
         Text extra = new Text(" value ");
-        extra.setStyle("-fx-font-size: 18px;");
+        extra.setStyle("-fx-font-size: 14px;");
 
         if (actions.equalsIgnoreCase(ABRConstants.HOLD)
                 || (actions.equalsIgnoreCase(ABRConstants.SCREEN))
@@ -1261,45 +1256,31 @@ public class ABRNewCommandPane extends ABRPane {
             regularText.setText("");
             variableText1.setText(actions.equalsIgnoreCase(ABRConstants.HOLD) ? name : "Action:");
             variableText2.setText(name);
-            valueToBeChecked.setText("");
+            variableText3.setText("");
         }
 
         // Create individual text elements with the necessary styling
-        Text regularTextStyled = new Text(regularText.getText());
-        regularTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: black;");
+        Text regularTextCopy = new Text(regularText.getText());
+        regularTextCopy.setStyle(regularText.getStyle());
 
-        Text variableText1Styled = new Text(variableText1.getText());
-        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+        Text variableText1Copy = new Text(variableText1.getText());
+        variableText1Copy.setStyle(variableText1.getStyle());
 
-        Text arrowText = new Text(" -> ");
-        arrowText.setStyle("-fx-font-size: 18px; -fx-fill: black;");
+        Text variableText2Copy = new Text(variableText2.getText());
+        variableText2Copy.setStyle(variableText2.getStyle());
+        variableText2Copy.setVisible((variableText2.isVisible()));
 
-        Text variableText2Styled = new Text(variableText2.getText());
-        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-
-        Text newTextStyled = new Text(valueToBeChecked.getText()); // Use the provided text
-        newTextStyled.setStyle("-fx-font-size: 18px; -fx-fill: darkcyan;");
+        Text variableText3Copy = new Text(variableText3.getText());
+        variableText3Copy.setStyle(variableText3.getStyle());
+        variableText3Copy.setVisible((variableText3.isVisible()));
 
         // Create an HBox to hold the individual text elements
         HBox combinedTextContainer = new HBox();
         combinedTextContainer.setSpacing(5); // Add some spacing between the texts
 
-        if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)
-                || (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE))) {
-            combinedTextContainer
-                    .getChildren()
-                    .addAll(
-                            regularTextStyled,
-                            variableText1Styled,
-                            arrowText,
-                            variableText2Styled,
-                            extra,
-                            newTextStyled);
-        } else {
-            combinedTextContainer
-                    .getChildren()
-                    .addAll(regularTextStyled, variableText1Styled, arrowText, variableText2Styled);
-        }
+        combinedTextContainer
+                .getChildren()
+                .addAll(regularTextCopy, variableText1Copy, variableText2Copy, variableText3Copy);
 
         boolean alertResponse = performAction.showCombinedConfirmation(
                 "Add new Instruction",
