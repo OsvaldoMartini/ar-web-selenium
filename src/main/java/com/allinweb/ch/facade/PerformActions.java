@@ -27,6 +27,7 @@ import com.allinweb.ch.util.CryptationAlgorithm;
 import com.allinweb.ch.util.ExcelReportStatusEnum;
 import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
+import com.google.common.base.Strings;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -41,8 +42,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import com.google.common.base.Strings;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -787,7 +786,7 @@ public class PerformActions {
                     .severe(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
-        return Strings.isNullOrEmpty(finalText) ? "$EMPTY": finalText;
+        return Strings.isNullOrEmpty(finalText) ? "$EMPTY" : finalText;
     }
 
     private void listOperation(BlockLoopInstructionLoadDTO instructionDTO, Map<String, String> data) {

@@ -3087,7 +3087,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
         mapOperators = new HashMap<>();
-        mapExport = new HashMap<>();
+        mapExport = new LinkedHashMap<>();
         int executionTimes = 0;
         int execLimitReach = 0;
         String limitReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
@@ -3115,7 +3115,7 @@ public class ABRScannedElementPane extends ABRPane {
                     boolean elseClause = false;
                     boolean elseFailed = false;
                     mapExport.clear();
-                    writerReport.insertBlockSeparation(blockLoad.getName());
+                    //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
                     // Insert the field name and value rows below the block name
                     for (int j = 0;
@@ -3589,20 +3589,23 @@ public class ABRScannedElementPane extends ABRPane {
                                     if (mapOperators.containsKey(parentField)) {
 
                                         if (excelExportOnceCreation) {
-                                            writerExport.insertReportHead();
+                                            //
+                                            // writerExport.insertReportHead();
                                             excelExportOnceCreation = false;
                                         }
 
                                         resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
                                                 + mapOperators.get(parentField);
                                         if (mapExport.size() == 0) {
-                                            writerExport.insertBlockSeparation(blockLoad.getName());
-                                            exportIndex *= 2;
+                                            //
+                                            // writerExport.insertBlockSeparation(blockLoad.getName());
+                                            //                                            exportIndex *= 2;
                                         }
 
+                                        mapExport.put("KEY", "EXTERNAL");
                                         mapExport.put(parentField, mapOperators.get(parentField));
                                         // Insert the updated mapExport into the Excel after each instruction
-                                        writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex);
+                                        writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
 
                                         performAction.onHoldForSeconds(null);
 
