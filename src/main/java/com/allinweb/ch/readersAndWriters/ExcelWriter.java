@@ -2,6 +2,7 @@ package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.util.*;
+import com.google.common.base.Strings;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -43,9 +44,14 @@ public class ExcelWriter {
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
         boolean existExport = ManagedExcel.checkIfExcelExist(botJobName + "_export", "export");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
+        String fileNameExport = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FILE_NAME_EXPORT);
         try {
-            managedExcelMap.put(
-                    "export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
+            if (!Strings.isNullOrEmpty(fileNameExport)) {
+                managedExcelMap.put("export", new ManagedExcel(fileNameExport, "export", !existExport));
+            } else {
+                managedExcelMap.put(
+                        "export", new ManagedExcel(botJobName + "_export" + " (" + now + ")", "export", !existExport));
+            }
 
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true));

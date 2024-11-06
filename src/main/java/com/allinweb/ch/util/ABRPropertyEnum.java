@@ -6,6 +6,7 @@ public enum ABRPropertyEnum {
     BLOCK_EXEC_LIMIT("block_exec_limit"),
     FOLDER_PATH_EXCEL("path_excel"),
     FOLDER_PATH_EXPORT("path_export"),
+    FILE_NAME_EXPORT("file_name_export"),
     FOLDER_PATH_LOG("path_log"),
     FOLDER_PATH_JAVA("path_java"),
     FOLDER_PATH_JAVA_FX("path_java_fx"),

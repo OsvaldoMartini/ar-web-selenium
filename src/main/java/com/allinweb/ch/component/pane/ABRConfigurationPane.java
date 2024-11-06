@@ -38,6 +38,7 @@ public class ABRConfigurationPane extends ABRPane {
     Label pathExportLabel;
     Label pathLogLabel;
     Label sizeLogLabel;
+    Label fileExpoprtLabel;
     Label reduceSearchLabel;
     Label pathJavaLabel;
     Label pathDBLabel;
@@ -58,6 +59,7 @@ public class ABRConfigurationPane extends ABRPane {
     TextField pathExport;
     TextField pathLog;
     TextField sizeLog;
+    TextField fileExport;
     TextField reduceSearch;
     TextField pathJava;
     TextField pathDB;
@@ -136,7 +138,38 @@ public class ABRConfigurationPane extends ABRPane {
         pathExportLabel = new Label("Export Path:");
         pathExport = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXPORT);
         pathExportButton = createPathButton();
-        AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
+        fileExpoprtLabel = new Label("File Name");
+        fileExport = createPathTextField(ABRPropertyEnum.FILE_NAME_EXPORT);
+        //        AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
+
+        GridPane gridPaneExport = new GridPane();
+        //        gridPaneLog.setVgap(10);
+        gridPaneExport.setHgap(10);
+        // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
+        ColumnConstraints colExp1 = new ColumnConstraints();
+        colExp1.setPercentWidth(65);
+
+        ColumnConstraints colExp2 = new ColumnConstraints();
+        colExp2.setPercentWidth(30);
+
+        ColumnConstraints colExp3 = new ColumnConstraints();
+        colExp3.setPercentWidth(5);
+
+        gridPaneExport.getColumnConstraints().addAll(colExp1, colExp2, colExp3);
+
+        // Add labels in the first row
+        gridPaneExport.add(pathExportLabel, 0, 0);
+        gridPaneExport.add(fileExpoprtLabel, 1, 0);
+
+        // Add text fields in the second row
+        gridPaneExport.add(pathExport, 0, 1);
+        gridPaneExport.add(fileExport, 1, 1);
+
+        // Add button in the second row, third column
+        gridPaneExport.add(pathExportButton, 2, 1);
+
+        // Set margin for pathLogButton to create spacing from right border
+        GridPane.setMargin(pathExportButton, new Insets(0, 0, 0, 5));
 
         // LOGs
         pathLogLabel = new Label("Log Path:");
@@ -321,8 +354,7 @@ public class ABRConfigurationPane extends ABRPane {
         pathGroup = new VBox(
                 pathExcelLabel,
                 excelGroup,
-                pathExportLabel,
-                exportGroup,
+                gridPaneExport,
                 gridPaneLog,
                 gridPaneDB,
                 pathReportLabel,
@@ -384,6 +416,10 @@ public class ABRConfigurationPane extends ABRPane {
         }
         if (Strings.isNullOrEmpty(pathExport.getText())) {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Export Path must be filed!", ButtonType.OK);
+            validfields = false;
+        }
+        if (Strings.isNullOrEmpty(fileExport.getText())) {
+            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "File Name Export must be filed!", ButtonType.OK);
             validfields = false;
         }
 
@@ -451,6 +487,8 @@ public class ABRConfigurationPane extends ABRPane {
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), pathExcel.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT.getValue(), pathExport.getText());
+            ABRPropertyManager.getInstance()
+                    .setProperty(ABRPropertyEnum.FILE_NAME_EXPORT.getValue(), fileExport.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
             ABRPropertyManager.getInstance()

@@ -64,6 +64,7 @@ public class ABRPropertyManager {
                 setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT.getValue(), "");
+                setProperty(ABRPropertyEnum.FILE_NAME_EXPORT.getValue(), "");
                 setProperty(
                         ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(),
                         ABRConstants.CURRENT_PATH + ABRConstants.DEFAULT_PATH_JAVA);
