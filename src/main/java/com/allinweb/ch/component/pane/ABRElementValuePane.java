@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BankingDTO;
 import com.allinweb.ch.component.model.JobDTO;
+import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -39,10 +40,11 @@ public class ABRElementValuePane extends ABRPane {
 
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
     private TableView<VariableUserDTO> tableView = new TableView<>();
-    private int botJobId;
+    private RowMoveDTO rowMoveDTO;
     private int instructionId;
     private String instructionName;
     private String varName;
+    private String instructionType;
 
     private List<BankingDTO> dtoList;
     private int currentIndex = 0;
@@ -59,11 +61,12 @@ public class ABRElementValuePane extends ABRPane {
     Button updateButton;
     Button deleteButton;
 
-    public ABRElementValuePane(int botJobId, int instructionId, String instructionName, String varName) {
-        this.botJobId = botJobId;
+    public ABRElementValuePane(RowMoveDTO rowMoveDTO, int instructionId, String instructionName, String varName, String instructionType) {
+        this.rowMoveDTO = rowMoveDTO;
         this.instructionId = instructionId;
         this.instructionName = instructionName;
         this.varName = varName;
+        this.instructionType = instructionType;
     }
 
     @Override
@@ -113,7 +116,12 @@ public class ABRElementValuePane extends ABRPane {
         nameField.requestFocus();
 
         valueField = new TextField();
-        valueField.setStyle("-fx-control-inner-background: FFDA33;");
+        if (instructionType.equals("GET")) {
+            valueField.setStyle("-fx-control-inner-background: #c9cbce;");
+            valueField.setDisable(true);
+        }else{
+            valueField.setStyle("-fx-control-inner-background: FFDA33;");
+        }
 
         usedVarsField = new TextField();
         usedVarsField.setEditable(false);
@@ -147,7 +155,7 @@ public class ABRElementValuePane extends ABRPane {
             String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
 
             VariableUserDTO user = new VariableUserDTO(
-                    -1, selectedType, nameField.getText().trim(), valueVar, botJobId, instructionId);
+                    -1, selectedType, nameField.getText().trim(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
 
             if (nameExists(nameField.getText().trim())) {
                 showAlert(
@@ -180,8 +188,8 @@ public class ABRElementValuePane extends ABRPane {
 
             String valueVar = Strings.isNullOrEmpty(valueField.getText()) ? "$EMPTY" : valueField.getText();
 
-            VariableUserDTO user =
-                    new VariableUserDTO(id, selectedType, nameField.getText(), valueVar, botJobId, instructionId);
+            VariableUserDTO user = new VariableUserDTO(
+                    id, selectedType, nameField.getText(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
             updateUserData(id, user);
             loadUserData();
         });
@@ -437,7 +445,7 @@ public class ABRElementValuePane extends ABRPane {
         String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "
                 + " left join block_loop_instruction blk on blk.variable_id = vars.id "
-                + " where bot_job_id = " + botJobId
+                + " where bot_job_id = " + rowMoveDTO.getBotJobId()
                 + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
@@ -448,7 +456,8 @@ public class ABRElementValuePane extends ABRPane {
                 String name = rs.getString("name");
                 String value = rs.getString("value");
                 String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, instructionId, usedVars));
+                variablesList.add(
+                        new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
             }
         } catch (SQLException e) {
             e.printStackTrace();

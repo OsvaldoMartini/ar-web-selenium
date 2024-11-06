@@ -17,6 +17,8 @@ public class Constants {
     // actions codes
     public static final String VISUALIZE = "V";
     public static final String CLICK = "C";
+    public static final String OUTPUT = "O"; // For Label and Texts
+    public static final String OTHER = "W"; // For Other Kind OF
     public static final String SEARCH = "S";
     public static final String INSERT = "I";
     public static final String HOLD = "H";

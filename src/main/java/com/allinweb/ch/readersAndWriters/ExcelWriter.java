@@ -126,6 +126,8 @@ public class ExcelWriter {
                         instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
                 String action =
                         switch (splittedAction[0]) {
+                            case ABRConstants.OTHER -> "OTHER";
+                            case ABRConstants.OUTPUT -> "OUTPUT";
                             case ABRConstants.CLICK -> "CLICK";
                             case ABRConstants.INSERT -> "INSERT";
                             case ABRConstants.EXTRACT_FIELD -> "EXTRACT";

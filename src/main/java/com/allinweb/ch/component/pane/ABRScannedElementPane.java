@@ -1607,8 +1607,14 @@ public class ABRScannedElementPane extends ABRPane {
                                                 (instr) -> instr.getBlock().getId() == currentBlockId);
                                 ABRLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
 
+                                String actionReq = checkClickElement.isSelected()
+                                        ? "CLICK"
+                                        : checkInputText.isSelected()
+                                                ? "INPUT"
+                                                : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
                                 BlockLoopInstructionDTO instruction =
-                                        abrWebElement.buildBlockLoopInstruction(list.size());
+                                        abrWebElement.buildBlockLoopInstruction(actionReq, list.size());
+
                                 instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);
 
@@ -1672,7 +1678,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         if (saved) {
 
                                             Text variableText1Styled =
-                                                    new Text("The Web Instruction \"" + instruction.getName());
+                                                    new Text("The Web Instruction \"" + instruction.getName() + "\"");
                                             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
                                             Text variableText2Styled =

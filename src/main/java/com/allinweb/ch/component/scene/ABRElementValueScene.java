@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ABRElementValuePane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
@@ -12,22 +13,25 @@ public class ABRElementValueScene extends ABRScene {
     private static final Double SCENE_HEIGHT = 500D;
     private static final Double SCENE_WIDTH = 300D;
     private static final String TITLE = "New Variables";
-    private int botJobId;
+    private RowMoveDTO rowMoveDTO;
     private int instructionId;
     private String instructionName;
     private String varName;
+    private String instructionType;
 
-    public ABRElementValueScene(int botJobId, int instructionId, String instructionName, String varName) {
+    public ABRElementValueScene(
+            RowMoveDTO rowMoveDTO, int instructionId, String instructionName, String varName, String instructionType) {
         super();
-        this.botJobId = botJobId;
+        this.rowMoveDTO = rowMoveDTO;
         this.instructionId = instructionId;
         this.instructionName = instructionName;
         this.varName = varName;
+        this.instructionType = instructionType;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRElementValuePane(botJobId, instructionId, instructionName, varName);
+        return new ABRElementValuePane(rowMoveDTO, instructionId, instructionName, varName, instructionType);
     }
 
     @Override

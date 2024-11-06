@@ -114,6 +114,14 @@ public class PerformActions {
                     case Constants.VISUALIZE:
                         scrollToElement(instructionElement);
                         break;
+                    case Constants.OTHER:
+                        result = "other Element --> " + instruction.getName() + " --> "
+                                + clickElement(instructionElement);
+                        break;
+                    case Constants.OUTPUT:
+                        result = "outPutElement --> " + instruction.getName() + " --> "
+                                + clickElement(instructionElement);
+                        break;
                     case Constants.CLICK:
                         result = "clickElement --> " + instruction.getName() + " --> "
                                 + clickElement(instructionElement);

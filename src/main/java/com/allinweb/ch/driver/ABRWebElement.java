@@ -422,7 +422,9 @@ public class ABRWebElement {
             nameField.setText(actionReference[1]);
         }
 
-        if (actionReference[0].equals(ABRConstants.CLICK)) {
+        if (actionReference[0].equals(ABRConstants.OUTPUT)) {
+            clickElement.setValue(true);
+        } else if (actionReference[0].equals(ABRConstants.CLICK)) {
             clickElement.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.INSERT)) {
             textElement.setValue(true);
@@ -821,7 +823,7 @@ public class ABRWebElement {
         }
     }
 
-    public BlockLoopInstructionDTO buildBlockLoopInstruction(Integer orderNumber) {
+    public BlockLoopInstructionDTO buildBlockLoopInstruction(String actionReq, Integer orderNumber) {
         BlockLoopInstructionDTO loop = new BlockLoopInstructionDTO();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
@@ -836,7 +838,19 @@ public class ABRWebElement {
         } else {
             action = clickElement.get()
                     ? ABRConstants.CLICK
-                    : ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                    : actionReq.equals("INPUT")
+                            ? ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText()
+                            : actionReq.equals("OUTPUT")
+                                    ? ABRConstants.OUTPUT
+                                            + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                            + nameLabel.getText()
+                                    : actionReq.equals("OTHER")
+                                            ? ABRConstants.OTHER
+                                                    + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                                    + nameLabel.getText()
+                                            : ABRConstants.INSERT
+                                                    + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                                    + nameLabel.getText();
         }
         loop.setActions(action);
         loop.setName(nameLabel.getText());
