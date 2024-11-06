@@ -823,7 +823,8 @@ public class ABRWebElement {
         }
     }
 
-    public BlockLoopInstructionDTO buildBlockLoopInstruction(String actionReq, Integer orderNumber) {
+    public BlockLoopInstructionDTO buildBlockLoopInstruction(
+            String actionReq, boolean identityHover, Integer orderNumber) {
         BlockLoopInstructionDTO loop = new BlockLoopInstructionDTO();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
@@ -836,21 +837,29 @@ public class ABRWebElement {
         if (isIdElement.get()) {
             action = ABRConstants.EXTRACT_FIELD + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + "EXTERNAL_REFERENCE";
         } else {
-            action = clickElement.get()
-                    ? ABRConstants.CLICK
-                    : actionReq.equals("INPUT")
-                            ? ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText()
-                            : actionReq.equals("OUTPUT")
-                                    ? ABRConstants.OUTPUT
-                                            + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
-                                            + nameLabel.getText()
-                                    : actionReq.equals("OTHER")
-                                            ? ABRConstants.OTHER
-                                                    + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
-                                                    + nameLabel.getText()
-                                            : ABRConstants.INSERT
-                                                    + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
-                                                    + nameLabel.getText();
+            if (identityHover) {
+                action = actionReq.equals("INPUT")
+                        ? ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText()
+                        : actionReq.equals("OUTPUT")
+                                ? ABRConstants.OUTPUT
+                                        + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                        + nameLabel.getText()
+                                : actionReq.equals("OTHER")
+                                        ? ABRConstants.OTHER
+                                                + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                                + nameLabel.getText()
+                                        : actionReq.equals("click")
+                                                ? ABRConstants.CLICK
+                                                : clickElement.get()
+                                                        ? ABRConstants.CLICK
+                                                        : ABRConstants.INSERT
+                                                                + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                                                + nameLabel.getText();
+            } else {
+                action = clickElement.get()
+                        ? ABRConstants.CLICK
+                        : ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+            }
         }
         loop.setActions(action);
         loop.setName(nameLabel.getText());

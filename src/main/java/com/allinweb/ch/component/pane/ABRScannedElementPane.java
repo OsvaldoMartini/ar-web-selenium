@@ -1612,8 +1612,8 @@ public class ABRScannedElementPane extends ABRPane {
                                         : checkInputText.isSelected()
                                                 ? "INPUT"
                                                 : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
-                                BlockLoopInstructionDTO instruction =
-                                        abrWebElement.buildBlockLoopInstruction(actionReq, list.size());
+                                BlockLoopInstructionDTO instruction = abrWebElement.buildBlockLoopInstruction(
+                                        actionReq, checkActiveHover.isSelected(), list.size());
 
                                 instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);

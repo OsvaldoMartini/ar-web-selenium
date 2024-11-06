@@ -41,6 +41,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import com.google.common.base.Strings;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -702,6 +704,7 @@ public class PerformActions {
 
     private String getOutPutElement(
             WebElement element, String fieldName, String action, Map<String, String> mapOperators) throws Exception {
+
         UtilsMethods.exceptionIfNullWebElement(element);
         waitForAction.until(ExpectedConditions.visibilityOf(element));
 
@@ -711,7 +714,6 @@ public class PerformActions {
         String textContext = "";
 
         try {
-
             JavascriptExecutor js = (JavascriptExecutor) abrWebDriver.getDriver();
             textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
         } catch (Exception ex) {
@@ -719,6 +721,7 @@ public class PerformActions {
                     .warning(String.format(
                             "By JavascriptExecutor - Not succeeded to get a Text from Label for: %s", fieldName));
         }
+
         try {
             List<WebElement> children = element.findElements(By.xpath(".//*"));
             StringBuilder textByNested = new StringBuilder();
@@ -731,12 +734,13 @@ public class PerformActions {
                     .warning(String.format(
                             "By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
         }
+
         try {
             textAttribute = element.getAttribute("value");
         } catch (Exception ex) {
             ABRLogger.getInstance(PerformActions.class)
                     .warning(String.format(
-                            "By Text Attribute - Not succeeded to get a Text from Label for: % Operation: %ss",
+                            "By Text Attribute - Not succeeded to get a Text from Label for: %s Operation: %s",
                             fieldName, action));
         }
 
@@ -745,14 +749,27 @@ public class PerformActions {
         } catch (Exception ex) {
             ABRLogger.getInstance(PerformActions.class)
                     .warning(String.format(
-                            "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s ",
+                            "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s",
                             fieldName, action));
         }
 
+        // Check if the element is clickable
+        boolean isClickable = false;
+        try {
+            waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+            isClickable = true;
+        } catch (Exception ex) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format("Element is not clickable: %s", fieldName));
+        }
+
+        // Set the final text value by priority and add to mapOperators
         String finalText = "";
 
-        // Check each variable in order, and use the first non-empty value
-        if (textByhJS != null && !textByhJS.trim().isEmpty()) {
+        if (isClickable && finalTextNested != null && !finalTextNested.trim().isEmpty()) {
+            finalText = finalTextNested; // Use nested text if the element is clickable
+            mapOperators.put(fieldName, finalText);
+        } else if (textByhJS != null && !textByhJS.trim().isEmpty()) {
             finalText = textByhJS;
             mapOperators.put(fieldName, finalText);
         } else if (finalTextNested != null && !finalTextNested.trim().isEmpty()) {
@@ -767,10 +784,10 @@ public class PerformActions {
         } else {
             mapOperators.put(fieldName, "Failed");
             ABRLogger.getInstance(PerformActions.class)
-                    .warning(String.format("Failed to retrieve text from element for: %s", fieldName));
+                    .severe(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
-        return finalText;
+        return Strings.isNullOrEmpty(finalText) ? "$EMPTY": finalText;
     }
 
     private void listOperation(BlockLoopInstructionLoadDTO instructionDTO, Map<String, String> data) {
