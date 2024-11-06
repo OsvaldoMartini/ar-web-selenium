@@ -557,12 +557,12 @@ public class ABRNewCommandPane extends ABRPane {
         //            }
         //        });
 
-//        textFlow.visibleProperty().addListener((obs, oldValue, newValue) -> {
-//            textFlow.setManaged(newValue); // Set managed based on visibility
-//            if (newValue) {
-//                textFlow.setPrefWidth(buttonWidth + 50); // Restore width when visible
-//            }
-//        });
+        //        textFlow.visibleProperty().addListener((obs, oldValue, newValue) -> {
+        //            textFlow.setManaged(newValue); // Set managed based on visibility
+        //            if (newValue) {
+        //                textFlow.setPrefWidth(buttonWidth + 50); // Restore width when visible
+        //            }
+        //        });
 
         // Create an HBox for the variable button
         HBox variableButtonRow = new HBox(10, variableButton, comboBoxOperator, textFlow);
@@ -629,7 +629,7 @@ public class ABRNewCommandPane extends ABRPane {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
                     textFlow.setVisible(true);
-//                    textFlow.setPrefWidth(buttonWidth + 100);
+                    //                    textFlow.setPrefWidth(buttonWidth + 100);
 
                     botJobVarsLabel.setText("Bot-Job Variable");
                     botJobVarsLabel.setVisible(true);
@@ -646,7 +646,7 @@ public class ABRNewCommandPane extends ABRPane {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
                     textFlow.setVisible(true);
-//                    textFlow.setPrefWidth(buttonWidth + 100);
+                    //                    textFlow.setPrefWidth(buttonWidth + 100);
 
                     botJobVarsLabel.setText("Block Destination");
                     botJobVarsLabel.setVisible(true);
@@ -662,7 +662,7 @@ public class ABRNewCommandPane extends ABRPane {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
                     textFlow.setVisible(true);
-//                    textFlow.setPrefWidth(buttonWidth + 100);
+                    //                    textFlow.setPrefWidth(buttonWidth + 100);
 
                     botJobVarsLabel.setVisible(false);
                     webPageLabel.setVisible(false);
@@ -675,7 +675,7 @@ public class ABRNewCommandPane extends ABRPane {
                     defineTextFlow(newValue.getValue());
 
                     textFlow.setVisible(true);
-//                    textFlow.setPrefWidth(buttonWidth);
+                    //                    textFlow.setPrefWidth(buttonWidth);
 
                     botJobVarsLabel.setText("Bot-Job Variable");
                     botJobVarsLabel.setVisible(true);

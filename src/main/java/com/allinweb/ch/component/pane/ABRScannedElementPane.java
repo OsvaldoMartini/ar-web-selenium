@@ -3399,7 +3399,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         + currentInstruction.getPath();
 
                                 resultActions = performAction.performWebActions(
-                                        dataExcel, currentInstruction, botJobId, blockLoad.getName());
+                                        dataExcel, currentInstruction, botJobId, blockLoad.getName(), mapOperators);
 
                                 if (resultActions != null) {
                                     currentInstruction.setExecuted(true);
@@ -3754,7 +3754,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 dataDynamic,
                                 currentInstruction,
                                 botJobId,
-                                blocksLoaded.get(j).getName());
+                                blocksLoaded.get(j).getName(),
+                                mapOperators);
 
                         if (resultActions != null) {
                             currentInstruction.setExecuted(true);

@@ -69,8 +69,6 @@ public class PerformActions {
 
     private ABRPriorities abrPriorities;
     private ABRWebDriver abrWebDriver;
-    private Map<String, String> mapOperators;
-    private Map<String, String> mapExport;
     public static Wait<WebDriver> waitForPage;
     public static Wait<WebDriver> waitForAction;
     private boolean justCalledRefreshPage = false;
@@ -95,7 +93,11 @@ public class PerformActions {
     }
 
     public String performWebActions(
-            Map<String, String> data, BlockLoopInstructionLoadDTO instruction, int botJobId, String blockJobName)
+            Map<String, String> data,
+            BlockLoopInstructionLoadDTO instruction,
+            int botJobId,
+            String blockJobName,
+            Map<String, String> mapOperators)
             throws Exception {
         WebElement instructionElement = null;
         String[] actions = instruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
@@ -119,8 +121,10 @@ public class PerformActions {
                                 + clickElement(instructionElement);
                         break;
                     case Constants.OUTPUT:
+                        String fieldName = instruction.getId() + "-" + instruction.getName();
                         result = "outPutElement --> " + instruction.getName() + " --> "
-                                + clickElement(instructionElement);
+                                + getOutPutElement(
+                                        instructionElement, fieldName, instruction.getActions(), mapOperators);
                         break;
                     case Constants.CLICK:
                         result = "clickElement --> " + instruction.getName() + " --> "
@@ -200,8 +204,13 @@ public class PerformActions {
                     insertTargetElement(instructionElement, operations[0], operations[1]);
                     return "SET_VALUE to (Parent: " + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
                 case "GET":
-                    String valueElem = getValueInElement(instructionElement);
-                    mapOperators.put(parentField, valueElem);
+                    String valueElem;
+                    if (mapOperators.containsKey(parentField)) {
+                        valueElem = mapOperators.get(parentField);
+                    } else {
+                        valueElem = getValueInElement(instructionElement);
+                        mapOperators.put(parentField, valueElem);
+                    }
                     return "GET_VALUE from (Parent: " + parentField + ") Var" + operations[1] + " <-- " + valueElem;
                     //                    case "CK":
                     //                        if (operator.equalsIgnoreCase("=")) {
@@ -689,6 +698,79 @@ public class PerformActions {
         }
 
         return dataFieldName + "->" + dataFieldValue;
+    }
+
+    private String getOutPutElement(
+            WebElement element, String fieldName, String action, Map<String, String> mapOperators) throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        waitForAction.until(ExpectedConditions.visibilityOf(element));
+
+        String textByhJS = "";
+        String finalTextNested = "";
+        String textAttribute = "";
+        String textContext = "";
+
+        try {
+
+            JavascriptExecutor js = (JavascriptExecutor) abrWebDriver.getDriver();
+            textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
+        } catch (Exception ex) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format(
+                            "By JavascriptExecutor - Not succeeded to get a Text from Label for: %s", fieldName));
+        }
+        try {
+            List<WebElement> children = element.findElements(By.xpath(".//*"));
+            StringBuilder textByNested = new StringBuilder();
+            for (WebElement child : children) {
+                textByNested.append(child.getText()).append(" ");
+            }
+            finalTextNested = textByNested.toString().trim();
+        } catch (Exception ex) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format(
+                            "By Text Nested - Not succeeded to get a Text from Label for: %s", fieldName));
+        }
+        try {
+            textAttribute = element.getAttribute("value");
+        } catch (Exception ex) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format(
+                            "By Text Attribute - Not succeeded to get a Text from Label for: % Operation: %ss",
+                            fieldName, action));
+        }
+
+        try {
+            textContext = element.getAttribute("textContent");
+        } catch (Exception ex) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format(
+                            "By Text Content - Not succeeded to get a Text from Label for: %s Operation: %s ",
+                            fieldName, action));
+        }
+
+        String finalText = "";
+
+        // Check each variable in order, and use the first non-empty value
+        if (textByhJS != null && !textByhJS.trim().isEmpty()) {
+            finalText = textByhJS;
+            mapOperators.put(fieldName, finalText);
+        } else if (finalTextNested != null && !finalTextNested.trim().isEmpty()) {
+            finalText = finalTextNested;
+            mapOperators.put(fieldName, finalText);
+        } else if (textAttribute != null && !textAttribute.trim().isEmpty()) {
+            finalText = textAttribute;
+            mapOperators.put(fieldName, finalText);
+        } else if (textContext != null && !textContext.trim().isEmpty()) {
+            finalText = textContext;
+            mapOperators.put(fieldName, finalText);
+        } else {
+            mapOperators.put(fieldName, "Failed");
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format("Failed to retrieve text from element for: %s", fieldName));
+        }
+
+        return finalText;
     }
 
     private void listOperation(BlockLoopInstructionLoadDTO instructionDTO, Map<String, String> data) {
