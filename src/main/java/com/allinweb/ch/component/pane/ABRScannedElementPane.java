@@ -294,7 +294,7 @@ public class ABRScannedElementPane extends ABRPane {
                 "Other Elements", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         checkBoxAction = new CheckBox("Test Action\n(RELEASE AFTER USE)");
         checkClickElement = new CheckBox("For Click");
-        checkClickElement.setSelected(true);
+        //        checkClickElement.setSelected(true);
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
 
@@ -886,9 +886,20 @@ public class ABRScannedElementPane extends ABRPane {
                 }
 
                 Boolean clickable = isClickable(searchReturn.getElement());
+                Boolean inputContains =
+                        searchReturn.getCurrentXPath().toLowerCase().contains("input");
+
                 Platform.runLater(() -> {
-                    checkClickElement.setSelected(clickable);
-                    checkInputText.setSelected(!clickable);
+                    if (inputContains) {
+                        checkInputText.setSelected(inputContains);
+                        checkClickElement.setSelected(false);
+                        checkOutputText.setSelected(false);
+
+                    } else {
+                        checkClickElement.setSelected(clickable);
+                        checkOutputText.setSelected(!clickable);
+                        checkInputText.setSelected(false);
+                    }
                 });
 
                 return searchReturn;
@@ -3133,6 +3144,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                         String xPathOperation = null;
                         String parentField = null;
+                        String fieldName = null;
                         int parentId = currentInstruction.getParentId();
 
                         String[] actions = currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
@@ -3247,6 +3259,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         .get()
                                         .getName();
 
+                                fieldName = parentField;
                                 parentField = parentId + "-" + parentField;
 
                             } catch (Exception ex) {
@@ -3272,6 +3285,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         .get()
                                         .getName();
 
+                                fieldName = parentField;
                                 parentField = parentId + "-" + parentField;
 
                                 checkOperation = true;
@@ -3299,6 +3313,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         .get()
                                         .getName();
 
+                                fieldName = parentField;
                                 parentField = parentId + "-" + parentField;
 
                                 excelWriteOperation = true;
@@ -3603,7 +3618,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         }
 
                                         mapExport.put("KEY", "EXTERNAL");
-                                        mapExport.put(parentField, mapOperators.get(parentField));
+                                        mapExport.put(fieldName, mapOperators.get(parentField));
                                         // Insert the updated mapExport into the Excel after each instruction
                                         writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
 
