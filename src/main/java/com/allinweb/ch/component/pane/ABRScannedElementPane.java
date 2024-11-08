@@ -21,10 +21,8 @@ import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -172,16 +170,14 @@ public class ABRScannedElementPane extends ABRPane {
     Map<String, WebElement> mapAdvanced = new HashMap<>();
 
     // Very important sequence on initiation
-    private static ABRPriorities abrPriorities;
-    private static Map<String, String> savedReferences;
     private static int reduceSearchCriteria;
     private static ABRPropertyManager managerProps;
+    private static ABRPriorities abrPriorities;
     private static final PerformActions performAction;
     // Static block to initialize
     static {
         abrPriorities = ABRPriorities.getInstance();
         performAction = PerformActions.getInstance();
-        savedReferences = new HashMap<>();
         managerProps = ABRPropertyManager.getInstance();
     }
 
@@ -2340,21 +2336,21 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    public void saveReferencesToFile(String filePath, List<ABRWebElement> elements) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-            for (ABRWebElement element : elements) {
-                Map<String, String> savedReferences = element.getSavedReferences();
-
-                for (Map.Entry<String, String> entry : savedReferences.entrySet()) {
-                    writer.write(entry.getKey() + "=" + entry.getValue());
-                    writer.newLine();
-                }
-            }
-            System.out.println("References saved to " + filePath);
-        } catch (IOException e) {
-            System.err.println("Error writing to file: " + e.getMessage());
-        }
-    }
+    //    public void saveReferencesToFile(String filePath, List<ABRWebElement> elements) {
+    //        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+    //            for (ABRWebElement element : elements) {
+    //                Map<String, String> savedReferences = element.getSavedReferences();
+    //
+    //                for (Map.Entry<String, String> entry : savedReferences.entrySet()) {
+    //                    writer.write(entry.getKey() + "=" + entry.getValue());
+    //                    writer.newLine();
+    //                }
+    //            }
+    //            System.out.println("References saved to " + filePath);
+    //        } catch (IOException e) {
+    //            System.err.println("Error writing to file: " + e.getMessage());
+    //        }
+    //    }
 
     private void buildPriorityReferences(List<ABRWebElement> elements) {
         Map<String, String> references = new HashMap<>();
@@ -3064,18 +3060,20 @@ public class ABRScannedElementPane extends ABRPane {
         int botJobId = blocksLoaded.get(0).getBotJobId();
 
         // Original BotJobDTO
-        BotJobDTO selectedJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
+        //        BotJobDTO selectedJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
 
         String baseLogString = blocksLoaded.get(0).getBotJobName()
                 + Constants.FIELDS_SEPARATOR
                 + labelsValue.getProperty(Labels.START);
+
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+
         ExcelWriter.ExcelChain writerReport =
-                new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("report");
+                new ExcelWriter(blocksLoaded.get(0).getName(), abrWebDriver.getDriver()).withPurpose("report");
         writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport =
-                new ExcelWriter(selectedJob.getName(), abrWebDriver.getDriver()).withPurpose("export");
+                new ExcelWriter(blocksLoaded.get(0).getName(), abrWebDriver.getDriver()).withPurpose("export");
         boolean excelExportOnceCreation = true;
         //        writerExport.insertReportHead();
 
@@ -3708,9 +3706,6 @@ public class ABRScannedElementPane extends ABRPane {
                         printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
 
                         if (!success) {
-                            //                            resultActions =
-                            //                                    String.format("BotJob : %s failed",
-                            // this.botJob.getName());
                             countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
                             countdownTextField.setText(resultActions);
                             if (!ifClause && !elseClause) {
@@ -3725,8 +3720,6 @@ public class ABRScannedElementPane extends ABRPane {
                             stopAll = true;
                             break;
                         }
-                        // }     END IF (currentInstruction.getExecuted() == null || !currentInstruction.getExecuted())
-                        // ...
                     }
                 }
                 currentBlock++;
@@ -3837,13 +3830,13 @@ public class ABRScannedElementPane extends ABRPane {
             //                ABRLogger.getInstance(ABRScannedElementPane.class)
             //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
             //            }
-            baseLogString = selectedJob.getName()
+            baseLogString = blocksLoaded.get(0).getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
         } else {
-            baseLogString = selectedJob.getName()
+            baseLogString = blocksLoaded.get(0).getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
                     + Constants.FIELDS_SEPARATOR

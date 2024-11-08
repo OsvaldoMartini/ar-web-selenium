@@ -34,13 +34,13 @@ public class ExcelWriter {
 
     private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
     private String botJobName;
-    private static WebDriver abrWebDriver;
+    private static WebDriver webDriver;
 
     private static int CURRENT_ROW_INDEX = 0;
 
-    public ExcelWriter(String botJobName, WebDriver abrWebDriver) {
+    public ExcelWriter(String botJobName, WebDriver webDriver) {
         this.botJobName = botJobName;
-        this.abrWebDriver = abrWebDriver;
+        this.webDriver = webDriver;
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel");
         boolean existExport = ManagedExcel.checkIfExcelExist(botJobName + "_export", "export");
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
@@ -130,6 +130,9 @@ public class ExcelWriter {
 
                 String[] splittedAction = UtilsMethods.splitIfContains(
                         instruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                String[] operations = UtilsMethods.splitIfContains(
+                        instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+
                 String action =
                         switch (splittedAction[0]) {
                             case ABRConstants.OTHER -> "OTHER";
@@ -149,6 +152,7 @@ public class ExcelWriter {
                             case ABRConstants.IF -> "IF";
                             case ABRConstants.ELSE -> "ELSE";
                             case ABRConstants.ENDIF -> "ENDIF";
+                            case ABRConstants.SCREEN -> "SCREENSHOT";
                             default -> "Unsupported action";
                         };
                 String value = "";
@@ -156,7 +160,14 @@ public class ExcelWriter {
                     String reference = splittedAction[1];
                     value = data.get(reference);
                 }
-                if (!action.equals("SCREEN")) {
+
+                if (operations.length == 2) {
+                    value = operations[1];
+                } else if (operations.length == 3) {
+                    value = operations[1] + " " + operations[2];
+                }
+
+                if (!action.equals("SCREENSHOT")) {
                     ManagedExcelAction act = managedExcel
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(action, 0)
@@ -167,8 +178,7 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn(status);
                     if (!status.equals("success")) {
                         IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
-                        act.fillRowBackgroundColorOfLastRow(color)
-                                .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                        act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     }
                 } else { // add screenshot
                     ManagedExcelAction act = managedExcel
@@ -179,11 +189,10 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn("")
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
                             .insertValueOnLastRowAfterLastColumn(status)
-                            .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                            .insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     if (!status.equals("success")) {
                         IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
-                        act.fillRowBackgroundColorOfLastRow(color)
-                                .insertScreenshotAfterLastRowOfColumn(0, abrWebDriver);
+                        act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     }
                 }
                 managedExcel.save();

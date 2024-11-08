@@ -28,7 +28,7 @@ public class HomeBankingDTO extends BaseDTO implements Serializable {
     @Column(name = "cookies")
     private String cookies;
 
-    @Column(name = "driverSession")
+    @Column(name = "driver_session")
     private String driverSession;
 
     @Column(name = "username")
