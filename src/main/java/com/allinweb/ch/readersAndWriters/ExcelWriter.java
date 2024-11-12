@@ -156,6 +156,7 @@ public class ExcelWriter {
                             case ABRConstants.ELSE -> "ELSE";
                             case ABRConstants.ENDIF -> "ENDIF";
                             case ABRConstants.SCREEN -> "SCREENSHOT";
+                            case ABRConstants.PAUSE -> "PAUSE";
                             default -> "Unsupported action";
                         };
                 String value = "";

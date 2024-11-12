@@ -32,6 +32,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
 public class ABRNewBotJobPane extends ABRPane {
@@ -207,6 +208,16 @@ public class ABRNewBotJobPane extends ABRPane {
                                 int blockId = createBlock(createdBotJob);
                                 if (blockId > 0) {
                                     new ABRViewBotJobScene(createdBotJob.getId()).show();
+
+                                    // Close the current window
+                                    Platform.runLater(() -> {
+                                        Stage currentStage = (Stage)
+                                                createBotJobButton.getScene().getWindow();
+                                        if (currentStage != null) {
+                                            currentStage.close(); // Close the current stage
+                                        }
+                                    });
+
                                 } else {
 
                                     ABRLogger.getInstance(Thread.class)

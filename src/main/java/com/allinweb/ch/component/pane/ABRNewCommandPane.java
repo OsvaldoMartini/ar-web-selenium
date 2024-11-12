@@ -93,6 +93,7 @@ public class ABRNewCommandPane extends ABRPane {
 
     private Button variableButton;
 
+    private Button addPauseButton;
     private Button addWaitButton30;
     private Button addWaitButton15;
     private Button addWaitButton5;
@@ -471,6 +472,8 @@ public class ABRNewCommandPane extends ABRPane {
         variableButton = componentBuilder.buildButton(
                 "Variables", ABRConstants.SPACE_L, ABRConstants.ICON_VARIABLES, ABRConstants.SPACE_M, Insets.EMPTY);
 
+        addPauseButton = componentBuilder.buildButton(
+                "", ABRConstants.SPACE_L, ABRConstants.ICON_PAUSE, ABRConstants.SPACE_M, new Insets(5));
         addWaitButton30 = componentBuilder.buildButton(
                 "30s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
 
@@ -493,7 +496,13 @@ public class ABRNewCommandPane extends ABRPane {
         HBox buttonBox = new HBox(10); // 10 is the spacing between buttons
         buttonBox
                 .getChildren()
-                .addAll(addWaitButton30, addWaitButton15, addWaitButton5, addCloseActionButton, addScreenButton);
+                .addAll(
+                        addPauseButton,
+                        addWaitButton30,
+                        addWaitButton15,
+                        addWaitButton5,
+                        addCloseActionButton,
+                        addScreenButton);
         buttonBox.setAlignment(Pos.BASELINE_LEFT); // Align buttons to the left
 
         // Create an HBox and add all three labels into the same row
@@ -607,6 +616,8 @@ public class ABRNewCommandPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
+        addPauseButton.setOnAction(
+                e -> addInstruction("PAUSE", "PAUSE Action", ABRConstants.PAUSE, 0, "", null, null, rowMoveDTO));
         addWaitButton30.setOnAction(e -> addInstruction(
                 "Wait 30second(s)", "Waiting action", ABRConstants.HOLD, 30, "", null, null, rowMoveDTO));
         addWaitButton15.setOnAction(e -> addInstruction(

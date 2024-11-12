@@ -4,7 +4,6 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.component.pane.ABRViewBotJobPane;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
@@ -244,7 +243,7 @@ public class PerformActions {
             tagName = removeTrailingSlash(targetXPath);
             tagName = extractTagName(targetXPath);
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
                             "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
                             tagName, targetXPath, e.getMessage()));
@@ -267,7 +266,7 @@ public class PerformActions {
                         try {
                             waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                            ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
                                             "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                             targetXPath, criteria, e.getMessage()));
@@ -278,7 +277,7 @@ public class PerformActions {
                             new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                            ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
                                             "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                             targetXPath, criteria, e.getMessage()));
@@ -288,7 +287,7 @@ public class PerformActions {
 
                             waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                            ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
                                             "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                             targetXPath, criteria, e.getMessage()));
@@ -314,7 +313,7 @@ public class PerformActions {
             tagName = removeTrailingSlash(instructionPath);
             tagName = extractTagName(instructionPath);
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
                             "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
                             tagName, instructionPath, e.getMessage()));
@@ -322,7 +321,7 @@ public class PerformActions {
         List<InstructionReferenceLoadDTO> instructionReferenceList = instruction.getInstructionReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(PerformActions.class)
                     .severe("####    Access Database Error   ####"
                             + "\n####    It means there is not XPath to Be Located!   ####"
                             + "\n####    Remove and Re-Scan the Failed Field Again   ####");
@@ -389,7 +388,7 @@ public class PerformActions {
                 // Print or process the first matching instruction reference
                 if (instructionReference.isPresent()) {
 
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                    ABRLogger.getInstance(PerformActions.class)
                             .fine(String.format(
                                     "Search for %s   Type:  %s   Value: %s",
                                     priority.getName(),
@@ -433,7 +432,7 @@ public class PerformActions {
                         return null;
                     }
 
-                    ABRLogger.getInstance(ABRScannedElementPane.class).fine("WebDriver Session ID: " + getSessionId());
+                    ABRLogger.getInstance(PerformActions.class).fine("WebDriver Session ID: " + getSessionId());
 
                     // Actualy here is Calling the Actions
                     if (criterias != null) {
@@ -456,7 +455,7 @@ public class PerformActions {
                                     try {
                                         waitForPage.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
                                                         "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                                         instructionPath, criteria, e.getMessage()));
@@ -469,7 +468,7 @@ public class PerformActions {
                                                         Duration.ofSeconds(instruction.getActionCustomMaxWaitSec()))
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
                                                         "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                                         instructionPath, criteria, e.getMessage()));
@@ -479,7 +478,7 @@ public class PerformActions {
 
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
-                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
                                                         "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
                                                         instructionPath, criteria, e.getMessage()));
@@ -929,7 +928,7 @@ public class PerformActions {
 
         if (success) {
 
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(PerformActions.class)
                     .info(String.format(
                             success
                                     ? "SUCCESS %s Previous: %s --> Current Cmd: %s - Duration: %s"
@@ -940,7 +939,7 @@ public class PerformActions {
                             LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
         } else {
 
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
                             success
                                     ? "SUCCESS %s Previous: %s --> Current Cmd: %s - Duration: %s"
@@ -1013,7 +1012,7 @@ public class PerformActions {
                 : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
 
         if (ifClause || elseClause) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(PerformActions.class)
                     .warning(String.format(
                             "%sParent Id Error Check Parent Id: %d "
                                     + "For the \"%s\" Does not belong to this block: "
@@ -1023,7 +1022,7 @@ public class PerformActions {
                             currentInstruction.getOperation()));
 
         } else {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
                             "Parent Id Error Check Parent Id: %d "
                                     + "For the \"%s\" Does not belong to this block: "
@@ -1128,7 +1127,7 @@ public class PerformActions {
         showAlert(
                 Alert.AlertType.ERROR, "Block GO TO Error", "Check Correct Block Existence", "CMD: \n" + resultActions);
 
-        ABRLogger.getInstance(ABRScannedElementPane.class)
+        ABRLogger.getInstance(PerformActions.class)
                 .severe("Block GO TO Error.\n" + "Check Correct Block Existence!\n" + "CMD: \n" + resultActions);
 
         return resultActions;

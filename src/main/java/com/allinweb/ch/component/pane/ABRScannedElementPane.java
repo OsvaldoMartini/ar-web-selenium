@@ -885,9 +885,12 @@ public class ABRScannedElementPane extends ABRPane {
                 Boolean inputContains =
                         searchReturn.getCurrentXPath().toLowerCase().contains("input");
 
+                Boolean selectContains =
+                        searchReturn.getCurrentXPath().toLowerCase().contains("select");
+
                 Platform.runLater(() -> {
-                    if (inputContains) {
-                        checkInputText.setSelected(inputContains);
+                    if (inputContains || selectContains) {
+                        checkInputText.setSelected(inputContains || selectContains);
                         checkClickElement.setSelected(false);
                         checkOutputText.setSelected(false);
 
@@ -3151,9 +3154,31 @@ public class ABRScannedElementPane extends ABRPane {
                                 ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                 : null;
 
-                        // If IF clause failed, look for ELSE to start executing the ELSE block
+                        if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
+                            Text variableText1Styled = new Text("BOT JOG in PAUSE MODE: ");
+                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
-                        if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
+                            Text variableText2Styled = new Text("\"" + blockLoad.getName() + "\"");
+                            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                            VBox combinedTextContainer = new VBox();
+                            combinedTextContainer.setSpacing(5); // Add some sp
+
+                            combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Pause Bot-Job at Block :\"" + blockLoad.getName() + "\"");
+
+                            performAction.showAlertCombinedVBOX(
+                                    Alert.AlertType.INFORMATION,
+                                    "PAUSE REQUESTED",
+                                    "PAUSE",
+                                    null,
+                                    combinedTextContainer);
+
+                            continue;
+
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .info("Initial Execution { IF -> ELSE} ->  inside Block :\"" + blockLoad.getName()
@@ -3773,7 +3798,11 @@ public class ABRScannedElementPane extends ABRPane {
                                 blocksLoaded.get(j).getName(),
                                 mapOperators);
 
-                        if (resultActions != null) {
+                        // Special Cases for Select Responses
+                        // It could be Improved the case
+                        if (resultActions.contains("Error:")) {
+                            success = false;
+                        } else if (resultActions != null) {
                             currentInstruction.setExecuted(true);
                             success = true;
                         } else {
