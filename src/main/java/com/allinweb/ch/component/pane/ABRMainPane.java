@@ -141,13 +141,13 @@ public class ABRMainPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
-        newBotJobButton.setOnMouseClicked(e -> new ABRNewBotJobScene(viewBotJobListView).show());
+        newBotJobButton.setOnMouseClicked(e -> new ABRNewBotJobScene(viewBotJobListView).showModal());
 
         /*viewBotJobButton.setOnMouseClicked(
                 e -> new ABRViewBotJobListScene().show()
         );*/
         configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
-        infoButton.setOnMouseClicked(e -> new ABRInfoScene().show());
+        infoButton.setOnMouseClicked(e -> new ABRInfoScene().showModal());
         exitButton.setOnMouseClicked(e -> {
             //            Platform.exit();
             System.exit(0);

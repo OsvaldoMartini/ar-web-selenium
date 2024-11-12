@@ -1,13 +1,13 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.pane.ABRInfoPane;
+import com.allinweb.ch.component.pane.ABRLicensePane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-public class ABRInfoScene extends ABRScene {
+public class ABRLicenseScene extends ABRScene {
 
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 300D;
@@ -15,7 +15,7 @@ public class ABRInfoScene extends ABRScene {
 
     @Override
     public IABRPane buildPane() {
-        return new ABRInfoPane();
+        return new ABRLicensePane();
     }
 
     @Override
