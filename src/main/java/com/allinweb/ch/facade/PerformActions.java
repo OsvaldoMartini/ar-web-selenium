@@ -56,6 +56,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.Wait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -132,7 +133,12 @@ public class PerformActions {
                                 + clickElement(instructionElement);
                         break;
                     case Constants.INSERT:
-                        result = insertInElement(instructionElement, data, action, instruction);
+                        if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
+                            result = "Select: -> "
+                                    + insertDataInSelectElement(instructionElement, data, action, instruction);
+                        } else {
+                            result = insertInElement(instructionElement, data, action, instruction);
+                        }
                         break;
                     case Constants.LIST_OPERATION:
                         listOperation(instruction, data);
@@ -699,6 +705,48 @@ public class PerformActions {
         }
 
         return dataFieldName + "->" + dataFieldValue;
+    }
+
+    private String insertDataInSelectElement(
+            WebElement element,
+            Map<String, String> data,
+            String singleInstruction,
+            BlockLoopInstructionLoadDTO instructionDTO)
+            throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        String dataFieldName = "";
+        String dataFieldValue = "";
+        if (data != null) {
+            String[] arr = UtilsMethods.splitIfContains(singleInstruction, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+            if (arr.length > 1) {
+                dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+
+                dataFieldValue = data.get(dataFieldName);
+                if (instructionDTO.isEncrypted()) {
+                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                }
+
+                try {
+                    // Create a Select instance to interact with the dropdown
+                    Select selectCountry = new Select(element);
+                    // Select "Switzerland" by visible text
+                    selectCountry.selectByVisibleText(dataFieldValue);
+
+                } catch (Exception ex) {
+                    return "Error: -> Cannot find: " + dataFieldName + "-> \"" + dataFieldValue
+                            + "\" - Attention to Case-Sentitives!";
+                }
+            }
+        } else if (instructionDTO.getDefaultValue() != null) {
+            dataFieldValue = instructionDTO.getDefaultValue();
+            if (instructionDTO.isEncrypted()) {
+                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+            }
+            element.sendKeys(dataFieldValue);
+        }
+
+        return "Select: -> " + dataFieldName + "->" + dataFieldValue;
     }
 
     private String getOutPutElement(

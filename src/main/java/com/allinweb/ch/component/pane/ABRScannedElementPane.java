@@ -3114,6 +3114,7 @@ public class ABRScannedElementPane extends ABRPane {
                     && executionTimes < execLimitReach) {
                 instructionsExecuted.clear();
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
+                String excelFieldName = blockLoad.getName();
                 executionTimes++;
                 boolean jumpGoto = false;
 
@@ -3414,7 +3415,11 @@ public class ABRScannedElementPane extends ABRPane {
                                 resultActions = performAction.performWebActions(
                                         dataExcel, currentInstruction, botJobId, blockLoad.getName(), mapOperators);
 
-                                if (resultActions != null) {
+                                // Special Cases for Select Responses
+                                // It could be Improved the case
+                                if (resultActions.contains("Error:")) {
+                                    success = false;
+                                } else if (resultActions != null) {
                                     currentInstruction.setExecuted(true);
                                     // Assuming currentInstruction and instructionsExecuted are already defined
                                     if (currentInstruction != null
