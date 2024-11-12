@@ -3155,26 +3155,22 @@ public class ABRScannedElementPane extends ABRPane {
                                 : null;
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
-                            Text variableText1Styled = new Text("BOT JOG in PAUSE MODE: ");
-                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                            Text variableText2Styled = new Text("\"" + blockLoad.getName() + "\"");
-                            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                            VBox combinedTextContainer = new VBox();
-                            combinedTextContainer.setSpacing(5); // Add some sp
-
-                            combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Pause Bot-Job at Block :\"" + blockLoad.getName() + "\"");
+                                    .info(String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()));
 
-                            performAction.showAlertCombinedVBOX(
-                                    Alert.AlertType.INFORMATION,
-                                    "PAUSE REQUESTED",
-                                    "PAUSE",
-                                    null,
-                                    combinedTextContainer);
+                            long currentInstructionStartTime = System.nanoTime();
+
+                            //                                SwingUtilities.invokeLater(() ->
+                            performAction.showCustomModalDialog(
+                                    "PAUSE BOT JOB",
+                                    String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
+                                    " Please click OK to continue!");
+                            //
+                            long duration = performAction.duration(currentInstructionStartTime);
+                            performAction.excelReportWrite(
+                                    success, currentInstruction, duration, dataExcel, writerReport);
+                            totalExecutionTime += duration;
 
                             continue;
 

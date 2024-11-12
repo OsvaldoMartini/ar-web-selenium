@@ -27,6 +27,7 @@ import com.allinweb.ch.util.ExcelReportStatusEnum;
 import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
+import java.awt.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -46,6 +47,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javax.swing.*;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.ElementClickInterceptedException;
@@ -1370,5 +1372,69 @@ public class PerformActions {
         } else {
             return result.isPresent() && result.get() == ButtonType.OK;
         }
+    }
+
+    public static void showCustomDialog(String title, String message) {
+        // Create a JDialog as a custom message dialog
+        JDialog dialog = new JDialog();
+        dialog.setTitle(title);
+        dialog.setSize(300, 150);
+        dialog.setLocationRelativeTo(null); // Center on screen
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Style the dialog's main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(255, 218, 51)); // Light orange background
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setLayout(new BorderLayout());
+
+        // Style the message
+        JLabel messageLabel =
+                new JLabel("<html><span style='color: blue;'>" + message + "</span></html>", SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        // OK button to close the dialog
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> dialog.dispose());
+        panel.add(okButton, BorderLayout.SOUTH);
+
+        // Add panel to dialog and set properties
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true);
+    }
+
+    public static void showCustomModalDialog(String title, String message, String message2) {
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(null); // Center on screen
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Style the dialog's main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(255, 218, 51)); // Light orange background
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setLayout(new BorderLayout());
+
+        // Style the message
+        JLabel messageLabel = new JLabel(
+                "<html><br><span style='color: blue;'>" + message
+                        + "</span><<br>---------------------------<br><span style='color: blue;'>" + message2
+                        + "</span></html>",
+                SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        // OK button to close the dialog
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> dialog.dispose());
+        panel.add(okButton, BorderLayout.SOUTH);
+
+        // Add panel to dialog and set properties
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 }

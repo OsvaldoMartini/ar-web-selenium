@@ -1259,11 +1259,12 @@ public class ABRNewCommandPane extends ABRPane {
         extra.setStyle("-fx-font-size: 14px;");
 
         if (actions.equalsIgnoreCase(ABRConstants.HOLD)
+                || actions.equalsIgnoreCase(ABRConstants.PAUSE)
                 || (actions.equalsIgnoreCase(ABRConstants.SCREEN))
                 || actions.equalsIgnoreCase(ABRConstants.QUIT)) {
             extra.setText("");
             regularText.setText("");
-            variableText1.setText(actions.equalsIgnoreCase(ABRConstants.HOLD) ? name : "Action:");
+            variableText1.setText("Action:");
             variableText2.setText(name);
             variableText3.setText("");
         }
