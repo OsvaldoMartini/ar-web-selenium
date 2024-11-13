@@ -3036,13 +3036,13 @@ public class ABRScannedElementPane extends ABRPane {
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
             Text variableText2Styled = new Text("1. Excel File is OPEN");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
             Text variableText3Styled = new Text("2. Column Names Different from INPUT names");
-            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
             Text variableText4Styled = new Text("3. INPUTS names Not In Excel File");
-            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
             VBox combinedTextContainer = new VBox();
             combinedTextContainer.setSpacing(5); // Add some sp
@@ -3051,7 +3051,7 @@ public class ABRScannedElementPane extends ABRPane {
                     .getChildren()
                     .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
 
-            boolean confirmed = performAction.showAlertCombinedVBOX(
+            performAction.showAlertCombinedVBOX(
                     Alert.AlertType.ERROR,
                     "Excel File Error",
                     "Check All Excel Columns and Values!",
