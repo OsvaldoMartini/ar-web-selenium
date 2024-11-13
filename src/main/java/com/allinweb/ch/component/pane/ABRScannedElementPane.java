@@ -3031,8 +3031,32 @@ public class ABRScannedElementPane extends ABRPane {
         try {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
-            performAction.showAlert(
-                    Alert.AlertType.ERROR, "Excel File Empty", "IS MANDATORY TO HAVE DATA FOR TESTS", excelPath);
+
+            Text variableText1Styled = new Text("Verify the Possible Errors:");
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            Text variableText2Styled = new Text("1. Excel File is OPEN");
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            Text variableText3Styled = new Text("2. Column Names Different from INPUT names");
+            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            Text variableText4Styled = new Text("3. INPUTS names Not In Excel File");
+            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer
+                    .getChildren()
+                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
+
+            boolean confirmed = performAction.showAlertCombinedVBOX(
+                    Alert.AlertType.ERROR,
+                    "Excel File Error",
+                    "Check All Excel Columns and Values!",
+                    null,
+                    combinedTextContainer);
             return false;
             //            Platform.exit();
         }
