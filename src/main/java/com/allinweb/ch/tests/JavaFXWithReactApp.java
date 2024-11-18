@@ -157,83 +157,127 @@ public class JavaFXWithReactApp extends Application {
         return FXCollections.observableArrayList(
                 // Block 1 (Default Block)
                 new BlockLoopInstructionLoadDTO(
-                        11, 1, 1, "SetValue", "Description 1", 1, 1, "Default Block", "SET", 4, "firstName:Osvaldo"),
+                        11,
+                        1,
+                        1,
+                        "SetValue",
+                        "Description 1",
+                        1,
+                        1,
+                        "Default Block",
+                        "SET",
+                        4,
+                        "firstName:Osvaldo",
+                        null),
 
                 // Block 2
                 new BlockLoopInstructionLoadDTO(
-                        11, 2, 4, "GetValue", "Description 2", 2, 2, "Block Test 2", "GET", 4, "firstName:Osvaldo"),
+                        11,
+                        2,
+                        4,
+                        "GetValue",
+                        "Description 2",
+                        2,
+                        2,
+                        "Block Test 2",
+                        "GET",
+                        4,
+                        "firstName:Osvaldo",
+                        null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 3, 3, "Check", "Description 3", 2, 2, "Block Test 2", "CK", 4, "firstName:Osvaldo"),
+                        11, 3, 3, "Check", "Description 3", 2, 2, "Block Test 2", "CK", 4, "firstName:Osvaldo", null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 4, 2, "Instruction 4", "Description 4", 2, 2, "Block Test 2", "click", 0, null),
+                        11, 4, 2, "Instruction 4", "Description 4", 2, 2, "Block Test 2", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 5, 1, "Instruction 5", "Description 5", 2, 2, "Block Test 2", "click", 0, null),
+                        11, 5, 1, "Instruction 5", "Description 5", 2, 2, "Block Test 2", "click", 0, null, null),
 
                 // Block 3
                 new BlockLoopInstructionLoadDTO(
-                        11, 6, 2, "SetValue", "Description 6", 3, 3, "Block Test 3", "SET", 4, "firstName:Osvaldo"),
+                        11,
+                        6,
+                        2,
+                        "SetValue",
+                        "Description 6",
+                        3,
+                        3,
+                        "Block Test 3",
+                        "SET",
+                        4,
+                        "firstName:Osvaldo",
+                        null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 7, 1, "GetValue", "Description 7", 3, 3, "Block Test 3", "GET", 4, "firstName:Osvaldo"),
+                        11,
+                        7,
+                        1,
+                        "GetValue",
+                        "Description 7",
+                        3,
+                        3,
+                        "Block Test 3",
+                        "GET",
+                        4,
+                        "firstName:Osvaldo",
+                        null),
 
                 // Block 4
                 new BlockLoopInstructionLoadDTO(
-                        11, 8, 1, "Instruction 8", "Description 8", 4, 4, "Block Test 4", "click", 0, null),
+                        11, 8, 1, "Instruction 8", "Description 8", 4, 4, "Block Test 4", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 9, 2, "Check", "Description 9", 4, 4, "Block Test 4", "CK", 4, "firstName:Osvaldo"),
+                        11, 9, 2, "Check", "Description 9", 4, 4, "Block Test 4", "CK", 4, "firstName:Osvaldo", null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 10, 3, "Instruction 10", "Description 10", 4, 4, "Block Test 4", "click", 0, null),
+                        11, 10, 3, "Instruction 10", "Description 10", 4, 4, "Block Test 4", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 11, 4, "Instruction 11", "Description 11", 4, 4, "Block Test 4", "click", 0, null),
+                        11, 11, 4, "Instruction 11", "Description 11", 4, 4, "Block Test 4", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 12, 5, "Instruction 12", "Description 12", 4, 4, "Block Test 4", "click", 0, null),
+                        11, 12, 5, "Instruction 12", "Description 12", 4, 4, "Block Test 4", "click", 0, null, null),
 
                 // Block 5
                 new BlockLoopInstructionLoadDTO(
-                        11, 13, 1, "Instruction 13", "Description 13", 5, 5, "Block Test 5", "click", 0, null),
+                        11, 13, 1, "Instruction 13", "Description 13", 5, 5, "Block Test 5", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 14, 2, "Instruction 14", "Description 14", 5, 5, "Block Test 5", "click", 0, null),
+                        11, 14, 2, "Instruction 14", "Description 14", 5, 5, "Block Test 5", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 15, 3, "Instruction 15", "Description 15", 5, 5, "Block Test 5", "click", 0, null),
+                        11, 15, 3, "Instruction 15", "Description 15", 5, 5, "Block Test 5", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 16, 4, "Instruction 16", "Description 16", 5, 5, "Block Test 5", "click", 0, null),
+                        11, 16, 4, "Instruction 16", "Description 16", 5, 5, "Block Test 5", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 17, 5, "Instruction 17", "Description 17", 5, 5, "Block Test 5", "click", 0, null),
+                        11, 17, 5, "Instruction 17", "Description 17", 5, 5, "Block Test 5", "click", 0, null, null),
 
                 // Block 6
                 new BlockLoopInstructionLoadDTO(
-                        11, 18, 1, "Instruction 18", "Description 18", 6, 6, "Block Test 6", "click", 0, null),
+                        11, 18, 1, "Instruction 18", "Description 18", 6, 6, "Block Test 6", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 19, 2, "Instruction 19", "Description 19", 6, 6, "Block Test 6", "click", 0, null),
+                        11, 19, 2, "Instruction 19", "Description 19", 6, 6, "Block Test 6", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 20, 3, "Instruction 20", "Description 20", 6, 6, "Block Test 6", "click", 0, null),
+                        11, 20, 3, "Instruction 20", "Description 20", 6, 6, "Block Test 6", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 21, 4, "Instruction 21", "Description 21", 6, 6, "Block Test 6", "click", 0, null),
+                        11, 21, 4, "Instruction 21", "Description 21", 6, 6, "Block Test 6", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 22, 5, "Instruction 22", "Description 22", 6, 6, "Block Test 6", "click", 0, null),
+                        11, 22, 5, "Instruction 22", "Description 22", 6, 6, "Block Test 6", "click", 0, null, null),
 
                 // Block 7
                 new BlockLoopInstructionLoadDTO(
-                        11, 23, 1, "Instruction 23", "Description 23", 7, 7, "Block Test 7", "click", 0, null),
+                        11, 23, 1, "Instruction 23", "Description 23", 7, 7, "Block Test 7", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 24, 2, "Instruction 24", "Description 24", 7, 7, "Block Test 7", "click", 0, null),
+                        11, 24, 2, "Instruction 24", "Description 24", 7, 7, "Block Test 7", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 25, 3, "Instruction 25", "Description 25", 7, 7, "Block Test 7", "click", 0, null),
+                        11, 25, 3, "Instruction 25", "Description 25", 7, 7, "Block Test 7", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 26, 4, "Instruction 26", "Description 26", 7, 7, "Block Test 7", "click", 0, null),
+                        11, 26, 4, "Instruction 26", "Description 26", 7, 7, "Block Test 7", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 27, 5, "Instruction 27", "Description 27", 7, 7, "Block Test 7", "click", 0, null),
+                        11, 27, 5, "Instruction 27", "Description 27", 7, 7, "Block Test 7", "click", 0, null, null),
 
                 // Block 8
                 new BlockLoopInstructionLoadDTO(
-                        11, 28, 1, "Instruction 28", "Description 28", 8, 8, "Block Test 8", "click", 0, null),
+                        11, 28, 1, "Instruction 28", "Description 28", 8, 8, "Block Test 8", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 29, 2, "Instruction 29", "Description 29", 8, 8, "Block Test 8", "click", 0, null),
+                        11, 29, 2, "Instruction 29", "Description 29", 8, 8, "Block Test 8", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 30, 3, "Instruction 30", "Description 30", 8, 8, "Block Test 8", "click", 0, null),
+                        11, 30, 3, "Instruction 30", "Description 30", 8, 8, "Block Test 8", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 31, 4, "Instruction 31", "Description 31", 8, 8, "Block Test 8", "click", 0, null),
+                        11, 31, 4, "Instruction 31", "Description 31", 8, 8, "Block Test 8", "click", 0, null, null),
                 new BlockLoopInstructionLoadDTO(
-                        11, 32, 5, "Instruction 32", "Description 32", 8, 8, "Block Test 8", "click", 0, null));
+                        11, 32, 5, "Instruction 32", "Description 32", 8, 8, "Block Test 8", "click", 0, null, null));
     }
 
     public static void main(String[] args) {

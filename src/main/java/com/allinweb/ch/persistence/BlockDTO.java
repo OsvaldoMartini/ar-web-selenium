@@ -21,6 +21,9 @@ public class BlockDTO extends BaseDTO {
     @Column(name = "type_id")
     private Integer typeId;
 
+    @Column(name = "export_file")
+    private String exportFile;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bot_job_id")
     private BotJobDTO botJobDTO;
@@ -73,6 +76,14 @@ public class BlockDTO extends BaseDTO {
 
     public void setTypeId(Integer typeId) {
         this.typeId = typeId;
+    }
+
+    public String getExportFile() {
+        return exportFile;
+    }
+
+    public void setExportFile(String exportFile) {
+        this.exportFile = exportFile;
     }
 
     public BotJobDTO getBotJobDTO() {

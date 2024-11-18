@@ -28,6 +28,7 @@ public class BlockLoopInstructionLoadDTO {
     private Boolean executed;
     private String priority;
     private String operation;
+    private String exportFile;
     private int parentId;
     private int blockId;
     private int blockOrderNumber;
@@ -49,7 +50,8 @@ public class BlockLoopInstructionLoadDTO {
             String blockName,
             String actions,
             int parentId,
-            String operation) {
+            String operation,
+            String exportFile) {
         this.botJobId = botJobId;
         this.id = id;
         this.instructionOrderNumber = instructionOrderNumber;
@@ -61,6 +63,7 @@ public class BlockLoopInstructionLoadDTO {
         this.actions = actions;
         this.parentId = parentId;
         this.operation = operation;
+        this.exportFile = exportFile;
     }
 
     public boolean isOptional() {

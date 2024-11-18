@@ -1,25 +1,32 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.component.scene.ABRAlertScene;
+import com.allinweb.ch.component.model.BlockOrderDetailDTO;
+import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.scene.ABRViewBotJobScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRConstants;
 import java.util.*;
-import java.util.LinkedList;
 import java.util.Optional;
-import java.util.Queue;
 import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.text.Text;
 
 public class BotJobListCell extends ListCell<BotJobDTO> {
 
     public BotJobListCell() {}
+
+    private static final PerformDataBase performDataBase;
+    // Static block to initialize
+    static {
+        performDataBase = PerformDataBase.getInstance();
+    }
 
     @Override
     protected void updateItem(BotJobDTO item, boolean empty) {
@@ -75,46 +82,41 @@ public class BotJobListCell extends ListCell<BotJobDTO> {
     }
 
     private void deleteBotJob(BotJobDTO botJob) {
-        Queue<BlockDTO> blocks = new LinkedList<>(ABRSharedResources.getInstance()
-                .getEntityList(BlockDTO.class, block -> block.getBotJobDTO().getId() == botJob.getId()));
-        ABRSharedResources.getInstance().removeAllEntity(blocks, BlockDTO.class, () -> ABRSharedResources.getInstance()
-                .removeEntity(
-                        botJob,
-                        BotJobDTO.class,
-                        () -> new ABRAlertScene(
-                                Alert.AlertType.INFORMATION,
-                                "Bot Job deleted",
-                                "The bot job has been deleted successfully",
-                                ButtonType.OK)));
-        Set<Integer> blockIds = new HashSet<>();
-        blocks.forEach(block -> blockIds.add(block.getId()));
+        List<BlockOrderDetailDTO> blockDetails = performDataBase.selectAllBlocks(botJob.getId());
 
-        Queue<BlockLoopInstructionDTO> instructions = new LinkedList<>(ABRSharedResources.getInstance()
-                .getEntityList(
-                        BlockLoopInstructionDTO.class,
-                        instr -> blockIds.contains(instr.getBlock().getId())));
+        boolean botJobDeletion = false;
+        for (BlockOrderDetailDTO block : blockDetails) {
+            DeleteBlockDTO deleteBlock = new DeleteBlockDTO();
+            deleteBlock.setBotJobId(block.getBotJobId());
+            deleteBlock.setBlockId(block.getBlockId());
+            botJobDeletion = performDataBase.deleteBlock(deleteBlock);
+            if (!botJobDeletion) {
+                break;
+            }
+        }
+        if (botJobDeletion) {
+            botJobDeletion = performDataBase.deleteBotJob(botJob.getId());
+        }
 
-        Set<Integer> instructionIds = new HashSet<>();
-        instructions.forEach(instr -> instructionIds.add(instr.getId()));
+        ABRSharedResources.getInstance().changeDbConnection();
+        Text variableText1Styled = new Text(String.format("Bot Job \"%s\" Deleted!", botJob.getName()));
+        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
-        Queue<InstructionReferenceDTO> references = new LinkedList<>(ABRSharedResources.getInstance()
-                .getEntityList(
-                        InstructionReferenceDTO.class,
-                        ref -> instructionIds.contains(
-                                ref.getBlockLoopInstructionDTO().getId())));
+        if (!botJobDeletion) {
+            variableText1Styled = new Text(String.format("Bot Job \"%s\" NOT Deleted!", botJob.getName()));
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+        }
 
-        ABRSharedResources.getInstance()
-                .removeAllEntity(references, InstructionReferenceDTO.class, () -> ABRSharedResources.getInstance()
-                        .removeAllEntity(
-                                instructions, BlockLoopInstructionDTO.class, () -> ABRSharedResources.getInstance()
-                                        .removeAllEntity(blocks, BlockDTO.class, () -> ABRSharedResources.getInstance()
-                                                .removeEntity(
-                                                        botJob,
-                                                        BotJobDTO.class,
-                                                        () -> new ABRAlertScene(
-                                                                Alert.AlertType.INFORMATION,
-                                                                "Bot Job deleted",
-                                                                "The bot job has been deleted successfully",
-                                                                ButtonType.OK)))));
+        VBox combinedTextContainer = new VBox();
+        combinedTextContainer.setSpacing(5); // Add some sp
+
+        combinedTextContainer.getChildren().add(variableText1Styled);
+
+        performDataBase.showAlertCombinedVBOX(
+                botJobDeletion ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
+                "Delete Bot-Job",
+                botJobDeletion ? "Bot-Job deleted successfully!" : "Bot-Job NOT deleted!\"",
+                null,
+                combinedTextContainer);
     }
 }

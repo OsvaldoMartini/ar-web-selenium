@@ -16,6 +16,7 @@ import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -98,9 +99,11 @@ public class ABRViewBotJobPane extends ABRPane {
     private ListView<BlockDTO> uiBlockList;
 
     private static final PerformActions performAction;
+    private static final PerformDataBase performDataBase;
     // Static block to initialize
     static {
         performAction = PerformActions.getInstance();
+        performDataBase = PerformDataBase.getInstance();
     }
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
@@ -122,8 +125,8 @@ public class ABRViewBotJobPane extends ABRPane {
 
     Label botJobNameLabel;
     Label botJobDescriptionLabel;
-    TextField botJobName;
-    TextField botJobDescription;
+    private TextField botJobName;
+    private TextField botJobDescription;
     VBox botJobContainer;
     Button componentButton;
     VBox componentContainer;
@@ -321,12 +324,12 @@ public class ABRViewBotJobPane extends ABRPane {
         // Send a message to all connected clients after 5 seconds
         //        WebSocketStompServer.sendMessageToAll(jsonData);
         List<InstructionDTO> listForDeletion =
-                WebSocketStompServer.getBlockLoopInstructionIdsWithNullBlock(this.botJob.getId());
+                performDataBase.getBlockLoopInstructionIdsWithNullBlock(this.botJob.getId());
         for (InstructionDTO instruction : listForDeletion) {
-            WebSocketStompServer.deleteInstruction(this.botJob.getId(), instruction);
+            performDataBase.deleteInstruction(this.botJob.getId(), instruction);
         }
-        WebSocketStompServer.deleteNullBlocks(this.botJob.getId());
-        WebSocketStompServer.updateBlockOrderNumber(WebSocketStompServer.selectAllBlocks(this.botJob.getId()), true);
+        performDataBase.deleteNullBlocks(this.botJob.getId());
+        performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(this.botJob.getId()), true);
 
         loadBlockAll(botJob.getId());
 
@@ -355,7 +358,8 @@ public class ABRViewBotJobPane extends ABRPane {
                                     blockLoadDTO.getName(),
                                     blockLoopInstructionDTO.getActions(),
                                     blockLoopInstructionDTO.getParentId(),
-                                    blockLoopInstructionDTO.getOperation())))
+                                    blockLoopInstructionDTO.getOperation(),
+                                    blockLoadDTO.getExportFile())))
                     .collect(Collectors.toList());
 
             jsonData = gson.toJson(blockLoopInstructions);
@@ -428,7 +432,33 @@ public class ABRViewBotJobPane extends ABRPane {
             this.botJobDescriptionLabel.setText(this.botJobDescription.getText());
             this.botJob.setName(this.botJobNameLabel.getText());
             this.botJob.setDescription(this.botJobDescriptionLabel.getText());
-            ABRSharedResources.getInstance().updateEntity(this.botJob, BotJobDTO.class);
+
+            boolean botJobUpdate =
+                    performDataBase.updateBotJobNme(botJob.getId(), botJobName.getText(), botJobDescription.getText());
+
+            //            ABRSharedResources.getInstance().updateEntity(this.botJob, BotJobDTO.class);
+
+            ABRSharedResources.getInstance().changeDbConnection();
+
+            Text variableText1Styled = new Text(String.format("Bot Job \"%s\" Updated", botJob.getName()));
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            if (!botJobUpdate) {
+                variableText1Styled = new Text(String.format("Bot Job \"%s\" NOT Updated!", botJob.getName()));
+                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            }
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer.getChildren().add(variableText1Styled);
+
+            performDataBase.showAlertCombinedVBOX(
+                    botJobUpdate ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
+                    "Update Bot-Job",
+                    botJobUpdate ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!\"",
+                    null,
+                    combinedTextContainer);
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
             if (!isScannerButtonClicked) { // Check if the button action was not already triggered
@@ -446,7 +476,7 @@ public class ABRViewBotJobPane extends ABRPane {
         this.generateExcelButton.setOnMouseClicked(
                 (e) -> {
                     // Cache entities from the database
-                    ABRSharedResources.getInstance().cacheEntitiesFromDB();
+                    ABRSharedResources.getInstance().changeDbConnection();
 
                     // Retrieve the updated BotJobDTO
                     BotJobDTO botJobUpdated = (BotJobDTO)
@@ -469,7 +499,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     combinedTextContainer.setSpacing(5); // Add some sp
 
                     if (!hasActionStartingWithI) {
-                        Text variableText2Styled = new Text("Try to Refresh DB or Restart the APP");
+                        Text variableText2Styled = new Text("Use Web Scanner Tool Firs!");
                         variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
                         variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
@@ -1035,7 +1065,8 @@ public class ABRViewBotJobPane extends ABRPane {
                 + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
                 + " irl.reference_type, irl.value, "
-                + "  bli.operation, bli.parent_id "
+                + "  bli.operation, bli.parent_id, "
+                + "  b.export_file "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -1077,6 +1108,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     blockDTO.setTypeId(rs.getInt("type_id"));
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
+                    blockDTO.setExportFile(rs.getString("export_file"));
 
                     blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
                     botJobDTO.getBlockLoadDTOList().add(blockDTO);
