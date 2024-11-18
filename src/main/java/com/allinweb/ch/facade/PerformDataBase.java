@@ -1051,8 +1051,8 @@ public class PerformDataBase {
         // Build the SQL delete statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            String updateSQL =
-                    "UPDATE bot_job set name = '" + name + "', description = '" + description + "' WHERE id = " + botJobId;
+            String updateSQL = "UPDATE bot_job set name = '" + name + "', description = '" + description
+                    + "' WHERE id = " + botJobId;
 
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(updateSQL);
