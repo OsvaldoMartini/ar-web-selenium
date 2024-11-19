@@ -1217,6 +1217,7 @@ public class PerformActions {
         blocksDTO.setBotJob(botJobDTO);
         blocksDTO.setDescription(savedBlocksDTO.getDescription());
         blocksDTO.setTypeId(savedBlocksDTO.getTypeId());
+        blocksDTO.setExportFile(savedBlocksDTO.getExportFile());
         return blocksDTO;
     }
 

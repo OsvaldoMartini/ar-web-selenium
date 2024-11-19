@@ -9,6 +9,7 @@ public class BlockDetailsDTO {
     private String blockName;
     private int blockOrderNumber;
     private int botJobId;
+    private String exportFile;
     private List<InstructionDTO> updatedInstructions; // For originalBlock
     private List<InstructionDTO> instructions; // For newBlock
 }

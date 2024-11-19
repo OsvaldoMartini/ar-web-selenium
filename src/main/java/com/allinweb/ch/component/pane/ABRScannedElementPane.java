@@ -2858,7 +2858,8 @@ public class ABRScannedElementPane extends ABRPane {
                 + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
                 + " irl.reference_type, irl.value, "
-                + "  bli.operation, bli.parent_id "
+                + "  bli.operation, bli.parent_id, "
+                + "  b.export_file "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -2898,6 +2899,7 @@ public class ABRScannedElementPane extends ABRPane {
                     previousBlock.setName(rs.getString("block_name"));
                     previousBlock.setDescription(rs.getString("block_description"));
                     previousBlock.setTypeId(rs.getInt("type_id"));
+                    previousBlock.setExportFile(rs.getString("export_file"));
                     previousBlock.setBotJobId(previousBotJob.getId());
                     previousBlock.setBotJobName(previousBotJob.getName());
 
@@ -2941,7 +2943,7 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            ABRLogger.getInstance(ABRScannedElementPane.class).severe("LoadBlockAll - Error: " + e.getMessage());
         }
     }
 
@@ -3096,11 +3098,12 @@ public class ABRScannedElementPane extends ABRPane {
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
-                new ExcelWriter(blocksLoaded.get(0).getName(), abrWebDriver.getDriver()).withPurpose("report");
+                new ExcelWriter(blocksLoaded.get(0).getName(), abrWebDriver.getDriver(), false).withPurpose("report");
         writerReport.insertReportHead();
 
-        ExcelWriter.ExcelChain writerExport =
-                new ExcelWriter(blocksLoaded.get(0).getName(), abrWebDriver.getDriver()).withPurpose("export");
+        ExcelWriter.ExcelChain writerExport = null;
+        //                new ExcelWriter(blocksLoaded.get(0).getName(),
+        // abrWebDriver.getDriver()).withPurpose("export");
         boolean excelExportOnceCreation = true;
         //        writerExport.insertReportHead();
 
@@ -3141,7 +3144,8 @@ public class ABRScannedElementPane extends ABRPane {
                     && executionTimes < execLimitReach) {
                 instructionsExecuted.clear();
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
-                String excelFieldName = blockLoad.getName();
+                String excelFieldName = blockLoad.getExportFile();
+
                 executionTimes++;
                 boolean jumpGoto = false;
 
@@ -3657,8 +3661,20 @@ public class ABRScannedElementPane extends ABRPane {
                                             excelExportOnceCreation = false;
                                         }
 
-                                        resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
-                                                + mapOperators.get(parentField);
+                                        if (!Strings.isNullOrEmpty(excelFieldName)) {
+                                            writerExport =
+                                                    new ExcelWriter(excelFieldName, abrWebDriver.getDriver(), true).withPurpose("export");
+                                        }
+                                        
+                                        if (writerExport != null) {
+
+                                            resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
+                                                    + mapOperators.get(parentField);
+                                        } else {
+                                            resultActions = "NO Export Excel File defined -->" + parentField + "-"
+                                                    + mapOperators.get(parentField);
+                                        }
+
                                         if (mapExport.size() == 0) {
                                             //
                                             // writerExport.insertBlockSeparation(blockLoad.getName());
@@ -3668,8 +3684,9 @@ public class ABRScannedElementPane extends ABRPane {
                                         mapExport.put("KEY", "EXTERNAL");
                                         mapExport.put(fieldName, mapOperators.get(parentField));
                                         // Insert the updated mapExport into the Excel after each instruction
-                                        writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
-
+                                        if (writerExport != null) {
+                                            writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
+                                        }
                                         performAction.onHoldForSeconds(null);
 
                                         if (resultActions != null) {
@@ -4036,7 +4053,7 @@ public class ABRScannedElementPane extends ABRPane {
             fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
-        new ExcelWriter(botJobName, abrWebDriver.getDriver())
+        new ExcelWriter(botJobName, abrWebDriver.getDriver(), false)
                 .withPurpose("excel")
                 .insertValueFieldName(parentId + "-" + fieldName, innerHTMLValue);
         return action + " fieldName " + fieldName;

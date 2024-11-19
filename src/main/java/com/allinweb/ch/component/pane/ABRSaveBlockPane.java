@@ -179,6 +179,8 @@ public class ABRSaveBlockPane extends ABRPane {
                     blockDTO.setBotJob(botJobDTO);
                     blockDTO.setName(savedBlocksDTO.getName());
                     blockDTO.setDescription(savedBlocksDTO.getDescription());
+                    blockDTO.setExportFile(savedBlocksDTO.getExportFile());
+
                     int savedCurrentBlockId = createSavedBlock(blockDTO);
 
                     if (savedCurrentBlockId > 0) {

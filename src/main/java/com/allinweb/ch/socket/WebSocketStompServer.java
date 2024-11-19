@@ -170,7 +170,7 @@ public class WebSocketStompServer {
                 ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_EXCEL_FILE":
-                BlockMoveDTO blockExcelDTO = gson.fromJson(body, BlockMoveDTO.class);
+                BlockDetailsDTO blockExcelDTO = gson.fromJson(body, BlockDetailsDTO.class);
                 excelFileBlock(blockExcelDTO);
                 ABRSharedResources.getInstance().changeDbConnection();
                 break;
@@ -222,7 +222,7 @@ public class WebSocketStompServer {
         }
     }
 
-    private void excelFileBlock(BlockMoveDTO blockExcelDTO) {
+    private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
         Platform.runLater(() -> {
             ABRExcelFileScene excelFileScene = new ABRExcelFileScene(blockExcelDTO);
@@ -307,9 +307,9 @@ public class WebSocketStompServer {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
-            performDataBase.loadBlockAll(rowMoveDTO.getBotJobId());
+            this.botLoadJobs = performDataBase.loadBlockAll(rowMoveDTO.getBotJobId());
 
-            performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+            this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 
             // Ensure JavaFX UI updates are done on the JavaFX Application Thread
             Platform.runLater(() -> {

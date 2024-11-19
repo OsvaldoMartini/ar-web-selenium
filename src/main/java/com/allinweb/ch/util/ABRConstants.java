@@ -52,6 +52,8 @@ public class ABRConstants {
     public static final String ICON_PLAY = "/play.png";
     public static final String ICON_CHROME = "/open_browser.png";
     public static final String ICON_EXCEL = "/excel.png";
+    public static final String ICON_EXCEL2 = "/excel2.png";
+    public static final String ICON_EXCEL3 = "/excel3.png";
     public static final String ICON_EDIT = "/edit.png";
     public static final String ICON_BLOCK = "/brick.png";
     public static final String ICON_COPY = "/copy.png";
@@ -66,6 +68,7 @@ public class ABRConstants {
     public static final String ICON_UP = "/up.png";
     public static final String ICON_DOWN = "/down.png";
     public static final String ICON_CROSS = "/cross.png";
+    public static final String ICON_CROSS2 = "/cross2.png";
     public static final String ICON_BIN = "/Bin.png";
     public static final String ICON_SET_VALUE = "/setValue1.png";
     public static final String ICON_GET_VALUE = "/getValue1.png";

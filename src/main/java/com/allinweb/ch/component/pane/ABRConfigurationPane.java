@@ -38,7 +38,7 @@ public class ABRConfigurationPane extends ABRPane {
     Label pathExportLabel;
     Label pathLogLabel;
     Label sizeLogLabel;
-    Label fileExpoprtLabel;
+    Label fileExportLabel;
     Label reduceSearchLabel;
     Label pathJavaLabel;
     Label pathDBLabel;
@@ -138,7 +138,7 @@ public class ABRConfigurationPane extends ABRPane {
         pathExportLabel = new Label("Export Path:");
         pathExport = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXPORT);
         pathExportButton = createPathButton();
-        fileExpoprtLabel = new Label("File Name");
+        fileExportLabel = new Label("File Name");
         fileExport = createPathTextField(ABRPropertyEnum.FILE_NAME_EXPORT);
         //        AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
 
@@ -159,7 +159,7 @@ public class ABRConfigurationPane extends ABRPane {
 
         // Add labels in the first row
         gridPaneExport.add(pathExportLabel, 0, 0);
-        gridPaneExport.add(fileExpoprtLabel, 1, 0);
+        gridPaneExport.add(fileExportLabel, 1, 0);
 
         // Add text fields in the second row
         gridPaneExport.add(pathExport, 0, 1);

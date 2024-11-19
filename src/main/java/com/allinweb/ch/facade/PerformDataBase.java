@@ -365,6 +365,38 @@ public class PerformDataBase {
         }
     }
 
+    // Handle BLOCK_UPDATE message
+    public boolean updateBlockExportFile(int botJobId, int blockId, String expoprtFile) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            // Update each block's block_order_number starting from 1
+            String updateSQL = "UPDATE block SET export_file = '" + expoprtFile + "'"
+                    + " WHERE id = " + blockId
+                    + " and bot_job_id = " + botJobId;
+
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .info(String.format("Block Export File updated blockId: %s, name: %s", blockId, expoprtFile));
+            } else {
+                ABRLogger.getInstance(ABRWebDriver.class)
+                        .warning(String.format(
+                                "updateBlockExportFile - No matching record found to update botJobId: %d blockId: %d",
+                                botJobId, blockId));
+
+                return false;
+            }
+
+            return true;
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRWebDriver.class)
+                    .severe(String.format("Error updateBlockExportFile. Error: %s", e.getMessage()));
+        }
+        return false;
+    }
+
     // Handle DELETE_BLOCK message
     public boolean deleteBlock(DeleteBlockDTO deleteBlockDTO) {
         boolean blockDeletion = false;
@@ -680,7 +712,7 @@ public class PerformDataBase {
         return null;
     }
 
-    public void loadBlockAll(int botJobId) {
+    public List<BotJobLoadDTO> loadBlockAll(int botJobId) {
         String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
                 + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
                 + " b.description AS block_description, b.type_id, "
@@ -775,9 +807,11 @@ public class PerformDataBase {
             ABRLogger.getInstance(Thread.class)
                     .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
+
+        return botLoadJobs;
     }
 
-    public void loadWebPageFields(int botJobId) {
+    public ObservableList<ComboBoxVars> loadWebPageFields(int botJobId) {
         webPageItems.clear();
         String selectSQL = " SELECT  "
                 + "  bj.id AS bot_job_id,  "
@@ -815,6 +849,7 @@ public class PerformDataBase {
                     .severe(String.format(
                             "loadWebPageFields - Error selecting Web Page Fields.\n Error: %s", e.getMessage()));
         }
+        return webPageItems;
     }
 
     private void addInstruction(
