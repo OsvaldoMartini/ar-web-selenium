@@ -3,6 +3,7 @@ package com.allinweb.ch.persistence;
 import com.allinweb.ch.core.ABRSharedResources;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import javax.persistence.*;
 import org.hibernate.annotations.Fetch;
@@ -89,7 +90,10 @@ public class BotJobDTO extends BaseDTO implements Serializable {
 
     public List<BlockDTO> getBlocks() {
         return ABRSharedResources.getInstance()
-                .getEntityList(BlockDTO.class, block -> block.getBotJobDTO().getId() == this.getId());
+                .getEntityList(BlockDTO.class, block -> block.getBotJobDTO().getId() == this.getId())
+                .stream()
+                .sorted(Comparator.comparingInt(BlockDTO::getBlockOrderNumber))
+                .toList();
     }
 
     public void setBlocks(List<BlockDTO> blockDTOS) {

@@ -3662,10 +3662,11 @@ public class ABRScannedElementPane extends ABRPane {
                                         }
 
                                         if (!Strings.isNullOrEmpty(excelFieldName)) {
-                                            writerExport =
-                                                    new ExcelWriter(excelFieldName, abrWebDriver.getDriver(), true).withPurpose("export");
+                                            writerExport = new ExcelWriter(
+                                                            excelFieldName, abrWebDriver.getDriver(), true)
+                                                    .withPurpose("export");
                                         }
-                                        
+
                                         if (writerExport != null) {
 
                                             resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
@@ -3681,10 +3682,11 @@ public class ABRScannedElementPane extends ABRPane {
                                             //                                            exportIndex *= 2;
                                         }
 
-                                        mapExport.put("KEY", "EXTERNAL");
-                                        mapExport.put(fieldName, mapOperators.get(parentField));
                                         // Insert the updated mapExport into the Excel after each instruction
                                         if (writerExport != null) {
+                                            mapExport.put("KEY", "EXTERNAL");
+                                            mapExport.put(fieldName, mapOperators.get(parentField));
+
                                             writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
                                         }
                                         performAction.onHoldForSeconds(null);

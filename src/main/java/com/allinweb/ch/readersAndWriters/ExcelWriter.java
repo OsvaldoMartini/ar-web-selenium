@@ -41,10 +41,9 @@ public class ExcelWriter {
         this.botJobName = botJobName;
         this.webDriver = webDriver;
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel", isFullPath);
-        boolean existExport = ManagedExcel.checkIfExcelExist(botJobName, "export", isFullPath);
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
         try {
-            managedExcelMap.put("export", new ManagedExcel(botJobName, "export", !existExport, isFullPath));
+            managedExcelMap.put("export", new ManagedExcel(botJobName, "export", true, isFullPath));
 
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist, isFullPath));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));

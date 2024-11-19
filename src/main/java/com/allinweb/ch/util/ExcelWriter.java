@@ -1,8 +1,13 @@
 package com.allinweb.ch.util;
 
+import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.persistence.*;
+import com.allinweb.ch.readersAndWriters.ExcelReader;
 import java.awt.*;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -16,6 +21,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
@@ -29,14 +36,26 @@ public class ExcelWriter {
 
     public ExcelWriter() {}
 
-    public void generateExcelFiles(BotJobDTO botJob) {
+    private static List<BlockLoadDTO> blocksLoaded;
+    private ExtractedData extractedData;
+    private static final PerformActions performAction;
+    // Static block to initialize
+    static {
+        performAction = PerformActions.getInstance();
+    }
+
+    public void generateExcelFiles(BotJobDTO botJob, List<BotJobLoadDTO> botLoadJobs, ExtractedData extractedData) {
+
+        this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+        this.extractedData = extractedData;
+
         File excelFolder = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL));
         if (!excelFolder.exists()) {
             excelFolder.mkdirs();
         }
         //        generateUnfilteredCSVFile(botJob);
-        generateUnfilteredExcelFile(botJob);
-        generateFilteredExcelFile(botJob);
+        generateUnfilteredExcelFile(botJob, extractedData);
+        generateFilteredExcelFile(botJob, extractedData);
     }
 
     private void generateUnfilteredCSVFile(BotJobDTO botJob) {
@@ -108,7 +127,7 @@ public class ExcelWriter {
         }
     }
 
-    private void generateUnfilteredExcelFile(BotJobDTO botJob) {
+    private void generateUnfilteredExcelFile(BotJobDTO botJob, ExtractedData extractedData) {
         String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
                 + botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL;
 
@@ -163,9 +182,9 @@ public class ExcelWriter {
         }
     }
 
-    private void generateFilteredExcelFile(BotJobDTO botJob) {
+    private void generateFilteredExcelFile(BotJobDTO botJob, ExtractedData extractedData) {
         String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJob.getName() + ABRConstants.DEFAULT_FILENAME_FOR_ABR + ABRConstants.FILE_FORMAT_EXCEL;
+                + botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL;
 
         File file = new File(fileName);
         try {
@@ -213,10 +232,9 @@ public class ExcelWriter {
         }
     }
 
-    public static boolean isFileExists(BotJobDTO botJob) {
+    public static ExtractedData isFileExists(BotJobDTO botJob) {
 
         String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-
         String fileName = String.format("%s/%s%s", excelFolderPath, botJob.getName(), ABRConstants.FILE_FORMAT_EXCEL);
 
         // Create a File object
@@ -224,10 +242,55 @@ public class ExcelWriter {
         if (fileCheck.exists() && !fileCheck.isDirectory()) {
 
             File file = new File(fileName);
-            return true;
+
+            // Assuming blocksLoaded is your List<BlockLoadDTO>
+            List<String> allActions = blocksLoaded.stream()
+                    .flatMap(
+                            blockLoadDTO -> blockLoadDTO
+                                    .getBlockLoopInstructionLoadDTOS()
+                                    .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
+                    .map(BlockLoopInstructionLoadDTO::getActions) // Extract the actions
+                    .collect(Collectors.toList()); // Collect all actions into a List
+
+            ExcelReader excelReader = new ExcelReader();
+            ExtractedData extractedData = null;
+            try {
+                extractedData = excelReader.extractData(fileName, allActions);
+            } catch (Exception e) {
+
+                Text variableText1Styled = new Text("Verify the Possible Errors:");
+                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                Text variableText2Styled = new Text("1. Excel File is OPEN");
+                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                Text variableText3Styled = new Text("2. Column Names Different from INPUT names");
+                variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                Text variableText4Styled = new Text("3. INPUTS names Not In Excel File");
+                variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                VBox combinedTextContainer = new VBox();
+                combinedTextContainer.setSpacing(5); // Add some sp
+
+                combinedTextContainer
+                        .getChildren()
+                        .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
+
+                performAction.showAlertCombinedVBOX(
+                        Alert.AlertType.ERROR,
+                        "Excel File Error",
+                        "Check All Excel Columns and Values!",
+                        null,
+                        combinedTextContainer);
+                return null;
+                //            Platform.exit();
+            }
+
+            return extractedData;
         } else {
             // Return false if the directory does not exist
-            return false;
+            return null;
         }
     }
 
