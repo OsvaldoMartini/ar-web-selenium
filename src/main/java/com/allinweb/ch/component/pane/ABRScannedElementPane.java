@@ -269,7 +269,7 @@ public class ABRScannedElementPane extends ABRPane {
         scanButton = componentBuilder.buildButton(
                 "Scan", ABRConstants.SPACE_L, ABRConstants.ICON_SEARCH, ABRConstants.SPACE_M, new Insets(5));
         addNewElement = componentBuilder.buildButton(
-                "Add Element", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_M, new Insets(5));
+                "Add", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_SM, new Insets(5));
 
         searchWithIdsButton = componentBuilder.buildButton(
                 "With IDs", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
@@ -352,6 +352,13 @@ public class ABRScannedElementPane extends ABRPane {
         coordsTextField = new TextField();
         coordsTextField.setPromptText("Coordinates");
 
+        customXPathLabel.setVisible(false);
+        customXPathTextField.setVisible(false);
+        originalTagNameLabel.setVisible(false);
+        originalTagNameField.setVisible(false);
+        coordsTextFieldLabel.setVisible(false);
+        coordsTextField.setVisible(false);
+
         leftButton = componentBuilder.buildButton(
                 "Previous", ABRConstants.SPACE_M, ABRConstants.ICON_LEFT, ABRConstants.SPACE_M, new Insets(5.0D));
         rightButton = componentBuilder.buildButton(
@@ -429,6 +436,9 @@ public class ABRScannedElementPane extends ABRPane {
             // Add buttons to the HBox
             hBoxLaunchButon.getChildren().addAll(launchBotJobButton, recallJobButton);
 
+            HBox boxName = new HBox();
+            boxName.getChildren().addAll(defineNameField, addNewElement);
+
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
             textFieldVBox.setSpacing(6); // Adjust spacing between TextFields
@@ -437,7 +447,7 @@ public class ABRScannedElementPane extends ABRPane {
                     .addAll(
                             checkActiveHover,
                             defineNameLabel,
-                            defineNameField,
+                            boxName,
                             attribIdTextFieldLabel,
                             attribIdTextField,
                             attribNameTextFieldLabel,
@@ -446,14 +456,13 @@ public class ABRScannedElementPane extends ABRPane {
                             currentXPathTextField,
                             currentAbsoluteXPathLabel,
                             absolutXPathTextField,
-                            customXPathLabel,
-                            customXPathTextField,
-                            originalTagNameLabel,
-                            originalTagNameField,
-                            coordsTextFieldLabel,
-                            coordsTextField,
+                            //                            customXPathLabel,
+                            //                            customXPathTextField,
+                            //                            originalTagNameLabel,
+                            //                            originalTagNameField,
+                            //                            coordsTextFieldLabel,
+                            //                            coordsTextField,
                             vBoxCheckBox,
-                            addNewElement,
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacer(),
                             countdownTextField,
@@ -462,6 +471,13 @@ public class ABRScannedElementPane extends ABRPane {
                             createCustomSeparator(Color.DARKBLUE, 2),
                             hBoxLaunchButon,
                             configureButton);
+
+            customXPathLabel.setVisible(false);
+            customXPathTextField.setVisible(false);
+            originalTagNameLabel.setVisible(false);
+            originalTagNameField.setVisible(false);
+            coordsTextFieldLabel.setVisible(false);
+            coordsTextField.setVisible(false);
 
             // Bind button widths to VBox width
             addNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
@@ -526,7 +542,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             contentPane.getChildren().addAll(topPane, verticalBox, bottomPaneTime, bottomPane);
 
-            AnchorPane.setBottomAnchor(bottomPane, -15.0);
+            AnchorPane.setBottomAnchor(bottomPane, -45.0);
 
             AnchorPane.setLeftAnchor(
                     bottomPane, 0.0); // Optional: Anchors the left edge of bottomPane to the left of the AnchorPane
@@ -2002,41 +2018,48 @@ public class ABRScannedElementPane extends ABRPane {
                                 System.out.println(String.format("WebDriver cannot read this format: %s", name));
                             }
 
-                            try {
-                                searchingElems =
-                                        abrWebDriver.getDriver().findElements((By.cssSelector("input[" + name + "]")));
-                                //                                List<WebElement> elements2 = webElements =
-                                // abrWebDriver
-                                //                                        .getDriver()
-                                //                                        .findElements(By.xpath("//*[@" +
-                                // searchConfig.getName() + "]"));
-
-                                // Add elements from the first list to the set
-                                for (WebElement element : searchingElems) {
-                                    String testId = element.getAttribute(name);
-                                    String labelText = element.getText();
-                                    String associatedText = "";
-
-                                    if (Strings.isNullOrEmpty(labelText)) {
-                                        labelText = testId;
-                                    }
-
-                                    // Get the value of the 'for' attribute
-                                    String forAttribute = element.getAttribute("for");
-                                    if (forAttribute != null) {
-                                        // Find the associated element using the 'for' attribute value
-                                        WebElement associatedElement =
-                                                abrWebDriver.getDriver().findElement(By.id(forAttribute));
-                                        associatedText = getElementText(associatedElement);
-                                    }
-                                    if (!Strings.isNullOrEmpty(associatedText)) {
-                                        labelText = labelText + "\n" + associatedText;
-                                    }
-                                    finalList.add(element);
-                                }
-                            } catch (Exception e) {
-                                System.out.println(String.format("WebDriver cannot read this format: %s", name));
-                            }
+                            //                            try {
+                            //                                searchingElems =
+                            //
+                            // abrWebDriver.getDriver().findElements((By.cssSelector("input[" + name + "]")));
+                            //                                //                                List<WebElement>
+                            // elements2 = webElements =
+                            //                                // abrWebDriver
+                            //                                //                                        .getDriver()
+                            //                                //
+                            // .findElements(By.xpath("//*[@" +
+                            //                                // searchConfig.getName() + "]"));
+                            //
+                            //                                // Add elements from the first list to the set
+                            //                                for (WebElement element : searchingElems) {
+                            //                                    String testId = element.getAttribute(name);
+                            //                                    String labelText = element.getText();
+                            //                                    String associatedText = "";
+                            //
+                            //                                    if (Strings.isNullOrEmpty(labelText)) {
+                            //                                        labelText = testId;
+                            //                                    }
+                            //
+                            //                                    // Get the value of the 'for' attribute
+                            //                                    String forAttribute = element.getAttribute("for");
+                            //                                    if (forAttribute != null) {
+                            //                                        // Find the associated element using the 'for'
+                            // attribute value
+                            //                                        WebElement associatedElement =
+                            //
+                            // abrWebDriver.getDriver().findElement(By.id(forAttribute));
+                            //                                        associatedText =
+                            // getElementText(associatedElement);
+                            //                                    }
+                            //                                    if (!Strings.isNullOrEmpty(associatedText)) {
+                            //                                        labelText = labelText + "\n" + associatedText;
+                            //                                    }
+                            //                                    finalList.add(element);
+                            //                                }
+                            //                            } catch (Exception e) {
+                            //                                System.out.println(String.format("WebDriver cannot read
+                            // this format: %s", name));
+                            //                            }
                         }
                         // Iterate over the selected links
                         //                          savedReferences.put(text, url);
