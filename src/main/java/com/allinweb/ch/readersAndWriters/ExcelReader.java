@@ -27,13 +27,12 @@ public class ExcelReader {
     public ExcelReader() {}
 
     public ExtractedData extractData(String paymentsFilePath, List<String> allActions) throws Exception {
-
-        // getting first Excel sheet
+        // Getting the first Excel sheet
         try (XSSFWorkbook workbook = new XSSFWorkbook(new File(paymentsFilePath))) {
             Sheet firstSheet = workbook.getSheetAt(0);
 
             if (allActions == null || allActions.isEmpty()) {
-                //                throw new Exception("No actions provided");
+                throw new Exception("No actions provided");
             }
 
             Row fieldNamesRow = firstSheet.getRow(EXCEL_DATA_COLUMN_INTESTATION_ROW);
@@ -41,7 +40,7 @@ public class ExcelReader {
                 throw new Exception("Field names row is missing in the Excel sheet");
             }
 
-            // Directly use allActions to filter and map
+            // Extract block fields from actions
             Set<String> blockFields = allActions.stream()
                     .filter(action -> action.contains(Constants.INSERT)
                             && action.contains(Constants.ACTION_SPECIFICATIONS_SPLITTER))
@@ -49,72 +48,68 @@ public class ExcelReader {
                     .collect(Collectors.toSet());
 
             ExtractedData extractedData = new ExtractedData();
+            ExtractedData extractedDataWithMissingFields = new ExtractedData();
 
-            // Cache field names in the extracted data
+            // Cache field names and values from extractedData
             for (int i = fieldNamesRow.getFirstCellNum(); i < fieldNamesRow.getLastCellNum(); i++) {
-                extractedData.addField(getCellValue(fieldNamesRow.getCell(i)));
+                String fieldName = getCellValue(fieldNamesRow.getCell(i));
+                extractedData.addField(fieldName);
+                extractedDataWithMissingFields.addField(fieldName);
             }
 
-            // Validate the fields
-            boolean fieldCheckPassed = blockFields.stream().allMatch(extractedData::containsField);
-
-            if (!fieldCheckPassed) {
-                extractedData.setErrorMessage("Fields in the excel not matching the botjob requirements");
-                //                return extractedData;
-            }
-
-            // Find the fields that are missing in ExtractedData
-            Set<String> missingFields = new HashSet<>();
-
-            for (String blockField : blockFields) {
-                boolean found = false;
-
-                for (String extractedField : extractedData.getExtractedFields()) {
-                    // Assuming `getExtractedFields()` returns a Set or List of field names in ExtractedData
-                    if (blockField.equalsIgnoreCase(extractedField)) {
-                        found = true;
-                        break;
-                    } 
-                }
-
-                if (!found) {
-                    missingFields.add(blockField);
-                }
-            }
-
-            // If there are missing fields, set the error message and return
-            if (!missingFields.isEmpty()) {
-                extractedData.setMissingFields(
-                        "Fields in the Excel do not match the botjob requirements. Missing fields: "
-                                + String.join(", ", missingFields));
-                //                return extractedData;
-            }
-
-            // Iterate over rows and cache row access
+            // Cache existing field values from extractedData and add them to extractedDataWithMissingFields
             for (int currentRowIndex = EXCEL_DATA_COLUMN_INTESTATION_ROW + 1;
-                    currentRowIndex <= firstSheet.getLastRowNum();
-                    currentRowIndex++) {
+                 currentRowIndex <= firstSheet.getLastRowNum();
+                 currentRowIndex++) {
                 Row currentRow = firstSheet.getRow(currentRowIndex);
                 if (currentRow == null) {
                     continue;
                 }
 
-                // Cache field names and values for the current row
                 for (int currentCellIndex = currentRow.getFirstCellNum();
-                        currentCellIndex < currentRow.getLastCellNum();
-                        currentCellIndex++) {
+                     currentCellIndex < currentRow.getLastCellNum();
+                     currentCellIndex++) {
                     String fieldName = getCellValue(fieldNamesRow.getCell(currentCellIndex));
                     String value = getCellValue(currentRow.getCell(currentCellIndex));
-                    extractedData.addFieldValue(
-                            fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
+                    extractedData.addFieldValue(fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
+                    extractedDataWithMissingFields.addFieldValue(fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
                 }
             }
 
-            return extractedData;
-        }catch (Exception ex){
+            // Find the fields that are missing in ExtractedData
+            Set<String> missingFields = new HashSet<>();
+            for (String blockField : blockFields) {
+                boolean found = false;
+                for (String extractedField : extractedData.getExtractedFields()) {
+                    if (blockField.equalsIgnoreCase(extractedField)) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                // If field is missing, add it to missingFields and set its value in extractedDataWithMissingFields
+                if (!found) {
+                    missingFields.add(blockField);
+                    // Add the missing field with default value to extractedDataWithMissingFields
+                    extractedDataWithMissingFields.addField(blockField);
+                    extractedDataWithMissingFields.addFieldValue(blockField, "DEFAULT_VALUE", extractedData.getNumberOfDataRows());
+                }
+            }
+
+            // If there are missing fields, set the error message
+            if (!missingFields.isEmpty()) {
+                extractedData.setMissingFields(
+                        "Fields in the Excel do not match the botjob requirements. Missing fields: "
+                                + String.join(", ", missingFields));
+            }
+
+            // Return the extracted data with missing fields included
+            return extractedDataWithMissingFields;
+        } catch (Exception ex) {
             return null;
         }
     }
+
 
     public File createLogFile(String filePath) {
 
