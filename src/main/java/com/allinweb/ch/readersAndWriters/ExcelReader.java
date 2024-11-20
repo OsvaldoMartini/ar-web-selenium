@@ -6,6 +6,7 @@ import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.Constants;
 import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -59,7 +60,34 @@ public class ExcelReader {
 
             if (!fieldCheckPassed) {
                 extractedData.setErrorMessage("Fields in the excel not matching the botjob requirements");
-                return extractedData;
+                //                return extractedData;
+            }
+
+            // Find the fields that are missing in ExtractedData
+            Set<String> missingFields = new HashSet<>();
+
+            for (String blockField : blockFields) {
+                boolean found = false;
+
+                for (String extractedField : extractedData.getExtractedFields()) {
+                    // Assuming `getExtractedFields()` returns a Set or List of field names in ExtractedData
+                    if (blockField.equalsIgnoreCase(extractedField)) {
+                        found = true;
+                        break;
+                    } 
+                }
+
+                if (!found) {
+                    missingFields.add(blockField);
+                }
+            }
+
+            // If there are missing fields, set the error message and return
+            if (!missingFields.isEmpty()) {
+                extractedData.setMissingFields(
+                        "Fields in the Excel do not match the botjob requirements. Missing fields: "
+                                + String.join(", ", missingFields));
+                //                return extractedData;
             }
 
             // Iterate over rows and cache row access
@@ -83,6 +111,8 @@ public class ExcelReader {
             }
 
             return extractedData;
+        }catch (Exception ex){
+            return null;
         }
     }
 

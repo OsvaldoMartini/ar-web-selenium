@@ -227,7 +227,7 @@ public class ExcelWriter {
 
     private void generateFilteredExcelFile(BotJobDTO botJob, ExtractedData extractedData) {
         String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL;
+                + botJob.getName() + ABRConstants.DEFAULT_FILENAME_FOR_ABR + ABRConstants.FILE_FORMAT_EXCEL;
 
         File file = new File(fileName);
         try {
