@@ -1969,7 +1969,7 @@ public class ABRScannedElementPane extends ABRPane {
                         for (String name : names) {
                             try {
                                 searchingElems =
-                                        abrWebDriver.getDriver().findElements((By.cssSelector("button[" + name + "]")));
+                                        abrWebDriver.getDriver().findElements((By.cssSelector("[" + name + "]")));
                                 //                                List<WebElement> elements2 = webElements =
                                 // abrWebDriver
                                 //                                        .getDriver()

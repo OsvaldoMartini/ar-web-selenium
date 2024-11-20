@@ -32,7 +32,7 @@ public class ExcelReader {
             Sheet firstSheet = workbook.getSheetAt(0);
 
             if (allActions == null || allActions.isEmpty()) {
-                throw new Exception("No actions provided");
+                //                throw new Exception("No actions provided");
             }
 
             Row fieldNamesRow = firstSheet.getRow(EXCEL_DATA_COLUMN_INTESTATION_ROW);

@@ -32,6 +32,7 @@ import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ExcelWriter;
 import com.allinweb.ch.util.ExtractedData;
 import com.google.gson.Gson;
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -60,6 +61,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
@@ -520,7 +522,17 @@ public class ABRViewBotJobPane extends ABRPane {
             combinedTextContainer.getChildren().add(variableText1Styled);
 
             // Check if the Excel file already exists
-            ExtractedData extractedData = ExcelWriter.isFileExists(this.botJob);
+            ExtractedData extractedData = ExcelWriter.isFileExists(this.botJob, this.botLoadJobs);
+
+            // Create a task for generating the Excel file
+            Task<Void> excelTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    new ExcelWriter().generateExcelFiles(botJobUpdated, botLoadJobs, extractedData);
+                    return null;
+                }
+            };
+
             if (extractedData != null) {
 
                 // Prepare the combined text container for the dialog
@@ -536,15 +548,6 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 if (confirmed) {
 
-                    // Create a task for generating the Excel file
-                    Task<Void> excelTask = new Task<>() {
-                        @Override
-                        protected Void call() throws Exception {
-                            new ExcelWriter().generateExcelFiles(botJobUpdated, botLoadJobs, extractedData);
-                            return null;
-                        }
-                    };
-
                     new Thread(excelTask).start();
 
                     performAction.showAlertCombinedVBOX(
@@ -556,14 +559,6 @@ public class ABRViewBotJobPane extends ABRPane {
                 }
             } else {
                 // If file does not exist, start the Excel generation task directly
-
-                Task<Void> excelTask = new Task<>() {
-                    @Override
-                    protected Void call() throws Exception {
-                        new ExcelWriter().generateExcelFiles(botJobUpdated, null, null);
-                        return null;
-                    }
-                };
 
                 new Thread(excelTask).start();
 
@@ -645,12 +640,66 @@ public class ABRViewBotJobPane extends ABRPane {
             stage.close();
         });
         this.openExcelFileButton.setOnMouseClicked((e) -> {
-            try {
-                String excelFilePath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-                excelFilePath = excelFilePath + "\\" + this.botJob.getName() + ".xlsx";
-                Runtime.getRuntime().exec("rundll32 url.dll, FileProtocolHandler " + excelFilePath);
-            } catch (IOException var3) {
-                var3.printStackTrace();
+            String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+            String fileName =
+                    String.format("%s/%s%s", excelFolderPath, botJob.getName(), ABRConstants.FILE_FORMAT_EXCEL);
+
+            //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+
+            // Create a File object
+            File fileCheck = new File(fileName);
+            if (!fileCheck.exists() && !fileCheck.isDirectory()) {
+                Text variableText1Styled = new Text("File Excel Does not Exist");
+                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                Text variableText3Styled = new Text(fileName);
+                variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                VBox combinedTextContainer = new VBox();
+                combinedTextContainer.setSpacing(5); // Add some sp
+
+                combinedTextContainer.getChildren().addAll(variableText1Styled, variableText3Styled);
+
+                performAction.showAlertCombinedVBOX(
+                        Alert.AlertType.ERROR, "Excel File Error", "File Not Exist!", null, combinedTextContainer);
+                return;
+                //            Platform.exit();
+            } else {
+
+                try {
+                    String excelFilePath =
+                            ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+                    excelFilePath = excelFilePath + "\\" + this.botJob.getName() + ".xlsx";
+                    File file = new File(excelFilePath);
+                    Desktop.getDesktop().open(file);
+                    //                    Runtime.getRuntime().exec("rundll32 url.dll, FileProtocolHandler " +
+                    // excelFilePath);
+                } catch (IOException var3) {
+
+                    Text variableText1Styled = new Text("Verify the Possible Errors:");
+                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                    Text variableText2Styled = new Text("Error load the Excel Rows");
+                    variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                    Text variableText3Styled = new Text("Maybe is Better to Re-Generate the File");
+                    variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                    VBox combinedTextContainer = new VBox();
+                    combinedTextContainer.setSpacing(5); // Add some sp
+
+                    combinedTextContainer
+                            .getChildren()
+                            .addAll(variableText1Styled, variableText2Styled, variableText3Styled);
+
+                    performAction.showAlertCombinedVBOX(
+                            Alert.AlertType.ERROR,
+                            "Excel File Error",
+                            "Check All Excel Columns and Values!",
+                            null,
+                            combinedTextContainer);
+                    return;
+                }
             }
         });
         this.componentButton.setOnMouseClicked((e) -> {

@@ -14,9 +14,11 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javafx.scene.control.Alert;
@@ -36,6 +38,7 @@ public class ExcelWriter {
 
     public ExcelWriter() {}
 
+    private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private static List<BlockLoadDTO> blocksLoaded;
     private ExtractedData extractedData;
     private static final PerformActions performAction;
@@ -165,6 +168,46 @@ public class ExcelWriter {
                         fieldAddedSet.add(reference);
                         Cell instructionFieldCell = instructionFieldRow.createCell(currentIndex, CellType.STRING);
                         instructionFieldCell.setCellValue(action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
+
+                        int DYNAMIC_ROW = SECOND_ROW + 1;
+
+                        if (extractedData != null) {
+
+                            for (int i = 0; i < extractedData.getNumberOfDataRows(); i++) {
+
+                                Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
+                                if (belowRow == null) {
+                                    belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
+                                }
+
+                                Map<String, String> dataExcel = extractedData.getRowFieldValues(i);
+                                // Search for the "reference" in ExtractedData and set it in the below cell
+                                try {
+                                    String valueFromExtractedData = dataExcel.get(reference); // Example row = 1
+                                    if (valueFromExtractedData != null) {
+                                        Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                        belowCell.setCellValue(valueFromExtractedData);
+                                    } else {
+                                        Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                        belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
+                                    }
+
+                                } catch (Exception ex) {
+                                    Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                    belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
+                                }
+                                DYNAMIC_ROW++;
+                            }
+                        } else {
+
+                            Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
+                            if (belowRow == null) {
+                                belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
+                            }
+                            Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                            belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
+                        }
+
                         currentIndex++;
                     }
                 }
@@ -232,10 +275,14 @@ public class ExcelWriter {
         }
     }
 
-    public static ExtractedData isFileExists(BotJobDTO botJob) {
+    public static ExtractedData isFileExists(BotJobDTO botJob, List<BotJobLoadDTO> botLoadJobs) {
+
+        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
         String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
         String fileName = String.format("%s/%s%s", excelFolderPath, botJob.getName(), ABRConstants.FILE_FORMAT_EXCEL);
+
+        //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
         // Create a File object
         File fileCheck = new File(fileName);
