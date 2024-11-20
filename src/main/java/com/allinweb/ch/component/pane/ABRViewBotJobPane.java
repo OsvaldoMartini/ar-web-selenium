@@ -480,6 +480,8 @@ public class ABRViewBotJobPane extends ABRPane {
             // Cache entities from the database
             ABRSharedResources.getInstance().changeDbConnection();
 
+            loadBlockAll(this.botJob.getId());
+
             // Retrieve the updated BotJobDTO
             BotJobDTO botJobUpdated =
                     (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJob.getId());
@@ -501,10 +503,12 @@ public class ABRViewBotJobPane extends ABRPane {
             combinedTextContainer.setSpacing(5); // Add some sp
 
             if (!hasInputFields) {
-                Text variableText2Styled = new Text("Use Web Scanner Tool Firs!");
+                Text variableText2Styled = new Text("Use Web Scanner Tool First to create the:");
                 variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                variableText1Styled =
+                        new Text("Excel Data File: " + this.botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL);
+                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
                 combinedTextContainer.getChildren().addAll(variableText2Styled, variableText1Styled);
 
@@ -652,6 +656,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 Text variableText1Styled = new Text("File Excel Does not Exist");
                 variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
+                fileName = fileName.replace("/", "\\");
                 Text variableText3Styled = new Text(fileName);
                 variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 

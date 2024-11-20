@@ -59,20 +59,22 @@ public class ExcelReader {
 
             // Cache existing field values from extractedData and add them to extractedDataWithMissingFields
             for (int currentRowIndex = EXCEL_DATA_COLUMN_INTESTATION_ROW + 1;
-                 currentRowIndex <= firstSheet.getLastRowNum();
-                 currentRowIndex++) {
+                    currentRowIndex <= firstSheet.getLastRowNum();
+                    currentRowIndex++) {
                 Row currentRow = firstSheet.getRow(currentRowIndex);
                 if (currentRow == null) {
                     continue;
                 }
 
                 for (int currentCellIndex = currentRow.getFirstCellNum();
-                     currentCellIndex < currentRow.getLastCellNum();
-                     currentCellIndex++) {
+                        currentCellIndex < currentRow.getLastCellNum();
+                        currentCellIndex++) {
                     String fieldName = getCellValue(fieldNamesRow.getCell(currentCellIndex));
                     String value = getCellValue(currentRow.getCell(currentCellIndex));
-                    extractedData.addFieldValue(fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
-                    extractedDataWithMissingFields.addFieldValue(fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
+                    extractedData.addFieldValue(
+                            fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
+                    extractedDataWithMissingFields.addFieldValue(
+                            fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
                 }
             }
 
@@ -92,7 +94,8 @@ public class ExcelReader {
                     missingFields.add(blockField);
                     // Add the missing field with default value to extractedDataWithMissingFields
                     extractedDataWithMissingFields.addField(blockField);
-                    extractedDataWithMissingFields.addFieldValue(blockField, "DEFAULT_VALUE", extractedData.getNumberOfDataRows());
+                    extractedDataWithMissingFields.addFieldValue(
+                            blockField, "DEFAULT_VALUE", extractedData.getNumberOfDataRows());
                 }
             }
 
@@ -109,7 +112,6 @@ public class ExcelReader {
             return null;
         }
     }
-
 
     public File createLogFile(String filePath) {
 
