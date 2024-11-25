@@ -45,6 +45,8 @@ public class ABRConstants {
     public static final String ICON_APPLICATION = "/ABR_icon.png";
     public static final String ICON_DIRECTORY = "/directory.png";
     public static final String ICON_REFRESH = "/refresh.png";
+    public static final String ICON_REFRESH_ONLY = "/refresh-only.png";
+    public static final String ICON_REFRESH_LOOP = "/refresh-loop.png";
     public static final String ICON_NEW = "/new_document.png";
     public static final String ICON_LIST = "/list.png";
     public static final String ICON_INFO = "/info.png";
@@ -103,6 +105,8 @@ public class ABRConstants {
     public static final String INSERT = "I";
     public static final String HOLD = "H";
     public static final String REFRESH = "R";
+    public static final String REFRESH_ONLY = "REFRESH";
+    public static final String REFRESH_LOOP = "REFRESH_LOOP";
     public static final String LIST_OPERATION = "L";
     public static final String QUIT = "Q";
     public static final String SCREEN = "P";

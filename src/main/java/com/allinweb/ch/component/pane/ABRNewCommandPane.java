@@ -80,6 +80,13 @@ public class ABRNewCommandPane extends ABRPane {
     private RowMoveDTO rowMoveDTO;
     private Pane mainPane;
 
+    private HBox labelRow;
+    private HBox comboBoxesRow;
+    private HBox variableButtonRow;
+    private HBox buttonBox;
+    private HBox instructionButtonsRow;
+    private VBox vboxAll;
+
     Label commandLabel;
     Label botJobVarsLabel;
     Label webPageLabel;
@@ -101,17 +108,24 @@ public class ABRNewCommandPane extends ABRPane {
     private Button addScreenButton;
 
     double buttonWidth = 200;
-    double comboxWidth = 50;
+    double comboOperatorWidth = 50;
+    double comboTimesWidth = 50;
+    double comboLoopsWidth = 60;
 
     Button addInstructionButton;
     Button cancelButton;
 
     private ComboBox<ComboBoxImage> comboBoxInstruc;
     private ObservableList<ComboBoxImage> itemsInstructions = FXCollections.observableArrayList();
-    ;
 
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
+
+    private ComboBox<ComboBoxVars> comboBoxTimes;
+    private ObservableList<ComboBoxVars> timesItems = FXCollections.observableArrayList();
+
+    private ComboBox<ComboBoxVars> comboBoxLoops;
+    private ObservableList<ComboBoxVars> loopsItems = FXCollections.observableArrayList();
 
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
 
@@ -168,6 +182,13 @@ public class ABRNewCommandPane extends ABRPane {
             itemsInstructions.add(new ComboBoxImage("GO TO", new Image(ABRConstants.ICON_GOTO), ABRConstants.GOTO));
             itemsInstructions.add(
                     new ComboBoxImage("ExcelWrite", new Image(ABRConstants.ICON_EXCEL), ABRConstants.EXTRACT_FIELD));
+
+            itemsInstructions.add(
+                    new ComboBoxImage("Refresh", new Image(ABRConstants.ICON_REFRESH_ONLY), ABRConstants.REFRESH_ONLY));
+
+            itemsInstructions.add(new ComboBoxImage(
+                    "Refresh Loop", new Image(ABRConstants.ICON_REFRESH_LOOP), ABRConstants.REFRESH_LOOP));
+
         } catch (Exception ex) {
             ABRLogger.getInstance(ABRNewCommandPane.class)
                     .severe("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
@@ -253,6 +274,90 @@ public class ABRNewCommandPane extends ABRPane {
         variableText2.setFill(Color.RED); // Set font color to red
 
         textFlow.getChildren().addAll(regularText, variableText1, variableText2, variableText3);
+
+        timesItems.add(new ComboBoxVars("10s", "10", -1, -1));
+        timesItems.add(new ComboBoxVars("20s", "20", -1, -1));
+        timesItems.add(new ComboBoxVars("30s", "30", -1, -1));
+        timesItems.add(new ComboBoxVars("40s", "40", -1, -1));
+        timesItems.add(new ComboBoxVars("50s", "50", -1, -1));
+        timesItems.add(new ComboBoxVars("60s", "60", -1, -1));
+        comboBoxTimes = new ComboBox<>(timesItems);
+        comboBoxTimes.setPrefWidth(50);
+        // Set cell factory to display images and text
+        comboBoxTimes.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+        comboBoxTimes.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+        comboBoxTimes.getSelectionModel().selectFirst();
+
+        loopsItems.add(new ComboBoxVars("5 times", "5", -1, -1));
+        loopsItems.add(new ComboBoxVars("10 times", "10", -1, -1));
+        loopsItems.add(new ComboBoxVars("20 times", "20", -1, -1));
+        loopsItems.add(new ComboBoxVars("30 times", "30", -1, -1));
+        comboBoxLoops = new ComboBox<>(loopsItems);
+        comboBoxLoops.setPrefWidth(60);
+        // Set cell factory to display images and text
+        comboBoxLoops.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+        comboBoxLoops.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+        comboBoxLoops.getSelectionModel().selectFirst();
 
         comboBoxInstruc = new ComboBox<>(itemsInstructions);
         comboBoxInstruc.setPrefWidth(120); // Set preferred width of ComboBox
@@ -493,7 +598,7 @@ public class ABRNewCommandPane extends ABRPane {
                 "Add Screenshot", ABRConstants.SPACE_L, ABRConstants.ICON_SCREEN, ABRConstants.SPACE_M, new Insets(5));
 
         // Create a new HBox for the new buttons
-        HBox buttonBox = new HBox(10); // 10 is the spacing between buttons
+        buttonBox = new HBox(10); // 10 is the spacing between buttons
         buttonBox
                 .getChildren()
                 .addAll(
@@ -506,12 +611,12 @@ public class ABRNewCommandPane extends ABRPane {
         buttonBox.setAlignment(Pos.BASELINE_LEFT); // Align buttons to the left
 
         // Create an HBox and add all three labels into the same row
-        HBox labelRow = new HBox(10); // 10 is the spacing between the labels
+        labelRow = new HBox(10); // 10 is the spacing between the labels
         labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
         labelRow.setAlignment(Pos.BASELINE_LEFT); // Align the labels to the left
 
         // Create HBox for comboBoxes
-        HBox comboBoxesRow = new HBox(10);
+        comboBoxesRow = new HBox(10);
 
         comboBoxInstruc.setPrefWidth(buttonWidth);
         comboBoxVars.setPrefWidth(buttonWidth);
@@ -554,7 +659,29 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxOperator.visibleProperty().addListener((obs, oldValue, newValue) -> {
             comboBoxOperator.setManaged(newValue); // Set managed based on visibility
             if (newValue) {
-                comboBoxOperator.setPrefWidth(comboxWidth); // Restore width when visible
+                comboBoxOperator.setPrefWidth(comboOperatorWidth); // Restore width when visible
+            }
+        });
+
+        comboBoxTimes.setVisible(false);
+        comboBoxTimes.setManaged(false);
+
+        // Create a listener (optional) to toggle visibility dynamically
+        comboBoxTimes.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            comboBoxTimes.setManaged(newValue); // Set managed based on visibility
+            if (newValue) {
+                comboBoxTimes.setPrefWidth(comboTimesWidth); // Restore width when visible
+            }
+        });
+
+        comboBoxLoops.setVisible(false);
+        comboBoxLoops.setManaged(false);
+
+        // Create a listener (optional) to toggle visibility dynamically
+        comboBoxLoops.visibleProperty().addListener((obs, oldValue, newValue) -> {
+            comboBoxLoops.setManaged(newValue); // Set managed based on visibility
+            if (newValue) {
+                comboBoxLoops.setPrefWidth(comboLoopsWidth); // Restore width when visible
             }
         });
 
@@ -574,18 +701,18 @@ public class ABRNewCommandPane extends ABRPane {
         //        });
 
         // Create an HBox for the variable button
-        HBox variableButtonRow = new HBox(10, variableButton, comboBoxOperator, textFlow);
+        variableButtonRow = new HBox(10, variableButton, comboBoxOperator, textFlow);
         variableButtonRow.setAlignment(Pos.BASELINE_LEFT); // Align variableButton to the left
 
         // Create HBox for instruction and cancel buttons
-        HBox instructionButtonsRow = new HBox(10, addInstructionButton, cancelButton);
+        instructionButtonsRow = new HBox(10, addInstructionButton, cancelButton);
         addInstructionButton.setPrefWidth(buttonWidth);
         cancelButton.setPrefWidth(buttonWidth);
         instructionButtonsRow.setAlignment(Pos.BASELINE_RIGHT); // Align buttons to the right
 
         // Combine all HBoxes into a VBox for vertical alignment
-        VBox vbox = new VBox(20);
-        vbox.getChildren()
+        vboxAll = new VBox(20);
+        vboxAll.getChildren()
                 .addAll(
                         labelRow, // Web Page Label row
                         comboBoxesRow, // ComboBoxes row
@@ -593,20 +720,20 @@ public class ABRNewCommandPane extends ABRPane {
                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                         );
-        vbox.setAlignment(Pos.CENTER);
-        vbox.setPadding(new Insets(10)); // Padding around the VBox
+        vboxAll.setAlignment(Pos.CENTER);
+        vboxAll.setPadding(new Insets(10)); // Padding around the VBox
 
         // Adjust VBox properties for better alignment
-        VBox.setVgrow(vbox, Priority.ALWAYS);
+        VBox.setVgrow(vboxAll, Priority.ALWAYS);
 
         // Use AnchorPane to ensure the VBox resizes with the window
-        mainPane = new AnchorPane(vbox);
+        mainPane = new AnchorPane(vboxAll);
         mainPane.getStylesheets().add(css);
 
-        AnchorPane.setTopAnchor(vbox, 0.0);
-        AnchorPane.setBottomAnchor(vbox, 0.0);
-        AnchorPane.setLeftAnchor(vbox, 0.0);
-        AnchorPane.setRightAnchor(vbox, 0.0);
+        AnchorPane.setTopAnchor(vboxAll, 0.0);
+        AnchorPane.setBottomAnchor(vboxAll, 0.0);
+        AnchorPane.setLeftAnchor(vboxAll, 0.0);
+        AnchorPane.setRightAnchor(vboxAll, 0.0);
     }
 
     private void clearData() {
@@ -631,6 +758,8 @@ public class ABRNewCommandPane extends ABRPane {
                 "Screenshot Browser", "Screenshot Browser", ABRConstants.SCREEN, 0, "", null, null, rowMoveDTO));
 
         comboBoxOperator.setVisible(false);
+        comboBoxTimes.setVisible(false);
+        comboBoxLoops.setVisible(false);
 
         // Add a listener to comboBoxInstruc to handle selection changes
         comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
@@ -653,6 +782,8 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setVisible(true);
                     comboBoxVars.setPrefWidth(buttonWidth);
                     comboBoxBlocks.setVisible(false);
+                    comboBoxTimes.setVisible(false);
+                    comboBoxLoops.setVisible(false);
                 } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
@@ -669,6 +800,68 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setVisible(false);
                     comboBoxBlocks.setVisible(true);
                     comboBoxBlocks.setPrefWidth(buttonWidth);
+                    comboBoxTimes.setVisible(false);
+                    comboBoxLoops.setVisible(false);
+                } else if (ABRConstants.REFRESH_ONLY.equalsIgnoreCase(newValue.getValue())) {
+                    defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+                    textFlow.setVisible(true);
+                    //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+                    botJobVarsLabel.setVisible(false);
+                    webPageLabel.setVisible(false);
+                    comboBoxBlocks.setVisible(false);
+                    comboBoxOperator.setVisible(false);
+                    comboBoxWebPage.setVisible(false);
+                    variableButton.setVisible(false);
+                    comboBoxVars.setVisible(false);
+                    comboBoxTimes.setVisible(false);
+                    comboBoxLoops.setVisible(false);
+                } else if (ABRConstants.REFRESH_LOOP.equalsIgnoreCase(newValue.getValue())) {
+                    defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+                    textFlow.setVisible(true);
+                    //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+                    botJobVarsLabel.setText("Bot-Job Variable");
+                    botJobVarsLabel.setVisible(false);
+                    webPageLabel.setVisible(true);
+                    comboBoxOperator.setVisible(false);
+                    comboBoxWebPage.setVisible(true);
+
+                    variableButton.setVisible(false);
+
+                    comboBoxVars.setVisible(false);
+                    comboBoxVars.setPrefWidth(buttonWidth);
+                    comboBoxBlocks.setVisible(false);
+
+                    comboBoxTimes.setVisible(true);
+                    comboBoxLoops.setVisible(true);
+
+                    variableButtonRow.getChildren().clear();
+                    try {
+                        variableButtonRow = new HBox(10, comboBoxTimes, comboBoxLoops, textFlow);
+
+                        // Step 1: Remove old HBox (if it exists)
+                        vboxAll.getChildren().clear();
+
+                        variableButtonRow = new HBox(10, comboBoxTimes, comboBoxLoops, textFlow);
+
+                        vboxAll.getChildren()
+                                .addAll(
+                                        labelRow, // Web Page Label row
+                                        comboBoxesRow, // ComboBoxes row
+                                        variableButtonRow, // Variable Button row
+                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                        );
+
+                        vboxAll.requestLayout();
+                        mainPane.requestLayout();
+                    } catch (Exception ex) {
+                        System.out.println(ex.getMessage());
+                    }
+
                 } else if (ABRConstants.IF.equalsIgnoreCase(newValue.getValue())) {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
@@ -682,6 +875,8 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxWebPage.setVisible(false);
                     variableButton.setVisible(false);
                     comboBoxVars.setVisible(false);
+                    comboBoxTimes.setVisible(false);
+                    comboBoxLoops.setVisible(false);
                 } else {
                     defineTextFlow(newValue.getValue());
 
@@ -698,6 +893,9 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setVisible(true);
                     comboBoxVars.setPrefWidth(buttonWidth);
                     comboBoxBlocks.setVisible(false);
+
+                    comboBoxTimes.setVisible(false);
+                    comboBoxLoops.setVisible(false);
 
                     //                    if (ABRConstants.GET_VALUE.equalsIgnoreCase(newValue.getValue())
                     //                            || ABRConstants.EXTRACT_FIELD.equalsIgnoreCase(newValue.getValue())) {
@@ -729,6 +927,22 @@ public class ABRNewCommandPane extends ABRPane {
 
         // Add a listener to comboBoxVars to handle selection changes
         comboBoxOperator.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                // Set the visibility of comboBoxOperator based on the selected value
+                defineTextFlow(comboBoxInstruc.getValue().getValue());
+            }
+        });
+
+        // Add a listener to comboBoxVars to handle selection changes
+        comboBoxTimes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                // Set the visibility of comboBoxOperator based on the selected value
+                defineTextFlow(comboBoxInstruc.getValue().getValue());
+            }
+        });
+
+        // Add a listener to comboBoxVars to handle selection changes
+        comboBoxLoops.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
                 defineTextFlow(comboBoxInstruc.getValue().getValue());
@@ -821,6 +1035,19 @@ public class ABRNewCommandPane extends ABRPane {
                         ABRConstants.EXTRACT_FIELD,
                         2,
                         "ExcelWrite" + ":" + comboBoxVars.getValue().getText().toUpperCase(),
+                        comboBoxVars.getValue().getVarId(),
+                        comboBoxVars.getValue().getInstructionId(),
+                        this.rowMoveDTO);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh")) {
+                addInstruction("Refresh", "Refresh", ABRConstants.REFRESH_ONLY, 2, null, null, null, this.rowMoveDTO);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh Loop")) {
+                addInstruction(
+                        "Refresh Loop",
+                        "Refresh Loop",
+                        ABRConstants.REFRESH_LOOP,
+                        2,
+                        30 + ":" + "20" + ":"
+                                + comboBoxWebPage.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getInstructionId(),
                         this.rowMoveDTO);
@@ -984,6 +1211,30 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
                     break;
+                case ABRConstants.REFRESH_ONLY:
+                    regularText.setText("Refresh: ");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    variableText1.setText("Refresh Current Web Page");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+                    variableText2.setVisible(false);
+                    variableText3.setVisible(false);
+                    break;
+                case ABRConstants.REFRESH_LOOP:
+                    regularText.setText("Refresh Loop: ");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText1.setText(" " + comboBoxOperator.getValue().getText() + " ");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    variableText2.setText(variableValue);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText3.setText(webFieldName);
+                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(true);
+                    break;
                 case ABRConstants.IF:
                     regularText.setText("{ IF -> ELSE } ");
                     regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
@@ -996,7 +1247,7 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
                     break;
-                default:
+                case ABRConstants.CHECK_VALUE:
                     regularText.setText("CHECK Variable: ");
                     regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
@@ -1007,6 +1258,22 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText3.setText(variableValue);
+                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(true);
+                    break;
+                default:
+                    regularText.setText("No Selection");
+                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText1.setText("");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    variableText2.setText(" ");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText3.setText("");
                     variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setVisible(true);

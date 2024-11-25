@@ -92,11 +92,6 @@ public class ABRScannedElementPane extends ABRPane {
 
     private static JavascriptExecutor jsExecutor;
 
-    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    private static final int MIN_LENGTH = 3;
-    private static final int MAX_LENGTH = 30;
-    private static final Random RANDOM = new Random();
-
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
     private DatabaseUserDTO databaseUserDto;
@@ -3017,12 +3012,13 @@ public class ABRScannedElementPane extends ABRPane {
 
             combinedTextContainer.getChildren().add(variableText1Styled);
 
-            boolean result = performAction.showAlertCombinedVBOX(
-                    Alert.AlertType.CONFIRMATION, "Recall Pre-Launch", "Recall Pre Test.", null, combinedTextContainer);
-
-            if (result) {
-                recallJob();
-            }
+            //            boolean result = performAction.showAlertCombinedVBOX(
+            //                    Alert.AlertType.CONFIRMATION, "Recall Pre-Launch", "Recall Pre Test.", null,
+            // combinedTextContainer);
+            //
+            //            if (result) {
+            //                recallJob();
+            //            }
         }
     }
 
@@ -3049,6 +3045,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+        String botJobName = botLoadJobs.get(0).getName();
 
         //        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
         String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
@@ -3245,6 +3242,9 @@ public class ABRScannedElementPane extends ABRPane {
                         String[] operations = currentInstruction.getOperation() != null
                                 ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                 : null;
+
+                        resultActions = "Last Executed: " + currentInstruction.getName() + " --> "
+                                + currentInstruction.getOperation();
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
 
@@ -3525,10 +3525,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
                                 }
 
-                            } else if (actions[0].equalsIgnoreCase(ABRConstants.INSERT)
-                                    && !execOperation
-                                    && !checkOperation
-                                    && !excelWriteOperation) {
+                            } else if (!execOperation && !checkOperation && !excelWriteOperation) {
+
                                 dataExcel = extractedData.getRowFieldValues(i);
 
                                 lastInstructionExecuted = currentInstruction.getName()
@@ -3538,27 +3536,25 @@ public class ABRScannedElementPane extends ABRPane {
                                 WebElement webElementFound =
                                         performAction.searchElement(currentInstruction, this.botJob.getId());
 
-                                // Extract dataFieldName and dataFieldValue using a separate method
-                                Pair<String, String> fieldData = performAction.extractFieldData(
-                                        dataExcel,
-                                        actions,
-                                        currentInstruction.getDefaultValue(),
-                                        currentInstruction.getEncrypted() > 0);
+                                if (webElementFound != null) {
 
-                                resultActions = performAction.actionResultMessage(
-                                        currentInstruction, blockName, webElementFound, actions, fieldData);
+                                    // Extract dataFieldName and dataFieldValue using a separate method
+                                    Pair<String, String> fieldData = performAction.extractFieldData(
+                                            dataExcel,
+                                            actions,
+                                            currentInstruction.getDefaultValue(),
+                                            currentInstruction.getEncrypted() > 0);
 
-                                performAction.performWebActions(
-                                        fieldData,
-                                        currentInstruction,
-                                        blockLoad.getName(),
-                                        mapOperators,
-                                        webElementFound,
-                                        actions);
+                                    resultActions = performAction.actionResultMessage(
+                                            currentInstruction, blockName, webElementFound, actions, fieldData);
+
+                                    performAction.performWebActions(
+                                            fieldData, currentInstruction, mapOperators, webElementFound, actions);
+                                }
 
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
-                                if (resultActions.contains("Error:")) {
+                                if (resultActions.contains("Error:") || webElementFound == null) {
                                     success = false;
                                 } else if (resultActions != null) {
                                     currentInstruction.setExecuted(true);
@@ -3915,7 +3911,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 currentInstruction.getActions(), Constants.ACTION_SPECIFICATIONS_SPLITTER);
                         if (arr.length > 1) {
                             String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
-                            insertRandomName(dataFieldName);
+                            performAction.insertRandomName(dataFieldName);
                         }
                     }
                 }
@@ -3946,12 +3942,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 currentInstruction, blockName, webElementFound, actions, dataDynamic);
 
                         performAction.performWebActions(
-                                dataDynamic,
-                                currentInstruction,
-                                blocksLoaded.get(j).getName(),
-                                mapOperators,
-                                webElementFound,
-                                actions);
+                                dataDynamic, currentInstruction, mapOperators, webElementFound, actions);
 
                         // Special Cases for Select Responses
                         // It could be Improved the case
@@ -4009,6 +4000,22 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         // PRINT END BASE LOG//
+
+        Text variableText1Styled = new Text("Bot-Job Finished - successfully");
+        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text variableText2Styled = new Text(botJobName);
+        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text variableText3Styled = new Text("Last Execution:");
+        variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text variableText4Styled = new Text(resultActions);
+        variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
+        VBox combinedTextContainer = new VBox();
+        combinedTextContainer.setSpacing(5); // Add some sp
+
         if (success) {
             //            report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
             //            report.setDuration(totalExecutionTime / 100);
@@ -4024,6 +4031,14 @@ public class ABRScannedElementPane extends ABRPane {
                     + labelsValue.getProperty(Labels.END)
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
+
+            combinedTextContainer
+                    .getChildren()
+                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
+
+            performAction.showAlertCombinedVBOX(
+                    Alert.AlertType.INFORMATION, "Success", "Execution Finished", null, combinedTextContainer);
+
         } else {
             baseLogString = blocksLoaded.get(0).getName()
                     + Constants.FIELDS_SEPARATOR
@@ -4042,6 +4057,24 @@ public class ABRScannedElementPane extends ABRPane {
             //                ABRLogger.getInstance(ABRScannedElementPane.class)
             //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
             //            }
+
+            variableText1Styled = new Text("Bot-Job Error");
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            variableText3Styled = new Text("Last Execution:");
+            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            variableText4Styled = new Text(resultActions);
+            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+            combinedTextContainer
+                    .getChildren()
+                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
+
+            performAction.showAlertCombinedVBOX(
+                    Alert.AlertType.ERROR, "FAIL", "Execution Failed", null, combinedTextContainer);
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
         return true;
@@ -4124,23 +4157,6 @@ public class ABRScannedElementPane extends ABRPane {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static Pair<String, String> insertRandomName(String key) {
-        String randomName = generateRandomName();
-        return new Pair<>(key, randomName);
-    }
-
-    public static String generateRandomName() {
-        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
-        StringBuilder nameBuilder = new StringBuilder(length);
-
-        for (int i = 0; i < length; i++) {
-            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
-            nameBuilder.append(randomChar);
-        }
-
-        return nameBuilder.toString();
     }
 
     private void executeAlert(BlockLoopInstructionDTO instruction) {

@@ -39,6 +39,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -77,6 +78,11 @@ public class PerformActions {
     public static Wait<WebDriver> waitForAction;
     private boolean justCalledRefreshPage = false;
 
+    private static final String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private static final int MIN_LENGTH = 3;
+    private static final int MAX_LENGTH = 30;
+    private static final Random RANDOM = new Random();
+
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<PerformActions> instance = () -> new PerformActions();
 
@@ -108,12 +114,10 @@ public class PerformActions {
     public void performWebActions(
             Pair<String, String> data,
             BlockLoopInstructionLoadDTO instruction,
-            String blockJobName,
             Map<String, String> mapOperators,
             WebElement instructionElement,
             String actions[])
             throws Exception {
-        String result = null;
 
         if (instructionElement != null
                 || actions[0].equals(Constants.HOLD)
@@ -126,24 +130,20 @@ public class PerformActions {
                         scrollToElement(instructionElement);
                         break;
                     case Constants.OTHER:
-                        result = "other Element --> " + instruction.getName() + " --> "
-                                + clickElement(instructionElement);
+                        clickElement(instructionElement);
                         break;
                     case Constants.OUTPUT:
                         String fieldName = instruction.getId() + "-" + instruction.getName();
-                        result = "outPutElement --> " + instruction.getName() + " --> "
-                                + getOutPutElement(
-                                        instructionElement, fieldName, instruction.getActions(), mapOperators);
+                        getOutPutElement(instructionElement, fieldName, instruction.getActions(), mapOperators);
                         break;
                     case Constants.CLICK:
-                        result = "clickElement --> " + instruction.getName() + " --> "
-                                + clickElement(instructionElement);
+                        clickElement(instructionElement);
                         break;
                     case Constants.INSERT:
                         if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                            result = "Select: -> " + insertDataInSelectElement(instructionElement, data);
+                            insertDataInSelectElement(instructionElement, data);
                         } else {
-                            result = insertInElement(
+                            insertInElement(
                                     instructionElement,
                                     data.getKey(),
                                     data.getKey(),
@@ -156,11 +156,10 @@ public class PerformActions {
                         break;
                     case Constants.HOLD:
                         //                        executeAlert(instruction);
-                        result = onHoldForSeconds(instruction);
+                        onHoldForSeconds(instruction);
                         break;
                     case Constants.REFRESH:
                         refreshPage();
-                        result = "refreshPage";
                         break;
                     case Constants.QUIT:
                         Alert alert = new Alert(
@@ -175,11 +174,9 @@ public class PerformActions {
                         Optional<ButtonType> quitResult = alert.showAndWait();
                         if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
                             ABRSharedResources.getInstance().cacheEntitiesFromDB();
-                            result = "Close Browser";
                             quit(1);
                         } else {
                             ABRSharedResources.getInstance().cacheEntitiesFromDB();
-                            result = "Close Browser Cancelled";
                         }
                         break;
                         //                    case Constants.EXTRACT:
@@ -188,7 +185,6 @@ public class PerformActions {
                         // action, blockJobName);
                         //                        break;
                     case Constants.SCREEN:
-                        result = instruction.getName() + " --> " + blockJobName;
                         break;
                 }
                 onHoldForSeconds(null);
@@ -1486,5 +1482,22 @@ public class PerformActions {
             }
         }
         return "No Action Detected";
+    }
+
+    public static Pair<String, String> insertRandomName(String key) {
+        String randomName = generateRandomName();
+        return new Pair<>(key, randomName);
+    }
+
+    public static String generateRandomName() {
+        int length = RANDOM.nextInt(MAX_LENGTH - MIN_LENGTH + 1) + MIN_LENGTH;
+        StringBuilder nameBuilder = new StringBuilder(length);
+
+        for (int i = 0; i < length; i++) {
+            char randomChar = CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length()));
+            nameBuilder.append(randomChar);
+        }
+
+        return nameBuilder.toString();
     }
 }
