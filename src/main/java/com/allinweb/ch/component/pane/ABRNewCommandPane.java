@@ -80,7 +80,14 @@ public class ABRNewCommandPane extends ABRPane {
     private RowMoveDTO rowMoveDTO;
     private Pane mainPane;
 
-    private HBox labelRow;
+    //    private HBox labelRow;
+
+    private HBox boxCombos;
+    private VBox commandBox;
+    private VBox varsBox;
+    private VBox webFieldsBox;
+    private VBox blocksBox;
+
     private HBox comboBoxesRow;
     private HBox variableButtonRow;
     private HBox buttonBox;
@@ -90,11 +97,14 @@ public class ABRNewCommandPane extends ABRPane {
     Label commandLabel;
     Label botJobVarsLabel;
     Label webPageLabel;
+    Label blocksLabel;
+
     Text regularText;
     Text variableText1;
     Text variableText2;
     Text variableText3;
     TextFlow textFlow;
+    Text blankText;
 
     TextField nameField;
 
@@ -109,8 +119,8 @@ public class ABRNewCommandPane extends ABRPane {
 
     double buttonWidth = 200;
     double comboOperatorWidth = 50;
-    double comboTimesWidth = 50;
-    double comboLoopsWidth = 60;
+    double comboTimesWidth = 70;
+    double comboLoopsWidth = 80;
 
     Button addInstructionButton;
     Button cancelButton;
@@ -262,6 +272,7 @@ public class ABRNewCommandPane extends ABRPane {
         commandLabel = new Label("Command:");
         botJobVarsLabel = new Label("Bot-Job Variable");
         webPageLabel = new Label("WebPage Field");
+        blocksLabel = new Label("Block Destination");
 
         textFlow = new TextFlow();
         // Create regular Text for the first part of the label
@@ -272,6 +283,8 @@ public class ABRNewCommandPane extends ABRPane {
         variableText3 = new Text("");
         variableText1.setFill(Color.BLUE); // Set font color to blue
         variableText2.setFill(Color.RED); // Set font color to red
+
+        blankText = new Text("       ");
 
         textFlow.getChildren().addAll(regularText, variableText1, variableText2, variableText3);
 
@@ -566,8 +579,6 @@ public class ABRNewCommandPane extends ABRPane {
 
         defineTextFlow(comboBoxInstruc.getValue().getValue());
 
-        String css = getClass().getResource("/button.css").toExternalForm();
-
         addInstructionButton = componentBuilder.buildButton("OK", ABRConstants.SPACE_L, Insets.EMPTY);
         addInstructionButton.getStyleClass().add("ok-button");
 
@@ -599,6 +610,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         // Create a new HBox for the new buttons
         buttonBox = new HBox(10); // 10 is the spacing between buttons
+
         buttonBox
                 .getChildren()
                 .addAll(
@@ -608,12 +620,13 @@ public class ABRNewCommandPane extends ABRPane {
                         addWaitButton5,
                         addCloseActionButton,
                         addScreenButton);
+
         buttonBox.setAlignment(Pos.BASELINE_LEFT); // Align buttons to the left
 
         // Create an HBox and add all three labels into the same row
-        labelRow = new HBox(10); // 10 is the spacing between the labels
-        labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
-        labelRow.setAlignment(Pos.BASELINE_LEFT); // Align the labels to the left
+        // labelRow = new HBox(10); // 10 is the spacing between the labels
+        // labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
+        // labelRow.setAlignment(Pos.BASELINE_LEFT); // Align the labels to the left
 
         // Create HBox for comboBoxes
         comboBoxesRow = new HBox(10);
@@ -642,11 +655,10 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
 
-        HBox boxCombos = new HBox(comboBoxVars, comboBoxBlocks);
-
-        VBox commandBox = new VBox(commandLabel, comboBoxInstruc);
-        VBox varsBox = new VBox(botJobVarsLabel, boxCombos); // Here for the visualization
-        VBox webFieldsBox = new VBox(webPageLabel, comboBoxWebPage);
+        commandBox = new VBox(commandLabel, comboBoxInstruc);
+        varsBox = new VBox(botJobVarsLabel, comboBoxVars);
+        webFieldsBox = new VBox(webPageLabel, comboBoxWebPage);
+        blocksBox = new VBox(blocksLabel, comboBoxBlocks);
 
         comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
 
@@ -685,21 +697,6 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
 
-        // Create a listener (optional) to toggle visibility dynamically
-        //        valueToBeChecked.visibleProperty().addListener((obs, oldValue, newValue) -> {
-        //            valueToBeChecked.setManaged(newValue); // Set managed based on visibility
-        //            if (newValue) {
-        //                valueToBeChecked.setPrefWidth(buttonWidth - 50); // Restore width when visible
-        //            }
-        //        });
-
-        //        textFlow.visibleProperty().addListener((obs, oldValue, newValue) -> {
-        //            textFlow.setManaged(newValue); // Set managed based on visibility
-        //            if (newValue) {
-        //                textFlow.setPrefWidth(buttonWidth + 50); // Restore width when visible
-        //            }
-        //        });
-
         // Create an HBox for the variable button
         variableButtonRow = new HBox(10, variableButton, comboBoxOperator, textFlow);
         variableButtonRow.setAlignment(Pos.BASELINE_LEFT); // Align variableButton to the left
@@ -714,12 +711,15 @@ public class ABRNewCommandPane extends ABRPane {
         vboxAll = new VBox(20);
         vboxAll.getChildren()
                 .addAll(
-                        labelRow, // Web Page Label row
+                        // labelRow, // Web Page Label row
                         comboBoxesRow, // ComboBoxes row
                         variableButtonRow, // Variable Button row
                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                         );
+
+        String css = getClass().getResource("/button.css").toExternalForm();
+
         vboxAll.setAlignment(Pos.CENTER);
         vboxAll.setPadding(new Insets(10)); // Padding around the VBox
 
@@ -771,7 +771,7 @@ public class ABRNewCommandPane extends ABRPane {
                     textFlow.setVisible(true);
                     //                    textFlow.setPrefWidth(buttonWidth + 100);
 
-                    botJobVarsLabel.setText("Bot-Job Variable");
+                    //                    botJobVarsLabel.setText("Bot-Job Variable");
                     botJobVarsLabel.setVisible(true);
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(true);
@@ -784,13 +784,44 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxBlocks.setVisible(false);
                     comboBoxTimes.setVisible(false);
                     comboBoxLoops.setVisible(false);
+
+                    try {
+                        variableButtonRow.getChildren().clear();
+                        vboxAll.getChildren().clear();
+
+                        // labelRow.getChildren().clear();
+                        // labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
+                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                        comboBoxesRow.getChildren().clear();
+                        comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
+
+                        variableButtonRow = new HBox(10, variableButton, comboBoxOperator, textFlow);
+
+                        vboxAll.getChildren()
+                                .addAll(
+                                        // labelRow, // Web Page Label row
+                                        comboBoxesRow, // ComboBoxes row
+                                        variableButtonRow, // Variable Button row
+                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                        );
+
+                        // labelRow.requestLayout();
+                        vboxAll.requestLayout();
+                        mainPane.requestLayout();
+
+                    } catch (Exception ex) {
+                        System.out.println(ex.getMessage());
+                    }
+
                 } else if (ABRConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
                     textFlow.setVisible(true);
                     //                    textFlow.setPrefWidth(buttonWidth + 100);
 
-                    botJobVarsLabel.setText("Block Destination");
+                    //                    botJobVarsLabel.setText("Block Destination");
                     botJobVarsLabel.setVisible(true);
                     webPageLabel.setVisible(false);
                     comboBoxOperator.setVisible(false);
@@ -802,6 +833,37 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxBlocks.setPrefWidth(buttonWidth);
                     comboBoxTimes.setVisible(false);
                     comboBoxLoops.setVisible(false);
+
+                    try {
+                        variableButtonRow.getChildren().clear();
+                        vboxAll.getChildren().clear();
+
+                        // labelRow.getChildren().clear();
+                        // labelRow.getChildren().addAll(commandLabel);
+                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                        comboBoxesRow.getChildren().clear();
+                        comboBoxesRow.getChildren().addAll(commandBox, blocksBox);
+
+                        variableButtonRow = new HBox(10, blankText, textFlow);
+
+                        vboxAll.getChildren()
+                                .addAll(
+                                        // labelRow, // Web Page Label row
+                                        comboBoxesRow, // ComboBoxes row
+                                        variableButtonRow, // Variable Button row
+                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                        );
+
+                        // labelRow.requestLayout();
+                        vboxAll.requestLayout();
+                        mainPane.requestLayout();
+
+                    } catch (Exception ex) {
+                        System.out.println(ex.getMessage());
+                    }
+
                 } else if (ABRConstants.REFRESH_ONLY.equalsIgnoreCase(newValue.getValue())) {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
@@ -817,13 +879,44 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setVisible(false);
                     comboBoxTimes.setVisible(false);
                     comboBoxLoops.setVisible(false);
+
+                    try {
+                        variableButtonRow.getChildren().clear();
+                        vboxAll.getChildren().clear();
+
+                        // labelRow.getChildren().clear();
+                        // labelRow.getChildren().addAll(commandLabel);
+                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                        comboBoxesRow.getChildren().clear();
+                        comboBoxesRow.getChildren().addAll(commandBox);
+
+                        variableButtonRow = new HBox(10, blankText, textFlow);
+
+                        vboxAll.getChildren()
+                                .addAll(
+                                        // labelRow, // Web Page Label row
+                                        comboBoxesRow, // ComboBoxes row
+                                        variableButtonRow, // Variable Button row
+                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                        );
+
+                        // labelRow.requestLayout();
+                        vboxAll.requestLayout();
+                        mainPane.requestLayout();
+
+                    } catch (Exception ex) {
+                        System.out.println(ex.getMessage());
+                    }
+
                 } else if (ABRConstants.REFRESH_LOOP.equalsIgnoreCase(newValue.getValue())) {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
                     textFlow.setVisible(true);
                     //                    textFlow.setPrefWidth(buttonWidth + 100);
 
-                    botJobVarsLabel.setText("Bot-Job Variable");
+                    //                    botJobVarsLabel.setText("Bot-Job Variable");
                     botJobVarsLabel.setVisible(false);
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(false);
@@ -838,26 +931,32 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxTimes.setVisible(true);
                     comboBoxLoops.setVisible(true);
 
-                    variableButtonRow.getChildren().clear();
                     try {
-                        variableButtonRow = new HBox(10, comboBoxTimes, comboBoxLoops, textFlow);
-
-                        // Step 1: Remove old HBox (if it exists)
+                        variableButtonRow.getChildren().clear();
                         vboxAll.getChildren().clear();
 
-                        variableButtonRow = new HBox(10, comboBoxTimes, comboBoxLoops, textFlow);
+                        // labelRow.getChildren().clear();
+                        // labelRow.getChildren().addAll(commandLabel, webPageLabel);
+                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                        comboBoxesRow.getChildren().clear();
+                        comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
+
+                        variableButtonRow = new HBox(10, blankText, comboBoxTimes, comboBoxLoops, textFlow);
 
                         vboxAll.getChildren()
                                 .addAll(
-                                        labelRow, // Web Page Label row
+                                        // labelRow, // Web Page Label row
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
                                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
                                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                                         );
 
+                        // labelRow.requestLayout();
                         vboxAll.requestLayout();
                         mainPane.requestLayout();
+
                     } catch (Exception ex) {
                         System.out.println(ex.getMessage());
                     }
@@ -877,13 +976,44 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxVars.setVisible(false);
                     comboBoxTimes.setVisible(false);
                     comboBoxLoops.setVisible(false);
+
+                    try {
+                        variableButtonRow.getChildren().clear();
+                        vboxAll.getChildren().clear();
+
+                        // labelRow.getChildren().clear();
+                        // labelRow.getChildren().addAll(commandLabel);
+                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                        comboBoxesRow.getChildren().clear();
+                        comboBoxesRow.getChildren().addAll(commandBox);
+
+                        variableButtonRow = new HBox(10, blankText, textFlow);
+
+                        vboxAll.getChildren()
+                                .addAll(
+                                        // labelRow, // Web Page Label row
+                                        comboBoxesRow, // ComboBoxes row
+                                        variableButtonRow, // Variable Button row
+                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                        );
+
+                        // labelRow.requestLayout();
+                        vboxAll.requestLayout();
+                        mainPane.requestLayout();
+
+                    } catch (Exception ex) {
+                        System.out.println(ex.getMessage());
+                    }
+
                 } else {
                     defineTextFlow(newValue.getValue());
 
                     textFlow.setVisible(true);
                     //                    textFlow.setPrefWidth(buttonWidth);
 
-                    botJobVarsLabel.setText("Bot-Job Variable");
+                    //                    botJobVarsLabel.setText("Bot-Job Variable");
                     botJobVarsLabel.setVisible(true);
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(false);
@@ -897,14 +1027,35 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxTimes.setVisible(false);
                     comboBoxLoops.setVisible(false);
 
-                    //                    if (ABRConstants.GET_VALUE.equalsIgnoreCase(newValue.getValue())
-                    //                            || ABRConstants.EXTRACT_FIELD.equalsIgnoreCase(newValue.getValue())) {
-                    //                        valueToBeChecked.setVisible(false);
-                    //                        textFlow.setPrefWidth(buttonWidth + 100);
-                    //                    } else {
-                    //                        valueToBeChecked.setVisible(true);
-                    //                        textFlow.setPrefWidth(buttonWidth);
-                    //                    }
+                    try {
+                        variableButtonRow.getChildren().clear();
+                        vboxAll.getChildren().clear();
+
+                        // labelRow.getChildren().clear();
+                        // labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
+                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                        comboBoxesRow.getChildren().clear();
+                        comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
+
+                        variableButtonRow = new HBox(10, variableButton, textFlow);
+
+                        vboxAll.getChildren()
+                                .addAll(
+                                        // labelRow, // Web Page Label row
+                                        comboBoxesRow, // ComboBoxes row
+                                        variableButtonRow, // Variable Button row
+                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                        );
+
+                        // labelRow.requestLayout();
+                        vboxAll.requestLayout();
+                        mainPane.requestLayout();
+
+                    } catch (Exception ex) {
+                        System.out.println(ex.getMessage());
+                    }
                 }
             }
         });
