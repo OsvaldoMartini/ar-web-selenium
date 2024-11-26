@@ -99,7 +99,9 @@ public class ABRNewCommandPane extends ABRPane {
     Label webPageLabel;
     Label blocksLabel;
 
-    Text regularText;
+    Text regularText1;
+    Text regularText2;
+    Text regularText3;
     Text variableText1;
     Text variableText2;
     Text variableText3;
@@ -276,7 +278,10 @@ public class ABRNewCommandPane extends ABRPane {
 
         textFlow = new TextFlow();
         // Create regular Text for the first part of the label
-        regularText = new Text("Variable to SET : ");
+        regularText1 = new Text("Variable to SET : ");
+        regularText2 = new Text("");
+        regularText3 = new Text("");
+
         // Create Text for the variable part and set the color to red
         variableText1 = new Text("");
         variableText2 = new Text("");
@@ -286,7 +291,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         blankText = new Text("       ");
 
-        textFlow.getChildren().addAll(regularText, variableText1, variableText2, variableText3);
+        textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
 
         timesItems.add(new ComboBoxVars("10s", "10", -1, -1));
         timesItems.add(new ComboBoxVars("20s", "20", -1, -1));
@@ -1312,18 +1317,23 @@ public class ABRNewCommandPane extends ABRPane {
             // Switch based on newValue and update variableText1 accordingly
             switch (newValue.toUpperCase()) {
                 case ABRConstants.EXTRACT_FIELD:
-                    regularText.setText(" Excel Write from variable: ");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText(" Excel Write from variable: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(variableName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1);
+                    textFlow.requestLayout();
+
                     break;
                 case ABRConstants.GET_VALUE:
-                    regularText.setText(" GET Web field: ");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText(" GET Web field: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(comboBoxWebPage.getValue().getText());
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
@@ -1337,10 +1347,14 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
 
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.requestLayout();
+
                     break;
                 case ABRConstants.SET_VALUE:
-                    regularText.setText("SET Web field: ");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText("SET Web field: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(webFieldName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
@@ -1353,42 +1367,76 @@ public class ABRNewCommandPane extends ABRPane {
 
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.requestLayout();
                     break;
                 case ABRConstants.GOTO:
-                    regularText.setText("GO TO The Block : ");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText("GO TO The Block : ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
                     variableText1.setText(comboBoxBlocks.getValue().getText());
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1);
+                    textFlow.requestLayout();
+
                     break;
                 case ABRConstants.REFRESH_ONLY:
-                    regularText.setText("Refresh: ");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText("Refresh: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
                     variableText1.setText("Refresh Current Web Page");
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1);
+                    textFlow.requestLayout();
                     break;
                 case ABRConstants.REFRESH_LOOP:
-                    regularText.setText("Refresh Loop: ");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText("Refresh ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText1.setText(" " + comboBoxOperator.getValue().getText() + " ");
+                    variableText1.setText(comboBoxTimes.getValue().getText() + " ");
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    variableText2.setText(variableValue);
-                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText2.setText(": Loop ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText2.setText(comboBoxLoops.getValue().getText());
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText3.setText(": Parent ");
+                    regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText3.setText(webFieldName);
                     variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
+
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(true);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren()
+                            .addAll(
+                                    regularText1,
+                                    variableText1,
+                                    regularText2,
+                                    variableText2,
+                                    regularText3,
+                                    variableText3);
+                    textFlow.requestLayout();
+
                     break;
                 case ABRConstants.IF:
-                    regularText.setText("{ IF -> ELSE } ");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText("{ IF -> ELSE } ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
                     variableText1.setText(" OR ");
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
                     variableText2.setText(" { ELSE -> ENDIF }");
@@ -1397,10 +1445,15 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.requestLayout();
+
                     break;
                 case ABRConstants.CHECK_VALUE:
-                    regularText.setText("CHECK Variable: ");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText("CHECK Variable: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(variableName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
@@ -1413,10 +1466,15 @@ public class ABRNewCommandPane extends ABRPane {
 
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.requestLayout();
+
                     break;
                 default:
-                    regularText.setText("No Selection");
-                    regularText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setText("No Selection");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText("");
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
@@ -1429,6 +1487,11 @@ public class ABRNewCommandPane extends ABRPane {
 
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.requestLayout();
+
                     break;
             }
         }
@@ -1681,15 +1744,23 @@ public class ABRNewCommandPane extends ABRPane {
                 || (actions.equalsIgnoreCase(ABRConstants.SCREEN))
                 || actions.equalsIgnoreCase(ABRConstants.QUIT)) {
             extra.setText("");
-            regularText.setText("");
+            regularText1.setText("");
+            regularText2.setText("");
+            regularText3.setText("");
             variableText1.setText("Action:");
             variableText2.setText(name);
             variableText3.setText("");
         }
 
         // Create individual text elements with the necessary styling
-        Text regularTextCopy = new Text(regularText.getText());
-        regularTextCopy.setStyle(regularText.getStyle());
+        Text regularTextCopy1 = new Text(regularText1.getText());
+        regularTextCopy1.setStyle(regularText1.getStyle());
+
+        Text regularTextCopy2 = new Text(regularText2.getText());
+        regularTextCopy2.setStyle(regularText2.getStyle());
+
+        Text regularTextCopy3 = new Text(regularText3.getText());
+        regularTextCopy3.setStyle(regularText3.getStyle());
 
         Text variableText1Copy = new Text(variableText1.getText());
         variableText1Copy.setStyle(variableText1.getStyle());
@@ -1706,10 +1777,21 @@ public class ABRNewCommandPane extends ABRPane {
         HBox combinedTextContainer = new HBox();
         combinedTextContainer.setSpacing(5); // Add some spacing between the texts
 
-        combinedTextContainer
-                .getChildren()
-                .addAll(regularTextCopy, variableText1Copy, variableText2Copy, variableText3Copy);
-
+        if (actions.equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+            combinedTextContainer
+                    .getChildren()
+                    .addAll(
+                            regularTextCopy1,
+                            variableText1Copy,
+                            regularTextCopy2,
+                            variableText2Copy,
+                            regularTextCopy3,
+                            variableText3Copy);
+        } else {
+            combinedTextContainer
+                    .getChildren()
+                    .addAll(regularTextCopy1, variableText1Copy, variableText2Copy, variableText3Copy);
+        }
         boolean alertResponse = performAction.showCombinedConfirmation(
                 "Add new Instruction",
                 "Are you sure you want to Add the Instruction to the Bot-Job?",
