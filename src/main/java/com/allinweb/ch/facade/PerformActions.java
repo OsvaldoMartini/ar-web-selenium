@@ -122,73 +122,70 @@ public class PerformActions {
         if (instructionElement != null
                 || actions[0].equals(Constants.HOLD)
                 || actions[0].equals(Constants.QUIT)
-                || actions[0].equals(Constants.SCREEN)) {
+                || actions[0].equals(Constants.SCREEN)
+                || actions[0].equals(Constants.REFRESH_ONLY)
+                || actions[0].equals(Constants.REFRESH_LOOP)) {
 
-            for (String action : actions) {
-                switch (String.valueOf(action.charAt(0))) {
-                    case Constants.VISUALIZE:
-                        scrollToElement(instructionElement);
-                        break;
-                    case Constants.OTHER:
-                        clickElement(instructionElement);
-                        break;
-                    case Constants.OUTPUT:
-                        String fieldName = instruction.getId() + "-" + instruction.getName();
-                        getOutPutElement(instructionElement, fieldName, instruction.getActions(), mapOperators);
-                        break;
-                    case Constants.CLICK:
-                        clickElement(instructionElement);
-                        break;
-                    case Constants.INSERT:
-                        if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                            insertDataInSelectElement(instructionElement, data);
-                        } else {
-                            insertInElement(
-                                    instructionElement,
-                                    data.getKey(),
-                                    data.getKey(),
-                                    instruction.getDefaultValue(),
-                                    instruction.isEncrypted());
-                        }
-                        break;
-                    case Constants.LIST_OPERATION:
-                        listOperation(instruction);
-                        break;
-                    case Constants.HOLD:
-                        //                        executeAlert(instruction);
-                        onHoldForSeconds(instruction);
-                        break;
-                    case Constants.REFRESH:
-                        refreshPage();
-                        break;
-                    case Constants.QUIT:
-                        Alert alert = new Alert(
-                                Alert.AlertType.CONFIRMATION,
-                                "Do you want to continue?",
-                                ButtonType.YES,
-                                ButtonType.NO);
-                        alert.setTitle("Confirmation");
-                        alert.setHeaderText("This Action Closes the Browser and Scanner!");
-                        //                        alert.setContentText(content);
+            switch (actions[0]) {
+                case Constants.VISUALIZE:
+                    scrollToElement(instructionElement);
+                    break;
+                case Constants.OUTPUT:
+                    String fieldName = instruction.getId() + "-" + instruction.getName();
+                    getOutPutElement(instructionElement, fieldName, instruction.getActions(), mapOperators);
+                    break;
+                case Constants.CLICK:
+                case Constants.OTHER:
+                    clickElement(instructionElement);
+                    break;
+                case Constants.INSERT:
+                    if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
+                        insertDataInSelectElement(instructionElement, data);
+                    } else {
+                        insertInElement(
+                                instructionElement,
+                                data.getKey(),
+                                data.getValue(),
+                                instruction.getDefaultValue(),
+                                instruction.isEncrypted());
+                    }
+                    break;
+                case Constants.LIST_OPERATION:
+                    listOperation(instruction);
+                    break;
+                case Constants.HOLD:
+                    //                        executeAlert(instruction);
+                    onHoldForSeconds(instruction);
+                    break;
+                case Constants.REFRESH_ONLY:
+                case Constants.REFRESH_LOOP:
+                    refreshPage();
+                    break;
+                case Constants.QUIT:
+                    Alert alert = new Alert(
+                            Alert.AlertType.CONFIRMATION, "Do you want to continue?", ButtonType.YES, ButtonType.NO);
+                    alert.setTitle("Confirmation");
+                    alert.setHeaderText("This Action Closes the Browser and Scanner!");
+                    //                        alert.setContentText(content);
 
-                        Optional<ButtonType> quitResult = alert.showAndWait();
-                        if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
-                            ABRSharedResources.getInstance().cacheEntitiesFromDB();
-                            quit(1);
-                        } else {
-                            ABRSharedResources.getInstance().cacheEntitiesFromDB();
-                        }
-                        break;
-                        //                    case Constants.EXTRACT:
-                        //                        result = "insertValueFieldNameInExcel-->"
-                        //                                + insertValueFieldNameInExcel(instructionElement, instruction,
-                        // action, blockJobName);
-                        //                        break;
-                    case Constants.SCREEN:
-                        break;
-                }
-                onHoldForSeconds(null);
+                    Optional<ButtonType> quitResult = alert.showAndWait();
+                    if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
+                        ABRSharedResources.getInstance().cacheEntitiesFromDB();
+                        quit(1);
+                    } else {
+                        ABRSharedResources.getInstance().cacheEntitiesFromDB();
+                    }
+                    break;
+                    //                    case Constants.EXTRACT:
+                    //                        result = "insertValueFieldNameInExcel-->"
+                    //                                + insertValueFieldNameInExcel(instructionElement, instruction,
+                    // action, blockJobName);
+                    //                        break;
+                case Constants.SCREEN:
+                    break;
             }
+
+            onHoldForSeconds(null);
         }
         //        } else {
         //            executeActionsAtInstructionCoordinates(instruction, data);
@@ -600,6 +597,11 @@ public class PerformActions {
         }
     }
 
+    public synchronized String onHoldRefreshLoopForSeconds(Integer seconds) throws Exception {
+        wait(fromSecondsToMilliseconds(TimeUnit.SECONDS, seconds));
+        return "HOLD" + "->" + seconds + " seconds";
+    }
+
     private long fromSecondsToMilliseconds(TimeUnit timeUnit, int units) throws Exception {
         long milliseconds;
 
@@ -926,30 +928,27 @@ public class PerformActions {
         }
     }
 
-    public short operationLog(
-            boolean success, String mainMsg, String resultActions, String lastInstructionExecuted, long duration) {
+    public short operationLog(boolean success, String mainMsg, String currentExecution, long duration) {
 
         if (success) {
 
             ABRLogger.getInstance(PerformActions.class)
                     .info(String.format(
                             success
-                                    ? "SUCCESS %s Previous: %s --> Current Cmd: %s - Duration: %s"
-                                    : "FAILED %s Previous: %s --> Current Cmd: %s - Duration: %s",
+                                    ? "SUCCESS %s Current Cmd: %s - Duration: %s"
+                                    : "FAILED %s Current Cmd: %s - Duration: %s",
                             mainMsg,
-                            resultActions,
-                            lastInstructionExecuted,
+                            currentExecution,
                             LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
         } else {
 
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
                             success
-                                    ? "SUCCESS %s Previous: %s --> Current Cmd: %s - Duration: %s"
-                                    : "FAILED %s Previous: %s --> Current Cmd: %s - Duration: %s",
+                                    ? "SUCCESS %s Current Cmd: %s - Duration: %s"
+                                    : "FAILED %s Current Cmd: %s - Duration: %s",
                             mainMsg,
-                            resultActions,
-                            lastInstructionExecuted,
+                            currentExecution,
                             LocalTime.ofNanoOfDay(duration).format(FORMAT_TIME)));
         }
 
@@ -965,7 +964,7 @@ public class PerformActions {
         if (!ifClause && !elseClause) {
             showAlert(
                     Alert.AlertType.ERROR,
-                    "GET is Not Defined for \"+" + currentInstruction.getName() + "\"",
+                    "GET is Not Defined for \"" + currentInstruction.getName() + "\"",
                     "\"" + currentInstruction.getName() + "\" - GET is Not Defined",
                     "There is NOT GET VALUE defined for: "
                             + currentInstruction.getName()
@@ -985,6 +984,21 @@ public class PerformActions {
         } else {
             return "Failed to Execute Cmd: " + lastInstructionExecuted;
         }
+    }
+
+    public String parentValueIsNotDefined(String instructionName, int parentId, String resultActions) {
+
+        showAlert(
+                Alert.AlertType.ERROR,
+                "Parent is Not Defined for \"" + instructionName + "\"",
+                "\"" + instructionName + "\" - Parent is Not Defined",
+                "There is NOT PARENT VALUE defined for: "
+                        + instructionName
+                        + "\n --------------------- "
+                        + "\nCheck the PARENT Web field for "
+                        + parentId + "- Unknown");
+
+        return "Failed to Execute Cmd: " + resultActions;
     }
 
     public String parentIdWrongBlock(
@@ -1111,14 +1125,15 @@ public class PerformActions {
         });
     }
 
-    public void excelReportWrite(
+    public boolean excelReportWrite(
             boolean success,
-            BlockLoopInstructionLoadDTO currentInstruction,
+            String[] actions,
+            Pair<String, String> msgLoop,
             long duration,
             Map<String, String> dataExcel,
             ExcelWriter.ExcelChain writerReport) {
-        writerReport.insertInstructionResult(
-                currentInstruction, dataExcel, LocalTime.ofNanoOfDay(duration), success ? "success" : "failed");
+        return writerReport.insertInstructionResult(
+                actions, msgLoop, dataExcel, LocalTime.ofNanoOfDay(duration), success ? "success" : "failed");
     }
 
     public long duration(long startTime) {
@@ -1440,48 +1455,39 @@ public class PerformActions {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public String actionResultMessage(
-            BlockLoopInstructionLoadDTO instruction,
-            String blockJobName,
-            WebElement instructionElement,
-            String actions[],
-            Pair<String, String> fieldData)
-            throws Exception {
+    public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> fieldData) {
 
-        if (instructionElement != null
-                || actions[0].equals(Constants.HOLD)
-                || actions[0].equals(Constants.QUIT)
-                || actions[0].equals(Constants.SCREEN)) {
-
-            for (String action : actions) {
-                switch (String.valueOf(action.charAt(0))) {
-                    case Constants.VISUALIZE:
-                        return "Visualize action executed for " + instruction.getName();
-                    case Constants.OTHER:
-                        return "Other Element --> " + instruction.getName();
-                    case Constants.OUTPUT:
-                        return "Output Element --> " + instruction.getName();
-                    case Constants.CLICK:
-                        return "Click Element --> " + instruction.getName();
-                    case Constants.INSERT:
-                        return "Insert action for " + instruction.getName() + " -> " + fieldData.getKey() + " = "
-                                + fieldData.getValue();
-                    case Constants.LIST_OPERATION:
-                        return "List Operation performed for " + instruction.getName();
-                    case Constants.HOLD:
-                        return "Hold action executed for " + instruction.getName();
-                    case Constants.REFRESH:
-                        return "Refresh Page action triggered";
-                    case Constants.QUIT:
-                        return "Quit action processed";
-                    case Constants.SCREEN:
-                        return "Screen action executed for " + instruction.getName() + " --> " + blockJobName;
-                    default:
-                        return "Unknown action for " + instruction.getName();
-                }
-            }
+        switch (actions[0]) {
+            case Constants.VISUALIZE:
+                return "Visualize action executed for " + fieldData.getKey();
+            case Constants.OTHER:
+                return "Other Element --> " + fieldData.getKey();
+            case Constants.OUTPUT:
+                return "Output Element --> " + fieldData.getKey();
+            case Constants.CLICK:
+                return "Click Element --> " + fieldData.getKey();
+            case Constants.INSERT:
+                return "Insert action for  -> " + fieldData.getKey() + " = " + fieldData.getValue();
+            case Constants.LIST_OPERATION:
+                return "List Operation performed for " + fieldData.getKey();
+            case Constants.HOLD:
+                return "Hold action executed for " + fieldData.getKey();
+            case Constants.PAUSE:
+                return "Pause action triggered";
+            case Constants.REFRESH_ONLY:
+                return " Refresh action triggered";
+            case Constants.REFRESH_LOOP:
+                String[] msgLoop = fieldData.getValue().split(":");
+                return String.format(
+                        "Refresh %s seconds : Loop %s times : Jump To Parent %s ",
+                        msgLoop[0], msgLoop[1], fieldData.getKey());
+            case Constants.QUIT:
+                return "Quit action processed";
+            case Constants.SCREEN:
+                return "Screen action executed for " + fieldData.getKey() + " --> " + blockJobName;
+            default:
+                return "No Action Detected for " + fieldData.getKey();
         }
-        return "No Action Detected";
     }
 
     public static Pair<String, String> insertRandomName(String key) {
@@ -1499,5 +1505,36 @@ public class PerformActions {
         }
 
         return nameBuilder.toString();
+    }
+
+    public int[] addElementToArray(int[] refreshLoopArray, int newItem) {
+        int[] extendedRefreshArray = new int[refreshLoopArray.length + 1];
+        System.arraycopy(refreshLoopArray, 0, extendedRefreshArray, 0, refreshLoopArray.length);
+        extendedRefreshArray[refreshLoopArray.length] = newItem;
+        return extendedRefreshArray;
+    }
+
+    public String getXInstructionPath(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+        try {
+            return blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                    .filter(f -> f.getId() == currentInstruction.getParentId())
+                    .findFirst()
+                    .get()
+                    .getPath();
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    public String getInstructionParentField(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+        try {
+            return blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                    .filter(f -> f.getId() == currentInstruction.getParentId())
+                    .findFirst()
+                    .get()
+                    .getName();
+        } catch (Exception ex) {
+            return null;
+        }
     }
 }

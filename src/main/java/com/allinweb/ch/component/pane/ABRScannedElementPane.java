@@ -843,6 +843,8 @@ public class ABRScannedElementPane extends ABRPane {
                         this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
                     } else if (checkInputText.isSelected()) {
                         this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                    } else if (checkOutputText.isSelected()) {
+                        this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.OUTPUT);
                     }
 
                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
@@ -3162,12 +3164,17 @@ public class ABRScannedElementPane extends ABRPane {
         boolean excelExportOnceCreation = true;
         //        writerExport.insertReportHead();
 
+        boolean refreshOnly = false;
+        boolean refreshLoopExecuted = false;
+        boolean ignoreRefreshLoop = false;
+        int[] refreshLoopArray = null; // new int[] {0, 0, 0};
+
         boolean success = true;
         boolean stopAll = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
-        String lastInstructionExecuted = "No instruction executed yet";
-        String resultActions = "";
+        String resultActions = "No instruction executed yet";
+        String extraMsg = "";
         short status = (short) ExcelReportStatusEnum.ERROR.ordinal();
         Map<String, String> dataExcel = null;
 
@@ -3214,12 +3221,20 @@ public class ABRScannedElementPane extends ABRPane {
                     mapExport.clear();
                     //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
-                    // Insert the field name and value rows below the block name
-                    for (int j = 0;
-                            j < blockLoad.getBlockLoopInstructionLoadDTOS().size() && !stopAll;
-                            j++) {
+                    dataExcel = extractedData.getRowFieldValues(i);
+
+                    int[] instructionIds = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                            .mapToInt(BlockLoopInstructionLoadDTO::getId)
+                            .toArray();
+
+                    int currentIndex = 0;
+
+                    while (currentIndex < instructionIds.length && !stopAll) {
+
                         BlockLoopInstructionLoadDTO currentInstruction =
-                                blockLoad.getBlockLoopInstructionLoadDTOS().get(j);
+                                blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
+
+                        currentIndex++;
 
                         // Allow Re-Execute Instructions in Previous Blocks
                         //                        if (currentInstruction.getExecuted() == null ||
@@ -3236,15 +3251,29 @@ public class ABRScannedElementPane extends ABRPane {
                         //                        String[] operation =
                         // UtilsMethods.splitIfContains(instruction.getOperation(),
                         // Constants.ACTION_SPECIFICATIONS_SPLITTER);
-
                         String[] actions =
                                 currentInstruction.getActions().split(Constants.ACTION_SPECIFICATIONS_SPLITTER);
                         String[] operations = currentInstruction.getOperation() != null
                                 ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                 : null;
 
-                        resultActions = "Last Executed: " + currentInstruction.getName() + " --> "
-                                + currentInstruction.getOperation();
+                        // Case for Inputs
+                        String valueInsert = "No Data Found";
+                        if (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) {
+
+                            String reference = actions[1];
+                            valueInsert = dataExcel.get(reference);
+                        }
+
+                        Pair<String, String> msgInitial = new Pair(
+                                currentInstruction.getName(),
+                                (currentInstruction.getOperation() != null
+                                        ? currentInstruction.getOperation()
+                                        : (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) ? valueInsert : ""));
+
+                        resultActions = performAction.actionResultMessage(blockName, actions, msgInitial);
+
+                        extraMsg = "";
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
 
@@ -3260,8 +3289,10 @@ public class ABRScannedElementPane extends ABRPane {
                                     " Please click OK to continue!");
                             //
                             long duration = performAction.duration(currentInstructionStartTime);
+
                             performAction.excelReportWrite(
-                                    success, currentInstruction, duration, dataExcel, writerReport);
+                                    success, actions, msgInitial, duration, dataExcel, writerReport);
+
                             totalExecutionTime += duration;
 
                             continue;
@@ -3345,8 +3376,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
                             ifDone = false;
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Skiping { ENDIF } -> Success Skipping inside Block :\"" + blockLoad.getName()
-                                            + "\"");
+                                    .info("Skipping { ENDIF } -> Success Skipping inside Block :\""
+                                            + blockLoad.getName() + "\"");
 
                             continue;
                         }
@@ -3358,23 +3389,15 @@ public class ABRScannedElementPane extends ABRPane {
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
                             execOperation = true;
-                            try {
-                                xPathOperation = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                        .filter(f -> f.getId() == currentInstruction.getParentId())
-                                        .findFirst()
-                                        .get()
-                                        .getPath();
+                            xPathOperation = performAction.getXInstructionPath(currentInstruction, blockLoad);
 
-                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                        .filter(f -> f.getId() == currentInstruction.getParentId())
-                                        .findFirst()
-                                        .get()
-                                        .getName();
+                            parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
 
+                            if (xPathOperation != null && parentField != null) {
                                 fieldName = parentField;
                                 parentField = parentId + "-" + parentField;
 
-                            } catch (Exception ex) {
+                            } else {
                                 resultActions = performAction.parentIdWrongBlock(
                                         currentInstruction, blockLoad, ifClause, elseClause);
 
@@ -3393,20 +3416,17 @@ public class ABRScannedElementPane extends ABRPane {
                             }
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
-                            try {
-                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                        .filter(f -> f.getId() == currentInstruction.getParentId())
-                                        .findFirst()
-                                        .get()
-                                        .getName();
 
+                            checkOperation = true;
+                            parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+
+                            if (parentField != null) {
                                 fieldName = parentField;
                                 parentField = parentId + "-" + parentField;
 
-                                checkOperation = true;
-                            } catch (Exception ex) {
+                            } else {
                                 resultActions = performAction.getValueIsNotDefined(
-                                        currentInstruction, lastInstructionExecuted, ifClause, elseClause);
+                                        currentInstruction, resultActions, ifClause, elseClause);
 
                                 if (!ifClause && !elseClause) {
                                     stopAll = true;
@@ -3422,20 +3442,17 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                             }
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
-                            try {
-                                parentField = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                                        .filter(f -> f.getId() == currentInstruction.getParentId())
-                                        .findFirst()
-                                        .get()
-                                        .getName();
+
+                            excelWriteOperation = true;
+
+                            parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            if (parentField != null) {
 
                                 fieldName = parentField;
                                 parentField = parentId + "-" + parentField;
-
-                                excelWriteOperation = true;
-                            } catch (Exception ex) {
+                            } else {
                                 resultActions = performAction.getValueIsNotDefined(
-                                        currentInstruction, lastInstructionExecuted, ifClause, elseClause);
+                                        currentInstruction, resultActions, ifClause, elseClause);
 
                                 if (!ifClause && !elseClause) {
                                     stopAll = true;
@@ -3450,8 +3467,98 @@ public class ABRScannedElementPane extends ABRPane {
                                     break;
                                 }
                             }
-                        }
 
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Refresh Current Web Page ->  inside Block :\"" + blockLoad.getName() + "\"");
+
+                            refreshOnly = true;
+                        } else if (!ignoreRefreshLoop
+                                && refreshLoopArray == null
+                                && actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .info("Refresh Loop Current Web Page ->  inside Block :\"" + blockLoad.getName()
+                                            + "\"");
+
+                            parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+
+                            if (parentField != null) {
+                                fieldName = parentField;
+                                parentField = parentId + "-" + parentField;
+
+                                String[] splitArray =
+                                        currentInstruction.getOperation().split(":");
+                                refreshLoopArray = Arrays.stream(splitArray)
+                                        .mapToInt(Integer::parseInt)
+                                        .toArray();
+
+                                refreshLoopArray = performAction.addElementToArray(refreshLoopArray, parentId);
+
+                                if (refreshLoopArray != null && refreshLoopArray.length > 2) {
+
+                                    int index = -1; // Initialize to -1 to indicate not found
+
+                                    for (int x = 0; x < instructionIds.length; x++) {
+                                        if (instructionIds[x] == refreshLoopArray[2]) {
+                                            index = x;
+                                            break; // Exit the loop once the value is found
+                                        }
+                                    }
+
+                                    if (index != -1) {
+                                        refreshLoopArray = performAction.addElementToArray(refreshLoopArray, index);
+                                        //                                        currentIndex = index;
+                                    } else {
+                                        refreshLoopArray = null;
+
+                                        resultActions = performAction.parentValueIsNotDefined(
+                                                "REFRESH_LOOP", refreshLoopArray[2], resultActions);
+
+                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                .severe(String.format("Error: \"%s\"", resultActions));
+
+                                        if (!ifClause && !elseClause) {
+                                            stopAll = true;
+                                            success = false;
+                                        } else if (ifClause) {
+                                            ifFailed = true;
+                                        } else if (elseClause) {
+                                            elseFailed = true;
+                                        }
+
+                                        if (stopAll) {
+                                            break;
+                                        }
+
+                                        continue;
+                                    }
+                                }
+
+                            } else {
+                                resultActions = performAction.parentValueIsNotDefined(
+                                        currentInstruction.getName(), currentInstruction.getParentId(), resultActions);
+
+                                refreshLoopArray = null;
+
+                                if (!ifClause && !elseClause) {
+                                    stopAll = true;
+                                    success = false;
+                                } else if (ifClause) {
+                                    ifFailed = true;
+                                } else if (elseClause) {
+                                    elseFailed = true;
+                                }
+
+                                if (stopAll) {
+                                    break;
+                                }
+                            }
+                        } else if (ignoreRefreshLoop && actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+                            ignoreRefreshLoop = false;
+                            continue;
+                        }
                         long currentInstructionStartTime = System.nanoTime();
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
@@ -3459,10 +3566,6 @@ public class ABRScannedElementPane extends ABRPane {
 
                         try {
                             if (jumpGoto) {
-
-                                lastInstructionExecuted = currentInstruction.getName()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getOperation();
 
                                 try {
                                     int blockOrderNumber = blocksLoaded.stream()
@@ -3476,9 +3579,6 @@ public class ABRScannedElementPane extends ABRPane {
                                     currentBlock = blockOrderNumber - 1;
                                     currentInstruction.setExecuted(true);
 
-                                    resultActions = "GO TO -->" + currentInstruction.getName() + " --> "
-                                            + currentInstruction.getOperation();
-
                                     // Assuming currentInstruction and instructionsExecuted are already defined
                                     if (currentInstruction != null
                                             && instructionsExecuted.stream()
@@ -3489,8 +3589,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     success = true;
                                 } catch (Exception ex) {
-                                    resultActions = "Failed to Execute -> " + currentInstruction.getName() + " --> "
-                                            + currentInstruction.getOperation();
+                                    resultActions = "Failed " + resultActions;
+
                                     success = false;
 
                                     resultActions = performAction.blockGotoFailed(resultActions);
@@ -3498,7 +3598,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                        success, actions, msgInitial, duration, dataExcel, writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -3507,7 +3607,6 @@ public class ABRScannedElementPane extends ABRPane {
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
                                         resultActions,
-                                        lastInstructionExecuted,
                                         duration);
                                 if (success) {
                                     continue outerLoop;
@@ -3525,19 +3624,126 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
                                 }
 
+                            } else if (refreshOnly) {
+
+                                performAction.performWebActions(null, currentInstruction, mapOperators, null, actions);
+
+                                long duration = performAction.duration(currentInstructionStartTime);
+                                performAction.excelReportWrite(
+                                        success, actions, msgInitial, duration, dataExcel, writerReport);
+                                totalExecutionTime += duration;
+
+                                status = performAction.operationLog(
+                                        success,
+                                        currentInstruction.isOptional()
+                                                ? "OPTIONAL INSTRUCTION"
+                                                : "MANDATORY INSTRUCTION",
+                                        resultActions,
+                                        duration);
+
+                                refreshOnly = false;
+
+                                continue;
+
+                            } else if (refreshLoopArray != null && !refreshLoopExecuted && !ignoreRefreshLoop) {
+
+                                refreshLoopExecuted = true;
+
+                                performAction.performWebActions(null, currentInstruction, mapOperators, null, actions);
+
+                                Pair<String, String> msgLoop = new Pair(
+                                        parentField,
+                                        (refreshLoopArray != null
+                                                ? Arrays.stream(refreshLoopArray)
+                                                        .mapToObj(String::valueOf) // Convert each int to String
+                                                        .collect(Collectors.joining(":"))
+                                                : "Empty:Empty"));
+
+                                resultActions = performAction.actionResultMessage(blockName, actions, msgLoop);
+                                long duration = performAction.duration(currentInstructionStartTime);
+
+                                boolean excelSuccess = performAction.excelReportWrite(
+                                        success, actions, msgLoop, duration, dataExcel, writerReport);
+
+                                if (!excelSuccess) {
+                                    resultActions = "Failed " + resultActions;
+                                    success = false;
+                                }
+
+                                totalExecutionTime += duration;
+
+                                status = performAction.operationLog(
+                                        success,
+                                        currentInstruction.isOptional()
+                                                ? "OPTIONAL INSTRUCTION"
+                                                : "MANDATORY INSTRUCTION",
+                                        resultActions,
+                                        duration);
+
+                                refreshLoopArray[1] = refreshLoopArray[1] - 1;
+                                currentIndex = refreshLoopArray[3];
+                                continue;
+
                             } else if (!execOperation && !checkOperation && !excelWriteOperation) {
 
-                                dataExcel = extractedData.getRowFieldValues(i);
+                                Pair<String, String> msgLoop = null;
+                                if (refreshLoopExecuted && refreshLoopArray != null) {
 
-                                lastInstructionExecuted = currentInstruction.getName()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getPath();
+                                    performAction.onHoldRefreshLoopForSeconds(refreshLoopArray[0]);
 
-                                WebElement webElementFound =
-                                        performAction.searchElement(currentInstruction, this.botJob.getId());
+                                    String currentField =
+                                            currentInstruction.getId() + "-" + currentInstruction.getName();
+                                    msgLoop = new Pair(
+                                            currentField,
+                                            (refreshLoopArray != null
+                                                    ? Arrays.stream(refreshLoopArray)
+                                                            .mapToObj(String::valueOf) // Convert each int to String
+                                                            .collect(Collectors.joining(":"))
+                                                    : "Empty:Empty"));
+
+                                    resultActions = performAction.actionResultMessage(
+                                            blockName, new String[] {ABRConstants.HOLD}, msgLoop);
+                                    long duration = performAction.duration(currentInstructionStartTime);
+
+                                    boolean excelSuccess = performAction.excelReportWrite(
+                                            success,
+                                            new String[] {ABRConstants.HOLD},
+                                            msgLoop,
+                                            duration,
+                                            dataExcel,
+                                            writerReport);
+
+                                    if (!excelSuccess) {
+                                        resultActions = "Failed " + resultActions;
+                                        success = false;
+                                    }
+
+                                    totalExecutionTime += duration;
+
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            "(REFRESH_LOOP)-HOLD TIME" + refreshLoopArray[0] + " Seconds",
+                                            duration);
+                                }
+
+                                WebElement webElementFound = null;
+                                try {
+                                    webElementFound =
+                                            performAction.searchElement(currentInstruction, this.botJob.getId());
+                                } catch (Exception ex) {
+                                    extraMsg = "Element not found. Please try rescanning.!";
+                                }
 
                                 if (webElementFound != null) {
 
+                                    if (refreshLoopExecuted && refreshLoopArray != null) {
+                                        refreshLoopExecuted = false;
+                                        ignoreRefreshLoop = true;
+                                        refreshLoopArray = null;
+                                    }
                                     // Extract dataFieldName and dataFieldValue using a separate method
                                     Pair<String, String> fieldData = performAction.extractFieldData(
                                             dataExcel,
@@ -3545,11 +3751,44 @@ public class ABRScannedElementPane extends ABRPane {
                                             currentInstruction.getDefaultValue(),
                                             currentInstruction.getEncrypted() > 0);
 
-                                    resultActions = performAction.actionResultMessage(
-                                            currentInstruction, blockName, webElementFound, actions, fieldData);
+                                    resultActions = performAction.actionResultMessage(blockName, actions, fieldData);
 
                                     performAction.performWebActions(
                                             fieldData, currentInstruction, mapOperators, webElementFound, actions);
+                                } else if (refreshLoopExecuted && refreshLoopArray != null) {
+                                    refreshLoopArray[1] = refreshLoopArray[1] - 1;
+                                    currentIndex = refreshLoopArray[3];
+
+                                    resultActions = performAction.actionResultMessage(
+                                            blockName, new String[] {ABRConstants.REFRESH_LOOP}, msgLoop);
+                                    long duration = performAction.duration(currentInstructionStartTime);
+
+                                    boolean excelSuccess = performAction.excelReportWrite(
+                                            success,
+                                            new String[] {ABRConstants.REFRESH_LOOP},
+                                            msgLoop,
+                                            duration,
+                                            dataExcel,
+                                            writerReport);
+
+                                    if (!excelSuccess) {
+                                        resultActions = "Failed " + resultActions;
+                                        success = false;
+                                    }
+
+                                    totalExecutionTime += duration;
+
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            "(REFRESH_LOOP)-" + resultActions,
+                                            duration);
+
+                                    if (refreshLoopArray[1] > -1) {
+                                        continue;
+                                    }
                                 }
 
                                 // Special Cases for Select Responses
@@ -3573,7 +3812,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                        success, actions, msgInitial, duration, dataExcel, writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -3582,17 +3821,17 @@ public class ABRScannedElementPane extends ABRPane {
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
                                         resultActions,
-                                        lastInstructionExecuted,
                                         duration);
 
                             } else if (execOperation) {
-                                // Special Operators
-                                lastInstructionExecuted = currentInstruction.getName()
+
+                                resultActions = currentInstruction.getName()
                                         + Constants.BLANK_STRING
                                         + currentInstruction.getActions()
                                         + Constants.BLANK_STRING
                                         + currentInstruction.getOperation();
 
+                                // Special Operators
                                 if (operations.length == 2) {
                                     resultActions = performAction.performActionOperator(
                                             currentInstruction,
@@ -3617,18 +3856,18 @@ public class ABRScannedElementPane extends ABRPane {
                                         }
                                         success = true;
                                     } else {
-                                        resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                        resultActions = "Failed: " + resultActions;
                                         success = false;
                                     }
 
                                 } else {
-                                    resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                    resultActions = "Failed: " + resultActions;
                                     success = false;
                                 }
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                        success, actions, msgInitial, duration, dataExcel, writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -3637,12 +3876,11 @@ public class ABRScannedElementPane extends ABRPane {
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
                                         resultActions,
-                                        lastInstructionExecuted,
                                         duration);
 
                             } else if (checkOperation) {
                                 // Check Validation Operator
-                                lastInstructionExecuted = currentInstruction.getName()
+                                resultActions = currentInstruction.getName()
                                         + Constants.BLANK_STRING
                                         + currentInstruction.getActions()
                                         + Constants.BLANK_STRING
@@ -3683,7 +3921,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             resultActions = performAction.checkValidationFailed(
                                                     parentField,
                                                     mapOperators.get(parentField),
-                                                    lastInstructionExecuted,
+                                                    resultActions,
                                                     operations,
                                                     ifClause,
                                                     elseClause);
@@ -3704,7 +3942,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     } else {
                                         performAction.getValueIsNotDefined(
-                                                currentInstruction, lastInstructionExecuted, ifClause, elseClause);
+                                                currentInstruction, resultActions, ifClause, elseClause);
                                         if (!ifClause && !elseClause) {
                                             stopAll = true;
                                             success = false;
@@ -3720,13 +3958,13 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
 
                                 } else {
-                                    resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                    resultActions = "Failed: " + resultActions;
                                     success = false;
                                 }
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                        success, actions, msgInitial, duration, dataExcel, writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -3735,12 +3973,11 @@ public class ABRScannedElementPane extends ABRPane {
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
                                         resultActions,
-                                        lastInstructionExecuted,
                                         duration);
 
                             } else if (excelWriteOperation) {
                                 // Excel Write Operator
-                                lastInstructionExecuted = currentInstruction.getName()
+                                resultActions = currentInstruction.getName()
                                         + Constants.BLANK_STRING
                                         + currentInstruction.getActions()
                                         + Constants.BLANK_STRING
@@ -3800,13 +4037,13 @@ public class ABRScannedElementPane extends ABRPane {
                                             }
                                             success = true;
                                         } else {
-                                            resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                            resultActions = "Failed: " + resultActions;
                                             success = false;
                                         }
 
                                     } else {
                                         resultActions = performAction.getValueIsNotDefined(
-                                                currentInstruction, lastInstructionExecuted, ifClause, elseClause);
+                                                currentInstruction, resultActions, ifClause, elseClause);
                                         if (!ifClause && !elseClause) {
                                             stopAll = true;
                                             success = false;
@@ -3821,13 +4058,13 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
 
                                 } else {
-                                    resultActions = "Failed to Execute Cmd: " + lastInstructionExecuted;
+                                    resultActions = "Failed: " + resultActions;
                                     success = false;
                                 }
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, currentInstruction, duration, dataExcel, writerReport);
+                                        success, actions, msgInitial, duration, dataExcel, writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -3836,7 +4073,6 @@ public class ABRScannedElementPane extends ABRPane {
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
                                         resultActions,
-                                        lastInstructionExecuted,
                                         duration);
                             }
 
@@ -3853,14 +4089,13 @@ public class ABRScannedElementPane extends ABRPane {
 
                             long duration = performAction.duration(currentInstructionStartTime);
                             performAction.excelReportWrite(
-                                    false, currentInstruction, duration, dataExcel, writerReport);
+                                    false, actions, msgInitial, duration, dataExcel, writerReport);
                             totalExecutionTime += duration;
 
                             status = performAction.operationLog(
                                     false,
                                     currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
                                     resultActions,
-                                    lastInstructionExecuted,
                                     duration);
 
                             if (stopAll) {
@@ -3893,7 +4128,7 @@ public class ABRScannedElementPane extends ABRPane {
             }
 
             if (executionTimes >= execLimitReach) {
-                performAction.alertExecutionTimes(executionTimes, lastInstructionExecuted);
+                performAction.alertExecutionTimes(executionTimes, resultActions);
             }
 
         } else { //  if dataExel is NULL
@@ -3928,18 +4163,32 @@ public class ABRScannedElementPane extends ABRPane {
 
                     long currentInstructionStartTime = System.nanoTime();
                     File logFileForSingleExcel = excelReader.createLogFile(excelPath);
+
+                    String[] actions = currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
+
+                    // Case for Inputs
+                    String valueInsert = "No Data Found";
+                    if (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) {
+
+                        String reference = actions[1];
+                        valueInsert = dataExcel.get(reference);
+                    }
+
+                    Pair<String, String> msgInitial = new Pair(
+                            currentInstruction.getName(),
+                            (currentInstruction.getOperation() != null
+                                    ? currentInstruction.getOperation()
+                                    : (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) ? valueInsert : ""));
+
+                    resultActions = performAction.actionResultMessage(blockName, actions, msgInitial);
+
+                    WebElement webElementFound = null;
                     try {
-
-                        lastInstructionExecuted =
-                                currentInstruction.getName() + Constants.BLANK_STRING + currentInstruction.getPath();
-
-                        WebElement webElementFound =
-                                performAction.searchElement(currentInstruction, this.botJob.getId());
-
-                        String[] actions = currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
-
-                        resultActions = performAction.actionResultMessage(
-                                currentInstruction, blockName, webElementFound, actions, dataDynamic);
+                        webElementFound = performAction.searchElement(currentInstruction, this.botJob.getId());
+                    } catch (Exception ex) {
+                        extraMsg = "Element not found. Please try rescanning.!";
+                    }
+                    try {
 
                         performAction.performWebActions(
                                 dataDynamic, currentInstruction, mapOperators, webElementFound, actions);
@@ -3957,14 +4206,13 @@ public class ABRScannedElementPane extends ABRPane {
                         }
 
                         long duration = performAction.duration(currentInstructionStartTime);
-                        performAction.excelReportWrite(success, currentInstruction, duration, null, writerReport);
+                        performAction.excelReportWrite(success, actions, msgInitial, duration, null, writerReport);
                         totalExecutionTime += duration;
 
                         status = performAction.operationLog(
                                 success,
                                 currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
                                 resultActions,
-                                lastInstructionExecuted,
                                 duration);
 
                     } catch (Throwable t) {
@@ -3972,14 +4220,13 @@ public class ABRScannedElementPane extends ABRPane {
                         currentInstruction.setExecuted(false);
 
                         long duration = performAction.duration(currentInstructionStartTime);
-                        performAction.excelReportWrite(false, currentInstruction, duration, null, writerReport);
+                        performAction.excelReportWrite(false, actions, msgInitial, duration, null, writerReport);
                         totalExecutionTime += duration;
 
                         status = performAction.operationLog(
                                 false,
                                 currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
                                 resultActions,
-                                lastInstructionExecuted,
                                 duration);
                         //                        throw new RuntimeException(t);
                     }
@@ -4046,7 +4293,7 @@ public class ABRScannedElementPane extends ABRPane {
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
                     + Constants.FIELDS_SEPARATOR
-                    + lastInstructionExecuted;
+                    + resultActions;
             //            report.setStatus(status);
             //            report.setDuration(totalExecutionTime / 100);
             writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
@@ -4069,9 +4316,17 @@ public class ABRScannedElementPane extends ABRPane {
             variableText4Styled = new Text(resultActions);
             variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
+            Text variableText5Styled = new Text(extraMsg);
+            variableText5Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
             combinedTextContainer
                     .getChildren()
-                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
+                    .addAll(
+                            variableText1Styled,
+                            variableText2Styled,
+                            variableText3Styled,
+                            variableText4Styled,
+                            variableText5Styled);
 
             performAction.showAlertCombinedVBOX(
                     Alert.AlertType.ERROR, "FAIL", "Execution Failed", null, combinedTextContainer);
@@ -4251,9 +4506,6 @@ public class ABRScannedElementPane extends ABRPane {
                         break;
                     case Constants.HOLD:
                         performAction.onHoldForSeconds(instruction);
-                        break;
-                    case Constants.REFRESH:
-                        performAction.refreshPage();
                         break;
                     case Constants.QUIT:
                         quit(0);
@@ -4785,7 +5037,7 @@ public class ABRScannedElementPane extends ABRPane {
             Integer nextId = loadNextIdInstructionData() + 1;
             instructionDTO.setId(nextId);
 
-            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "null";
+            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
 
             // Build the SQL insert query
 
@@ -4811,7 +5063,7 @@ public class ABRScannedElementPane extends ABRPane {
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
                     + ", '" + instructionDTO.getActions() + "'"
                     + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
-                    + ", '" + instructionDTO.getDefaultValue() + "'"
+                    + "," + instructionDTO.getDefaultValue()
                     + ", '" + instructionDTO.getDescription() + "'"
                     + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
                     + ", " + (instructionDTO.getExportToABR() ? 1 : 0)

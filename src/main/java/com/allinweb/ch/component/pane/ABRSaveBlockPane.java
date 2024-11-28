@@ -442,8 +442,7 @@ public class ABRSaveBlockPane extends ABRPane {
             Integer nextId = loadNextIdSavedInstructionData() + 1;
             savedInstructionDTO.setId(nextId);
 
-            String pathValue =
-                    (savedInstructionDTO.getPath() != null) ? "'" + savedInstructionDTO.getPath() + "'" : "null";
+            String pathValue = (savedInstructionDTO.getPath() != null) ? "'" + savedInstructionDTO.getPath() + "'" : "";
 
             // Build the SQL insert query
 
@@ -451,7 +450,7 @@ public class ABRSaveBlockPane extends ABRPane {
                     + "action_custom_max_wait_sec, "
                     + "actions, "
                     + "block_marked, "
-                    + "default_val, "
+                    //                    + "default_val, "
                     + "description, "
                     + "encrypted, "
                     + "export_to_abr, "
@@ -469,7 +468,7 @@ public class ABRSaveBlockPane extends ABRPane {
                     + ", " + savedInstructionDTO.getActionCustomMaxWaitSec()
                     + ", '" + savedInstructionDTO.getActions() + "'"
                     + ", " + (savedInstructionDTO.isBlockMarked() ? "true" : "false")
-                    + ", '" + savedInstructionDTO.getDefaultValue() + "'"
+                    //                    + ", '" + savedInstructionDTO.getDefaultValue() + "'"
                     + ", '" + savedInstructionDTO.getDescription() + "'"
                     + ", " + (savedInstructionDTO.isEncrypted() ? 1 : 0)
                     + ", " + (savedInstructionDTO.getExportToABR() ? 1 : 0)

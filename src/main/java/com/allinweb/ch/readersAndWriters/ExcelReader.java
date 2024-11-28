@@ -102,7 +102,7 @@ public class ExcelReader {
             // If there are missing fields, set the error message
             if (!missingFields.isEmpty()) {
                 extractedData.setMissingFields(
-                        "Fields in the Excel do not match the botjob requirements. Missing fields: "
+                        "Fields in the Excel do not match the Bot Job requirements. Missing fields: "
                                 + String.join(", ", missingFields));
             }
 

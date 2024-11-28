@@ -648,7 +648,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
             Integer nextId = loadNextIdInstructionData() + 1;
             instructionDTO.setId(nextId);
 
-            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "null";
+            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
 
             // Build the SQL insert query
 
@@ -674,7 +674,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
                     + ", '" + instructionDTO.getActions() + "'"
                     + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
-                    + ", '" + instructionDTO.getDefaultValue() + "'"
+                    + "," + instructionDTO.getDefaultValue()
                     + ", '" + instructionDTO.getDescription() + "'"
                     + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
                     + ", " + (instructionDTO.getExportToABR() ? 1 : 0)

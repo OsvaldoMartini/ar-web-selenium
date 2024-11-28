@@ -99,6 +99,8 @@ public class ABRNewCommandPane extends ABRPane {
     Label webPageLabel;
     Label blocksLabel;
 
+    Text refreshText;
+    Text loopText;
     Text regularText1;
     Text regularText2;
     Text regularText3;
@@ -276,6 +278,11 @@ public class ABRNewCommandPane extends ABRPane {
         webPageLabel = new Label("WebPage Field");
         blocksLabel = new Label("Block Destination");
 
+        refreshText = new Text("Refresh");
+        refreshText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+        loopText = new Text("Loop");
+        loopText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
         textFlow = new TextFlow();
         // Create regular Text for the first part of the label
         regularText1 = new Text("Variable to SET : ");
@@ -293,12 +300,14 @@ public class ABRNewCommandPane extends ABRPane {
 
         textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
 
+        timesItems.add(new ComboBoxVars("5s", "5", -1, -1));
         timesItems.add(new ComboBoxVars("10s", "10", -1, -1));
         timesItems.add(new ComboBoxVars("20s", "20", -1, -1));
         timesItems.add(new ComboBoxVars("30s", "30", -1, -1));
         timesItems.add(new ComboBoxVars("40s", "40", -1, -1));
         timesItems.add(new ComboBoxVars("50s", "50", -1, -1));
         timesItems.add(new ComboBoxVars("60s", "60", -1, -1));
+
         comboBoxTimes = new ComboBox<>(timesItems);
         comboBoxTimes.setPrefWidth(50);
         // Set cell factory to display images and text
@@ -336,10 +345,10 @@ public class ABRNewCommandPane extends ABRPane {
         });
         comboBoxTimes.getSelectionModel().selectFirst();
 
-        loopsItems.add(new ComboBoxVars("5 times", "5", -1, -1));
-        loopsItems.add(new ComboBoxVars("10 times", "10", -1, -1));
-        loopsItems.add(new ComboBoxVars("20 times", "20", -1, -1));
-        loopsItems.add(new ComboBoxVars("30 times", "30", -1, -1));
+        loopsItems.add(new ComboBoxVars("5 x", "5", -1, -1));
+        loopsItems.add(new ComboBoxVars("10 x", "10", -1, -1));
+        loopsItems.add(new ComboBoxVars("20 x", "20", -1, -1));
+        loopsItems.add(new ComboBoxVars("30 x", "30", -1, -1));
         comboBoxLoops = new ComboBox<>(loopsItems);
         comboBoxLoops.setPrefWidth(60);
         // Set cell factory to display images and text
@@ -947,7 +956,8 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxesRow.getChildren().clear();
                         comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
 
-                        variableButtonRow = new HBox(10, blankText, comboBoxTimes, comboBoxLoops, textFlow);
+                        variableButtonRow =
+                                new HBox(10, blankText, refreshText, comboBoxTimes, loopText, comboBoxLoops, textFlow);
 
                         vboxAll.getChildren()
                                 .addAll(
@@ -1109,7 +1119,9 @@ public class ABRNewCommandPane extends ABRPane {
             // Check if the current selected index is greater than the first index
 
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.IF)
-                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)) {
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.REFRESH_ONLY)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
 
                 if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
                     performAction.showAlert(
@@ -1195,17 +1207,17 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getInstructionId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh")) {
-                addInstruction("Refresh", "Refresh", ABRConstants.REFRESH_ONLY, 2, null, null, null, this.rowMoveDTO);
+                addInstruction("Refresh", "Refresh", ABRConstants.REFRESH_ONLY, 10, "", null, null, this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh Loop")) {
                 addInstruction(
                         "Refresh Loop",
                         "Refresh Loop",
                         ABRConstants.REFRESH_LOOP,
                         2,
-                        30 + ":" + "20" + ":"
-                                + comboBoxWebPage.getValue().getText().toUpperCase(),
-                        comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getInstructionId(),
+                        comboBoxTimes.getValue().getValue() + ":"
+                                + comboBoxLoops.getValue().getValue(),
+                        null,
+                        comboBoxWebPage.getValue().getVarId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("GO TO")) {
                 addInstruction(
@@ -2295,7 +2307,7 @@ public class ABRNewCommandPane extends ABRPane {
 
             //            Integer nextId = loadNextIdInstructionData() + 1;
 
-            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "null";
+            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : null;
 
             // Build the SQL insert query
 
@@ -2321,7 +2333,7 @@ public class ABRNewCommandPane extends ABRPane {
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
                     + ", '" + instructionDTO.getActions() + "'"
                     + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
-                    + ", '" + instructionDTO.getDefaultValue() + "'"
+                    + "," + instructionDTO.getDefaultValue()
                     + ", '" + instructionDTO.getDescription() + "'"
                     + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
                     + ", " + (instructionDTO.getExportToABR() ? 1 : 0)

@@ -44,6 +44,7 @@ public class ABRWebElement {
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
+    private BooleanProperty outputElement = new SimpleBooleanProperty(false);
     private BooleanProperty clickElement = new SimpleBooleanProperty(false);
     private BooleanProperty setValueElem = new SimpleBooleanProperty(false);
     private BooleanProperty getValueElem = new SimpleBooleanProperty(false);
@@ -94,6 +95,7 @@ public class ABRWebElement {
     private Button saveButton;
     private Button deleteButton;
 
+    private ImageView outputImage;
     private ImageView clickImage;
     private ImageView insertImage;
     private ImageView textImage;
@@ -251,12 +253,14 @@ public class ABRWebElement {
                 if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
                     // OR BUTTON SOMETHING CLICKABLE
                     clickElement.setValue(true);
-                } else if (forceTagEnum.equals(ABRConstants.SET_VALUE)) {
+                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)) {
                     setValueElem.setValue(true);
-                } else if (forceTagEnum.equals(ABRConstants.GET_VALUE)) {
+                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.GET_VALUE)) {
                     getValueElem.setValue(true);
-                } else if (forceTagEnum.equals(ABRConstants.CHECK_VALUE)) {
+                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
                     checkValueElem.setValue(true);
+                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.OUTPUT)) {
+                    outputElement.setValue(true);
                 } else {
                     // OR INPUT SOMETHING IMPUTABLE
                     clickElement.setValue(false);
@@ -310,7 +314,7 @@ public class ABRWebElement {
         boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("div");
         boolean hasLabel = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("label");
 
-        if (hasSpan || hasDiv || hasLabel) {
+        if ((hasSpan || hasDiv || hasLabel) && !outputElement.getValue()) {
             textElement.setValue(true);
         }
 
@@ -423,7 +427,7 @@ public class ABRWebElement {
         }
 
         if (actionReference[0].equals(ABRConstants.OUTPUT)) {
-            clickElement.setValue(true);
+            outputElement.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.CLICK)) {
             clickElement.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.INSERT)) {
@@ -458,6 +462,7 @@ public class ABRWebElement {
     }
 
     private void initElementPanel() {
+        outputImage = componentBuilder.buildImageView(ABRConstants.ICON_OUTPUT, ABRConstants.SPACE_M);
         clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
         insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
         textImage = componentBuilder.buildImageView(ABRConstants.ICON_TEXT, ABRConstants.SPACE_M);
@@ -479,8 +484,8 @@ public class ABRWebElement {
         StackPane nameGroup = new StackPane(nameLabel, nameField);
 
         HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
-        StackPane actionGroup =
-                new StackPane(clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
+        StackPane actionGroup = new StackPane(
+                outputImage, clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
         elementPanel = new HBox(actionGroup, nameFieldsGroup);
         elementPanel.setSpacing(ABRConstants.SPACE_XS);
 
@@ -604,8 +609,10 @@ public class ABRWebElement {
     }
 
     private void initUIBehaviour() {
-        insertImage.visibleProperty().bind(clickElement.not());
-        //
+        insertImage.visibleProperty().bind(clickElement);
+
+        outputImage.visibleProperty().bind(outputElement);
+
         clickImage.visibleProperty().bind(clickElement);
 
         textImage.visibleProperty().bind(textElement);
