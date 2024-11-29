@@ -164,6 +164,10 @@ public class ExcelWriter {
                     value = data.get(reference);
                 }
 
+                if (actions.length == 2 && actions[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
+                    value = msgLoop.getValue();
+                }
+
                 if (operations.length == 2) {
                     value = operations[1];
                 } else if (operations.length == 3) {

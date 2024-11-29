@@ -3167,6 +3167,7 @@ public class ABRScannedElementPane extends ABRPane {
         boolean refreshOnly = false;
         boolean refreshLoopExecuted = false;
         boolean ignoreRefreshLoop = false;
+        Set<String> mapIgnore = new HashSet<>();
         int[] refreshLoopArray = null; // new int[] {0, 0, 0};
 
         boolean success = true;
@@ -3247,6 +3248,10 @@ public class ABRScannedElementPane extends ABRPane {
                         String parentField = null;
                         String fieldName = null;
                         int parentId = currentInstruction.getParentId();
+
+                        if (mapIgnore.contains(currentInstruction.getId() + "-" + currentInstruction.getName())) {
+                            continue;
+                        }
 
                         //                        String[] operation =
                         // UtilsMethods.splitIfContains(instruction.getOperation(),
@@ -3556,6 +3561,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                             }
                         } else if (ignoreRefreshLoop && actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+                            mapIgnore.add(currentInstruction.getId() + "-" + currentInstruction.getName());
                             ignoreRefreshLoop = false;
                             continue;
                         }
@@ -3755,6 +3761,16 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     performAction.performWebActions(
                                             fieldData, currentInstruction, mapOperators, webElementFound, actions);
+
+                                    if (actions[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
+                                        fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
+                                        if (mapOperators.containsKey(fieldName)) {
+                                            msgInitial = new Pair(fieldName, mapOperators.get(fieldName));
+                                        } else {
+                                            msgInitial = new Pair(fieldName, "TEXT OUTPUT NOT FOUND");
+                                        }
+                                    }
+
                                 } else if (refreshLoopExecuted && refreshLoopArray != null) {
                                     refreshLoopArray[1] = refreshLoopArray[1] - 1;
                                     currentIndex = refreshLoopArray[3];
@@ -3811,8 +3827,10 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
 
                                 long duration = performAction.duration(currentInstructionStartTime);
+
                                 performAction.excelReportWrite(
                                         success, actions, msgInitial, duration, dataExcel, writerReport);
+
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
