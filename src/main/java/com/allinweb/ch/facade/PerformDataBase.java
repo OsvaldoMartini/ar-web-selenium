@@ -499,7 +499,8 @@ public class PerformDataBase {
             for (InstructionDTO instruction : instructions) {
 
                 String updateSQL = "UPDATE block_loop_instruction SET  "
-                        + " name = '" + instruction.getInstructionName() + "'"
+                        + " name = '" + instruction.getInstructionName() + "',"
+                        + " actions = '" + instruction.getActions() + "'"
                         + " WHERE id = " + instruction.getInstructionId()
                         + " and block_id = " + instruction.getBlockId();
 

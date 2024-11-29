@@ -87,6 +87,7 @@ public class ABRNewCommandPane extends ABRPane {
     private VBox varsBox;
     private VBox webFieldsBox;
     private VBox blocksBox;
+    private VBox addNewsBox;
 
     private HBox comboBoxesRow;
     private HBox variableButtonRow;
@@ -98,6 +99,7 @@ public class ABRNewCommandPane extends ABRPane {
     Label botJobVarsLabel;
     Label webPageLabel;
     Label blocksLabel;
+    Label addNewsLabel;
 
     Text refreshText;
     Text loopText;
@@ -122,11 +124,12 @@ public class ABRNewCommandPane extends ABRPane {
     private Button addScreenButton;
 
     double buttonWidth = 200;
+    double blockWidth = 250;
     double comboOperatorWidth = 50;
     double comboTimesWidth = 70;
     double comboLoopsWidth = 80;
 
-    Button addInstructionButton;
+    Button addNewInstructionButton;
     Button cancelButton;
 
     private ComboBox<ComboBoxImage> comboBoxInstruc;
@@ -149,9 +152,12 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+    private List<BlockLoadDTO> blockLoadList;
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
+
+    private ComboBox<ComboBoxVars> comboBoxAddNews;
+    private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
 
     public ABRNewCommandPane(
             RowMoveDTO rowMoveDTO, List<BlockLoadDTO> blockLoadList, ObservableList<ComboBoxVars> webPageItems) {
@@ -236,6 +242,7 @@ public class ABRNewCommandPane extends ABRPane {
 
         if (this.blockLoadList != null && this.blockLoadList.size() > 0) {
             loadBlockItems(this.blockLoadList, rowMoveDTO.getBlockId());
+            loadAllBlockItems(this.blockLoadList);
         }
     }
 
@@ -277,6 +284,7 @@ public class ABRNewCommandPane extends ABRPane {
         botJobVarsLabel = new Label("Bot-Job Variable");
         webPageLabel = new Label("WebPage Field");
         blocksLabel = new Label("Block Destination");
+        addNewsLabel = new Label("Block to Add the New Instruction");
 
         refreshText = new Text("Refresh");
         refreshText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
@@ -519,7 +527,7 @@ public class ABRNewCommandPane extends ABRPane {
         if (blocksItems.size() == 0) {
             blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1));
         }
-        comboBoxBlocks.setPrefWidth(80);
+        comboBoxBlocks.setPrefWidth(buttonWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
         comboBoxBlocks.setButtonCell(new ListCell<>() {
             @Override
@@ -554,6 +562,47 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
         comboBoxBlocks.getSelectionModel().selectFirst();
+
+        // Combo To Select Where to Add the New Instruction
+        comboBoxAddNews = new ComboBox<>(allBlocksItems);
+        if (allBlocksItems.size() == 0) {
+            allBlocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1));
+        }
+        comboBoxAddNews.setPrefWidth(blockWidth);
+        comboBoxAddNews.getSelectionModel().selectFirst();
+        comboBoxAddNews.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+        comboBoxAddNews.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+        comboBoxAddNews.getSelectionModel().selectFirst();
 
         comboBoxWebPage = new ComboBox<>(webPageItems);
         comboBoxWebPage.setPrefWidth(50);
@@ -593,8 +642,8 @@ public class ABRNewCommandPane extends ABRPane {
 
         defineTextFlow(comboBoxInstruc.getValue().getValue());
 
-        addInstructionButton = componentBuilder.buildButton("OK", ABRConstants.SPACE_L, Insets.EMPTY);
-        addInstructionButton.getStyleClass().add("ok-button");
+        addNewInstructionButton = componentBuilder.buildButton("OK", ABRConstants.SPACE_L, Insets.EMPTY);
+        addNewInstructionButton.getStyleClass().add("ok-button");
 
         cancelButton = componentBuilder.buildButton("Close", ABRConstants.SPACE_L, Insets.EMPTY);
         cancelButton.getStyleClass().add("cancel-button");
@@ -673,6 +722,7 @@ public class ABRNewCommandPane extends ABRPane {
         varsBox = new VBox(botJobVarsLabel, comboBoxVars);
         webFieldsBox = new VBox(webPageLabel, comboBoxWebPage);
         blocksBox = new VBox(blocksLabel, comboBoxBlocks);
+        addNewsBox = new VBox(addNewsLabel, comboBoxAddNews);
 
         comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
 
@@ -716,8 +766,8 @@ public class ABRNewCommandPane extends ABRPane {
         variableButtonRow.setAlignment(Pos.BASELINE_LEFT); // Align variableButton to the left
 
         // Create HBox for instruction and cancel buttons
-        instructionButtonsRow = new HBox(10, addInstructionButton, cancelButton);
-        addInstructionButton.setPrefWidth(buttonWidth);
+        instructionButtonsRow = new HBox(10, addNewInstructionButton, cancelButton);
+        addNewInstructionButton.setPrefWidth(buttonWidth);
         cancelButton.setPrefWidth(buttonWidth);
         instructionButtonsRow.setAlignment(Pos.BASELINE_RIGHT); // Align buttons to the right
 
@@ -729,6 +779,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxesRow, // ComboBoxes row
                         variableButtonRow, // Variable Button row
                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                        addNewsBox,
                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                         );
 
@@ -1115,7 +1166,7 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
 
-        this.addInstructionButton.setOnMouseClicked((e) -> {
+        this.addNewInstructionButton.setOnMouseClicked((e) -> {
             // Check if the current selected index is greater than the first index
 
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.IF)
@@ -1617,6 +1668,18 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
+    private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
+        allBlocksItems.clear();
+        allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1));
+        for (BlockLoadDTO block : blockLoadDTOList) {
+            allBlocksItems.add(new ComboBoxVars(
+                    block.getBlockOrderNumber() + "# " + block.getName(),
+                    block.getName(),
+                    block.getBlockOrderNumber(),
+                    block.getId()));
+        }
+    }
+
     private void saveUserData(VariableUserDTO user) {
         // Generate a Unique-ID
         Integer hashCode = loadNexIdData() + 1;
@@ -1741,6 +1804,25 @@ public class ABRNewCommandPane extends ABRPane {
             Integer instructionId,
             RowMoveDTO rowMoveDTO) {
 
+        int blockId = comboBoxAddNews.getValue().getInstructionId();
+        String blockName = comboBoxAddNews.getValue().getText();
+        rowMoveDTO.setBlockId(blockId);
+        rowMoveDTO.setBlockName(blockName);
+        if (blockId < 0) {
+
+            Text variableText1Styled = new Text("Select the block you wan to Add New Command!");
+            variableText1Styled.setStyle("-fx-font-size: 16px; -fx-fill: red;");
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer.getChildren().add(variableText1Styled);
+
+            performAction.showAlertCombinedVBOX(
+                    Alert.AlertType.ERROR, "Block No Selected", "Select the Block!", null, combinedTextContainer);
+            return;
+        }
+
         // Create and show alert inside Platform.runLater
         BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
 
@@ -1789,8 +1871,20 @@ public class ABRNewCommandPane extends ABRPane {
         HBox combinedTextContainer = new HBox();
         combinedTextContainer.setSpacing(5); // Add some spacing between the texts
 
+        Text blockNameLabel = new Text("Block : ");
+        blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text blockNameText = new Text(blockName);
+        blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
+        HBox blockNameBox = new HBox();
+        blockNameBox.getChildren().addAll(blockNameLabel, blockNameText);
+
         if (actions.equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-            combinedTextContainer
+
+            HBox allMsgHor = new HBox();
+            allMsgHor.setSpacing(5);
+            allMsgHor
                     .getChildren()
                     .addAll(
                             regularTextCopy1,
@@ -1799,10 +1893,20 @@ public class ABRNewCommandPane extends ABRPane {
                             variableText2Copy,
                             regularTextCopy3,
                             variableText3Copy);
+
+            VBox allMsgVer = new VBox();
+            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
+
+            combinedTextContainer.getChildren().addAll(allMsgVer);
         } else {
-            combinedTextContainer
-                    .getChildren()
-                    .addAll(regularTextCopy1, variableText1Copy, variableText2Copy, variableText3Copy);
+            HBox allMsgHor = new HBox();
+            allMsgHor.setSpacing(5);
+            allMsgHor.getChildren().addAll(regularTextCopy1, variableText1Copy, variableText2Copy, variableText3Copy);
+
+            VBox allMsgVer = new VBox();
+            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
+
+            combinedTextContainer.getChildren().addAll(allMsgVer);
         }
         boolean alertResponse = performAction.showCombinedConfirmation(
                 "Add new Instruction",
@@ -2190,7 +2294,7 @@ public class ABRNewCommandPane extends ABRPane {
         List<BlockLoadDTO> matchingBlocks = null;
 
         if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-            int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
+            int targetBlockId = rowMoveDTO.getBlockId();
 
             matchingBlocks = blockLoadList.stream()
                     .filter(block -> block.getId() == targetBlockId)

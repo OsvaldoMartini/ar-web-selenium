@@ -119,12 +119,7 @@ public class PerformActions {
             String actions[])
             throws Exception {
 
-        if (instructionElement != null
-                || actions[0].equals(Constants.HOLD)
-                || actions[0].equals(Constants.QUIT)
-                || actions[0].equals(Constants.SCREEN)
-                || actions[0].equals(Constants.REFRESH_ONLY)
-                || actions[0].equals(Constants.REFRESH_LOOP)) {
+        if (instructionElement != null) {
 
             switch (actions[0]) {
                 case Constants.VISUALIZE:
@@ -150,39 +145,6 @@ public class PerformActions {
                                 instruction.isEncrypted());
                     }
                     break;
-                case Constants.LIST_OPERATION:
-                    listOperation(instruction);
-                    break;
-                case Constants.HOLD:
-                    //                        executeAlert(instruction);
-                    onHoldForSeconds(instruction);
-                    break;
-                case Constants.REFRESH_ONLY:
-                case Constants.REFRESH_LOOP:
-                    refreshPage();
-                    break;
-                case Constants.QUIT:
-                    Alert alert = new Alert(
-                            Alert.AlertType.CONFIRMATION, "Do you want to continue?", ButtonType.YES, ButtonType.NO);
-                    alert.setTitle("Confirmation");
-                    alert.setHeaderText("This Action Closes the Browser and Scanner!");
-                    //                        alert.setContentText(content);
-
-                    Optional<ButtonType> quitResult = alert.showAndWait();
-                    if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
-                        ABRSharedResources.getInstance().cacheEntitiesFromDB();
-                        quit(1);
-                    } else {
-                        ABRSharedResources.getInstance().cacheEntitiesFromDB();
-                    }
-                    break;
-                    //                    case Constants.EXTRACT:
-                    //                        result = "insertValueFieldNameInExcel-->"
-                    //                                + insertValueFieldNameInExcel(instructionElement, instruction,
-                    // action, blockJobName);
-                    //                        break;
-                case Constants.SCREEN:
-                    break;
             }
 
             onHoldForSeconds(null);
@@ -191,6 +153,47 @@ public class PerformActions {
         //            executeActionsAtInstructionCoordinates(instruction, data);
         //            onHoldForSeconds(null);
         //        }
+    }
+
+    public void performOtherActions(BlockLoopInstructionLoadDTO instruction, String actions[]) throws Exception {
+
+        switch (actions[0]) {
+            case Constants.LIST_OPERATION:
+                listOperation(instruction);
+                break;
+            case Constants.HOLD:
+                //                        executeAlert(instruction);
+                onHoldForSeconds(instruction);
+                break;
+            case Constants.REFRESH_ONLY:
+            case Constants.REFRESH_LOOP:
+                refreshPage();
+                break;
+            case Constants.QUIT:
+                Alert alert = new Alert(
+                        Alert.AlertType.CONFIRMATION, "Do you want to continue?", ButtonType.YES, ButtonType.NO);
+                alert.setTitle("Confirmation");
+                alert.setHeaderText("This Action Closes the Browser and Scanner!");
+                //                        alert.setContentText(content);
+
+                Optional<ButtonType> quitResult = alert.showAndWait();
+                if (quitResult.isPresent() && quitResult.get() == ButtonType.YES) {
+                    ABRSharedResources.getInstance().cacheEntitiesFromDB();
+                    quit(1);
+                } else {
+                    ABRSharedResources.getInstance().cacheEntitiesFromDB();
+                }
+                break;
+                //                    case Constants.EXTRACT:
+                //                        result = "insertValueFieldNameInExcel-->"
+                //                                + insertValueFieldNameInExcel(instructionElement, instruction,
+                // action, blockJobName);
+                //                        break;
+            case Constants.SCREEN:
+                break;
+        }
+
+        onHoldForSeconds(null);
     }
 
     public String performActionOperator(

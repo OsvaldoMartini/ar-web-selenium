@@ -99,7 +99,15 @@ public class ABRScannedElementPane extends ABRPane {
     private BotJobDTO botJob;
     private BlockDTO blockJob;
     private int currentBlockId;
+
+    double comboWidth = 200;
+
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+    private ComboBox<ComboBoxVars> comboBoxBlocks;
+    private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
+
+    Button refreshBlocksButton;
+
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
 
     // UI COMPONENTS
@@ -372,6 +380,60 @@ public class ABRScannedElementPane extends ABRPane {
 
         updateSceneTitleWithCurrentURL(botJob.getHomeBanking().getUrl());
 
+        loadBlocksForBotJob(this.botJob.getId());
+
+        if (this.blockLoadList != null && this.blockLoadList.size() > 0) {
+            loadAllBlockItems(this.blockLoadList);
+        }
+
+        refreshBlocksButton = createPathButton();
+
+        refreshBlocksButton.setOnMouseClicked(e -> {
+            loadBlocksForBotJob(this.botJob.getId());
+            loadAllBlockItems(this.blockLoadList);
+            comboBoxBlocks.getSelectionModel().selectFirst();
+        });
+
+        comboBoxBlocks = new ComboBox<>(blocksItems);
+        if (blocksItems.size() == 0) {
+            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1));
+        }
+        comboBoxBlocks.setPrefWidth(comboWidth);
+        comboBoxBlocks.getSelectionModel().selectFirst();
+        comboBoxBlocks.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+        comboBoxBlocks.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+        comboBoxBlocks.getSelectionModel().selectFirst();
+
         try {
             // Starting the View
 
@@ -530,7 +592,13 @@ public class ABRScannedElementPane extends ABRPane {
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
-            verticalBox.getChildren().addAll(currentURLBox, boxListViews);
+            HBox blockAndUrl = new HBox();
+            blockAndUrl.setSpacing(0); // No spacing, use margins instead
+            HBox.setMargin(comboBoxBlocks, new Insets(0, 3, 0, 0)); // Right margin of 3 pixels
+            HBox.setMargin(refreshBlocksButton, new Insets(0, 3, 0, 0)); // Right margin of 3 pixels
+            blockAndUrl.getChildren().addAll(comboBoxBlocks, refreshBlocksButton, currentURLBox);
+
+            verticalBox.getChildren().addAll(blockAndUrl, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
             VBox.setVgrow(bottomPane, Priority.NEVER);
@@ -1536,7 +1604,6 @@ public class ABRScannedElementPane extends ABRPane {
                             combinedTextContainer);
 
                     if (result) {
-                        loadBlocksForBotJob(this.botJob.getId());
 
                         BotJobLoadDTO botJobLoadDTO = loadBotJob(this.botJob.getId());
 
@@ -3188,6 +3255,8 @@ public class ABRScannedElementPane extends ABRPane {
         //        report.setBotJobDTO(selectedJob);
         //        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
+        int executeSpecificBlock = comboBoxBlocks.getValue().getVarId(); // Block Order Number
+
         mapOperators = new HashMap<>();
         mapExport = new LinkedHashMap<>();
         int executionTimes = 0;
@@ -3199,12 +3268,15 @@ public class ABRScannedElementPane extends ABRPane {
 
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
-            int currentBlock = 0;
+            int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
+
             outerLoop:
-            while (currentBlock <= blocksLoaded.size() - 1
-                    && blocksLoaded.size() > 0
-                    && !stopAll
-                    && executionTimes < execLimitReach) {
+            while ((executeSpecificBlock > -1
+                            && currentBlock == executeSpecificBlock - 1) // Execute specific block only
+                    || (executeSpecificBlock == -1 && currentBlock <= blocksLoaded.size() - 1) // Execute all blocks
+                            && blocksLoaded.size() > 0
+                            && !stopAll
+                            && executionTimes < execLimitReach) {
                 instructionsExecuted.clear();
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                 String excelFieldName = blockLoad.getExportFile();
@@ -3734,6 +3806,14 @@ public class ABRScannedElementPane extends ABRPane {
                                             "(REFRESH_LOOP)-HOLD TIME" + refreshLoopArray[0] + " Seconds",
                                             duration);
                                 }
+                                if (actions[0].equals(Constants.HOLD)
+                                        || actions[0].equals(Constants.QUIT)
+                                        || actions[0].equals(Constants.SCREEN)
+                                        || actions[0].equals(Constants.REFRESH_ONLY)
+                                        || actions[0].equals(Constants.REFRESH_LOOP)) {
+                                    performAction.performOtherActions(currentInstruction, actions);
+                                    continue;
+                                }
 
                                 WebElement webElementFound = null;
                                 try {
@@ -4142,7 +4222,12 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                     }
                 }
-                currentBlock++;
+                // Increment currentBlock only if executing all blocks
+                if (executeSpecificBlock == -1) {
+                    currentBlock++;
+                } else {
+                    break; // Exit loop after executing the specific block
+                }
             }
 
             if (executionTimes >= execLimitReach) {
@@ -5120,7 +5205,7 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private Integer loadNextIdInstructionData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
@@ -5132,5 +5217,25 @@ public class ABRScannedElementPane extends ABRPane {
                     .severe("loadNextIdInstructionData  \nError: " + e.getMessage());
         }
         return null;
+    }
+
+    private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
+        blocksItems.clear();
+        blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1));
+        for (BlockLoadDTO block : blockLoadDTOList) {
+            blocksItems.add(new ComboBoxVars(
+                    block.getBlockOrderNumber() + "# " + block.getName(),
+                    block.getName(),
+                    block.getBlockOrderNumber(),
+                    block.getId()));
+        }
+    }
+
+    private Button createPathButton() {
+        Button button = componentBuilder.buildButton(
+                "", ABRConstants.SPACE_L, ABRConstants.ICON_REFRESH, ABRConstants.SPACE_M, new Insets(3D));
+        button.setMaxWidth(ABRConstants.SPACE_L);
+        AnchorPane.setRightAnchor(button, 0D);
+        return button;
     }
 }
