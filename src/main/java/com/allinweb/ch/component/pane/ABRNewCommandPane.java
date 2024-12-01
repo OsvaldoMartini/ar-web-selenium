@@ -1819,7 +1819,7 @@ public class ABRNewCommandPane extends ABRPane {
             combinedTextContainer.getChildren().add(variableText1Styled);
 
             performAction.showAlertCombinedVBOX(
-                    Alert.AlertType.ERROR, "Block No Selected", "Select the Block!", null, combinedTextContainer);
+                    Alert.AlertType.ERROR, "Block Not Selected", "Select the Block!", null, combinedTextContainer);
             return;
         }
 

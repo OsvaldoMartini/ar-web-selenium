@@ -1142,8 +1142,8 @@ public class ABRScannedElementPane extends ABRPane {
 
         manageUIScanPriorities();
         manageUIScanInputs();
-        manageUIScanClickable();
-        //        manageUIScanOutputs();
+        //        manageUIScanClickable();
+        manageUIScanOutputs();
     }
 
     private void manageUIScanWithoutNameAndId() {
@@ -1219,7 +1219,7 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void manageUIScanPriorities() {
-        List<WebElement> webElements = managePrioritiesCriteria();
+        Set<WebElement> webElements = managePrioritiesCriteria();
         //        manageUIScanPrioritiesJSoup();
         //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
         try {
@@ -1235,7 +1235,11 @@ public class ABRScannedElementPane extends ABRPane {
     private void manageUIScanOutputs() {
         String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
         // addProgressBar();
-        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2, "UI Scan Outputs");
+
+        scanABRElementsAsync(By.xpath("CODE_CRITERIA"), webElementObservableList2, "UI Scan Outputs");
+        //        scanABRElementsAsync(By.xpath("//label[not(@for)]"), webElementObservableList2, "UI Scan Outputs");
+        //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2, "UI Scan
+        // Outputs");
     }
 
     private void scanABRElementsAsync(
@@ -1244,7 +1248,7 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void scanABRElementsAsync(
-            List<WebElement> preElements,
+            Set<WebElement> preElements,
             By criteria,
             Predicate<ABRWebElement> filterCondition,
             ObservableList<ABRWebElement> listToAddNewElements,
@@ -1272,14 +1276,20 @@ public class ABRScannedElementPane extends ABRPane {
 
                         if (idAttributeFirst || nameAttributeFirst) {
                             mapAdvanced = findElementsWithXPath(abrWebDriver.getDriver(), elementType);
-                            listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
+                            listABRElements = createAdvancedABRElement(mapAdvanced, elementType, null);
                         } else if (withoutNameAndId) {
                             mapAdvanced = findElementsWithoutIdOrName(abrWebDriver.getDriver(), elementType);
-                            listABRElements = createAdvancedABRElement(mapAdvanced, elementType);
+                            listABRElements = createAdvancedABRElement(mapAdvanced, elementType, null);
                         } else if (preElements != null && preElements.size() > 0) {
                             scannedElementList.addAll(preElements);
                         } else if (criteria != null) {
-                            scannedElementList = abrWebDriver.getDriver().findElements(criteria);
+                            if (criteria.equals(By.xpath("CODE_CRITERIA"))) {
+                                mapAdvanced = findElementsOutputCriteria(abrWebDriver.getDriver());
+                                listABRElements = createAdvancedABRElement(
+                                        mapAdvanced, elementType, WebElementTagNameEnum.OUTPUT);
+                            } else {
+                                scannedElementList = abrWebDriver.getDriver().findElements(criteria);
+                            }
                         }
                         if (listABRElements != null && listABRElements.size() > 0) {
                             listABRElementsSize.set(listABRElements.size());
@@ -1312,11 +1322,18 @@ public class ABRScannedElementPane extends ABRPane {
                                 scannedElementList.addAll(scannedElementListReduced);
                                 scannedElementListReduced.clear();
                             }
+
+                            WebElementTagNameEnum typeSearch = null;
+                            if (criteria != null && criteria.equals(By.tagName("input"))) {
+                                typeSearch = WebElementTagNameEnum.INPUT;
+                            }
+
                             try {
+                                WebElementTagNameEnum finalTypeSearch = typeSearch;
                                 listABRElements = scannedElementList.stream()
                                         .filter(element -> element != null) // Filter out null elements
                                         //                                        .peek(element -> addProgressBar(1))
-                                        .map(element -> new ABRWebElement(element, botJob.getId()))
+                                        .map(element -> new ABRWebElement(element, botJob.getId(), finalTypeSearch))
                                         .collect(Collectors.toList());
                                 listABRElementsSize.set(listABRElements.size());
 
@@ -1484,7 +1501,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void refreshOutputBtn() {
         webElementObservableList2.clear();
-        manageUIScanClickable();
+        //        manageUIScanClickable();
         manageUIScanOutputs();
     }
 
@@ -1562,6 +1579,27 @@ public class ABRScannedElementPane extends ABRPane {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .info("Double clicked the element: " + abrWebElement.getXPath());
 
+                    currentBlockId = comboBoxBlocks.getValue().getInstructionId();
+                    String blockName = comboBoxBlocks.getValue().getText();
+                    if (currentBlockId < 0) {
+
+                        Text variableText1Styled = new Text("Select the block you wan to Add New Command!");
+                        variableText1Styled.setStyle("-fx-font-size: 16px; -fx-fill: red;");
+
+                        VBox combinedTextContainer = new VBox();
+                        combinedTextContainer.setSpacing(5); // Add some sp
+
+                        combinedTextContainer.getChildren().add(variableText1Styled);
+
+                        performAction.showAlertCombinedVBOX(
+                                Alert.AlertType.ERROR,
+                                "Block Not Selected",
+                                "Select the Block!",
+                                null,
+                                combinedTextContainer);
+                        return;
+                    }
+
                     if (abrWebElement.getSavedReferences().size() == 0) {
 
                         Text variableText1Styled = new Text(String.format(
@@ -1585,6 +1623,12 @@ public class ABRScannedElementPane extends ABRPane {
                         return;
                     }
 
+                    Text blockNameLabel = new Text("Block : ");
+                    blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                    Text blockNameText = new Text(blockName);
+                    blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
                     Text variableText1Styled = new Text(String.format(
                             "Web Element Instruction \"%s\"",
                             abrWebElement.getElement().getTagName()));
@@ -1594,7 +1638,7 @@ public class ABRScannedElementPane extends ABRPane {
                     VBox combinedTextContainer = new VBox();
                     combinedTextContainer.setSpacing(5); // Add some sp
 
-                    combinedTextContainer.getChildren().add(variableText1Styled);
+                    combinedTextContainer.getChildren().addAll(blockNameLabel, blockNameText, variableText1Styled);
 
                     boolean result = performAction.showAlertCombinedVBOX(
                             Alert.AlertType.CONFIRMATION,
@@ -1672,15 +1716,17 @@ public class ABRScannedElementPane extends ABRPane {
                                                 "Created a new Block id %d for bot job Id %d",
                                                 currentBlockId, botJob.getId()));
                             }
-                        } else {
-                            if (blockLoadList.size() > 0 && this.blockJob == null) {
-                                currentBlockId = blockLoadList.get(0).getId();
-                                setBlockJob(
-                                        ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
-                            } else if (this.blockJob != null) {
-                                currentBlockId = this.blockJob.getId();
-                            }
                         }
+                        //                        else {
+                        //                            if (blockLoadList.size() > 0 && this.blockJob == null) {
+                        //                                currentBlockId = blockLoadList.get(0).getId();
+                        //                                setBlockJob(
+                        //
+                        // ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
+                        //                            } else if (this.blockJob != null) {
+                        //                                currentBlockId = this.blockJob.getId();
+                        //                            }
+                        //                        }
 
                         Task<Void> handleEvent = new Task<>() {
                             @Override
@@ -1791,6 +1837,12 @@ public class ABRScannedElementPane extends ABRPane {
                                         boolean saved = insertReferences(queue, instruction.getId());
                                         if (saved) {
 
+                                            Text blockNameLabel = new Text("Block : ");
+                                            blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                                            Text blockNameText = new Text(blockName);
+                                            blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
                                             Text variableText1Styled =
                                                     new Text("The Web Instruction \"" + instruction.getName() + "\"");
                                             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
@@ -1808,6 +1860,8 @@ public class ABRScannedElementPane extends ABRPane {
                                             combinedTextContainer
                                                     .getChildren()
                                                     .addAll(
+                                                            blockNameLabel,
+                                                            blockNameText,
                                                             variableText1Styled,
                                                             variableText2Styled,
                                                             variableText3Styled);
@@ -1861,12 +1915,12 @@ public class ABRScannedElementPane extends ABRPane {
         abrWebElement.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickedHandler);
     }
 
-    private List<WebElement> managePrioritiesCriteria() {
-        // Gets Alwasy the Latest info form DB
+    private Set<WebElement> managePrioritiesCriteria() {
+        // Gets Always the Latest info form DB
         loadUserData(botJob.getHomeBanking().getId());
         abrPriorities.loadSearchElementsConfig(databaseUserDto.getSearchConfig());
 
-        List<WebElement> elementsResponse = new ArrayList<>();
+        Set<WebElement> elementsResponse = new HashSet<>();
         if (abrPriorities.getSearchConfigList() == null) {
             System.out.println("Is going to Search using \"searchConfigTemplate\"!  Please Add to the DB");
             return null;
@@ -1876,9 +1930,9 @@ public class ABRScannedElementPane extends ABRPane {
             // Fetch the HTML content of the page
             Document docJSoup = null;
             docJSoup = JsoupConnect(botJob.getHomeBanking().getUrl());
-            Set<WebElementWrapper> uniqueElements = new HashSet<>();
+            Set<WebElementWrapper> uniqueWrapperElements = new HashSet<>();
             List<WebElement> finalList = new ArrayList<>();
-            List<WebElement> searchingElems = new ArrayList<>();
+            Set<WebElement> uniqueWebElements = new HashSet<>();
             for (com.allinweb.ch.util.SearchConfig searchConfig : abrPriorities.getSearchConfigList()) {
                 PriorityTypeEnum priorityTypeEnum = null;
                 try {
@@ -1899,14 +1953,16 @@ public class ABRScannedElementPane extends ABRPane {
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         for (String name : names) {
                             try {
-                                searchingElems = abrWebDriver.getDriver().findElements((By.xpath(name)));
+                                List<WebElement> searchingElems =
+                                        abrWebDriver.getDriver().findElements((By.xpath(name)));
+                                uniqueWebElements.addAll(searchingElems);
                                 // Add elements from the first list to the set
-                                for (WebElement element : searchingElems) {
+                                for (WebElement element : uniqueWebElements) {
                                     String href = element.getAttribute("href");
                                     String text = element.getText();
                                     String uniqueKey = href + text;
                                     WebElementWrapper wrapper = new WebElementWrapper(name, text, href, element);
-                                    if (uniqueElements.add(wrapper)) {
+                                    if (uniqueWrapperElements.add(wrapper)) {
                                         finalList.add(element);
                                     }
                                 }
@@ -1949,7 +2005,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     WebElementWrapper bestMatch = null;
                                     double highestSimilarity = 0.0;
 
-                                    for (WebElementWrapper wrapper : uniqueElements) {
+                                    for (WebElementWrapper wrapper : uniqueWrapperElements) {
                                         double similarity = jaccardSimilarity(text, wrapper.getText());
                                         if (similarity > highestSimilarity) {
                                             highestSimilarity = similarity;
@@ -1965,7 +2021,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         //                WebElement webElement =
                                         // driver.findElement(By.xpath("//a[contains(text(), '" + text + "')]"));
                                         WebElementWrapper wrapper = new WebElementWrapper(name, text, href, null);
-                                        if (uniqueElements.add(wrapper)) {
+                                        if (uniqueWrapperElements.add(wrapper)) {
                                             finalList.add(wrapper.getWebElement());
                                         }
                                         ;
@@ -1979,7 +2035,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             //                                // Convert unique wrappers back to a list of
                             // elementsResponse
-                            //                                for (WebElementWrapper wrapper : uniqueElements) {
+                            //                                for (WebElementWrapper wrapper : uniqueWrapperElements) {
                             //                                    if (wrapper.getWebElement() != null) {
                             //                                        finalList.add(wrapper.getWebElement());
                             //                                    } else {
@@ -2000,9 +2056,11 @@ public class ABRScannedElementPane extends ABRPane {
 
                             if (name.equalsIgnoreCase("label")) {
                                 try {
-                                    searchingElems = abrWebDriver.getDriver().findElements((By.tagName(name)));
+                                    List<WebElement> searchingElems =
+                                            abrWebDriver.getDriver().findElements((By.tagName(name)));
+                                    uniqueWebElements.addAll(searchingElems);
                                     // Add elements from the first list to the set
-                                    for (WebElement element : searchingElems) {
+                                    for (WebElement element : uniqueWebElements) {
                                         String labelText = element.getText();
                                         String associatedText = "";
 
@@ -2024,9 +2082,11 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                             } else if (name.equalsIgnoreCase("input")) {
                                 try {
-                                    searchingElems = abrWebDriver.getDriver().findElements((By.tagName(name)));
+                                    List<WebElement> searchingElems =
+                                            abrWebDriver.getDriver().findElements((By.tagName(name)));
+                                    uniqueWebElements.addAll(searchingElems);
                                     // Add elements from the first list to the set
-                                    for (WebElement element : searchingElems) {
+                                    for (WebElement element : uniqueWebElements) {
                                         String labelText = element.getText();
 
                                         finalList.add(element);
@@ -2049,7 +2109,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                             // JavaScfript Search
                             if (name.equalsIgnoreCase("input")) {
-                                searchingElems = searchAllInputs(abrWebDriver.getDriver());
+                                List<WebElement> searchingElems = searchAllInputs(abrWebDriver.getDriver());
+                                uniqueWebElements.addAll(searchingElems);
                                 if (searchingElems != null && searchingElems.size() > 0) {
                                     finalList.addAll(searchingElems);
                                 }
@@ -2072,8 +2133,9 @@ public class ABRScannedElementPane extends ABRPane {
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         for (String name : names) {
                             try {
-                                searchingElems =
+                                List<WebElement> searchingElems =
                                         abrWebDriver.getDriver().findElements((By.cssSelector("[" + name + "]")));
+                                uniqueWebElements.addAll(searchingElems);
                                 //                                List<WebElement> elements2 = webElements =
                                 // abrWebDriver
                                 //                                        .getDriver()
@@ -2081,7 +2143,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 // searchConfig.getName() + "]"));
 
                                 // Add elements from the first list to the set
-                                for (WebElement element : searchingElems) {
+                                for (WebElement element : uniqueWebElements) {
                                     String testId = element.getAttribute(name);
                                     String labelText = element.getText();
                                     String associatedText = "";
@@ -2119,7 +2181,7 @@ public class ABRScannedElementPane extends ABRPane {
                             //                                // searchConfig.getName() + "]"));
                             //
                             //                                // Add elements from the first list to the set
-                            //                                for (WebElement element : searchingElems) {
+                            //                                for (WebElement element : uniqueWebElements) {
                             //                                    String testId = element.getAttribute(name);
                             //                                    String labelText = element.getText();
                             //                                    String associatedText = "";
@@ -2186,8 +2248,10 @@ public class ABRScannedElementPane extends ABRPane {
 
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         try {
-                            searchingElems = abrWebDriver.getDriver().findElements(new ByChained(locators));
-                            for (WebElement element : searchingElems) {
+                            List<WebElement> searchingElems =
+                                    abrWebDriver.getDriver().findElements(new ByChained(locators));
+                            uniqueWebElements.addAll(searchingElems);
+                            for (WebElement element : uniqueWebElements) {
                                 String labelText = element.getText();
                                 String associatedText = "";
 
@@ -4689,8 +4753,13 @@ public class ABRScannedElementPane extends ABRPane {
         new Actions(abrWebDriver.getDriver()).sendKeys(value).perform();
     }
 
-    public List<ABRWebElement> createAdvancedABRElement(Map<String, WebElement> mapAdvanced, String attribute) {
+    public List<ABRWebElement> createAdvancedABRElement(
+            Map<String, WebElement> mapAdvanced, String attributeName, WebElementTagNameEnum typeElement) {
         List<ABRWebElement> listABRElements = new ArrayList<>();
+
+        if (attributeName == null) {
+            attributeName = "id";
+        }
         if (!mapAdvanced.isEmpty()) {
             ABRLogger.getInstance(ABRScannedElementPane.class)
                     .fine(String.format("Advance Search Element with total of %s elements", mapAdvanced.size()));
@@ -4698,15 +4767,19 @@ public class ABRScannedElementPane extends ABRPane {
             for (Map.Entry<String, WebElement> entry : mapAdvanced.entrySet()) {
                 WebElement element = entry.getValue();
                 String xpath = entry.getKey();
-                String attributeValue = element.getAttribute(attribute);
-                System.out.println("ABR Element Creation ->  Tag: " + element.getTagName() + ", " + attribute + ": "
+                String attributeValue = element.getAttribute(attributeName);
+
+                if (Strings.isNullOrEmpty(attributeValue)) {
+                    attributeValue = "(" + attributeName + ") has no value";
+                }
+                System.out.println("ABR Element Creation ->  Tag: " + element.getTagName() + ", " + attributeName + ": "
                         + attributeValue + ", XPath: " + xpath);
 
                 try {
                     if (listABRElements.size() < 30) {
                         addProgressBar(1);
                     }
-                    listABRElements.add(new ABRWebElement(entry, attribute, botJob.getId()));
+                    listABRElements.add(new ABRWebElement(entry, attributeName, botJob.getId(), typeElement));
                 } catch (EnumConstantNotPresentException ex) {
                     throw ex;
                 } catch (Exception ex) {
@@ -4716,6 +4789,28 @@ public class ABRScannedElementPane extends ABRPane {
                                     attributeValue, xpath, ex.getMessage()));
                 }
             }
+        } else {
+            // Add progress bars
+            for (int none = 0; none < 20; none++) {
+                addProgressBar(1);
+            }
+
+            new Thread(() -> {
+                        try {
+                            // Sleep for 3 seconds
+                            Thread.sleep(3000);
+
+                            // Remove elements on the JavaFX Application Thread
+                            Platform.runLater(() -> {
+                                if (bottomPane.getChildren().size() > 0) {
+                                    bottomPane.getChildren().clear();
+                                }
+                            });
+                        } catch (InterruptedException e) {
+                            e.printStackTrace(); // Handle interruption
+                        }
+                    })
+                    .start();
         }
         return listABRElements;
     }
@@ -4731,8 +4826,9 @@ public class ABRScannedElementPane extends ABRPane {
         jsExecutor = (JavascriptExecutor) driver;
         List<WebElement> elements = (List<WebElement>)
                 jsExecutor.executeScript("return Array.from(document.querySelectorAll('[" + attribute + "]'));");
+        Set<WebElement> uniqueElements = new HashSet<>(elements);
         Map<String, WebElement> elementMap = new HashMap<>();
-        for (WebElement element : elements) {
+        for (WebElement element : uniqueElements) {
             String xpath = getElementXPath(driver, element);
             elementMap.put(xpath, element);
         }
@@ -4750,8 +4846,57 @@ public class ABRScannedElementPane extends ABRPane {
         jsExecutor = (JavascriptExecutor) driver;
         List<WebElement> elements = (List<WebElement>) jsExecutor.executeScript(
                 "return Array.from(document.querySelectorAll('" + tagName + ":not([id]):not([name])'));");
+        Set<WebElement> uniqueElements = new HashSet<>(elements);
         Map<String, WebElement> elementMap = new HashMap<>();
-        for (WebElement element : elements) {
+        for (WebElement element : uniqueElements) {
+            String xpath = getElementXPath(driver, element);
+            elementMap.put(xpath, element);
+        }
+        return elementMap;
+    }
+
+    /**
+     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
+     *
+     * @param driver the WebDriver instance
+     * @param criteria the Criteria to be searched (e.g., "label", "div", "span")
+     * @return a map where keys are XPaths of elements and values are WebElements
+     */
+    private static Map<String, WebElement> findElementsOutputCriteria(WebDriver driver) {
+        jsExecutor = (JavascriptExecutor) driver;
+
+        List<WebElement> elements = driver.findElements(By.xpath("//label[@for]"));
+        Set<WebElement> uniqueElements = new HashSet<>(elements);
+
+        elements = driver.findElements(By.xpath("//label[not(@for)]"));
+        uniqueElements.addAll(elements);
+
+        elements = driver.findElements(By.xpath("//label[normalize-space(text()) != '']"));
+        uniqueElements.addAll(elements);
+
+        //        elements = driver.findElements(By.xpath("//div[normalize-space(text()) != '']"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//span[normalize-space(text()) != '']"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//div[@for]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//div[not(@for)]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//span[@for]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//span[not(@for)]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//label[@title != '' or @aria-label != '']"));
+        //        uniqueElements.addAll(elements);
+
+        Map<String, WebElement> elementMap = new HashMap<>();
+        for (WebElement element : uniqueElements) {
             String xpath = getElementXPath(driver, element);
             elementMap.put(xpath, element);
         }

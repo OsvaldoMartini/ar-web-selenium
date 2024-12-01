@@ -44,7 +44,9 @@ public class ABRWebElement {
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
+    private BooleanProperty hiddenElement = new SimpleBooleanProperty(false);
     private BooleanProperty outputElement = new SimpleBooleanProperty(false);
+    private BooleanProperty insertElement = new SimpleBooleanProperty(false);
     private BooleanProperty clickElement = new SimpleBooleanProperty(false);
     private BooleanProperty setValueElem = new SimpleBooleanProperty(false);
     private BooleanProperty getValueElem = new SimpleBooleanProperty(false);
@@ -95,6 +97,7 @@ public class ABRWebElement {
     private Button saveButton;
     private Button deleteButton;
 
+    private ImageView hiddenImage;
     private ImageView outputImage;
     private ImageView clickImage;
     private ImageView insertImage;
@@ -114,8 +117,9 @@ public class ABRWebElement {
         abrPriorities = ABRPriorities.getInstance();
     }
 
-    public ABRWebElement(WebElement element, int jobId) {
+    public ABRWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch) {
         abrPriorities.setJobId(jobId);
+        this.forceTagEnum = typeSearch;
         initFromWebElement(element);
     }
 
@@ -128,11 +132,15 @@ public class ABRWebElement {
         initFromWebElement(searchReturn.getElement());
     }
 
-    public ABRWebElement(Map.Entry<String, WebElement> entry, String attribute, int jobId) {
+    public ABRWebElement(
+            Map.Entry<String, WebElement> entry, String attributeName, int jobId, WebElementTagNameEnum typeElement) {
         abrPriorities.setJobId(jobId);
         WebElement element = entry.getValue();
         this.xPath = entry.getKey();
-        this.attributeValue = element.getAttribute(attribute);
+        this.attributeValue = element.getAttribute(attributeName);
+        if (typeElement != null) {
+            forceTagEnum = typeElement;
+        }
         initFromWebElement(element);
     }
 
@@ -249,26 +257,7 @@ public class ABRWebElement {
                         (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
                                 + (coordinates.getY() + (coordinates.getHeight() / 2)));
             }
-            if (forceTagEnum != null) {
-                if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
-                    // OR BUTTON SOMETHING CLICKABLE
-                    clickElement.setValue(true);
-                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)) {
-                    setValueElem.setValue(true);
-                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.GET_VALUE)) {
-                    getValueElem.setValue(true);
-                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
-                    checkValueElem.setValue(true);
-                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.OUTPUT)) {
-                    outputElement.setValue(true);
-                } else {
-                    // OR INPUT SOMETHING IMPUTABLE
-                    clickElement.setValue(false);
-                }
 
-            } else {
-                clickElement.setValue(isClickable(element));
-            }
         } catch (Exception ex) {
             throw ex;
         }
@@ -377,6 +366,68 @@ public class ABRWebElement {
             throw ex;
         }
 
+        // Identify if the element is an INPUT, BUTTON, or LABEL
+        tagName = element.getTagName().toUpperCase();
+
+        boolean isElementHidden = element.getAttribute("type") != null
+                && element.getAttribute("type").equalsIgnoreCase("hidden");
+
+        boolean isInput = tagName.equals("INPUT") && element.getAttribute("type") != null;
+        boolean isButton = tagName.equals("BUTTON");
+        boolean isLabel = tagName.equals("LABEL") && !Strings.isNullOrEmpty(element.getText());
+
+        
+        // Now proceed with the rest of your code
+        if (!isElementHidden) {
+            hiddenElement.setValue(false);
+
+            if (forceTagEnum != null) {
+                if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
+                    // Handle the button case (if BUTTON is forced)
+                    clickElement.setValue(true);
+                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)) {
+                    // Handle the SET_VALUE case
+                    setValueElem.setValue(true);
+                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.GET_VALUE)) {
+                    // Handle the GET_VALUE case
+                    getValueElem.setValue(true);
+                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
+                    // Handle the CHECK_VALUE case
+                    checkValueElem.setValue(true);
+                } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.OUTPUT)) {
+                    // Handle the OUTPUT case
+                    outputElement.setValue(true);
+                } else {
+                    // Handle other cases like INPUT
+                    outputElement.setValue(false);
+                    clickElement.setValue(false);
+                    textElement.setValue(false);
+                    insertElement.setValue(true);
+                }
+            } else {
+                // Default behavior based on element type
+                if (isInput) {
+                    insertElement.setValue(true); // Element is INPUT
+                } else if (isButton) {
+                    clickElement.setValue(true); // Element is BUTTON
+                } else if (isLabel) {
+                    outputElement.setValue(true); // Element is LABEL (just text)
+                } else {
+                    // Handle other types of elements as needed
+                    outputElement.setValue(false);
+                    clickElement.setValue(false);
+                    textElement.setValue(false);
+                    insertElement.setValue(false);
+                }
+            }
+        } else {
+            outputElement.setValue(false);
+            clickElement.setValue(false);
+            textElement.setValue(false);
+            insertElement.setValue(false);
+            hiddenElement.setValue(true);
+        }
+
         // this is goign to be done before and match the case
         //        xPath = ABRWebUtil.extractWebElementXPath(element);
         elementId = ((RemoteWebElement) element).getId();
@@ -462,6 +513,7 @@ public class ABRWebElement {
     }
 
     private void initElementPanel() {
+        hiddenImage = componentBuilder.buildImageView(ABRConstants.ICON_HIDDEN, ABRConstants.SPACE_M);
         outputImage = componentBuilder.buildImageView(ABRConstants.ICON_OUTPUT, ABRConstants.SPACE_M);
         clickImage = componentBuilder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
         insertImage = componentBuilder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
@@ -485,7 +537,7 @@ public class ABRWebElement {
 
         HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
         StackPane actionGroup = new StackPane(
-                outputImage, clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
+                hiddenImage, outputImage, clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
         elementPanel = new HBox(actionGroup, nameFieldsGroup);
         elementPanel.setSpacing(ABRConstants.SPACE_XS);
 
@@ -609,7 +661,9 @@ public class ABRWebElement {
     }
 
     private void initUIBehaviour() {
-        insertImage.visibleProperty().bind(clickElement);
+        hiddenImage.visibleProperty().bind(hiddenElement);
+
+        insertImage.visibleProperty().bind(insertElement);
 
         outputImage.visibleProperty().bind(outputElement);
 
