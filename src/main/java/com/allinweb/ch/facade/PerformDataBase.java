@@ -833,8 +833,8 @@ public class PerformDataBase {
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 int id = rs.getInt("block_loop_instruction_id");
-                String name = rs.getString("instruction_name");
-                String actions = rs.getString("actions");
+                String name = rs.getString("instruction_name").trim();
+                String actions = rs.getString("actions").trim();
 
                 // Filter out "SET", "GET", "CK", adn "H"
                 if (actions != null

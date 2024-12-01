@@ -365,6 +365,19 @@ public class ABRViewBotJobPane extends ABRPane {
                                     blockLoadDTO.getExportFile())))
                     .collect(Collectors.toList());
 
+            // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
+            Set<Integer> parentIdsForRefreshLoop = blockLoopInstructions.stream()
+                    .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
+                    .map(BlockLoopInstructionLoadDTO::getParentId)
+                    .collect(Collectors.toSet());
+
+            // Step 2: Iterate through the list and set refreshLoop = true for rows with id in parentIdsForRefreshLoop
+            blockLoopInstructions.forEach(instruction -> {
+                if (parentIdsForRefreshLoop.contains(instruction.getId())) {
+                    instruction.setRefreshLoop(true);
+                }
+            });
+
             jsonData = gson.toJson(blockLoopInstructions);
         } else {
             jsonData = "[]";

@@ -1773,7 +1773,10 @@ public class ABRScannedElementPane extends ABRPane {
                                                 ? "INPUT"
                                                 : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
                                 BlockLoopInstructionDTO instruction = abrWebElement.buildBlockLoopInstruction(
-                                        actionReq, checkActiveHover.isSelected(), list.size());
+                                        abrWebElement.getForceTagEnum(),
+                                        actionReq,
+                                        checkActiveHover.isSelected(),
+                                        list.size());
 
                                 instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);

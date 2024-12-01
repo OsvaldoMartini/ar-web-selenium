@@ -376,7 +376,12 @@ public class ABRWebElement {
         boolean isButton = tagName.equals("BUTTON");
         boolean isLabel = tagName.equals("LABEL") && !Strings.isNullOrEmpty(element.getText());
 
-        
+        hiddenElement.setValue(false);
+        outputElement.setValue(false);
+        insertElement.setValue(false);
+        clickElement.setValue(false);
+        textElement.setValue(false);
+
         // Now proceed with the rest of your code
         if (!isElementHidden) {
             hiddenElement.setValue(false);
@@ -402,15 +407,20 @@ public class ABRWebElement {
                     outputElement.setValue(false);
                     clickElement.setValue(false);
                     textElement.setValue(false);
+
+                    forceTagEnum = WebElementTagNameEnum.INPUT;
                     insertElement.setValue(true);
                 }
             } else {
                 // Default behavior based on element type
                 if (isInput) {
                     insertElement.setValue(true); // Element is INPUT
+                    forceTagEnum = WebElementTagNameEnum.INPUT;
                 } else if (isButton) {
                     clickElement.setValue(true); // Element is BUTTON
+                    forceTagEnum = WebElementTagNameEnum.BUTTON;
                 } else if (isLabel) {
+                    forceTagEnum = WebElementTagNameEnum.OUTPUT;
                     outputElement.setValue(true); // Element is LABEL (just text)
                 } else {
                     // Handle other types of elements as needed
@@ -418,6 +428,7 @@ public class ABRWebElement {
                     clickElement.setValue(false);
                     textElement.setValue(false);
                     insertElement.setValue(false);
+                    forceTagEnum = null;
                 }
             }
         } else {
@@ -426,6 +437,7 @@ public class ABRWebElement {
             textElement.setValue(false);
             insertElement.setValue(false);
             hiddenElement.setValue(true);
+            forceTagEnum = WebElementTagNameEnum.HIDDEN;
         }
 
         // this is goign to be done before and match the case
@@ -477,7 +489,9 @@ public class ABRWebElement {
             nameField.setText(actionReference[1]);
         }
 
-        if (actionReference[0].equals(ABRConstants.OUTPUT)) {
+        if (actionReference[0].equals(ABRConstants.HIDDEN)) {
+            hiddenElement.setValue(true);
+        } else if (actionReference[0].equals(ABRConstants.OUTPUT)) {
             outputElement.setValue(true);
         } else if (actionReference[0].equals(ABRConstants.CLICK)) {
             clickElement.setValue(true);
@@ -537,7 +551,15 @@ public class ABRWebElement {
 
         HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
         StackPane actionGroup = new StackPane(
-                hiddenImage, outputImage, clickImage, insertImage, textImage, setImage, getImage, checkImage, holdImage);
+                hiddenImage,
+                outputImage,
+                clickImage,
+                insertImage,
+                textImage,
+                setImage,
+                getImage,
+                checkImage,
+                holdImage);
         elementPanel = new HBox(actionGroup, nameFieldsGroup);
         elementPanel.setSpacing(ABRConstants.SPACE_XS);
 
@@ -885,7 +907,7 @@ public class ABRWebElement {
     }
 
     public BlockLoopInstructionDTO buildBlockLoopInstruction(
-            String actionReq, boolean identityHover, Integer orderNumber) {
+            WebElementTagNameEnum forceTag, String actionReq, boolean identityHover, Integer orderNumber) {
         BlockLoopInstructionDTO loop = new BlockLoopInstructionDTO();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
@@ -917,9 +939,33 @@ public class ABRWebElement {
                                                                 + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
                                                                 + nameLabel.getText();
             } else {
-                action = clickElement.get()
-                        ? ABRConstants.CLICK
-                        : ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+
+                if (forceTagEnum != null) {
+                    if (forceTagEnum.equals(WebElementTagNameEnum.INPUT)) {
+                        action =
+                                ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                    } else if (forceTagEnum.equals(WebElementTagNameEnum.HIDDEN)) {
+                        action = ABRConstants.INSERT
+                                + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                + nameLabel.getText()
+                                + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                + ABRConstants.HIDDEN;
+                    } else if (forceTagEnum.equals(WebElementTagNameEnum.BUTTON)) {
+                        action = ABRConstants.CLICK;
+
+                    } else if (forceTagEnum.getValue().equalsIgnoreCase(ABRConstants.OUTPUT)) {
+                        // Handle the OUTPUT case
+                        action =
+                                ABRConstants.OUTPUT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                    } else {
+                        action =
+                                ABRConstants.OUTPUT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                    }
+                } else {
+                    action = clickElement.get()
+                            ? ABRConstants.CLICK
+                            : ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                }
             }
         }
         loop.setActions(action);
@@ -1005,6 +1051,14 @@ public class ABRWebElement {
 
     public void setSavedReferences(Map<String, String> savedReferences) {
         this.savedReferences = savedReferences;
+    }
+
+    public WebElementTagNameEnum getForceTagEnum() {
+        return forceTagEnum;
+    }
+
+    public void setForceTagEnum(WebElementTagNameEnum forceTagEnum) {
+        this.forceTagEnum = forceTagEnum;
     }
 
     /**

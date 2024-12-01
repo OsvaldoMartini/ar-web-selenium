@@ -34,6 +34,7 @@ public class BlockLoopInstructionLoadDTO {
     private int blockOrderNumber;
     private String blockName;
     private boolean editMode = false; // Add an editMode flag
+    private boolean refreshLoop; // Add an editMode flag
 
     private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
     private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;

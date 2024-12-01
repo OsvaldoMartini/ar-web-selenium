@@ -66,7 +66,7 @@ public class ABRConstants {
     public static final String ICON_PAUSE = "/pause3.png";
     public static final String ICON_CLICK = "/click.png";
     public static final String ICON_OUTPUT = "/output1.png";
-    public static final String ICON_HIDDEN = "/hidden.png";
+    public static final String ICON_HIDDEN = "/hidden-black.png";
     public static final String ICON_INSERT = "/input_field.png";
     public static final String ICON_TEXT = "/text.png";
     public static final String ICON_UP = "/up.png";
@@ -77,8 +77,8 @@ public class ABRConstants {
     public static final String ICON_SET_VALUE = "/setValue1.png";
     public static final String ICON_GET_VALUE = "/getValue1.png";
     public static final String ICON_SET_VALUE_BTN = "/setValueBtn2.png";
-    public static final String ICON_GET_VALUE_BTN = "/getValueBtn2.png";
     public static final String ICON_VARIABLES = "/variables.png";
+    public static final String ICON_GET_VALUE_BTN = "/getValueBtn2.png";
     public static final String ICON_CHECK = "/check3.png";
     public static final String ICON_IF_ELSE = "/ifElse.png";
     public static final String ICON_GOTO = "/goto8.png";
@@ -101,6 +101,7 @@ public class ABRConstants {
     // ACTION CODES
     public static final String VISUALIZE = "V";
     public static final String OUTPUT = "O";
+    public static final String HIDDEN = "hidden";
     public static final String OTHER = "W";
     public static final String CLICK = "C";
     public static final String SEARCH = "S";

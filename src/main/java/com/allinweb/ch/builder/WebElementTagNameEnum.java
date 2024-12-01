@@ -8,6 +8,7 @@ public enum WebElementTagNameEnum {
     OUTPUT("O"),
     BUTTON("button"),
     FORM("form"),
+    HIDDEN("hidden"),
     TEXT_AREA("textarea"),
     DIV("div"),
     IMAGE("image"),

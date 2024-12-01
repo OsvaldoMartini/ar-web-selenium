@@ -124,7 +124,7 @@ public class ABRNewCommandPane extends ABRPane {
     private Button addScreenButton;
 
     double buttonWidth = 200;
-    double blockWidth = 250;
+    double blockAddNewsWidth = 200;
     double comboOperatorWidth = 50;
     double comboTimesWidth = 70;
     double comboLoopsWidth = 80;
@@ -149,15 +149,15 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxVars> comboBoxWebPage;
     private ObservableList<ComboBoxVars> webPageItems;
 
+    private ComboBox<ComboBoxVars> comboBoxAllBlocks;
+    private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
+
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
     private List<BlockLoadDTO> blockLoadList;
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
-
-    private ComboBox<ComboBoxVars> comboBoxAddNews;
-    private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
 
     public ABRNewCommandPane(
             RowMoveDTO rowMoveDTO, List<BlockLoadDTO> blockLoadList, ObservableList<ComboBoxVars> webPageItems) {
@@ -563,47 +563,6 @@ public class ABRNewCommandPane extends ABRPane {
         });
         comboBoxBlocks.getSelectionModel().selectFirst();
 
-        // Combo To Select Where to Add the New Instruction
-        comboBoxAddNews = new ComboBox<>(allBlocksItems);
-        if (allBlocksItems.size() == 0) {
-            allBlocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1));
-        }
-        comboBoxAddNews.setPrefWidth(blockWidth);
-        comboBoxAddNews.getSelectionModel().selectFirst();
-        comboBoxAddNews.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
-                } else {
-                    setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
-                }
-            }
-        });
-        comboBoxAddNews.setCellFactory(param -> new ListCell<>() {
-            @Override
-            protected void updateItem(ComboBoxVars item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                    setTextFill(Color.BLACK); // Ensure text is black
-                } else {
-                    setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
-                }
-
-                // Add hover effect
-                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
-                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
-            }
-        });
-        comboBoxAddNews.getSelectionModel().selectFirst();
-
         comboBoxWebPage = new ComboBox<>(webPageItems);
         comboBoxWebPage.setPrefWidth(50);
         comboBoxWebPage.setButtonCell(new ListCell<>() {
@@ -639,6 +598,42 @@ public class ABRNewCommandPane extends ABRPane {
             }
         });
         comboBoxWebPage.getSelectionModel().selectFirst();
+
+        comboBoxAllBlocks = new ComboBox<>(allBlocksItems);
+        comboBoxAllBlocks.setPrefWidth(50);
+        comboBoxAllBlocks.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+            }
+        });
+        comboBoxAllBlocks.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(ComboBoxVars item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setTextFill(Color.BLACK); // Ensure text is black
+                } else {
+                    setText(item.getText());
+                    setTextFill(Color.BLACK); // Ensure text is black
+                }
+
+                // Add hover effect
+                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
+                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
+            }
+        });
+        comboBoxAllBlocks.getSelectionModel().selectFirst();
 
         defineTextFlow(comboBoxInstruc.getValue().getValue());
 
@@ -697,9 +692,10 @@ public class ABRNewCommandPane extends ABRPane {
         comboBoxInstruc.setPrefWidth(buttonWidth);
         comboBoxVars.setPrefWidth(buttonWidth);
         comboBoxWebPage.setPrefWidth(buttonWidth);
+        comboBoxAllBlocks.setPrefWidth(buttonWidth);
 
         // Handle the visibility of comboBoxBlocks
-        comboBoxBlocks.setVisible(false); // Initially hidden
+        comboBoxBlocks.setVisible(false);
         comboBoxBlocks.setManaged(false); // Ensure it does not take up space when hidden
 
         // Create a listener (optional) to toggle visibility dynamically
@@ -721,8 +717,8 @@ public class ABRNewCommandPane extends ABRPane {
         commandBox = new VBox(commandLabel, comboBoxInstruc);
         varsBox = new VBox(botJobVarsLabel, comboBoxVars);
         webFieldsBox = new VBox(webPageLabel, comboBoxWebPage);
+        addNewsBox = new VBox(addNewsLabel, comboBoxAllBlocks);
         blocksBox = new VBox(blocksLabel, comboBoxBlocks);
-        addNewsBox = new VBox(addNewsLabel, comboBoxAddNews);
 
         comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
 
@@ -841,6 +837,7 @@ public class ABRNewCommandPane extends ABRPane {
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(true);
                     comboBoxWebPage.setVisible(true);
+                    comboBoxAllBlocks.setVisible(true);
 
                     variableButton.setVisible(true);
 
@@ -869,6 +866,7 @@ public class ABRNewCommandPane extends ABRPane {
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
                                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        addNewsBox,
                                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                                         );
 
@@ -891,6 +889,8 @@ public class ABRNewCommandPane extends ABRPane {
                     webPageLabel.setVisible(false);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(false);
+                    comboBoxAllBlocks.setVisible(true);
+
                     variableButton.setVisible(false);
 
                     comboBoxVars.setVisible(false);
@@ -918,6 +918,7 @@ public class ABRNewCommandPane extends ABRPane {
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
                                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        addNewsBox,
                                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                                         );
 
@@ -940,6 +941,8 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxBlocks.setVisible(false);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(false);
+                    comboBoxAllBlocks.setVisible(true);
+
                     variableButton.setVisible(false);
                     comboBoxVars.setVisible(false);
                     comboBoxTimes.setVisible(false);
@@ -964,6 +967,7 @@ public class ABRNewCommandPane extends ABRPane {
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
                                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        addNewsBox,
                                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                                         );
 
@@ -986,6 +990,7 @@ public class ABRNewCommandPane extends ABRPane {
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(true);
+                    comboBoxAllBlocks.setVisible(true);
 
                     variableButton.setVisible(false);
 
@@ -1016,6 +1021,7 @@ public class ABRNewCommandPane extends ABRPane {
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
                                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        addNewsBox,
                                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                                         );
 
@@ -1038,6 +1044,7 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxBlocks.setVisible(false);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(false);
+                    comboBoxAllBlocks.setVisible(true);
                     variableButton.setVisible(false);
                     comboBoxVars.setVisible(false);
                     comboBoxTimes.setVisible(false);
@@ -1062,6 +1069,7 @@ public class ABRNewCommandPane extends ABRPane {
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
                                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        addNewsBox,
                                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                                         );
 
@@ -1084,6 +1092,7 @@ public class ABRNewCommandPane extends ABRPane {
                     webPageLabel.setVisible(true);
                     comboBoxOperator.setVisible(false);
                     comboBoxWebPage.setVisible(true);
+                    comboBoxAllBlocks.setVisible(true);
                     variableButton.setVisible(true);
 
                     comboBoxVars.setVisible(true);
@@ -1112,6 +1121,7 @@ public class ABRNewCommandPane extends ABRPane {
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
                                         buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        addNewsBox,
                                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                                         );
 
@@ -1297,6 +1307,22 @@ public class ABRNewCommandPane extends ABRPane {
 
         // Add a listener to print the ID when the selection changes
         comboBoxWebPage.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<ComboBoxVars>() {
+            @Override
+            public void changed(
+                    ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars newValue) {
+                if (newValue != null) {
+                    loadJobVariables(newValue.getVarId());
+                    reloadComboVars();
+                    comboBoxVars.getSelectionModel().selectFirst();
+                    if (comboBoxVars.getValue() != null) {
+                        defineTextFlow(comboBoxInstruc.getValue().getValue());
+                    }
+                }
+            }
+        });
+
+        // Add a listener to print the ID when the selection changes
+        comboBoxAllBlocks.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<ComboBoxVars>() {
             @Override
             public void changed(
                     ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars newValue) {
@@ -1673,8 +1699,8 @@ public class ABRNewCommandPane extends ABRPane {
         allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1));
         for (BlockLoadDTO block : blockLoadDTOList) {
             allBlocksItems.add(new ComboBoxVars(
-                    block.getBlockOrderNumber() + "# " + block.getName(),
-                    block.getName(),
+                    block.getBlockOrderNumber() + "# " + block.getName().trim(),
+                    block.getName().trim(),
                     block.getBlockOrderNumber(),
                     block.getId()));
         }
@@ -1804,8 +1830,8 @@ public class ABRNewCommandPane extends ABRPane {
             Integer instructionId,
             RowMoveDTO rowMoveDTO) {
 
-        int blockId = comboBoxAddNews.getValue().getInstructionId();
-        String blockName = comboBoxAddNews.getValue().getText();
+        int blockId = comboBoxAllBlocks.getValue().getInstructionId();
+        String blockName = comboBoxAllBlocks.getValue().getText();
         rowMoveDTO.setBlockId(blockId);
         rowMoveDTO.setBlockName(blockName);
         if (blockId < 0) {
