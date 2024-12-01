@@ -170,7 +170,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Map<String, String> mapExport;
 
     List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
-
+    List<Integer> executedSuccess = new ArrayList<>();
     Map<String, WebElement> mapAdvanced = new HashMap<>();
 
     // Very important sequence on initiation
@@ -784,7 +784,6 @@ public class ABRScannedElementPane extends ABRPane {
             if (!lastBrowserTab()) {
                 return;
             }
-            ;
 
             loadBlockAll(botJob.getId());
             instructionsExecuted.clear();
@@ -2816,6 +2815,10 @@ public class ABRScannedElementPane extends ABRPane {
                                         && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
                                     extractValidateDynamic();
                                 }
+
+                                if (Strings.isNullOrEmpty(attribNameTextField.getText())) {
+                                    attribNameTextField.setText(originalTagNameField.getText());
+                                }
                             });
                         }
                         try {
@@ -3333,6 +3336,7 @@ public class ABRScannedElementPane extends ABRPane {
             execLimitReach = Integer.parseInt(limitReach);
         }
 
+        Set<Integer> parentIdsForRefreshLoop = null;
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
             int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
@@ -3349,6 +3353,12 @@ public class ABRScannedElementPane extends ABRPane {
                 String excelFieldName = blockLoad.getExportFile();
                 String blockName = blocksLoaded.get(currentBlock).getName();
 
+                // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
+                parentIdsForRefreshLoop = blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS().stream()
+                        .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
+                        .map(BlockLoopInstructionLoadDTO::getParentId)
+                        .collect(Collectors.toSet());
+
                 executionTimes++;
                 boolean jumpGoto = false;
 
@@ -3358,6 +3368,7 @@ public class ABRScannedElementPane extends ABRPane {
                     boolean ifDone = false;
                     boolean elseClause = false;
                     boolean elseFailed = false;
+                    boolean byPassFlagLoop = false;
                     mapExport.clear();
                     //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
@@ -3703,6 +3714,17 @@ public class ABRScannedElementPane extends ABRPane {
                             mapIgnore.add(currentInstruction.getId() + "-" + currentInstruction.getName());
                             ignoreRefreshLoop = false;
                             continue;
+                        } else if (!ignoreRefreshLoop
+                                && refreshLoopArray != null
+                                && refreshLoopArray[1] > -1
+                                && actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+
+                            refreshLoopArray[1] = refreshLoopArray[1] - 1;
+
+                            if (refreshLoopArray[1] > -1) {
+                                currentIndex = refreshLoopArray[3];
+                                continue;
+                            }
                         }
                         long currentInstructionStartTime = System.nanoTime();
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -3732,6 +3754,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         instructionsExecuted.add(currentInstruction);
                                     }
 
+                                    executedSuccess.add(currentInstruction.getId());
                                     success = true;
                                 } catch (Exception ex) {
                                     resultActions = "Failed " + resultActions;
@@ -3792,9 +3815,11 @@ public class ABRScannedElementPane extends ABRPane {
 
                             } else if (refreshLoopArray != null && !refreshLoopExecuted && !ignoreRefreshLoop) {
 
-                                refreshLoopExecuted = true;
+                                if (!refreshLoopExecuted && actions[0].equals(Constants.REFRESH_LOOP)) {
+                                    performAction.performOtherActions(currentInstruction, actions);
+                                }
 
-                                performAction.performWebActions(null, currentInstruction, mapOperators, null, actions);
+                                refreshLoopExecuted = true;
 
                                 Pair<String, String> msgLoop = new Pair(
                                         parentField,
@@ -3834,7 +3859,11 @@ public class ABRScannedElementPane extends ABRPane {
                                 Pair<String, String> msgLoop = null;
                                 if (refreshLoopExecuted && refreshLoopArray != null) {
 
-                                    performAction.onHoldRefreshLoopForSeconds(refreshLoopArray[0]);
+                                    boolean pauseParentLoop =
+                                            parentIdsForRefreshLoop.contains(currentInstruction.getId());
+                                    if (pauseParentLoop) {
+                                        performAction.onHoldRefreshLoopForSeconds(refreshLoopArray[0]);
+                                    }
 
                                     String currentField =
                                             currentInstruction.getId() + "-" + currentInstruction.getName();
@@ -3876,8 +3905,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 if (actions[0].equals(Constants.HOLD)
                                         || actions[0].equals(Constants.QUIT)
                                         || actions[0].equals(Constants.SCREEN)
-                                        || actions[0].equals(Constants.REFRESH_ONLY)
-                                        || actions[0].equals(Constants.REFRESH_LOOP)) {
+                                        || actions[0].equals(Constants.REFRESH_ONLY)) {
                                     performAction.performOtherActions(currentInstruction, actions);
                                     continue;
                                 }
@@ -3891,12 +3919,6 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
 
                                 if (webElementFound != null) {
-
-                                    if (refreshLoopExecuted && refreshLoopArray != null) {
-                                        refreshLoopExecuted = false;
-                                        ignoreRefreshLoop = true;
-                                        refreshLoopArray = null;
-                                    }
                                     // Extract dataFieldName and dataFieldValue using a separate method
                                     Pair<String, String> fieldData = performAction.extractFieldData(
                                             dataExcel,
@@ -3917,43 +3939,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             msgInitial = new Pair(fieldName, "TEXT OUTPUT NOT FOUND");
                                         }
                                     }
-
-                                } else if (refreshLoopExecuted && refreshLoopArray != null) {
-                                    refreshLoopArray[1] = refreshLoopArray[1] - 1;
-                                    currentIndex = refreshLoopArray[3];
-
-                                    resultActions = performAction.actionResultMessage(
-                                            blockName, new String[] {ABRConstants.REFRESH_LOOP}, msgLoop);
-                                    long duration = performAction.duration(currentInstructionStartTime);
-
-                                    boolean excelSuccess = performAction.excelReportWrite(
-                                            success,
-                                            new String[] {ABRConstants.REFRESH_LOOP},
-                                            msgLoop,
-                                            duration,
-                                            dataExcel,
-                                            writerReport);
-
-                                    if (!excelSuccess) {
-                                        resultActions = "Failed " + resultActions;
-                                        success = false;
-                                    }
-
-                                    totalExecutionTime += duration;
-
-                                    status = performAction.operationLog(
-                                            success,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            "(REFRESH_LOOP)-" + resultActions,
-                                            duration);
-
-                                    if (refreshLoopArray[1] > -1) {
-                                        continue;
-                                    }
                                 }
-
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
                                 if (resultActions.contains("Error:") || webElementFound == null) {
@@ -3967,10 +3953,28 @@ public class ABRScannedElementPane extends ABRPane {
                                                             == currentInstruction.getInstructionOrderNumber())) {
                                         instructionsExecuted.add(currentInstruction);
                                     }
+
+                                    executedSuccess.add(currentInstruction.getId());
                                     success = true;
                                 } else {
                                     resultActions = "Failed to Execute -> " + currentInstruction.getName();
                                     success = false;
+                                }
+
+                                if (!success && refreshLoopExecuted && refreshLoopArray != null) {
+                                    byPassFlagLoop = parentIdsForRefreshLoop.contains(currentInstruction.getId());
+                                    success = byPassFlagLoop;
+                                }
+
+                                if (byPassFlagLoop) {
+                                    Pair<String, String> fieldData = performAction.extractFieldData(
+                                            dataExcel,
+                                            actions,
+                                            currentInstruction.getDefaultValue(),
+                                            currentInstruction.getEncrypted() > 0);
+
+                                    resultActions = "By Passing Loop Flag "
+                                            + performAction.actionResultMessage(blockName, actions, fieldData);
                                 }
 
                                 long duration = performAction.duration(currentInstructionStartTime);
@@ -4019,6 +4023,8 @@ public class ABRScannedElementPane extends ABRPane {
                                                                                 .getInstructionOrderNumber())) {
                                             instructionsExecuted.add(currentInstruction);
                                         }
+
+                                        executedSuccess.add(currentInstruction.getId());
                                         success = true;
                                     } else {
                                         resultActions = "Failed: " + resultActions;
@@ -4053,21 +4059,40 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 if (operations.length == 3) {
                                     if (mapOperators.containsKey(parentField)) {
+
+                                        byPassFlagLoop = parentIdsForRefreshLoop.contains(parentId);
+                                        success = byPassFlagLoop;
+
                                         resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
                                                 + String.join(" ", operations);
                                         boolean isOperationValid = false;
                                         if (operations[1].equalsIgnoreCase("=")) {
                                             isOperationValid = mapOperators
                                                     .get(parentField)
+                                                    .trim()
                                                     .equalsIgnoreCase(operations[2]);
 
                                         } else if (operations[1].equalsIgnoreCase(">")) {
                                             isOperationValid = mapOperators
                                                     .get(parentField)
+                                                    .trim()
+                                                    .equalsIgnoreCase(operations[2]);
+                                        } else if (operations[1].equalsIgnoreCase("!=")) {
+                                            isOperationValid = !mapOperators
+                                                    .get(parentField)
+                                                    .trim()
                                                     .equalsIgnoreCase(operations[2]);
                                         }
 
                                         if (isOperationValid) {
+
+                                            if (byPassFlagLoop) {
+                                                refreshLoopExecuted = false;
+                                                ignoreRefreshLoop = true;
+                                                refreshLoopArray = null;
+                                                ignoreRefreshLoop = true;
+                                            }
+
                                             currentInstruction.setExecuted(true);
 
                                             // Assuming currentInstruction and instructionsExecuted are already
@@ -4080,8 +4105,9 @@ public class ABRScannedElementPane extends ABRPane {
                                                                                     .getInstructionOrderNumber())) {
                                                 instructionsExecuted.add(currentInstruction);
                                             }
-                                            success = true;
 
+                                            executedSuccess.add(currentInstruction.getId());
+                                            success = true;
                                         } else {
                                             resultActions = performAction.checkValidationFailed(
                                                     parentField,
@@ -4089,9 +4115,10 @@ public class ABRScannedElementPane extends ABRPane {
                                                     resultActions,
                                                     operations,
                                                     ifClause,
-                                                    elseClause);
+                                                    elseClause,
+                                                    byPassFlagLoop);
 
-                                            if (!ifClause && !elseClause) {
+                                            if (!ifClause && !elseClause && !byPassFlagLoop) {
                                                 stopAll = true;
                                                 success = false;
                                             } else if (ifClause) {
@@ -4200,6 +4227,8 @@ public class ABRScannedElementPane extends ABRPane {
                                                                                     .getInstructionOrderNumber())) {
                                                 instructionsExecuted.add(currentInstruction);
                                             }
+
+                                            executedSuccess.add(currentInstruction.getId());
                                             success = true;
                                         } else {
                                             resultActions = "Failed: " + resultActions;

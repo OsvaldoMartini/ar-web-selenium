@@ -217,7 +217,8 @@ public class ABRNewCommandPane extends ABRPane {
         try {
             operatorsItems = FXCollections.observableArrayList(
                     new ComboBoxOperator("Equals", new Image(ABRConstants.ICON_EQUAL), "="),
-                    new ComboBoxOperator("Greater", new Image(ABRConstants.ICON_GREATER), ">"));
+                    new ComboBoxOperator("Greater", new Image(ABRConstants.ICON_GREATER), ">"),
+                    new ComboBoxOperator("!=", new Image(ABRConstants.ICON_DIFFERENT), "!="));
         } catch (Exception ex) {
             ABRLogger.getInstance(ABRNewCommandPane.class)
                     .severe("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
@@ -225,11 +226,11 @@ public class ABRNewCommandPane extends ABRPane {
 
         if (itemsInstructions.isEmpty() || itemsInstructions.size() == 0) {
             itemsInstructions.add(
-                    new ComboBoxImage("No Instructions", new Image(ABRConstants.ICON_GREATER), ABRConstants.NO_VALUE));
+                    new ComboBoxImage("No Instructions", new Image(ABRConstants.ICON_BLANK), ABRConstants.NO_VALUE));
         }
         if (operatorsItems.size() == 0) {
             operatorsItems.add(
-                    new ComboBoxOperator("No Operators", new Image(ABRConstants.ICON_GREATER), ABRConstants.NO_VALUE));
+                    new ComboBoxOperator("No Operators", new Image(ABRConstants.ICON_BLANK), ABRConstants.NO_VALUE));
         }
 
         if (webPageItems.size() == 0) {
@@ -1322,20 +1323,22 @@ public class ABRNewCommandPane extends ABRPane {
         });
 
         // Add a listener to print the ID when the selection changes
-        comboBoxAllBlocks.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<ComboBoxVars>() {
-            @Override
-            public void changed(
-                    ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars newValue) {
-                if (newValue != null) {
-                    loadJobVariables(newValue.getVarId());
-                    reloadComboVars();
-                    comboBoxVars.getSelectionModel().selectFirst();
-                    if (comboBoxVars.getValue() != null) {
-                        defineTextFlow(comboBoxInstruc.getValue().getValue());
-                    }
-                }
-            }
-        });
+        //        comboBoxAllBlocks.getSelectionModel().selectedItemProperty().addListener(new
+        // ChangeListener<ComboBoxVars>() {
+        //            @Override
+        //            public void changed(
+        //                    ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars
+        // newValue) {
+        //                if (newValue != null) {
+        //                    loadJobVariables(newValue.getVarId());
+        //                    reloadComboVars();
+        //                    comboBoxVars.getSelectionModel().selectFirst();
+        //                    if (comboBoxVars.getValue() != null) {
+        //                        defineTextFlow(comboBoxInstruc.getValue().getValue());
+        //                    }
+        //                }
+        //            }
+        //        });
 
         cancelButton.setOnMouseClicked((e) -> {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();

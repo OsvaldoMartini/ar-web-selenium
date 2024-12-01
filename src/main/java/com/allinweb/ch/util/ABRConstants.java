@@ -97,6 +97,7 @@ public class ABRConstants {
     public static final String ICON_TICK = "/tick.png";
     public static final String ICON_EQUAL = "/equal.png";
     public static final String ICON_GREATER = "/greater.png";
+    public static final String ICON_DIFFERENT = "/different.png";
 
     // ACTION CODES
     public static final String VISUALIZE = "V";

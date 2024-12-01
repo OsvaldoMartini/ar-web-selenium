@@ -179,6 +179,17 @@ public class ABRWebElement {
     private void initFromWebElement(WebElement element) {
         initUI();
 
+        if (element.getTagName() == null) {
+
+            new ABRAlertScene(
+                    Alert.AlertType.ERROR,
+                    "Not possible to identity the Tag Name",
+                    "Try to Re Scanner or Re Select the Element!",
+                    ButtonType.OK);
+
+            return;
+        }
+
         boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
         boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
 

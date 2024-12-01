@@ -1062,8 +1062,9 @@ public class PerformActions {
             String lastInstructionExecuted,
             String[] operations,
             boolean ifClause,
-            boolean elseClause) {
-        if (!ifClause && !elseClause) {
+            boolean elseClause,
+            boolean byPassFlagLoop) {
+        if (!ifClause && !elseClause && !byPassFlagLoop) {
             showAlert(
                     Alert.AlertType.ERROR,
                     "Validation Error",
