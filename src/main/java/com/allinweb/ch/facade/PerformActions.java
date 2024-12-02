@@ -1518,7 +1518,7 @@ public class PerformActions {
         return extendedRefreshArray;
     }
 
-    public String getXInstructionPath(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+    public String getXPathInstruction(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
         try {
             return blockLoad.getBlockLoopInstructionLoadDTOS().stream()
                     .filter(f -> f.getId() == currentInstruction.getParentId())

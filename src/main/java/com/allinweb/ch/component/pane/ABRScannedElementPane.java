@@ -3544,7 +3544,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
                             execOperation = true;
-                            xPathOperation = performAction.getXInstructionPath(currentInstruction, blockLoad);
+                            xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
 
                             parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
 
@@ -3674,20 +3674,12 @@ public class ABRScannedElementPane extends ABRPane {
                                         ABRLogger.getInstance(ABRScannedElementPane.class)
                                                 .severe(String.format("Error: \"%s\"", resultActions));
 
-                                        if (!ifClause && !elseClause) {
-                                            stopAll = true;
-                                            success = false;
-                                        } else if (ifClause) {
-                                            ifFailed = true;
-                                        } else if (elseClause) {
-                                            elseFailed = true;
-                                        }
+                                        stopAll = true;
+                                        success = false;
 
                                         if (stopAll) {
                                             break;
                                         }
-
-                                        continue;
                                     }
                                 }
 
@@ -3907,6 +3899,31 @@ public class ABRScannedElementPane extends ABRPane {
                                         || actions[0].equals(Constants.SCREEN)
                                         || actions[0].equals(Constants.REFRESH_ONLY)) {
                                     performAction.performOtherActions(currentInstruction, actions);
+
+                                    if (actions[0].equals(Constants.QUIT)) {
+                                        stopAll = true;
+                                        success = true;
+
+
+                                        long duration = performAction.duration(currentInstructionStartTime);
+
+                                        performAction.excelReportWrite(
+                                                success, actions, msgInitial, duration, dataExcel, writerReport);
+
+                                        totalExecutionTime += duration;
+
+                                        status = performAction.operationLog(
+                                                success,
+                                                currentInstruction.isOptional()
+                                                        ? "OPTIONAL INSTRUCTION"
+                                                        : "MANDATORY INSTRUCTION",
+                                                resultActions,
+                                                duration);
+                                        
+                                        
+                                        
+                                    }
+
                                     continue;
                                 }
 
