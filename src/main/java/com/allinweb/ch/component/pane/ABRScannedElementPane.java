@@ -797,6 +797,10 @@ public class ABRScannedElementPane extends ABRPane {
         });
 
         recallJobButton.setOnMouseClicked(e -> {
+            if (!lastBrowserTab()) {
+                return;
+            }
+
             loadBlockAll(botJob.getId());
             // loadBotJob(botJob);
             recallJob();
@@ -824,6 +828,7 @@ public class ABRScannedElementPane extends ABRPane {
         });
 
         scanButton.setOnAction(e -> manageUIScan());
+
         addNewElement.setOnAction(e -> {
             if (searchReturn.getElement() != null) {
                 insertNewElement();
@@ -858,21 +863,26 @@ public class ABRScannedElementPane extends ABRPane {
             return true;
         } catch (Exception e) {
 
-            Text variableText1Styled = new Text("The Browser attached with this Web Scanner is Not Active");
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            browserNotAttached();
 
-            Text variableText2Styled = new Text("Close and Re-open this Scanner Screen");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
-
-            performAction.showAlertCombinedVBOX(
-                    Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
             return false;
         }
+    }
+
+    private void browserNotAttached() {
+        Text variableText1Styled = new Text("The Browser attached with this Web Scanner is Not Active");
+        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text variableText2Styled = new Text("Close and Re-open this Scanner Screen");
+        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+        VBox combinedTextContainer = new VBox();
+        combinedTextContainer.setSpacing(5); // Add some sp
+
+        combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
+
+        performAction.showAlertCombinedVBOX(
+                Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
     }
 
     private void insertNewElement() {
@@ -1135,14 +1145,17 @@ public class ABRScannedElementPane extends ABRPane {
         webElementObservableList1.clear();
         webElementObservableList2.clear();
         webElementObservableList3.clear();
-        manageUIScanIdsFirst();
-        manageUIScanAttributeNameFirst();
-        manageUIScanWithoutNameAndId();
 
-        manageUIScanPriorities();
-        manageUIScanInputs();
-        //        manageUIScanClickable();
-        manageUIScanOutputs();
+        boolean scanOk = manageUIScanIdsFirst();
+        if (scanOk) {
+            manageUIScanAttributeNameFirst();
+            manageUIScanWithoutNameAndId();
+
+            manageUIScanPriorities();
+            manageUIScanInputs();
+            //        manageUIScanClickable();
+            manageUIScanOutputs();
+        }
     }
 
     private void manageUIScanWithoutNameAndId() {
@@ -1150,11 +1163,15 @@ public class ABRScannedElementPane extends ABRPane {
         nameAttributeFirst = false;
         withoutNameAndId = true;
         // addProgressBar();
-        scanABRElementsAsync(
+
+        // First Check About the Scanner havina  a Browser Attached
+        boolean scanOk = scanABRElementsAsync(
                 null, null, null, webElementObservableList1, "input", "UI Scan \"Inputs\" Without Name And Id");
         // addProgressBar();
-        scanABRElementsAsync(
-                null, null, null, webElementObservableList1, "button", "UI Scan \"Buttons\" Without Name And Id");
+        if (scanOk) {
+            scanABRElementsAsync(
+                    null, null, null, webElementObservableList1, "button", "UI Scan \"Buttons\" Without Name And Id");
+        }
     }
 
     private void addProgressBar(int items) {
@@ -1182,24 +1199,28 @@ public class ABRScannedElementPane extends ABRPane {
         scanABRElementsAsync(null, null, null, webElementObservableList1, "name", "UI Scan Attribute Name First");
     }
 
-    private void manageUIScanIdsFirst() {
+    private boolean manageUIScanIdsFirst() {
         idAttributeFirst = true;
         nameAttributeFirst = false;
         withoutNameAndId = false;
-        scanABRElementsAsync(null, null, null, webElementObservableList1, "id", "UI Scan Ids First");
+        return scanABRElementsAsync(null, null, null, webElementObservableList1, "id", "UI Scan Ids First");
     }
 
     private void manageUIScanInputs() {
         List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
         for (WebElementTagNameEnum tag : inputTags) {
             // addProgressBar();
-            scanABRElementsAsync(
+            boolean scanOk = scanABRElementsAsync(
                     null,
                     By.tagName(tag.getValue()),
                     ABRWebElement::isNotClickable,
                     webElementObservableList1,
                     null,
                     "UI Scan Inputs");
+
+            if (!scanOk) {
+                break;
+            }
         }
     }
 
@@ -1207,13 +1228,17 @@ public class ABRScannedElementPane extends ABRPane {
         List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
         for (WebElementTagNameEnum tag : clickableTags) {
             // addProgressBar();
-            scanABRElementsAsync(
+            boolean scanOK = scanABRElementsAsync(
                     null,
                     By.tagName(tag.getValue()),
                     ABRWebElement::isClickable,
                     webElementObservableList2,
                     null,
                     "UI Scan Clickable");
+
+            if (!scanOK) {
+                break;
+            }
         }
     }
 
@@ -1246,13 +1271,21 @@ public class ABRScannedElementPane extends ABRPane {
         scanABRElementsAsync(null, criteria, null, listToAddNewElements, null, criteriaMSG);
     }
 
-    private void scanABRElementsAsync(
+    private boolean scanABRElementsAsync(
             Set<WebElement> preElements,
             By criteria,
             Predicate<ABRWebElement> filterCondition,
             ObservableList<ABRWebElement> listToAddNewElements,
             String elementType,
             String criteriaMSG) {
+
+        // Check if Browser is Inactive
+        try {
+            windowHandles = abrWebDriver.getDriver().getWindowHandles();
+        } catch (Exception e) {
+            browserNotAttached();
+            return false;
+        }
 
         executorService = Executors.newCachedThreadPool();
 
@@ -1474,6 +1507,7 @@ public class ABRScannedElementPane extends ABRPane {
         });
 
         //        new Thread(workingTask).start();
+        return true;
     }
 
     private void shutDownExecutorService() {
@@ -1506,6 +1540,14 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void refreshOtherElemBtn() {
         webElementObservableList3.clear();
+
+        // Check if Browser is Inactive
+        try {
+            windowHandles = abrWebDriver.getDriver().getWindowHandles();
+        } catch (Exception e) {
+            browserNotAttached();
+            return;
+        }
         manageUIScanPriorities();
     }
 
@@ -3292,7 +3334,7 @@ public class ABRScannedElementPane extends ABRPane {
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
-                new ExcelWriter(blocksLoaded.get(0).getName(), abrWebDriver.getDriver(), false).withPurpose("report");
+                new ExcelWriter(botLoadJobs.get(0).getName(), abrWebDriver.getDriver(), false).withPurpose("report");
         writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport = null;
@@ -3903,26 +3945,22 @@ public class ABRScannedElementPane extends ABRPane {
                                     if (actions[0].equals(Constants.QUIT)) {
                                         stopAll = true;
                                         success = true;
-
-
-                                        long duration = performAction.duration(currentInstructionStartTime);
-
-                                        performAction.excelReportWrite(
-                                                success, actions, msgInitial, duration, dataExcel, writerReport);
-
-                                        totalExecutionTime += duration;
-
-                                        status = performAction.operationLog(
-                                                success,
-                                                currentInstruction.isOptional()
-                                                        ? "OPTIONAL INSTRUCTION"
-                                                        : "MANDATORY INSTRUCTION",
-                                                resultActions,
-                                                duration);
-                                        
-                                        
-                                        
                                     }
+
+                                    long duration = performAction.duration(currentInstructionStartTime);
+
+                                    performAction.excelReportWrite(
+                                            success, actions, msgInitial, duration, dataExcel, writerReport);
+
+                                    totalExecutionTime += duration;
+
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions,
+                                            duration);
 
                                     continue;
                                 }
