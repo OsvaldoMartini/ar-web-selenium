@@ -179,8 +179,19 @@ public class ABRWebElement {
     private void initFromWebElement(WebElement element) {
         initUI();
 
-        if (element.getTagName() == null) {
+        try {
 
+            if (element.getTagName() == null) {
+
+                new ABRAlertScene(
+                        Alert.AlertType.ERROR,
+                        "Not possible to identity the Tag Name",
+                        "Try to Re Scanner or Re Select the Element!",
+                        ButtonType.OK);
+
+                return;
+            }
+        } catch (Exception e) {
             new ABRAlertScene(
                     Alert.AlertType.ERROR,
                     "Not possible to identity the Tag Name",

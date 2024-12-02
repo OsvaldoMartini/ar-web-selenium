@@ -132,6 +132,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Button refreshInputFieldsButton;
     private Button refreshOutputFieldsButton;
     private Button refreshOtherFieldsButton;
+    private Button magicFieldsButton;
     private Button leftButton;
     private Button rightButton;
     private CheckBox checkBoxAction;
@@ -292,6 +293,8 @@ public class ABRScannedElementPane extends ABRPane {
                 "Output Fields", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         refreshOtherFieldsButton = componentBuilder.buildButton(
                 "Other Elements", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
+        magicFieldsButton = componentBuilder.buildButton(
+                "", ABRConstants.SPACE_ZERO, "/magic2.png", ABRConstants.SPACE_M, new Insets(5.0D));
         checkBoxAction = new CheckBox("Test Action\n(RELEASE AFTER USE)");
         checkClickElement = new CheckBox("For Click");
         //        checkClickElement.setSelected(true);
@@ -450,8 +453,9 @@ public class ABRScannedElementPane extends ABRPane {
             gridPaneTop.add(searchWithoutIdsAndNamesBtn, 4, 0);
             gridPaneTop.add(refreshOutputFieldsButton, 5, 0);
             gridPaneTop.add(refreshOtherFieldsButton, 6, 0);
-            gridPaneTop.add(leftButton, 7, 0);
-            gridPaneTop.add(rightButton, 8, 0);
+            gridPaneTop.add(magicFieldsButton, 7, 0);
+            gridPaneTop.add(leftButton, 8, 0);
+            gridPaneTop.add(rightButton, 9, 0);
 
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
@@ -838,6 +842,7 @@ public class ABRScannedElementPane extends ABRPane {
         refreshInputFieldsButton.setOnAction(e -> refreshInputBtn());
         refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn());
         refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn());
+        magicFieldsButton.setOnAction(e -> performAction.createOutputHtml("input", abrWebDriver.getDriver()));
         searchWithIdsButton.setOnAction(e -> refreshWithIdsBtn());
         searchWithNamesButton.setOnAction(e -> refreshWithNamesBtn());
         searchWithoutIdsAndNamesBtn.setOnAction(e -> refreshWithoutIdsAndNamesBtn());
@@ -1960,6 +1965,7 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private Set<WebElement> managePrioritiesCriteria() {
+
         // Gets Always the Latest info form DB
         loadUserData(botJob.getHomeBanking().getId());
         abrPriorities.loadSearchElementsConfig(databaseUserDto.getSearchConfig());

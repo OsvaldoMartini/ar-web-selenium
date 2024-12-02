@@ -28,6 +28,8 @@ import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
 import java.awt.*;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -36,6 +38,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1540,5 +1543,66 @@ public class PerformActions {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    public void createOutputHtml(String type, WebDriver driver) {
+        // Save the HTML to a file
+        List<WebElement> elements = driver.findElements(By.cssSelector(type));
+
+        // Create a Set to store unique visible elements
+        Set<String> uniqueElements = new HashSet<>();
+
+        // Create a List to store the HTML content
+        List<String> htmlArray = new ArrayList<>();
+
+        // Iterate over all elements and add their outer HTML to the List
+        for (WebElement element : elements) {
+            if (isElementVisible(element, driver)) {
+                String outerHTML = element.getAttribute("outerHTML");
+
+                // Only add the element if it hasn't been added before
+                if (uniqueElements.add(outerHTML)) {
+                    htmlArray.add(outerHTML);
+                }
+            }
+        }
+
+        // Save the content as an array of strings to a new file
+        String htmlPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT);
+        try (FileWriter writer = new FileWriter(htmlPath + "/" + type + ".json")) {
+            // Convert the list of strings to a JSON-like array format
+            writer.write(htmlArray.stream()
+                    .map(s -> "\"" + s.replace("\"", "\\\"") + "\"") // Escape double quotes
+                    .collect(Collectors.joining(", ", "[", "]"))); // Format as JSON array
+        } catch (IOException e) {
+            System.out.println("Error writing to file: " + e.getMessage());
+        } finally {
+            // Close the browser if necessary
+            // driver.quit();
+        }
+    }
+
+    // Function to check if the element is visible
+    private static boolean isElementVisible(WebElement element, WebDriver driver) {
+        // Check if the element is displayed and within the viewport
+        try {
+            return element.isDisplayed() && isInViewport(element, driver);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // Function to check if the element is within the viewport
+    private static boolean isInViewport(WebElement element, WebDriver driver) {
+        // Use JavaScript to check if the element is in the viewport
+        // Use the WebDriver (which implements JavascriptExecutor) to execute JavaScript
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+
+        // Execute the JavaScript to get the element's position and check if it's in the viewport
+        return (boolean) js.executeScript(
+                "var rect = arguments[0].getBoundingClientRect(); "
+                        + "return (rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth));",
+                element);
     }
 }
