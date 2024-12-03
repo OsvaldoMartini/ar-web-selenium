@@ -3358,6 +3358,7 @@ public class ABRScannedElementPane extends ABRPane {
         Set<String> mapIgnore = new HashSet<>();
         int[] refreshLoopArray = null; // new int[] {0, 0, 0};
 
+        boolean byPassNotFound = false;
         boolean success = true;
         boolean stopAll = false;
         long botJobStartTime = System.nanoTime();
@@ -3836,7 +3837,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             } else if (refreshOnly) {
 
-                                performAction.performOtherActions(currentInstruction, actions);
+                                performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
@@ -3858,7 +3859,7 @@ public class ABRScannedElementPane extends ABRPane {
                             } else if (refreshLoopArray != null && !refreshLoopExecuted && !ignoreRefreshLoop) {
 
                                 if (!refreshLoopExecuted && actions[0].equals(Constants.REFRESH_LOOP)) {
-                                    performAction.performOtherActions(currentInstruction, actions);
+                                    performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
                                 }
 
                                 refreshLoopExecuted = true;
@@ -3948,7 +3949,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         || actions[0].equals(Constants.QUIT)
                                         || actions[0].equals(Constants.SCREEN)
                                         || actions[0].equals(Constants.REFRESH_ONLY)) {
-                                    performAction.performOtherActions(currentInstruction, actions);
+                                    performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                     if (actions[0].equals(Constants.QUIT)) {
                                         stopAll = true;
@@ -3989,8 +3990,15 @@ public class ABRScannedElementPane extends ABRPane {
                                             currentInstruction.getDefaultValue(),
                                             currentInstruction.getEncrypted() > 0);
 
+                                    byPassNotFound = byPassFlagLoop || ifClause || elseClause;
+
                                     success = performAction.performWebActions(
-                                            fieldData, currentInstruction, mapOperators, webElementFound, actions);
+                                            byPassNotFound,
+                                            fieldData,
+                                            currentInstruction,
+                                            mapOperators,
+                                            webElementFound,
+                                            actions);
 
                                     if (actions[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
                                         fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
@@ -4004,9 +4012,9 @@ public class ABRScannedElementPane extends ABRPane {
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
                                 if (resultActions.contains("Error:") || webElementFound == null || !success) {
-                                        resultActions = "Failed " + resultActions;
-                                        success = false;
-                                    } else if (resultActions != null && success) {
+                                    resultActions = "Failed " + resultActions;
+                                    success = false;
+                                } else if (resultActions != null && success) {
                                     currentInstruction.setExecuted(true);
                                     // Assuming currentInstruction and instructionsExecuted are already defined
                                     if (currentInstruction != null
@@ -4018,7 +4026,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     executedSuccess.add(currentInstruction.getId());
                                     success = true;
-                                } 
+                                }
 
                                 if (!success && refreshLoopExecuted && refreshLoopArray != null) {
                                     byPassFlagLoop = parentIdsForRefreshLoop.contains(currentInstruction.getId());
@@ -4062,6 +4070,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 // Special Operators
                                 if (operations.length == 2) {
                                     resultActions = performAction.performActionOperator(
+                                            byPassNotFound,
                                             currentInstruction,
                                             xPathOperation,
                                             actions[0],
@@ -4448,7 +4457,7 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                     try {
 
-                        stopAll = performAction.performWebActions(
+                        stopAll = performAction.performWebActions(byPassNotFound,
                                 dataDynamic, currentInstruction, mapOperators, webElementFound, actions);
 
                         // Special Cases for Select Responses

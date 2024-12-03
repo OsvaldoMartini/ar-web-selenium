@@ -115,8 +115,9 @@ public class PerformActions {
     }
 
     public boolean performWebActions(
+            boolean byPassNotFound,
             Pair<String, String> data,
-            BlockLoopInstructionLoadDTO instruction,
+            BlockLoopInstructionLoadDTO currentInstruction,
             Map<String, String> mapOperators,
             WebElement instructionElement,
             String actions[])
@@ -126,23 +127,28 @@ public class PerformActions {
 
             switch (actions[0]) {
                 case Constants.VISUALIZE:
-                    return scrollToElement(instructionElement);
+                    return scrollToElement(byPassNotFound, instructionElement);
                 case Constants.OUTPUT:
-                    String fieldName = instruction.getId() + "-" + instruction.getName();
-                    return getOutPutElement(instructionElement, fieldName, instruction.getActions(), mapOperators);
+                    String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
+                    return getOutPutElement(
+                            byPassNotFound,
+                            instructionElement,
+                            fieldName,
+                            currentInstruction.getActions(),
+                            mapOperators);
                 case Constants.CLICK:
                 case Constants.OTHER:
-                    return clickElement(instructionElement);
+                    return clickElement(byPassNotFound, instructionElement);
                 case Constants.INSERT:
                     if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                        return insertDataInSelectElement(instructionElement, data);
+                        return insertDataInSelectElement(byPassNotFound, instructionElement, data);
                     } else {
                         return insertInElement(
+                                byPassNotFound,
                                 instructionElement,
-                                data.getKey(),
                                 data.getValue(),
-                                instruction.getDefaultValue(),
-                                instruction.isEncrypted());
+                                currentInstruction.getDefaultValue(),
+                                currentInstruction.isEncrypted());
                     }
             }
 
@@ -156,11 +162,12 @@ public class PerformActions {
         return true;
     }
 
-    public void performOtherActions(BlockLoopInstructionLoadDTO instruction, String actions[]) throws Exception {
+    public void performOtherActions(boolean byPassNotFound, BlockLoopInstructionLoadDTO instruction, String actions[])
+            throws Exception {
 
         switch (actions[0]) {
             case Constants.LIST_OPERATION:
-                listOperation(instruction);
+                listOperation(byPassNotFound, instruction);
                 break;
             case Constants.HOLD:
                 //                        executeAlert(instruction);
@@ -198,6 +205,7 @@ public class PerformActions {
     }
 
     public String performActionOperator(
+            boolean byPassNotFound,
             BlockLoopInstructionLoadDTO instruction,
             String targetXPath,
             String action,
@@ -209,20 +217,21 @@ public class PerformActions {
         WebElement instructionElement = null;
 
         if (!StringUtils.isBlank(targetXPath)) {
-            instructionElement = locateTargetElement(targetXPath, instruction.getActionCustomMaxWaitSec());
+            instructionElement =
+                    locateTargetElement(byPassNotFound, targetXPath, instruction.getActionCustomMaxWaitSec());
         }
         if (instructionElement != null) {
 
             switch (action) {
                 case "SET":
-                    insertTargetElement(instructionElement, operations[0], operations[1]);
+                    insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
                     return "SET_VALUE to (Parent: " + parentField + ") Var:" + operations[0] + " <-- " + operations[1];
                 case "GET":
                     String valueElem;
                     if (mapOperators.containsKey(parentField)) {
                         valueElem = mapOperators.get(parentField);
                     } else {
-                        valueElem = getValueInElement(instructionElement);
+                        valueElem = getValueInElement(byPassNotFound, instructionElement);
                         mapOperators.put(parentField, valueElem);
                     }
                     return "GET_VALUE from (Parent: " + parentField + ") Var" + operations[1] + " <-- " + valueElem;
@@ -244,7 +253,7 @@ public class PerformActions {
         return null;
     }
 
-    private WebElement locateTargetElement(String targetXPath, Integer actionCustomMaxWaitSec) {
+    private WebElement locateTargetElement(boolean byPassNotFound, String targetXPath, Integer actionCustomMaxWaitSec) {
 
         String tagName = null;
         try {
@@ -282,7 +291,10 @@ public class PerformActions {
                             showNotFoundElement(targetXPath, criteria);
 
                             //                                SwingUtilities.invokeLater(() ->
-                            couldNotFindElement(String.valueOf(criteria));
+
+                            if (!byPassNotFound) {
+                                couldNotFindElement(String.valueOf(criteria));
+                            }
                         }
                     } else if (actionCustomMaxWaitSec != null) {
                         try {
@@ -293,7 +305,9 @@ public class PerformActions {
                                     .fine(String.format(
                                             "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
-                            couldNotFindElement(String.valueOf(criteria));
+                            if (!byPassNotFound) {
+                                couldNotFindElement(String.valueOf(criteria));
+                            }
                         }
                     } else {
                         try {
@@ -304,7 +318,9 @@ public class PerformActions {
                                             "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
 
-                            couldNotFindElement(String.valueOf(criteria));
+                            if (!byPassNotFound) {
+                                couldNotFindElement(String.valueOf(criteria));
+                            }
                         }
                     }
                     if (foundElementList.size() > 0) {
@@ -331,6 +347,29 @@ public class PerformActions {
     private void showNotFoundElement(String targetXPath, By criteria) {}
 
     private WebElement locateElement(BlockLoopInstructionLoadDTO instruction, int botJobId) {
+
+        WebElement elementInsideIframe = null;
+        //        if (xPath.toLowerCase().contains("iframe")){
+        //            // Switch to the iframe using ID or name
+        ////            abrWebDriver.getDriver().switchTo().frame("iframeID");
+        //
+        //            // Alternatively, switch to the iframe using a WebElement
+        ////            WebElement iframeElement =
+        // abrWebDriver.getDriver().findElement(By.xpath("//iframe[@name='iframeName']"));
+        //            WebElement iframeElement = abrWebDriver.getDriver().findElement(By.xpath(xPath));
+        //            abrWebDriver.getDriver().switchTo().frame(iframeElement);
+        //            // Now, interact with elements inside the iframe
+        //            elementInsideIframe = abrWebDriver.getDriver().findElement(By.id("elementID"));
+        //        }
+        //
+        //        if (elementInsideIframe != null) {
+        //            element = elementInsideIframe;
+        //        }
+        //
+        //        if (elementInsideIframe != null) {
+        //            // Switch back to the main page
+        //            abrWebDriver.getDriver().switchTo().defaultContent();
+        //        }
 
         String instructionPath = instruction.getPath();
         String tagName = null;
@@ -584,7 +623,8 @@ public class PerformActions {
         return criteriaList;
     }
 
-    private String insertTargetElement(WebElement element, String fieldName, String dataFieldValue) throws Exception {
+    private String insertTargetElement(
+            boolean byPassNotFound, WebElement element, String fieldName, String dataFieldValue) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
@@ -594,7 +634,9 @@ public class PerformActions {
                             "Could Not Find Field Name \"%s\" Value \"%s\" Cause: %s",
                             fieldName, dataFieldValue, e.getMessage()));
 
-            couldNotFindElement(fieldName);
+            if (!byPassNotFound) {
+                couldNotFindElement(fieldName);
+            }
         }
 
         if (dataFieldValue != null) {
@@ -606,7 +648,7 @@ public class PerformActions {
         return fieldName + "->" + dataFieldValue;
     }
 
-    private String getValueInElement(WebElement element) throws Exception {
+    private String getValueInElement(boolean byPassNotFound, WebElement element) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
@@ -615,7 +657,9 @@ public class PerformActions {
                     .fine(String.format(
                             "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
 
-            couldNotFindElement(element.getTagName());
+            if (!byPassNotFound) {
+                couldNotFindElement(element.getTagName());
+            }
         }
 
         // Assuming instructionElement is an input field
@@ -685,7 +729,7 @@ public class PerformActions {
         }
     }
 
-    public boolean scrollToElement(WebElement element) throws Exception {
+    public boolean scrollToElement(boolean byPassNotFound, WebElement element) throws Exception {
         try {
             UtilsMethods.exceptionIfNullWebElement(element);
             ((JavascriptExecutor) abrWebDriver.getDriver())
@@ -695,12 +739,14 @@ public class PerformActions {
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
                             "Failed to Scroll to Element \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
-            couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
+            if (!byPassNotFound) {
+                couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
+            }
             return false;
         }
     }
 
-    public boolean clickElement(WebElement element) throws Exception {
+    public boolean clickElement(boolean byPassNotFound, WebElement element) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         if (!element.isEnabled()) {
             //        callErrorMessageNotEnabled(element.getTagName());
@@ -723,7 +769,9 @@ public class PerformActions {
                     .fine(String.format(
                             "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
 
-            couldNotFindElement(element.getTagName());
+            if (!byPassNotFound) {
+                couldNotFindElement(element.getTagName());
+            }
             return false;
         }
 
@@ -760,7 +808,7 @@ public class PerformActions {
     }
 
     private boolean insertInElement(
-            WebElement element, String dataFieldName, String dataFieldValue, String defaultValue, boolean isEncrypted)
+            boolean byPassNotFound, WebElement element, String dataFieldValue, String defaultValue, boolean isEncrypted)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
 
@@ -770,10 +818,14 @@ public class PerformActions {
             ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
                             "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
-            couldNotFindElement(element.getTagName());
+            if (!byPassNotFound) {
+                couldNotFindElement(element.getTagName());
+            }
             return false;
         }
+
         try {
+
             if (Strings.isNullOrEmpty(defaultValue)) {
 
                 if (isEncrypted) {
@@ -837,7 +889,8 @@ public class PerformActions {
         return new Pair<>(dataFieldName, dataFieldValue);
     }
 
-    private boolean insertDataInSelectElement(WebElement element, Pair<String, String> data) throws Exception {
+    private boolean insertDataInSelectElement(boolean byPassNotFound, WebElement element, Pair<String, String> data)
+            throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
@@ -846,8 +899,9 @@ public class PerformActions {
                     .fine(String.format(
                             "Could Not Find Select \"%s\" Value  \"%s\" Cause: %s",
                             data.getKey(), data.getValue(), e.getMessage()));
-
-            couldNotFindElement(data.getKey());
+            if (!byPassNotFound) {
+                couldNotFindElement(data.getKey());
+            }
         }
 
         try {
@@ -869,7 +923,12 @@ public class PerformActions {
     }
 
     private boolean getOutPutElement(
-            WebElement element, String fieldName, String action, Map<String, String> mapOperators) throws Exception {
+            boolean byPassNotFound,
+            WebElement element,
+            String fieldName,
+            String action,
+            Map<String, String> mapOperators)
+            throws Exception {
 
         UtilsMethods.exceptionIfNullWebElement(element);
 
@@ -879,7 +938,9 @@ public class PerformActions {
             ABRLogger.getInstance(PerformActions.class)
                     .warning(String.format("Could Not Find Field Name \"%s\" Cause: %s", fieldName, ex.getMessage()));
 
-            couldNotFindElement(fieldName);
+            if (!byPassNotFound) {
+                couldNotFindElement(fieldName);
+            }
             return false;
         }
 
@@ -936,8 +997,6 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .warning(String.format("Element is not clickable: \"%s\"", fieldName));
-
-            couldNotFindElement(fieldName);
         }
 
         // Set the final text value by priority and add to mapOperators
@@ -967,7 +1026,7 @@ public class PerformActions {
         return true;
     }
 
-    private void listOperation(BlockLoopInstructionLoadDTO instructionDTO) {
+    private void listOperation(boolean byPassNotFound, BlockLoopInstructionLoadDTO instructionDTO) {
 
         /*
         TODO: Da rivedere, attualmente non del tutto funzionante
@@ -993,7 +1052,9 @@ public class PerformActions {
                                 "Could Not Find TagName \"%s\" Criteria \"%s\" Cause: %s",
                                 complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
 
-                couldNotFindElement(complexActionParts[2]);
+                if (!byPassNotFound) {
+                    couldNotFindElement(complexActionParts[2]);
+                }
             }
 
             backwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[0]));
@@ -1016,7 +1077,9 @@ public class PerformActions {
                                         "Could Not Find TagName \"%s\" Criteria \"%s\" Cause: %s",
                                         complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
 
-                        couldNotFindElement(complexActionParts[2]);
+                        if (!byPassNotFound) {
+                            couldNotFindElement(complexActionParts[2]);
+                        }
                     }
                 }
 
@@ -1030,9 +1093,12 @@ public class PerformActions {
                         continue;
                     }
 
-                    clickElement(element.findElement(
-                            By.xpath(".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
                     clickElement(
+                            byPassNotFound,
+                            element.findElement(By.xpath(
+                                    ".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
+                    clickElement(
+                            byPassNotFound,
                             abrWebDriver
                                     .getDriver()
                                     .findElement(
@@ -1040,13 +1106,17 @@ public class PerformActions {
                                                     ".//button[@test-id='web-banking-payment-core.payment-ctx-action.payment-action-VIEW']")));
 
                     Thread.sleep(1000);
-                    clickElement(abrWebDriver
-                            .getDriver()
-                            .findElement(By.xpath(
-                                    ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
+                    clickElement(
+                            byPassNotFound,
+                            abrWebDriver
+                                    .getDriver()
+                                    .findElement(
+                                            By.xpath(
+                                                    ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
 
                     Thread.sleep(1000);
                     clickElement(
+                            byPassNotFound,
                             abrWebDriver
                                     .getDriver()
                                     .findElement(
@@ -1058,8 +1128,8 @@ public class PerformActions {
             }
 
             try {
-                scrollToElement(forwardButton);
-                clickElement(forwardButton);
+                scrollToElement(byPassNotFound, forwardButton);
+                clickElement(byPassNotFound, forwardButton);
                 existNextPage = true;
             } catch (Exception e) {
                 existNextPage = false;
