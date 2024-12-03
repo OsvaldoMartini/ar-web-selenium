@@ -160,7 +160,10 @@ public class WebSocketStompServer {
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
-                rowMove(rowMoveDTO);
+                if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows()) && rowMoveDTO.getDeleteBlockId() > -1 ) {
+                    performDataBase.deleteBlock(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+                    performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
+                }
                 ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "INSERT_BEFORE":
@@ -267,6 +270,7 @@ public class WebSocketStompServer {
         System.out.println("Original Block ID: " + originalBlock.getBlockId());
         System.out.println("New Block Name: " + newBlock.getBlockName());
         System.out.println("Updated Block: " + updatedBlock.size());
+        newBlock.setForceOrder(true);
 
         int newBlockId = performDataBase.createNewBlock(newBlock);
         if (performDataBase.updateInstructionsSplitter(
@@ -294,15 +298,6 @@ public class WebSocketStompServer {
 
         // Add business logic to handle ROW_MOVE
     }
-
-    // Handle ROW_MOVE message
-    private void rowMove(RowMoveDTO rowMoveDTO) {
-
-        performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows());
-
-        // Add business logic to handle ROW_MOVE
-    }
-
     private void injectStepAfterOrBefore(RowMoveDTO rowMoveDTO) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {

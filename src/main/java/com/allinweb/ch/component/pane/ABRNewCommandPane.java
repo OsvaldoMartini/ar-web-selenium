@@ -9,6 +9,7 @@ import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -27,7 +28,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,9 +56,12 @@ import javafx.stage.Stage;
 
 public class ABRNewCommandPane extends ABRPane {
 
+    private static final PerformDataBase performDatabase;
     private static final PerformActions performAction;
 
+    // Static block to initialize
     static {
+        performDatabase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
     }
 
@@ -634,7 +637,21 @@ public class ABRNewCommandPane extends ABRPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxAllBlocks.getSelectionModel().selectFirst();
+
+        if (rowMoveDTO.getBlockId() > -1) {
+            // Get the blockId to match
+            int targetBlockId = rowMoveDTO.getBlockId();
+
+            // Iterate through items in comboBoxAllBlocks
+            for (ComboBoxVars item : comboBoxAllBlocks.getItems()) {
+                if (item.getVarId() != null && item.getVarId() == targetBlockId) {
+                    comboBoxAllBlocks.getSelectionModel().select(item); // Select the matching item
+                }
+            }
+        } else {
+            // If blockId is not valid, select the first item
+            comboBoxAllBlocks.getSelectionModel().selectFirst();
+        }
 
         defineTextFlow(comboBoxInstruc.getValue().getValue());
 
@@ -2085,53 +2102,6 @@ public class ABRNewCommandPane extends ABRPane {
         return false;
     }
 
-    public List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
-        // List to store the fetched instructions
-        List<InstructionDTO> instructions = new ArrayList<>();
-
-        // Build the SQL query statement
-        String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + blockId
-                + " order by instruction_order_number ASC";
-
-        // Execute the query and process the result set
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(querySQL)) {
-
-            while (rs.next()) {
-                // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionDTO instruction = new InstructionDTO();
-                instruction.setInstructionId(rs.getInt("id"));
-                instruction.setInstructionName(rs.getString("name"));
-                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instruction.setBlockId(rs.getInt("block_id"));
-                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
-                instruction.setBotJobId(botJobId);
-
-                instruction.setActions(rs.getString("actions"));
-                instruction.setPath(rs.getString("path"));
-                instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getInt("optional"));
-                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setEncrypted(rs.getInt("encrypted"));
-                instruction.setExportToABR(rs.getInt("export_to_abr"));
-
-                // Add the instruction to the list
-                instructions.add(instruction);
-            }
-
-            ABRLogger.getInstance(ABRNewCommandPane.class)
-                    .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
-
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRNewCommandPane.class)
-                    .severe(String.format(
-                            "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
-        }
-
-        return instructions;
-    }
-
     public List<BlockLoadDTO> loadBlocksForBotJob(int botJobId) {
         // SQL query to get the blocks for a specific bot job
         String query = "SELECT " + "b.id AS block_id, "
@@ -2194,7 +2164,8 @@ public class ABRNewCommandPane extends ABRPane {
             BotJobDTO botJob,
             boolean isShowAlert) {
 
-        List<InstructionDTO> rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
+        List<InstructionDTO> rowList =
+                performDatabase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
 
         reorderInstructions(rowList);
 
@@ -2313,7 +2284,8 @@ public class ABRNewCommandPane extends ABRPane {
             BotJobDTO botJob,
             boolean isShowAlert) {
 
-        List<InstructionDTO> rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
+        List<InstructionDTO> rowList =
+                performDatabase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
 
         reorderInstructions(rowList);
 

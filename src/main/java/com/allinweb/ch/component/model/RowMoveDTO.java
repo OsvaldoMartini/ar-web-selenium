@@ -8,6 +8,7 @@ public class RowMoveDTO {
     private String type;
     private int botJobId;
     private int blockId;
+    private int deleteBlockId;
     private String blockName;
     private List<InstructionDTO> updatedRows;
 }

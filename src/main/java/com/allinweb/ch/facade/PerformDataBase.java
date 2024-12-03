@@ -11,10 +11,8 @@ import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.pane.ABRViewBotJobPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -68,53 +66,6 @@ public class PerformDataBase {
         return instance.get();
     }
 
-    public List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
-        // List to store the fetched instructions
-        List<InstructionDTO> instructions = new ArrayList<>();
-
-        // Build the SQL query statement
-        String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + blockId
-                + " order by instruction_order_number ASC";
-
-        // Execute the query and process the result set
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(querySQL)) {
-
-            while (rs.next()) {
-                // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionDTO instruction = new InstructionDTO();
-                instruction.setInstructionId(rs.getInt("id"));
-                instruction.setInstructionName(rs.getString("name"));
-                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instruction.setBlockId(rs.getInt("block_id"));
-                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
-                instruction.setBotJobId(botJobId);
-
-                instruction.setActions(rs.getString("actions"));
-                instruction.setPath(rs.getString("path"));
-                instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getInt("optional"));
-                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setEncrypted(rs.getInt("encrypted"));
-                instruction.setExportToABR(rs.getInt("export_to_abr"));
-
-                // Add the instruction to the list
-                instructions.add(instruction);
-            }
-
-            ABRLogger.getInstance(ABRWebDriver.class)
-                    .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
-
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
-                    .severe(String.format(
-                            "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
-        }
-
-        return instructions;
-    }
-
     // Handle DELETE_INSTRUCTION message
     public static void deleteInstruction(int botJobId, InstructionDTO deleteInstructionDTO) {
         if (deleteVariable(botJobId, deleteInstructionDTO.getInstructionId()))
@@ -137,12 +88,12 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "Delete Variables for instruction ID %d has been successfully deleted from botJobId %d:",
                                 instructionId, bot_job_id));
             } else {
-                /*ABRLogger.getInstance(ABRWebDriver.class)
+                /*ABRLogger.getInstance(PerformDataBase.class)
                        .warning(String.format(
                                "No matching record found for instruction ID %d in botJobId %d:",
                                instructionId, bot_job_id));
@@ -152,7 +103,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting  Variable ID %d from botJobId ID %d. Error: %s: ",
                             instructionId, bot_job_id, e.getMessage()));
@@ -170,12 +121,12 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "Delete References for Instruction ID %d has been successfully deleted from botJobId %d.",
                                 instructionId, botJobId));
             } else {
-                //                ABRLogger.getInstance(ABRWebDriver.class)
+                //                ABRLogger.getInstance(PerformDataBase.class)
                 //                        .warning(String.format(
                 //                                "No matching record found for instruction ID %d in block %d.",
                 //                                instructionId, botJobId));
@@ -183,7 +134,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting instruction ID %d from botJobId ID %d. Error: %s",
                             instructionId, botJobId, e.getMessage()));
@@ -214,12 +165,12 @@ public class PerformDataBase {
 
             // Execute the update statement and check if any rows were affected
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "The instruction with ID %d has been successfully deleted from block %d.",
                                 deleteInstructionDTO.getInstructionId(), deleteInstructionDTO.getBlockId()));
             } else {
-                //                ABRLogger.getInstance(ABRWebDriver.class)
+                //                ABRLogger.getInstance(PerformDataBase.class)
                 //                        .warning(String.format(
                 //                                "No matching record found for instruction ID %d in block %d.",
                 // instructionId, blockId));
@@ -227,7 +178,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting instruction ID %d from block ID %d. Error: %s",
                             deleteInstructionDTO.getInstructionId(),
@@ -252,13 +203,13 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "The %d Nulls Blocks successfully deleted from botJobId %d.", rowsAffected, botJobId));
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting Null Blocks with BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
@@ -282,12 +233,12 @@ public class PerformDataBase {
                 int rowsAffected = stmt.executeUpdate(updateSQL);
 
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .info(String.format(
                                     "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
                                     blockOrderDetailDTO.getBlockId(), newOrderNumber));
                 } else {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "UpdateBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
                                     blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
@@ -297,7 +248,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
         }
     }
@@ -331,7 +282,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error selecting blocks for botJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
@@ -343,24 +294,25 @@ public class PerformDataBase {
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
             // Update each block's block_order_number starting from 1
-            String updateSQL = "UPDATE block SET name = '" + blockName + "'"
+            String updateSQL = "UPDATE block SET name = '" + blockName + "',"
+                    + " description = '" + blockName + "'"
                     + " WHERE id = " + blockId
                     + " and bot_job_id = " + botJobId;
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
 
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format("Block Name updated blockId: %s, name: %s", blockId, blockName));
             } else {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "UpdateBlockOrderName - No matching record found to update botJobId: %d blockId: %d",
                                 botJobId, blockId));
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
         }
     }
@@ -377,10 +329,10 @@ public class PerformDataBase {
             int rowsAffected = stmt.executeUpdate(updateSQL);
 
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format("Block Export File updated blockId: %s, name: %s", blockId, expoprtFile));
             } else {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "updateBlockExportFile - No matching record found to update botJobId: %d blockId: %d",
                                 botJobId, blockId));
@@ -391,7 +343,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updateBlockExportFile. Error: %s", e.getMessage()));
         }
         return false;
@@ -431,7 +383,7 @@ public class PerformDataBase {
             }
 
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("createNewBlock - \nError: %s", e.getMessage()));
         }
 
@@ -441,7 +393,16 @@ public class PerformDataBase {
     private int saveBlock(BlockDetailsDTO blockDTO, int botJobId) {
         // Generate a Unique-ID for the block
         Integer nextId = loadNextIdBlockData() + 1;
-        Integer nextBlockOrder = loadNextBlockOrderNUmber(blockDTO.getBotJobId());
+        Integer nextBlockOrder = -1;
+        if (blockDTO.isForceOrder()) {
+            nextBlockOrder = blockDTO.getBlockOrderNumber();
+        } else {
+            nextBlockOrder = loadNextBlockOrderNumber(blockDTO.getBotJobId()) + 1;
+        }
+
+        if (nextId < 0 || nextBlockOrder < 0) {
+            return -1;
+        }
 
         // Build the SQL insert query
         String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
@@ -451,14 +412,14 @@ public class PerformDataBase {
                 + "'" + blockDTO.getBlockName() + "', " // name
                 + 1 + ", " // type_id
                 + botJobId + ")"; // bot_job_id, assuming BotJobDTO has an ID
-
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .info(String.format("Block data saved successfully.\n BlockId: %d", nextId));
             return nextId;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe(String.format("saveBlock - \nError: %s", e.getMessage()));
+            ABRLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("saveBlock - \nError: %s", e.getMessage()));
             return -1;
         }
     }
@@ -478,7 +439,7 @@ public class PerformDataBase {
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
                 } else {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "updateInstructionsSplitter - No matching record found to update blockId: ",
                                     originalBlockId));
@@ -486,7 +447,7 @@ public class PerformDataBase {
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This '%s' \n cannot be updated.\nError: %s", originalBlockId, e.getMessage()));
         }
@@ -506,12 +467,12 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "RowsUpdateName - InstructionId: %s now have name: %s",
                                     instruction.getInstructionId(), instruction.getInstructionName()));
                 } else {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
                                     instruction.getInstructionId(), instruction.getInstructionName()));
@@ -519,7 +480,7 @@ public class PerformDataBase {
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
         }
         return false;
@@ -537,12 +498,12 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "UpdateMoveRowsOrder - InstructionId: %s now have order number: %d",
                                     instruction.getInstructionId(), instruction.getInstructionOrderNumber()));
                 } else {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "UpdateMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: $d",
                                     instruction.getBlockId(), instruction.getInstructionId()));
@@ -551,7 +512,7 @@ public class PerformDataBase {
 
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This Order Number for Instructions\n cannot be updated.\nError: %s", e.getMessage()));
         }
@@ -571,20 +532,20 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "RollBackBlocks - InstructionId %d for blockId: %d updated successfully",
                                     instruction.getInstructionId(), rollBackBlocksDTO.getBlockId()));
 
                 } else {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "RollBackBlocks - No matching record found to update InstructionId %d for blockId: %d",
                                     instruction.getInstructionId(), rollBackBlocksDTO.getBlockId()));
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This BlockId '%d' \n cannot be updated.\nError: %s",
                             rollBackBlocksDTO.getBlockId(), e.getMessage()));
@@ -604,18 +565,18 @@ public class PerformDataBase {
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "rollBackBlocksOrder - Block Order Reset for blockId: %d - Name: %s",
                                 rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             } else {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "RollBackBlocks - No matching record found to update for blockId: %d - Name: %s",
                                 rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This BlockId '%d' - Name: %s \n cannot be updated.\nError: %s",
                             rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName(), e.getMessage()));
@@ -644,7 +605,7 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
             // Log the error if any SQL exception occurs
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error fetching block loop instruction IDs with null block_id for botJobId %d. Error: %s",
                             botJobId, e.getMessage()));
@@ -654,7 +615,7 @@ public class PerformDataBase {
         return instructions;
     }
 
-    private boolean deleteBlock(int botJobId, int blockId) {
+    public boolean deleteBlock(int botJobId, int blockId) {
         // Build the SQL delete statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
@@ -663,11 +624,11 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "The Block id %d has been successfully deleted from botJobId %d.", blockId, botJobId));
             } else {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "No matching record found for blockId ID %d in botJobId %d.", blockId, botJobId));
             }
@@ -675,7 +636,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting BotJobId ID %d from block ID %d. Error: %s",
                             botJobId, blockId, e.getMessage()));
@@ -692,25 +653,23 @@ public class PerformDataBase {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
-                    .severe(String.format(
-                            "loadNextIdBlockData - Error selecting Next Id Block. Error: %s", e.getMessage()));
+            ABRLogger.getInstance(PerformDataBase.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
 
-    private Integer loadNextBlockOrderNUmber(int botJobId) {
+    public int loadNextBlockOrderNumber(int botJobId) {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block where bot_job_id = " + botJobId;
+        String selectSQL = "SELECT COUNT(*) AS quantity FROM block WHERE bot_job_id = " + botJobId;
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
-                return rs.getInt("max_id");
+                return rs.getInt("quantity");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ABRLogger.getInstance(PerformDataBase.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
-        return null;
+        return -1;
     }
 
     public List<BotJobLoadDTO> loadBlockAll(int botJobId) {
@@ -846,7 +805,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "loadWebPageFields - Error selecting Web Page Fields.\n Error: %s", e.getMessage()));
         }
@@ -982,14 +941,14 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
                                     instruction.getInstructionId(),
                                     instruction.getBlockId(),
                                     instruction.getInstructionOrderNumber() + 1));
                 } else {
-                    ABRLogger.getInstance(ABRWebDriver.class)
+                    ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
                                     instruction.getBlockId(), instruction.getInstructionId()));
@@ -998,7 +957,7 @@ public class PerformDataBase {
 
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
         }
         return false;
@@ -1069,15 +1028,15 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format("The Bot Job  id %d has been successfully deleted!", botJobId));
             } else {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format("No matching record found for botJobId %d.", botJobId));
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error deleting BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
         return false;
@@ -1093,17 +1052,64 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format("The Bot Job  id %d has been successfully updated!", botJobId));
             } else {
-                ABRLogger.getInstance(ABRWebDriver.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format("No matching record found for botJobId %d.", botJobId));
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updating BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
         return false;
+    }
+
+    public List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
+        // List to store the fetched instructions
+        List<InstructionDTO> instructions = new ArrayList<>();
+
+        // Build the SQL query statement
+        String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + blockId
+                + " order by instruction_order_number ASC";
+
+        // Execute the query and process the result set
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(querySQL)) {
+
+            while (rs.next()) {
+                // Assuming you have an Instruction class, populate it with data from the ResultSet
+                InstructionDTO instruction = new InstructionDTO();
+                instruction.setInstructionId(rs.getInt("id"));
+                instruction.setInstructionName(rs.getString("name"));
+                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                instruction.setBlockId(rs.getInt("block_id"));
+                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
+                instruction.setBotJobId(botJobId);
+
+                instruction.setActions(rs.getString("actions"));
+                instruction.setPath(rs.getString("path"));
+                instruction.setDescription(rs.getString("description"));
+                instruction.setOptional(rs.getInt("optional"));
+                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                instruction.setEncrypted(rs.getInt("encrypted"));
+                instruction.setExportToABR(rs.getInt("export_to_abr"));
+
+                // Add the instruction to the list
+                instructions.add(instruction);
+            }
+
+            ABRLogger.getInstance(PerformDataBase.class)
+                    .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
+        }
+
+        return instructions;
     }
 }

@@ -16,6 +16,7 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.driver.ABRWebElement;
 import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -179,8 +180,10 @@ public class ABRScannedElementPane extends ABRPane {
     private static ABRPropertyManager managerProps;
     private static ABRPriorities abrPriorities;
     private static final PerformActions performAction;
+    private static final PerformDataBase performDatabase;
     // Static block to initialize
     static {
+        performDatabase = PerformDataBase.getInstance();
         abrPriorities = ABRPriorities.getInstance();
         performAction = PerformActions.getInstance();
         managerProps = ABRPropertyManager.getInstance();
@@ -3834,7 +3837,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             } else if (refreshOnly) {
 
-                                performAction.performWebActions(null, currentInstruction, mapOperators, null, actions);
+                                performAction.performOtherActions(currentInstruction, actions);
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
@@ -5194,7 +5197,7 @@ public class ABRScannedElementPane extends ABRPane {
         // Generate a Unique-ID for the block
         Integer nextId = loadNextIdBlockData() + 1;
         Integer nextBlockOrder =
-                loadNextBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
+                performDatabase.loadNextBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
 
         // Build the SQL insert query
         String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
@@ -5218,21 +5221,6 @@ public class ABRScannedElementPane extends ABRPane {
     private Integer loadNextIdBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
-                    .severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private Integer loadNextBlockOrderNumber(int botJobId) {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block where bot_job_id = " + botJobId;
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
