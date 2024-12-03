@@ -644,7 +644,7 @@ public class ABRNewCommandPane extends ABRPane {
 
             // Iterate through items in comboBoxAllBlocks
             for (ComboBoxVars item : comboBoxAllBlocks.getItems()) {
-                if (item.getVarId() != null && item.getVarId() == targetBlockId) {
+                if (item.getInstructionId() != null && item.getInstructionId() == targetBlockId) {
                     comboBoxAllBlocks.getSelectionModel().select(item); // Select the matching item
                 }
             }

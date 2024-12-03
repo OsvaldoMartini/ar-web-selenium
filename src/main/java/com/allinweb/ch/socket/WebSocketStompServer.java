@@ -160,9 +160,11 @@ public class WebSocketStompServer {
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
-                if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows()) && rowMoveDTO.getDeleteBlockId() > -1 ) {
+                if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
+                        && rowMoveDTO.getDeleteBlockId() > -1) {
                     performDataBase.deleteBlock(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
-                    performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
+                    performDataBase.updateBlockOrderNumber(
+                            performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
                 }
                 ABRSharedResources.getInstance().changeDbConnection();
                 break;
@@ -298,6 +300,7 @@ public class WebSocketStompServer {
 
         // Add business logic to handle ROW_MOVE
     }
+
     private void injectStepAfterOrBefore(RowMoveDTO rowMoveDTO) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {

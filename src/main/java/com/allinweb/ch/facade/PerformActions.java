@@ -114,7 +114,7 @@ public class PerformActions {
         return instructionElement;
     }
 
-    public void performWebActions(
+    public boolean performWebActions(
             Pair<String, String> data,
             BlockLoopInstructionLoadDTO instruction,
             Map<String, String> mapOperators,
@@ -126,28 +126,24 @@ public class PerformActions {
 
             switch (actions[0]) {
                 case Constants.VISUALIZE:
-                    scrollToElement(instructionElement);
-                    break;
+                    return scrollToElement(instructionElement);
                 case Constants.OUTPUT:
                     String fieldName = instruction.getId() + "-" + instruction.getName();
-                    getOutPutElement(instructionElement, fieldName, instruction.getActions(), mapOperators);
-                    break;
+                    return getOutPutElement(instructionElement, fieldName, instruction.getActions(), mapOperators);
                 case Constants.CLICK:
                 case Constants.OTHER:
-                    clickElement(instructionElement);
-                    break;
+                    return clickElement(instructionElement);
                 case Constants.INSERT:
                     if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                        insertDataInSelectElement(instructionElement, data);
+                        return insertDataInSelectElement(instructionElement, data);
                     } else {
-                        insertInElement(
+                        return insertInElement(
                                 instructionElement,
                                 data.getKey(),
                                 data.getValue(),
                                 instruction.getDefaultValue(),
                                 instruction.isEncrypted());
                     }
-                    break;
             }
 
             onHoldForSeconds(null);
@@ -156,6 +152,8 @@ public class PerformActions {
         //            executeActionsAtInstructionCoordinates(instruction, data);
         //            onHoldForSeconds(null);
         //        }
+
+        return true;
     }
 
     public void performOtherActions(BlockLoopInstructionLoadDTO instruction, String actions[]) throws Exception {
@@ -278,29 +276,35 @@ public class PerformActions {
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
+
+                            showNotFoundElement(targetXPath, criteria);
+
+                            //                                SwingUtilities.invokeLater(() ->
+                            couldNotFindElement(String.valueOf(criteria));
                         }
                     } else if (actionCustomMaxWaitSec != null) {
                         try {
-
                             new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
+                            couldNotFindElement(String.valueOf(criteria));
                         }
                     } else {
                         try {
-
                             waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
+
+                            couldNotFindElement(String.valueOf(criteria));
                         }
                     }
                     if (foundElementList.size() > 0) {
@@ -314,6 +318,17 @@ public class PerformActions {
             return null;
         }
     }
+
+    private void callErrorMessageNotEnabled(String criteria) {
+        showCustomModalDialog(
+                String.format("The Element \"%s\" is not Enabled", criteria),
+                "1. Consider Fill Up all the Mandatory Fields",
+                null,
+                null,
+                true);
+    }
+
+    private void showNotFoundElement(String targetXPath, By criteria) {}
 
     private WebElement locateElement(BlockLoopInstructionLoadDTO instruction, int botJobId) {
 
@@ -467,8 +482,10 @@ public class PerformActions {
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
+
+                                        couldNotFindElement(String.valueOf(criteria));
                                     }
                                 } else if (instruction.getActionCustomMaxWaitSec() != null) {
                                     try {
@@ -480,18 +497,21 @@ public class PerformActions {
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
+
+                                        couldNotFindElement(String.valueOf(criteria));
                                     }
                                 } else {
                                     try {
-
                                         waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find Elements %s   \nCriteria  %s\nCause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
+
+                                        couldNotFindElement(String.valueOf(criteria));
                                     }
                                 }
                                 int k = 0;
@@ -566,7 +586,16 @@ public class PerformActions {
 
     private String insertTargetElement(WebElement element, String fieldName, String dataFieldValue) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find Field Name \"%s\" Value \"%s\" Cause: %s",
+                            fieldName, dataFieldValue, e.getMessage()));
+
+            couldNotFindElement(fieldName);
+        }
 
         if (dataFieldValue != null) {
             element.clear();
@@ -579,7 +608,15 @@ public class PerformActions {
 
     private String getValueInElement(WebElement element) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+
+            couldNotFindElement(element.getTagName());
+        }
 
         // Assuming instructionElement is an input field
         return element.getAttribute("value");
@@ -637,7 +674,9 @@ public class PerformActions {
             } catch (Exception ex) {
                 ABRLogger.getInstance(PerformActions.class)
                         .warning(String.format(
-                                "WaitForPage.until(d -> ((JavascriptExecutor) driver) error:\n%s", ex.getMessage()));
+                                "WaitForPage.until(d -> ((JavascriptExecutor) driver) error: %s", ex.getMessage()));
+
+                couldNotFindElement("WaitForPage.until");
             }
         } else {
             // Handle the case when driver is null (e.g., throw an exception or initialize the driver)
@@ -646,33 +685,73 @@ public class PerformActions {
         }
     }
 
-    public void scrollToElement(WebElement element) throws Exception {
-        UtilsMethods.exceptionIfNullWebElement(element);
-        ((JavascriptExecutor) abrWebDriver.getDriver()).executeScript("arguments[0].scrollIntoView(true);", element);
-    }
-
-    public String clickElement(WebElement element) throws Exception {
-        UtilsMethods.exceptionIfNullWebElement(element);
-        if (!element.isEnabled()) {
-            // throw new TimeoutException();
-        }
-        waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+    public boolean scrollToElement(WebElement element) throws Exception {
+        try {
+            UtilsMethods.exceptionIfNullWebElement(element);
             ((JavascriptExecutor) abrWebDriver.getDriver())
                     .executeScript("arguments[0].scrollIntoView(true);", element);
-            return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
-        }));
+            return true;
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .severe(String.format(
+                            "Failed to Scroll to Element \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+            couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
+            return false;
+        }
+    }
+
+    public boolean clickElement(WebElement element) throws Exception {
+        UtilsMethods.exceptionIfNullWebElement(element);
+        if (!element.isEnabled()) {
+            //        callErrorMessageNotEnabled(element.getTagName());
+            showCustomModalDialog(
+                    "BOT JOB STOP",
+                    String.format("The Element \"%s\" is not Enabled", element.getTagName()),
+                    "Consider Fill Up all the Mandatory Fields!");
+            // throw new TimeoutException();
+            return false;
+        }
+
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+                ((JavascriptExecutor) abrWebDriver.getDriver())
+                        .executeScript("arguments[0].scrollIntoView(true);", element);
+                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+            }));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+
+            couldNotFindElement(element.getTagName());
+            return false;
+        }
+
         try {
             element.click();
-            try {
-                return ABRWebUtil.extractXPath(element.toString());
-            } catch (Exception e) {
-                return "Extract XPath Problem: ON ABRWebUtil.extractXPath for " + element.getTagName();
-            }
+            return true;
         } catch (ElementClickInterceptedException e) {
-            JavascriptExecutor jse = (JavascriptExecutor) abrWebDriver.getDriver();
-            jse.executeScript("arguments[0].click()", element);
-            return "ElementClickIntercepted Exception: " + ABRWebUtil.extractXPath(element.toString());
+            try {
+                JavascriptExecutor jse = (JavascriptExecutor) abrWebDriver.getDriver();
+                jse.executeScript("arguments[0].click()", element);
+                return true;
+            } catch (Exception ex) {
+
+                ABRLogger.getInstance(PerformActions.class)
+                        .fine(String.format(
+                                "Could Not Click on  \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+                return false;
+            }
         }
+    }
+
+    private void couldNotFindElement(String criteria) {
+        showCustomModalDialog(
+                criteria,
+                "1. Consider increasing the wait time to ensure the page loads completely.",
+                "2. Verify if you are on the correct web page.",
+                "3. Check if the page layout or content has been updated.",
+                true);
     }
 
     public void refreshPage() {
@@ -680,37 +759,54 @@ public class PerformActions {
         justCalledRefreshPage = true;
     }
 
-    private String insertInElement(
+    private boolean insertInElement(
             WebElement element, String dataFieldName, String dataFieldValue, String defaultValue, boolean isEncrypted)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
 
-        if (Strings.isNullOrEmpty(defaultValue)) {
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+            couldNotFindElement(element.getTagName());
+            return false;
+        }
+        try {
+            if (Strings.isNullOrEmpty(defaultValue)) {
 
-            if (isEncrypted) {
-                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
-            }
+                if (isEncrypted) {
+                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                }
 
-            if (dataFieldValue != null) {
-                element.clear();
-                element.sendKeys(dataFieldValue);
-                element.sendKeys(Keys.TAB);
+                if (dataFieldValue != null) {
+                    element.clear();
+                    element.sendKeys(dataFieldValue);
+                    element.sendKeys(Keys.TAB);
 
+                } else {
+                    element.sendKeys(UtilsMethods.generateRandomID(10));
+                    element.sendKeys(Keys.TAB);
+                }
             } else {
-                element.sendKeys(UtilsMethods.generateRandomID(10));
-                element.sendKeys(Keys.TAB);
-            }
-        } else {
-            dataFieldValue = defaultValue;
+                dataFieldValue = defaultValue;
 
-            if (isEncrypted) {
-                dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                if (isEncrypted) {
+                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                }
+                element.sendKeys(dataFieldValue);
             }
-            element.sendKeys(dataFieldValue);
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .severe(String.format(
+                            "Could Not Input Value to \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+
+            couldNotFindElement("Could Input Values to Element " + element.getTagName());
+            return false;
         }
 
-        return dataFieldName + "->" + dataFieldValue;
+        return true;
     }
 
     /**
@@ -741,9 +837,18 @@ public class PerformActions {
         return new Pair<>(dataFieldName, dataFieldValue);
     }
 
-    private String insertDataInSelectElement(WebElement element, Pair<String, String> data) throws Exception {
+    private boolean insertDataInSelectElement(WebElement element, Pair<String, String> data) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find Select \"%s\" Value  \"%s\" Cause: %s",
+                            data.getKey(), data.getValue(), e.getMessage()));
+
+            couldNotFindElement(data.getKey());
+        }
 
         try {
             // Create a Select instance to interact with the dropdown
@@ -751,19 +856,32 @@ public class PerformActions {
             // Select "Switzerland" by visible text
             selectCountry.selectByVisibleText(data.getValue());
 
-        } catch (Exception ex) {
-            return "Error: -> Cannot find: " + data.getKey() + "-> \"" + data.getValue()
-                    + "\" - Attention to Case-Sentitives!";
-        }
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .severe(String.format(
+                            "Could Not Input Value to \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
 
-        return "Select: -> " + data.getKey() + "->" + data.getValue();
+            couldNotFindElement("Could Input Values to Element " + element.getTagName());
+
+            return false;
+        }
+        return true;
     }
 
-    private String getOutPutElement(
+    private boolean getOutPutElement(
             WebElement element, String fieldName, String action, Map<String, String> mapOperators) throws Exception {
 
         UtilsMethods.exceptionIfNullWebElement(element);
-        waitForAction.until(ExpectedConditions.visibilityOf(element));
+
+        try {
+            waitForAction.until(ExpectedConditions.visibilityOf(element));
+        } catch (Exception ex) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning(String.format("Could Not Find Field Name \"%s\" Cause: %s", fieldName, ex.getMessage()));
+
+            couldNotFindElement(fieldName);
+            return false;
+        }
 
         String textByhJS = "";
         String finalTextNested = "";
@@ -815,9 +933,11 @@ public class PerformActions {
         try {
             waitForAction.until(ExpectedConditions.elementToBeClickable(element));
             isClickable = true;
-        } catch (Exception ex) {
+        } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
-                    .warning(String.format("Element is not clickable: %s", fieldName));
+                    .warning(String.format("Element is not clickable: \"%s\"", fieldName));
+
+            couldNotFindElement(fieldName);
         }
 
         // Set the final text value by priority and add to mapOperators
@@ -839,12 +959,12 @@ public class PerformActions {
             finalText = textContext;
             mapOperators.put(fieldName, finalText);
         } else {
-            mapOperators.put(fieldName, "Failed");
+            mapOperators.put(fieldName, "Failed to Load teh Text");
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
-        return Strings.isNullOrEmpty(finalText) ? "$EMPTY" : finalText;
+        return true;
     }
 
     private void listOperation(BlockLoopInstructionLoadDTO instructionDTO) {
@@ -865,7 +985,17 @@ public class PerformActions {
 
         boolean existNextPage;
         do {
-            waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+            try {
+                waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+            } catch (Exception e) {
+                ABRLogger.getInstance(PerformActions.class)
+                        .fine(String.format(
+                                "Could Not Find TagName \"%s\" Criteria \"%s\" Cause: %s",
+                                complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
+
+                couldNotFindElement(complexActionParts[2]);
+            }
+
             backwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[0]));
             forwardButton = abrWebDriver.getDriver().findElement(By.xpath(complexActionParts[1]));
             webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
@@ -875,8 +1005,19 @@ public class PerformActions {
             for (int i = 0; i < 5; i++) {
 
                 if (i != 0) {
-                    waitForPage.until(ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
-                    webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+
+                    try {
+                        waitForPage.until(
+                                ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
+                        webElementList = abrWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+                    } catch (Exception e) {
+                        ABRLogger.getInstance(PerformActions.class)
+                                .fine(String.format(
+                                        "Could Not Find TagName \"%s\" Criteria \"%s\" Cause: %s",
+                                        complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
+
+                        couldNotFindElement(complexActionParts[2]);
+                    }
                 }
 
                 element = webElementList.get(i);
@@ -1462,6 +1603,49 @@ public class PerformActions {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
+    public static void showCustomModalDialog(
+            String title, String message, String message2, String message3, boolean redMsg) {
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
+        dialog.setSize(300, 250);
+        dialog.setLocationRelativeTo(null); // Center on screen
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Style the dialog's main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(255, 218, 51)); // Light orange background
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setLayout(new BorderLayout());
+
+        String concatenaMsg = "<html><br><span style='color: blue;'>" + message
+                + "</span><br>---------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+        if (Strings.isNullOrEmpty(message3)) {
+            concatenaMsg = concatenaMsg + "</html>";
+        } else {
+            concatenaMsg = concatenaMsg + "<br>---------------------------<br><span style='color: blue;'>" + message3
+                    + "</span></html>";
+        }
+
+        if (redMsg) {
+            concatenaMsg = concatenaMsg.replaceAll("blue", "red");
+        }
+
+        // Style the message
+        JLabel messageLabel = new JLabel(concatenaMsg, SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        // OK button to close the dialog
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> dialog.dispose());
+        panel.add(okButton, BorderLayout.SOUTH);
+
+        // Add panel to dialog and set properties
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This will block other input until the dialog is closed
+    }
+
     public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> fieldData) {
 
         switch (actions[0]) {
@@ -1478,7 +1662,7 @@ public class PerformActions {
             case Constants.LIST_OPERATION:
                 return "List Operation performed for " + fieldData.getKey();
             case Constants.HOLD:
-                return "Hold action executed for " + fieldData.getKey();
+                return "Hold executed ( " + fieldData.getKey() + " )";
             case Constants.PAUSE:
                 return "Pause action triggered";
             case Constants.REFRESH_ONLY:

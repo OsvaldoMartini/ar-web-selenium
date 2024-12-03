@@ -3466,7 +3466,6 @@ public class ABRScannedElementPane extends ABRPane {
                         // Case for Inputs
                         String valueInsert = "No Data Found";
                         if (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) {
-
                             String reference = actions[1];
                             valueInsert = dataExcel.get(reference);
                         }
@@ -3990,9 +3989,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             currentInstruction.getDefaultValue(),
                                             currentInstruction.getEncrypted() > 0);
 
-                                    resultActions = performAction.actionResultMessage(blockName, actions, fieldData);
-
-                                    performAction.performWebActions(
+                                    success = performAction.performWebActions(
                                             fieldData, currentInstruction, mapOperators, webElementFound, actions);
 
                                     if (actions[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
@@ -4006,9 +4003,10 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
-                                if (resultActions.contains("Error:") || webElementFound == null) {
-                                    success = false;
-                                } else if (resultActions != null) {
+                                if (resultActions.contains("Error:") || webElementFound == null || !success) {
+                                        resultActions = "Failed " + resultActions;
+                                        success = false;
+                                    } else if (resultActions != null && success) {
                                     currentInstruction.setExecuted(true);
                                     // Assuming currentInstruction and instructionsExecuted are already defined
                                     if (currentInstruction != null
@@ -4020,10 +4018,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     executedSuccess.add(currentInstruction.getId());
                                     success = true;
-                                } else {
-                                    resultActions = "Failed to Execute -> " + currentInstruction.getName();
-                                    success = false;
-                                }
+                                } 
 
                                 if (!success && refreshLoopExecuted && refreshLoopArray != null) {
                                     byPassFlagLoop = parentIdsForRefreshLoop.contains(currentInstruction.getId());
@@ -4453,7 +4448,7 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                     try {
 
-                        performAction.performWebActions(
+                        stopAll = performAction.performWebActions(
                                 dataDynamic, currentInstruction, mapOperators, webElementFound, actions);
 
                         // Special Cases for Select Responses
