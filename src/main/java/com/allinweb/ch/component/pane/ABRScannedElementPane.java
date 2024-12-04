@@ -3378,6 +3378,12 @@ public class ABRScannedElementPane extends ABRPane {
             return false;
             //            Platform.exit();
         }
+
+        if (extractedData.getNumberOfDataRows() == 0) {
+            extractedData.addField("$EMPTY");
+            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
+        }
+
         if (extractedData.getErrorMessage() != null) {
             //				showAlert("Excel Data File", "Warning: Excel File exist" , "Fields in the excel not matching the
             // botjob requirements");
