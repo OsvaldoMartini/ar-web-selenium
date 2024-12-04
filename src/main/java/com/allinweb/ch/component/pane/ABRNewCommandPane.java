@@ -182,7 +182,12 @@ public class ABRNewCommandPane extends ABRPane {
         }
 
         String operationType = rowMoveDTO.getType();
-        String firstAction = rowMoveDTO.getUpdatedRows().get(0).getActions();
+        String firstAction = "";
+        if (rowMoveDTO.getUpdatedRows().size() > 0) {
+            firstAction = rowMoveDTO.getUpdatedRows().get(0).getActions();
+        } else {
+            firstAction = rowMoveDTO.getType();
+        }
 
         // Initialize itemsInstructions list conditionally
         try {

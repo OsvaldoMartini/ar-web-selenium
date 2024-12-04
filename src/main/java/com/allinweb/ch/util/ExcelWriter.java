@@ -163,68 +163,76 @@ public class ExcelWriter {
         Row blockNameRow = spreadsheet.createRow(FIRST_ROW);
         Row instructionFieldRow = spreadsheet.createRow(SECOND_ROW);
         int currentIndex = 0;
-        for (BlockDTO block : blockList) {
-            Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
-            blockNameCell.setCellValue("#" + block.getName());
-            List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
-                    .getEntityList(
-                            BlockLoopInstructionDTO.class,
-                            Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
-                            (instruction) -> instruction.getBlock().getId() == block.getId()
-                                    && instruction.getActions().contains(ABRConstants.INSERT));
-            for (BlockLoopInstructionDTO instruction : instructionList) {
-                String action = instruction.getActions();
-                boolean hasReference = action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
-                if (hasReference) {
-                    String reference = action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
-                    if (!fieldAddedSet.contains(reference)) {
-                        fieldAddedSet.add(reference);
-                        Cell instructionFieldCell = instructionFieldRow.createCell(currentIndex, CellType.STRING);
-                        instructionFieldCell.setCellValue(action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
+        if (blockList.size() > 0) {
 
-                        int DYNAMIC_ROW = SECOND_ROW + 1;
+            for (BlockDTO block : blockList) {
+                Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
+                blockNameCell.setCellValue("#" + block.getName());
+                List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
+                        .getEntityList(
+                                BlockLoopInstructionDTO.class,
+                                Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
+                                (instruction) -> instruction.getBlock().getId() == block.getId()
+                                        && instruction.getActions().contains(ABRConstants.INSERT));
+                for (BlockLoopInstructionDTO instruction : instructionList) {
+                    String action = instruction.getActions();
+                    boolean hasReference = action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    if (hasReference) {
+                        String reference = action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
+                        if (!fieldAddedSet.contains(reference)) {
+                            fieldAddedSet.add(reference);
+                            Cell instructionFieldCell = instructionFieldRow.createCell(currentIndex, CellType.STRING);
+                            instructionFieldCell.setCellValue(
+                                    action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
 
-                        if (extractedData != null) {
+                            int DYNAMIC_ROW = SECOND_ROW + 1;
 
-                            for (int i = 0; i < extractedData.getNumberOfDataRows(); i++) {
+                            if (extractedData != null) {
+
+                                for (int i = 0; i < extractedData.getNumberOfDataRows(); i++) {
+
+                                    Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
+                                    if (belowRow == null) {
+                                        belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
+                                    }
+
+                                    Map<String, String> dataExcel = extractedData.getRowFieldValues(i);
+                                    // Search for the "reference" in ExtractedData and set it in the below cell
+                                    try {
+                                        String valueFromExtractedData = dataExcel.get(reference); // Example row = 1
+                                        if (valueFromExtractedData != null) {
+                                            Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                            belowCell.setCellValue(valueFromExtractedData);
+                                        } else {
+                                            Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                            belowCell.setCellValue(
+                                                    "No Data Found"); // Fallback message if value is missing
+                                        }
+
+                                    } catch (Exception ex) {
+                                        Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                        belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
+                                    }
+                                    DYNAMIC_ROW++;
+                                }
+                            } else {
 
                                 Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
                                 if (belowRow == null) {
                                     belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
                                 }
-
-                                Map<String, String> dataExcel = extractedData.getRowFieldValues(i);
-                                // Search for the "reference" in ExtractedData and set it in the below cell
-                                try {
-                                    String valueFromExtractedData = dataExcel.get(reference); // Example row = 1
-                                    if (valueFromExtractedData != null) {
-                                        Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                                        belowCell.setCellValue(valueFromExtractedData);
-                                    } else {
-                                        Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                                        belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
-                                    }
-
-                                } catch (Exception ex) {
-                                    Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                                    belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
-                                }
-                                DYNAMIC_ROW++;
+                                Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
                             }
-                        } else {
 
-                            Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
-                            if (belowRow == null) {
-                                belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
-                            }
-                            Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                            belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
+                            currentIndex++;
                         }
-
-                        currentIndex++;
                     }
                 }
             }
+        } else {
+            Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
+            blockNameCell.setCellValue("#" + botJob.getName() + " default block");
         }
         writeExcelWorkbookOnDisk(workbook, file);
         return file;
@@ -241,19 +249,22 @@ public class ExcelWriter {
             e.printStackTrace();
         }
 
-        Set<String> fieldSet = botJob.getBlocks().stream()
-                .map(BlockDTO::getBlockLoopInstructions)
-                .reduce((identity, accumulated) -> {
-                    accumulated.addAll(identity);
-                    return accumulated;
-                })
-                .get()
-                .stream()
-                .filter(BlockLoopInstructionDTO::getExportToABR)
-                .map(BlockLoopInstructionDTO::getActions)
-                .filter(action -> action.contains(ABRConstants.INSERT))
-                .map(action -> action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
-                .collect(Collectors.toSet());
+        Set<String> fieldSet = new HashSet<>();
+        if (botJob.getBlocks().size() > 0) {
+            fieldSet = botJob.getBlocks().stream()
+                    .map(BlockDTO::getBlockLoopInstructions)
+                    .reduce((identity, accumulated) -> {
+                        accumulated.addAll(identity);
+                        return accumulated;
+                    })
+                    .get()
+                    .stream()
+                    .filter(BlockLoopInstructionDTO::getExportToABR)
+                    .map(BlockLoopInstructionDTO::getActions)
+                    .filter(action -> action.contains(ABRConstants.INSERT))
+                    .map(action -> action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
+                    .collect(Collectors.toSet());
+        }
 
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet spreadsheet = workbook.createSheet();

@@ -1,6 +1,7 @@
 package com.allinweb.ch.socket;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
+import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockMoveDTO;
 import com.allinweb.ch.component.model.BlockOrderDTO;
 import com.allinweb.ch.component.model.BlockOrderDetailDTO;
@@ -49,6 +50,8 @@ import javax.websocket.server.ServerEndpoint;
         )
 public class WebSocketStompServer {
 
+    private int botJobId;
+
     // Store all connected sessions
     public static Set<Session> sessions = Collections.synchronizedSet(new HashSet<>());
 
@@ -61,6 +64,14 @@ public class WebSocketStompServer {
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
+    }
+
+    public int getBotJobId() {
+        return botJobId;
+    }
+
+    public void setBotJobId(int botJobId) {
+        this.botJobId = botJobId;
     }
 
     @OnOpen
@@ -313,6 +324,24 @@ public class WebSocketStompServer {
             Platform.runLater(() -> {
                 ABRNewCommandScene newCommandScene = new ABRNewCommandScene(
                         rowMoveDTO, this.botLoadJobs.get(0).getBlockLoadDTOList(), this.webPageItems);
+                newCommandScene.showModal();
+            });
+
+        } else if (rowMoveDTO.getBotJobId() > 0) {
+
+            List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+
+            BlockLoadDTO blockLoadDTO = new BlockLoadDTO();
+            blockLoadDTO.setId(1);
+            blockLoadDTO.setBlockOrderNumber(1);
+            blockLoadDTO.setName(rowMoveDTO.getBlockName());
+            blockLoadDTO.setDescription(rowMoveDTO.getBlockName() + " description");
+
+            blockLoadList.add(blockLoadDTO);
+
+            Platform.runLater(() -> {
+                ABRNewCommandScene newCommandScene =
+                        new ABRNewCommandScene(rowMoveDTO, blockLoadList, this.webPageItems);
                 newCommandScene.showModal();
             });
         }

@@ -7,6 +7,7 @@ import lombok.Data;
 public class RowMoveDTO {
     private String type;
     private int botJobId;
+    private String botJobName;
     private int blockId;
     private int deleteBlockId;
     private String blockName;

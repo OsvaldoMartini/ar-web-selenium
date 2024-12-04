@@ -8,6 +8,7 @@ import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.component.scene.base.ABRScene;
@@ -339,8 +340,8 @@ public class ABRViewBotJobPane extends ABRPane {
         String jsonData = "";
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
-        if (botLoadJobs.size() > 0) {
 
+        if (botLoadJobs.size() > 0) {
             createExcelDataFile(botLoadJobs, this.botJob.getName(), this.botJob.getId());
 
             List<InstructionDTO> rowList = null;
@@ -381,7 +382,18 @@ public class ABRViewBotJobPane extends ABRPane {
 
             jsonData = gson.toJson(blockLoopInstructions);
         } else {
-            jsonData = "[]";
+
+            BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+            botJobDTO.setId(this.botJob.getId());
+            botJobDTO.setName(this.botJob.getName());
+            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+            botLoadJobs.add(botJobDTO);
+
+            createExcelDataFile(botLoadJobs, this.botJob.getName(), this.botJob.getId());
+
+            PayloadJson payload = new PayloadJson(this.botJob.getId(), this.botJob.getName(), 0);
+            // Convert the object to JSON using Gson
+            jsonData = gson.toJson(payload);
         }
 
         webEngine = webView.getEngine();
