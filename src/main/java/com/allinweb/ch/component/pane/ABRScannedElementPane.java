@@ -36,6 +36,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -1002,15 +1004,38 @@ public class ABRScannedElementPane extends ABRPane {
                     searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
                 }
 
-                Boolean clickable = isClickable(searchReturn.getElement());
+                boolean clickable = isClickable(searchReturn.getElement());
+
+                boolean tagClickable = false;
+                // Define regex to extract specific tags (e.g., a, button)
+                String regex = "/([^/\\[]+)";
+                Pattern pattern = Pattern.compile(regex);
+                Matcher matcher = pattern.matcher(searchReturn.getAbsolutXPath());
+
+                // Iterate through all matches and check for target tags
+                while (matcher.find()) {
+                    String tag = matcher.group(1);
+                    if (tag.equals("a") || tag.equals("button")) {
+                        System.out.println("Found clickable tag: <" + tag + ">");
+                        tagClickable = true;
+                        break;
+                    }
+                }
+
                 Boolean inputContains =
                         searchReturn.getCurrentXPath().toLowerCase().contains("input");
 
                 Boolean selectContains =
                         searchReturn.getCurrentXPath().toLowerCase().contains("select");
 
+                boolean finalTagClickable = tagClickable;
                 Platform.runLater(() -> {
-                    if (inputContains || selectContains) {
+                    if (finalTagClickable || clickable) {
+                        checkClickElement.setSelected(true);
+                        checkOutputText.setSelected(false);
+                        checkInputText.setSelected(false);
+
+                    } else if (inputContains || selectContains) {
                         checkInputText.setSelected(inputContains || selectContains);
                         checkClickElement.setSelected(false);
                         checkOutputText.setSelected(false);
@@ -3991,6 +4016,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             "(REFRESH_LOOP)-HOLD TIME" + refreshLoopArray[0] + " Seconds",
                                             duration);
                                 }
+
                                 if (actions[0].equals(Constants.HOLD)
                                         || actions[0].equals(Constants.QUIT)
                                         || actions[0].equals(Constants.SCREEN)
@@ -4495,15 +4521,43 @@ public class ABRScannedElementPane extends ABRPane {
 
                     resultActions = performAction.actionResultMessage(blockName, actions, msgInitial);
 
-                    WebElement webElementFound = null;
-                    try {
-                        webElementFound = performAction.searchElement(currentInstruction, this.botJob.getId());
-                    } catch (Exception ex) {
-                        extraMsg = "Element not found. Please try rescanning.!";
-                    }
                     try {
 
-                        stopAll = performAction.performWebActions(
+                        if (actions[0].equals(Constants.HOLD)
+                                || actions[0].equals(Constants.QUIT)
+                                || actions[0].equals(Constants.SCREEN)
+                                || actions[0].equals(Constants.REFRESH_ONLY)) {
+                            performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+
+                            if (actions[0].equals(Constants.QUIT)) {
+                                stopAll = true;
+                                success = true;
+                            }
+
+                            long duration = performAction.duration(currentInstructionStartTime);
+
+                            performAction.excelReportWrite(
+                                    success, actions, msgInitial, duration, dataExcel, writerReport);
+
+                            totalExecutionTime += duration;
+
+                            status = performAction.operationLog(
+                                    success,
+                                    currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
+                                    resultActions,
+                                    duration);
+
+                            continue;
+                        }
+
+                        WebElement webElementFound = null;
+                        try {
+                            webElementFound = performAction.searchElement(currentInstruction, this.botJob.getId());
+                        } catch (Exception ex) {
+                            extraMsg = "Element not found. Please try rescanning.!";
+                        }
+
+                        success = performAction.performWebActions(
                                 byPassNotFound,
                                 dataDynamic,
                                 currentInstruction,

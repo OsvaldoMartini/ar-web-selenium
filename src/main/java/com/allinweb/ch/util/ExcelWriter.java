@@ -47,7 +47,8 @@ public class ExcelWriter {
         performAction = PerformActions.getInstance();
     }
 
-    public void generateExcelFiles(BotJobDTO botJob, List<BotJobLoadDTO> botLoadJobs, ExtractedData extractedData) {
+    public void generateExcelFiles(
+            BotJobDTO botJob, List<BotJobLoadDTO> botLoadJobs, ExtractedData extractedData, boolean openExcel) {
 
         this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
         this.extractedData = extractedData;
@@ -57,7 +58,19 @@ public class ExcelWriter {
             excelFolder.mkdirs();
         }
         //        generateUnfilteredCSVFile(botJob);
-        generateUnfilteredExcelFile(botJob, extractedData);
+        File file = generateUnfilteredExcelFile(botJob, extractedData);
+
+        if (openExcel) {
+            try {
+                Desktop.getDesktop().open(file);
+            } catch (IOException e) {
+                new ABRAlertScene(
+                        Alert.AlertType.ERROR,
+                        "Couldn't open the file",
+                        "The file could not be opened. Reason: " + e,
+                        ButtonType.OK);
+            }
+        }
         generateFilteredExcelFile(botJob, extractedData);
     }
 
@@ -130,7 +143,7 @@ public class ExcelWriter {
         }
     }
 
-    private void generateUnfilteredExcelFile(BotJobDTO botJob, ExtractedData extractedData) {
+    private File generateUnfilteredExcelFile(BotJobDTO botJob, ExtractedData extractedData) {
         String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
                 + botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL;
 
@@ -214,15 +227,7 @@ public class ExcelWriter {
             }
         }
         writeExcelWorkbookOnDisk(workbook, file);
-        try {
-            Desktop.getDesktop().open(file);
-        } catch (IOException e) {
-            new ABRAlertScene(
-                    Alert.AlertType.ERROR,
-                    "Couldn't open the file",
-                    "The file could not be opened. Reason: " + e,
-                    ButtonType.OK);
-        }
+        return file;
     }
 
     private void generateFilteredExcelFile(BotJobDTO botJob, ExtractedData extractedData) {
@@ -275,12 +280,12 @@ public class ExcelWriter {
         }
     }
 
-    public static ExtractedData isFileExists(BotJobDTO botJob, List<BotJobLoadDTO> botLoadJobs) {
+    public static ExtractedData isFileExists(String botJobName, List<BotJobLoadDTO> botLoadJobs) {
 
         List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
         String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-        String fileName = String.format("%s/%s%s", excelFolderPath, botJob.getName(), ABRConstants.FILE_FORMAT_EXCEL);
+        String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ABRConstants.FILE_FORMAT_EXCEL);
 
         //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 

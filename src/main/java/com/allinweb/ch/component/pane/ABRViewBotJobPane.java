@@ -341,6 +341,8 @@ public class ABRViewBotJobPane extends ABRPane {
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (botLoadJobs.size() > 0) {
 
+            createExcelDataFile(botLoadJobs, this.botJob.getName(), this.botJob.getId());
+
             List<InstructionDTO> rowList = null;
             for (BlockLoadDTO block : botLoadJobs.get(0).getBlockLoadDTOList()) {
                 rowList = getInstructionsByBlockId(botLoadJobs.get(0).getId(), block.getId());
@@ -407,6 +409,34 @@ public class ABRViewBotJobPane extends ABRPane {
         // Add the stylesheet to the scene
         //        mainGridPane.getStylesheets().add(css);
 
+    }
+
+    private void createExcelDataFile(List<BotJobLoadDTO> botLoadJobs, String botJobName, int botJobId) {
+
+        // Retrieve the updated BotJobDTO
+        BotJobDTO botJobUpdated = (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
+
+        String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+        String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ABRConstants.FILE_FORMAT_EXCEL);
+
+        // Create a File object
+        File fileCheck = new File(fileName);
+        if (!fileCheck.exists() && !fileCheck.isDirectory()) {
+
+            // Check if the Excel file already exists
+            ExtractedData extractedData = ExcelWriter.isFileExists(botJobName, botLoadJobs);
+
+            // Create a task for generating the Excel file
+            Task<Void> excelTask = new Task<>() {
+                @Override
+                protected Void call() throws Exception {
+                    new ExcelWriter().generateExcelFiles(botJobUpdated, botLoadJobs, extractedData, false);
+                    return null;
+                }
+            };
+
+            new Thread(excelTask).start();
+        }
     }
 
     private void buildWebView(String jsonData, int finalPort) {
@@ -500,13 +530,13 @@ public class ABRViewBotJobPane extends ABRPane {
 
             List<BlockDTO> blockList = botJob.getBlocks();
 
-            boolean hasInputFields = blockList.stream()
-                    .flatMap(
-                            block -> block
-                                    .getBlockLoopInstructionDTOS()
-                                    .stream()) // Flatten all BlockLoopInstructionDTOs from each block
-                    .anyMatch(instruction -> instruction.getActions() != null
-                            && instruction.getActions().startsWith("I:"));
+            //            boolean hasInputFields = blockList.stream()
+            //                    .flatMap(
+            //                            block -> block
+            //                                    .getBlockLoopInstructionDTOS()
+            //                                    .stream()) // Flatten all BlockLoopInstructionDTOs from each block
+            //                    .anyMatch(instruction -> instruction.getActions() != null
+            //                            && instruction.getActions().startsWith("I:"));
 
             Text variableText1Styled = new Text("File name: " + this.botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL);
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
@@ -514,37 +544,38 @@ public class ABRViewBotJobPane extends ABRPane {
             VBox combinedTextContainer = new VBox();
             combinedTextContainer.setSpacing(5); // Add some sp
 
-            if (!hasInputFields) {
-                Text variableText2Styled = new Text("Use Web Scanner Tool First to create the:");
-                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                variableText1Styled =
-                        new Text("Excel Data File: " + this.botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL);
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                combinedTextContainer.getChildren().addAll(variableText2Styled, variableText1Styled);
-
-                performAction.showAlertCombinedVBOX(
-                        AlertType.ERROR,
-                        "Error: No \"INPUT\" Web Elements",
-                        "Error: Don't Have Any Web Element as INPUT", // No header text
-                        null,
-                        combinedTextContainer);
-                return;
-            }
+            //            if (!hasInputFields) {
+            //                Text variableText2Styled = new Text("Use Web Scanner Tool First to create the:");
+            //                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            //
+            //                variableText1Styled =
+            //                        new Text("Excel Data File: " + this.botJob.getName() +
+            // ABRConstants.FILE_FORMAT_EXCEL);
+            //                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            //
+            //                combinedTextContainer.getChildren().addAll(variableText2Styled, variableText1Styled);
+            //
+            //                performAction.showAlertCombinedVBOX(
+            //                        AlertType.ERROR,
+            //                        "Error: No \"INPUT\" Web Elements",
+            //                        "Error: Don't Have Any Web Element as INPUT", // No header text
+            //                        null,
+            //                        combinedTextContainer);
+            //                return;
+            //            }
 
             // Create an HBox to hold the individual text elements
 
             combinedTextContainer.getChildren().add(variableText1Styled);
 
             // Check if the Excel file already exists
-            ExtractedData extractedData = ExcelWriter.isFileExists(this.botJob, this.botLoadJobs);
+            ExtractedData extractedData = ExcelWriter.isFileExists(this.botJob.getName(), this.botLoadJobs);
 
             // Create a task for generating the Excel file
             Task<Void> excelTask = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
-                    new ExcelWriter().generateExcelFiles(botJobUpdated, botLoadJobs, extractedData);
+                    new ExcelWriter().generateExcelFiles(botJobUpdated, botLoadJobs, extractedData, true);
                     return null;
                 }
             };

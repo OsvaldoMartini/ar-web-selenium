@@ -1693,7 +1693,7 @@ public class PerformActions {
         } else if (message3 != null && message4 == null) {
             dialog.setSize(350, 230);
         } else if (message3 != null && message4 != null) {
-            dialog.setSize(350, 250);
+            dialog.setSize(350, 300);
         } else {
             dialog.setSize(350, 300);
         }

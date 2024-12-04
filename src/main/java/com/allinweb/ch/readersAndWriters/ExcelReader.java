@@ -95,7 +95,7 @@ public class ExcelReader {
                     // Add the missing field with default value to extractedDataWithMissingFields
                     extractedDataWithMissingFields.addField(blockField);
                     extractedDataWithMissingFields.addFieldValue(
-                            blockField, "DEFAULT_VALUE", extractedData.getNumberOfDataRows());
+                            blockField, "No Data Found", extractedData.getNumberOfDataRows());
                 }
             }
 
