@@ -66,7 +66,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.RemoteWebElement;
 import org.openqa.selenium.support.pagefactory.ByChained;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -366,8 +365,8 @@ public class ABRScannedElementPane extends ABRPane {
         customXPathTextField.setVisible(false);
         originalTagNameLabel.setVisible(false);
         originalTagNameField.setVisible(false);
-        coordsTextFieldLabel.setVisible(false);
-        coordsTextField.setVisible(false);
+        currentAbsoluteXPathLabel.setVisible(false);
+        absolutXPathTextField.setVisible(false);
 
         leftButton = componentBuilder.buildButton(
                 "Previous", ABRConstants.SPACE_M, ABRConstants.ICON_LEFT, ABRConstants.SPACE_M, new Insets(5.0D));
@@ -519,14 +518,14 @@ public class ABRScannedElementPane extends ABRPane {
                             attribNameTextField,
                             currentXPathLabel,
                             currentXPathTextField,
-                            currentAbsoluteXPathLabel,
-                            absolutXPathTextField,
+                            //                            currentAbsoluteXPathLabel,
+                            //                            absolutXPathTextField,
                             //                            customXPathLabel,
                             //                            customXPathTextField,
                             //                            originalTagNameLabel,
                             //                            originalTagNameField,
-                            //                            coordsTextFieldLabel,
-                            //                            coordsTextField,
+                            coordsTextFieldLabel,
+                            coordsTextField,
                             vBoxCheckBox,
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacer(),
@@ -541,8 +540,8 @@ public class ABRScannedElementPane extends ABRPane {
             customXPathTextField.setVisible(false);
             originalTagNameLabel.setVisible(false);
             originalTagNameField.setVisible(false);
-            coordsTextFieldLabel.setVisible(false);
-            coordsTextField.setVisible(false);
+            currentAbsoluteXPathLabel.setVisible(false);
+            absolutXPathTextField.setVisible(false);
 
             // Bind button widths to VBox width
             addNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
@@ -933,7 +932,7 @@ public class ABRScannedElementPane extends ABRPane {
                     }
 
                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
-                    if (abrWebElement != null) {
+                    if (abrWebElement != null && abrWebElement.getElement() != null) {
                         webElementObservableList3.add(abrWebElement);
                     }
 
@@ -1571,7 +1570,7 @@ public class ABRScannedElementPane extends ABRPane {
                 @Override
                 protected Void call() {
                     List<WebElement> elementList =
-                            abrWebDriver.getDriver().findElements(By.xpath(abrWebElement.getXPath()));
+                            abrWebDriver.getDriver().findElements(By.xpath(abrWebElement.getMainXPath()));
                     for (WebElement element : elementList) {
                         if (((RemoteWebElement) element).getId().equalsIgnoreCase(abrWebElement.getElementId())) {
                             abrWebDriver.highlightElement(element);
@@ -1596,7 +1595,7 @@ public class ABRScannedElementPane extends ABRPane {
                     //                    }
 
                     List<WebElement> elementList =
-                            abrWebDriver.getDriver().findElements((By.xpath(abrWebElement.getXPath())));
+                            abrWebDriver.getDriver().findElements((By.xpath(abrWebElement.getMainXPath())));
                     for (WebElement element : elementList) {
                         if (((RemoteWebElement) element).getId().equalsIgnoreCase(abrWebElement.getElementId())) {
                             abrWebDriver.dehighlightElement(element);
@@ -1610,26 +1609,92 @@ public class ABRScannedElementPane extends ABRPane {
 
         EventHandler<MouseEvent> mouseClickedHandler = mouseEvent -> {
             if (mouseEvent.getClickCount() == 2) {
+                if (abrWebElement.getSavedReferences().size() == 0) {
+
+                    Text variableText1Styled = new Text(String.format(
+                            "The Instruction \"%s\" don't have any locators!",
+                            abrWebElement.getElement().getText()));
+
+                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                    VBox combinedTextContainer = new VBox();
+                    combinedTextContainer.setSpacing(5); // Add some sp
+
+                    combinedTextContainer.getChildren().add(variableText1Styled);
+
+                    performAction.showAlertCombinedVBOX(
+                            Alert.AlertType.ERROR,
+                            "ERROR ADD WEB ELEMENT",
+                            "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
+                            null,
+                            combinedTextContainer);
+
+                    return;
+                }
+
+                //                String reTakeXPath = getXPath(abrWebDriver.getDriver(), abrWebElement.getElement());
+                //                abrWebElement.setMainXPath(reTakeXPath);
+
+                // IF SOME REFRESH CHANGED THE ELEMENT IT TRIGGERS THIS EXCEPTION
+                String elemTagName = "No TagName";
+                try {
+
+                    if (abrWebElement.getMainXPath() == null) {
+                        abrWebElement.setMainXPath(
+                                abrWebElement.getSavedReferences().get("absolutXPath"));
+                    }
+                    if (abrWebElement.getMainCoordinates() == null) {
+                        abrWebElement.setMainCoordinates(
+                                abrWebElement.getSavedReferences().get("coordinates"));
+                    }
+
+                    WebElement elementFinder =
+                            abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getMainXPath()));
+
+                    if (elementFinder == null) {
+                        // Try by coordinates
+                    }
+
+                    if (elementFinder != null) {
+                        abrWebElement.setElement(elementFinder);
+                    }
+
+                    if (abrWebElement.getElement() != null
+                            && abrWebElement.getElement().getTagName() != null) {
+                        elemTagName = abrWebElement.getElement().getTagName();
+                    }
+                } catch (Exception ex) {
+                    performAction.couldNotFindElement(elemTagName);
+                    return;
+                }
+
                 if (checkBoxAction.isSelected()) {
                     try {
-                        abrWebElement.setxPath(getXPath(abrWebDriver.getDriver(), abrWebElement.getElement()));
-                        abrWebDriver.dehighlightElement(abrWebElement.getElement());
+                        if (abrWebElement.getElement() != null) {
 
-                        WebElement elementXPath =
-                                abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getXPath()));
-                        if (elementXPath != null) {
-                            elementXPath.click();
+                            abrWebDriver.dehighlightElement(abrWebElement.getElement());
+
+                            //                            WebElement elementXPath =
+                            //
+                            // abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getMainXPath()));
+                            //                            if (elementXPath != null) {
+                            //                                elementXPath.click();
+                            //                            }
+
+                            abrWebElement.getElement().click();
                         }
                         //                                abrWebElement.getElement().click();
                     } catch (Exception e) {
-                        System.out.println("Cannot find the XPath for this Element");
+                        performAction.couldNotFindElement("No TagName");
+                        return;
                     }
                 } else {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .info("Double clicked the element: " + abrWebElement.getXPath());
+                            .info("Double clicked the element: " + abrWebElement.getMainXPath());
 
                     currentBlockId = comboBoxBlocks.getValue().getInstructionId();
                     String blockName = comboBoxBlocks.getValue().getText();
+
                     if (currentBlockId < 0) {
 
                         Text variableText1Styled = new Text("Select the block you wan to Add New Command!");
@@ -1646,29 +1711,6 @@ public class ABRScannedElementPane extends ABRPane {
                                 "Select the Block!",
                                 null,
                                 combinedTextContainer);
-                        return;
-                    }
-
-                    if (abrWebElement.getSavedReferences().size() == 0) {
-
-                        Text variableText1Styled = new Text(String.format(
-                                "The Instruction \"%s\" don't have any locators!",
-                                abrWebElement.getElement().getTagName()));
-
-                        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                        VBox combinedTextContainer = new VBox();
-                        combinedTextContainer.setSpacing(5); // Add some sp
-
-                        combinedTextContainer.getChildren().add(variableText1Styled);
-
-                        performAction.showAlertCombinedVBOX(
-                                Alert.AlertType.ERROR,
-                                "ERROR ADD WEB ELEMENT",
-                                "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
-                                null,
-                                combinedTextContainer);
-
                         return;
                     }
 
@@ -1782,16 +1824,20 @@ public class ABRScannedElementPane extends ABRPane {
                             protected Void call() throws Exception {
                                 ABRLogger.getInstance(Task.class).info("THREAD: Started");
 
-                                if (Strings.isNullOrEmpty(abrWebElement.getXPath())) {
-                                    try {
-                                        abrWebElement.setxPath(
-                                                getXPath(abrWebDriver.getDriver(), abrWebElement.getElement()));
-                                        abrWebDriver.dehighlightElement(abrWebElement.getElement());
-                                    } catch (Exception e) {
-                                        ABRLogger.getInstance(Task.class)
-                                                .severe("Cannot find the XPath for this Element ");
-                                    }
-                                }
+                                //                                if
+                                // (Strings.isNullOrEmpty(abrWebElement.getMainXPath())) {
+                                //                                    try {
+                                //                                        abrWebElement.setMainXPath(
+                                //                                                getXPath(abrWebDriver.getDriver(),
+                                // abrWebElement.getElement()));
+                                //
+                                // abrWebDriver.dehighlightElement(abrWebElement.getElement());
+                                //                                    } catch (Exception e) {
+                                //                                        ABRLogger.getInstance(Task.class)
+                                //                                                .severe("Cannot find the XPath for
+                                // this Element ");
+                                //                                    }
+                                //                                }
 
                                 //                            List<WebElement> elementList =
                                 // abrWebDriver.getDriver().findElements((By.xpath(abrWebElement.getXPath()));
@@ -4069,7 +4115,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 // Special Operators
                                 if (operations.length == 2) {
-                                    resultActions = performAction.performActionOperator(
+                                    resultActions = performAction.performOperatorActions(
                                             byPassNotFound,
                                             currentInstruction,
                                             xPathOperation,
@@ -4457,8 +4503,13 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                     try {
 
-                        stopAll = performAction.performWebActions(byPassNotFound,
-                                dataDynamic, currentInstruction, mapOperators, webElementFound, actions);
+                        stopAll = performAction.performWebActions(
+                                byPassNotFound,
+                                dataDynamic,
+                                currentInstruction,
+                                mapOperators,
+                                webElementFound,
+                                actions);
 
                         // Special Cases for Select Responses
                         // It could be Improved the case
@@ -4721,136 +4772,6 @@ public class ABRScannedElementPane extends ABRPane {
             System.exit(status);
         }
         Close();
-    }
-
-    private void executeActionsAtInstructionCoordinates(
-            BlockLoopInstructionLoadDTO instruction, Map<String, String> data) throws Exception {
-
-        List<com.allinweb.ch.util.Priority> priorityList = ABRPriorities.getAllPriorityList();
-        Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
-                .filter(p -> p.getPriorityType() == PriorityTypeEnum.coordinates)
-                .findFirst();
-        if (priority.isPresent()) {
-            List<InstructionReferenceLoadDTO> instructionReferenceList =
-                    instruction.getInstructionReferenceLoadDTOList();
-            Optional<InstructionReferenceLoadDTO> reference = instructionReferenceList.stream()
-                    .filter(ref -> ref.getReferenceType().equals(priority.get().getName()))
-                    .findFirst();
-            int x = 0;
-            int y = 0;
-            int xCoord = 0;
-            int yCoord = 0;
-            if (reference.isPresent()) {
-                String[] coordinates = reference.get().getValue().split(ABRConstants.FIELDS_SEPARATOR);
-                x = Integer.parseInt(coordinates[0]);
-                y = Integer.parseInt(coordinates[1]);
-                int maxHeight =
-                        abrWebDriver.getDriver().manage().window().getSize().getHeight();
-                int maxWidth =
-                        abrWebDriver.getDriver().manage().window().getSize().getWidth();
-                int offsetY = y - maxHeight;
-                int offsetX = x - maxWidth;
-                xCoord = x > maxWidth ? x - offsetX : x;
-                yCoord = y > maxHeight ? y - offsetY : y;
-            }
-            String[] actions = instruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
-            for (String action : actions) {
-                switch (String.valueOf(action.charAt(0))) {
-                    case Constants.VISUALIZE:
-                        scrollToCoordinates(x, y);
-                        break;
-                    case Constants.CLICK:
-                        scrollToCoordinates(x, y);
-                        performAction.onHoldForSeconds(null);
-                        clickAtCoordinates(xCoord, yCoord);
-                        break;
-                    case Constants.INSERT:
-                        scrollToCoordinates(x, y);
-                        performAction.onHoldForSeconds(null);
-                        clickAtCoordinates(xCoord, yCoord);
-                        performAction.onHoldForSeconds(null);
-                        typeCharacters(instruction, action, data);
-                        break;
-                    case Constants.HOLD:
-                        performAction.onHoldForSeconds(instruction);
-                        break;
-                    case Constants.QUIT:
-                        quit(0);
-                        break;
-                    case Constants.SCREEN:
-                        // screenshot();
-                        break;
-                    case Constants.EXTRACT:
-                        break;
-                    case Constants.LIST_OPERATION:
-                }
-                performAction.onHoldForSeconds(null);
-            }
-        }
-    }
-
-    private void scrollToCoordinates(int x, int y) {
-        int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
-        int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
-        int offsetY = y - maxHeight;
-        int offsetX = x - maxWidth;
-        if (offsetX > 0 || offsetY > 0) {
-            String script = "function getScrollableParent(element){\n" + "    console.log(\"finding\");"
-                    + "    let value = window.getComputedStyle(element).overflowY;\n"
-                    + "    if(value !== \"scroll\" && value !== \"auto\"){\n"
-                    + "        return getScrollableParent(element.parentNode);\n"
-                    + "    }\n"
-                    + "    return element;\n"
-                    + "}\n"
-                    + "getScrollableParent(document.elementFromPoint("
-                    + (maxWidth / 2) + "," + (maxHeight / 2)
-                    + ")).scrollTo(" + Math.max(offsetX, 0) + "," + Math.max(offsetY, 0) + ");" + "return true;";
-            new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(10))
-                    .until((item) -> (Boolean) ((JavascriptExecutor) abrWebDriver.getDriver()).executeScript(script));
-        }
-    }
-
-    private void clickAtCoordinates(int x, int y) {
-        /*
-        String script = "function createCircle(x, y, diameter) {\n" +
-                "    const randomColor = Math.floor(Math.random()*16777215).toString(16);\n" +
-                "\n" +
-                "    return `\n" +
-                "    <svg style='height:100%;width:100%;position:absolute;top:0;z-index:9999'><circle\n" +
-                "        cx=\"${x}\"\n" +
-                "      cy=\"${y}\"\n" +
-                "      r=\"${diameter/2}\"\n" +
-                "      fill=\"#${randomColor}\"\n" +
-                "    ></circle></svg>\n" +
-                "  `;\n" +
-                "}\n" +
-                "\n" +
-                "function pri(ev){\n" +
-                "    console.log(ev);\n" +
-                "    document.body.innerHTML += createCircle(ev.pageX,ev.pageY,10);\n" +
-                "}\n" +
-                "\n" +
-                "window.addEventListener(\"click\", pri);";
-        ((JavascriptExecutor)driver).executeScript(script);
-         */
-        new Actions(abrWebDriver.getDriver()).moveToLocation(x, y).click().perform();
-    }
-
-    private void typeCharacters(BlockLoopInstructionLoadDTO instruction, String action, Map<String, String> data) {
-        String value = null;
-        if (data != null) {
-            String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);
-            if (arr.length > 1) {
-                String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
-                value = data.get(dataFieldName);
-            }
-        } else {
-            value = instruction.getDefaultValue();
-        }
-        if (instruction.isEncrypted()) {
-            value = CryptationAlgorithm.decrypt(value);
-        }
-        new Actions(abrWebDriver.getDriver()).sendKeys(value).perform();
     }
 
     public List<ABRWebElement> createAdvancedABRElement(

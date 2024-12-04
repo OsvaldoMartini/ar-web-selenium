@@ -6,6 +6,7 @@ import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
@@ -69,7 +70,10 @@ public class ABRWebElement {
     private WebElement element;
 
     private SearchReturn searchReturn;
-    private String xPath;
+    private String mainXPath;
+    private String mainCoordinates;
+    private String nameFieldTitle;
+
     private String attributeValue;
     private WebElementTagNameEnum forceTagEnum;
 
@@ -112,9 +116,11 @@ public class ABRWebElement {
 
     // Very important sequence on initiation
     private static ABRPriorities abrPriorities;
+    private static final PerformActions performAction;
     // Static block to initialize
     static {
         abrPriorities = ABRPriorities.getInstance();
+        performAction = PerformActions.getInstance();
     }
 
     public ABRWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch) {
@@ -136,7 +142,7 @@ public class ABRWebElement {
             Map.Entry<String, WebElement> entry, String attributeName, int jobId, WebElementTagNameEnum typeElement) {
         abrPriorities.setJobId(jobId);
         WebElement element = entry.getValue();
-        this.xPath = entry.getKey();
+        this.mainXPath = entry.getKey();
         this.attributeValue = element.getAttribute(attributeName);
         if (typeElement != null) {
             forceTagEnum = typeElement;
@@ -183,20 +189,22 @@ public class ABRWebElement {
 
             if (element.getTagName() == null) {
 
-                new ABRAlertScene(
-                        Alert.AlertType.ERROR,
-                        "Not possible to identity the Tag Name",
-                        "Try to Re Scanner or Re Select the Element!",
-                        ButtonType.OK);
+                performAction.couldNotFindElement("No TagName");
+                //                new ABRAlertScene(
+                //                        Alert.AlertType.ERROR,
+                //                        "Not possible to identity the Tag Name",
+                //                        "Try to Re Scanner or Re Select the Element!",
+                //                        ButtonType.OK);
 
                 return;
             }
         } catch (Exception e) {
-            new ABRAlertScene(
-                    Alert.AlertType.ERROR,
-                    "Not possible to identity the Tag Name",
-                    "Try to Re Scanner or Re Select the Element!",
-                    ButtonType.OK);
+            performAction.couldNotFindElement("No TagName");
+            //            new ABRAlertScene(
+            //                    Alert.AlertType.ERROR,
+            //                    "Not possible to identity the Tag Name",
+            //                    "Try to Re Scanner or Re Select the Element!",
+            //                    ButtonType.OK);
 
             return;
         }
@@ -222,20 +230,20 @@ public class ABRWebElement {
                                 }
                             }
                             case xpath, ByXPath -> {
-                                if (Strings.isNullOrEmpty(xPath)) {
-                                    savedReferences.put(
-                                            priority.getName().get(0), ABRWebUtil.extractWebElementXPath(element));
+                                if (Strings.isNullOrEmpty(mainXPath)) {
+                                    mainXPath = ABRWebUtil.extractWebElementXPath(element);
+                                    savedReferences.put(priority.getName().get(0), mainXPath);
                                 } else {
-                                    savedReferences.put(priority.getName().get(0), xPath);
+
+                                    savedReferences.put(priority.getName().get(0), mainXPath);
                                 }
                             }
 
                             case coordinates -> {
-                                Rectangle coordinates = element.getRect();
-                                savedReferences.put(
-                                        priority.getName().get(0),
-                                        (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                                                + (coordinates.getY() + (coordinates.getHeight() / 2)));
+                                Rectangle coord = element.getRect();
+                                mainCoordinates = (coord.getX() + (coord.getWidth() / 2)) + ","
+                                        + (coord.getY() + (coord.getHeight() / 2));
+                                savedReferences.put(priority.getName().get(0), mainCoordinates);
                             }
                         }
                     } catch (EnumConstantNotPresentException ex) {
@@ -265,7 +273,7 @@ public class ABRWebElement {
                     savedReferences.put(
                             "customXPath",
                             searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (searchReturn != null && !Strings.isNullOrEmpty(xPath)) {
+                } else if (searchReturn != null && !Strings.isNullOrEmpty(mainXPath)) {
                     savedReferences.put("xpath", searchReturn.getCurrentXPath());
                 } else if (!Strings.isNullOrEmpty(attributeValue)) {
                     savedReferences.put("attribute", attributeValue);
@@ -390,6 +398,7 @@ public class ABRWebElement {
 
         // Identify if the element is an INPUT, BUTTON, or LABEL
         tagName = element.getTagName().toUpperCase();
+        nameFieldTitle = nameField.getText();
 
         boolean isElementHidden = element.getAttribute("type") != null
                 && element.getAttribute("type").equalsIgnoreCase("hidden");
@@ -505,7 +514,7 @@ public class ABRWebElement {
 
         nameLabel.setText(instruction.getName());
         nameField.setText(instruction.getName());
-        xPath = instruction.getPath();
+        mainXPath = instruction.getPath();
         if (actionReference.length > 1) {
             nameLabel.setText(actionReference[1]);
             nameField.setText(actionReference[1]);
@@ -936,7 +945,7 @@ public class ABRWebElement {
         loop.setEncrypted(false);
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
-        loop.setPath(xPath);
+        loop.setPath(mainXPath);
         String action;
         // TODO: Make a better thing than this
         if (isIdElement.get()) {
@@ -1019,8 +1028,28 @@ public class ABRWebElement {
         deleteButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
     }
 
-    public String getXPath() {
-        return xPath;
+    public String getMainXPath() {
+        return mainXPath;
+    }
+
+    public void setMainXPath(String mainXPath) {
+        this.mainXPath = mainXPath;
+    }
+
+    public String getMainCoordinates() {
+        return mainCoordinates;
+    }
+
+    public void setMainCoordinates(String mainCoordinates) {
+        this.mainCoordinates = mainCoordinates;
+    }
+
+    public String getNameFieldTitle() {
+        return nameFieldTitle;
+    }
+
+    public void setNameFieldTitle(String nameFieldTitle) {
+        this.nameFieldTitle = nameFieldTitle;
     }
 
     public Node getGraphicRepresentation() {
@@ -1057,14 +1086,6 @@ public class ABRWebElement {
 
     public void setElement(WebElement element) {
         this.element = element;
-    }
-
-    public String getxPath() {
-        return xPath;
-    }
-
-    public void setxPath(String xPath) {
-        this.xPath = xPath;
     }
 
     public Map<String, String> getSavedReferences() {

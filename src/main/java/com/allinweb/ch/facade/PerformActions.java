@@ -28,6 +28,8 @@ import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.ResultSet;
@@ -60,6 +62,7 @@ import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
@@ -154,10 +157,6 @@ public class PerformActions {
 
             onHoldForSeconds(null);
         }
-        //        } else {
-        //            executeActionsAtInstructionCoordinates(instruction, data);
-        //            onHoldForSeconds(null);
-        //        }
 
         return true;
     }
@@ -204,7 +203,7 @@ public class PerformActions {
         onHoldForSeconds(null);
     }
 
-    public String performActionOperator(
+    public String performOperatorActions(
             boolean byPassNotFound,
             BlockLoopInstructionLoadDTO instruction,
             String targetXPath,
@@ -341,12 +340,13 @@ public class PerformActions {
                 "1. Consider Fill Up all the Mandatory Fields",
                 null,
                 null,
+                null,
                 true);
     }
 
     private void showNotFoundElement(String targetXPath, By criteria) {}
 
-    private WebElement locateElement(BlockLoopInstructionLoadDTO instruction, int botJobId) {
+    private WebElement locateElement(BlockLoopInstructionLoadDTO currentInstruction, int botJobId) {
 
         WebElement elementInsideIframe = null;
         //        if (xPath.toLowerCase().contains("iframe")){
@@ -371,7 +371,7 @@ public class PerformActions {
         //            abrWebDriver.getDriver().switchTo().defaultContent();
         //        }
 
-        String instructionPath = instruction.getPath();
+        String instructionPath = currentInstruction.getPath();
         String tagName = null;
         try {
             tagName = removeTrailingSlash(instructionPath);
@@ -382,7 +382,8 @@ public class PerformActions {
                             "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
                             tagName, instructionPath, e.getMessage()));
         }
-        List<InstructionReferenceLoadDTO> instructionReferenceList = instruction.getInstructionReferenceLoadDTOList();
+        List<InstructionReferenceLoadDTO> instructionReferenceList =
+                currentInstruction.getInstructionReferenceLoadDTOList();
 
         if (instructionReferenceList.size() == 0) {
             ABRLogger.getInstance(PerformActions.class)
@@ -398,15 +399,15 @@ public class PerformActions {
         // If Not Loaded get if the JobId Changed
         if (abrPriorities.getJobId() == null) {
             abrPriorities.setJobId(botJobId);
-            if (instruction.getPriority() != null) {
-                abrPriorities.loadPrioritiesFromString(instruction.getPriority());
+            if (currentInstruction.getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(currentInstruction.getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
         } else if (abrPriorities.getJobId() != botJobId) {
             abrPriorities.setJobId(botJobId);
-            if (instruction.getPriority() != null) {
-                abrPriorities.loadPrioritiesFromString(instruction.getPriority());
+            if (currentInstruction.getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(currentInstruction.getPriority());
             } else {
                 abrPriorities.loadPriorities();
             }
@@ -470,7 +471,14 @@ public class PerformActions {
                                 instructionReference.get().getValue());
                             //                                criteria = By.cssSelector(tagName + "[" +
                             // priority.getName() + "='" + instructionReference.get().getValue() + "']");
-                        case coordinates -> {} // System.out.println("coordinates case");
+                        case coordinates -> {
+                            Pair<String, String> filedData = new Pair("martini", "Martini");
+                            try {
+                                executeActionsAtInstructionCoordinates(currentInstruction, filedData);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        } // System.out.println("coordinates case");
                         case ById -> {} // System.out.println("ById case");
                         case ByClassName -> {} // System.out.println("Default case");
                         case ByName -> {} // System.out.println("Default case");
@@ -526,12 +534,13 @@ public class PerformActions {
 
                                         couldNotFindElement(String.valueOf(criteria));
                                     }
-                                } else if (instruction.getActionCustomMaxWaitSec() != null) {
+                                } else if (currentInstruction.getActionCustomMaxWaitSec() != null) {
                                     try {
 
                                         new WebDriverWait(
                                                         abrWebDriver.getDriver(),
-                                                        Duration.ofSeconds(instruction.getActionCustomMaxWaitSec()))
+                                                        Duration.ofSeconds(
+                                                                currentInstruction.getActionCustomMaxWaitSec()))
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
@@ -793,12 +802,13 @@ public class PerformActions {
         }
     }
 
-    private void couldNotFindElement(String criteria) {
+    public void couldNotFindElement(String criteria) {
         showCustomModalDialog(
                 criteria,
-                "1. Consider increasing the wait time to ensure the page loads completely.",
-                "2. Verify if you are on the correct web page.",
-                "3. Check if the page layout or content has been updated.",
+                "1. Verify if you are on the correct web page.",
+                "2. Check if the page layout or content has been updated. (Page Refreshed)",
+                "3. Consider increasing the wait time to ensure the page loads completely.",
+                "4. Consider to Re Scanner or Re Select the Element!",
                 true);
     }
 
@@ -1674,12 +1684,22 @@ public class PerformActions {
     }
 
     public static void showCustomModalDialog(
-            String title, String message, String message2, String message3, boolean redMsg) {
+            String title, String message, String message2, String message3, String message4, boolean redMsg) {
+        // Create a JDialog as a custom modal message dialog
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        dialog.setSize(300, 250);
+        if (message3 == null && message4 == null) {
+            dialog.setSize(350, 210);
+        } else if (message3 != null && message4 == null) {
+            dialog.setSize(350, 230);
+        } else if (message3 != null && message4 != null) {
+            dialog.setSize(350, 250);
+        } else {
+            dialog.setSize(350, 300);
+        }
+
         dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border
+        dialog.setUndecorated(true); // Remove the default border  IT REMOVE TEH ORIGINAL TITLE
 
         // Style the dialog's main panel
         JPanel panel = new JPanel();
@@ -1687,27 +1707,44 @@ public class PerformActions {
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panel.setLayout(new BorderLayout());
 
-        String concatenaMsg = "<html><br><span style='color: blue;'>" + message
+        // Build the message
+        String titleMessage = "<html><br><span style='color: blue;'>";
+        titleMessage += "<span style='font-size: 14px; font-weight: bold;'>" + title
+                + "</span><br>---------------------------<br>";
+
+        String concatenaMsg = "<span style='color: blue;'>" + message
                 + "</span><br>---------------------------<br><span style='color: blue;'>" + message2 + "</span>";
-        if (Strings.isNullOrEmpty(message3)) {
-            concatenaMsg = concatenaMsg + "</html>";
+
+        if (message3 != null && message4 == null) {
+            concatenaMsg +=
+                    "<br>---------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
+        } else if (message3 != null && message4 != null) {
+            concatenaMsg += "<br>---------------------------<br><span style='color: blue;'>"
+                    + message3 + "</span><br>---------------------------<br><span style='color: blue;'>"
+                    + message4 + "</span><br><br></html>";
         } else {
-            concatenaMsg = concatenaMsg + "<br>---------------------------<br><span style='color: blue;'>" + message3
-                    + "</span></html>";
+            concatenaMsg += "</html>";
         }
 
+        // Apply red color to message if redMsg is true
         if (redMsg) {
             concatenaMsg = concatenaMsg.replaceAll("blue", "red");
         }
+        concatenaMsg = titleMessage + concatenaMsg;
 
-        // Style the message
+        // Create a JLabel to display the formatted message
         JLabel messageLabel = new JLabel(concatenaMsg, SwingConstants.CENTER);
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
         // OK button to close the dialog
         JButton okButton = new JButton("OK");
-        okButton.addActionListener(e -> dialog.dispose());
+        okButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dialog.dispose();
+            }
+        });
         panel.add(okButton, BorderLayout.SOUTH);
 
         // Add panel to dialog and set properties
@@ -1858,5 +1895,110 @@ public class PerformActions {
                 "var rect = arguments[0].getBoundingClientRect(); "
                         + "return (rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth));",
                 element);
+    }
+
+    private void executeActionsAtInstructionCoordinates(
+            BlockLoopInstructionLoadDTO currentInstruction, Pair<String, String> data) throws Exception {
+
+        List<com.allinweb.ch.util.Priority> priorityList = ABRPriorities.getAllPriorityList();
+        Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
+                .filter(p -> p.getPriorityType() == PriorityTypeEnum.coordinates)
+                .findFirst();
+        if (priority.isPresent()) {
+            List<InstructionReferenceLoadDTO> instructionReferenceList =
+                    currentInstruction.getInstructionReferenceLoadDTOList();
+            Optional<InstructionReferenceLoadDTO> reference = instructionReferenceList.stream()
+                    .filter(ref -> ref.getReferenceType().equals(priority.get().getName()))
+                    .findFirst();
+            int x = 0;
+            int y = 0;
+            int xCoord = 0;
+            int yCoord = 0;
+            if (reference.isPresent()) {
+                String[] coordinates = reference.get().getValue().split(ABRConstants.FIELDS_SEPARATOR);
+                x = Integer.parseInt(coordinates[0]);
+                y = Integer.parseInt(coordinates[1]);
+                int maxHeight =
+                        abrWebDriver.getDriver().manage().window().getSize().getHeight();
+                int maxWidth =
+                        abrWebDriver.getDriver().manage().window().getSize().getWidth();
+                int offsetY = y - maxHeight;
+                int offsetX = x - maxWidth;
+                xCoord = x > maxWidth ? x - offsetX : x;
+                yCoord = y > maxHeight ? y - offsetY : y;
+            }
+            String[] actions = currentInstruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
+            for (String action : actions) {
+                switch (String.valueOf(action.charAt(0))) {
+                    case Constants.VISUALIZE:
+                        scrollToCoordinates(x, y);
+                        break;
+                    case Constants.CLICK:
+                        scrollToCoordinates(x, y);
+                        onHoldForSeconds(null);
+                        clickAtCoordinates(xCoord, yCoord);
+                        break;
+                    case Constants.INSERT:
+                        scrollToCoordinates(x, y);
+                        onHoldForSeconds(null);
+                        clickAtCoordinates(xCoord, yCoord);
+                        onHoldForSeconds(null);
+                        typeCharacters(data);
+                        break;
+                }
+                onHoldForSeconds(null);
+            }
+        }
+    }
+
+    private void scrollToCoordinates(int x, int y) {
+        int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
+        int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
+        int offsetY = y - maxHeight;
+        int offsetX = x - maxWidth;
+        if (offsetX > 0 || offsetY > 0) {
+            String script = "function getScrollableParent(element){\n" + "    console.log(\"finding\");"
+                    + "    let value = window.getComputedStyle(element).overflowY;\n"
+                    + "    if(value !== \"scroll\" && value !== \"auto\"){\n"
+                    + "        return getScrollableParent(element.parentNode);\n"
+                    + "    }\n"
+                    + "    return element;\n"
+                    + "}\n"
+                    + "getScrollableParent(document.elementFromPoint("
+                    + (maxWidth / 2) + "," + (maxHeight / 2)
+                    + ")).scrollTo(" + Math.max(offsetX, 0) + "," + Math.max(offsetY, 0) + ");" + "return true;";
+            new WebDriverWait(abrWebDriver.getDriver(), Duration.ofSeconds(10))
+                    .until((item) -> (Boolean) ((JavascriptExecutor) abrWebDriver.getDriver()).executeScript(script));
+        }
+    }
+
+    private void clickAtCoordinates(int x, int y) {
+        /*
+        String script = "function createCircle(x, y, diameter) {\n" +
+                "    const randomColor = Math.floor(Math.random()*16777215).toString(16);\n" +
+                "\n" +
+                "    return `\n" +
+                "    <svg style='height:100%;width:100%;position:absolute;top:0;z-index:9999'><circle\n" +
+                "        cx=\"${x}\"\n" +
+                "      cy=\"${y}\"\n" +
+                "      r=\"${diameter/2}\"\n" +
+                "      fill=\"#${randomColor}\"\n" +
+                "    ></circle></svg>\n" +
+                "  `;\n" +
+                "}\n" +
+                "\n" +
+                "function pri(ev){\n" +
+                "    console.log(ev);\n" +
+                "    document.body.innerHTML += createCircle(ev.pageX,ev.pageY,10);\n" +
+                "}\n" +
+                "\n" +
+                "window.addEventListener(\"click\", pri);";
+        ((JavascriptExecutor)driver).executeScript(script);
+         */
+        new Actions(abrWebDriver.getDriver()).moveToLocation(x, y).click().perform();
+    }
+
+    private void typeCharacters(Pair<String, String> fieldData) {
+        new Actions(abrWebDriver.getDriver()).sendKeys(fieldData.getValue()).perform();
     }
 }
