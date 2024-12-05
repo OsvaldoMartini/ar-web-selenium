@@ -793,7 +793,7 @@ public class ABRScannedElementPane extends ABRPane {
                 return;
             }
 
-            loadBlockAll(botJob.getId());
+            this.botLoadJobs = performDatabase.loadBlockAll(botJob.getId());
             instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
@@ -809,7 +809,7 @@ public class ABRScannedElementPane extends ABRPane {
                 return;
             }
 
-            loadBlockAll(botJob.getId());
+            this.botLoadJobs = performDatabase.loadBlockAll(botJob.getId());
             // loadBotJob(botJob);
             recallJob();
         });
@@ -3152,103 +3152,104 @@ public class ABRScannedElementPane extends ABRPane {
         //        loadBotJobData();
     }
 
-    private void loadBlockAll(int botJobId) {
-        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
-                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
-                + " b.description AS block_description, b.type_id, "
-                + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
-                + " bli.actions, bli.name AS instruction_name, bli.path, bli.description AS instruction_description, "
-                + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
-                + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
-                + " irl.reference_type, irl.value, "
-                + "  bli.operation, bli.parent_id, "
-                + "  b.export_file "
-                + " FROM bot_job bj "
-                + " LEFT JOIN block b ON b.bot_job_id = bj.id "
-                + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
-                + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
-                + " where bot_job_id = " + botJobId
-                + " ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-
-            botLoadJobs.clear();
-
-            int previousBotJobId = -1;
-            int previousBlockId = -1;
-            int previousInstructionId = -1;
-
-            BotJobLoadDTO previousBotJob = null;
-            BlockLoadDTO previousBlock = null;
-            BlockLoopInstructionLoadDTO previousInstruction = null;
-
-            while (rs.next()) {
-                int currentBotJobId = rs.getInt("bot_job_id");
-                if (previousBotJobId < 0 || previousBotJobId != currentBotJobId) {
-                    previousBotJob = new BotJobLoadDTO();
-                    previousBotJob.setId(currentBotJobId);
-                    previousBotJob.setName(rs.getString("bot_job_name"));
-                    previousBotJob.setBlockLoadDTOList(new ArrayList<>());
-                    botLoadJobs.add(previousBotJob);
-                    previousBotJobId = currentBotJobId;
-                }
-
-                int currentBlockId = rs.getInt("block_id");
-                if (previousBlockId < 0 || previousBlockId != currentBlockId) {
-                    previousBlock = new BlockLoadDTO();
-                    previousBlock.setId(currentBlockId);
-                    previousBlock.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    previousBlock.setName(rs.getString("block_name"));
-                    previousBlock.setDescription(rs.getString("block_description"));
-                    previousBlock.setTypeId(rs.getInt("type_id"));
-                    previousBlock.setExportFile(rs.getString("export_file"));
-                    previousBlock.setBotJobId(previousBotJob.getId());
-                    previousBlock.setBotJobName(previousBotJob.getName());
-
-                    previousBlockId = currentBlockId;
-
-                    previousBlock.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
-                    previousBotJob.getBlockLoadDTOList().add(previousBlock);
-                }
-
-                int currentInstructionId = rs.getInt("block_loop_instruction_id");
-                if (previousInstructionId < 0 || previousInstructionId != currentInstructionId) {
-                    previousInstruction = new BlockLoopInstructionLoadDTO();
-                    previousInstruction.setId(currentInstructionId);
-                    previousInstruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                    previousInstruction.setActions(rs.getString("actions"));
-                    previousInstruction.setName(rs.getString("instruction_name"));
-                    previousInstruction.setPath(rs.getString("path"));
-                    previousInstruction.setDescription(rs.getString("instruction_description"));
-                    previousInstruction.setOptional(rs.getInt("optional"));
-                    previousInstruction.setBlockMarked(rs.getBoolean("block_marked"));
-                    previousInstruction.setDefault_val(rs.getString("default_val"));
-                    previousInstruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                    previousInstruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                    previousInstruction.setEncrypted(rs.getInt("encrypted"));
-                    previousInstruction.setExportToABR(rs.getInt("export_to_abr"));
-                    previousInstruction.setOperation(rs.getString("operation"));
-                    previousInstruction.setParentId(rs.getInt("parent_id"));
-
-                    previousInstructionId = currentInstructionId;
-
-                    previousInstruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
-                    previousBlock.getBlockLoopInstructionLoadDTOS().add(previousInstruction);
-                }
-
-                String referenceType = rs.getString("reference_type");
-                if (referenceType != null) {
-                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
-                    reference.setReferenceType(referenceType);
-                    reference.setValue(rs.getString("value"));
-                    previousInstruction.getInstructionReferenceLoadDTOList().add(reference);
-                }
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRScannedElementPane.class).severe("LoadBlockAll - Error: " + e.getMessage());
-        }
-    }
+    //    private void loadBlockAll(int botJobId) {
+    //        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
+    //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
+    //                + " b.description AS block_description, b.type_id, "
+    //                + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
+    //                + " bli.actions, bli.name AS instruction_name, bli.path, bli.description AS
+    // instruction_description, "
+    //                + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
+    //                + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
+    //                + " irl.reference_type, irl.value, "
+    //                + "  bli.operation, bli.parent_id, "
+    //                + "  b.export_file "
+    //                + " FROM bot_job bj "
+    //                + " LEFT JOIN block b ON b.bot_job_id = bj.id "
+    //                + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
+    //                + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
+    //                + " where bot_job_id = " + botJobId
+    //                + " ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
+    //
+    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+    //                ResultSet rs = stmt.executeQuery(query)) {
+    //
+    //            botLoadJobs.clear();
+    //
+    //            int previousBotJobId = -1;
+    //            int previousBlockId = -1;
+    //            int previousInstructionId = -1;
+    //
+    //            BotJobLoadDTO previousBotJob = null;
+    //            BlockLoadDTO previousBlock = null;
+    //            BlockLoopInstructionLoadDTO previousInstruction = null;
+    //
+    //            while (rs.next()) {
+    //                int currentBotJobId = rs.getInt("bot_job_id");
+    //                if (previousBotJobId < 0 || previousBotJobId != currentBotJobId) {
+    //                    previousBotJob = new BotJobLoadDTO();
+    //                    previousBotJob.setId(currentBotJobId);
+    //                    previousBotJob.setName(rs.getString("bot_job_name"));
+    //                    previousBotJob.setBlockLoadDTOList(new ArrayList<>());
+    //                    botLoadJobs.add(previousBotJob);
+    //                    previousBotJobId = currentBotJobId;
+    //                }
+    //
+    //                int currentBlockId = rs.getInt("block_id");
+    //                if (previousBlockId < 0 || previousBlockId != currentBlockId) {
+    //                    previousBlock = new BlockLoadDTO();
+    //                    previousBlock.setId(currentBlockId);
+    //                    previousBlock.setBlockOrderNumber(rs.getInt("block_order_number"));
+    //                    previousBlock.setName(rs.getString("block_name"));
+    //                    previousBlock.setDescription(rs.getString("block_description"));
+    //                    previousBlock.setTypeId(rs.getInt("type_id"));
+    //                    previousBlock.setExportFile(rs.getString("export_file"));
+    //                    previousBlock.setBotJobId(previousBotJob.getId());
+    //                    previousBlock.setBotJobName(previousBotJob.getName());
+    //
+    //                    previousBlockId = currentBlockId;
+    //
+    //                    previousBlock.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
+    //                    previousBotJob.getBlockLoadDTOList().add(previousBlock);
+    //                }
+    //
+    //                int currentInstructionId = rs.getInt("block_loop_instruction_id");
+    //                if (previousInstructionId < 0 || previousInstructionId != currentInstructionId) {
+    //                    previousInstruction = new BlockLoopInstructionLoadDTO();
+    //                    previousInstruction.setId(currentInstructionId);
+    //                    previousInstruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+    //                    previousInstruction.setActions(rs.getString("actions"));
+    //                    previousInstruction.setName(rs.getString("instruction_name"));
+    //                    previousInstruction.setPath(rs.getString("path"));
+    //                    previousInstruction.setDescription(rs.getString("instruction_description"));
+    //                    previousInstruction.setOptional(rs.getInt("optional"));
+    //                    previousInstruction.setBlockMarked(rs.getBoolean("block_marked"));
+    //                    previousInstruction.setDefault_val(rs.getString("default_val"));
+    //                    previousInstruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+    //                    previousInstruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+    //                    previousInstruction.setEncrypted(rs.getInt("encrypted"));
+    //                    previousInstruction.setExportToABR(rs.getInt("export_to_abr"));
+    //                    previousInstruction.setOperation(rs.getString("operation"));
+    //                    previousInstruction.setParentId(rs.getInt("parent_id"));
+    //
+    //                    previousInstructionId = currentInstructionId;
+    //
+    //                    previousInstruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
+    //                    previousBlock.getBlockLoopInstructionLoadDTOS().add(previousInstruction);
+    //                }
+    //
+    //                String referenceType = rs.getString("reference_type");
+    //                if (referenceType != null) {
+    //                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+    //                    reference.setReferenceType(referenceType);
+    //                    reference.setValue(rs.getString("value"));
+    //                    previousInstruction.getInstructionReferenceLoadDTOList().add(reference);
+    //                }
+    //            }
+    //        } catch (SQLException e) {
+    //            ABRLogger.getInstance(ABRScannedElementPane.class).severe("LoadBlockAll - Error: " + e.getMessage());
+    //        }
+    //    }
 
     private void recallJob() {
         executeJob();

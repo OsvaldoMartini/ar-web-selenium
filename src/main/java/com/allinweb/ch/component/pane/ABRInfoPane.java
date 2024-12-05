@@ -28,8 +28,8 @@ public class ABRInfoPane extends ABRPane {
     @Override
     public void initUIComponents() {
         // Initialize labels with their corresponding text
-        applicationNameLabel = new Label("ABR Web Scan v0.9f Beta Test");
-        compileDateLabel = new Label("Build: 02-12-2024");
+        applicationNameLabel = new Label("ABR Web Scan v1.0f Beta Test");
+        compileDateLabel = new Label("Build: 05-12-2024");
         copyrightLabel = new Label("Copyright Allinweb AG");
         rightsReservedLabel = new Label("All rights reserved");
 

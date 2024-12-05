@@ -681,7 +681,8 @@ public class PerformDataBase {
                 + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
                 + " irl.reference_type, irl.value, "
-                + "  bli.operation, bli.parent_id "
+                + "  bli.operation, bli.parent_id, "
+                + "  b.export_file "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -723,6 +724,7 @@ public class PerformDataBase {
                     blockDTO.setTypeId(rs.getInt("type_id"));
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
+                    blockDTO.setExportFile(rs.getString("export_file"));
 
                     blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
                     botJobDTO.getBlockLoadDTOList().add(blockDTO);

@@ -767,22 +767,22 @@ public class PerformActions {
             return false;
         }
 
-        try {
-            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
-                ((JavascriptExecutor) abrWebDriver.getDriver())
-                        .executeScript("arguments[0].scrollIntoView(true);", element);
-                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
-            }));
-        } catch (Exception e) {
-            ABRLogger.getInstance(PerformActions.class)
-                    .fine(String.format(
-                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
-
-            if (!byPassNotFound) {
-                couldNotFindElement(element.getTagName());
-            }
-            return false;
-        }
+        //        try {
+        //            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+        //                ((JavascriptExecutor) abrWebDriver.getDriver())
+        //                        .executeScript("arguments[0].scrollIntoView(true);", element);
+        //                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+        //            }));
+        //        } catch (Exception e) {
+        //            ABRLogger.getInstance(PerformActions.class)
+        //                    .fine(String.format(
+        //                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+        //
+        //            if (!byPassNotFound) {
+        //                couldNotFindElement(element.getTagName());
+        //            }
+        //            return false;
+        //        }
 
         try {
             element.click();
