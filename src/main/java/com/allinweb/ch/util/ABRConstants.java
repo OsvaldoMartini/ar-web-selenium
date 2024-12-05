@@ -108,6 +108,9 @@ public class ABRConstants {
     public static final String FOCUS = "FOCUS";
     public static final String SELECT = "SELECT";
 
+    public static final String COORD_VISUALIZA = "COORD_VISUALIZA";
+    public static final String COORD_CLICK = "COORD_CLICK";
+    public static final String COORD_INSERT = "COORD_INSERT";
     public static final String VISUALIZE = "V";
     public static final String OUTPUT = "O";
     public static final String HIDDEN = "hidden";

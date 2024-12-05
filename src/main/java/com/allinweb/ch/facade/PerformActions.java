@@ -160,7 +160,7 @@ public class PerformActions {
                     return passed;
                 case Constants.INSERT:
                     if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                        passed = insertDataInSelectElement(byPassNotFound, instructionElement, data);
+                        passed = insertDataInSelectElement(byPassNotFound, instructionElement, savedCoordinates, data);
 
                         if (!passed) {
                             // Try by coordinates
@@ -927,7 +927,8 @@ public class PerformActions {
         return new Pair<>(dataFieldName, dataFieldValue);
     }
 
-    private boolean insertDataInSelectElement(boolean byPassNotFound, WebElement element, Pair<String, String> data)
+    private boolean insertDataInSelectElement(
+            boolean byPassNotFound, WebElement element, String coordinates, Pair<String, String> data)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
@@ -948,7 +949,7 @@ public class PerformActions {
             //            // Select "Switzerland" by visible text
             //            selectCountry.selectByVisibleText(data.getValue());
 
-            sequenceOfCommands(element, ABRConstants.SELECT, data.getValue(), abrWebDriver.getDriver());
+            sequenceOfCommands(element, ABRConstants.SELECT, coordinates, data, abrWebDriver.getDriver());
 
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
@@ -2091,7 +2092,12 @@ public class PerformActions {
         new Actions(abrWebDriver.getDriver()).sendKeys(fieldData.getValue()).perform();
     }
 
-    public String sequenceOfCommands(WebElement element, String typeCommand, String inputText, WebDriver driver) {
+    public String sequenceOfCommands(
+            WebElement element,
+            String typeCommand,
+            String coordinates,
+            Pair<String, String> fieldData,
+            WebDriver driver) {
 
         String message = "Nothing to execute";
         try {
@@ -2099,7 +2105,7 @@ public class PerformActions {
                 // Create a Select instance to interact with the dropdown
                 message = "Select(element)";
                 Select selectCountry = new Select(element);
-                selectCountry.selectByVisibleText(inputText);
+                selectCountry.selectByVisibleText(fieldData.getValue());
             } else if (typeCommand.equals(ABRConstants.CLEAR)) {
                 message = "clear()";
                 element.clear();
@@ -2107,8 +2113,8 @@ public class PerformActions {
                 message = "click()";
                 element.click();
             } else if (typeCommand.equals(ABRConstants.INSERT)) {
-                message = "sendKeys(\"" + inputText + "\")";
-                element.sendKeys(inputText);
+                message = "sendKeys(\"" + fieldData.getValue() + "\")";
+                element.sendKeys(fieldData.getValue());
             } else if (typeCommand.equals(ABRConstants.TAB)) {
                 message = "(Keys.TAB)";
                 element.sendKeys(Keys.TAB);
@@ -2118,7 +2124,17 @@ public class PerformActions {
             } else if (typeCommand.equals(ABRConstants.FOCUS)) {
                 message = "focusElement(element, driver)";
                 focusElement(element, driver);
+            } else if (typeCommand.equals(ABRConstants.COORD_VISUALIZA)) {
+                message = "Coordinates COORD_VISUALIZA";
+                executeActionsAtCoordinates(coordinates, fieldData, ABRConstants.VISUALIZE);
+            } else if (typeCommand.equals(ABRConstants.COORD_CLICK)) {
+                message = "Coordinates COORD_CLICK";
+                executeActionsAtCoordinates(coordinates, fieldData, ABRConstants.CLICK);
+            } else if (typeCommand.equals(ABRConstants.COORD_INSERT)) {
+                message = "Coordinates COORD_INSERT";
+                executeActionsAtCoordinates(coordinates, fieldData, ABRConstants.INSERT);
             }
+
             return "Success " + message;
 
         } catch (Exception ex) {

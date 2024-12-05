@@ -1677,6 +1677,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         EventHandler<MouseEvent> mouseClickedHandler = mouseEvent -> {
             if (mouseEvent.getClickCount() == 2) {
+                // Double clicked the element
                 if (abrWebElement.getSavedReferences().size() == 0) {
 
                     Text variableText1Styled = new Text(String.format(
@@ -1740,11 +1741,12 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                     }
 
-                    if (elementFinder != null) {
-                        abrWebElement.setElement(elementFinder);
-                    }
+                    //                    if (elementFinder != null) {
+                    //                        abrWebElement.setElement(elementFinder);
+                    //                    }
 
-                    if (abrWebElement.getElement() != null
+                    if (elementFinder != null
+                            && abrWebElement.getElement() != null
                             && abrWebElement.getElement().getTagName() != null) {
                         elemTagName = abrWebElement.getElement().getTagName();
                     }
@@ -1766,52 +1768,62 @@ public class ABRScannedElementPane extends ABRPane {
                             //                                elementXPath.click();
                             //                            }
 
+                            Pair<String, String> fieldData = new Pair<>("Test", testActionsField.getText());
+
                             String result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.SELECT,
-                                    testActionsField.getText(),
+                                    coordsTextField.getText(),
+                                    fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.CLICK,
-                                    testActionsField.getText(),
+                                    coordsTextField.getText(),
+                                    fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.GET_VALUE,
-                                    testActionsField.getText(),
+                                    coordsTextField.getText(),
+                                    fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.CLEAR,
-                                    testActionsField.getText(),
+                                    coordsTextField.getText(),
+                                    fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.INSERT,
-                                    testActionsField.getText(),
+                                    coordsTextField.getText(),
+                                    fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.GET_VALUE,
-                                    testActionsField.getText(),
+                                    coordsTextField.getText(),
+                                    fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.FOCUS,
-                                    testActionsField.getText(),
+                                    coordsTextField.getText(),
+                                    fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.TAB,
-                                    testActionsField.getText(),
+                                    coordsTextField.getText(),
+                                    fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                         }
@@ -4187,6 +4199,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             performAction.searchElement(currentInstruction, this.botJob.getId());
                                 } catch (Exception ex) {
                                     extraMsg = "Element not found. Please try rescanning.!";
+                                    success = false;
                                 }
 
                                 if (webElementFound == null) {
@@ -4198,7 +4211,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
                                 }
 
-                                if (webElementFound != null) {
+                                if (webElementFound != null && success) {
 
                                     byPassNotFound = byPassFlagLoop || ifClause || elseClause;
 
@@ -4222,7 +4235,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
-                                if (resultActions.contains("Error:") || webElementFound == null || !success) {
+                                if (resultActions.contains("Error:") || !success) {
                                     resultActions = "Failed " + resultActions;
                                     success = false;
                                 } else if (resultActions != null && success) {
@@ -4986,7 +4999,7 @@ public class ABRScannedElementPane extends ABRPane {
                         + attributeValue + ", XPath: " + xpath);
 
                 try {
-                    
+
                     if (listABRElements.size() < 30) {
                         addProgressBar(1);
                     }
