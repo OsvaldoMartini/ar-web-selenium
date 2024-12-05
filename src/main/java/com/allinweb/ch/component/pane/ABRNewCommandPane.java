@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
@@ -152,20 +153,21 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxVars> comboBoxWebPage;
     private ObservableList<ComboBoxVars> webPageItems;
 
+    private List<BotJobLoadDTO> botJobLoadList;
+
     private ComboBox<ComboBoxVars> comboBoxAllBlocks;
     private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
+
+    private ComboBox<ComboBoxVars> comboBoxBlocks;
+    private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
-    private List<BlockLoadDTO> blockLoadList;
-    private ComboBox<ComboBoxVars> comboBoxBlocks;
-    private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
-
     public ABRNewCommandPane(
-            RowMoveDTO rowMoveDTO, List<BlockLoadDTO> blockLoadList, ObservableList<ComboBoxVars> webPageItems) {
+            RowMoveDTO rowMoveDTO, List<BotJobLoadDTO> botJobLoadList, ObservableList<ComboBoxVars> webPageItems) {
         this.rowMoveDTO = rowMoveDTO;
-        this.blockLoadList = blockLoadList;
+        this.botJobLoadList = botJobLoadList;
         this.webPageItems = webPageItems;
 
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
@@ -249,9 +251,15 @@ public class ABRNewCommandPane extends ABRPane {
             loadJobVariables(webPageItems.get(0).getVarId());
         }
 
-        if (this.blockLoadList != null && this.blockLoadList.size() > 0) {
-            loadBlockItems(this.blockLoadList, rowMoveDTO.getBlockId());
-            loadAllBlockItems(this.blockLoadList);
+        if (this.botJobLoadList != null && this.botJobLoadList.size() > 0) {
+            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
+                loadBlockItems(botJobLoadDTO.getBlockLoadDTOList(), rowMoveDTO.getBlockId());
+            }
+            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {}
+
+            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
+                loadAllBlockItems(botJobLoadDTO.getBlockLoadDTOList());
+            }
         }
     }
 
@@ -1709,19 +1717,23 @@ public class ABRNewCommandPane extends ABRPane {
 
     private void loadBlockItems(List<BlockLoadDTO> blockLoadDTOList, int blockToAvoid) {
         blocksItems.clear();
-        for (BlockLoadDTO block : blockLoadDTOList) {
-            if (block.getId() != blockToAvoid)
-                blocksItems.add(new ComboBoxVars(
-                        block.getBlockOrderNumber() + "# " + block.getName(),
-                        block.getName(),
-                        block.getBlockOrderNumber(),
-                        block.getId()));
+        if (blockLoadDTOList.size() > 1) {
+            for (BlockLoadDTO block : blockLoadDTOList) {
+                if (block.getId() != blockToAvoid)
+                    blocksItems.add(new ComboBoxVars(
+                            block.getBlockOrderNumber() + "# " + block.getName(),
+                            block.getName(),
+                            block.getBlockOrderNumber(),
+                            block.getId()));
+            }
         }
     }
 
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         allBlocksItems.clear();
-        allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1));
+        if (blockLoadDTOList.size() > 1) {
+            allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1));
+        }
         for (BlockLoadDTO block : blockLoadDTOList) {
             allBlocksItems.add(new ComboBoxVars(
                     block.getBlockOrderNumber() + "# " + block.getName().trim(),
@@ -2107,7 +2119,7 @@ public class ABRNewCommandPane extends ABRPane {
         return false;
     }
 
-    public List<BlockLoadDTO> loadBlocksForBotJob(int botJobId) {
+    public List<BotJobLoadDTO> loadBlocksForBotJob(int botJobId) {
         // SQL query to get the blocks for a specific bot job
         String query = "SELECT " + "b.id AS block_id, "
                 + "b.block_order_number, "
@@ -2123,8 +2135,8 @@ public class ABRNewCommandPane extends ABRPane {
                 "ORDER BY b.block_order_number ASC";
 
         // Initialize the necessary data structures
-        blockLoadList.clear();
-        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
+        botJobLoadList.clear();
+        Map<Integer, BotJobLoadDTO> blockMap = new HashMap<>();
 
         // Use Statement to execute the query
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
@@ -2133,10 +2145,10 @@ public class ABRNewCommandPane extends ABRPane {
             while (rs.next()) {
                 // Load the Block information
                 int blockId = rs.getInt("block_id");
-                BlockLoadDTO blockDTO = blockMap.get(blockId);
+                BotJobLoadDTO blockDTO = blockMap.get(blockId);
 
                 if (blockDTO == null) {
-                    blockDTO = new BlockLoadDTO();
+                    blockDTO = new BotJobLoadDTO();
                     blockDTO.setId(blockId);
                     blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
                     blockDTO.setName(rs.getString("block_name"));
@@ -2146,7 +2158,7 @@ public class ABRNewCommandPane extends ABRPane {
                     blockDTO.setBotJobName(rs.getString("bot_job_name"));
 
                     blockMap.put(blockId, blockDTO);
-                    blockLoadList.add(blockDTO);
+                    botJobLoadList.add(blockDTO);
                 }
             }
         } catch (SQLException e) {
@@ -2154,7 +2166,7 @@ public class ABRNewCommandPane extends ABRPane {
                     .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
 
-        return blockLoadList;
+        return botJobLoadList;
     }
 
     private void runAddInstructionTask(
@@ -2177,17 +2189,17 @@ public class ABRNewCommandPane extends ABRPane {
         preInsertStep(rowMoveDTO, rowList);
 
         List<BlockLoopInstructionLoadDTO> instructionList = null;
-        List<BlockLoadDTO> matchingBlocks = null;
+        List<BotJobLoadDTO> matchingBlocks = null;
 
         if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
             int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
 
-            matchingBlocks = blockLoadList.stream()
+            matchingBlocks = botJobLoadList.stream()
                     .filter(block -> block.getId() == targetBlockId)
                     .collect(Collectors.toList());
         }
 
-        List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
+        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
         List<InstructionDTO> finalInstructionList = rowList;
         Task<Void> waitTask = new Task<>() {
             @Override
@@ -2297,17 +2309,17 @@ public class ABRNewCommandPane extends ABRPane {
         preInsertStep(rowMoveDTO, rowList);
 
         List<BlockLoopInstructionLoadDTO> instructionList = null;
-        List<BlockLoadDTO> matchingBlocks = null;
+        List<BotJobLoadDTO> matchingBlocks = null;
 
         if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
             int targetBlockId = rowMoveDTO.getBlockId();
 
-            matchingBlocks = blockLoadList.stream()
+            matchingBlocks = botJobLoadList.stream()
                     .filter(block -> block.getId() == targetBlockId)
                     .collect(Collectors.toList());
         }
 
-        List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
+        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
         List<InstructionDTO> finalInstructionList = rowList;
         BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
 

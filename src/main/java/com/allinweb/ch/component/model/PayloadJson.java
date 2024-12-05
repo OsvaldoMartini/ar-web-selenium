@@ -3,11 +3,11 @@ package com.allinweb.ch.component.model;
 public class PayloadJson {
     private int id;
     private String name;
-    private int data;
+    private int instructionId;
 
-    public PayloadJson(int botJobId, String name, int data) {
+    public PayloadJson(int botJobId, String name, int instructionId) {
         this.id = botJobId;
         this.name = name;
-        this.data = data;
+        this.instructionId = instructionId;
     }
 }
