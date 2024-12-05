@@ -124,6 +124,7 @@ public class ABRNewCommandPane extends ABRPane {
     private Button addWaitButton30;
     private Button addWaitButton15;
     private Button addWaitButton5;
+    private Button addWaitButton2;
     private Button addCloseActionButton;
     private Button addScreenButton;
 
@@ -688,6 +689,9 @@ public class ABRNewCommandPane extends ABRPane {
         addWaitButton5 = componentBuilder.buildButton(
                 "5s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
 
+        addWaitButton2 = componentBuilder.buildButton(
+                "2s", ABRConstants.SPACE_L, ABRConstants.ICON_WAIT, ABRConstants.SPACE_M, new Insets(5));
+
         addCloseActionButton = componentBuilder.buildButton(
                 "Add Close Browser",
                 ABRConstants.SPACE_L,
@@ -707,6 +711,7 @@ public class ABRNewCommandPane extends ABRPane {
                         addWaitButton30,
                         addWaitButton15,
                         addWaitButton5,
+                        addWaitButton2,
                         addCloseActionButton,
                         addScreenButton);
 
@@ -843,6 +848,8 @@ public class ABRNewCommandPane extends ABRPane {
                 "Wait 15second(s)", "Waiting action", ABRConstants.HOLD, 15, "", null, null, rowMoveDTO));
         addWaitButton5.setOnAction(e ->
                 addInstruction("Wait 5second(s)", "Waiting action", ABRConstants.HOLD, 5, "", null, null, rowMoveDTO));
+        addWaitButton2.setOnAction(e ->
+                addInstruction("Wait 2second(s)", "Waiting action", ABRConstants.HOLD, 2, "", null, null, rowMoveDTO));
         addCloseActionButton.setOnAction(e ->
                 addInstruction("Close Browser", "Close Browser", ABRConstants.QUIT, 0, "", null, null, rowMoveDTO));
 

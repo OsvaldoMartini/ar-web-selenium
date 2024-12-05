@@ -40,6 +40,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,7 @@ public class PerformActions {
     protected static final SingletonSupplier<PerformActions> instance = () -> new PerformActions();
 
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+
     // Private constructor to prevent instantiation
     private PerformActions() {
         // Initialize if necessary
@@ -119,6 +121,7 @@ public class PerformActions {
 
     public boolean performWebActions(
             boolean byPassNotFound,
+            String savedCoordinates,
             Pair<String, String> data,
             BlockLoopInstructionLoadDTO currentInstruction,
             Map<String, String> mapOperators,
@@ -127,10 +130,17 @@ public class PerformActions {
             throws Exception {
 
         if (instructionElement != null) {
-
+            boolean passed = true;
             switch (actions[0]) {
                 case Constants.VISUALIZE:
-                    return scrollToElement(byPassNotFound, instructionElement);
+                    passed = scrollToElement(byPassNotFound, instructionElement);
+
+                    if (!passed) {
+                        // Try by coordinates
+                        Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                        passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.VISUALIZE);
+                    }
+                    return passed;
                 case Constants.OUTPUT:
                     String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
                     return getOutPutElement(
@@ -141,17 +151,35 @@ public class PerformActions {
                             mapOperators);
                 case Constants.CLICK:
                 case Constants.OTHER:
-                    return clickElement(byPassNotFound, instructionElement);
+                    passed = clickElement(byPassNotFound, instructionElement);
+                    if (!passed) {
+                        // Try by coordinates
+                        Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                        passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.CLICK);
+                    }
+                    return passed;
                 case Constants.INSERT:
                     if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                        return insertDataInSelectElement(byPassNotFound, instructionElement, data);
+                        passed = insertDataInSelectElement(byPassNotFound, instructionElement, data);
+
+                        if (!passed) {
+                            // Try by coordinates
+                            passed = executeActionsAtCoordinates(savedCoordinates, data, ABRConstants.SELECT);
+                        }
+                        return passed;
                     } else {
-                        return insertInElement(
+                        passed = insertInElement(
                                 byPassNotFound,
                                 instructionElement,
                                 data.getValue(),
                                 currentInstruction.getDefaultValue(),
                                 currentInstruction.isEncrypted());
+
+                        if (!passed) {
+                            // Try by coordinates
+                            passed = executeActionsAtCoordinates(savedCoordinates, data, ABRConstants.INSERT);
+                        }
+                        return passed;
                     }
             }
 
@@ -916,9 +944,11 @@ public class PerformActions {
 
         try {
             // Create a Select instance to interact with the dropdown
-            Select selectCountry = new Select(element);
-            // Select "Switzerland" by visible text
-            selectCountry.selectByVisibleText(data.getValue());
+            //            Select selectCountry = new Select(element);
+            //            // Select "Switzerland" by visible text
+            //            selectCountry.selectByVisibleText(data.getValue());
+
+            sequenceOfCommands(element, ABRConstants.SELECT, data.getValue(), abrWebDriver.getDriver());
 
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
@@ -1897,7 +1927,7 @@ public class PerformActions {
                 element);
     }
 
-    private void executeActionsAtInstructionCoordinates(
+    public void executeActionsAtInstructionCoordinates(
             BlockLoopInstructionLoadDTO currentInstruction, Pair<String, String> data) throws Exception {
 
         List<com.allinweb.ch.util.Priority> priorityList = ABRPriorities.getAllPriorityList();
@@ -1951,6 +1981,65 @@ public class PerformActions {
         }
     }
 
+    public Map<String, String> calculateCoordinates(String savedCoordinates) {
+        int x = 0;
+        int y = 0;
+        int xCoord = 0;
+        int yCoord = 0;
+        String[] coordinates = savedCoordinates.split(ABRConstants.FIELDS_SEPARATOR);
+        x = Integer.parseInt(coordinates[0]);
+        y = Integer.parseInt(coordinates[1]);
+        int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
+        int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
+        int offsetY = y - maxHeight;
+        int offsetX = x - maxWidth;
+        xCoord = x > maxWidth ? x - offsetX : x;
+        yCoord = y > maxHeight ? y - offsetY : y;
+
+        Map<String, String> mapCoordinates = new HashMap<>();
+
+        mapCoordinates.put("ScrollTo", x + ":" + y);
+        mapCoordinates.put("ClickOn", xCoord + ":" + yCoord);
+        return mapCoordinates;
+    }
+
+    public boolean executeActionsAtCoordinates(String savedCoordinates, Pair<String, String> data, String action) {
+
+        int x = 0;
+        int y = 0;
+        int xCoord = 0;
+        int yCoord = 0;
+        try {
+            String[] coordinates = savedCoordinates.split(ABRConstants.FIELDS_SEPARATOR);
+            x = Integer.parseInt(coordinates[0]);
+            y = Integer.parseInt(coordinates[1]);
+            int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
+            int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
+            int offsetY = y - maxHeight;
+            int offsetX = x - maxWidth;
+            xCoord = x > maxWidth ? x - offsetX : x;
+            yCoord = y > maxHeight ? y - offsetY : y;
+
+            if (ABRConstants.VISUALIZE.equals(action)) {
+                scrollToCoordinates(x, y);
+            } else if (ABRConstants.CLICK.equals(action)) {
+                scrollToCoordinates(x, y);
+                onHoldForSeconds(null);
+                clickAtCoordinates(xCoord, yCoord);
+            } else if (ABRConstants.INSERT.equals(action)) {
+                scrollToCoordinates(x, y);
+                onHoldForSeconds(null);
+                clickAtCoordinates(xCoord, yCoord);
+                onHoldForSeconds(null);
+                typeCharacters(data);
+            }
+            onHoldForSeconds(null);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private void scrollToCoordinates(int x, int y) {
         int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
         int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
@@ -2000,5 +2089,48 @@ public class PerformActions {
 
     private void typeCharacters(Pair<String, String> fieldData) {
         new Actions(abrWebDriver.getDriver()).sendKeys(fieldData.getValue()).perform();
+    }
+
+    public String sequenceOfCommands(WebElement element, String typeCommand, String inputText, WebDriver driver) {
+
+        String message = "Nothing to execute";
+        try {
+            if (typeCommand.equals(ABRConstants.SELECT)) {
+                // Create a Select instance to interact with the dropdown
+                message = "Select(element)";
+                Select selectCountry = new Select(element);
+                selectCountry.selectByVisibleText(inputText);
+            } else if (typeCommand.equals(ABRConstants.CLEAR)) {
+                message = "clear()";
+                element.clear();
+            } else if (typeCommand.equals(ABRConstants.CLICK)) {
+                message = "click()";
+                element.click();
+            } else if (typeCommand.equals(ABRConstants.INSERT)) {
+                message = "sendKeys(\"" + inputText + "\")";
+                element.sendKeys(inputText);
+            } else if (typeCommand.equals(ABRConstants.TAB)) {
+                message = "(Keys.TAB)";
+                element.sendKeys(Keys.TAB);
+            } else if (typeCommand.equals(ABRConstants.GET_VALUE)) {
+                message = "getText()";
+                element.getText();
+            } else if (typeCommand.equals(ABRConstants.FOCUS)) {
+                message = "focusElement(element, driver)";
+                focusElement(element, driver);
+            }
+            return "Success " + message;
+
+        } catch (Exception ex) {
+            return "Failed Attempt " + message;
+        }
+    }
+
+    private void focusElement(WebElement element, WebDriver driver) {
+        JavascriptExecutor js = (JavascriptExecutor) driver;
+        js.executeScript("arguments[0].focus();", element);
+
+        Actions actions = new Actions(driver);
+        actions.moveToElement(element).perform();
     }
 }

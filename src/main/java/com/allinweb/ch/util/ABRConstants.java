@@ -100,13 +100,19 @@ public class ABRConstants {
     public static final String ICON_DIFFERENT = "/different.png";
 
     // ACTION CODES
+    public static final String CLEAR = "CLEAR";
+    public static final String TAB = "TAB";
+    public static final String SEND_KEYS = "SEND_KEYS";
+    public static final String INSERT = "I";
+    public static final String CLICK = "C";
+    public static final String FOCUS = "FOCUS";
+    public static final String SELECT = "SELECT";
+
     public static final String VISUALIZE = "V";
     public static final String OUTPUT = "O";
     public static final String HIDDEN = "hidden";
     public static final String OTHER = "W";
-    public static final String CLICK = "C";
     public static final String SEARCH = "S";
-    public static final String INSERT = "I";
     public static final String HOLD = "H";
     public static final String REFRESH_ONLY = "REFRESH";
     public static final String REFRESH_LOOP = "REFRESH_LOOP";

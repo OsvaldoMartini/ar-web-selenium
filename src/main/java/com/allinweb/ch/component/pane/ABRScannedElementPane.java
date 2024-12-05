@@ -137,6 +137,8 @@ public class ABRScannedElementPane extends ABRPane {
     private Button magicFieldsButton;
     private Button leftButton;
     private Button rightButton;
+    private Button cleanListButton;
+
     private CheckBox checkBoxAction;
     private CheckBox checkActiveHover;
     private CheckBox checkClickElement;
@@ -154,6 +156,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private Text currentURL;
     private TextField defineNameField;
+    private TextField testActionsField;
     private TextArea countdownTextField;
     private TextField attribIdTextField;
     private TextField attribNameTextField;
@@ -299,7 +302,17 @@ public class ABRScannedElementPane extends ABRPane {
                 "Other Elements", ABRConstants.SPACE_ZERO, "/refresh.png", ABRConstants.SPACE_M, new Insets(5.0D));
         magicFieldsButton = componentBuilder.buildButton(
                 "", ABRConstants.SPACE_ZERO, "/magic2.png", ABRConstants.SPACE_M, new Insets(5.0D));
-        checkBoxAction = new CheckBox("Test Action\n(RELEASE AFTER USE)");
+        magicFieldsButton.setDisable(true);
+
+        cleanListButton = componentBuilder.buildButton(
+                "", // No text
+                25.0, // Smaller height
+                "/cross.png", // Icon source
+                16.0, // Smaller icon size
+                new Insets(2.0) // Reduced padding
+                );
+
+        checkBoxAction = new CheckBox("Test Actions");
         checkClickElement = new CheckBox("For Click");
         //        checkClickElement.setSelected(true);
         checkInputText = new CheckBox("For Input");
@@ -380,6 +393,12 @@ public class ABRScannedElementPane extends ABRPane {
 
         leftButton.setOnAction(e -> switchToLeftTab());
         rightButton.setOnAction(e -> switchToRightTab());
+
+        cleanListButton.setOnAction(e -> {
+            //            webElementObservableList1.clear();
+            //            webElementObservableList2.clear();
+            webElementObservableList3.clear();
+        });
 
         currentURL = new Text("");
         currentURL.setFill(Color.BLUE);
@@ -504,6 +523,16 @@ public class ABRScannedElementPane extends ABRPane {
 
             HBox boxName = new HBox();
             boxName.getChildren().addAll(defineNameField, addNewElement);
+            HBox boxActions = new HBox();
+            boxActions.setSpacing(5);
+
+            // Set proportional widths for each child
+            testActionsField = new TextField("0001");
+            checkBoxAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.5));
+            testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.5));
+
+            // Add elements to the HBox
+            boxActions.getChildren().addAll(checkBoxAction, testActionsField);
 
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
@@ -530,10 +559,10 @@ public class ABRScannedElementPane extends ABRPane {
                             coordsTextField,
                             vBoxCheckBox,
                             createCustomSeparator(Color.DARKBLUE, 2),
-                            createSpacer(),
+                            createSpacerVert(),
                             countdownTextField,
-                            checkBoxAction,
-                            createSpacer(),
+                            boxActions,
+                            createSpacerVert(),
                             createCustomSeparator(Color.DARKBLUE, 2),
                             hBoxLaunchButon,
                             configureButton);
@@ -544,6 +573,9 @@ public class ABRScannedElementPane extends ABRPane {
             originalTagNameField.setVisible(false);
             currentAbsoluteXPathLabel.setVisible(false);
             absolutXPathTextField.setVisible(false);
+
+            // Bind button widths to VBox width
+            boxActions.maxWidthProperty().bind(textFieldVBox.widthProperty());
 
             // Bind button widths to VBox width
             addNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
@@ -592,7 +624,11 @@ public class ABRScannedElementPane extends ABRPane {
 
             Label labelOthers = new Label("Other Elements Results (Config)");
             StackPane stackLabelOthers = new StackPane();
-            stackLabelOthers.getChildren().add(labelOthers);
+            HBox othersBox = new HBox();
+            createSpacerHoriz();
+            othersBox.getChildren().addAll(labelOthers, createSpacerHoriz(), cleanListButton);
+            stackLabelOthers.getChildren().addAll(othersBox);
+
             stackLabelOthers.setAlignment(Pos.CENTER);
             VBox elements3VBox = new VBox(stackLabelOthers, scannedElements3);
 
@@ -735,7 +771,14 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private Node createSpacer() {
+    private Node createSpacerVert() {
+        // Create a Region as a spacer
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS); // Make spacer expand vertically
+        return spacer;
+    }
+
+    private Node createSpacerHoriz() {
         // Create a Region as a spacer
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS); // Make spacer expand vertically
@@ -1673,11 +1716,28 @@ public class ABRScannedElementPane extends ABRPane {
                                 abrWebElement.getSavedReferences().get("coordinates"));
                     }
 
-                    WebElement elementFinder =
-                            abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getMainXPath()));
+                    WebElement elementFinder = null;
+                    try {
+                        elementFinder = abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getMainXPath()));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
 
                     if (elementFinder == null) {
                         // Try by coordinates
+                        Pair<String, String> filedData = new Pair("martini", "Martini");
+                        try {
+                            performAction.executeActionsAtCoordinates(
+                                    abrWebElement.getSavedReferences().get("coordinates"),
+                                    filedData,
+                                    ABRConstants.CLICK);
+
+                            // It Means Did Not Failed to Coordinates
+                            // I am Setting here to avoid the Not Found Message
+                            elementFinder = abrWebElement.getElement();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
 
                     if (elementFinder != null) {
@@ -1706,7 +1766,54 @@ public class ABRScannedElementPane extends ABRPane {
                             //                                elementXPath.click();
                             //                            }
 
-                            abrWebElement.getElement().click();
+                            String result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.SELECT,
+                                    testActionsField.getText(),
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.CLICK,
+                                    testActionsField.getText(),
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.GET_VALUE,
+                                    testActionsField.getText(),
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.CLEAR,
+                                    testActionsField.getText(),
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.INSERT,
+                                    testActionsField.getText(),
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.GET_VALUE,
+                                    testActionsField.getText(),
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.FOCUS,
+                                    testActionsField.getText(),
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.TAB,
+                                    testActionsField.getText(),
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
                         }
                         //                                abrWebElement.getElement().click();
                     } catch (Exception e) {
@@ -3466,6 +3573,9 @@ public class ABRScannedElementPane extends ABRPane {
             execLimitReach = Integer.parseInt(limitReach);
         }
 
+        Map<String, String> mapSavedLocators = new HashMap<>();
+        Map<String, String> coordenates = new HashMap<>();
+
         Set<Integer> parentIdsForRefreshLoop = null;
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
@@ -3514,6 +3624,17 @@ public class ABRScannedElementPane extends ABRPane {
 
                         BlockLoopInstructionLoadDTO currentInstruction =
                                 blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
+
+                        mapSavedLocators.clear();
+
+                        // Loop through the instructionReferenceLoadDTOList
+                        if (currentInstruction.getInstructionReferenceLoadDTOList() != null) {
+                            for (InstructionReferenceLoadDTO reference :
+                                    currentInstruction.getInstructionReferenceLoadDTOList()) {
+                                // Populate the map with referenceType as the key and value as the value
+                                mapSavedLocators.put(reference.getReferenceType(), reference.getValue());
+                            }
+                        }
 
                         currentIndex++;
 
@@ -4053,6 +4174,13 @@ public class ABRScannedElementPane extends ABRPane {
                                     continue;
                                 }
 
+                                // Extract dataFieldName and dataFieldValue using a separate method
+                                Pair<String, String> fieldData = performAction.extractFieldData(
+                                        dataExcel,
+                                        actions,
+                                        currentInstruction.getDefaultValue(),
+                                        currentInstruction.getEncrypted() > 0);
+
                                 WebElement webElementFound = null;
                                 try {
                                     webElementFound =
@@ -4061,18 +4189,22 @@ public class ABRScannedElementPane extends ABRPane {
                                     extraMsg = "Element not found. Please try rescanning.!";
                                 }
 
+                                if (webElementFound == null) {
+                                    if (actions[0].equalsIgnoreCase(ABRConstants.VISUALIZE)
+                                            || actions[0].equalsIgnoreCase(ABRConstants.CLICK)
+                                            || actions[0].equalsIgnoreCase(ABRConstants.INSERT)) {
+                                        success = performAction.executeActionsAtCoordinates(
+                                                mapSavedLocators.get("coordinates"), fieldData, actions[0]);
+                                    }
+                                }
+
                                 if (webElementFound != null) {
-                                    // Extract dataFieldName and dataFieldValue using a separate method
-                                    Pair<String, String> fieldData = performAction.extractFieldData(
-                                            dataExcel,
-                                            actions,
-                                            currentInstruction.getDefaultValue(),
-                                            currentInstruction.getEncrypted() > 0);
 
                                     byPassNotFound = byPassFlagLoop || ifClause || elseClause;
 
                                     success = performAction.performWebActions(
                                             byPassNotFound,
+                                            mapSavedLocators.get("coordinates"),
                                             fieldData,
                                             currentInstruction,
                                             mapOperators,
@@ -4113,11 +4245,6 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
 
                                 if (byPassFlagLoop) {
-                                    Pair<String, String> fieldData = performAction.extractFieldData(
-                                            dataExcel,
-                                            actions,
-                                            currentInstruction.getDefaultValue(),
-                                            currentInstruction.getEncrypted() > 0);
 
                                     resultActions = "By Passing Loop Flag "
                                             + performAction.actionResultMessage(blockName, actions, fieldData);
@@ -4566,6 +4693,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                         success = performAction.performWebActions(
                                 byPassNotFound,
+                                mapSavedLocators.get("coordinates"),
                                 dataDynamic,
                                 currentInstruction,
                                 mapOperators,
@@ -4858,6 +4986,7 @@ public class ABRScannedElementPane extends ABRPane {
                         + attributeValue + ", XPath: " + xpath);
 
                 try {
+                    
                     if (listABRElements.size() < 30) {
                         addProgressBar(1);
                     }
