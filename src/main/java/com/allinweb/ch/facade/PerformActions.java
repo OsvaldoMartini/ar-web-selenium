@@ -61,6 +61,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.ElementClickInterceptedException;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
@@ -119,6 +120,20 @@ public class PerformActions {
         return instructionElement;
     }
 
+    public WebElement getElementAtCoordinates(int x, int y, WebDriver driver) {
+        String script = "return document.elementFromPoint(arguments[0], arguments[1]);";
+
+        // Execute the script and retrieve the element
+        Object element = ((JavascriptExecutor) driver).executeScript(script, x, y);
+
+        // Check if the returned element is not null and cast it to WebElement
+        if (element instanceof WebElement) {
+            return (WebElement) element;
+        } else {
+            throw new NoSuchElementException("No element found at the given coordinates: (" + x + ", " + y + ")");
+        }
+    }
+
     public boolean performWebActions(
             boolean byPassNotFound,
             String savedCoordinates,
@@ -129,64 +144,84 @@ public class PerformActions {
             String actions[])
             throws Exception {
 
-        if (instructionElement != null) {
-            boolean passed = true;
-            switch (actions[0]) {
-                case Constants.VISUALIZE:
-                    passed = scrollToElement(byPassNotFound, instructionElement);
+        WebDriver originalDriver = abrWebDriver.getDriver(); // Save the original WebDriver state
+        boolean switchedToIframe = false;
 
-                    if (!passed) {
-                        // Try by coordinates
-                        Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                        passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.VISUALIZE);
-                    }
-                    return passed;
-                case Constants.OUTPUT:
-                    String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
-                    return getOutPutElement(
-                            byPassNotFound,
-                            instructionElement,
-                            fieldName,
-                            currentInstruction.getActions(),
-                            mapOperators);
-                case Constants.CLICK:
-                case Constants.OTHER:
-                    passed = clickElement(byPassNotFound, instructionElement);
-                    if (!passed) {
-                        // Try by coordinates
-                        Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                        passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.CLICK);
-                    }
-                    return passed;
-                case Constants.INSERT:
-                    if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
-                        passed = insertDataInSelectElement(byPassNotFound, instructionElement, savedCoordinates, data);
-
-                        if (!passed) {
-                            // Try by coordinates
-                            passed = executeActionsAtCoordinates(savedCoordinates, data, ABRConstants.SELECT);
-                        }
-                        return passed;
-                    } else {
-                        passed = insertInElement(
-                                byPassNotFound,
-                                instructionElement,
-                                data.getValue(),
-                                currentInstruction.getDefaultValue(),
-                                currentInstruction.isEncrypted());
-
-                        if (!passed) {
-                            // Try by coordinates
-                            passed = executeActionsAtCoordinates(savedCoordinates, data, ABRConstants.INSERT);
-                        }
-                        return passed;
-                    }
+        try {
+            String xPath = currentInstruction.getPath().toLowerCase();
+            if (currentInstruction.getPath() != null && xPath.contains("iframe")) {
+                // Locate and switch to the iframe
+                WebElement iframeElement = abrWebDriver.getDriver().findElement(By.xpath(xPath));
+                WebDriver driver = abrWebDriver.getDriver().switchTo().frame(iframeElement);
+                abrWebDriver.setDriver(driver);
+                switchedToIframe = true;
             }
 
-            onHoldForSeconds(null);
-        }
+            if (instructionElement != null) {
+                boolean passed = true;
+                switch (actions[0]) {
+                    case Constants.VISUALIZE:
+                        passed = scrollToElement(byPassNotFound, instructionElement);
 
-        return true;
+                        if (!passed) {
+                            // Try by coordinates
+                            Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                            passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.VISUALIZE);
+                        }
+                        return passed;
+                    case Constants.OUTPUT:
+                        String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
+                        return getOutPutElement(
+                                byPassNotFound,
+                                instructionElement,
+                                fieldName,
+                                currentInstruction.getActions(),
+                                mapOperators);
+                    case Constants.CLICK:
+                    case Constants.OTHER:
+                        passed = clickElement(byPassNotFound, instructionElement);
+                        if (!passed) {
+                            // Try by coordinates
+                            Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                            passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.CLICK);
+                        }
+                        return passed;
+                    case Constants.INSERT:
+                        if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
+                            passed = insertDataInSelectElement(
+                                    byPassNotFound, instructionElement, savedCoordinates, data);
+
+                            if (!passed) {
+                                // Try by coordinates
+                                passed = executeActionsAtCoordinates(savedCoordinates, data, ABRConstants.SELECT);
+                            }
+                            return passed;
+                        } else {
+                            passed = insertInElement(
+                                    byPassNotFound,
+                                    instructionElement,
+                                    data.getValue(),
+                                    currentInstruction.getDefaultValue(),
+                                    currentInstruction.isEncrypted());
+
+                            if (!passed) {
+                                // Try by coordinates
+                                passed = executeActionsAtCoordinates(savedCoordinates, data, ABRConstants.INSERT);
+                            }
+                            return passed;
+                        }
+                }
+
+                onHoldForSeconds(null);
+            }
+
+            return true;
+        } finally {
+            // Restore the original WebDriver state
+            if (switchedToIframe) {
+                abrWebDriver.setDriver(originalDriver);
+            }
+        }
     }
 
     public void performOtherActions(boolean byPassNotFound, BlockLoopInstructionLoadDTO instruction, String actions[])
@@ -376,28 +411,28 @@ public class PerformActions {
 
     private WebElement locateElement(BlockLoopInstructionLoadDTO currentInstruction, int botJobId) {
 
-        WebElement elementInsideIframe = null;
-        //        if (xPath.toLowerCase().contains("iframe")){
-        //            // Switch to the iframe using ID or name
-        ////            abrWebDriver.getDriver().switchTo().frame("iframeID");
+        //        WebElement elementInsideIframe = null;
+        //                if (xPath.toLowerCase().contains("iframe")){
+        //                    // Switch to the iframe using ID or name
+        //        //            abrWebDriver.getDriver().switchTo().frame("iframeID");
         //
-        //            // Alternatively, switch to the iframe using a WebElement
-        ////            WebElement iframeElement =
-        // abrWebDriver.getDriver().findElement(By.xpath("//iframe[@name='iframeName']"));
-        //            WebElement iframeElement = abrWebDriver.getDriver().findElement(By.xpath(xPath));
-        //            abrWebDriver.getDriver().switchTo().frame(iframeElement);
-        //            // Now, interact with elements inside the iframe
-        //            elementInsideIframe = abrWebDriver.getDriver().findElement(By.id("elementID"));
-        //        }
+        //                    // Alternatively, switch to the iframe using a WebElement
+        //        //            WebElement iframeElement =
+        //         abrWebDriver.getDriver().findElement(By.xpath("//iframe[@name='iframeName']"));
+        //                    WebElement iframeElement = abrWebDriver.getDriver().findElement(By.xpath(xPath));
+        //                    abrWebDriver.getDriver().switchTo().frame(iframeElement);
+        //                    // Now, interact with elements inside the iframe
+        //                    elementInsideIframe = abrWebDriver.getDriver().findElement(By.id("elementID"));
+        //                }
         //
-        //        if (elementInsideIframe != null) {
-        //            element = elementInsideIframe;
-        //        }
+        //                if (elementInsideIframe != null) {
+        //                    element = elementInsideIframe;
+        //                }
         //
-        //        if (elementInsideIframe != null) {
-        //            // Switch back to the main page
-        //            abrWebDriver.getDriver().switchTo().defaultContent();
-        //        }
+        //                if (elementInsideIframe != null) {
+        //                    // Switch back to the main page
+        //                    abrWebDriver.getDriver().switchTo().defaultContent();
+        //                }
 
         String instructionPath = currentInstruction.getPath();
         String tagName = null;
@@ -840,6 +875,10 @@ public class PerformActions {
                 true);
     }
 
+    public void couldErrorOpenDrive(String criteria, String msg1, String msg2, String msg3, String msg4) {
+        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true);
+    }
+
     public void refreshPage() {
         abrWebDriver.getDriver().navigate().refresh();
         justCalledRefreshPage = true;
@@ -949,7 +988,8 @@ public class PerformActions {
             //            // Select "Switzerland" by visible text
             //            selectCountry.selectByVisibleText(data.getValue());
 
-            sequenceOfCommands(element, ABRConstants.SELECT, coordinates, data, abrWebDriver.getDriver());
+            String[] coordArray = new String[] {coordinates, "coordinates"};
+            sequenceOfCommands(element, ABRConstants.SELECT, coordArray, data, abrWebDriver.getDriver());
 
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
@@ -1947,8 +1987,11 @@ public class PerformActions {
             int yCoord = 0;
             if (reference.isPresent()) {
                 String[] coordinates = reference.get().getValue().split(ABRConstants.FIELDS_SEPARATOR);
-                x = Integer.parseInt(coordinates[0]);
-                y = Integer.parseInt(coordinates[1]);
+
+                double temp1 = Double.parseDouble(coordinates[0]);
+                double temp2 = Double.parseDouble(coordinates[1]);
+                x = (int) temp1;
+                y = (int) temp2;
                 int maxHeight =
                         abrWebDriver.getDriver().manage().window().getSize().getHeight();
                 int maxWidth =
@@ -1988,8 +2031,10 @@ public class PerformActions {
         int xCoord = 0;
         int yCoord = 0;
         String[] coordinates = savedCoordinates.split(ABRConstants.FIELDS_SEPARATOR);
-        x = Integer.parseInt(coordinates[0]);
-        y = Integer.parseInt(coordinates[1]);
+        double temp1 = Double.parseDouble(coordinates[0]);
+        double temp2 = Double.parseDouble(coordinates[1]);
+        x = (int) temp1;
+        y = (int) temp2;
         int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
         int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
         int offsetY = y - maxHeight;
@@ -2012,8 +2057,10 @@ public class PerformActions {
         int yCoord = 0;
         try {
             String[] coordinates = savedCoordinates.split(ABRConstants.FIELDS_SEPARATOR);
-            x = Integer.parseInt(coordinates[0]);
-            y = Integer.parseInt(coordinates[1]);
+            double temp1 = Double.parseDouble(coordinates[0]);
+            double temp2 = Double.parseDouble(coordinates[1]);
+            x = (int) temp1;
+            y = (int) temp2;
             int maxHeight = abrWebDriver.getDriver().manage().window().getSize().getHeight();
             int maxWidth = abrWebDriver.getDriver().manage().window().getSize().getWidth();
             int offsetY = y - maxHeight;
@@ -2025,10 +2072,13 @@ public class PerformActions {
                 scrollToCoordinates(x, y);
             } else if (ABRConstants.CLICK.equals(action)) {
                 scrollToCoordinates(x, y);
+                //                circleAtCoordinates(x, y, abrWebDriver.getDriver());
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
             } else if (ABRConstants.INSERT.equals(action)) {
                 scrollToCoordinates(x, y);
+                //                sendInputJS(x, y, data.getValue(),abrWebDriver.getDriver());
+                //                circleAtCoordinates(x, y, abrWebDriver.getDriver());
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
                 onHoldForSeconds(null);
@@ -2088,6 +2138,29 @@ public class PerformActions {
         new Actions(abrWebDriver.getDriver()).moveToLocation(x, y).click().perform();
     }
 
+    private void circleAtCoordinates(int x, int y, WebDriver driver) {
+        String script = "function createCircle(x, y, diameter) {\n"
+                + "    const randomColor = Math.floor(Math.random()*16777215).toString(16);\n"
+                + "\n"
+                + "    return `\n"
+                + "    <svg style='height:100%;width:100%;position:absolute;top:0;z-index:9999'><circle\n"
+                + "        cx=\"${x}\"\n"
+                + "      cy=\"${y}\"\n"
+                + "      r=\"${diameter/2}\"\n"
+                + "      fill=\"#${randomColor}\"\n"
+                + "    ></circle></svg>\n"
+                + "  `;\n"
+                + "}\n"
+                + "\n"
+                + "function pri(ev){\n"
+                + "    console.log(ev);\n"
+                + "    document.body.innerHTML += createCircle(ev.pageX,ev.pageY,10);\n"
+                + "}\n"
+                + "\n"
+                + "window.addEventListener(\"click\", pri);";
+        ((JavascriptExecutor) driver).executeScript(script);
+    }
+
     private void typeCharacters(Pair<String, String> fieldData) {
         new Actions(abrWebDriver.getDriver()).sendKeys(fieldData.getValue()).perform();
     }
@@ -2095,7 +2168,7 @@ public class PerformActions {
     public String sequenceOfCommands(
             WebElement element,
             String typeCommand,
-            String coordinates,
+            String[] coordinates,
             Pair<String, String> fieldData,
             WebDriver driver) {
 
@@ -2126,13 +2199,16 @@ public class PerformActions {
                 focusElement(element, driver);
             } else if (typeCommand.equals(ABRConstants.COORD_VISUALIZA)) {
                 message = "Coordinates COORD_VISUALIZA";
-                executeActionsAtCoordinates(coordinates, fieldData, ABRConstants.VISUALIZE);
+                executeActionsAtCoordinates(coordinates[1], fieldData, ABRConstants.VISUALIZE);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ABRConstants.VISUALIZE);
             } else if (typeCommand.equals(ABRConstants.COORD_CLICK)) {
                 message = "Coordinates COORD_CLICK";
-                executeActionsAtCoordinates(coordinates, fieldData, ABRConstants.CLICK);
+                executeActionsAtCoordinates(coordinates[1], fieldData, ABRConstants.CLICK);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ABRConstants.CLICK);
             } else if (typeCommand.equals(ABRConstants.COORD_INSERT)) {
                 message = "Coordinates COORD_INSERT";
-                executeActionsAtCoordinates(coordinates, fieldData, ABRConstants.INSERT);
+                executeActionsAtCoordinates(coordinates[1], fieldData, ABRConstants.INSERT);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ABRConstants.INSERT);
             }
 
             return "Success " + message;
@@ -2148,5 +2224,79 @@ public class PerformActions {
 
         Actions actions = new Actions(driver);
         actions.moveToElement(element).perform();
+    }
+
+    public void sendInputJS(int x, int y, String text, WebDriver driver) {
+        String script = "function sendTextToElementAtCoordinates(x, y, text) {\n"
+                + "    const element = document.elementFromPoint(x, y);\n"
+                + "    if (element) {\n"
+                + "        console.log('Found element:', element);\n"
+                + "        element.click();\n"
+                + "        if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {\n"
+                + "            element.focus();\n"
+                + "            element.value = text;\n"
+                + "            const event = new Event('input', { bubbles: true });\n"
+                + "            element.dispatchEvent(event);\n"
+                + "        } else {\n"
+                + "            console.warn('Element is not an input or textarea.');\n"
+                + "        }\n"
+                + "    } else {\n"
+                + "        console.warn('No element found at the given coordinates.');\n"
+                + "    }\n"
+                + "}\n"
+                + "\n"
+                + "sendTextToElementAtCoordinates(arguments[0], arguments[1], arguments[2]);";
+
+        // Execute the JavaScript with the provided x, y, and text arguments
+        ((JavascriptExecutor) driver).executeScript(script, x, y, text);
+    }
+
+    public void moveAndClickAtCoordinates(String savedCoordinates, WebDriver driver) {
+        String[] coordinates = savedCoordinates.split(ABRConstants.FIELDS_SEPARATOR);
+        double temp1 = Double.parseDouble(coordinates[0]);
+        double temp2 = Double.parseDouble(coordinates[1]);
+        int x = (int) temp1;
+        int y = (int) temp2;
+
+        String script = "function moveAndClickMouse(x, y) {\n" + "    const mouseDiv = document.createElement('div');\n"
+                + "    mouseDiv.style.position = 'absolute';\n"
+                + "    mouseDiv.style.width = '10px';\n"
+                + "    mouseDiv.style.height = '10px';\n"
+                + "    mouseDiv.style.backgroundColor = 'red';\n"
+                + "    mouseDiv.style.borderRadius = '50%';\n"
+                + "    mouseDiv.style.zIndex = '10000';\n"
+                + "    mouseDiv.style.pointerEvents = 'none';\n"
+                + "    mouseDiv.id = 'virtualMouse';\n"
+                + "    document.body.appendChild(mouseDiv);\n"
+                + "\n"
+                + "    function blinkMouse() {\n"
+                + "        const mouse = document.getElementById('virtualMouse');\n"
+                + "        if (mouse) {\n"
+                + "            mouse.style.visibility = mouse.style.visibility === 'hidden' ? 'visible' : 'hidden';\n"
+                + "        }\n"
+                + "    }\n"
+                + "\n"
+                + "    const blinkInterval = setInterval(blinkMouse, 500);\n"
+                + "\n"
+                + "    mouseDiv.style.left = `${x}px`;\n"
+                + "    mouseDiv.style.top = `${y}px`;\n"
+                + "\n"
+                + "    const element = document.elementFromPoint(x, y);\n"
+                + "    if (element) {\n"
+                + "        element.click();\n"
+                + "    }\n"
+                + "\n"
+                + "    setTimeout(() => {\n"
+                + "        clearInterval(blinkInterval);\n"
+                + "        const mouse = document.getElementById('virtualMouse');\n"
+                + "        if (mouse) {\n"
+                + "            mouse.remove();\n"
+                + "        }\n"
+                + "    }, 3000);\n"
+                + "}\n"
+                + "\n"
+                + "moveAndClickMouse(arguments[0], arguments[1]);";
+
+        ((JavascriptExecutor) driver).executeScript(script, x, y);
     }
 }

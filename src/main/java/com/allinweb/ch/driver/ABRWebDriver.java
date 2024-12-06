@@ -3,6 +3,7 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.component.scene.ABRAlertScene;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -33,6 +34,12 @@ public class ABRWebDriver {
 
     private static WebDriver driver = null;
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
+
+    private static final PerformActions performAction;
+    // Static block to initialize
+    static {
+        performAction = PerformActions.getInstance();
+    }
 
     public static String identifyLineSeparator(String text) {
         if (text.contains("\r\n")) {
@@ -129,14 +136,41 @@ public class ABRWebDriver {
                     }
                 }
             } catch (Exception e) {
+
+                String errorMessage = e.getMessage();
                 ABRLogger.getInstance(ABRWebDriver.class)
-                        .severe("An error has occurred during WebDriver Load " + e.getMessage());
-                JOptionPane.showMessageDialog(
-                        null,
-                        "An error has occurred during WebDriver Load: \nError:" + e.getMessage() + "\nCause: "
-                                + e.getCause(),
-                        "Error in WebDriver Load",
-                        JOptionPane.ERROR_MESSAGE);
+                        .fine("An error has occurred during driver.get(url) Load " + errorMessage);
+
+                // Split the message into chunks of 100 characters
+                int maxLength = 100;
+                int messageLength = errorMessage.length();
+                int parts = (int) Math.ceil((double) messageLength / maxLength);
+                String[] messageChunks = new String[parts];
+
+                for (int i = 0; i < parts; i++) {
+                    int startIndex = i * maxLength;
+                    int endIndex = Math.min(startIndex + maxLength, messageLength);
+                    messageChunks[i] = errorMessage.substring(startIndex, endIndex);
+                }
+
+                // Pass a meaningful message for further actions
+                performAction.couldErrorOpenDrive(
+                        "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2], messageChunks[3]);
+
+                // Example: print or log the chunks if needed
+                for (String chunk : messageChunks) {
+                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error chunk: " + chunk);
+                }
+
+                //                ABRLogger.getInstance(ABRWebDriver.class)
+                //                        .severe("An error has occurred during WebDriver Load " + e.getMessage());
+                //                JOptionPane.showMessageDialog(
+                //                        null,
+                //                        "An error has occurred during WebDriver Load: \nError:" + e.getMessage() +
+                // "\nCause: "
+                //                                + e.getCause(),
+                //                        "Error in WebDriver Load",
+                //                        JOptionPane.ERROR_MESSAGE);
 
                 throw new UnsupportedOperationException(e.getMessage());
             }
@@ -155,14 +189,39 @@ public class ABRWebDriver {
             driver.get(url);
 
         } catch (Exception e) {
+            String errorMessage = e.getMessage();
             ABRLogger.getInstance(ABRWebDriver.class)
-                    .fine("An error has occurred during driver.get(url) Load " + e.getMessage());
-            JOptionPane.showMessageDialog(
-                    null,
-                    "An error has occurred during WebDriver Load: \nError:" + e.getMessage() + " Cause: "
-                            + e.getCause(),
-                    "Error in WebDriver Load",
-                    JOptionPane.ERROR_MESSAGE);
+                    .fine("An error has occurred during driver.get(url) Load " + errorMessage);
+
+            // Split the message into chunks of 100 characters
+            int maxLength = 100;
+            int messageLength = errorMessage.length();
+            int parts = (int) Math.ceil((double) messageLength / maxLength);
+            String[] messageChunks = new String[parts];
+
+            for (int i = 0; i < parts; i++) {
+                int startIndex = i * maxLength;
+                int endIndex = Math.min(startIndex + maxLength, messageLength);
+                messageChunks[i] = errorMessage.substring(startIndex, endIndex);
+            }
+
+            // Pass a meaningful message for further actions
+            performAction.couldErrorOpenDrive(
+                    "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2], messageChunks[3]);
+
+            // Example: print or log the chunks if needed
+            for (String chunk : messageChunks) {
+                ABRLogger.getInstance(ABRWebDriver.class).fine("Error chunk: " + chunk);
+            }
+
+            return;
+
+            //            JOptionPane.showMessageDialog(
+            //                    null,
+            //                    "An error has occurred during WebDriver Load: \nError:" + e.getMessage() + " Cause: "
+            //                            + e.getCause(),
+            //                    "Error in WebDriver Load",
+            //                    JOptionPane.ERROR_MESSAGE);
         }
     }
 

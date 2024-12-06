@@ -140,6 +140,8 @@ public class ABRScannedElementPane extends ABRPane {
     private Button cleanListButton;
 
     private CheckBox checkBoxAction;
+    private CheckBox checkBoxJavaScript;
+    private CheckBox checkBoxCoordenates;
     private CheckBox checkActiveHover;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
@@ -171,6 +173,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Boolean idAttributeFirst = false;
     private Boolean nameAttributeFirst = false;
     private Boolean withoutNameAndId = false;
+    private Boolean searchByJavaScript = false;
 
     private Map<String, String> mapOperators;
     private Map<String, String> mapExport;
@@ -313,7 +316,11 @@ public class ABRScannedElementPane extends ABRPane {
                 );
 
         checkBoxAction = new CheckBox("Test Actions");
+        checkBoxJavaScript = new CheckBox("JS");
+
         checkClickElement = new CheckBox("For Click");
+        checkBoxCoordenates = new CheckBox("Coordenates");
+
         //        checkClickElement.setSelected(true);
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
@@ -486,8 +493,21 @@ public class ABRScannedElementPane extends ABRPane {
             //        gridPaneTop.add(addNewElement, 7, 0);
             //        gridPaneTop.add(currentXPathTextField, 8, 0);
 
+            HBox boxCoordenates = new HBox();
+            boxCoordenates.setSpacing(5);
+
+            checkClickElement
+                    .prefWidthProperty()
+                    .bind(boxCoordenates.widthProperty().multiply(0.50));
+            checkBoxCoordenates
+                    .prefWidthProperty()
+                    .bind(boxCoordenates.widthProperty().multiply(0.50));
+
+            // Add elements to the HBox
+            boxCoordenates.getChildren().addAll(checkClickElement, checkBoxCoordenates);
+
             VBox vBoxCheckBox = new VBox();
-            vBoxCheckBox.getChildren().addAll(checkClickElement, checkInputText, checkOutputText);
+            vBoxCheckBox.getChildren().addAll(boxCoordenates, checkInputText, checkOutputText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
             //        gridPaneTop.add(vBox, 9, 0);
 
@@ -523,16 +543,20 @@ public class ABRScannedElementPane extends ABRPane {
 
             HBox boxName = new HBox();
             boxName.getChildren().addAll(defineNameField, addNewElement);
+
             HBox boxActions = new HBox();
             boxActions.setSpacing(5);
 
             // Set proportional widths for each child
             testActionsField = new TextField("0001");
-            checkBoxAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.5));
+            checkBoxAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.40));
+            checkBoxJavaScript
+                    .prefWidthProperty()
+                    .bind(boxActions.widthProperty().multiply(0.10));
             testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.5));
 
             // Add elements to the HBox
-            boxActions.getChildren().addAll(checkBoxAction, testActionsField);
+            boxActions.getChildren().addAll(checkBoxAction, checkBoxJavaScript, testActionsField);
 
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
@@ -1706,53 +1730,56 @@ public class ABRScannedElementPane extends ABRPane {
 
                 // IF SOME REFRESH CHANGED THE ELEMENT IT TRIGGERS THIS EXCEPTION
                 String elemTagName = "No TagName";
-                try {
-
-                    if (abrWebElement.getMainXPath() == null) {
-                        abrWebElement.setMainXPath(
-                                abrWebElement.getSavedReferences().get("absolutXPath"));
-                    }
-                    if (abrWebElement.getMainCoordinates() == null) {
-                        abrWebElement.setMainCoordinates(
-                                abrWebElement.getSavedReferences().get("coordinates"));
-                    }
-
-                    WebElement elementFinder = null;
+                if (!checkBoxAction.isSelected()) {
                     try {
-                        elementFinder = abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getMainXPath()));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
 
-                    if (elementFinder == null) {
-                        // Try by coordinates
-                        Pair<String, String> filedData = new Pair("martini", "Martini");
+                        if (abrWebElement.getMainXPath() == null) {
+                            abrWebElement.setMainXPath(
+                                    abrWebElement.getSavedReferences().get("absolutXPath"));
+                        }
+                        if (abrWebElement.getMainCoordinates() == null) {
+                            abrWebElement.setMainCoordinates(
+                                    abrWebElement.getSavedReferences().get("coordinates"));
+                        }
+
+                        WebElement elementFinder = null;
                         try {
-                            performAction.executeActionsAtCoordinates(
-                                    abrWebElement.getSavedReferences().get("coordinates"),
-                                    filedData,
-                                    ABRConstants.CLICK);
-
-                            // It Means Did Not Failed to Coordinates
-                            // I am Setting here to avoid the Not Found Message
-                            elementFinder = abrWebElement.getElement();
+                            elementFinder =
+                                    abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getMainXPath()));
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
-                    }
 
-                    //                    if (elementFinder != null) {
-                    //                        abrWebElement.setElement(elementFinder);
-                    //                    }
+                        if (elementFinder == null) {
+                            // Try by coordinates
+                            Pair<String, String> filedData = new Pair("martini", "Martini");
+                            try {
+                                performAction.executeActionsAtCoordinates(
+                                        abrWebElement.getSavedReferences().get("coordinates"),
+                                        filedData,
+                                        ABRConstants.CLICK);
 
-                    if (elementFinder != null
-                            && abrWebElement.getElement() != null
-                            && abrWebElement.getElement().getTagName() != null) {
-                        elemTagName = abrWebElement.getElement().getTagName();
+                                // It Means Did Not Failed to Coordinates
+                                // I am Setting here to avoid the Not Found Message
+                                elementFinder = abrWebElement.getElement();
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+
+                        //                    if (elementFinder != null) {
+                        //                        abrWebElement.setElement(elementFinder);
+                        //                    }
+
+                        if (elementFinder != null
+                                && abrWebElement.getElement() != null
+                                && abrWebElement.getElement().getTagName() != null) {
+                            elemTagName = abrWebElement.getElement().getTagName();
+                        }
+                    } catch (Exception ex) {
+                        performAction.couldNotFindElement(elemTagName);
+                        return;
                     }
-                } catch (Exception ex) {
-                    performAction.couldNotFindElement(elemTagName);
-                    return;
                 }
 
                 if (checkBoxAction.isSelected()) {
@@ -1770,59 +1797,113 @@ public class ABRScannedElementPane extends ABRPane {
 
                             Pair<String, String> fieldData = new Pair<>("Test", testActionsField.getText());
 
+                            String mainCoordenates = coordsTextField.getText().trim();
+                            String savedCoordenates =
+                                    abrWebElement.getSavedReferences().get("coordenantes");
+                            if (Strings.isNullOrEmpty(mainCoordenates)) {
+                                mainCoordenates = abrWebElement.getMainCoordinates();
+                            }
+
+                            if (Strings.isNullOrEmpty(savedCoordenates)) {
+                                savedCoordenates = mainCoordenates;
+                            }
+
+                            String[] coordinates = new String[] {mainCoordenates, savedCoordenates};
+
+                            if (checkBoxCoordenates.isSelected()) {
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[1], fieldData, ABRConstants.VISUALIZE);
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[0], fieldData, ABRConstants.VISUALIZE);
+
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[1], fieldData, ABRConstants.CLICK);
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[0], fieldData, ABRConstants.CLICK);
+
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[1], fieldData, ABRConstants.INSERT);
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[0], fieldData, ABRConstants.INSERT);
+
+                                performAction.moveAndClickAtCoordinates(coordinates[1], abrWebDriver.getDriver());
+                                performAction.moveAndClickAtCoordinates(coordinates[0], abrWebDriver.getDriver());
+                            }
+
                             String result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.SELECT,
-                                    coordsTextField.getText(),
+                                    coordinates,
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.CLICK,
-                                    coordsTextField.getText(),
+                                    coordinates,
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.GET_VALUE,
-                                    coordsTextField.getText(),
+                                    coordinates,
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.CLEAR,
-                                    coordsTextField.getText(),
+                                    coordinates,
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.INSERT,
-                                    coordsTextField.getText(),
+                                    coordinates,
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.GET_VALUE,
-                                    coordsTextField.getText(),
+                                    coordinates,
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.FOCUS,
-                                    coordsTextField.getText(),
+                                    coordinates,
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.TAB,
-                                    coordsTextField.getText(),
+                                    coordinates,
+                                    fieldData,
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.COORD_VISUALIZA,
+                                    coordinates,
+                                    fieldData,
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.COORD_CLICK,
+                                    coordinates,
+                                    fieldData,
+                                    abrWebDriver.getDriver());
+                            System.out.println(result);
+                            result = performAction.sequenceOfCommands(
+                                    abrWebElement.getElement(),
+                                    ABRConstants.COORD_INSERT,
+                                    coordinates,
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
@@ -3555,6 +3636,8 @@ public class ABRScannedElementPane extends ABRPane {
         Set<String> mapIgnore = new HashSet<>();
         int[] refreshLoopArray = null; // new int[] {0, 0, 0};
 
+        searchByJavaScript = checkBoxJavaScript.isSelected();
+
         boolean byPassNotFound = false;
         boolean success = true;
         boolean stopAll = false;
@@ -4202,7 +4285,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     success = false;
                                 }
 
-                                if (webElementFound == null) {
+                                if (webElementFound == null && searchByJavaScript) {
                                     if (actions[0].equalsIgnoreCase(ABRConstants.VISUALIZE)
                                             || actions[0].equalsIgnoreCase(ABRConstants.CLICK)
                                             || actions[0].equalsIgnoreCase(ABRConstants.INSERT)) {
