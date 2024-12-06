@@ -535,12 +535,16 @@ public class PerformActions {
                             //                                criteria = By.cssSelector(tagName + "[" +
                             // priority.getName() + "='" + instructionReference.get().getValue() + "']");
                         case coordinates -> {
-                            Pair<String, String> filedData = new Pair("martini", "Martini");
-                            try {
-                                executeActionsAtInstructionCoordinates(currentInstruction, filedData);
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
+                            /// THIS MEANT TO BE USED JUST TO LOCATE THE ELEMENT NOT APPLYING ACTIONS TO IT
+
+                            //                            Pair<String, String> filedData = new Pair("martini",
+                            // "Martini");
+                            //                            try {
+                            //                                executeActionsAtInstructionCoordinates(currentInstruction,
+                            // filedData);
+                            //                            } catch (Exception e) {
+                            //                                e.printStackTrace();
+                            //
                         } // System.out.println("coordinates case");
                         case ById -> {} // System.out.println("ById case");
                         case ByClassName -> {} // System.out.println("Default case");
