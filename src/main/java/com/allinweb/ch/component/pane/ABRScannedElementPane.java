@@ -3657,6 +3657,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        report.setBotJobDTO(selectedJob);
         //        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
+        // Execute All Blocks starting from executeSpecificBlock if Defined
         int executeSpecificBlock = comboBoxBlocks.getValue().getVarId(); // Block Order Number
 
         mapOperators = new HashMap<>();
@@ -3669,20 +3670,27 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         Map<String, String> mapSavedLocators = new HashMap<>();
-        Map<String, String> coordenates = new HashMap<>();
 
         Set<Integer> parentIdsForRefreshLoop = null;
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
+
+            // Execute All Blocks starting from executeSpecificBlock if Defined
             int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
 
+            //            while ((executeSpecificBlock > -1
+            //                    && currentBlock == executeSpecificBlock - 1) // Execute specific block only
+            //                    || (executeSpecificBlock == -1 && currentBlock <= blocksLoaded.size() - 1) // Execute
+            // all blocks
+            //                    && blocksLoaded.size() > 0
+            //                    && !stopAll
+            //                    && executionTimes < execLimitReach) {
+
             outerLoop:
-            while ((executeSpecificBlock > -1
-                            && currentBlock == executeSpecificBlock - 1) // Execute specific block only
-                    || (executeSpecificBlock == -1 && currentBlock <= blocksLoaded.size() - 1) // Execute all blocks
-                            && blocksLoaded.size() > 0
-                            && !stopAll
-                            && executionTimes < execLimitReach) {
+            while (currentBlock <= blocksLoaded.size() - 1
+                    && blocksLoaded.size() > 0
+                    && !stopAll
+                    && executionTimes < execLimitReach) {
                 instructionsExecuted.clear();
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                 String excelFieldName = blockLoad.getExportFile();
@@ -4318,7 +4326,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
-                                if (resultActions.contains("Error:") || !success) {
+                                if (resultActions.contains("Error:") || webElementFound == null || !success) {
                                     resultActions = "Failed " + resultActions;
                                     success = false;
                                 } else if (resultActions != null && success) {
@@ -4689,11 +4697,14 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                 }
                 // Increment currentBlock only if executing all blocks
-                if (executeSpecificBlock == -1) {
-                    currentBlock++;
-                } else {
-                    break; // Exit loop after executing the specific block
-                }
+                //                if (executeSpecificBlock == -1) {
+                //                    currentBlock++;
+                //                } else {
+                //                    break; // Exit loop after executing the specific block
+                //                }
+
+                // Increment currentBlock only if executing all blocks
+                currentBlock++;
             }
 
             if (executionTimes >= execLimitReach) {
