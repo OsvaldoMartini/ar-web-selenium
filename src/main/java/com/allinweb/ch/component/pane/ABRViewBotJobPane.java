@@ -102,10 +102,13 @@ public class ABRViewBotJobPane extends ABRPane {
 
     private static final PerformActions performAction;
     private static final PerformDataBase performDataBase;
+    private static final ABRScannedElementScene abrScannedElementScene;
+
     // Static block to initialize
     static {
         performAction = PerformActions.getInstance();
         performDataBase = PerformDataBase.getInstance();
+        abrScannedElementScene = ABRScannedElementScene.getInstance();
     }
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
@@ -778,13 +781,14 @@ public class ABRViewBotJobPane extends ABRPane {
             Platform.runLater(() -> {
                 try {
                     // Call the ABRScannedElementScene here
-                    ABRScannedElementScene scene = new ABRScannedElementScene(
+                    ABRScannedElementScene scene = abrScannedElementScene.initialize(
                             this.botJob.getHomeBanking().getPriority(),
                             this.botJob.getId(),
                             this.botJob.getBlocks() != null
                                             && this.botJob.getBlocks().size() > 0
                                     ? this.botJob.getBlocks().get(0).getId()
                                     : null);
+
                     scene.show(); // Make sure the scene is shown
                 } catch (Exception ex) {
                     handleExceptionScan(ex);

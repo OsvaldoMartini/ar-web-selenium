@@ -5,8 +5,10 @@ import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
+import java.time.format.DateTimeFormatter;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
@@ -17,15 +19,32 @@ public class ABRScannedElementScene extends ABRScene {
     private static final String TITLE = "Scanner Tool";
 
     private ABRWebDriver abrWebDriver;
-    private final Integer botJobId;
-    private final Integer blockId;
-    private final String priority;
 
-    public ABRScannedElementScene(String priority, Integer botJobId, Integer blockId) {
+    // Static final variable to hold the singleton instance
+    protected static final SingletonSupplier<ABRScannedElementScene> instance = () -> new ABRScannedElementScene();
+
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    // Private constructor to prevent instantiation
+
+    public ABRScannedElementScene() {
+        // Initialize if necessary
         super();
+    }
+
+    private Integer botJobId;
+    private Integer blockId;
+    private String priority;
+
+    public ABRScannedElementScene initialize(String priority, Integer botJobId, Integer blockId) {
         this.priority = priority;
         this.botJobId = botJobId;
         this.blockId = blockId;
+        return this;
+    }
+
+    // Public method to access the singleton instance
+    public static ABRScannedElementScene getInstance() {
+        return instance.get();
     }
 
     @Override
