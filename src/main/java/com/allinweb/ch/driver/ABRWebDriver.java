@@ -154,7 +154,7 @@ public class ABRWebDriver {
                 }
 
                 // Pass a meaningful message for further actions
-                performAction.couldErrorOpenDrive(
+                performAction.errorMessage(
                         "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2], messageChunks[3]);
 
                 // Example: print or log the chunks if needed
@@ -206,7 +206,7 @@ public class ABRWebDriver {
             }
 
             // Pass a meaningful message for further actions
-            performAction.couldErrorOpenDrive(
+            performAction.errorMessage(
                     "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2], messageChunks[3]);
 
             // Example: print or log the chunks if needed

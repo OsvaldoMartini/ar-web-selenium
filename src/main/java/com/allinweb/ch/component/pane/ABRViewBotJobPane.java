@@ -586,6 +586,14 @@ public class ABRViewBotJobPane extends ABRPane {
             // Check if the Excel file already exists
             ExtractedData extractedData = ExcelWriter.isFileExists(this.botJob.getName(), this.botLoadJobs);
 
+            if (extractedData.getErrorMessage() != null) {
+
+                performAction.errorMessage(
+                        "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null);
+
+                return;
+            }
+
             // Create a task for generating the Excel file
             Task<Void> excelTask = new Task<>() {
                 @Override

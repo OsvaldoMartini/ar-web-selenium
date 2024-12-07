@@ -3551,32 +3551,9 @@ public class ABRScannedElementPane extends ABRPane {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
 
-            Text variableText1Styled = new Text("Verify the Possible Errors:");
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            performAction.errorMessage(
+                    "Excel Error", "Could Not Execute Excel File", "Check All Excel Columns and Values!", null, null);
 
-            Text variableText2Styled = new Text("1. Excel File is OPEN");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            Text variableText3Styled = new Text("2. Column Names Different from INPUT names");
-            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            Text variableText4Styled = new Text("3. INPUTS names Not In Excel File");
-            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            combinedTextContainer
-                    .getChildren()
-                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
-
-            performAction.showAlertCombinedVBOX(
-                    Alert.AlertType.ERROR,
-                    "Excel File Error",
-                    "Check All Excel Columns and Values!",
-                    null,
-                    combinedTextContainer);
-            return false;
             //            Platform.exit();
         }
 
@@ -3586,12 +3563,38 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         if (extractedData.getErrorMessage() != null) {
-            //				showAlert("Excel Data File", "Warning: Excel File exist" , "Fields in the excel not matching the
-            // botjob requirements");
-            //            System.out.println("Fields in the excel not matching the botjob requirements");
-            //            performAction.showAlert(Alert.AlertType.ERROR,"Excel File Empty", "IS MANDATORY TO HAVE DATA
-            // FOR TESTS",
-            // excelPath);
+
+            //            Text variableText1Styled = new Text("Verify the Possible Errors:");
+            //            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            //
+            //            Text variableText2Styled = new Text("1. Excel File is OPEN");
+            //            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            //
+            //            Text variableText3Styled = new Text("2. Column Names Different from INPUT names");
+            //            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            //
+            //            Text variableText4Styled = new Text("3. INPUTS names Not In Excel File");
+            //            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            //
+            //            VBox combinedTextContainer = new VBox();
+            //            combinedTextContainer.setSpacing(5); // Add some sp
+            //
+            //            combinedTextContainer
+            //                    .getChildren()
+            //                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled,
+            // variableText4Styled);
+            //
+            //            performAction.showAlertCombinedVBOX(
+            //                    Alert.AlertType.ERROR,
+            //                    "Excel File Error",
+            //                    "Check All Excel Columns and Values!",
+            //                    null,
+            //                    combinedTextContainer);
+
+            performAction.errorMessage(
+                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null);
+
+            return false;
         }
 
         //        Set<String> blockClickables = blocksLoaded.stream()

@@ -879,7 +879,7 @@ public class PerformActions {
                 true);
     }
 
-    public void couldErrorOpenDrive(String criteria, String msg1, String msg2, String msg3, String msg4) {
+    public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4) {
         showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true);
     }
 

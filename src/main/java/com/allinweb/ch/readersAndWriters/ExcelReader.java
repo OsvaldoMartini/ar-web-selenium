@@ -6,6 +6,8 @@ import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.Constants;
 import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,7 +29,9 @@ public class ExcelReader {
     public ExcelReader() {}
 
     public ExtractedData extractData(String paymentsFilePath, List<String> allActions) throws Exception {
-        // Getting the first Excel sheet
+        // Initialize the extracted data
+        ExtractedData extractedDataWithMissingFields = new ExtractedData();
+
         try (XSSFWorkbook workbook = new XSSFWorkbook(new File(paymentsFilePath))) {
             Sheet firstSheet = workbook.getSheetAt(0);
 
@@ -47,13 +51,9 @@ public class ExcelReader {
                     .map(action -> action.split(Constants.ACTION_SPECIFICATIONS_SPLITTER)[1])
                     .collect(Collectors.toSet());
 
-            ExtractedData extractedData = new ExtractedData();
-            ExtractedData extractedDataWithMissingFields = new ExtractedData();
-
             // Cache field names and values from extractedData
             for (int i = fieldNamesRow.getFirstCellNum(); i < fieldNamesRow.getLastCellNum(); i++) {
                 String fieldName = getCellValue(fieldNamesRow.getCell(i));
-                extractedData.addField(fieldName);
                 extractedDataWithMissingFields.addField(fieldName);
             }
 
@@ -71,46 +71,62 @@ public class ExcelReader {
                         currentCellIndex++) {
                     String fieldName = getCellValue(fieldNamesRow.getCell(currentCellIndex));
                     String value = getCellValue(currentRow.getCell(currentCellIndex));
-                    extractedData.addFieldValue(
-                            fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
                     extractedDataWithMissingFields.addFieldValue(
                             fieldName, value, currentRowIndex - EXCEL_DATA_COLUMN_INTESTATION_ROW - 1);
                 }
             }
 
-            // Find the fields that are missing in ExtractedData
+            // Extract missing fields from actions
             Set<String> missingFields = new HashSet<>();
             for (String blockField : blockFields) {
                 boolean found = false;
-                for (String extractedField : extractedData.getExtractedFields()) {
+                for (String extractedField : extractedDataWithMissingFields.getExtractedFields()) {
                     if (blockField.equalsIgnoreCase(extractedField)) {
                         found = true;
                         break;
                     }
                 }
 
-                // If field is missing, add it to missingFields and set its value in extractedDataWithMissingFields
                 if (!found) {
                     missingFields.add(blockField);
-                    // Add the missing field with default value to extractedDataWithMissingFields
                     extractedDataWithMissingFields.addField(blockField);
                     extractedDataWithMissingFields.addFieldValue(
-                            blockField, "No Data Found", extractedData.getNumberOfDataRows());
+                            blockField, "No Data Found", extractedDataWithMissingFields.getNumberOfDataRows());
                 }
             }
 
-            // If there are missing fields, set the error message
+            // Set the error message for missing fields if any
             if (!missingFields.isEmpty()) {
-                extractedData.setMissingFields(
+                extractedDataWithMissingFields.setMissingFields(
                         "Fields in the Excel do not match the Bot Job requirements. Missing fields: "
                                 + String.join(", ", missingFields));
             }
 
-            // Return the extracted data with missing fields included
             return extractedDataWithMissingFields;
-        } catch (Exception ex) {
-            return null;
+
+        } catch (FileNotFoundException e) {
+            // Handle FileNotFoundException and set an appropriate error message
+            if (isFileInUse(e)) {
+                extractedDataWithMissingFields.setErrorMessage("The file is currently in use by another process.");
+            } else {
+                extractedDataWithMissingFields.setErrorMessage("The file does not exist.");
+            }
+        } catch (IOException e) {
+            // Handle IOException and set an appropriate error message
+            extractedDataWithMissingFields.setErrorMessage(
+                    "An unexpected error occurred while processing the file: " + e.getMessage());
+        } catch (Exception e) {
+            // Handle other exceptions
+            extractedDataWithMissingFields.setErrorMessage("An error occurred: " + e.getMessage());
         }
+
+        return extractedDataWithMissingFields;
+    }
+
+    // Helper method to check if the file is in use
+    private boolean isFileInUse(FileNotFoundException e) {
+        // Check if the exception message contains 'being used by another process'
+        return e.getMessage().contains("being used by another process");
     }
 
     public File createLogFile(String filePath) {
