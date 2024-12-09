@@ -405,13 +405,16 @@ public class PerformDataBase {
         }
 
         // Build the SQL insert query
-        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
-                + nextId + ", "
-                + nextBlockOrder + ", " // block_order_number
-                + "'" + blockDTO.getBlockName() + " description', " // description
-                + "'" + blockDTO.getBlockName() + "', " // name
-                + 1 + ", " // type_id
-                + botJobId + ")"; // bot_job_id, assuming BotJobDTO has an ID
+        String insertSQL =
+                "INSERT INTO block(id, block_order_number, description, name, type_id, active, wait, bot_job_id) VALUES ("
+                        + nextId + ", "
+                        + nextBlockOrder + ", " // block_order_number
+                        + "'" + blockDTO.getBlockName() + " description', " // description
+                        + "'" + blockDTO.getBlockName() + "', " // name
+                        + 1 + ", " // type_id
+                        + 1 + ", " // active
+                        + 3 + ", " // wait
+                        + botJobId + ")"; // bot_job_id, assuming BotJobDTO has an ID
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             ABRLogger.getInstance(PerformDataBase.class)
