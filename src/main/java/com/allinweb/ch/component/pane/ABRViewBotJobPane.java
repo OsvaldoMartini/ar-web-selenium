@@ -364,6 +364,8 @@ public class ABRViewBotJobPane extends ABRPane {
                                     blockLoadDTO.getId(), // block ID from BlockLoadDTO
                                     blockLoadDTO.getBlockOrderNumber(),
                                     blockLoadDTO.getName(),
+                                    blockLoadDTO.isActive(),
+                                    blockLoadDTO.getWait(),
                                     blockLoopInstructionDTO.getActions(),
                                     blockLoopInstructionDTO.getParentId(),
                                     blockLoopInstructionDTO.getOperation(),
@@ -1275,18 +1277,24 @@ public class ABRViewBotJobPane extends ABRPane {
         block1.setName("Block One");
         block1.setDescription("Description for Block One");
         block1.setTypeId(1);
+        block1.setActive(true);
+        block1.setWait(3);
         block1.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction1))); // Assign instruction1 to block1
 
         SavedBlocksDTO block2 = new SavedBlocksDTO();
         block2.setName("Block Two");
         block2.setDescription("Description for Block Two");
         block2.setTypeId(2);
+        block2.setActive(true);
+        block2.setWait(3);
         block2.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction2))); // Assign instruction2 to block2
 
         SavedBlocksDTO block3 = new SavedBlocksDTO();
         block3.setName("Another Block");
         block3.setDescription("Description for Another Block");
         block3.setTypeId(3);
+        block3.setActive(true);
+        block3.setWait(3);
         block3.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
 
         SavedBlocksDTO block4 = new SavedBlocksDTO();

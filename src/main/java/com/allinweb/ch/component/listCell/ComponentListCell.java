@@ -201,6 +201,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
                         this.blockDTO = performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
                         this.blockDTO.setTypeId(1);
+                        this.blockDTO.setActive(savedBlocksDTO.getActive());
+                        this.blockDTO.setWait(savedBlocksDTO.getWait());
                         this.blockDTO.setBotJob(this.botJobDTO);
                         this.blockDTO.setName(savedBlocksDTO.getName());
                         this.blockDTO.setDescription(savedBlocksDTO.getDescription());
@@ -212,6 +214,9 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                         ? this.blockDTO.getDescription()
                                         : this.blockDTO.getName() + " block description");
                         newBlockDetails.setTypeId(1);
+                        newBlockDetails.setActive(savedBlocksDTO.getActive());
+                        newBlockDetails.setWait(savedBlocksDTO.getWait());
+
                         newBlockDetails.setBotJobId(this.blockDTO.getId());
 
                         int currentBlockId = performDatabase.createNewBlock(newBlockDetails);
@@ -426,6 +431,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                 + "b.name AS block_name, "
                 + "b.description AS block_description, "
                 + "b.type_id, "
+                + "b.active, "
+                + "b.wait, "
                 + "bj.id AS bot_job_id, "
                 + "bj.name AS bot_job_name "
                 + "FROM bot_job bj "
@@ -454,6 +461,9 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setActive(rs.getBoolean("active"));
+                    blockDTO.setWait(rs.getInt("wait"));
+
                     blockDTO.setBotJobId(rs.getInt("bot_job_id"));
                     blockDTO.setBotJobName(rs.getString("bot_job_name"));
 

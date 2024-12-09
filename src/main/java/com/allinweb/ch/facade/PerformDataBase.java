@@ -682,7 +682,8 @@ public class PerformDataBase {
                 + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
                 + " irl.reference_type, irl.value, "
                 + "  bli.operation, bli.parent_id, "
-                + "  b.export_file "
+                + "  b.export_file, "
+                + "  b.active, b.wait "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -722,6 +723,8 @@ public class PerformDataBase {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setActive(rs.getBoolean("active"));
+                    blockDTO.setWait(rs.getInt("wait"));
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
                     blockDTO.setExportFile(rs.getString("export_file"));
@@ -1095,6 +1098,8 @@ public class PerformDataBase {
         savedBlock.setName("Comp-" + blockSplitDTO.getDetails().getNewBlock().getBlockName());
         savedBlock.setDescription("Component for: ...");
         savedBlock.setTypeId(1);
+        savedBlock.setActive(blockSplitDTO.getDetails().getNewBlock().getActive());
+        savedBlock.setWait(blockSplitDTO.getDetails().getNewBlock().getWait());
         savedBlock.setSavedBlockLoopInstructions(savedBlockLoopInstructions);
         return savedBlock;
     }
@@ -1217,7 +1222,8 @@ public class PerformDataBase {
     public List<BotJobLoadDTO> loadJustJobBlocks(int botJobId) {
         String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
                 + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
-                + " b.description AS block_description, b.type_id "
+                + " b.description AS block_description, b.type_id,"
+                + " b.active, b.wait"
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + " where bot_job_id = " + botJobId
@@ -1254,6 +1260,9 @@ public class PerformDataBase {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setActive(rs.getBoolean("active"));
+                    blockDTO.setWait(rs.getInt("wait"));
+
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
 
@@ -1268,5 +1277,34 @@ public class PerformDataBase {
         }
 
         return botLoadJobs;
+    }
+
+    public void updateBlockStatus(int botJobId, int blockId, String blockName, boolean blockActive, int wait) {
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            // Update each block's block_order_number starting from 1
+            String updateSQL = "UPDATE block SET active = '" + blockActive + "',"
+                    + " wait = " + wait
+                    + " WHERE id = " + blockId
+                    + " and bot_job_id = " + botJobId;
+
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Block Status updated blockId: %s, name: %s, Active: %s",
+                                blockId, blockName, blockActive));
+            } else {
+                ABRLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "updateBlockStatus - No matching record found to update botJobId: %d blockId: %d",
+                                botJobId, blockId));
+            }
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("Error updateBlockStatus. Error: %s", e.getMessage()));
+        }
     }
 }

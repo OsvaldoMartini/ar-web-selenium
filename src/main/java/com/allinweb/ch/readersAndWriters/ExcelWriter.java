@@ -132,7 +132,7 @@ public class ExcelWriter {
                 //                            instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
                 //                }
 
-                String[] operations = msgLoop.getValue().split(":");
+                String[] operations = msgLoop != null ? msgLoop.getValue().split(":") : new String[] {};
 
                 String action =
                         switch (actions[0]) {
@@ -156,6 +156,8 @@ public class ExcelWriter {
                             case ABRConstants.ENDIF -> "ENDIF";
                             case ABRConstants.SCREEN -> "SCREENSHOT";
                             case ABRConstants.PAUSE -> "PAUSE";
+                            case ABRConstants.IGNORE -> "IGNORE";
+                            case ABRConstants.BY_PASS -> "BY_PASS";
                             default -> "Unsupported action";
                         };
                 String value = "";

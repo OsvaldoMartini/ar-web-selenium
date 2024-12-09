@@ -201,6 +201,17 @@ public class WebSocketStompServer {
                     ABRSharedResources.getInstance().changeDbConnection();
                 }
                 break;
+            case "BLOCK_STATUS":
+                RowMoveDTO blockStateDTO = gson.fromJson(body, RowMoveDTO.class);
+                performDataBase.updateBlockStatus(
+                        blockStateDTO.getBotJobId(),
+                        blockStateDTO.getBlockId(),
+                        blockStateDTO.getBlockName(),
+                        blockStateDTO.isBlockActive(),
+                        3); // Block wait time Default 3 seconds per block
+                ABRSharedResources.getInstance().changeDbConnection();
+
+                break;
             case "BLOCK_UPDATE":
                 RowMoveDTO blockUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
                 performDataBase.updateBlockName(

@@ -21,6 +21,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javafx.scene.control.Alert;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 
 public class ABRViewBotJobScene extends ABRScene {
 
@@ -71,6 +74,9 @@ public class ABRViewBotJobScene extends ABRScene {
             BlockDTO blockDTO = performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, botJobDTO);
             BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobDTO.getId());
             blockDTO.setTypeId(1);
+            blockDTO.setActive(blockDTO.getActive());
+            blockDTO.setWait(blockDTO.getWait());
+
             blockDTO.setBotJob(botJob);
             blockDTO.setName("Default Block");
             blockDTO.setDescription("Default Block description");
@@ -82,6 +88,9 @@ public class ABRViewBotJobScene extends ABRScene {
                             ? blockDTO.getDescription()
                             : blockDTO.getName() + " block description");
             newBlockDetails.setTypeId(1);
+            newBlockDetails.setActive(blockDTO.getActive());
+            newBlockDetails.setWait(blockDTO.getWait());
+
             newBlockDetails.setBotJobId(blockDTO.getId());
 
             int newBlockId = performDatabase.createNewBlock(newBlockDetails);
@@ -114,6 +123,8 @@ public class ABRViewBotJobScene extends ABRScene {
                 + "b.name AS block_name, "
                 + "b.description AS block_description, "
                 + "b.type_id, "
+                + "b.active, "
+                + "b.wait, "
                 + "bj.id AS bot_job_id, "
                 + "bj.name AS bot_job_name "
                 + "FROM bot_job bj "
@@ -142,6 +153,8 @@ public class ABRViewBotJobScene extends ABRScene {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setActive(rs.getBoolean("active"));
+                    blockDTO.setWait(rs.getInt("wait"));
                     blockDTO.setBotJobId(rs.getInt("bot_job_id"));
                     blockDTO.setBotJobName(rs.getString("bot_job_name"));
 
@@ -152,6 +165,17 @@ public class ABRViewBotJobScene extends ABRScene {
         } catch (SQLException e) {
             ABRLogger.getInstance(Thread.class)
                     .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
+
+            Text variableText1Styled = new Text("Web Element \"NAME\" must be defined!");
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer.getChildren().add(variableText1Styled);
+
+            performAction.showAlertCombinedVBOX(
+                    Alert.AlertType.ERROR, "Database", "Define the Element Name", null, combinedTextContainer);
         }
 
         return blockLoadList;

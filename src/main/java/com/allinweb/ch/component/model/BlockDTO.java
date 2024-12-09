@@ -5,6 +5,8 @@ public class BlockDTO {
     private String name;
     private String description;
     private Integer typeId;
+    private boolean active;
+    private int defaultWait;
 
     public BlockDTO(int blockOrderNumber, String name, String description, Integer typeId) {
         this.blockOrderNumber = blockOrderNumber;
@@ -43,5 +45,21 @@ public class BlockDTO {
 
     public void setTypeId(Integer typeId) {
         this.typeId = typeId;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public int getDefaultWait() {
+        return defaultWait;
+    }
+
+    public void setDefaultWait(int defaultWait) {
+        this.defaultWait = defaultWait;
     }
 }

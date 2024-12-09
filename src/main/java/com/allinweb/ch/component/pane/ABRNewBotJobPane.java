@@ -256,6 +256,9 @@ public class ABRNewBotJobPane extends ABRPane {
                             ? createdBotJob.getDescription()
                             : createdBotJob.getName() + " block description");
             newBlockDetails.setTypeId(1);
+            newBlockDetails.setActive(true);
+            newBlockDetails.setWait(3);
+
             newBlockDetails.setBotJobId(createdBotJob.getId());
 
             return performDataBase.createNewBlock(newBlockDetails);

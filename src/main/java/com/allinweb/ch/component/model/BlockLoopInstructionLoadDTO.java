@@ -34,6 +34,8 @@ public class BlockLoopInstructionLoadDTO {
     private int blockId;
     private int blockOrderNumber;
     private String blockName;
+    private boolean blockActive;
+    private int blockWait;
     private boolean editMode = false; // Add an editMode flag
     private boolean refreshLoop; // Add an editMode flag
 
@@ -51,6 +53,8 @@ public class BlockLoopInstructionLoadDTO {
             int blockId,
             int blockOrderNumber,
             String blockName,
+            boolean blockActive,
+            int blockWait,
             String actions,
             int parentId,
             String operation,
@@ -64,6 +68,8 @@ public class BlockLoopInstructionLoadDTO {
         this.blockId = blockId;
         this.blockOrderNumber = blockOrderNumber;
         this.blockName = blockName;
+        this.blockActive = blockActive;
+        this.blockWait = blockWait;
         this.actions = actions;
         this.parentId = parentId;
         this.operation = operation;

@@ -10,6 +10,7 @@ import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -29,6 +30,7 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ABRWebDriver {
 
@@ -52,7 +54,7 @@ public class ABRWebDriver {
         return System.lineSeparator(); // Default line separator if none found
     }
 
-    public void openDriver(String url, String optionsConfig) {
+    public WebDriver openDriver(String url, String optionsConfig) {
 
         String lineSeparator = identifyLineSeparator(optionsConfig);
 
@@ -188,6 +190,13 @@ public class ABRWebDriver {
         try {
             driver.get(url);
 
+            // Wait for the page to finish loading
+            Thread.sleep(3000);
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
+            wait.until(webDriver -> ((JavascriptExecutor) webDriver)
+                    .executeScript("return document.readyState")
+                    .equals("complete"));
+
         } catch (Exception e) {
             String errorMessage = e.getMessage();
             ABRLogger.getInstance(ABRWebDriver.class)
@@ -214,7 +223,7 @@ public class ABRWebDriver {
                 ABRLogger.getInstance(ABRWebDriver.class).fine("Error chunk: " + chunk);
             }
 
-            return;
+            return null;
 
             //            JOptionPane.showMessageDialog(
             //                    null,
@@ -223,6 +232,7 @@ public class ABRWebDriver {
             //                    "Error in WebDriver Load",
             //                    JOptionPane.ERROR_MESSAGE);
         }
+        return this.driver;
     }
 
     private EdgeOptions buildOptionsEdge(String[] optionsConfigLines, String logFolder) {

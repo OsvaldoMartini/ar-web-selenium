@@ -25,6 +25,12 @@ public class SavedBlocksDTO extends BaseDTO {
     @Column(name = "export_file")
     private String exportFile;
 
+    @Column(name = "active")
+    private Boolean active;
+
+    @Column(name = "wait")
+    private Integer wait;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bot_job_id")
     private BotJobDTO botJobDTO;
@@ -93,6 +99,22 @@ public class SavedBlocksDTO extends BaseDTO {
 
     public void setExportFile(String exportFile) {
         this.exportFile = exportFile;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public Integer getWait() {
+        return wait;
+    }
+
+    public void setWait(Integer wait) {
+        this.wait = wait;
     }
 
     public List<SavedBlockLoopInstructionDTO> getSavedBlockLoopInstructions() {

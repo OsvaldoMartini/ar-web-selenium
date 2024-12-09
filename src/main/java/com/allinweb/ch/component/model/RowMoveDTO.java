@@ -11,5 +11,6 @@ public class RowMoveDTO {
     private int blockId;
     private int deleteBlockId;
     private String blockName;
+    private boolean blockActive;
     private List<InstructionDTO> updatedRows;
 }
