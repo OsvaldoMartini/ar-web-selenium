@@ -216,8 +216,8 @@ public class PerformDataBase {
     }
 
     public static void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
-        // Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
-        blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
+//         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
+                blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             int newOrderNumber = 1; // Start reordering from 1

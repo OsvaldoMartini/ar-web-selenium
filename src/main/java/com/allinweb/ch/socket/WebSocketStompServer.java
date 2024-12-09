@@ -299,8 +299,9 @@ public class WebSocketStompServer {
         if (performDataBase.updateInstructionsSplitter(
                 newBlock.getInstructions(), (int) originalBlock.getBlockId(), newBlockId)) {
             if (updatedBlock.size() > 0) {
-                performDataBase.updateBlockOrderNumber(
-                        performDataBase.selectAllBlocks(updatedBlock.get(0).getBotJobId()), true);
+                performDataBase.updateBlockOrderNumber(updatedBlock, false);
+                //                performDataBase.updateBlockOrderNumber(
+                //                        performDataBase.selectAllBlocks(updatedBlock.get(0).getBotJobId()), true);
             }
         }
 
