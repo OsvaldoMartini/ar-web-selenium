@@ -384,6 +384,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     instruction.setRefreshLoop(true);
                 }
             });
+            performAction.outputJson(blockLoopInstructions);
 
             jsonData = gson.toJson(blockLoopInstructions);
         } else {

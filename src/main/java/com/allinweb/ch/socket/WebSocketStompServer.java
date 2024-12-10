@@ -14,7 +14,6 @@ import com.allinweb.ch.component.scene.ABRExcelFileScene;
 import com.allinweb.ch.component.scene.ABRNewCommandScene;
 import com.allinweb.ch.component.scene.ABRSaveBlockScene;
 import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -78,10 +77,10 @@ public class WebSocketStompServer {
         // Check if the session is already in the sessions set before adding it
         if (!sessions.contains(session)) {
             sessions.add(session);
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(WebSocketStompServer.class)
                     .info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
         } else {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(WebSocketStompServer.class)
                     .info(String.format("Reusing existing Socket Connection - Session Id: %s", session.getId()));
         }
     }
@@ -102,10 +101,11 @@ public class WebSocketStompServer {
             // Send a ping to keep the connection alive
             session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
         } catch (IOException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
+            ABRLogger.getInstance(WebSocketStompServer.class)
                     .warning(String.format("onMessage - IO Error: %s", e.getMessage()));
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class).warning(String.format("onMessage - Error: %s", e.getMessage()));
+            ABRLogger.getInstance(WebSocketStompServer.class)
+                    .warning(String.format("onMessage - Error: %s", e.getMessage()));
         }
     }
 
@@ -117,10 +117,10 @@ public class WebSocketStompServer {
                         String stompMessage = "MESSAGE\nsubscription:/topic/messages\ncontent-length:"
                                 + message.length() + "\n\n" + message + "\u0000";
                         session.getBasicRemote().sendText(stompMessage);
-                        ABRLogger.getInstance(ABRWebDriver.class)
+                        ABRLogger.getInstance(WebSocketStompServer.class)
                                 .info(String.format("Sent message to session %s: %s", session.getId(), message));
                     } catch (IOException e) {
-                        ABRLogger.getInstance(ABRWebDriver.class)
+                        ABRLogger.getInstance(WebSocketStompServer.class)
                                 .warning(String.format("sendMessageToAll - IO Error: %s", e.getMessage()));
                     }
                 }
@@ -130,20 +130,23 @@ public class WebSocketStompServer {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        ABRLogger.getInstance(ABRWebDriver.class).warning(String.format("WebSocket error: %s", throwable.getMessage()));
+        ABRLogger.getInstance(WebSocketStompServer.class)
+                .warning(String.format("WebSocket error: %s", throwable.getMessage()));
         try {
             if (session.isOpen()) {
                 session.close();
             }
         } catch (IOException e) {
-            ABRLogger.getInstance(ABRWebDriver.class).warning(String.format("onError - IO Error: %s", e.getMessage()));
+            ABRLogger.getInstance(WebSocketStompServer.class)
+                    .warning(String.format("onError - IO Error: %s", e.getMessage()));
         }
     }
 
     @OnClose
     public void onClose(Session session) {
         sessions.remove(session);
-        ABRLogger.getInstance(ABRWebDriver.class).info(String.format("Client disconnected: %s", session.getId()));
+        ABRLogger.getInstance(WebSocketStompServer.class)
+                .info(String.format("Client disconnected: %s", session.getId()));
     }
 
     private void handleMessageByType(String type, String body, Session session) {
@@ -173,6 +176,7 @@ public class WebSocketStompServer {
                 if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
                         && rowMoveDTO.getDeleteBlockId() > -1) {
                     performDataBase.deleteBlock(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+
                     performDataBase.updateBlockOrderNumber(
                             performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
                 }
@@ -198,6 +202,7 @@ public class WebSocketStompServer {
                             true);
                     performDataBase.deleteNullBlocks(
                             blockReorder.getUpdatedBlocks().get(0).getBotJobId());
+
                     ABRSharedResources.getInstance().changeDbConnection();
                 }
                 break;

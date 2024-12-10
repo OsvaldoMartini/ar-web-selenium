@@ -26,6 +26,8 @@ import com.allinweb.ch.util.ExcelReportStatusEnum;
 import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -2132,6 +2134,28 @@ public class PerformActions {
         } finally {
             // Close the browser if necessary
             // driver.quit();
+        }
+    }
+
+    public void outputJson(List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
+        // Get the directory path from ABRPropertyManager
+        String jsonPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT);
+
+        // Initialize Gson with pretty printing for better readability
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+        // Serialize the list of BlockLoopInstructionLoadDTO to JSON
+        String jsonData = gson.toJson(blockLoopInstructions);
+
+        // Create the file path
+        String outputFilePath = jsonPath + "/blockLoopInstructions.json";
+
+        // Write the JSON data to the file
+        try (FileWriter writer = new FileWriter(outputFilePath)) {
+            writer.write(jsonData);
+            System.out.println("JSON file saved to: " + outputFilePath);
+        } catch (IOException e) {
+            System.err.println("Error writing JSON to file: " + e.getMessage());
         }
     }
 
