@@ -242,7 +242,6 @@ public class WebSocketStompServer {
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
                 performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
-                performDataBase.rollBackBlocksOrder(rollBackBlocksDTO);
                 performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
                 ABRSharedResources.getInstance().changeDbConnection();
                 break;

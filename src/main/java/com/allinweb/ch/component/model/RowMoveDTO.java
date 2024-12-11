@@ -12,5 +12,6 @@ public class RowMoveDTO {
     private int deleteBlockId;
     private String blockName;
     private boolean blockActive;
+    private boolean isBetween;
     private List<InstructionDTO> updatedRows;
 }

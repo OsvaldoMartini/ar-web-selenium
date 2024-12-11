@@ -26,6 +26,8 @@ import com.allinweb.ch.util.ExcelReportStatusEnum;
 import com.allinweb.ch.util.PriorityTypeEnum;
 import com.allinweb.ch.util.UtilsMethods;
 import com.google.common.base.Strings;
+import com.google.gson.ExclusionStrategy;
+import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.awt.*;
@@ -2141,11 +2143,78 @@ public class PerformActions {
         // Get the directory path from ABRPropertyManager
         String jsonPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT);
 
+        List<BlockLoopInstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
+
+        for (BlockLoopInstructionLoadDTO instruction : blockLoopInstructions) {
+            // Create a new BlockLoopInstructionLoadDTO object to avoid modifying the original
+            BlockLoopInstructionLoadDTO updatedInstruction = new BlockLoopInstructionLoadDTO();
+
+            // Copy original fields and add 1000 where necessary
+            updatedInstruction.setId(instruction.getId() + 1000);
+            updatedInstruction.setBotJobId(instruction.getBotJobId() + 1000);
+            updatedInstruction.setBlockId(instruction.getBlockId() + 1000);
+            updatedInstruction.setBlockOrderNumber(
+                    instruction.getBlockOrderNumber()); // Copy without change (if needed)
+
+            // Add 1000 to parentId if it's greater than 0
+            if (instruction.getParentId() > 0) {
+                updatedInstruction.setParentId(instruction.getParentId() + 1000);
+            } else {
+                updatedInstruction.setParentId(instruction.getParentId()); // Keep original if not greater than 0
+            }
+
+            // Copy other fields as is (no change)
+            updatedInstruction.setBotJobName(instruction.getBotJobName());
+            updatedInstruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber());
+            updatedInstruction.setActions(instruction.getActions());
+            updatedInstruction.setName(instruction.getName());
+            updatedInstruction.setPath(instruction.getPath());
+            updatedInstruction.setDescription(instruction.getDescription());
+            updatedInstruction.setOptional(instruction.getOptional());
+            updatedInstruction.setBlockMarked(instruction.isBlockMarked());
+            updatedInstruction.setDefault_val(instruction.getDefault_val());
+            updatedInstruction.setActionCustomMaxWaitSec(instruction.getActionCustomMaxWaitSec());
+            updatedInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());
+            updatedInstruction.setEncrypted(instruction.getEncrypted());
+            updatedInstruction.setExportToABR(instruction.getExportToABR());
+            updatedInstruction.setExecuted(instruction.getExecuted());
+            updatedInstruction.setPriority(instruction.getPriority());
+            updatedInstruction.setOperation(instruction.getOperation());
+            updatedInstruction.setExportFile(instruction.getExportFile());
+            updatedInstruction.setBlockName(instruction.getBlockName());
+            updatedInstruction.setBlockActive(instruction.isBlockActive());
+            updatedInstruction.setBlockWait(instruction.getBlockWait());
+            updatedInstruction.setEditMode(instruction.isEditMode());
+            updatedInstruction.setRefreshLoop(instruction.isRefreshLoop());
+
+            // Add the updated instruction to the new list
+            updatedList.add(updatedInstruction);
+        }
+
+        // Define Gson ExclusionStrategy to ignore specific fields
+        ExclusionStrategy strategy = new ExclusionStrategy() {
+            @Override
+            public boolean shouldSkipField(FieldAttributes f) {
+                // Skip fields by name (e.g., 'botJobId', 'botJobName')
+                return f.getName().equals("optional")
+                        || f.getName().equals("blockMarked")
+                        || f.getName().equals("editMode");
+            }
+
+            @Override
+            public boolean shouldSkipClass(Class<?> clazz) {
+                return false;
+            }
+        };
+
         // Initialize Gson with pretty printing for better readability
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        Gson gson = new GsonBuilder()
+                .setExclusionStrategies(strategy)
+                .setPrettyPrinting()
+                .create();
 
         // Serialize the list of BlockLoopInstructionLoadDTO to JSON
-        String jsonData = gson.toJson(blockLoopInstructions);
+        String jsonData = gson.toJson(updatedList);
 
         // Create the file path
         String outputFilePath = jsonPath + "/blockLoopInstructions.json";

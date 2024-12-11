@@ -156,8 +156,11 @@ public class PerformDataBase {
             if (deleteInstructionDTO.getActions().equals("IF")
                     || deleteInstructionDTO.getActions().equals("ELSE")
                     || deleteInstructionDTO.getActions().equals("ENDIF")) {
-                rowsAffected += stmt.executeUpdate("DELETE FROM block_loop_instruction  WHERE block_id = "
-                        + deleteInstructionDTO.getBlockId() + " AND name = 'IF' OR name = 'ELSE' or name='ENDIF';");
+
+                rowsAffected += stmt.executeUpdate("DELETE FROM block_loop_instruction  "
+                        + " WHERE "
+                        + " block_id = " + deleteInstructionDTO.getBlockId() + " AND parent_id = "
+                        + deleteInstructionDTO.getParentId());
             } else {
 
                 rowsAffected += stmt.executeUpdate(deleteSQL);
