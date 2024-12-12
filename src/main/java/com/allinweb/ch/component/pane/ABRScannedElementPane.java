@@ -2106,8 +2106,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 // BlockLoopInstructionDTO.class, () -> {
 
                                 int newId = preFillAddInstruction(
-                                        instruction.getName(),
-                                        instruction.getDescription(),
+                                        instruction.getName().trim(),
+                                        instruction.getDescription().trim(),
                                         instruction.getActions(),
                                         instruction.getOperation(),
                                         instruction.getOnHoldSeconds(),
@@ -3757,7 +3757,7 @@ public class ABRScannedElementPane extends ABRPane {
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
                     boolean ifClause = false;
                     boolean ifFailed = false;
-                    boolean ifDone = false;
+                    boolean ifIsDone = false;
                     boolean elseClause = false;
                     boolean elseFailed = false;
                     boolean byPassFlagLoop = false;
@@ -3832,6 +3832,16 @@ public class ABRScannedElementPane extends ABRPane {
 
                         extraMsg = "";
 
+                        boolean isEndIf = actions[0].equalsIgnoreCase(ABRConstants.ENDIF);
+
+                        if ((ifIsDone && !isEndIf) || isEndIf) {
+
+                            if (isEndIf) {
+                                ifIsDone = false;
+                            }
+                            continue;
+                        }
+
                         if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -3862,11 +3872,11 @@ public class ABRScannedElementPane extends ABRPane {
 
                             ifClause = true;
                             ifFailed = false; // Reset failure status for this IF clause
-                            ifDone = false;
+                            ifIsDone = false;
                             continue;
                         }
 
-                        if (ifClause && ifFailed && !ifDone) {
+                        if (ifClause && ifFailed && !ifIsDone) {
 
                             if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
                                 ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -3898,11 +3908,11 @@ public class ABRScannedElementPane extends ABRPane {
                         }
 
                         // AND SOME RESON JUMPED INTO A FIELD INSIDE OF THE IF STATEMENT
-                        if ((ifClause && !ifFailed && actions[0].equalsIgnoreCase(ABRConstants.ELSE))
+                        if ((ifClause && !ifFailed && !ifIsDone && actions[0].equalsIgnoreCase(ABRConstants.ELSE))
                                 || (refreshLoopArray != null
                                         && !ifClause
                                         && !ifFailed
-                                        && !ifDone
+                                        && !ifIsDone
                                         && actions[0].equalsIgnoreCase(ABRConstants.ELSE))) {
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -3910,10 +3920,15 @@ public class ABRScannedElementPane extends ABRPane {
                                             + blockLoad.getName() + "\"");
 
                             ifClause = false;
-                            ifFailed = false;
-                            elseClause = true;
+                            if (!ifFailed) {
+                                ifFailed = false;
+                                elseClause = false;
+                                ifIsDone = true;
+                            } else {
+                                ifFailed = false;
+                                elseClause = true;
+                            }
                             elseFailed = false; // Reset failure status for this ELSE clause
-                            ifDone = true;
                             continue;
                         }
 
@@ -3928,18 +3943,14 @@ public class ABRScannedElementPane extends ABRPane {
                             elseFailed = false;
                             continue;
                         }
-                        //                        else if (ifDone && !actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                        //                        else if (ifIsDone && !actions[0].equalsIgnoreCase(ABRConstants.ENDIF))
+                        // {
                         //                            continue;
                         //                        }
 
                         // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
-                        if (!ifClause
-                                && !ifFailed
-                                && !elseClause
-                                && !elseFailed
-                                && ifDone
-                                && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
-                            ifDone = false;
+                        if (!ifClause && !ifFailed && !elseClause && !elseFailed && !isEndIf && ifIsDone) {
+                            ifIsDone = false;
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .info("Skipping { ENDIF } -> Success Skipping inside Block :\""
                                             + blockLoad.getName() + "\"");
@@ -4367,9 +4378,9 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
                                 }
 
-                                if (webElementFound != null && success) {
+                                byPassNotFound = byPassFlagLoop || ifClause || elseClause;
 
-                                    byPassNotFound = byPassFlagLoop || ifClause || elseClause;
+                                if (webElementFound != null && success) {
 
                                     success = performAction.performWebActions(
                                             byPassNotFound,
@@ -4415,6 +4426,15 @@ public class ABRScannedElementPane extends ABRPane {
                                     success = byPassFlagLoop;
                                 }
 
+                                if (!success && !ifClause && !elseClause && !byPassFlagLoop) {
+                                    stopAll = true;
+                                    success = false;
+                                } else if (ifClause && !success) {
+                                    ifFailed = true;
+                                } else if (elseClause && !success) {
+                                    elseFailed = true;
+                                }
+
                                 if (byPassFlagLoop) {
 
                                     resultActions = "By Passing Loop Flag "
@@ -4442,6 +4462,10 @@ public class ABRScannedElementPane extends ABRPane {
                                                 : "MANDATORY INSTRUCTION",
                                         resultActions,
                                         duration);
+
+                                if (stopAll) {
+                                    break;
+                                }
 
                             } else if (execOperation) {
 

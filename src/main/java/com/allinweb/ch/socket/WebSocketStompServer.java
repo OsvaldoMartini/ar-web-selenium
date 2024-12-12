@@ -72,86 +72,15 @@ public class WebSocketStompServer {
         this.botJobId = botJobId;
     }
 
-    @OnOpen
-    public void onOpen(Session session) {
-        // Check if the session is already in the sessions set before adding it
-        if (!sessions.contains(session)) {
-            sessions.add(session);
-            ABRLogger.getInstance(WebSocketStompServer.class)
-                    .info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
-        } else {
-            ABRLogger.getInstance(WebSocketStompServer.class)
-                    .info(String.format("Reusing existing Socket Connection - Session Id: %s", session.getId()));
-        }
-    }
-
-    @OnMessage
-    public void onMessage(String message, Session session) {
-        try {
-            // Parse the incoming STOMP frame
-            StompFrame frame = StompParser.parse(message);
-
-            // Handle the STOMP frame (e.g., CONNECT, SEND, SUBSCRIBE)
-            stompHandler.handleFrame(frame, session);
-
-            // Extract and handle the message type
-            String type = extractType(frame.getBody());
-            handleMessageByType(type, frame.getBody(), session);
-
-            // Send a ping to keep the connection alive
-            session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
-        } catch (IOException e) {
-            ABRLogger.getInstance(WebSocketStompServer.class)
-                    .warning(String.format("onMessage - IO Error: %s", e.getMessage()));
-        } catch (Exception e) {
-            ABRLogger.getInstance(WebSocketStompServer.class)
-                    .warning(String.format("onMessage - Error: %s", e.getMessage()));
-        }
-    }
-
-    public static void sendMessageToAll(String message) {
-        synchronized (sessions) {
-            for (Session session : sessions) {
-                if (session.isOpen()) {
-                    try {
-                        String stompMessage = "MESSAGE\nsubscription:/topic/messages\ncontent-length:"
-                                + message.length() + "\n\n" + message + "\u0000";
-                        session.getBasicRemote().sendText(stompMessage);
-                        ABRLogger.getInstance(WebSocketStompServer.class)
-                                .info(String.format("Sent message to session %s: %s", session.getId(), message));
-                    } catch (IOException e) {
-                        ABRLogger.getInstance(WebSocketStompServer.class)
-                                .warning(String.format("sendMessageToAll - IO Error: %s", e.getMessage()));
-                    }
-                }
-            }
-        }
-    }
-
-    @OnError
-    public void onError(Session session, Throwable throwable) {
-        ABRLogger.getInstance(WebSocketStompServer.class)
-                .warning(String.format("WebSocket error: %s", throwable.getMessage()));
-        try {
-            if (session.isOpen()) {
-                session.close();
-            }
-        } catch (IOException e) {
-            ABRLogger.getInstance(WebSocketStompServer.class)
-                    .warning(String.format("onError - IO Error: %s", e.getMessage()));
-        }
-    }
-
-    @OnClose
-    public void onClose(Session session) {
-        sessions.remove(session);
-        ABRLogger.getInstance(WebSocketStompServer.class)
-                .info(String.format("Client disconnected: %s", session.getId()));
-    }
-
     private void handleMessageByType(String type, String body, Session session) {
         // Dispatch to the correct method based on the message type
         switch (type) {
+            case "RESPONSE_BACK":
+                BlockSplitDTO responseBack = gson.fromJson(body, BlockSplitDTO.class);
+                responseBack.setType("MARTINI");
+                String jsonData = gson.toJson(responseBack);
+                sendMessageToAll(jsonData);
+                break;
             case "BLOCKS_COMPONENT":
                 BlockSplitDTO blockComponentDTO = gson.fromJson(body, BlockSplitDTO.class);
                 createBlockComponent(blockComponentDTO);
@@ -180,6 +109,7 @@ public class WebSocketStompServer {
                     performDataBase.updateBlockOrderNumber(
                             performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
                 }
+                sendMessageToAll("ROW_MOVE");
                 ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "INSERT_BEFORE":
@@ -250,6 +180,83 @@ public class WebSocketStompServer {
                 //                    System.err.println("Unknown message type: " + type);
                 break;
         }
+    }
+
+    @OnOpen
+    public void onOpen(Session session) {
+        // Check if the session is already in the sessions set before adding it
+        if (!sessions.contains(session)) {
+            sessions.add(session);
+            ABRLogger.getInstance(WebSocketStompServer.class)
+                    .info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
+        } else {
+            ABRLogger.getInstance(WebSocketStompServer.class)
+                    .info(String.format("Reusing existing Socket Connection - Session Id: %s", session.getId()));
+        }
+    }
+
+    @OnMessage
+    public void onMessage(String message, Session session) {
+        try {
+            // Parse the incoming STOMP frame
+            StompFrame frame = StompParser.parse(message);
+
+            // Handle the STOMP frame (e.g., CONNECT, SEND, SUBSCRIBE)
+            stompHandler.handleFrame(frame, session);
+
+            // Extract and handle the message type
+            String type = extractType(frame.getBody());
+            handleMessageByType(type, frame.getBody(), session);
+
+            // Send a ping to keep the connection alive
+            session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
+        } catch (IOException e) {
+            ABRLogger.getInstance(WebSocketStompServer.class)
+                    .warning(String.format("onMessage - IO Error: %s", e.getMessage()));
+        } catch (Exception e) {
+            ABRLogger.getInstance(WebSocketStompServer.class)
+                    .warning(String.format("onMessage - Error: %s", e.getMessage()));
+        }
+    }
+
+    public static void sendMessageToAll(String message) {
+        synchronized (sessions) {
+            for (Session session : sessions) {
+                if (session.isOpen()) {
+                    try {
+                        String stompMessage = "MESSAGE\ndestination:/topic/messages\ncontent-length:" + message.length()
+                                + "\n\n" + message + "\u0000";
+                        session.getBasicRemote().sendText(stompMessage);
+                        ABRLogger.getInstance(WebSocketStompServer.class)
+                                .info(String.format("Sent message to session %s: %s", session.getId(), message));
+                    } catch (IOException e) {
+                        ABRLogger.getInstance(WebSocketStompServer.class)
+                                .warning(String.format("sendMessageToAll - IO Error: %s", e.getMessage()));
+                    }
+                }
+            }
+        }
+    }
+
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        ABRLogger.getInstance(WebSocketStompServer.class)
+                .warning(String.format("WebSocket error: %s", throwable.getMessage()));
+        try {
+            if (session.isOpen()) {
+                session.close();
+            }
+        } catch (IOException e) {
+            ABRLogger.getInstance(WebSocketStompServer.class)
+                    .warning(String.format("onError - IO Error: %s", e.getMessage()));
+        }
+    }
+
+    @OnClose
+    public void onClose(Session session) {
+        sessions.remove(session);
+        ABRLogger.getInstance(WebSocketStompServer.class)
+                .info(String.format("Client disconnected: %s", session.getId()));
     }
 
     private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {

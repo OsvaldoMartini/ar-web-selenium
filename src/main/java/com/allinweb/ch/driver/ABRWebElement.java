@@ -337,6 +337,9 @@ public class ABRWebElement {
             textElement.setValue(true);
         }
 
+        innerHTMLValue = innerHTMLValue.replaceAll("  ", "");
+        innerHTMLValue = innerHTMLValue.replaceAll("\n", "");
+
         if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
             nameLabel.setText(searchReturn.getDefinedName());
             nameField.setText(searchReturn.getDefinedName());
@@ -456,10 +459,10 @@ public class ABRWebElement {
                 } else {
                     // Handle other types of elements as needed
                     outputElement.setValue(false);
-                    clickElement.setValue(false);
+                    clickElement.setValue(true);
                     textElement.setValue(false);
                     insertElement.setValue(false);
-                    forceTagEnum = null;
+                    forceTagEnum = WebElementTagNameEnum.BUTTON;
                 }
             }
         } else {
