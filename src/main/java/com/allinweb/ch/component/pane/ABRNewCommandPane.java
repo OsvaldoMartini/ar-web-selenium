@@ -214,7 +214,8 @@ public class ABRNewCommandPane extends ABRPane {
 
             itemsInstructions.add(
                     new ComboBoxImage("Refresh", new Image(ABRConstants.ICON_REFRESH_ONLY), ABRConstants.REFRESH_ONLY));
-
+            itemsInstructions.add(
+                    new ComboBoxImage("Loop", new Image(ABRConstants.ICON_REFRESH_LOOP), ABRConstants.LOOP));
             itemsInstructions.add(new ComboBoxImage(
                     "Refresh Loop", new Image(ABRConstants.ICON_REFRESH_LOOP), ABRConstants.REFRESH_LOOP));
 
@@ -1015,6 +1016,59 @@ public class ABRNewCommandPane extends ABRPane {
                         System.out.println(ex.getMessage());
                     }
 
+                } else if (ABRConstants.LOOP.equalsIgnoreCase(newValue.getValue())) {
+                    defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+                    textFlow.setVisible(true);
+                    //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+                    //                    botJobVarsLabel.setText("Bot-Job Variable");
+                    botJobVarsLabel.setVisible(false);
+                    webPageLabel.setVisible(true);
+                    comboBoxOperator.setVisible(false);
+                    comboBoxWebPage.setVisible(true);
+                    comboBoxAllBlocks.setVisible(true);
+
+                    variableButton.setVisible(false);
+
+                    comboBoxVars.setVisible(false);
+                    comboBoxVars.setPrefWidth(buttonWidth);
+                    comboBoxBlocks.setVisible(false);
+
+                    comboBoxTimes.setVisible(false);
+                    comboBoxLoops.setVisible(true);
+
+                    try {
+                        variableButtonRow.getChildren().clear();
+                        vboxAll.getChildren().clear();
+
+                        // labelRow.getChildren().clear();
+                        // labelRow.getChildren().addAll(commandLabel, webPageLabel);
+                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                        comboBoxesRow.getChildren().clear();
+                        comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
+
+                        variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
+
+                        vboxAll.getChildren()
+                                .addAll(
+                                        // labelRow, // Web Page Label row
+                                        comboBoxesRow, // ComboBoxes row
+                                        variableButtonRow, // Variable Button row
+                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                        addNewsBox,
+                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                        );
+
+                        // labelRow.requestLayout();
+                        vboxAll.requestLayout();
+                        mainPane.requestLayout();
+
+                    } catch (Exception ex) {
+                        System.out.println(ex.getMessage());
+                    }
+
                 } else if (ABRConstants.REFRESH_LOOP.equalsIgnoreCase(newValue.getValue())) {
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
@@ -1218,6 +1272,7 @@ public class ABRNewCommandPane extends ABRPane {
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.IF)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.REFRESH_ONLY)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.LOOP)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
 
                 if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
@@ -1305,6 +1360,16 @@ public class ABRNewCommandPane extends ABRPane {
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh")) {
                 addInstruction("Refresh", "Refresh", ABRConstants.REFRESH_ONLY, 10, "", null, null, this.rowMoveDTO);
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Loop")) {
+                addInstruction(
+                        "Loop",
+                        "Loop",
+                        ABRConstants.LOOP,
+                        2,
+                        comboBoxLoops.getValue().getValue(),
+                        null,
+                        comboBoxWebPage.getValue().getVarId(),
+                        this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh Loop")) {
                 addInstruction(
                         "Refresh Loop",
@@ -1523,6 +1588,30 @@ public class ABRNewCommandPane extends ABRPane {
                     textFlow.getChildren().clear();
                     textFlow.getChildren().addAll(regularText1, variableText1);
                     textFlow.requestLayout();
+                    break;
+                case ABRConstants.LOOP:
+                    regularText1.setText("Loop: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText1.setText(comboBoxLoops.getValue().getText());
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText2.setText(": Parent ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText2.setText(webFieldName);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(false);
+
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(false);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
+                    textFlow.requestLayout();
+
                     break;
                 case ABRConstants.REFRESH_LOOP:
                     regularText1.setText("Refresh ");
@@ -1948,7 +2037,17 @@ public class ABRNewCommandPane extends ABRPane {
         HBox blockNameBox = new HBox();
         blockNameBox.getChildren().addAll(blockNameLabel, blockNameText);
 
-        if (actions.equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+        if (actions.equalsIgnoreCase(ABRConstants.LOOP)) {
+
+            HBox allMsgHor = new HBox();
+            allMsgHor.setSpacing(5);
+            allMsgHor.getChildren().addAll(regularTextCopy1, variableText1Copy, regularTextCopy2, variableText2Copy);
+
+            VBox allMsgVer = new VBox();
+            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
+
+            combinedTextContainer.getChildren().addAll(allMsgVer);
+        } else if (actions.equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
 
             HBox allMsgHor = new HBox();
             allMsgHor.setSpacing(5);

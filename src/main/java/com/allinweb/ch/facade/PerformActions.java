@@ -2583,4 +2583,58 @@ public class PerformActions {
 
         ((JavascriptExecutor) driver).executeScript(script, x, y);
     }
+
+    public Map<String, Integer[]> getLoopAndRefreshLoops(
+            List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS) {
+        // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
+        Map<String, Integer[]> mapRefreshLoops = new HashMap<>();
+
+        for (BlockLoopInstructionLoadDTO instruction : blockLoopInstructionLoadDTOS) {
+            // Filter by actions
+            String actions = instruction.getActions();
+            if ("REFRESH_LOOP".equalsIgnoreCase(actions) || "LOOP".equalsIgnoreCase(actions)) {
+                // Convert id to String for the key
+                String key = String.valueOf(instruction.getId());
+
+                // Parse the operation into Integer[]
+                String operation = instruction.getOperation();
+                Integer[] operationValues;
+                if (operation == null || operation.isEmpty()) {
+                    operationValues = new Integer[] {}; // Handle null/empty operation
+                } else {
+                    String[] parts = operation.split(":"); // Split by ':'
+                    operationValues = new Integer[parts.length];
+                    for (int i = 0; i < parts.length; i++) {
+                        operationValues[i] = Integer.parseInt(parts[i]); // Convert each part to Integer
+                    }
+                }
+
+                // Add to the map
+                mapRefreshLoops.put(key, operationValues);
+            }
+        }
+
+        // Traverse and print keys and values
+        for (Map.Entry<String, Integer[]> entry : mapRefreshLoops.entrySet()) {
+            String key = entry.getKey(); // The key
+            Integer[] values = entry.getValue(); // The value as an array
+
+            // Convert the Integer[] to a readable string
+            String valuesAsString = Arrays.stream(values)
+                    .map(String::valueOf) // Convert each Integer to String
+                    .collect(Collectors.joining(":")); // Join with ':'
+
+            // Print the key and value
+            System.out.println("Key: " + key + ", Value: " + valuesAsString);
+        }
+
+        return mapRefreshLoops;
+    }
+
+    public Set<Integer> getParentIdsForLoop(List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS) {
+        return blockLoopInstructionLoadDTOS.stream()
+                .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions())|| "LOOP".equalsIgnoreCase(instruction.getActions()))
+                .map(BlockLoopInstructionLoadDTO::getParentId)
+                .collect(Collectors.toSet());
+    }
 }

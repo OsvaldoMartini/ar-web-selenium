@@ -3632,7 +3632,6 @@ public class ABRScannedElementPane extends ABRPane {
         boolean excelExportOnceCreation = true;
         //        writerExport.insertReportHead();
 
-        boolean refreshOnly = false;
         boolean refreshLoopExecuted = false;
         boolean ignoreRefreshLoop = false;
         Set<String> mapIgnore = new HashSet<>();
@@ -3673,7 +3672,9 @@ public class ABRScannedElementPane extends ABRPane {
 
         Map<String, String> mapSavedLocators = new HashMap<>();
 
-        Set<Integer> parentIdsForRefreshLoop = null;
+        Set<Integer> parentIdsForLoop = null;
+        Map<String, Integer[]> mapRefreshLoops = null; // <id | parentId:GOTO-INDEX:Wait:Loops> -> <1|34:6:5:5>
+
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
 
@@ -3746,13 +3747,18 @@ public class ABRScannedElementPane extends ABRPane {
                 }
 
                 // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
-                parentIdsForRefreshLoop = blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS().stream()
-                        .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
-                        .map(BlockLoopInstructionLoadDTO::getParentId)
-                        .collect(Collectors.toSet());
+                parentIdsForLoop = performAction.getParentIdsForLoop(
+                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
+
+                // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
+
+                mapRefreshLoops = performAction.getLoopAndRefreshLoops(
+                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
 
                 executionTimes++;
                 boolean jumpGoto = false;
+                boolean jumpLoop = false;
+                boolean refresh = false;
 
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
                     boolean ifClause = false;
@@ -3772,6 +3778,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                     int currentIndex = 0;
 
+                    instructionLoop:
                     while (currentIndex < instructionIds.length && !stopAll) {
 
                         BlockLoopInstructionLoadDTO currentInstruction =
@@ -3958,9 +3965,15 @@ public class ABRScannedElementPane extends ABRPane {
                             continue;
                         }
 
-                        if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
+                        if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
+                            jumpLoop = true;
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
+                            refresh = true;
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+                            refresh = true;
+                            jumpLoop = true;
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                             jumpGoto = true;
-
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
@@ -4044,12 +4057,6 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                             }
 
-                        } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
-
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Refresh Current Web Page ->  inside Block :\"" + blockLoad.getName() + "\"");
-
-                            refreshOnly = true;
                         } else if (!ignoreRefreshLoop
                                 && refreshLoopArray == null
                                 && actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
@@ -4205,7 +4212,11 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
                                 }
 
-                            } else if (refreshOnly) {
+                            } else if (refresh) {
+
+                                ABRLogger.getInstance(ABRScannedElementPane.class)
+                                        .info("Refresh Current Web Page ->  inside Block :\"" + blockLoad.getName()
+                                                + "\"");
 
                                 performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
@@ -4222,7 +4233,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         resultActions,
                                         duration);
 
-                                refreshOnly = false;
+                                refresh = false;
 
                                 continue;
 
@@ -4272,8 +4283,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 Pair<String, String> msgLoop = null;
                                 if (refreshLoopExecuted && refreshLoopArray != null) {
 
-                                    boolean pauseParentLoop =
-                                            parentIdsForRefreshLoop.contains(currentInstruction.getId());
+                                    boolean pauseParentLoop = parentIdsForLoop.contains(currentInstruction.getId());
                                     if (pauseParentLoop) {
                                         performAction.onHoldInSeconds(refreshLoopArray[0]);
 
@@ -4422,7 +4432,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 long duration = performAction.duration(currentInstructionStartTime);
 
                                 if (!success && refreshLoopExecuted && refreshLoopArray != null) {
-                                    byPassFlagLoop = parentIdsForRefreshLoop.contains(currentInstruction.getId());
+                                    byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
                                     success = byPassFlagLoop;
                                 }
 
@@ -4536,7 +4546,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 if (operations.length == 3) {
                                     if (mapOperators.containsKey(parentField)) {
 
-                                        byPassFlagLoop = parentIdsForRefreshLoop.contains(parentId);
+                                        byPassFlagLoop = parentIdsForLoop.contains(parentId);
                                         success = byPassFlagLoop;
 
                                         resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
