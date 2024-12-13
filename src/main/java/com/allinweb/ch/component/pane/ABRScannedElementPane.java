@@ -428,6 +428,8 @@ public class ABRScannedElementPane extends ABRPane {
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
         if (blocksItems.size() == 0) {
+            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1));
+        } else {
             blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1));
         }
         comboBoxBlocks.setPrefWidth(comboWidth);

@@ -2633,7 +2633,8 @@ public class PerformActions {
 
     public Set<Integer> getParentIdsForLoop(List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS) {
         return blockLoopInstructionLoadDTOS.stream()
-                .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions())|| "LOOP".equalsIgnoreCase(instruction.getActions()))
+                .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions())
+                        || "LOOP".equalsIgnoreCase(instruction.getActions()))
                 .map(BlockLoopInstructionLoadDTO::getParentId)
                 .collect(Collectors.toSet());
     }

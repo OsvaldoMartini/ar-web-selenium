@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
@@ -260,6 +261,8 @@ public class ABRNewCommandPane extends ABRPane {
             for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
                 loadAllBlockItems(botJobLoadDTO.getBlockLoadDTOList());
             }
+        } else {
+            allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1));
         }
     }
 
@@ -2468,11 +2471,37 @@ public class ABRNewCommandPane extends ABRPane {
 
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
-        if (finalMatchingBlocks != null) {
+        if (finalMatchingBlocks != null && finalMatchingBlocks.size() > 0) {
             instruction.setBlock(ABRSharedResources.getInstance()
                     .getEntityById(BlockDTO.class, finalMatchingBlocks.get(0).getId()));
-        } else {
+        } else if (botJob.getBlocks().size() > 0) {
             instruction.setBlock(botJob.getBlocks().get(0));
+        } else {
+
+            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+            newBlockDetails.setBlockName(botJob.getName() + " default block");
+            newBlockDetails.setBlockDescription(botJob.getName() + " block description");
+            newBlockDetails.setTypeId(1);
+            newBlockDetails.setActive(true);
+            newBlockDetails.setWait(3);
+
+            newBlockDetails.setBotJobId(botJob.getId());
+
+            int newBlockId = performDatabase.createNewBlock(newBlockDetails);
+
+            if (newBlockId > 0) {
+                newBlockDetails.setBlockId(newBlockId);
+                BlockDTO block = new BlockDTO();
+                block.setId(newBlockDetails.getBlockId());
+                block.setName(newBlockDetails.getBlockName());
+                block.setDescription(newBlockDetails.getBlockDescription());
+                block.setTypeId(1);
+                block.setActive(true);
+                block.setWait(3);
+                block.setBotJob(botJob);
+
+                instruction.setBlock(block);
+            }
         }
         instruction.setExportToABR(false);
         // Wrap the persistence in a try-catch block
