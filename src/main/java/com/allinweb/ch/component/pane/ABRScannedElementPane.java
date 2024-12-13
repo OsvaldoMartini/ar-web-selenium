@@ -3688,7 +3688,7 @@ public class ABRScannedElementPane extends ABRPane {
             //                    && !stopAll
             //                    && executionTimes < execLimitReach) {
 
-            outerLoop:
+            blockLoop:
             while (currentBlock <= blocksLoaded.size() - 1
                     && blocksLoaded.size() > 0
                     && !stopAll
@@ -4190,7 +4190,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         resultActions,
                                         duration);
                                 if (success) {
-                                    continue outerLoop;
+                                    continue blockLoop;
                                 } else {
 
                                     if (!ifClause && !elseClause) {
