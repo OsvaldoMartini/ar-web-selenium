@@ -250,11 +250,11 @@ public class ABRNewBotJobPane extends ABRPane {
         try {
             // Create a new BlockDTO object and set its properties
             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName(createdBotJob.getName() + " default block");
+            newBlockDetails.setBlockName("Default Block");
             newBlockDetails.setBlockDescription(
                     !Strings.isNullOrEmpty(createdBotJob.getDescription())
                             ? createdBotJob.getDescription()
-                            : createdBotJob.getName() + " block description");
+                            : "Default Block description");
             newBlockDetails.setTypeId(1);
             newBlockDetails.setActive(true);
             newBlockDetails.setWait(3);

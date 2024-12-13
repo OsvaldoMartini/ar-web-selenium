@@ -30,6 +30,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -157,6 +158,7 @@ public class ABRNewCommandPane extends ABRPane {
 
     private List<BotJobLoadDTO> botJobLoadList;
 
+    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private ComboBox<ComboBoxVars> comboBoxAllBlocks;
     private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
 
@@ -2479,8 +2481,8 @@ public class ABRNewCommandPane extends ABRPane {
         } else {
 
             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName(botJob.getName() + " default block");
-            newBlockDetails.setBlockDescription(botJob.getName() + " block description");
+            newBlockDetails.setBlockName("Default Block");
+            newBlockDetails.setBlockDescription("Default Block description");
             newBlockDetails.setTypeId(1);
             newBlockDetails.setActive(true);
             newBlockDetails.setWait(3);
@@ -2490,6 +2492,12 @@ public class ABRNewCommandPane extends ABRPane {
             int newBlockId = performDatabase.createNewBlock(newBlockDetails);
 
             if (newBlockId > 0) {
+
+                this.blockLoadList = performDatabase.loadBlocksForBotJob(botJob.getId());
+
+                loadAllBlockItems(blockLoadList);
+                comboBoxAllBlocks.getSelectionModel().selectFirst();
+
                 newBlockDetails.setBlockId(newBlockId);
                 BlockDTO block = new BlockDTO();
                 block.setId(newBlockDetails.getBlockId());

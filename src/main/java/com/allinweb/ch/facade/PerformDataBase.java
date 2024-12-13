@@ -46,6 +46,7 @@ import javafx.scene.layout.VBox;
 import javax.swing.*;
 
 public class PerformDataBase {
+    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
 
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
@@ -1312,5 +1313,55 @@ public class PerformDataBase {
             ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updateBlockStatus. Error: %s", e.getMessage()));
         }
+    }
+
+    public List<BlockLoadDTO> loadBlocksForBotJob(int botJobId) {
+        // SQL query to get the blocks for a specific bot job
+        String query = "SELECT " + "b.id AS block_id, "
+                + "b.block_order_number, "
+                + "b.name AS block_name, "
+                + "b.description AS block_description, "
+                + "b.type_id, "
+                + "bj.id AS bot_job_id, "
+                + "bj.name AS bot_job_name "
+                + "FROM bot_job bj "
+                + "JOIN block b ON b.bot_job_id = bj.id "
+                + "WHERE bj.id = "
+                + botJobId + " " + // Use the botJobId directly in the query string
+                "ORDER BY b.block_order_number ASC";
+
+        // Initialize the necessary data structures
+        blockLoadList.clear();
+        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
+
+        // Use Statement to execute the query
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+
+            while (rs.next()) {
+                // Load the Block information
+                int blockId = rs.getInt("block_id");
+                BlockLoadDTO blockDTO = blockMap.get(blockId);
+
+                if (blockDTO == null) {
+                    blockDTO = new BlockLoadDTO();
+                    blockDTO.setId(blockId);
+                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+                    blockDTO.setName(rs.getString("block_name"));
+                    blockDTO.setDescription(rs.getString("block_description"));
+                    blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
+                    blockDTO.setBotJobName(rs.getString("bot_job_name"));
+
+                    blockMap.put(blockId, blockDTO);
+                    blockLoadList.add(blockDTO);
+                }
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(Thread.class)
+                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
+        }
+
+        return blockLoadList;
     }
 }

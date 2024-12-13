@@ -208,11 +208,11 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                         this.blockDTO.setDescription(savedBlocksDTO.getDescription());
 
                         BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-                        newBlockDetails.setBlockName(this.blockDTO.getName() + " default block");
+                        newBlockDetails.setBlockName("Default Block");
                         newBlockDetails.setBlockDescription(
                                 !Strings.isNullOrEmpty(this.blockDTO.getDescription())
                                         ? this.blockDTO.getDescription()
-                                        : this.blockDTO.getName() + " block description");
+                                        : "Default Block description");
                         newBlockDetails.setTypeId(1);
                         newBlockDetails.setActive(savedBlocksDTO.getActive());
                         newBlockDetails.setWait(savedBlocksDTO.getWait());

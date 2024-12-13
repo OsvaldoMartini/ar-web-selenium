@@ -5,6 +5,7 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.ABRWebElementListCell;
+import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
@@ -412,26 +413,16 @@ public class ABRScannedElementPane extends ABRPane {
 
         updateSceneTitleWithCurrentURL(botJob.getHomeBanking().getUrl());
 
-        loadBlocksForBotJob(this.botJob.getId());
-
-        if (this.blockLoadList != null && this.blockLoadList.size() > 0) {
-            loadAllBlockItems(this.blockLoadList);
-        }
+        this.blockLoadList = performDatabase.loadBlocksForBotJob(this.botJob.getId());
+        loadAllBlockItems(this.blockLoadList);
 
         refreshBlocksButton = createPathButton();
 
         refreshBlocksButton.setOnMouseClicked(e -> {
-            loadBlocksForBotJob(this.botJob.getId());
-            loadAllBlockItems(this.blockLoadList);
-            comboBoxBlocks.getSelectionModel().selectFirst();
+            refreshBlocks(false);
         });
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
-        if (blocksItems.size() == 0) {
-            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1));
-        } else {
-            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1));
-        }
         comboBoxBlocks.setPrefWidth(comboWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
         comboBoxBlocks.setButtonCell(new ListCell<>() {
@@ -715,6 +706,17 @@ public class ABRScannedElementPane extends ABRPane {
 
         } catch (Exception ex) {
             ABRLogger.getInstance(ABRScannedElementPane.class).fine("Error using Separator line\n" + ex);
+        }
+    }
+
+    private void refreshBlocks(boolean secondItem) {
+        this.blockLoadList = performDatabase.loadBlocksForBotJob(this.botJob.getId());
+        loadAllBlockItems(this.blockLoadList);
+
+        if (!secondItem) {
+            comboBoxBlocks.getSelectionModel().selectFirst(); // Select the first item
+        } else {
+            comboBoxBlocks.getSelectionModel().select(1); // Select the second item (index 1)
         }
     }
 
@@ -1992,25 +1994,19 @@ public class ABRScannedElementPane extends ABRPane {
                         }
 
                         // It Prevents Start without blocks
+                        this.blockLoadList = performDatabase.loadBlocksForBotJob(this.botJob.getId());
                         if (blockLoadList.isEmpty()) {
 
-                            // It Prevents Start without blocks
-                            SavedBlocksDTO savedBlocksDTO = new SavedBlocksDTO();
+                            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+                            newBlockDetails.setBlockName("Default Block");
+                            newBlockDetails.setBlockDescription("  description");
+                            newBlockDetails.setTypeId(1);
+                            newBlockDetails.setActive(true);
+                            newBlockDetails.setWait(3);
 
-                            savedBlocksDTO.setDescription("Default Block description");
-                            savedBlocksDTO.setName("Default Block");
-                            BlockDTO blockDTO =
-                                    performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJob);
-                            BotJobDTO botJob = ABRSharedResources.getInstance()
-                                    .getEntityById(BotJobDTO.class, this.botJob.getId());
-                            blockDTO.setTypeId(1);
-                            blockDTO.setBotJob(botJob);
-                            blockDTO.setName("Default Block");
-                            blockDTO.setDescription("Default Block description");
+                            newBlockDetails.setBotJobId(botJob.getId());
 
-                            //            ABRSharedResources.getInstance().addEntity(blockDTO, BlockDTO.class);
-
-                            currentBlockId = createBlock(blockDTO);
+                            currentBlockId = performDatabase.createNewBlock(newBlockDetails);
 
                             if (currentBlockId < 0) {
                                 performAction.showAlert(
@@ -2033,6 +2029,10 @@ public class ABRScannedElementPane extends ABRPane {
                                                 "Created a new Block id %d for bot job Id %d",
                                                 currentBlockId, botJob.getId()));
                             }
+
+                            Platform.runLater(() -> {
+                                refreshBlocks(true);
+                            });
                         }
                         //                        else {
                         //                            if (blockLoadList.size() > 0 && this.blockJob == null) {
@@ -5438,56 +5438,6 @@ public class ABRScannedElementPane extends ABRPane {
         });
     }
 
-    public List<BlockLoadDTO> loadBlocksForBotJob(int botJobId) {
-        // SQL query to get the blocks for a specific bot job
-        String query = "SELECT " + "b.id AS block_id, "
-                + "b.block_order_number, "
-                + "b.name AS block_name, "
-                + "b.description AS block_description, "
-                + "b.type_id, "
-                + "bj.id AS bot_job_id, "
-                + "bj.name AS bot_job_name "
-                + "FROM bot_job bj "
-                + "JOIN block b ON b.bot_job_id = bj.id "
-                + "WHERE bj.id = "
-                + botJobId + " " + // Use the botJobId directly in the query string
-                "ORDER BY b.block_order_number ASC";
-
-        // Initialize the necessary data structures
-        blockLoadList.clear();
-        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
-
-        // Use Statement to execute the query
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-
-            while (rs.next()) {
-                // Load the Block information
-                int blockId = rs.getInt("block_id");
-                BlockLoadDTO blockDTO = blockMap.get(blockId);
-
-                if (blockDTO == null) {
-                    blockDTO = new BlockLoadDTO();
-                    blockDTO.setId(blockId);
-                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    blockDTO.setName(rs.getString("block_name"));
-                    blockDTO.setDescription(rs.getString("block_description"));
-                    blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
-                    blockDTO.setBotJobName(rs.getString("bot_job_name"));
-
-                    blockMap.put(blockId, blockDTO);
-                    blockLoadList.add(blockDTO);
-                }
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
-        }
-
-        return blockLoadList;
-    }
-
     public BotJobLoadDTO loadBotJob(int botJobId) {
         // SQL query to get the blocks for a specific bot job
         String query = "SELECT bj.id, "
@@ -5524,30 +5474,32 @@ public class ABRScannedElementPane extends ABRPane {
         return null;
     }
 
-    private int createBlock(BlockDTO blockDTO) {
-        // Generate a Unique-ID for the block
-        Integer nextId = loadNextIdBlockData() + 1;
-        Integer nextBlockOrder =
-                performDatabase.loadNextBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
-
-        // Build the SQL insert query
-        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
-                + nextId + ", "
-                + nextBlockOrder + ", " // block_order_number
-                + "'" + blockDTO.getDescription() + "', " // description
-                + "'" + blockDTO.getName() + "', " // name
-                + 1 + ", " // type_id
-                + blockDTO.getBotJobDTO().getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            ABRLogger.getInstance(ABRScannedElementPane.class).info("Block data saved successfully id: " + nextId);
-            return nextId;
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRScannedElementPane.class).severe("saveBlock  \nError: " + e.getMessage());
-            return -1;
-        }
-    }
+    //    private int createBlock(BlockDTO blockDTO) {
+    //        // Generate a Unique-ID for the block
+    //        Integer nextId = loadNextIdBlockData() + 1;
+    //        Integer nextBlockOrder =
+    //                performDatabase.loadNextBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
+    //
+    //        // Build the SQL insert query
+    //        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id)
+    // VALUES ("
+    //                + nextId + ", "
+    //                + nextBlockOrder + ", " // block_order_number
+    //                + "'" + blockDTO.getDescription() + "', " // description
+    //                + "'" + blockDTO.getName() + "', " // name
+    //                + 1 + ", " // type_id
+    //                + blockDTO.getBotJobDTO().getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
+    //
+    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+    //            stmt.executeUpdate(insertSQL);
+    //            ABRLogger.getInstance(ABRScannedElementPane.class).info("Block data saved successfully id: " +
+    // nextId);
+    //            return nextId;
+    //        } catch (SQLException e) {
+    //            ABRLogger.getInstance(ABRScannedElementPane.class).severe("saveBlock  \nError: " + e.getMessage());
+    //            return -1;
+    //        }
+    //    }
 
     private Integer loadNextIdBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
@@ -5778,7 +5730,11 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         blocksItems.clear();
-        blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1));
+        if (blockLoadDTOList.size() > 0) {
+            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1));
+        } else {
+            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1));
+        }
         for (BlockLoadDTO block : blockLoadDTOList) {
             blocksItems.add(new ComboBoxVars(
                     block.getBlockOrderNumber() + "# " + block.getName(),
