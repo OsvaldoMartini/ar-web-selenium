@@ -1612,13 +1612,21 @@ public class PerformActions {
     }
 
     public void alertExecutionTimes(int executionTimes, String lastInstructionExecuted) {
-        showAlert(
-                Alert.AlertType.ERROR,
+        //        showAlert(
+        //                Alert.AlertType.ERROR,
+        //                "Block Execution Time LIMIT",
+        //                "Attention The Process Reached the LIMIT of Block Loop Executions",
+        //                String.format(
+        //                        "Attention the Process Reached the Block LOOP LIMIT of %d\nLast Instruction Executed :
+        // %s\nWe are Exiting All of processes Now!",
+        //                        executionTimes, lastInstructionExecuted));
+
+        errorMessage(
                 "Block Execution Time LIMIT",
-                "Attention The Process Reached the LIMIT of Block Loop Executions",
-                String.format(
-                        "Attention the Process Reached the Block LOOP LIMIT of %d\nLast Instruction Executed : %s\nWe are Exiting All of processes Now!",
-                        executionTimes, lastInstructionExecuted));
+                String.format("Process Reached BLOCK LOOP LIMIT of %d", executionTimes),
+                "Exiting All processes Now!",
+                "Last Execution",
+                lastInstructionExecuted);
     }
 
     // Update the list of window handles (tabs)
