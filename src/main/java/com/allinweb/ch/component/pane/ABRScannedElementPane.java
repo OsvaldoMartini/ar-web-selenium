@@ -3694,7 +3694,7 @@ public class ABRScannedElementPane extends ABRPane {
             while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
 
                 long blockStartTime = System.nanoTime();
-                
+
                 instructionsExecuted.clear();
 
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
@@ -3709,7 +3709,6 @@ public class ABRScannedElementPane extends ABRPane {
                         : 2;
                 boolean blockActive = blocksLoaded.get(currentBlock).isActive();
 
-
                 // It Searches the Block That have finished the Loops to Avoid recursivity
                 if (loopBlockActive.size() > 0) {
                     for (String blocLoopKey : loopBlockActive) {
@@ -3719,8 +3718,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 int limit = loopBlockLimits.get(blocLoopKey);
                                 performAction.alertExecutionTimes(limit, resultActions);
 
-                                Pair<String, String> msgBlock =
-                                        new Pair(String.format("Exitng Bot Job: \"%s\"", blockLoad.getName()), ABRConstants.EXIT);
+                                Pair<String, String> msgBlock = new Pair(
+                                        String.format("Exit Bot Job: \"%s\"", blockLoad.getName()), ABRConstants.EXIT);
                                 long duration = performAction.duration(blockStartTime);
                                 performAction.excelReportWrite(
                                         blockReportName,
@@ -3738,12 +3737,11 @@ public class ABRScannedElementPane extends ABRPane {
                                         String.format("Exit at Block Name: \"%s\"", blockName),
                                         duration);
 
-                                continue;
+                                continue blockLoop;
                             }
                         }
                     }
                 }
-                
 
                 if (!blockActive) {
                     currentBlock++;
