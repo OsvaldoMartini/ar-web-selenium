@@ -121,6 +121,7 @@ public class ABRConstants {
     public static final String HOLD = "H";
     public static final String LOOP = "LOOP";
     public static final String REFRESH_ONLY = "REFRESH";
+    public static final String REFRESH_HOLD = "REFRESH_HOLD";
     public static final String REFRESH_LOOP = "REFRESH_LOOP";
     public static final String LIST_OPERATION = "L";
     public static final String QUIT = "Q";

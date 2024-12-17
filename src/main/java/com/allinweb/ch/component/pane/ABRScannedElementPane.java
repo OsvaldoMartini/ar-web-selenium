@@ -30,7 +30,6 @@ import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
 import java.util.Date;
-import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -3634,10 +3633,7 @@ public class ABRScannedElementPane extends ABRPane {
         boolean excelExportOnceCreation = true;
         //        writerExport.insertReportHead();
 
-        boolean refreshLoopExecuted = false;
-        boolean ignoreRefreshLoop = false;
         Set<String> mapIgnore = new HashSet<>();
-        int[] refreshLoopArray = null; // new int[] {0, 0, 0};
 
         boolean searchByJavaScript = checkBoxJavaScript.isSelected();
 
@@ -3675,7 +3671,9 @@ public class ABRScannedElementPane extends ABRPane {
         Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
-        Map<String, Integer[]> mapRefreshLoops = null; // <id | parentId:GOTO-INDEX:Wait:Loops> -> <1|34:6:5:5>
+        Map<String, Integer> mapLoops = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
+        Map<String, Integer> mapRefresh = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
+        Set<String> loopBlockActive = new HashSet<>();
 
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
@@ -3692,14 +3690,29 @@ public class ABRScannedElementPane extends ABRPane {
             //                    && executionTimes < execLimitReach) {
 
             blockLoop:
-            while (currentBlock <= blocksLoaded.size() - 1
-                    && blocksLoaded.size() > 0
-                    && !stopAll
-                    && executionTimes < execLimitReach) {
+            while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
+
+                // It Searches the Block That have finished the Loops to Avoid recursivity
+                if (loopBlockActive.size() > 0) {
+                    for (String blocLoopKey : loopBlockActive) {
+                        if (mapLoops.containsKey(blocLoopKey)) {
+                            if (mapLoops.get(blocLoopKey) == 0) {
+                                stopAll = true;
+                                continue;
+                            }
+                        }
+                    }
+                }
+
                 instructionsExecuted.clear();
+
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
                 String excelFieldName = blockLoad.getExportFile();
+
                 String blockName = blocksLoaded.get(currentBlock).getName();
+                int blockOrder = blocksLoaded.get(currentBlock).getBlockOrderNumber();
+                String blockReportName = "#" + blockOrder + " " + blockName;
+
                 int blockWait = blocksLoaded.get(currentBlock).getWait() > 0
                         ? blocksLoaded.get(currentBlock).getWait()
                         : 2;
@@ -3714,7 +3727,13 @@ public class ABRScannedElementPane extends ABRPane {
                             new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ABRConstants.IGNORE);
                     long duration = performAction.duration(blockStartTime);
                     performAction.excelReportWrite(
-                            success, new String[] {ABRConstants.IGNORE}, msgBlock, duration, dataExcel, writerReport);
+                            blockReportName,
+                            success,
+                            new String[] {ABRConstants.IGNORE},
+                            msgBlock,
+                            duration,
+                            dataExcel,
+                            writerReport);
                     totalExecutionTime += duration;
 
                     status = performAction.operationLog(
@@ -3738,7 +3757,13 @@ public class ABRScannedElementPane extends ABRPane {
                             String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
                             ABRConstants.HOLD);
                     performAction.excelReportWrite(
-                            success, new String[] {ABRConstants.HOLD}, msgBlock, duration, dataExcel, writerReport);
+                            blockReportName,
+                            success,
+                            new String[] {ABRConstants.HOLD},
+                            msgBlock,
+                            duration,
+                            dataExcel,
+                            writerReport);
                     totalExecutionTime += duration;
 
                     status = performAction.operationLog(
@@ -3754,13 +3779,14 @@ public class ABRScannedElementPane extends ABRPane {
 
                 // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
-                mapRefreshLoops = performAction.getLoopAndRefreshLoops(
-                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
+                //                mapLoops = performAction.getLoopAndRefreshLoops(
+                //                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
 
                 executionTimes++;
                 boolean jumpGoto = false;
                 boolean jumpLoop = false;
-                boolean refresh = false;
+                boolean refreshLoop = false;
+                boolean refreshOnly = false;
 
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
                     boolean ifClause = false;
@@ -3808,6 +3834,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                         String xPathOperation = null;
                         String parentField = null;
+                        String parentFieldLoop = null;
                         String fieldName = null;
                         int parentId = currentInstruction.getParentId();
 
@@ -3831,11 +3858,40 @@ public class ABRScannedElementPane extends ABRPane {
                             valueInsert = dataExcel.get(reference);
                         }
 
-                        Pair<String, String> msgInitial = new Pair(
-                                currentInstruction.getName(),
-                                (currentInstruction.getOperation() != null
-                                        ? currentInstruction.getOperation()
-                                        : (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) ? valueInsert : ""));
+                        Pair<String, String> msgInitial = null;
+                        if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
+                            // <currentId:blockId:blockOrderNumber:bockName>
+                            msgInitial = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
+                            if (!mapLoops.containsKey(msgInitial.getKey())) {
+                                mapLoops.put(
+                                        msgInitial.getKey(),
+                                        Integer.valueOf(msgInitial.getValue())); // <id:orderId:blockName>
+                            }
+
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
+                            // <currentId:parentId:parentName>
+                            msgInitial = performAction.getInstructionDetailsById(
+                                    blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS(),
+                                    currentInstruction);
+                            if (!mapLoops.containsKey(msgInitial.getKey())) {
+                                mapLoops.put(msgInitial.getKey(), Integer.valueOf(msgInitial.getValue()));
+                            }
+                        } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+                            msgInitial = performAction.getInstructionDetailsById(
+                                    blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS(),
+                                    currentInstruction);
+                            if (!mapLoops.containsKey(msgInitial.getKey())) {
+                                String[] parts = msgInitial.getValue().split(":"); // Split by ':'
+                                mapLoops.put(msgInitial.getKey(), Integer.valueOf(parts[1])); // Loop Times
+                                mapRefresh.put(msgInitial.getKey(), Integer.valueOf(parts[0])); // Wait Time
+                            }
+                        } else {
+                            msgInitial = new Pair(
+                                    currentInstruction.getName(),
+                                    (currentInstruction.getOperation() != null
+                                            ? currentInstruction.getOperation()
+                                            : (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) ? valueInsert : ""));
+                        }
 
                         resultActions = performAction.actionResultMessage(blockName, actions, msgInitial);
 
@@ -3867,7 +3923,7 @@ public class ABRScannedElementPane extends ABRPane {
                             long duration = performAction.duration(currentInstructionStartTime);
 
                             performAction.excelReportWrite(
-                                    success, actions, msgInitial, duration, dataExcel, writerReport);
+                                    blockReportName, success, actions, msgInitial, duration, dataExcel, writerReport);
 
                             totalExecutionTime += duration;
 
@@ -3916,13 +3972,8 @@ public class ABRScannedElementPane extends ABRPane {
                             }
                         }
 
-                        // AND SOME RESON JUMPED INTO A FIELD INSIDE OF THE IF STATEMENT
-                        if ((ifClause && !ifFailed && !ifIsDone && actions[0].equalsIgnoreCase(ABRConstants.ELSE))
-                                || (refreshLoopArray != null
-                                        && !ifClause
-                                        && !ifFailed
-                                        && !ifIsDone
-                                        && actions[0].equalsIgnoreCase(ABRConstants.ELSE))) {
+                        // AND SOME REASON JUMPED INTO A FIELD INSIDE OF THE IF STATEMENT
+                        if ((ifClause && !ifFailed && !ifIsDone && actions[0].equalsIgnoreCase(ABRConstants.ELSE))) {
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .info("Closing Block { IF -> ELSE } -> Success Execution inside Block :\""
@@ -3968,12 +4019,70 @@ public class ABRScannedElementPane extends ABRPane {
                         }
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
-                            jumpLoop = true;
+                            parentFieldLoop = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            parentFieldLoop = currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
+
+                            if (mapLoops.containsKey(parentFieldLoop)) {
+                                int currentLoop = mapLoops.get(parentFieldLoop);
+                                if (currentLoop > 0) {
+                                    jumpLoop = true;
+                                    refreshLoop = false;
+                                } else {
+
+                                    jumpLoop = false;
+                                    refreshLoop = false;
+
+                                    //                                    String[] parts = parentFieldLoop.split(":");
+                                    //
+                                    // ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    //                                            .info(String.format(
+                                    //                                                    "IGNORING Loop to Parent
+                                    // :\"%s\" - %d Times",
+                                    //                                                    parts[0] + "-(" + parts[1] +
+                                    // ") " + parts[2],
+                                    //
+                                    // mapLoops.get(parentFieldLoop)));
+                                    continue;
+                                }
+
+                            } else {
+                                jumpLoop = true;
+                                refreshLoop = false;
+                            }
+
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
-                            refresh = true;
+                            refreshOnly = true;
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-                            refresh = true;
-                            jumpLoop = true;
+                            parentFieldLoop = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            parentFieldLoop = currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
+
+                            if (mapLoops.containsKey(parentFieldLoop)) {
+                                int currentLoop = mapLoops.get(parentFieldLoop);
+                                if (currentLoop > 0) {
+                                    jumpLoop = true;
+                                    refreshLoop = true;
+                                } else {
+
+                                    jumpLoop = false;
+                                    refreshLoop = false;
+
+                                    //                                    String[] parts = parentFieldLoop.split(":");
+                                    //
+                                    // ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    //                                            .info(String.format(
+                                    //                                                    "IGNORING Refresh Loop to
+                                    // Parent :\"%s\" - %d Times",
+                                    //                                                    parts[0] + "-(" + parts[1] +
+                                    // ") " + parts[2],
+                                    //
+                                    // mapLoops.get(parentFieldLoop)));
+                                    continue;
+                                }
+
+                            } else {
+                                jumpLoop = true;
+                                refreshLoop = true;
+                            }
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                             jumpGoto = true;
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
@@ -4058,96 +4167,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     break;
                                 }
                             }
-
-                        } else if (!ignoreRefreshLoop
-                                && refreshLoopArray == null
-                                && actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Refresh Loop Current Web Page ->  inside Block :\"" + blockLoad.getName()
-                                            + "\"");
-
-                            parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
-
-                            if (parentField != null) {
-                                fieldName = parentField;
-                                parentField = parentId + "-" + parentField;
-
-                                String[] splitArray =
-                                        currentInstruction.getOperation().split(":");
-                                refreshLoopArray = Arrays.stream(splitArray)
-                                        .mapToInt(Integer::parseInt)
-                                        .toArray();
-
-                                refreshLoopArray = performAction.addElementToArray(refreshLoopArray, parentId);
-
-                                if (refreshLoopArray != null && refreshLoopArray.length > 2) {
-
-                                    int index = -1; // Initialize to -1 to indicate not found
-
-                                    for (int x = 0; x < instructionIds.length; x++) {
-                                        if (instructionIds[x] == refreshLoopArray[2]) {
-                                            index = x;
-                                            break; // Exit the loop once the value is found
-                                        }
-                                    }
-
-                                    if (index != -1) {
-                                        refreshLoopArray = performAction.addElementToArray(refreshLoopArray, index);
-                                        //                                        currentIndex = index;
-                                    } else {
-                                        refreshLoopArray = null;
-
-                                        resultActions = performAction.parentValueIsNotDefined(
-                                                "REFRESH_LOOP", refreshLoopArray[2], resultActions);
-
-                                        ABRLogger.getInstance(ABRScannedElementPane.class)
-                                                .severe(String.format("Error: \"%s\"", resultActions));
-
-                                        stopAll = true;
-                                        success = false;
-
-                                        if (stopAll) {
-                                            break;
-                                        }
-                                    }
-                                }
-
-                            } else {
-                                resultActions = performAction.parentValueIsNotDefined(
-                                        currentInstruction.getName(), currentInstruction.getParentId(), resultActions);
-
-                                refreshLoopArray = null;
-
-                                if (!ifClause && !elseClause) {
-                                    stopAll = true;
-                                    success = false;
-                                } else if (ifClause) {
-                                    ifFailed = true;
-                                } else if (elseClause) {
-                                    elseFailed = true;
-                                }
-
-                                if (stopAll) {
-                                    break;
-                                }
-                            }
-                        } else if (ignoreRefreshLoop && actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-                            mapIgnore.add(currentInstruction.getId() + "-" + currentInstruction.getName());
-                            ignoreRefreshLoop = false;
-                            continue;
-                        } else if (!ignoreRefreshLoop
-                                && refreshLoopArray != null
-                                && refreshLoopArray[1] > -1
-                                && actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-
-                            refreshLoopArray[1] = refreshLoopArray[1] - 1;
-
-                            if (refreshLoopArray[1] > -1) {
-                                currentIndex = refreshLoopArray[3];
-                                continue;
-                            }
                         }
+
                         long currentInstructionStartTime = System.nanoTime();
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
@@ -4156,65 +4177,213 @@ public class ABRScannedElementPane extends ABRPane {
                         try {
                             if (jumpGoto) {
 
-                                try {
-                                    int blockOrderNumber = blocksLoaded.stream()
-                                            .filter(block -> block.getId()
-                                                    == currentInstruction.getParentId()) // Filter by blockId
-                                            .findFirst() // Get the first matching block
-                                            .map(BlockLoadDTO::getBlockOrderNumber) // Map to blockOrderNumber
-                                            .orElseThrow(() -> new NoSuchElementException(
-                                                    "No block found with the given blockId")); // Handle if no
-                                    // block is found
-                                    currentBlock = blockOrderNumber - 1;
-                                    currentInstruction.setExecuted(true);
+                                msgInitial = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
 
-                                    // Assuming currentInstruction and instructionsExecuted are already defined
-                                    if (currentInstruction != null
-                                            && instructionsExecuted.stream()
-                                                    .noneMatch(instruction -> instruction.getInstructionOrderNumber()
-                                                            == currentInstruction.getInstructionOrderNumber())) {
-                                        instructionsExecuted.add(currentInstruction);
+                                if (!loopBlockActive.contains(msgInitial.getKey())) {
+                                    loopBlockActive.add(msgInitial.getKey());
+                                }
+                                int repeat = mapLoops.get(msgInitial.getKey()) - 1;
+                                if (repeat > 0) {
+                                    mapLoops.put(msgInitial.getKey(), repeat);
+                                    try {
+
+                                        String[] parts = msgInitial.getKey().split(":");
+                                        int blockOrderNumber = Integer.parseInt(parts[1]);
+
+                                        currentBlock = blockOrderNumber - 1;
+                                        currentInstruction.setExecuted(true);
+
+                                        // Assuming currentInstruction and instructionsExecuted are already defined
+                                        if (currentInstruction != null
+                                                && instructionsExecuted.stream()
+                                                        .noneMatch(
+                                                                instruction -> instruction.getInstructionOrderNumber()
+                                                                        == currentInstruction
+                                                                                .getInstructionOrderNumber())) {
+                                            instructionsExecuted.add(currentInstruction);
+                                        }
+
+                                        executedSuccess.add(currentInstruction.getId());
+                                        success = true;
+                                    } catch (Exception ex) {
+                                        resultActions = "Failed " + resultActions;
+
+                                        success = false;
+
+                                        resultActions = performAction.blockGotoFailed(resultActions);
                                     }
 
-                                    executedSuccess.add(currentInstruction.getId());
-                                    success = true;
-                                } catch (Exception ex) {
-                                    resultActions = "Failed " + resultActions;
+                                    Pair<String, String> currentPair = new Pair(
+                                            msgInitial.getKey(), String.valueOf(mapLoops.get(msgInitial.getKey())));
 
-                                    success = false;
+                                    long duration = performAction.duration(currentInstructionStartTime);
+                                    performAction.excelReportWrite(
+                                            blockReportName,
+                                            success,
+                                            actions,
+                                            currentPair,
+                                            duration,
+                                            dataExcel,
+                                            writerReport);
+                                    totalExecutionTime += duration;
 
-                                    resultActions = performAction.blockGotoFailed(resultActions);
+                                    status = performAction.operationLog(
+                                            success,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions,
+                                            duration);
+
+                                    if (success) {
+                                        continue blockLoop;
+                                    } else {
+                                        stopAll = true;
+                                        if (stopAll) {
+                                            continue blockLoop;
+                                        }
+                                    }
+
+                                } else {
+                                    mapLoops.put(msgInitial.getKey(), repeat);
+                                    continue blockLoop;
                                 }
 
-                                long duration = performAction.duration(currentInstructionStartTime);
-                                performAction.excelReportWrite(
-                                        success, actions, msgInitial, duration, dataExcel, writerReport);
-                                totalExecutionTime += duration;
+                            } else if (jumpLoop) {
 
-                                status = performAction.operationLog(
-                                        success,
-                                        currentInstruction.isOptional()
-                                                ? "OPTIONAL INSTRUCTION"
-                                                : "MANDATORY INSTRUCTION",
-                                        resultActions,
-                                        duration);
-                                if (success) {
-                                    continue blockLoop;
-                                } else {
+                                if (mapLoops.containsKey(parentFieldLoop)) {
 
-                                    if (!ifClause && !elseClause) {
-                                        stopAll = true;
-                                    } else if (ifClause) {
-                                        ifFailed = true;
-                                    } else if (elseClause) {
-                                        elseFailed = true;
+                                    int repeat = mapLoops.get(parentFieldLoop) - 1;
+                                    String[] parts = parentFieldLoop.split(":");
+                                    if (repeat > 0) {
+                                        mapLoops.put(parentFieldLoop, repeat);
+
+                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                .info(String.format(
+                                                        "Loop to Parent :\"%s\" - %d Times",
+                                                        parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                        mapLoops.get(parentFieldLoop)));
+
+                                        if (refreshLoop) {
+
+                                            String extraLog = performAction.actionResultMessage(
+                                                    blockName, new String[] {ABRConstants.REFRESH_HOLD}, msgInitial);
+
+                                            performAction.performOtherActions(
+                                                    byPassNotFound,
+                                                    currentInstruction,
+                                                    new String[] {ABRConstants.REFRESH_HOLD});
+
+                                            long duration = performAction.duration(currentInstructionStartTime);
+                                            performAction.excelReportWrite(
+                                                    blockReportName,
+                                                    success,
+                                                    new String[] {ABRConstants.REFRESH_HOLD},
+                                                    msgInitial,
+                                                    duration,
+                                                    dataExcel,
+                                                    writerReport);
+                                            totalExecutionTime += duration;
+
+                                            performAction.operationLog(
+                                                    success,
+                                                    currentInstruction.isOptional()
+                                                            ? "OPTIONAL INSTRUCTION"
+                                                            : "MANDATORY INSTRUCTION",
+                                                    extraLog,
+                                                    duration);
+
+                                            extraLog = performAction.actionResultMessage(
+                                                    blockName, new String[] {ABRConstants.REFRESH_ONLY}, msgInitial);
+
+                                            performAction.performOtherActions(
+                                                    byPassNotFound,
+                                                    currentInstruction,
+                                                    new String[] {ABRConstants.REFRESH_ONLY});
+
+                                            duration = performAction.duration(currentInstructionStartTime);
+                                            performAction.excelReportWrite(
+                                                    blockReportName,
+                                                    success,
+                                                    new String[] {ABRConstants.REFRESH_ONLY},
+                                                    msgInitial,
+                                                    duration,
+                                                    dataExcel,
+                                                    writerReport);
+                                            totalExecutionTime += duration;
+
+                                            performAction.operationLog(
+                                                    success,
+                                                    currentInstruction.isOptional()
+                                                            ? "OPTIONAL INSTRUCTION"
+                                                            : "MANDATORY INSTRUCTION",
+                                                    extraLog,
+                                                    duration);
+
+                                            refreshLoop = false;
+                                        }
+
+                                        for (int x = 0; x < instructionIds.length; x++) {
+                                            if (instructionIds[x] == parentId) {
+                                                currentIndex = x;
+                                                break; // Exit the loop once the value is found
+                                            }
+                                        }
+
+                                        // Get Correct Updated Pair for REFRESH_LOOP ACTION
+                                        Pair<String, String> currentPair = new Pair(
+                                                msgInitial.getKey(), String.valueOf(mapLoops.get(msgInitial.getKey())));
+
+                                        long duration = performAction.duration(currentInstructionStartTime);
+                                        performAction.excelReportWrite(
+                                                blockReportName,
+                                                success,
+                                                actions,
+                                                currentPair,
+                                                duration,
+                                                dataExcel,
+                                                writerReport);
+                                        totalExecutionTime += duration;
+
+                                        status = performAction.operationLog(
+                                                success,
+                                                currentInstruction.isOptional()
+                                                        ? "OPTIONAL INSTRUCTION"
+                                                        : "MANDATORY INSTRUCTION",
+                                                resultActions,
+                                                duration);
+                                    } else {
+                                        mapLoops.put(parentFieldLoop, repeat);
                                     }
+
+                                    jumpLoop = false;
+                                    refreshLoop = false;
+
+                                    if (repeat > 0) {
+                                        continue instructionLoop;
+                                    } else {
+                                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                                .info(String.format(
+                                                        "IGNORING Loop to Parent :\"%s\" - %d Times",
+                                                        parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                        mapLoops.get(parentFieldLoop)));
+                                        continue;
+                                    }
+
+                                } else {
+                                    resultActions = performAction.parentValueIsNotDefined(
+                                            currentInstruction.getName(),
+                                            currentInstruction.getParentId(),
+                                            resultActions);
+
+                                    stopAll = true;
+                                    success = false;
                                     if (stopAll) {
                                         break;
                                     }
                                 }
 
-                            } else if (refresh) {
+                            } else if (refreshOnly) {
 
                                 ABRLogger.getInstance(ABRScannedElementPane.class)
                                         .info("Refresh Current Web Page ->  inside Block :\"" + blockLoad.getName()
@@ -4224,7 +4393,13 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, actions, msgInitial, duration, dataExcel, writerReport);
+                                        blockReportName,
+                                        success,
+                                        actions,
+                                        msgInitial,
+                                        duration,
+                                        dataExcel,
+                                        writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -4235,106 +4410,13 @@ public class ABRScannedElementPane extends ABRPane {
                                         resultActions,
                                         duration);
 
-                                refresh = false;
+                                refreshOnly = false;
 
-                                continue;
-
-                            } else if (refreshLoopArray != null && !refreshLoopExecuted && !ignoreRefreshLoop) {
-
-                                if (!refreshLoopExecuted && actions[0].equals(Constants.REFRESH_LOOP)) {
-                                    performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
-                                }
-
-                                refreshLoopExecuted = true;
-
-                                Pair<String, String> msgLoop = new Pair(
-                                        parentField,
-                                        (refreshLoopArray != null
-                                                ? Arrays.stream(refreshLoopArray)
-                                                        .mapToObj(String::valueOf) // Convert each int to String
-                                                        .collect(Collectors.joining(":"))
-                                                : "Empty:Empty"));
-
-                                resultActions = performAction.actionResultMessage(blockName, actions, msgLoop);
-                                long duration = performAction.duration(currentInstructionStartTime);
-
-                                boolean excelSuccess = performAction.excelReportWrite(
-                                        success, actions, msgLoop, duration, dataExcel, writerReport);
-
-                                if (!excelSuccess) {
-                                    resultActions = "Failed " + resultActions;
-                                    success = false;
-                                }
-
-                                totalExecutionTime += duration;
-
-                                status = performAction.operationLog(
-                                        success,
-                                        currentInstruction.isOptional()
-                                                ? "OPTIONAL INSTRUCTION"
-                                                : "MANDATORY INSTRUCTION",
-                                        resultActions,
-                                        duration);
-
-                                refreshLoopArray[1] = refreshLoopArray[1] - 1;
-                                currentIndex = refreshLoopArray[3];
                                 continue;
 
                             } else if (!execOperation && !checkOperation && !excelWriteOperation) {
 
                                 Pair<String, String> msgLoop = null;
-                                if (refreshLoopExecuted && refreshLoopArray != null) {
-
-                                    boolean pauseParentLoop = parentIdsForLoop.contains(currentInstruction.getId());
-                                    if (pauseParentLoop) {
-                                        performAction.onHoldInSeconds(refreshLoopArray[0]);
-
-                                        //                                        if (refreshLoopExecuted) {
-                                        //                                            performAction.performOtherActions(
-                                        //                                                    byPassNotFound,
-                                        //                                                    currentInstruction,
-                                        //                                                    new String[]
-                                        // {Constants.REFRESH_ONLY});
-                                        //                                        }
-                                    }
-
-                                    String currentField =
-                                            currentInstruction.getId() + "-" + currentInstruction.getName();
-                                    msgLoop = new Pair(
-                                            currentField,
-                                            (refreshLoopArray != null
-                                                    ? Arrays.stream(refreshLoopArray)
-                                                            .mapToObj(String::valueOf) // Convert each int to String
-                                                            .collect(Collectors.joining(":"))
-                                                    : "Empty:Empty"));
-
-                                    resultActions = performAction.actionResultMessage(
-                                            blockName, new String[] {ABRConstants.HOLD}, msgLoop);
-                                    long duration = performAction.duration(currentInstructionStartTime);
-
-                                    boolean excelSuccess = performAction.excelReportWrite(
-                                            pauseParentLoop,
-                                            new String[] {ABRConstants.HOLD},
-                                            msgLoop,
-                                            duration,
-                                            dataExcel,
-                                            writerReport);
-
-                                    if (!excelSuccess) {
-                                        resultActions = "Failed " + resultActions;
-                                        success = false;
-                                    }
-
-                                    totalExecutionTime += duration;
-
-                                    status = performAction.operationLog(
-                                            pauseParentLoop,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            "(REFRESH_LOOP)-HOLD TIME" + refreshLoopArray[0] + " Seconds",
-                                            duration);
-                                }
 
                                 if (actions[0].equals(Constants.HOLD)
                                         || actions[0].equals(Constants.QUIT)
@@ -4350,7 +4432,13 @@ public class ABRScannedElementPane extends ABRPane {
                                     long duration = performAction.duration(currentInstructionStartTime);
 
                                     performAction.excelReportWrite(
-                                            success, actions, msgInitial, duration, dataExcel, writerReport);
+                                            blockReportName,
+                                            success,
+                                            actions,
+                                            msgInitial,
+                                            duration,
+                                            dataExcel,
+                                            writerReport);
 
                                     totalExecutionTime += duration;
 
@@ -4433,7 +4521,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 long duration = performAction.duration(currentInstructionStartTime);
 
-                                if (!success && refreshLoopExecuted && refreshLoopArray != null) {
+                                if (!success) {
                                     byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
                                     success = byPassFlagLoop;
                                 }
@@ -4453,6 +4541,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             + performAction.actionResultMessage(blockName, actions, fieldData);
 
                                     performAction.excelReportWrite(
+                                            blockReportName,
                                             success,
                                             new String[] {ABRConstants.BY_PASS},
                                             msgInitial,
@@ -4462,7 +4551,13 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 } else {
                                     performAction.excelReportWrite(
-                                            success, actions, msgInitial, duration, dataExcel, writerReport);
+                                            blockReportName,
+                                            success,
+                                            actions,
+                                            msgInitial,
+                                            duration,
+                                            dataExcel,
+                                            writerReport);
                                 }
 
                                 totalExecutionTime += duration;
@@ -4526,7 +4621,13 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, actions, msgInitial, duration, dataExcel, writerReport);
+                                        blockReportName,
+                                        success,
+                                        actions,
+                                        msgInitial,
+                                        duration,
+                                        dataExcel,
+                                        writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -4573,13 +4674,6 @@ public class ABRScannedElementPane extends ABRPane {
                                         }
 
                                         if (isOperationValid) {
-
-                                            if (byPassFlagLoop) {
-                                                refreshLoopExecuted = false;
-                                                ignoreRefreshLoop = true;
-                                                refreshLoopArray = null;
-                                                ignoreRefreshLoop = true;
-                                            }
 
                                             currentInstruction.setExecuted(true);
 
@@ -4644,7 +4738,13 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, actions, msgInitial, duration, dataExcel, writerReport);
+                                        blockReportName,
+                                        success,
+                                        actions,
+                                        msgInitial,
+                                        duration,
+                                        dataExcel,
+                                        writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -4746,7 +4846,13 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 long duration = performAction.duration(currentInstructionStartTime);
                                 performAction.excelReportWrite(
-                                        success, actions, msgInitial, duration, dataExcel, writerReport);
+                                        blockReportName,
+                                        success,
+                                        actions,
+                                        msgInitial,
+                                        duration,
+                                        dataExcel,
+                                        writerReport);
                                 totalExecutionTime += duration;
 
                                 status = performAction.operationLog(
@@ -4771,7 +4877,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             long duration = performAction.duration(currentInstructionStartTime);
                             performAction.excelReportWrite(
-                                    false, actions, msgInitial, duration, dataExcel, writerReport);
+                                    blockReportName, false, actions, msgInitial, duration, dataExcel, writerReport);
                             totalExecutionTime += duration;
 
                             status = performAction.operationLog(
@@ -4844,6 +4950,8 @@ public class ABRScannedElementPane extends ABRPane {
             for (int j = 0; success && j < blocksLoaded.size(); j++) {
 
                 String blockName = blocksLoaded.get(j).getName();
+                int blockOrder = blocksLoaded.get(j).getBlockOrderNumber();
+                String blockReportName = "#" + blockOrder + " " + blockName;
 
                 // Call the method to get the filtered list
                 List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
@@ -4888,7 +4996,7 @@ public class ABRScannedElementPane extends ABRPane {
                             long duration = performAction.duration(currentInstructionStartTime);
 
                             performAction.excelReportWrite(
-                                    success, actions, msgInitial, duration, dataExcel, writerReport);
+                                    blockReportName, success, actions, msgInitial, duration, dataExcel, writerReport);
 
                             totalExecutionTime += duration;
 
@@ -4930,7 +5038,8 @@ public class ABRScannedElementPane extends ABRPane {
                         }
 
                         long duration = performAction.duration(currentInstructionStartTime);
-                        performAction.excelReportWrite(success, actions, msgInitial, duration, null, writerReport);
+                        performAction.excelReportWrite(
+                                blockReportName, success, actions, msgInitial, duration, null, writerReport);
                         totalExecutionTime += duration;
 
                         status = performAction.operationLog(
@@ -4944,7 +5053,8 @@ public class ABRScannedElementPane extends ABRPane {
                         currentInstruction.setExecuted(false);
 
                         long duration = performAction.duration(currentInstructionStartTime);
-                        performAction.excelReportWrite(false, actions, msgInitial, duration, null, writerReport);
+                        performAction.excelReportWrite(
+                                blockReportName, false, actions, msgInitial, duration, null, writerReport);
                         totalExecutionTime += duration;
 
                         status = performAction.operationLog(

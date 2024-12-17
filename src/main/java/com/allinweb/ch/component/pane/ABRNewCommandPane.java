@@ -107,11 +107,12 @@ public class ABRNewCommandPane extends ABRPane {
     Label blocksLabel;
     Label addNewsLabel;
 
-    Text refreshText;
+    Text timesText;
     Text loopText;
     Text regularText1;
     Text regularText2;
     Text regularText3;
+    Text regularText4;
     Text variableText1;
     Text variableText2;
     Text variableText3;
@@ -308,8 +309,8 @@ public class ABRNewCommandPane extends ABRPane {
         blocksLabel = new Label("Block Destination");
         addNewsLabel = new Label("Block to Add the New Instruction");
 
-        refreshText = new Text("Refresh");
-        refreshText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+        timesText = new Text("Times");
+        timesText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
         loopText = new Text("Loop");
         loopText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
@@ -318,6 +319,7 @@ public class ABRNewCommandPane extends ABRPane {
         regularText1 = new Text("Variable to SET : ");
         regularText2 = new Text("");
         regularText3 = new Text("");
+        regularText4 = new Text("");
 
         // Create Text for the variable part and set the color to red
         variableText1 = new Text("");
@@ -326,7 +328,7 @@ public class ABRNewCommandPane extends ABRPane {
         variableText1.setFill(Color.BLUE); // Set font color to blue
         variableText2.setFill(Color.RED); // Set font color to red
 
-        blankText = new Text("       ");
+        blankText = new Text("  ");
 
         textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
 
@@ -939,7 +941,7 @@ public class ABRNewCommandPane extends ABRPane {
                     comboBoxBlocks.setVisible(true);
                     comboBoxBlocks.setPrefWidth(buttonWidth);
                     comboBoxTimes.setVisible(false);
-                    comboBoxLoops.setVisible(false);
+                    comboBoxLoops.setVisible(true);
 
                     try {
                         variableButtonRow.getChildren().clear();
@@ -952,7 +954,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxesRow.getChildren().clear();
                         comboBoxesRow.getChildren().addAll(commandBox, blocksBox);
 
-                        variableButtonRow = new HBox(10, blankText, textFlow);
+                        variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
 
                         vboxAll.getChildren()
                                 .addAll(
@@ -1108,7 +1110,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
 
                         variableButtonRow =
-                                new HBox(10, blankText, refreshText, comboBoxTimes, loopText, comboBoxLoops, textFlow);
+                                new HBox(10, blankText, timesText, comboBoxTimes, loopText, comboBoxLoops, textFlow);
 
                         vboxAll.getChildren()
                                 .addAll(
@@ -1367,8 +1369,8 @@ public class ABRNewCommandPane extends ABRPane {
                 addInstruction("Refresh", "Refresh", ABRConstants.REFRESH_ONLY, 10, "", null, null, this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Loop")) {
                 addInstruction(
-                        "Loop",
-                        "Loop",
+                        "LOOP",
+                        "LOOP",
                         ABRConstants.LOOP,
                         2,
                         comboBoxLoops.getValue().getValue(),
@@ -1392,7 +1394,7 @@ public class ABRNewCommandPane extends ABRPane {
                         "GOTO",
                         ABRConstants.GOTO,
                         1,
-                        comboBoxBlocks.getValue().getText(),
+                        comboBoxLoops.getValue().getValue(),
                         null, // Block Order Number as VarId
                         comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
@@ -1570,15 +1572,30 @@ public class ABRNewCommandPane extends ABRPane {
                     textFlow.requestLayout();
                     break;
                 case ABRConstants.GOTO:
-                    regularText1.setText("GO TO The Block : ");
+                    regularText1.setText("GO TO Block : ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
                     variableText1.setText(comboBoxBlocks.getValue().getText());
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
-                    variableText2.setVisible(false);
+
+                    regularText2.setText(" Limit: ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText2.setText(comboBoxLoops.getValue().getText());
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText3.setText(" Times");
+                    regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(true);
+
+                    variableText2.setVisible(true);
                     variableText3.setVisible(false);
 
                     textFlow.getChildren().clear();
-                    textFlow.getChildren().addAll(regularText1, variableText1);
+                    textFlow.getChildren()
+                            .addAll(regularText1, variableText1, regularText2, variableText2, regularText3);
                     textFlow.requestLayout();
 
                     break;
@@ -1587,6 +1604,13 @@ public class ABRNewCommandPane extends ABRPane {
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
                     variableText1.setText("Refresh Current Web Page");
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    variableText1.setText("Refresh Current Web Page");
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText2.setVisible(false);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
 
@@ -1595,53 +1619,61 @@ public class ABRNewCommandPane extends ABRPane {
                     textFlow.requestLayout();
                     break;
                 case ABRConstants.LOOP:
-                    regularText1.setText("Loop: ");
-                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
-
-                    variableText1.setText(comboBoxLoops.getValue().getText());
-                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
-
-                    regularText2.setText(": Parent ");
+                    regularText1.setText("Jump To Parent: ");
                     regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText2.setText(webFieldName);
-                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
-
-                    variableText2.setVisible(true);
-                    variableText3.setVisible(false);
-
-                    regularText2.setVisible(true);
-                    regularText3.setVisible(false);
-
-                    textFlow.getChildren().clear();
-                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
-                    textFlow.requestLayout();
-
-                    break;
-                case ABRConstants.REFRESH_LOOP:
-                    regularText1.setText("Refresh ");
-                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
-
-                    variableText1.setText(comboBoxTimes.getValue().getText() + " ");
+                    variableText1.setText(webFieldName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    regularText2.setText(": Loop ");
+                    regularText2.setText(" Limit: ");
                     regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText2.setText(comboBoxLoops.getValue().getText());
                     variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    regularText3.setText(": Parent ");
+                    regularText3.setText(" Times");
                     regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText3.setText(webFieldName);
-                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
-
                     variableText2.setVisible(true);
-                    variableText3.setVisible(true);
+                    variableText3.setVisible(false);
 
                     regularText2.setVisible(true);
                     regularText3.setVisible(true);
+
+                    textFlow.getChildren().clear();
+                    textFlow.getChildren()
+                            .addAll(regularText1, variableText1, regularText2, variableText2, regularText3);
+                    textFlow.requestLayout();
+
+                    break;
+                case ABRConstants.REFRESH_LOOP:
+                    regularText1.setText("Jump To Parent: ");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText1.setText(webFieldName);
+                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText2.setText(" Refresh in: ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText2.setText(comboBoxTimes.getValue().getText() + " ");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText3.setText(" Limit: ");
+                    regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText3.setText(comboBoxLoops.getValue().getText() + " ");
+                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText4.setText(" Times");
+                    regularText4.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(true);
+                    regularText4.setVisible(true);
+
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(true);
 
                     textFlow.getChildren().clear();
                     textFlow.getChildren()
@@ -1651,7 +1683,8 @@ public class ABRNewCommandPane extends ABRPane {
                                     regularText2,
                                     variableText2,
                                     regularText3,
-                                    variableText3);
+                                    variableText3,
+                                    regularText4);
                     textFlow.requestLayout();
 
                     break;
@@ -2018,6 +2051,9 @@ public class ABRNewCommandPane extends ABRPane {
         Text regularTextCopy3 = new Text(regularText3.getText());
         regularTextCopy3.setStyle(regularText3.getStyle());
 
+        Text regularTextCopy4 = new Text(regularText4.getText());
+        regularTextCopy4.setStyle(regularText4.getStyle());
+
         Text variableText1Copy = new Text(variableText1.getText());
         variableText1Copy.setStyle(variableText1.getStyle());
 
@@ -2028,6 +2064,31 @@ public class ABRNewCommandPane extends ABRPane {
         Text variableText3Copy = new Text(variableText3.getText());
         variableText3Copy.setStyle(variableText3.getStyle());
         variableText3Copy.setVisible((variableText3.isVisible()));
+
+        if (regularTextCopy1.getText().trim().length() == 0) {
+            regularTextCopy1.setText("");
+        }
+        if (regularTextCopy2.getText().trim().length() == 0) {
+            regularTextCopy2.setText("");
+        }
+
+        if (regularTextCopy3.getText().trim().length() == 0) {
+            regularTextCopy3.setText("");
+        }
+        if (regularTextCopy4.getText().trim().length() == 0) {
+            regularTextCopy4.setText("");
+        }
+
+        if (variableText1Copy.getText().trim().length() == 0) {
+            variableText1Copy.setText("");
+        }
+        if (variableText2Copy.getText().trim().length() == 0) {
+            variableText2Copy.setText("");
+        }
+
+        if (variableText3Copy.getText().trim().length() == 0) {
+            variableText3Copy.setText("");
+        }
 
         // Create an HBox to hold the individual text elements
         HBox combinedTextContainer = new HBox();
@@ -2042,7 +2103,18 @@ public class ABRNewCommandPane extends ABRPane {
         HBox blockNameBox = new HBox();
         blockNameBox.getChildren().addAll(blockNameLabel, blockNameText);
 
-        if (actions.equalsIgnoreCase(ABRConstants.LOOP)) {
+        if (actions.equalsIgnoreCase(ABRConstants.GOTO)) {
+            HBox allMsgHor = new HBox();
+            allMsgHor.setSpacing(5);
+            allMsgHor
+                    .getChildren()
+                    .addAll(regularTextCopy1, variableText1Copy, regularTextCopy2, variableText2Copy, regularTextCopy3);
+
+            VBox allMsgVer = new VBox();
+            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
+
+            combinedTextContainer.getChildren().addAll(allMsgVer);
+        } else if (actions.equalsIgnoreCase(ABRConstants.LOOP)) {
 
             HBox allMsgHor = new HBox();
             allMsgHor.setSpacing(5);
@@ -2064,7 +2136,18 @@ public class ABRNewCommandPane extends ABRPane {
                             regularTextCopy2,
                             variableText2Copy,
                             regularTextCopy3,
-                            variableText3Copy);
+                            variableText3Copy,
+                            regularTextCopy4);
+
+            VBox allMsgVer = new VBox();
+            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
+
+            combinedTextContainer.getChildren().addAll(allMsgVer);
+        } else if (actions.equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
+
+            HBox allMsgHor = new HBox();
+            allMsgHor.setSpacing(5);
+            allMsgHor.getChildren().addAll(regularTextCopy1, variableText1Copy);
 
             VBox allMsgVer = new VBox();
             allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
@@ -2073,7 +2156,14 @@ public class ABRNewCommandPane extends ABRPane {
         } else {
             HBox allMsgHor = new HBox();
             allMsgHor.setSpacing(5);
-            allMsgHor.getChildren().addAll(regularTextCopy1, variableText1Copy, variableText2Copy, variableText3Copy);
+            allMsgHor
+                    .getChildren()
+                    .addAll(
+                            regularTextCopy1,
+                            variableText1Copy,
+                            variableText2Copy,
+                            variableText3Copy,
+                            regularTextCopy3);
 
             VBox allMsgVer = new VBox();
             allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);

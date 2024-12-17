@@ -117,6 +117,7 @@ public class ExcelWriter {
         }
 
         public boolean insertInstructionResult(
+                String blockName,
                 String[] actions,
                 Pair<String, String> msgLoop,
                 Map<String, String> data,
@@ -144,7 +145,9 @@ public class ExcelWriter {
                             case ABRConstants.QUIT -> "QUIT";
                             case ABRConstants.HOLD -> "HOLD";
                             case ABRConstants.REFRESH_ONLY -> "REFRESH";
-                            case ABRConstants.REFRESH_LOOP -> "LOOP TO";
+                            case ABRConstants.REFRESH_HOLD -> "WAIT (REFRESH LOOP)";
+                            case ABRConstants.REFRESH_LOOP -> "JUMP (REFRESH LOOP)";
+                            case ABRConstants.LOOP -> "JUMP TO";
                             case ABRConstants.VISUALIZE -> "VISUALIZE";
                             case ABRConstants.SEARCH -> "SEARCH";
                             case ABRConstants.SET_VALUE -> "SET VALUE";
@@ -161,6 +164,8 @@ public class ExcelWriter {
                             default -> "Unsupported action";
                         };
                 String value = "";
+                String keyAction = msgLoop.getKey();
+
                 if (actions.length > 1) {
                     String reference = actions[1];
                     value = data.get(reference);
@@ -170,14 +175,44 @@ public class ExcelWriter {
                     value = msgLoop.getValue();
                 }
 
-                if (operations.length == 2) {
+                if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
+                    String[] parts = msgLoop.getKey().split(":");
+                    keyAction = String.format(
+                            "GO TO Block Id \"%s\" Name: \"%s\"",
+                            parts[0] + "-(" + parts[1] + ")", "#" + parts[2] + " " + parts[3]);
+                    value = String.format("Block Loop %s times", msgLoop.getValue());
+                } else if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
+                    String[] msgParent = msgLoop.getKey().split(":");
+                    keyAction = String.format(
+                            "Jump To Parent \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                    value = String.format("Loop %s times", msgLoop.getValue());
+                } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
+                    String[] msgParent = msgLoop.getKey().split(":");
+                    if (msgParent.length == 1) {
+                        keyAction = "Refresh for Web Page";
+                    } else if (msgParent.length > 2) {
+                        action = "REFRESH (REFRESH LOOP)";
+                        keyAction = String.format(
+                                "Refresh for \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                    }
+
+                } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_HOLD)) {
+                    String[] msgParent = msgLoop.getKey().split(":");
+                    String[] msgValue = msgLoop.getValue().split(":");
+                    keyAction =
+                            String.format("Wait for \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                    value = String.format("Wait %s seconds", msgValue[0]);
+                } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
+                    String[] msgParent = msgLoop.getKey().split(":");
+                    keyAction =
+                            String.format("Jump To \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                    value = String.format("Loop %s times", msgLoop.getValue());
+                } else if (actions[0].equalsIgnoreCase(ABRConstants.HOLD)) {
+                    value = "";
+                } else if (operations.length == 2) {
                     value = operations[1];
                 } else if (operations.length == 3) {
                     value = operations[1] + " " + operations[2];
-                } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP) && operations.length == 4) {
-                    value = String.format("Loop %s times", operations[0], operations[1]);
-                } else if (actions[0].equalsIgnoreCase(ABRConstants.HOLD) && operations.length == 4) {
-                    value = String.format("%s seconds", operations[0], operations[1]);
                 }
 
                 if (!action.equals("SCREENSHOT")) {
@@ -185,7 +220,8 @@ public class ExcelWriter {
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(action, 0)
                             .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
-                            .insertValueOnLastRowAfterLastColumn(msgLoop.getKey())
+                            .insertValueOnLastRowAfterLastColumn(blockName)
+                            .insertValueOnLastRowAfterLastColumn(keyAction)
                             .insertValueOnLastRowAfterLastColumn(value)
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
                             .insertValueOnLastRowAfterLastColumn(status);
@@ -198,7 +234,8 @@ public class ExcelWriter {
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(action, 0)
                             .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
-                            .insertValueOnLastRowAfterLastColumn(msgLoop.getKey())
+                            .insertValueOnLastRowAfterLastColumn(blockName)
+                            .insertValueOnLastRowAfterLastColumn(keyAction)
                             .insertValueOnLastRowAfterLastColumn("")
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
                             .insertValueOnLastRowAfterLastColumn(status)

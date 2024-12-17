@@ -235,6 +235,7 @@ public class PerformActions {
                 listOperation(byPassNotFound, instruction);
                 break;
             case Constants.HOLD:
+            case Constants.REFRESH_HOLD:
                 //                        executeAlert(instruction);
                 onHoldForSeconds(instruction);
                 break;
@@ -1586,6 +1587,7 @@ public class PerformActions {
     }
 
     public boolean excelReportWrite(
+            String blockName,
             boolean success,
             String[] actions,
             Pair<String, String> msgLoop,
@@ -1593,7 +1595,12 @@ public class PerformActions {
             Map<String, String> dataExcel,
             ExcelWriter.ExcelChain writerReport) {
         return writerReport.insertInstructionResult(
-                actions, msgLoop, dataExcel, LocalTime.ofNanoOfDay(duration), success ? "success" : "failed");
+                blockName,
+                actions,
+                msgLoop,
+                dataExcel,
+                LocalTime.ofNanoOfDay(duration),
+                success ? "success" : "failed");
     }
 
     public long duration(long startTime) {
@@ -2046,13 +2053,30 @@ public class PerformActions {
                 return "Hold executed ( " + fieldData.getKey() + " )";
             case Constants.PAUSE:
                 return "Pause action triggered";
-            case Constants.REFRESH_ONLY:
-                return " Refresh action triggered";
-            case Constants.REFRESH_LOOP:
-                String[] msgLoop = fieldData.getValue().split(":");
+            case Constants.GOTO:
+                String[] parts = fieldData.getKey().split(":");
                 return String.format(
-                        "Refresh %s seconds : Loop %s times : Jump To Parent %s ",
-                        msgLoop[0], msgLoop[1], fieldData.getKey());
+                        "GO TO Block \"%s\" Limit %s times",
+                        "(" + parts[0] + ") - #" + parts[1] + " " + parts[2], fieldData.getValue());
+            case Constants.REFRESH_ONLY:
+                return " Refresh Web Page";
+            case Constants.REFRESH_HOLD:
+                String[] msgParent = fieldData.getKey().split(":");
+                String[] msgValue = fieldData.getValue().split(":");
+                return String.format(
+                        "Wait for Parent \"%s\" Limit %s seconds",
+                        "(" + msgParent[1] + ") " + msgParent[2], msgValue[0]);
+            case Constants.LOOP:
+                msgParent = fieldData.getKey().split(":");
+                return String.format(
+                        "Jump To Parent \"%s\" Limit %s times",
+                        msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], fieldData.getValue());
+            case Constants.REFRESH_LOOP:
+                msgParent = fieldData.getKey().split(":");
+                msgValue = fieldData.getValue().split(":");
+                return String.format(
+                        "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
+                        msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
             case Constants.QUIT:
                 return "Quit action processed";
             case Constants.SCREEN:
@@ -2590,6 +2614,35 @@ public class PerformActions {
                 + "moveAndClickMouse(arguments[0], arguments[1]);";
 
         ((JavascriptExecutor) driver).executeScript(script, x, y);
+    }
+
+    public Pair<String, String> getBlockDetailsById(
+            List<BlockLoadDTO> blocksLoaded, BlockLoopInstructionLoadDTO currentInstruction) {
+        for (BlockLoadDTO block : blocksLoaded) {
+            if (block.getId() == currentInstruction.getParentId()) {
+                Pair<String, String> blockDetails = new Pair<>(
+                        currentInstruction.getId() + ":" + block.getId() + ":" + block.getBlockOrderNumber() + ":"
+                                + block.getName().trim(),
+                        currentInstruction.getOperation());
+                return blockDetails;
+            }
+        }
+        return null; // or throw an exception if the block is not found
+    }
+
+    public Pair<String, String> getInstructionDetailsById(
+            List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS,
+            BlockLoopInstructionLoadDTO currentInstruction) {
+        for (BlockLoopInstructionLoadDTO instParent : blockLoopInstructionLoadDTOS) {
+            if (instParent.getId() == currentInstruction.getParentId()) {
+                Pair<String, String> blockDetails = new Pair<>(
+                        currentInstruction.getId() + ":" + instParent.getId() + ":"
+                                + instParent.getName().trim(),
+                        currentInstruction.getOperation());
+                return blockDetails;
+            }
+        }
+        return null; // or throw an exception if the block is not found
     }
 
     public Map<String, Integer[]> getLoopAndRefreshLoops(

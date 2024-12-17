@@ -3,7 +3,6 @@ package com.allinweb.ch.component.listCell;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.pane.ABRNewCommandPane;
 import com.allinweb.ch.component.pane.ABRSaveBlockPane;
 import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.component.pane.ABRViewBotJobPane;
@@ -677,7 +676,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
+                ABRLogger.getInstance(ComponentListCell.class)
                         .info(String.format(
                                 "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
                                 instructionDTO.getId(),
@@ -686,7 +685,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                 instructionDTO.getOperation()));
                 return nextId;
             } else {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
+                ABRLogger.getInstance(ComponentListCell.class)
                         .warning(String.format(
                                 "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
                                 instructionDTO.getId(),
