@@ -2702,7 +2702,7 @@ public class ABRNewCommandPane extends ABRPane {
                     + ", " + instructionDTO.getParentId()
                     + ", " + pathValue
                     + ", " + instructionDTO.getVariableId()
-                    + ", " + instructionDTO.getBlock().getId() + ", "
+                    + ", " + instructionDTO.getBlock().getId()
                     + ", " + (instructionDTO.getActive() ? 1 : 0)
                     + ");";
 
