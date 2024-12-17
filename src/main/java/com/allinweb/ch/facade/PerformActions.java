@@ -1629,8 +1629,8 @@ public class PerformActions {
         //                        executionTimes, lastInstructionExecuted));
 
         errorMessage(
-                "Block Execution Loop LIMIT",
-                String.format("Process Reached BLOCK LOOP LIMIT of %d", executionTimes),
+                "Block Execution LIMIT Reached!",
+                String.format("Process Reached BLOCK LIMIT of %d executions", executionTimes),
                 "Exiting All processes Now!",
                 "Last Execution",
                 lastInstructionExecuted);
@@ -1684,6 +1684,7 @@ public class PerformActions {
             savedBlockLoopInstructionDTO.setDescription(blockLoopInstructionDTO.getDescription());
             savedBlockLoopInstructionDTO.setEncrypted(blockLoopInstructionDTO.isEncrypted());
             savedBlockLoopInstructionDTO.setExportToABR(blockLoopInstructionDTO.getExportToABR());
+            savedBlockLoopInstructionDTO.setActive(blockLoopInstructionDTO.getActive());
             savedBlockLoopInstructionDTO.setInstructionOrderNumber(blockLoopInstructionDTO.getInstructionOrderNumber());
             savedBlockLoopInstructionDTO.setName(blockLoopInstructionDTO.getName());
             savedBlockLoopInstructionDTO.setOnHoldSeconds(blockLoopInstructionDTO.getOnHoldSeconds());
@@ -1735,6 +1736,7 @@ public class PerformActions {
             blockLoopInstructionDTO.setDescription(savedBlockLoopInstructionDTO.getDescription());
             blockLoopInstructionDTO.setEncrypted(savedBlockLoopInstructionDTO.isEncrypted());
             blockLoopInstructionDTO.setExportToABR(savedBlockLoopInstructionDTO.getExportToABR());
+            blockLoopInstructionDTO.setActive(savedBlockLoopInstructionDTO.getActive());
             blockLoopInstructionDTO.setInstructionOrderNumber(savedBlockLoopInstructionDTO.getInstructionOrderNumber());
             blockLoopInstructionDTO.setName(savedBlockLoopInstructionDTO.getName());
             blockLoopInstructionDTO.setOnHoldSeconds(savedBlockLoopInstructionDTO.getOnHoldSeconds());
@@ -1760,13 +1762,15 @@ public class PerformActions {
 
         // Build the SQL insert query
         String insertSQL =
-                "INSERT INTO saved_blocks(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
+                "INSERT INTO saved_blocks(id, block_order_number, description, name, type_id, bot_job_id, active) VALUES ("
                         + nextId + ", "
                         + nextBlockOrder + ", " // block_order_number
                         + "'" + blockDTO.getDescription() + "', " // description
                         + "'" + blockDTO.getName() + "', " // name
                         + 1 + ", " // type_id
-                        + blockDTO.getBotJobDTO().getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
+                        + blockDTO.getBotJobDTO().getId() + ", " // bot_job_id, assuming BotJobDTO has an ID
+                        + blockDTO.getActive() + ", " // active
+                        + ")";
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
@@ -2209,6 +2213,7 @@ public class PerformActions {
             updatedInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());
             updatedInstruction.setEncrypted(instruction.getEncrypted());
             updatedInstruction.setExportToABR(instruction.getExportToABR());
+            updatedInstruction.setExportToABR(instruction.getExportToABR());
             updatedInstruction.setExecuted(instruction.getExecuted());
             updatedInstruction.setPriority(instruction.getPriority());
             updatedInstruction.setOperation(instruction.getOperation());
@@ -2219,6 +2224,7 @@ public class PerformActions {
             updatedInstruction.setEditMode(instruction.isEditMode());
             updatedInstruction.setRefreshLoop(instruction.isRefreshLoop());
             updatedInstruction.setLoopOnly(instruction.isLoopOnly());
+            updatedInstruction.setInstructionActive(instruction.isInstructionActive());
 
             // Add the updated instruction to the new list
             updatedList.add(updatedInstruction);

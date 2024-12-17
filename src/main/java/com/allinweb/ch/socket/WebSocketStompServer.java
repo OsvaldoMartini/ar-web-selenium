@@ -136,6 +136,12 @@ public class WebSocketStompServer {
                     ABRSharedResources.getInstance().changeDbConnection();
                 }
                 break;
+            case "INSTRUCTION_STATUS":
+                InstructionDTO instructionDTO = gson.fromJson(body, InstructionDTO.class);
+                performDataBase.updateInstructionStatus(instructionDTO);
+
+                ABRSharedResources.getInstance().changeDbConnection();
+                break;
             case "BLOCK_STATUS":
                 RowMoveDTO blockStateDTO = gson.fromJson(body, RowMoveDTO.class);
                 performDataBase.updateBlockStatus(

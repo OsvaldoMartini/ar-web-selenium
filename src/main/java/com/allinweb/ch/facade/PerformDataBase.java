@@ -690,7 +690,8 @@ public class PerformDataBase {
                 + " irl.reference_type, irl.value, "
                 + "  bli.operation, bli.parent_id, "
                 + "  b.export_file, "
-                + "  b.active, b.wait "
+                + "  b.active as block_active, b.wait, "
+                + "  bli.active as instruction_active "
                 + " FROM bot_job bj "
                 + " LEFT JOIN block b ON b.bot_job_id = bj.id "
                 + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -730,7 +731,7 @@ public class PerformDataBase {
                     blockDTO.setName(rs.getString("block_name"));
                     blockDTO.setDescription(rs.getString("block_description"));
                     blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setActive(rs.getBoolean("active"));
+                    blockDTO.setActive(rs.getBoolean("block_active"));
                     blockDTO.setWait(rs.getInt("wait"));
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
@@ -759,8 +760,10 @@ public class PerformDataBase {
                     instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                     instruction.setEncrypted(rs.getInt("encrypted"));
                     instruction.setExportToABR(rs.getInt("export_to_abr"));
+                    instruction.setInstructionActive(rs.getBoolean("active"));
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setParentId(rs.getInt("parent_id"));
+                    instruction.setInstructionActive(rs.getBoolean("instruction_active"));
 
                     instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
                     blockDTO.getBlockLoopInstructionLoadDTOS().add(instruction);
@@ -861,6 +864,7 @@ public class PerformDataBase {
     //                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
     //                    instruction.setEncrypted(rs.getInt("encrypted"));
     //                    instruction.setExportToABR(rs.getInt("export_to_abr"));
+    //                     instruction.setInstructionActive(rs.getBoolean("active"));
     //                    instruction.setOperation(rs.getString("operation"));
     //                    instruction.setParentId(rs.getInt("parent_id"));
     //
@@ -1096,6 +1100,7 @@ public class PerformDataBase {
             instruction.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
             instruction.setEncrypted(instructionDTO.getEncrypted() == 1 ? true : false);
             instruction.setExportToABR(instructionDTO.getExportToABR() == 1 ? true : false);
+            instruction.setActive(instructionDTO.isInstructionActive());
 
             savedBlockLoopInstructions.add(instruction);
         }
@@ -1209,6 +1214,7 @@ public class PerformDataBase {
                 instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                 instruction.setEncrypted(rs.getInt("encrypted"));
                 instruction.setExportToABR(rs.getInt("export_to_abr"));
+                instruction.setInstructionActive(rs.getBoolean("active"));
 
                 // Add the instruction to the list
                 instructions.add(instruction);
@@ -1284,6 +1290,33 @@ public class PerformDataBase {
         }
 
         return botLoadJobs;
+    }
+
+    public boolean updateInstructionStatus(InstructionDTO instruction) {
+        // Build the SQL update statement
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            String updateSQL = "UPDATE block_loop_instruction SET active = '" + instruction.isInstructionActive() + "'"
+                    + " WHERE id = " + instruction.getInstructionId()
+                    + " and block_id = " + instruction.getBlockId();
+
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "RowsUpdateName - InstructionId: %s now have name: %s",
+                                instruction.getInstructionId(), instruction.getInstructionName()));
+            } else {
+                ABRLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
+                                instruction.getInstructionId(), instruction.getInstructionName()));
+            }
+            return true;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
+        }
+        return false;
     }
 
     public void updateBlockStatus(int botJobId, int blockId, String blockName, boolean blockActive, int wait) {

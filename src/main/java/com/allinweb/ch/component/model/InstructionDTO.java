@@ -7,6 +7,7 @@ public class InstructionDTO {
     private String type;
     private int botJobId;
     private int instructionId;
+    private boolean instructionActive;
     private int blockId;
     private int blockOrderNumber;
     private int instructionOrderNumber;

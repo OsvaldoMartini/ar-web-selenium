@@ -119,6 +119,7 @@ public class ABRSaveBotJobAsPane extends ABRPane {
                 newInstruction.setDescription(instruction.getDescription());
                 newInstruction.setEncrypted(instruction.isEncrypted());
                 newInstruction.setExportToABR(instruction.getExportToABR());
+                newInstruction.setActive(instruction.getActive());
                 newInstruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber());
                 newInstruction.setName(instruction.getName());
                 newInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());

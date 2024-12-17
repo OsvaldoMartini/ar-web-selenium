@@ -561,6 +561,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
         instruction.setEncrypted(false);
         instruction.setExportToABR(true);
+        instruction.setActive(true);
 
         instruction.setInstructionOrderNumber(instructionOrderNumber);
 
@@ -653,7 +654,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + "parent_id, "
                     + "path, "
                     + "variable_id, "
-                    + "block_id)\n"
+                    + "block_id, "
+                    + "active)\n"
                     + "VALUES ("
                     + instructionDTO.getId()
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
@@ -672,6 +674,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + ", " + pathValue
                     + ", " + instructionDTO.getVariableId()
                     + ", " + instructionDTO.getBlock().getId()
+                    + ", " + (instructionDTO.getActive() ? 1 : 0)
                     + ");";
 
             int rowsAffected = stmt.executeUpdate(insertSQL);

@@ -53,6 +53,9 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "export_to_abr")
     private Integer exportToABR;
 
+    @Column(name = "active")
+    private Boolean active;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "block_id")
     private BlockDTO blockDTO;
@@ -201,6 +204,14 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     public void setExportToABR(boolean exportToABR) {
         this.exportToABR = exportToABR ? 1 : 0;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 
     public List<ComplexInstructionDTO> getComplexInstrucions() {

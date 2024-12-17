@@ -3429,6 +3429,7 @@ public class ABRScannedElementPane extends ABRPane {
     //                    previousInstruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
     //                    previousInstruction.setEncrypted(rs.getInt("encrypted"));
     //                    previousInstruction.setExportToABR(rs.getInt("export_to_abr"));
+    //                    previousInstruction.setInstructionActive(rs.getBoolean("active"));
     //                    previousInstruction.setOperation(rs.getString("operation"));
     //                    previousInstruction.setParentId(rs.getInt("parent_id"));
     //
@@ -3834,6 +3835,34 @@ public class ABRScannedElementPane extends ABRPane {
 
                         BlockLoopInstructionLoadDTO currentInstruction =
                                 blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
+
+                        if (!currentInstruction.isInstructionActive()) {
+
+                            String nameInstruc = "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+                            Pair<String, String> msgInstruc =
+                                    new Pair(String.format("Ignore: \"%s\"", nameInstruc), ABRConstants.IGNORE);
+                            long duration = performAction.duration(blockStartTime);
+                            performAction.excelReportWrite(
+                                    blockReportName,
+                                    success,
+                                    new String[] {ABRConstants.IGNORE},
+                                    msgInstruc,
+                                    duration,
+                                    dataExcel,
+                                    writerReport);
+                            totalExecutionTime += duration;
+
+                            status = performAction.operationLog(
+                                    success,
+                                    "INSTRUCTION IGNORED",
+                                    String.format("Instruction: \"%s\" is Inactive: ", nameInstruc),
+                                    duration);
+
+                            currentIndex++;
+                            ;
+
+                            continue;
+                        }
 
                         mapSavedLocators.clear();
 
@@ -5740,7 +5769,6 @@ public class ABRScannedElementPane extends ABRPane {
         instructionDTO.setName(name);
 
         instructionDTO.setEncrypted(false);
-        instructionDTO.setExportToABR(true);
 
         instructionDTO.setInstructionOrderNumber(instructionOrderNumber);
 
@@ -5756,6 +5784,7 @@ public class ABRScannedElementPane extends ABRPane {
         instructionDTO.setOnHoldSeconds(onHold);
         //        instructionDTO.setBlock(savedBlockDTO);
         instructionDTO.setExportToABR(exportToABR);
+        instructionDTO.setActive(true);
 
         instructionDTO.setPath(xPath);
 
@@ -5803,7 +5832,8 @@ public class ABRScannedElementPane extends ABRPane {
                     + "parent_id, "
                     + "path, "
                     + "variable_id, "
-                    + "block_id)\n"
+                    + "block_id, "
+                    + "active)\n"
                     + "VALUES ("
                     + instructionDTO.getId()
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
@@ -5822,6 +5852,7 @@ public class ABRScannedElementPane extends ABRPane {
                     + ", " + pathValue
                     + ", " + instructionDTO.getVariableId()
                     + ", " + savedCurrentBlockId
+                    + ", " + (instructionDTO.getActive() ? 1 : 0)
                     + ");";
 
             int rowsAffected = stmt.executeUpdate(insertSQL);

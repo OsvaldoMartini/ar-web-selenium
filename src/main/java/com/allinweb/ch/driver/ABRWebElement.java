@@ -948,6 +948,7 @@ public class ABRWebElement {
         loop.setEncrypted(false);
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
+        loop.setActive(true);
         loop.setPath(mainXPath);
         String action;
         // TODO: Make a better thing than this

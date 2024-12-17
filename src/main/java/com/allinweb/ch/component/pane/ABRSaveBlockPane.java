@@ -396,6 +396,7 @@ public class ABRSaveBlockPane extends ABRPane {
         SavedBlockLoopInstructionDTO savedInstruction = new SavedBlockLoopInstructionDTO();
 
         savedInstruction.setName(name);
+        savedInstruction.setActive(true);
 
         savedInstruction.setEncrypted(false);
         savedInstruction.setExportToABR(true);
@@ -462,7 +463,8 @@ public class ABRSaveBlockPane extends ABRPane {
                     + "parent_id, "
                     + "path, "
                     + "variable_id, "
-                    + "saved_block_id)\n"
+                    + "saved_block_id, "
+                    + "active)\n"
                     + "VALUES ("
                     + savedInstructionDTO.getId()
                     + ", " + savedInstructionDTO.getActionCustomMaxWaitSec()
@@ -480,7 +482,8 @@ public class ABRSaveBlockPane extends ABRPane {
                     + ", " + savedInstructionDTO.getParentId()
                     + ", " + pathValue
                     + ", " + savedInstructionDTO.getVariableId()
-                    + ", " + savedCurrentBlockId
+                    + ", " + savedCurrentBlockId + ", "
+                    + savedInstructionDTO.getActive() // active
                     + ");";
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
@@ -638,13 +641,15 @@ public class ABRSaveBlockPane extends ABRPane {
 
         // Build the SQL insert query
         String insertSQL =
-                "INSERT INTO saved_blocks(id, block_order_number, description, name, type_id, bot_job_id) VALUES ("
+                "INSERT INTO saved_blocks(id, block_order_number, description, name, type_id, bot_job_id, active) VALUES ("
                         + nextId + ", "
                         + nextBlockOrder + ", " // block_order_number
                         + "'" + blockDTO.getDescription() + "', " // description
                         + "'" + blockDTO.getName() + "', " // name
                         + 1 + ", " // type_id
-                        + blockDTO.getBotJobDTO().getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
+                        + blockDTO.getBotJobDTO().getId() + ", " // bot_job_id, assuming BotJobDTO has an ID
+                        + blockDTO.getActive() + ", " // active
+                        + ")";
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
@@ -714,6 +719,7 @@ public class ABRSaveBlockPane extends ABRPane {
                 instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                 instruction.setEncrypted(rs.getInt("encrypted"));
                 instruction.setExportToABR(rs.getInt("export_to_abr"));
+                instruction.setInstructionActive(rs.getBoolean("active"));
 
                 // Add the instruction to the list
                 instructions.add(instruction);

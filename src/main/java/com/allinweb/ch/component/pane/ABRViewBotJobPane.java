@@ -365,6 +365,7 @@ public class ABRViewBotJobPane extends ABRPane {
                                     blockLoadDTO.getBlockOrderNumber(),
                                     blockLoadDTO.getName(),
                                     blockLoadDTO.isActive(),
+                                    blockLoopInstructionDTO.isInstructionActive(),
                                     blockLoadDTO.getWait(),
                                     blockLoopInstructionDTO.getActions(),
                                     blockLoopInstructionDTO.getParentId(),
@@ -951,6 +952,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     waitInstruction.setOnHoldSeconds(secondsToWait);
                     waitInstruction.setBlock(botJob.getBlocks().get(0));
                     waitInstruction.setExportToABR(false);
+                    waitInstruction.setActive(true);
                     ABRSharedResources.getInstance()
                             .addEntity(
                                     waitInstruction,
@@ -998,6 +1000,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     instruction.setOnHoldSeconds(1);
                     instruction.setBlock(botJob.getBlocks().get(0));
                     instruction.setExportToABR(false);
+                    instruction.setActive(true);
                     ABRSharedResources.getInstance()
                             .addEntity(
                                     instruction,
@@ -1196,6 +1199,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                 instruction.setEncrypted(rs.getInt("encrypted"));
                 instruction.setExportToABR(rs.getInt("export_to_abr"));
+                instruction.setInstructionActive(rs.getBoolean("active"));
 
                 // Add the instruction to the list
                 instructions.add(instruction);
@@ -1273,6 +1277,7 @@ public class ABRViewBotJobPane extends ABRPane {
         instruction1.setOnHoldSeconds(5);
         instruction1.setEncrypted(false);
         instruction1.setExportToABR(true);
+        instruction1.setActive(true);
 
         SavedBlockLoopInstructionDTO instruction2 = new SavedBlockLoopInstructionDTO();
         instruction2.setInstructionOrderNumber(2);
@@ -1286,6 +1291,7 @@ public class ABRViewBotJobPane extends ABRPane {
         instruction2.setOnHoldSeconds(10);
         instruction2.setEncrypted(false);
         instruction2.setExportToABR(true);
+        instruction1.setActive(true);
 
         // Assign mock instructions to mock blocks
         SavedBlocksDTO block1 = new SavedBlocksDTO();

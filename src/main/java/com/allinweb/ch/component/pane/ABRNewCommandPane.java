@@ -2409,7 +2409,9 @@ public class ABRNewCommandPane extends ABRPane {
                     instruction.setName(name);
 
                     instruction.setEncrypted(false);
-                    instruction.setExportToABR(true);
+                    instruction.setExportToABR(false);
+                    instruction.setActive(true);
+
                     if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
                         if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
                             instruction.setInstructionOrderNumber(
@@ -2440,7 +2442,6 @@ public class ABRNewCommandPane extends ABRPane {
                     } else {
                         instruction.setBlock(botJob.getBlocks().get(0));
                     }
-                    instruction.setExportToABR(false);
 
                     // Wrap the persistence in a try-catch block
                     try {
@@ -2525,7 +2526,8 @@ public class ABRNewCommandPane extends ABRPane {
         instruction.setName(name);
 
         instruction.setEncrypted(false);
-        instruction.setExportToABR(true);
+        instruction.setExportToABR(false);
+        instruction.setActive(true);
         if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
             if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
                 instruction.setInstructionOrderNumber(
@@ -2602,6 +2604,7 @@ public class ABRNewCommandPane extends ABRPane {
             }
         }
         instruction.setExportToABR(false);
+        instruction.setActive(true);
         // Wrap the persistence in a try-catch block
         boolean response;
 
@@ -2680,7 +2683,8 @@ public class ABRNewCommandPane extends ABRPane {
                     + "parent_id, "
                     + "path, "
                     + "variable_id, "
-                    + "block_id)\n"
+                    + "block_id, "
+                    + "active)\n"
                     + "VALUES ("
                     + instructionDTO.getId()
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
@@ -2698,7 +2702,8 @@ public class ABRNewCommandPane extends ABRPane {
                     + ", " + instructionDTO.getParentId()
                     + ", " + pathValue
                     + ", " + instructionDTO.getVariableId()
-                    + ", " + instructionDTO.getBlock().getId()
+                    + ", " + instructionDTO.getBlock().getId() + ", "
+                    + ", " + (instructionDTO.getActive() ? 1 : 0)
                     + ");";
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
