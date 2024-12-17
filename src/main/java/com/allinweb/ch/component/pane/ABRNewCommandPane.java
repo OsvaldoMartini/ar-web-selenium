@@ -2210,6 +2210,7 @@ public class ABRNewCommandPane extends ABRPane {
                 }
             }
         }
+        defineTextFlow(comboBoxInstruc.getValue().getValue());
     }
 
     private boolean reorderInstructions(List<InstructionDTO> rowList) {
