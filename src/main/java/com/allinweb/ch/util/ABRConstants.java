@@ -100,6 +100,7 @@ public class ABRConstants {
     public static final String ICON_DIFFERENT = "/different.png";
 
     // ACTION CODES
+    public static final String EXIT = "EXIT";
     public static final String IGNORE = "IGNORE";
     public static final String BY_PASS = "BY_PASS";
     public static final String CLEAR = "CLEAR";

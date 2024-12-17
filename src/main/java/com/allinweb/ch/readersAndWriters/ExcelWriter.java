@@ -160,6 +160,7 @@ public class ExcelWriter {
                             case ABRConstants.SCREEN -> "SCREENSHOT";
                             case ABRConstants.PAUSE -> "PAUSE";
                             case ABRConstants.IGNORE -> "IGNORE";
+                            case ABRConstants.EXIT -> "EXIT";
                             case ABRConstants.BY_PASS -> "BY_PASS";
                             default -> "Unsupported action";
                         };

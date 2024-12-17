@@ -3674,6 +3674,7 @@ public class ABRScannedElementPane extends ABRPane {
         Map<String, Integer> mapLoops = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Map<String, Integer> mapRefresh = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Set<String> loopBlockActive = new HashSet<>();
+        Map<String, Integer> loopBlockLimits = new HashMap<>();
 
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
@@ -3692,18 +3693,8 @@ public class ABRScannedElementPane extends ABRPane {
             blockLoop:
             while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
 
-                // It Searches the Block That have finished the Loops to Avoid recursivity
-                if (loopBlockActive.size() > 0) {
-                    for (String blocLoopKey : loopBlockActive) {
-                        if (mapLoops.containsKey(blocLoopKey)) {
-                            if (mapLoops.get(blocLoopKey) == 0) {
-                                stopAll = true;
-                                continue;
-                            }
-                        }
-                    }
-                }
-
+                long blockStartTime = System.nanoTime();
+                
                 instructionsExecuted.clear();
 
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
@@ -3718,7 +3709,41 @@ public class ABRScannedElementPane extends ABRPane {
                         : 2;
                 boolean blockActive = blocksLoaded.get(currentBlock).isActive();
 
-                long blockStartTime = System.nanoTime();
+
+                // It Searches the Block That have finished the Loops to Avoid recursivity
+                if (loopBlockActive.size() > 0) {
+                    for (String blocLoopKey : loopBlockActive) {
+                        if (mapLoops.containsKey(blocLoopKey)) {
+                            if (mapLoops.get(blocLoopKey) == 0) {
+                                stopAll = true;
+                                int limit = loopBlockLimits.get(blocLoopKey);
+                                performAction.alertExecutionTimes(limit, resultActions);
+
+                                Pair<String, String> msgBlock =
+                                        new Pair(String.format("Exitng Bot Job: \"%s\"", blockLoad.getName()), ABRConstants.EXIT);
+                                long duration = performAction.duration(blockStartTime);
+                                performAction.excelReportWrite(
+                                        blockReportName,
+                                        success,
+                                        new String[] {ABRConstants.EXIT},
+                                        msgBlock,
+                                        duration,
+                                        dataExcel,
+                                        writerReport);
+                                totalExecutionTime += duration;
+
+                                status = performAction.operationLog(
+                                        success,
+                                        "Stopping App",
+                                        String.format("Exit at Block Name: \"%s\"", blockName),
+                                        duration);
+
+                                continue;
+                            }
+                        }
+                    }
+                }
+                
 
                 if (!blockActive) {
                     currentBlock++;
@@ -3782,7 +3807,7 @@ public class ABRScannedElementPane extends ABRPane {
                 //                mapLoops = performAction.getLoopAndRefreshLoops(
                 //                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
 
-                executionTimes++;
+                //                executionTimes++;
                 boolean jumpGoto = false;
                 boolean jumpLoop = false;
                 boolean refreshLoop = false;
@@ -4181,6 +4206,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 if (!loopBlockActive.contains(msgInitial.getKey())) {
                                     loopBlockActive.add(msgInitial.getKey());
+                                    loopBlockLimits.put(msgInitial.getKey(), Integer.valueOf(msgInitial.getValue()));
                                 }
                                 int repeat = mapLoops.get(msgInitial.getKey()) - 1;
                                 if (repeat > 0) {
@@ -4188,7 +4214,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     try {
 
                                         String[] parts = msgInitial.getKey().split(":");
-                                        int blockOrderNumber = Integer.parseInt(parts[1]);
+                                        int blockOrderNumber = Integer.parseInt(parts[2]);
 
                                         currentBlock = blockOrderNumber - 1;
                                         currentInstruction.setExecuted(true);
@@ -4923,9 +4949,9 @@ public class ABRScannedElementPane extends ABRPane {
                 currentBlock++;
             }
 
-            if (executionTimes >= execLimitReach) {
-                performAction.alertExecutionTimes(executionTimes, resultActions);
-            }
+            //            if (executionTimes >= execLimitReach) {
+            //                performAction.alertExecutionTimes(executionTimes, resultActions);
+            //            }
 
         } else { //  if dataExel is NULL
             // Creating Dynamic Data if Default is Null

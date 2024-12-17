@@ -1629,7 +1629,7 @@ public class PerformActions {
         //                        executionTimes, lastInstructionExecuted));
 
         errorMessage(
-                "Block Execution Time LIMIT",
+                "Block Execution Loop LIMIT",
                 String.format("Process Reached BLOCK LOOP LIMIT of %d", executionTimes),
                 "Exiting All processes Now!",
                 "Last Execution",
@@ -2057,7 +2057,7 @@ public class PerformActions {
                 String[] parts = fieldData.getKey().split(":");
                 return String.format(
                         "GO TO Block \"%s\" Limit %s times",
-                        "(" + parts[0] + ") - #" + parts[1] + " " + parts[2], fieldData.getValue());
+                        "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], fieldData.getValue());
             case Constants.REFRESH_ONLY:
                 return " Refresh Web Page";
             case Constants.REFRESH_HOLD:
@@ -2173,7 +2173,7 @@ public class PerformActions {
 
     public void outputJson(List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
         // Get the directory path from ABRPropertyManager
-        String jsonPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT);
+        String jsonPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
 
         List<BlockLoopInstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
@@ -2218,6 +2218,7 @@ public class PerformActions {
             updatedInstruction.setBlockWait(instruction.getBlockWait());
             updatedInstruction.setEditMode(instruction.isEditMode());
             updatedInstruction.setRefreshLoop(instruction.isRefreshLoop());
+            updatedInstruction.setLoopOnly(instruction.isLoopOnly());
 
             // Add the updated instruction to the new list
             updatedList.add(updatedInstruction);

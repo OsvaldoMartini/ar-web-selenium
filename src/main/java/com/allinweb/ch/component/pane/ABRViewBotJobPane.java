@@ -384,6 +384,20 @@ public class ABRViewBotJobPane extends ABRPane {
                     instruction.setRefreshLoop(true);
                 }
             });
+
+            // Step 1: Filter rows where actions = "LOOP" and collect their parent IDs
+            Set<Integer> parentIdsForLoopOnly = blockLoopInstructions.stream()
+                    .filter(instruction -> "LOOP".equalsIgnoreCase(instruction.getActions()))
+                    .map(BlockLoopInstructionLoadDTO::getParentId)
+                    .collect(Collectors.toSet());
+
+            // Step 2: Iterate through the list and set loopOnly = true for rows with id in parentIdsForLoopOnly
+            blockLoopInstructions.forEach(instruction -> {
+                if (parentIdsForLoopOnly.contains(instruction.getId())) {
+                    instruction.setLoopOnly(true);
+                }
+            });
+
             performAction.outputJson(blockLoopInstructions);
 
             jsonData = gson.toJson(blockLoopInstructions);

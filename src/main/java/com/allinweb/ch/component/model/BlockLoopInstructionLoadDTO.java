@@ -37,7 +37,8 @@ public class BlockLoopInstructionLoadDTO {
     private boolean blockActive;
     private int blockWait;
     private boolean editMode = false; // Add an editMode flag
-    private boolean refreshLoop; // Add an editMode flag
+    private boolean refreshLoop;
+    private boolean loopOnly;
 
     private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
     private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
