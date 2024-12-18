@@ -3693,9 +3693,8 @@ public class ABRScannedElementPane extends ABRPane {
 
             blockLoop:
             while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
-
                 long blockStartTime = System.nanoTime();
-
+                ABRConstants.ConditionStatus conditionStatus = ABRConstants.ConditionStatus.NONE;
                 instructionsExecuted.clear();
 
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
@@ -3859,7 +3858,6 @@ public class ABRScannedElementPane extends ABRPane {
                                     duration);
 
                             currentIndex++;
-                            ;
 
                             continue;
                         }
@@ -3970,7 +3968,10 @@ public class ABRScannedElementPane extends ABRPane {
                             performAction.showCustomModalDialog(
                                     "PAUSE BOT JOB",
                                     String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
-                                    " Please click OK to continue!");
+                                    " Please click OK to continue!",
+                                    null,
+                                    null,
+                                    false);
                             //
                             long duration = performAction.duration(currentInstructionStartTime);
 
@@ -3984,7 +3985,7 @@ public class ABRScannedElementPane extends ABRPane {
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Initial Execution { IF -> ELSE} ->  inside Block :\"" + blockLoad.getName()
+                                    .info("Initial Execution { IF -> ELSE } ->  inside Block :\"" + blockLoad.getName()
                                             + "\"");
 
                             ifClause = true;
@@ -3997,7 +3998,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
                                 ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .warning("Closing Block { IF -> ELSE} -> Failed Execution inside Block :\""
+                                        .warning("Closing Block { IF -> ELSE } -> Failed Execution inside Block :\""
                                                 + blockLoad.getName() + "\"");
 
                                 ifClause = false;

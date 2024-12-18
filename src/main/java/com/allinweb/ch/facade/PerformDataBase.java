@@ -1056,12 +1056,12 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
-                                    instruction.getInstructionId(),
-                                    instruction.getBlockId(),
-                                    instruction.getInstructionOrderNumber() + 1));
+//                    ABRLogger.getInstance(PerformDataBase.class)
+//                            .info(String.format(
+//                                    "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
+//                                    instruction.getInstructionId(),
+//                                    instruction.getBlockId(),
+//                                    instruction.getInstructionOrderNumber() + 1));
                 } else {
                     ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(

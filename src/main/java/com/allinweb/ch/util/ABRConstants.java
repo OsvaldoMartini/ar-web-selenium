@@ -2,6 +2,17 @@ package com.allinweb.ch.util;
 
 public class ABRConstants {
 
+
+    public enum ConditionStatus {
+        NONE,     // No active condition
+        IF_PASSED,  // IF condition was met
+        IF_FAILED,  // IF condition failed
+        ELSEIF_PASSED, // ELSEIF condition was met
+        ELSEIF_FAILED, // ELSEIF condition failed
+        ELSE_ACTIVE // ELSE block is active
+    }
+
+
     // DEFAULT VALUES
     public static final String DEFAULT_NAME_ENGINE = "\\ABR_Web_Engine.jar";
     public static final String DEFAULT_NAME_SCANNER = "\\ABR_Web_Scanner.jar";

@@ -1238,15 +1238,15 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(ABRWebDriver.class)
-                            .warning(String.format(
-                                    "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
-                                    instruction.getInstructionId(),
-                                    instruction.getBlockId(),
-                                    instruction.getInstructionOrderNumber() + 1));
+//                    ABRLogger.getInstance(ABRWebDriver.class)
+//                            .warning(String.format(
+//                                    "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
+//                                    instruction.getInstructionId(),
+//                                    instruction.getBlockId(),
+//                                    instruction.getInstructionOrderNumber() + 1));
                 } else {
                     ABRLogger.getInstance(ABRWebDriver.class)
-                            .warning(String.format(
+                            .info(String.format(
                                     "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
                                     instruction.getBlockId(), instruction.getInstructionId()));
                 }

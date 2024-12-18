@@ -1252,7 +1252,7 @@ public class PerformActions {
         } else {
 
             ABRLogger.getInstance(PerformActions.class)
-                    .severe(String.format(
+                    .warning(String.format(
                             success
                                     ? "SUCCESS %s Current Cmd: %s - Duration: %s"
                                     : "FAILED %s Current Cmd: %s - Duration: %s",
