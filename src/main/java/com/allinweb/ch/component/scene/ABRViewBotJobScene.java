@@ -36,12 +36,12 @@ public class ABRViewBotJobScene extends ABRScene {
     private static final Double SCENE_WIDTH = 1100D;
     private static final String TITLE = "Bot Job Details";
 
-    private static final PerformDataBase performDatabase;
+    private static final PerformDataBase performDataBase;
     private static final PerformActions performAction;
 
     // Static block to initialize
     static {
-        performDatabase = PerformDataBase.getInstance();
+        performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
     }
 
@@ -61,7 +61,7 @@ public class ABRViewBotJobScene extends ABRScene {
         BotJobDTO botJobDTO = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJobId);
 
         loadBlocksForBotJob(this.botJobId);
-        this.botLoadJobs = performDatabase.loadBlockAll(this.botJobId);
+        this.botLoadJobs = performDataBase.loadBlockAll(this.botJobId);
 
         // It Prevents Start without blocks
         if (blockLoadList.isEmpty()) {
@@ -93,7 +93,7 @@ public class ABRViewBotJobScene extends ABRScene {
 
             newBlockDetails.setBotJobId(blockDTO.getId());
 
-            int newBlockId = performDatabase.createNewBlock(newBlockDetails);
+            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
             ABRLogger.getInstance(Thread.class)
                     .info(String.format("Created a new Block id %d for bot job Id %d", newBlockId, botJob.getId()));
         }

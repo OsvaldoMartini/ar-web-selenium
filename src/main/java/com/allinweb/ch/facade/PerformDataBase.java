@@ -11,6 +11,9 @@ import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.pane.ABRNewCommandPane;
+import com.allinweb.ch.component.pane.ABRScannedElementPane;
+import com.allinweb.ch.component.pane.ABRViewBotJobPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
@@ -155,7 +158,6 @@ public class PerformDataBase {
                             : " AND block_id IS NULL");
 
             if (deleteInstructionDTO.getActions().equals("IF")
-                    || deleteInstructionDTO.getActions().equals("ELSEIF")
                     || deleteInstructionDTO.getActions().equals("ELSE")
                     || deleteInstructionDTO.getActions().equals("ENDIF")) {
 
@@ -1102,7 +1104,7 @@ public class PerformDataBase {
             instruction.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
             instruction.setEncrypted(instructionDTO.getEncrypted() == 1 ? true : false);
             instruction.setExportToABR(instructionDTO.getExportToABR() == 1 ? true : false);
-            instruction.setActive(instructionDTO.isInstructionActive());
+            instruction.setActive(instructionDTO.getInstructionActive());
 
             savedBlockLoopInstructions.add(instruction);
         }
@@ -1184,6 +1186,42 @@ public class PerformDataBase {
                     .severe(String.format("Error updating BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
         return false;
+    }
+
+    public BlockLoadDTO getBlockByBlockId(int botJobId, int blockId) {
+        // List to store the fetched instructions
+        BlockLoadDTO blockLoadDTO = new BlockLoadDTO();
+
+        // Build the SQL query statement
+        String querySQL = "SELECT * FROM block WHERE block_id = " + blockId + " and bot_job_id = " + botJobId;
+
+        // Execute the query and process the result set
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(querySQL)) {
+
+            while (rs.next()) {
+                // Assuming you have an Instruction class, populate it with data from the ResultSet
+                blockLoadDTO.setId(rs.getInt("id"));
+                blockLoadDTO.setBotJobId(botJobId);
+                blockLoadDTO.setActive(rs.getBoolean("active"));
+                blockLoadDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+                blockLoadDTO.setDescription(rs.getString("description"));
+                blockLoadDTO.setExportFile(rs.getString("export_file"));
+                blockLoadDTO.setTypeId(rs.getInt("type"));
+                blockLoadDTO.setBlockOrderNumber(rs.getInt("wait"));
+            }
+
+            ABRLogger.getInstance(PerformDataBase.class)
+                    .info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error fetching Block ID %d with BotJob Id %d. Error: %s: ",
+                            blockId, botJobId, e.getMessage()));
+        }
+
+        return blockLoadDTO;
     }
 
     public List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
@@ -1304,14 +1342,14 @@ public class PerformDataBase {
                     || instruction.getActions().equals("ELSE")
                     || instruction.getActions().equals("ENDIF")) {
                 rowsAffected = stmt.executeUpdate(
-                        "UPDATE block_loop_instruction SET active = '" + instruction.isInstructionActive() + "'"
+                        "UPDATE block_loop_instruction SET active = '" + instruction.getInstructionActive() + "'"
                                 + " WHERE "
                                 + " block_id = " + instruction.getBlockId() + " AND parent_id = "
                                 + instruction.getParentId());
             } else {
 
                 String updateSQL =
-                        "UPDATE block_loop_instruction SET active = '" + instruction.isInstructionActive() + "'"
+                        "UPDATE block_loop_instruction SET active = '" + instruction.getInstructionActive() + "'"
                                 + " WHERE id = " + instruction.getInstructionId()
                                 + " and block_id = " + instruction.getBlockId();
 
@@ -1413,5 +1451,383 @@ public class PerformDataBase {
         }
 
         return blockLoadList;
+    }
+
+    private boolean insertInstruction(BlockLoopInstructionLoadDTO instructionDTO) throws SQLException {
+        // Generate a Unique-ID for the block
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            //            Integer nextId = loadNextIdInstructionData() + 1;
+
+            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : null;
+
+            // Build the SQL insert query
+
+            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
+                    + "action_custom_max_wait_sec, "
+                    + "actions, "
+                    + "block_marked, "
+                    + "default_val, "
+                    + "description, "
+                    + "encrypted, "
+                    + "export_to_abr, "
+                    + "instruction_order_number, "
+                    + "name, "
+                    + "on_hold_seconds, "
+                    + "operation, "
+                    + "optional, "
+                    + "parent_id, "
+                    + "path, "
+                    + "variable_id, "
+                    + "block_id, "
+                    + "active)\n"
+                    + "VALUES ("
+                    + instructionDTO.getId()
+                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
+                    + ", '" + instructionDTO.getActions() + "'"
+                    + ", " + instructionDTO.getBlockMarked()
+                    + "," + instructionDTO.getDefaultValue()
+                    + ", '" + instructionDTO.getDescription() + "'"
+                    + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
+                    + ", " + instructionDTO.getExportToABR()
+                    + ", " + instructionDTO.getInstructionOrderNumber()
+                    + ", '" + instructionDTO.getName() + "'"
+                    + ", " + instructionDTO.getOnHoldSeconds()
+                    + ", '" + instructionDTO.getOperation() + "'"
+                    + ", " + (instructionDTO.isOptional() ? 1 : 0)
+                    + ", " + instructionDTO.getParentId()
+                    + ", " + pathValue
+                    + ", " + instructionDTO.getVariableId()
+                    + ", " + instructionDTO.getBlockId()
+                    + ", " + instructionDTO.getInstructionActive()
+                    + ");";
+
+            int rowsAffected = stmt.executeUpdate(insertSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRNewCommandPane.class)
+                        .info(String.format(
+                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
+                                instructionDTO.getId(),
+                                instructionDTO.getName(),
+                                instructionDTO.getActions(),
+                                instructionDTO.getOperation()));
+                return true;
+            } else {
+                ABRLogger.getInstance(ABRNewCommandPane.class)
+                        .warning(String.format(
+                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
+                                instructionDTO.getId(),
+                                instructionDTO.getName(),
+                                instructionDTO.getActions(),
+                                instructionDTO.getOperation()));
+                return false;
+            }
+        }
+    }
+
+    public int insertInstruction(BlockLoopInstructionDTO instructionDTO, int savedCurrentBlockId) throws SQLException {
+        // Generate a Unique-ID for the block
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+
+            Integer nextId = loadNextIdInstructionData() + 1;
+            instructionDTO.setId(nextId);
+
+            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
+
+            // Build the SQL insert query
+
+            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
+                    + "action_custom_max_wait_sec, "
+                    + "actions, "
+                    + "block_marked, "
+                    + "default_val, "
+                    + "description, "
+                    + "encrypted, "
+                    + "export_to_abr, "
+                    + "instruction_order_number, "
+                    + "name, "
+                    + "on_hold_seconds, "
+                    //                    + "operation, "
+                    + "optional, "
+                    + "parent_id, "
+                    + "path, "
+                    + "variable_id, "
+                    + "block_id, "
+                    + "active)\n"
+                    + "VALUES ("
+                    + instructionDTO.getId()
+                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
+                    + ", '" + instructionDTO.getActions() + "'"
+                    + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
+                    + "," + instructionDTO.getDefaultValue()
+                    + ", '" + instructionDTO.getDescription() + "'"
+                    + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
+                    + ", " + (instructionDTO.getExportToABR() ? 1 : 0)
+                    + ", " + instructionDTO.getInstructionOrderNumber()
+                    + ", '" + instructionDTO.getName() + "'"
+                    + ", " + instructionDTO.getOnHoldSeconds()
+                    //                    + ", '" + instructionDTO.getOperation() + "'"
+                    + ", " + (instructionDTO.isOptional() ? 1 : 0)
+                    + ", " + instructionDTO.getParentId()
+                    + ", " + pathValue
+                    + ", " + instructionDTO.getVariableId()
+                    + ", " + savedCurrentBlockId
+                    + ", " + (instructionDTO.getActive() ? 1 : 0)
+                    + ");";
+
+            int rowsAffected = stmt.executeUpdate(insertSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(ABRNewCommandPane.class)
+                        .info(String.format(
+                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
+                                instructionDTO.getId(),
+                                instructionDTO.getName(),
+                                instructionDTO.getActions(),
+                                instructionDTO.getOperation()));
+                return nextId;
+            } else {
+                ABRLogger.getInstance(ABRNewCommandPane.class)
+                        .warning(String.format(
+                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
+                                instructionDTO.getId(),
+                                instructionDTO.getName(),
+                                instructionDTO.getActions(),
+                                instructionDTO.getOperation()));
+                return -1;
+            }
+        }
+    }
+
+    private Integer loadNextIdInstructionData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRScannedElementPane.class)
+                    .severe("loadNextIdInstructionData  \nError: " + e.getMessage());
+        }
+        return null;
+    }
+
+    public boolean preInsertStep(RowMoveDTO rowMoveDTO, List<InstructionDTO> rowList) {
+        // Check if the operation type is either "INSERT_BEFORE" or "INSERT_AFTER"
+        String operationType = rowMoveDTO.getType();
+        if ("INSERT_BEFORE".equals(operationType)
+                || "INSERT_AFTER".equals(operationType)
+                || "INSERT_BEFORE_ELSEIF".equals(operationType)
+                || "INSERT_AFTER_ELSEIF".equals(operationType)) {
+            // Get the instruction order number from the first instruction in the updated rows
+            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+
+            // Check if the targetOrderNumber exists in the rowList
+            boolean orderNumberExists = rowList.stream()
+                    .anyMatch(instruction -> instruction.getInstructionOrderNumber() == targetOrderNumber);
+
+            if (!orderNumberExists) {
+                // If the target order number doesn't exist, return false without shifting
+                ABRLogger.getInstance(ABRNewCommandPane.class)
+                        .warning(String.format(
+                                "preInsertStep - Target order number %d does not exist in the row list.",
+                                targetOrderNumber));
+                return false;
+            }
+
+            // Build the SQL update statement
+            try (Statement stmt =
+                    ABRSharedResources.getInstance().getConnection().createStatement()) {
+                // Loop through each instruction in the rowList
+                for (InstructionDTO instruction : rowList) {
+                    // For "INSERT_BEFORE", shift instructions with an order number greater than or equal to the target
+                    // For "INSERT_AFTER", shift instructions with an order number strictly greater than the target
+                    boolean shouldShift =
+                            ("INSERT_BEFORE".equals(operationType) || "INSERT_BEFORE_ELSEIF".equals(operationType))
+                                    ? instruction.getInstructionOrderNumber() >= targetOrderNumber
+                                    : instruction.getInstructionOrderNumber() > targetOrderNumber;
+
+                    if (shouldShift) {
+                        // Increment the instructionOrderNumber by 1 for each instruction
+                        String updateSQL = "UPDATE block_loop_instruction SET  "
+                                + " instruction_order_number = " + (instruction.getInstructionOrderNumber() + 1)
+                                + " WHERE id = " + instruction.getInstructionId()
+                                + " AND block_id = " + instruction.getBlockId();
+
+                        int rowsAffected = stmt.executeUpdate(updateSQL);
+                        if (rowsAffected > 0) {
+                            //                            ABRLogger.getInstance(ABRNewCommandPane.class)
+                            //                                    .info(String.format(
+                            //                                            "preInsertStep - InstructionId: %s in BlockId:
+                            // %s now has order number: %d",
+                            //                                            instruction.getInstructionId(),
+                            //                                            instruction.getBlockId(),
+                            //                                            instruction.getInstructionOrderNumber() + 1));
+                        } else {
+                            ABRLogger.getInstance(ABRNewCommandPane.class)
+                                    .warning(String.format(
+                                            "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
+                                            instruction.getBlockId(), instruction.getInstructionId()));
+                        }
+                    }
+                }
+                return true;
+            } catch (SQLException e) {
+                ABRLogger.getInstance(ABRNewCommandPane.class)
+                        .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
+            }
+        }
+        return false;
+    }
+
+    public int preFillInstruction(
+            String name,
+            String description,
+            String actions,
+            String operation,
+            Integer onHold,
+            Integer varId,
+            Integer instructionId,
+            Integer parentId,
+            RowMoveDTO rowMoveDTO,
+            BotJobLoadDTO botJob,
+            boolean isShowAlert) {
+
+        List<InstructionDTO> rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
+
+        reorderInstructions(rowList);
+
+        preInsertStep(rowMoveDTO, rowList);
+
+        List<BlockLoopInstructionLoadDTO> instructionList = null;
+        List<BotJobLoadDTO> matchingBlocks = null;
+
+        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+            int targetBlockId = rowMoveDTO.getBlockId();
+
+            matchingBlocks = botLoadJobs.stream()
+                    .filter(block -> block.getId() == targetBlockId)
+                    .collect(Collectors.toList());
+        }
+
+        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
+        List<InstructionDTO> finalInstructionList = rowList;
+
+        BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
+
+        instruction.setName(name);
+
+        instruction.setEncrypted(0);
+        instruction.setExportToABR(0);
+        instruction.setInstructionActive(true);
+        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+            if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
+                instruction.setInstructionOrderNumber(
+                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+            } else {
+                instruction.setInstructionOrderNumber(
+                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
+            }
+        } else {
+            instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
+        }
+        instruction.setOptional(0);
+
+        instruction.setOperation(operation);
+        instruction.setActions(actions);
+        instruction.setDescription(description);
+
+        instruction.setVariableId(varId);
+
+        Integer nextId = loadNextIdInstructionData() + 1;
+
+        if (actions.equalsIgnoreCase(ABRConstants.IF)) {
+            instruction.setId(nextId);
+            instruction.setParentId(nextId);
+        } else if (actions.equalsIgnoreCase(ABRConstants.ELSE)) {
+            instruction.setId(nextId);
+            instruction.setParentId(parentId);
+        } else if (actions.equalsIgnoreCase(ABRConstants.ENDIF)) {
+            instruction.setId(nextId);
+            instruction.setParentId(parentId);
+        } else if (actions.equalsIgnoreCase(ABRConstants.ELSEIF)) {
+            instruction.setId(nextId);
+            instruction.setParentId(parentId);
+        } else {
+            instruction.setId(nextId);
+            instruction.setParentId(instructionId);
+        }
+
+        instruction.setActionCustomMaxWaitSec(30);
+        instruction.setOnHoldSeconds(onHold);
+
+        if (finalMatchingBlocks != null && finalMatchingBlocks.size() > 0) {
+            instruction.setBlockId(finalMatchingBlocks.get(0).getId());
+        } else if (botJob.getBlockLoadDTOList().size() > 0) {
+
+            instruction.setBlockId(rowMoveDTO.getBlockId());
+        } else {
+
+            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+            newBlockDetails.setBlockName("Default Block");
+            newBlockDetails.setBlockDescription("Default Block description");
+            newBlockDetails.setTypeId(1);
+            newBlockDetails.setActive(true);
+            newBlockDetails.setWait(3);
+
+            newBlockDetails.setBotJobId(botJob.getId());
+
+            int newBlockId = createNewBlock(newBlockDetails);
+
+            if (newBlockId > 0) {
+
+                this.blockLoadList = loadBlocksForBotJob(botJob.getId());
+
+                instruction.setBlockId(newBlockId);
+            }
+        }
+        instruction.setExportToABR(0);
+        instruction.setInstructionActive(true);
+        // Wrap the persistence in a try-catch block
+        boolean response;
+
+        try {
+            response = insertInstruction(instruction);
+
+            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+            rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
+
+            boolean finalResponse = response;
+            Platform.runLater(() -> {
+                if (isShowAlert) {
+                    if (finalResponse) {
+
+                        ABRLogger.getInstance(ABRViewBotJobPane.class)
+                                .info(String.format(
+                                        "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
+                                        instruction.getName()));
+                    } else {
+
+                        ABRLogger.getInstance(ABRViewBotJobPane.class)
+                                .severe(String.format(
+                                        "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
+                                        instruction.getName()));
+                    }
+                }
+            });
+
+            if (response) {
+                return nextId;
+            }
+
+        } catch (SQLException e) {
+            ABRLogger.getInstance(ABRViewBotJobPane.class)
+                    .severe("Cannot Insert Instruction\nError: " + e.getMessage());
+        }
+
+        return -1;
     }
 }

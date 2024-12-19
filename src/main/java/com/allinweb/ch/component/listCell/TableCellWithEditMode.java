@@ -50,7 +50,7 @@ public class TableCellWithEditMode extends TableCell<BlockLoopInstructionLoadDTO
         } else {
             BlockLoopInstructionLoadDTO data = getTableView().getItems().get(getIndex());
 
-            if (data.isEditMode()) {
+            if (data.getEditMode()) {
                 textField.setText(item); // Show the TextField with the current name
                 textField.setVisible(true);
                 saveButton.setVisible(true);

@@ -47,12 +47,12 @@ import javafx.scene.text.FontWeight;
 
 public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
-    private static final PerformDataBase performDatabase;
+    private static final PerformDataBase performDataBase;
     private static final PerformActions performAction;
 
     // Static block to initialize
     static {
-        performDatabase = PerformDataBase.getInstance();
+        performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
     }
 
@@ -218,7 +218,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
                         newBlockDetails.setBotJobId(this.blockDTO.getId());
 
-                        int currentBlockId = performDatabase.createNewBlock(newBlockDetails);
+                        int currentBlockId = performDataBase.createNewBlock(newBlockDetails);
 
                         if (currentBlockId > 0) {
                             this.blockDTO.setId(currentBlockId);

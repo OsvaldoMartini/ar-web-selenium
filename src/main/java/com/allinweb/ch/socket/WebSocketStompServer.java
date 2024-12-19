@@ -10,6 +10,7 @@ import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.component.scene.ABRExcelFileScene;
 import com.allinweb.ch.component.scene.ABRNewCommandScene;
 import com.allinweb.ch.component.scene.ABRSaveBlockScene;
@@ -18,6 +19,7 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.gson.Gson;
@@ -114,6 +116,8 @@ public class WebSocketStompServer {
                 break;
             case "INSERT_BEFORE":
             case "INSERT_AFTER":
+            case "INSERT_AFTER_ELSEIF":
+            case "INSERT_BEFORE_ELSEIF":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
                 injectStepAfterOrBefore(insertBeforeDTO);
                 ABRSharedResources.getInstance().changeDbConnection();
@@ -344,16 +348,49 @@ public class WebSocketStompServer {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
-            List<BotJobLoadDTO> blockLoadList = performDataBase.loadJustJobBlocks(rowMoveDTO.getBotJobId());
+            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadJustJobBlocks(rowMoveDTO.getBotJobId());
 
-            this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+            if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
+                    && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
 
-            // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-            Platform.runLater(() -> {
-                ABRNewCommandScene newCommandScene =
-                        new ABRNewCommandScene(rowMoveDTO, blockLoadList, this.webPageItems);
-                newCommandScene.showModal();
-            });
+                this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+
+                // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+                Platform.runLater(() -> {
+                    ABRNewCommandScene newCommandScene =
+                            new ABRNewCommandScene(rowMoveDTO, botJobLoadList, this.webPageItems);
+                    newCommandScene.showModal();
+                });
+            } else {
+
+                if (rowMoveDTO.getUpdatedRows().size() > 0) {
+
+                    int parentId = rowMoveDTO.getUpdatedRows().get(0).getParentId();
+                    try {
+                        // Run the instruction add in a separate Task
+
+                        int newRowId = performDataBase.preFillInstruction(
+                                "ELSEIF",
+                                "ELSEIF",
+                                ABRConstants.ELSEIF,
+                                ABRConstants.ELSEIF,
+                                1,
+                                null,
+                                null,
+                                parentId,
+                                rowMoveDTO,
+                                botJobLoadList.get(0),
+                                false);
+
+                    } catch (Exception e) {
+
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .severe(String.format(
+                                        "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
+                                        ABRConstants.ELSEIF, e.getMessage()));
+                    }
+                }
+            }
         }
     }
 

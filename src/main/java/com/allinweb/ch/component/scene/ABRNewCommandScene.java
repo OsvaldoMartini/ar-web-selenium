@@ -20,20 +20,20 @@ public class ABRNewCommandScene extends ABRScene {
     private static final Double SCENE_WIDTH = 700D;
     private static final String TITLE = "Add Command";
     private RowMoveDTO rowMoveDTO;
-    private List<BotJobLoadDTO> blockLoadDTOList;
+    private List<BotJobLoadDTO> botJobLoadList;
     private ObservableList<ComboBoxVars> webPageItems;
 
     public ABRNewCommandScene(
-            RowMoveDTO rowMoveDTO, List<BotJobLoadDTO> blockLoadDTOList, ObservableList<ComboBoxVars> webPageItems) {
+            RowMoveDTO rowMoveDTO, List<BotJobLoadDTO> botJobLoadList, ObservableList<ComboBoxVars> webPageItems) {
         super();
         this.rowMoveDTO = rowMoveDTO;
-        this.blockLoadDTOList = blockLoadDTOList;
+        this.botJobLoadList = botJobLoadList;
         this.webPageItems = webPageItems;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRNewCommandPane(rowMoveDTO, blockLoadDTOList, webPageItems);
+        return new ABRNewCommandPane(rowMoveDTO, botJobLoadList, webPageItems);
     }
 
     @Override

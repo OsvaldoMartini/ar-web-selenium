@@ -2299,7 +2299,7 @@ public class PerformActions {
             updatedInstruction.setPath(instruction.getPath());
             updatedInstruction.setDescription(instruction.getDescription());
             updatedInstruction.setOptional(instruction.getOptional());
-            updatedInstruction.setBlockMarked(instruction.isBlockMarked());
+            updatedInstruction.setBlockMarked(instruction.getBlockMarked());
             updatedInstruction.setDefault_val(instruction.getDefault_val());
             updatedInstruction.setActionCustomMaxWaitSec(instruction.getActionCustomMaxWaitSec());
             updatedInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());
@@ -2311,12 +2311,12 @@ public class PerformActions {
             updatedInstruction.setOperation(instruction.getOperation());
             updatedInstruction.setExportFile(instruction.getExportFile());
             updatedInstruction.setBlockName(instruction.getBlockName());
-            updatedInstruction.setBlockActive(instruction.isBlockActive());
+            updatedInstruction.setBlockActive(instruction.getInstructionActive());
             updatedInstruction.setBlockWait(instruction.getBlockWait());
-            updatedInstruction.setEditMode(instruction.isEditMode());
-            updatedInstruction.setRefreshLoop(instruction.isRefreshLoop());
-            updatedInstruction.setLoopOnly(instruction.isLoopOnly());
-            updatedInstruction.setInstructionActive(instruction.isInstructionActive());
+            updatedInstruction.setEditMode(instruction.getEditMode());
+            updatedInstruction.setRefreshLoop(instruction.getRefreshLoop());
+            updatedInstruction.setLoopOnly(instruction.getLoopOnly());
+            updatedInstruction.setInstructionActive(instruction.getInstructionActive());
 
             // Add the updated instruction to the new list
             updatedList.add(updatedInstruction);

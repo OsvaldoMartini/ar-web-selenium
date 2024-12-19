@@ -11,16 +11,16 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BlockLoopInstructionLoadDTO {
-    private int id;
-    private int botJobId;
+    private Integer id;
+    private Integer botJobId;
     private String botJobName;
-    private int instructionOrderNumber;
+    private Integer instructionOrderNumber;
     private String actions;
     private String name;
     private String path;
     private String description;
-    private int optional;
-    private boolean blockMarked;
+    private Integer optional;
+    private Boolean blockMarked;
     private String default_val;
     private Integer actionCustomMaxWaitSec;
     private Integer onHoldSeconds;
@@ -30,36 +30,37 @@ public class BlockLoopInstructionLoadDTO {
     private String priority;
     private String operation;
     private String exportFile;
-    private int parentId;
-    private int blockId;
-    private int blockOrderNumber;
+    private Integer parentId;
+    private Integer blockId;
+    private Integer blockOrderNumber;
     private String blockName;
-    private boolean blockActive;
-    private boolean instructionActive;
-    private int blockWait;
-    private boolean editMode = false; // Add an editMode flag
-    private boolean refreshLoop;
-    private boolean loopOnly;
+    private Boolean blockActive;
+    private Boolean instructionActive;
+    private Integer blockWait;
+    private Boolean editMode = false; // Add an editMode flag
+    private Boolean refreshLoop;
+    private Boolean loopOnly;
+    private Integer variableId;
 
     private List<ComplexInstructionLoadDTO> complexInstructionLoadDTOList;
     private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
 
     // Custom constructor
     public BlockLoopInstructionLoadDTO(
-            int botJobId,
+            Integer botJobId,
             String botJobName,
-            int id,
-            int instructionOrderNumber,
+            Integer id,
+            Integer instructionOrderNumber,
             String name,
             String description,
-            int blockId,
-            int blockOrderNumber,
+            Integer blockId,
+            Integer blockOrderNumber,
             String blockName,
-            boolean blockActive,
-            boolean instructionActive,
-            int blockWait,
+            Boolean blockActive,
+            Boolean instructionActive,
+            Integer blockWait,
             String actions,
-            int parentId,
+            Integer parentId,
             String operation,
             String exportFile) {
         this.botJobId = botJobId;
@@ -80,11 +81,11 @@ public class BlockLoopInstructionLoadDTO {
         this.exportFile = exportFile;
     }
 
-    public boolean isOptional() {
+    public Boolean isOptional() {
         return optional >= 1;
     }
 
-    public boolean isEncrypted() {
+    public Boolean isEncrypted() {
         return encrypted >= 1;
     }
 

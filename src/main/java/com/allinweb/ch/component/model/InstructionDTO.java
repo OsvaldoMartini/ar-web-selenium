@@ -5,21 +5,21 @@ import lombok.Data;
 @Data
 public class InstructionDTO {
     private String type;
-    private int botJobId;
-    private int instructionId;
-    private boolean instructionActive;
-    private int blockId;
-    private int blockOrderNumber;
-    private int instructionOrderNumber;
+    private Integer botJobId;
+    private Integer instructionId;
+    private Boolean instructionActive;
+    private Integer blockId;
+    private Integer blockOrderNumber;
+    private Integer instructionOrderNumber;
     private String instructionName;
     private String description;
     private String path;
     private String operation;
     private String actions;
-    private int parentId;
-    private int optional;
-    private int actionCustomMaxWaitSec;
-    private int onHoldSeconds;
-    private int encrypted;
-    private int exportToABR;
+    private Integer parentId;
+    private Integer optional;
+    private Integer actionCustomMaxWaitSec;
+    private Integer onHoldSeconds;
+    private Integer encrypted;
+    private Integer exportToABR;
 }

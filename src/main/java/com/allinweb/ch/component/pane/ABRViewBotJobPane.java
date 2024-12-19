@@ -365,7 +365,7 @@ public class ABRViewBotJobPane extends ABRPane {
                                     blockLoadDTO.getBlockOrderNumber(),
                                     blockLoadDTO.getName(),
                                     blockLoadDTO.isActive(),
-                                    blockLoopInstructionDTO.isInstructionActive(),
+                                    blockLoopInstructionDTO.getInstructionActive(),
                                     blockLoadDTO.getWait(),
                                     blockLoopInstructionDTO.getActions(),
                                     blockLoopInstructionDTO.getParentId(),

@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
@@ -59,12 +58,12 @@ import javafx.stage.Stage;
 
 public class ABRNewCommandPane extends ABRPane {
 
-    private static final PerformDataBase performDatabase;
+    private static final PerformDataBase performDataBase;
     private static final PerformActions performAction;
 
     // Static block to initialize
     static {
-        performDatabase = PerformDataBase.getInstance();
+        performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
     }
 
@@ -1522,6 +1521,12 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText1.setText(variableName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(false);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
 
@@ -1537,17 +1542,23 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText1.setText(comboBoxWebPage.getValue().getText());
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    variableText2.setText(" and PUT on Variable: ");
-                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText2.setText(" and PUT on Variable: ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText3.setText(variableName);
-                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+                    variableText2.setText(variableName);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
                     variableText2.setVisible(true);
-                    variableText3.setVisible(true);
+                    variableText3.setVisible(false);
 
                     textFlow.getChildren().clear();
-                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
                     textFlow.requestLayout();
 
                     break;
@@ -1558,17 +1569,23 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText1.setText(webFieldName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    variableText2.setText(" with the value of: ");
-                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText2.setText(" with the value of: ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText3.setText(variableValue);
-                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+                    variableText2.setText(variableValue);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
                     variableText2.setVisible(true);
-                    variableText3.setVisible(true);
+                    variableText3.setVisible(false);
 
                     textFlow.getChildren().clear();
-                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
                     textFlow.requestLayout();
                     break;
                 case ABRConstants.GOTO:
@@ -1587,9 +1604,12 @@ public class ABRNewCommandPane extends ABRPane {
                     regularText3.setText(" Times");
                     regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
+                    regularText1.setVisible(true);
                     regularText2.setVisible(true);
                     regularText3.setVisible(true);
+                    regularText4.setVisible(false);
 
+                    variableText1.setVisible(true);
                     variableText2.setVisible(true);
                     variableText3.setVisible(false);
 
@@ -1602,15 +1622,16 @@ public class ABRNewCommandPane extends ABRPane {
                 case ABRConstants.REFRESH_ONLY:
                     regularText1.setText("Refresh: ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
-                    variableText1.setText("Refresh Current Web Page");
-                    variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     variableText1.setText("Refresh Current Web Page");
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
+                    regularText1.setVisible(true);
                     regularText2.setVisible(false);
                     regularText3.setVisible(false);
                     regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
                     variableText2.setVisible(false);
                     variableText3.setVisible(false);
 
@@ -1620,7 +1641,7 @@ public class ABRNewCommandPane extends ABRPane {
                     break;
                 case ABRConstants.LOOP:
                     regularText1.setText("Jump To Parent: ");
-                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(webFieldName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
@@ -1634,11 +1655,14 @@ public class ABRNewCommandPane extends ABRPane {
                     regularText3.setText(" Times");
                     regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText2.setVisible(true);
-                    variableText3.setVisible(false);
-
+                    regularText1.setVisible(true);
                     regularText2.setVisible(true);
                     regularText3.setVisible(true);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
+                    variableText2.setVisible(true);
+                    variableText3.setVisible(false);
 
                     textFlow.getChildren().clear();
                     textFlow.getChildren()
@@ -1668,10 +1692,12 @@ public class ABRNewCommandPane extends ABRPane {
                     regularText4.setText(" Times");
                     regularText4.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
+                    regularText1.setVisible(true);
                     regularText2.setVisible(true);
                     regularText3.setVisible(true);
                     regularText4.setVisible(true);
 
+                    variableText1.setVisible(true);
                     variableText2.setVisible(true);
                     variableText3.setVisible(true);
 
@@ -1691,17 +1717,27 @@ public class ABRNewCommandPane extends ABRPane {
                 case ABRConstants.IF:
                     regularText1.setText("{ IF -> ELSE } ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
                     variableText1.setText(" OR ");
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
-                    variableText2.setText(" { ELSE -> ENDIF }");
-                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
-                    variableText3.setText(" SPECIAL BLOCKS");
-                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText2.setText(" { ELSE -> ENDIF }");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText2.setText(" SPECIAL BLOCKS");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
                     variableText2.setVisible(true);
-                    variableText3.setVisible(true);
+                    variableText3.setVisible(false);
 
                     textFlow.getChildren().clear();
-                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
                     textFlow.requestLayout();
 
                     break;
@@ -1712,17 +1748,23 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText1.setText(variableName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    variableText2.setText(" " + comboBoxOperator.getValue().getText() + " ");
-                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText2.setText(" " + comboBoxOperator.getValue().getText() + " ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText3.setText(variableValue);
-                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+                    variableText2.setText(variableValue);
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
                     variableText2.setVisible(true);
-                    variableText3.setVisible(true);
+                    variableText3.setVisible(false);
 
                     textFlow.getChildren().clear();
-                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
                     textFlow.requestLayout();
 
                     break;
@@ -1733,17 +1775,23 @@ public class ABRNewCommandPane extends ABRPane {
                     variableText1.setText("");
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    variableText2.setText(" ");
-                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+                    regularText2.setText(" ");
+                    regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText3.setText("");
-                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+                    variableText2.setText("");
+                    variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
+                    regularText1.setVisible(true);
+                    regularText2.setVisible(true);
+                    regularText3.setVisible(false);
+                    regularText4.setVisible(false);
+
+                    variableText1.setVisible(true);
                     variableText2.setVisible(true);
-                    variableText3.setVisible(true);
+                    variableText3.setVisible(false);
 
                     textFlow.getChildren().clear();
-                    textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
+                    textFlow.getChildren().addAll(regularText1, variableText1, regularText2, variableText2);
                     textFlow.requestLayout();
 
                     break;
@@ -2019,24 +2067,26 @@ public class ABRNewCommandPane extends ABRPane {
         }
 
         // Create and show alert inside Platform.runLater
-        BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
 
-        loadBlocksForBotJob(rowMoveDTO.getBotJobId());
+        if (this.botJobLoadList.size() == 0) {
+            this.botJobLoadList = loadBotJobs(rowMoveDTO.getBotJobId());
+        }
 
         // Combine the texts using TextFlow
 
-        Text extra = new Text(" value ");
-        extra.setStyle("-fx-font-size: 14px;");
+        Text extra = new Text("Action: ");
+        extra.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+        extra.setVisible(true);
 
         if (actions.equalsIgnoreCase(ABRConstants.HOLD)
                 || actions.equalsIgnoreCase(ABRConstants.PAUSE)
                 || (actions.equalsIgnoreCase(ABRConstants.SCREEN))
                 || actions.equalsIgnoreCase(ABRConstants.QUIT)) {
-            extra.setText("");
             regularText1.setText("");
             regularText2.setText("");
             regularText3.setText("");
-            variableText1.setText("Action:");
+            regularText4.setText("");
+            variableText1.setText("");
             variableText2.setText(name);
             variableText3.setText("");
         }
@@ -2044,18 +2094,23 @@ public class ABRNewCommandPane extends ABRPane {
         // Create individual text elements with the necessary styling
         Text regularTextCopy1 = new Text(regularText1.getText());
         regularTextCopy1.setStyle(regularText1.getStyle());
+        regularTextCopy1.setVisible(regularText1.isVisible());
 
         Text regularTextCopy2 = new Text(regularText2.getText());
         regularTextCopy2.setStyle(regularText2.getStyle());
+        regularTextCopy2.setVisible(regularText2.isVisible());
 
         Text regularTextCopy3 = new Text(regularText3.getText());
         regularTextCopy3.setStyle(regularText3.getStyle());
+        regularTextCopy3.setVisible(regularText3.isVisible());
 
         Text regularTextCopy4 = new Text(regularText4.getText());
         regularTextCopy4.setStyle(regularText4.getStyle());
+        regularTextCopy4.setVisible(regularText4.isVisible());
 
         Text variableText1Copy = new Text(variableText1.getText());
         variableText1Copy.setStyle(variableText1.getStyle());
+        variableText1Copy.setVisible((variableText1.isVisible()));
 
         Text variableText2Copy = new Text(variableText2.getText());
         variableText2Copy.setStyle(variableText2.getStyle());
@@ -2103,73 +2158,25 @@ public class ABRNewCommandPane extends ABRPane {
         HBox blockNameBox = new HBox();
         blockNameBox.getChildren().addAll(blockNameLabel, blockNameText);
 
-        if (actions.equalsIgnoreCase(ABRConstants.GOTO)) {
-            HBox allMsgHor = new HBox();
-            allMsgHor.setSpacing(5);
-            allMsgHor
-                    .getChildren()
-                    .addAll(regularTextCopy1, variableText1Copy, regularTextCopy2, variableText2Copy, regularTextCopy3);
+        HBox allMsgHor = new HBox();
+        allMsgHor.setSpacing(5);
+        allMsgHor
+                .getChildren()
+                .addAll(
+                        extra,
+                        regularTextCopy1,
+                        variableText1Copy,
+                        regularTextCopy2,
+                        variableText2Copy,
+                        regularTextCopy3,
+                        variableText3Copy,
+                        regularTextCopy4);
 
-            VBox allMsgVer = new VBox();
-            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
+        VBox allMsgVer = new VBox();
+        allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
 
-            combinedTextContainer.getChildren().addAll(allMsgVer);
-        } else if (actions.equalsIgnoreCase(ABRConstants.LOOP)) {
+        combinedTextContainer.getChildren().addAll(allMsgVer);
 
-            HBox allMsgHor = new HBox();
-            allMsgHor.setSpacing(5);
-            allMsgHor.getChildren().addAll(regularTextCopy1, variableText1Copy, regularTextCopy2, variableText2Copy);
-
-            VBox allMsgVer = new VBox();
-            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
-
-            combinedTextContainer.getChildren().addAll(allMsgVer);
-        } else if (actions.equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-
-            HBox allMsgHor = new HBox();
-            allMsgHor.setSpacing(5);
-            allMsgHor
-                    .getChildren()
-                    .addAll(
-                            regularTextCopy1,
-                            variableText1Copy,
-                            regularTextCopy2,
-                            variableText2Copy,
-                            regularTextCopy3,
-                            variableText3Copy,
-                            regularTextCopy4);
-
-            VBox allMsgVer = new VBox();
-            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
-
-            combinedTextContainer.getChildren().addAll(allMsgVer);
-        } else if (actions.equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
-
-            HBox allMsgHor = new HBox();
-            allMsgHor.setSpacing(5);
-            allMsgHor.getChildren().addAll(regularTextCopy1, variableText1Copy);
-
-            VBox allMsgVer = new VBox();
-            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
-
-            combinedTextContainer.getChildren().addAll(allMsgVer);
-        } else {
-            HBox allMsgHor = new HBox();
-            allMsgHor.setSpacing(5);
-            allMsgHor
-                    .getChildren()
-                    .addAll(
-                            regularTextCopy1,
-                            variableText1Copy,
-                            variableText2Copy,
-                            variableText3Copy,
-                            regularTextCopy3);
-
-            VBox allMsgVer = new VBox();
-            allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
-
-            combinedTextContainer.getChildren().addAll(allMsgVer);
-        }
         boolean alertResponse = performAction.showCombinedConfirmation(
                 "Add new Instruction",
                 "Are you sure you want to Add the Instruction to the Bot-Job?",
@@ -2177,6 +2184,14 @@ public class ABRNewCommandPane extends ABRPane {
                 combinedTextContainer);
 
         if (alertResponse) {
+
+            BotJobLoadDTO botJobLoad = null;
+            if (botJobLoadList.size() > 0) {
+                botJobLoad = botJobLoadList.get(0);
+            } else {
+                this.botJobLoadList = loadBotJobs(rowMoveDTO.getBotJobId());
+                botJobLoad = botJobLoadList.get(0);
+            }
 
             // Handle loop outside Platform.runLater to ensure multiple iterations
             int endifCount = actions.equalsIgnoreCase(ABRConstants.IF) ? 3 : 1;
@@ -2189,7 +2204,7 @@ public class ABRNewCommandPane extends ABRPane {
                 boolean isShowAlert = added == 1;
 
                 // Run the instruction add in a separate Task
-                int newRowId = preFillInstruction(
+                int newRowId = performDataBase.preFillInstruction(
                         nextAction == null ? name : nextAction,
                         nextAction == null ? description : nextAction,
                         nextAction == null ? actions : nextAction,
@@ -2199,8 +2214,22 @@ public class ABRNewCommandPane extends ABRPane {
                         instructionId,
                         nextAction == null ? -1 : parentId,
                         rowMoveDTO,
-                        botJob,
+                        botJobLoad,
                         isShowAlert);
+
+                if (newRowId > 0) {
+                    showAlertTimer(
+                            Alert.AlertType.INFORMATION,
+                            "Add Instruction",
+                            "Instruction Added",
+                            "Instruction \"" + name + "\" has been added successfully");
+                } else {
+                    showAlertTimer(
+                            Alert.AlertType.ERROR,
+                            "Error",
+                            "Error Add New Instruction",
+                            "Not possible to insert new Operation:  \"" + name + "\"");
+                }
 
                 if (Strings.isNullOrEmpty(nextAction)) {
                     nextAction = ABRConstants.ELSE;
@@ -2213,115 +2242,7 @@ public class ABRNewCommandPane extends ABRPane {
         defineTextFlow(comboBoxInstruc.getValue().getValue());
     }
 
-    private boolean reorderInstructions(List<InstructionDTO> rowList) {
-        int orderNumber = 1;
-
-        // Iterate through the list and update the instructionOrderNumber
-        for (InstructionDTO instruction : rowList) {
-            instruction.setInstructionOrderNumber(orderNumber);
-            orderNumber++; // Increment the order number for the next instruction
-        }
-
-        // Build the SQL update statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            // Loop through each instruction in the rowList
-            for (InstructionDTO instruction : rowList) {
-                // Increment the instructionOrderNumber by 1 for each instruction
-                String updateSQL = "UPDATE block_loop_instruction SET  "
-                        + " instruction_order_number = " + instruction.getInstructionOrderNumber()
-                        + " WHERE id = " + instruction.getInstructionId()
-                        + " AND block_id = " + instruction.getBlockId();
-
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                    //                    ABRLogger.getInstance(ABRNewCommandPane.class)
-                    //                            .info(String.format(
-                    //                                    "preInsertStep - InstructionId: %s in BlockId: %s now has
-                    // order number: %d",
-                    //                                    instruction.getInstructionId(),
-                    //                                    instruction.getBlockId(),
-                    //                                    instruction.getInstructionOrderNumber() + 1));
-                } else {
-                    ABRLogger.getInstance(ABRNewCommandPane.class)
-                            .warning(String.format(
-                                    "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
-                                    instruction.getBlockId(), instruction.getInstructionId()));
-                }
-            }
-
-            return true;
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRNewCommandPane.class)
-                    .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
-        }
-        return false;
-    }
-
-    private boolean preInsertStep(RowMoveDTO rowMoveDTO, List<InstructionDTO> rowList) {
-        // Check if the operation type is either "INSERT_BEFORE" or "INSERT_AFTER"
-        String operationType = rowMoveDTO.getType();
-        if ("INSERT_BEFORE".equals(operationType) || "INSERT_AFTER".equals(operationType)) {
-            // Get the instruction order number from the first instruction in the updated rows
-            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
-
-            // Check if the targetOrderNumber exists in the rowList
-            boolean orderNumberExists = rowList.stream()
-                    .anyMatch(instruction -> instruction.getInstructionOrderNumber() == targetOrderNumber);
-
-            if (!orderNumberExists) {
-                // If the target order number doesn't exist, return false without shifting
-                ABRLogger.getInstance(ABRNewCommandPane.class)
-                        .warning(String.format(
-                                "preInsertStep - Target order number %d does not exist in the row list.",
-                                targetOrderNumber));
-                return false;
-            }
-
-            // Build the SQL update statement
-            try (Statement stmt =
-                    ABRSharedResources.getInstance().getConnection().createStatement()) {
-                // Loop through each instruction in the rowList
-                for (InstructionDTO instruction : rowList) {
-                    // For "INSERT_BEFORE", shift instructions with an order number greater than or equal to the target
-                    // For "INSERT_AFTER", shift instructions with an order number strictly greater than the target
-                    boolean shouldShift = "INSERT_BEFORE".equals(operationType)
-                            ? instruction.getInstructionOrderNumber() >= targetOrderNumber
-                            : instruction.getInstructionOrderNumber() > targetOrderNumber;
-
-                    if (shouldShift) {
-                        // Increment the instructionOrderNumber by 1 for each instruction
-                        String updateSQL = "UPDATE block_loop_instruction SET  "
-                                + " instruction_order_number = " + (instruction.getInstructionOrderNumber() + 1)
-                                + " WHERE id = " + instruction.getInstructionId()
-                                + " AND block_id = " + instruction.getBlockId();
-
-                        int rowsAffected = stmt.executeUpdate(updateSQL);
-                        if (rowsAffected > 0) {
-                            //                            ABRLogger.getInstance(ABRNewCommandPane.class)
-                            //                                    .info(String.format(
-                            //                                            "preInsertStep - InstructionId: %s in BlockId:
-                            // %s now has order number: %d",
-                            //                                            instruction.getInstructionId(),
-                            //                                            instruction.getBlockId(),
-                            //                                            instruction.getInstructionOrderNumber() + 1));
-                        } else {
-                            ABRLogger.getInstance(ABRNewCommandPane.class)
-                                    .warning(String.format(
-                                            "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
-                                            instruction.getBlockId(), instruction.getInstructionId()));
-                        }
-                    }
-                }
-                return true;
-            } catch (SQLException e) {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
-                        .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
-            }
-        }
-        return false;
-    }
-
-    public List<BotJobLoadDTO> loadBlocksForBotJob(int botJobId) {
+    public List<BotJobLoadDTO> loadBotJobs(int botJobId) {
         // SQL query to get the blocks for a specific bot job
         String query = "SELECT " + "b.id AS block_id, "
                 + "b.block_order_number, "
@@ -2384,11 +2305,11 @@ public class ABRNewCommandPane extends ABRPane {
             boolean isShowAlert) {
 
         List<InstructionDTO> rowList =
-                performDatabase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
+                performDataBase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
 
-        reorderInstructions(rowList);
+        performDataBase.reorderInstructions(rowList);
 
-        preInsertStep(rowMoveDTO, rowList);
+        performDataBase.preInsertStep(rowMoveDTO, rowList);
 
         List<BlockLoopInstructionLoadDTO> instructionList = null;
         List<BotJobLoadDTO> matchingBlocks = null;
@@ -2489,247 +2410,6 @@ public class ABRNewCommandPane extends ABRPane {
         };
 
         new Thread(waitTask).start();
-    }
-
-    private int preFillInstruction(
-            String name,
-            String description,
-            String actions,
-            String operation,
-            Integer onHold,
-            Integer varId,
-            Integer instructionId,
-            Integer parentId,
-            RowMoveDTO rowMoveDTO,
-            BotJobDTO botJob,
-            boolean isShowAlert) {
-
-        List<InstructionDTO> rowList =
-                performDatabase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
-
-        reorderInstructions(rowList);
-
-        preInsertStep(rowMoveDTO, rowList);
-
-        List<BlockLoopInstructionLoadDTO> instructionList = null;
-        List<BotJobLoadDTO> matchingBlocks = null;
-
-        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-            int targetBlockId = rowMoveDTO.getBlockId();
-
-            matchingBlocks = botJobLoadList.stream()
-                    .filter(block -> block.getId() == targetBlockId)
-                    .collect(Collectors.toList());
-        }
-
-        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
-        List<InstructionDTO> finalInstructionList = rowList;
-        BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
-
-        instruction.setName(name);
-
-        instruction.setEncrypted(false);
-        instruction.setExportToABR(false);
-        instruction.setActive(true);
-        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-            if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
-                instruction.setInstructionOrderNumber(
-                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
-            } else {
-                instruction.setInstructionOrderNumber(
-                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
-            }
-        } else {
-            instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
-        }
-        instruction.setOptional(false);
-
-        instruction.setOperation(operation);
-        instruction.setActions(actions);
-        instruction.setDescription(description);
-
-        instruction.setVariableId(varId);
-
-        Integer nextId = loadNextIdInstructionData() + 1;
-
-        if (actions.equalsIgnoreCase(ABRConstants.IF)) {
-            instruction.setId(nextId);
-            instruction.setParentId(nextId);
-        } else if (actions.equalsIgnoreCase(ABRConstants.ELSE)) {
-            instruction.setId(nextId);
-            instruction.setParentId(parentId);
-        } else if (actions.equalsIgnoreCase(ABRConstants.ENDIF)) {
-            instruction.setId(nextId);
-            instruction.setParentId(parentId);
-        } else {
-            instruction.setId(nextId);
-            instruction.setParentId(instructionId);
-        }
-
-        instruction.setActionCustomMaxWaitSec(30);
-        instruction.setOnHoldSeconds(onHold);
-        if (finalMatchingBlocks != null && finalMatchingBlocks.size() > 0) {
-            instruction.setBlock(ABRSharedResources.getInstance()
-                    .getEntityById(BlockDTO.class, finalMatchingBlocks.get(0).getId()));
-        } else if (botJob.getBlocks().size() > 0) {
-            instruction.setBlock(botJob.getBlocks().get(0));
-        } else {
-
-            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName("Default Block");
-            newBlockDetails.setBlockDescription("Default Block description");
-            newBlockDetails.setTypeId(1);
-            newBlockDetails.setActive(true);
-            newBlockDetails.setWait(3);
-
-            newBlockDetails.setBotJobId(botJob.getId());
-
-            int newBlockId = performDatabase.createNewBlock(newBlockDetails);
-
-            if (newBlockId > 0) {
-
-                this.blockLoadList = performDatabase.loadBlocksForBotJob(botJob.getId());
-
-                loadAllBlockItems(blockLoadList);
-                comboBoxAllBlocks.getSelectionModel().selectFirst();
-
-                newBlockDetails.setBlockId(newBlockId);
-                BlockDTO block = new BlockDTO();
-                block.setId(newBlockDetails.getBlockId());
-                block.setName(newBlockDetails.getBlockName());
-                block.setDescription(newBlockDetails.getBlockDescription());
-                block.setTypeId(1);
-                block.setActive(true);
-                block.setWait(3);
-                block.setBotJob(botJob);
-
-                instruction.setBlock(block);
-            }
-        }
-        instruction.setExportToABR(false);
-        instruction.setActive(true);
-        // Wrap the persistence in a try-catch block
-        boolean response;
-
-        try {
-            response = insertInstruction(instruction);
-
-            int targetOrderNumber = rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
-            rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
-
-            boolean finalResponse = response;
-            Platform.runLater(() -> {
-                if (isShowAlert) {
-                    if (finalResponse) {
-
-                        ABRLogger.getInstance(ABRViewBotJobPane.class)
-                                .info(String.format(
-                                        "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
-                                        instruction.getName()));
-                        showAlertTimer(
-                                Alert.AlertType.INFORMATION,
-                                "Add Instruction",
-                                "Instruction Added",
-                                "Instruction \"" + instruction.getName() + "\" has been added successfully");
-                    } else {
-
-                        ABRLogger.getInstance(ABRViewBotJobPane.class)
-                                .severe(String.format(
-                                        "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
-                                        instruction.getName()));
-
-                        showAlertTimer(
-                                Alert.AlertType.ERROR,
-                                "Error",
-                                "Error Add New Instruction",
-                                "Not possible to insert new Operation:  \"" + instruction.getName() + "\"");
-                    }
-                }
-            });
-
-            if (response) {
-                return nextId;
-            }
-
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class)
-                    .severe("Cannot Insert Instruction\nError: " + e.getMessage());
-        }
-
-        return -1;
-    }
-
-    private boolean insertInstruction(BlockLoopInstructionDTO instructionDTO) throws SQLException {
-        // Generate a Unique-ID for the block
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-
-            //            Integer nextId = loadNextIdInstructionData() + 1;
-
-            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : null;
-
-            // Build the SQL insert query
-
-            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
-                    + "action_custom_max_wait_sec, "
-                    + "actions, "
-                    + "block_marked, "
-                    + "default_val, "
-                    + "description, "
-                    + "encrypted, "
-                    + "export_to_abr, "
-                    + "instruction_order_number, "
-                    + "name, "
-                    + "on_hold_seconds, "
-                    + "operation, "
-                    + "optional, "
-                    + "parent_id, "
-                    + "path, "
-                    + "variable_id, "
-                    + "block_id, "
-                    + "active)\n"
-                    + "VALUES ("
-                    + instructionDTO.getId()
-                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
-                    + ", '" + instructionDTO.getActions() + "'"
-                    + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
-                    + "," + instructionDTO.getDefaultValue()
-                    + ", '" + instructionDTO.getDescription() + "'"
-                    + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
-                    + ", " + (instructionDTO.getExportToABR() ? 1 : 0)
-                    + ", " + instructionDTO.getInstructionOrderNumber()
-                    + ", '" + instructionDTO.getName() + "'"
-                    + ", " + instructionDTO.getOnHoldSeconds()
-                    + ", '" + instructionDTO.getOperation() + "'"
-                    + ", " + (instructionDTO.isOptional() ? 1 : 0)
-                    + ", " + instructionDTO.getParentId()
-                    + ", " + pathValue
-                    + ", " + instructionDTO.getVariableId()
-                    + ", " + instructionDTO.getBlock().getId()
-                    + ", " + (instructionDTO.getActive() ? 1 : 0)
-                    + ");";
-
-            int rowsAffected = stmt.executeUpdate(insertSQL);
-            if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
-                        .info(String.format(
-                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
-                                instructionDTO.getId(),
-                                instructionDTO.getName(),
-                                instructionDTO.getActions(),
-                                instructionDTO.getOperation()));
-                return true;
-            } else {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
-                        .warning(String.format(
-                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
-                                instructionDTO.getId(),
-                                instructionDTO.getName(),
-                                instructionDTO.getActions(),
-                                instructionDTO.getOperation()));
-                return false;
-            }
-        }
     }
 
     private Integer loadNextIdInstructionData() {

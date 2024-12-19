@@ -186,10 +186,10 @@ public class ABRScannedElementPane extends ABRPane {
     private static ABRPropertyManager managerProps;
     private static ABRPriorities abrPriorities;
     private static final PerformActions performAction;
-    private static final PerformDataBase performDatabase;
+    private static final PerformDataBase performDataBase;
     // Static block to initialize
     static {
-        performDatabase = PerformDataBase.getInstance();
+        performDataBase = PerformDataBase.getInstance();
         abrPriorities = ABRPriorities.getInstance();
         performAction = PerformActions.getInstance();
         managerProps = ABRPropertyManager.getInstance();
@@ -412,7 +412,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         updateSceneTitleWithCurrentURL(botJob.getHomeBanking().getUrl());
 
-        this.blockLoadList = performDatabase.loadBlocksForBotJob(this.botJob.getId());
+        this.blockLoadList = performDataBase.loadBlocksForBotJob(this.botJob.getId());
         loadAllBlockItems(this.blockLoadList);
 
         refreshBlocksButton = createPathButton();
@@ -709,7 +709,7 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void refreshBlocks(boolean secondItem) {
-        this.blockLoadList = performDatabase.loadBlocksForBotJob(this.botJob.getId());
+        this.blockLoadList = performDataBase.loadBlocksForBotJob(this.botJob.getId());
         loadAllBlockItems(this.blockLoadList);
 
         if (!secondItem) {
@@ -862,7 +862,7 @@ public class ABRScannedElementPane extends ABRPane {
                 return;
             }
 
-            this.botLoadJobs = performDatabase.loadBlockAll(botJob.getId());
+            this.botLoadJobs = performDataBase.loadBlockAll(botJob.getId());
             instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
@@ -878,7 +878,7 @@ public class ABRScannedElementPane extends ABRPane {
                 return;
             }
 
-            this.botLoadJobs = performDatabase.loadBlockAll(botJob.getId());
+            this.botLoadJobs = performDataBase.loadBlockAll(botJob.getId());
             // loadBotJob(botJob);
             recallJob();
         });
@@ -1993,7 +1993,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
 
                         // It Prevents Start without blocks
-                        this.blockLoadList = performDatabase.loadBlocksForBotJob(this.botJob.getId());
+                        this.blockLoadList = performDataBase.loadBlocksForBotJob(this.botJob.getId());
                         if (blockLoadList.isEmpty()) {
 
                             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
@@ -2005,7 +2005,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             newBlockDetails.setBotJobId(botJob.getId());
 
-                            currentBlockId = performDatabase.createNewBlock(newBlockDetails);
+                            currentBlockId = performDataBase.createNewBlock(newBlockDetails);
 
                             if (currentBlockId < 0) {
                                 performAction.showAlert(
@@ -3850,11 +3850,10 @@ public class ABRScannedElementPane extends ABRPane {
 
                         BlockLoopInstructionLoadDTO currentInstruction =
                                 blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
-                        
-                        mainMsg = currentInstruction.isOptional()? "OPTIONAL INSTRUCTION": "MANDATORY INSTRUCTION";
-                        
 
-                        if (!currentInstruction.isInstructionActive()) {
+                        mainMsg = currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION";
+
+                        if (!currentInstruction.getInstructionActive()) {
 
                             String nameInstruc = "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
                             Pair<String, String> msgBlock =
@@ -4025,7 +4024,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     null,
                                     null,
                                     false);
-                        } 
+                        }
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
                             parentFieldLoop = performAction.getInstructionParentField(currentInstruction, blockLoad);
@@ -4498,7 +4497,6 @@ public class ABRScannedElementPane extends ABRPane {
                                             writerReport,
                                             "By Passing Loop Flag",
                                             resultActions);
-
                                 }
 
                                 if (stopAll) {
@@ -4812,7 +4810,6 @@ public class ABRScannedElementPane extends ABRPane {
                                 writerReport,
                                 mainMsg,
                                 resultActions);
-
 
                         // Here it Call the next block of IF, ELSIF, ELSE OR ENDIF as Per the Machine State
 
@@ -5565,7 +5562,7 @@ public class ABRScannedElementPane extends ABRPane {
     //        // Generate a Unique-ID for the block
     //        Integer nextId = loadNextIdBlockData() + 1;
     //        Integer nextBlockOrder =
-    //                performDatabase.loadNextBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
+    //                performDataBase.loadNextBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
     //
     //        // Build the SQL insert query
     //        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id)
@@ -5716,7 +5713,7 @@ public class ABRScannedElementPane extends ABRPane {
         int newId = -1;
 
         try {
-            newId = insertInstruction(instructionDTO, savedCurrentBlockId);
+            newId = performDataBase.insertInstruction(instructionDTO, savedCurrentBlockId);
 
         } catch (SQLException e) {
 
@@ -5726,95 +5723,6 @@ public class ABRScannedElementPane extends ABRPane {
                             instructionDTO.getName(), e.getMessage()));
         }
         return newId;
-    }
-
-    private int insertInstruction(BlockLoopInstructionDTO instructionDTO, int savedCurrentBlockId) throws SQLException {
-        // Generate a Unique-ID for the block
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-
-            Integer nextId = loadNextIdInstructionData() + 1;
-            instructionDTO.setId(nextId);
-
-            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
-
-            // Build the SQL insert query
-
-            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
-                    + "action_custom_max_wait_sec, "
-                    + "actions, "
-                    + "block_marked, "
-                    + "default_val, "
-                    + "description, "
-                    + "encrypted, "
-                    + "export_to_abr, "
-                    + "instruction_order_number, "
-                    + "name, "
-                    + "on_hold_seconds, "
-                    //                    + "operation, "
-                    + "optional, "
-                    + "parent_id, "
-                    + "path, "
-                    + "variable_id, "
-                    + "block_id, "
-                    + "active)\n"
-                    + "VALUES ("
-                    + instructionDTO.getId()
-                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
-                    + ", '" + instructionDTO.getActions() + "'"
-                    + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
-                    + "," + instructionDTO.getDefaultValue()
-                    + ", '" + instructionDTO.getDescription() + "'"
-                    + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
-                    + ", " + (instructionDTO.getExportToABR() ? 1 : 0)
-                    + ", " + instructionDTO.getInstructionOrderNumber()
-                    + ", '" + instructionDTO.getName() + "'"
-                    + ", " + instructionDTO.getOnHoldSeconds()
-                    //                    + ", '" + instructionDTO.getOperation() + "'"
-                    + ", " + (instructionDTO.isOptional() ? 1 : 0)
-                    + ", " + instructionDTO.getParentId()
-                    + ", " + pathValue
-                    + ", " + instructionDTO.getVariableId()
-                    + ", " + savedCurrentBlockId
-                    + ", " + (instructionDTO.getActive() ? 1 : 0)
-                    + ");";
-
-            int rowsAffected = stmt.executeUpdate(insertSQL);
-            if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
-                        .info(String.format(
-                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
-                                instructionDTO.getId(),
-                                instructionDTO.getName(),
-                                instructionDTO.getActions(),
-                                instructionDTO.getOperation()));
-                return nextId;
-            } else {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
-                        .warning(String.format(
-                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
-                                instructionDTO.getId(),
-                                instructionDTO.getName(),
-                                instructionDTO.getActions(),
-                                instructionDTO.getOperation()));
-                return -1;
-            }
-        }
-    }
-
-    private Integer loadNextIdInstructionData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
-                    .severe("loadNextIdInstructionData  \nError: " + e.getMessage());
-        }
-        return null;
     }
 
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
