@@ -3638,6 +3638,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         boolean searchByJavaScript = checkBoxJavaScript.isSelected();
 
+        String mainMsg = "";
         boolean byPassNotFound = false;
         boolean byPassFlagLoop = false;
         boolean success = true;
@@ -3680,6 +3681,8 @@ public class ABRScannedElementPane extends ABRPane {
         Set<String> loopBlockActive = new HashSet<>();
         Map<String, Integer> loopBlockLimits = new HashMap<>();
 
+        ABRConstants.ConditionStatus currentCondition = ABRConstants.ConditionStatus.NONE;
+
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
 
@@ -3697,7 +3700,7 @@ public class ABRScannedElementPane extends ABRPane {
             blockLoop:
             while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
                 long blockStartTime = System.nanoTime();
-                ABRConstants.ConditionStatus currentCondition = ABRConstants.ConditionStatus.NONE;
+                currentCondition = ABRConstants.ConditionStatus.NONE;
                 ABRConstants.ConditionStatus previousCondition = ABRConstants.ConditionStatus.NONE;
                 ABRConstants.ConditionStatus progressCondition = ABRConstants.ConditionStatus.NONE;
                 int parentBlockCondition = -1;
@@ -3731,6 +3734,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 // Excel Report and Log
                                 performAction.logAndReport(
+                                        currentCondition,
                                         true,
                                         true,
                                         blockStartTime,
@@ -3757,6 +3761,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                     // Excel Report and Log
                     performAction.logAndReport(
+                            currentCondition,
                             true,
                             true,
                             blockStartTime,
@@ -3785,6 +3790,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                     // Excel Report and Log
                     performAction.logAndReport(
+                            currentCondition,
                             true,
                             true,
                             blockStartTime,
@@ -3844,6 +3850,9 @@ public class ABRScannedElementPane extends ABRPane {
 
                         BlockLoopInstructionLoadDTO currentInstruction =
                                 blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
+                        
+                        mainMsg = currentInstruction.isOptional()? "OPTIONAL INSTRUCTION": "MANDATORY INSTRUCTION";
+                        
 
                         if (!currentInstruction.isInstructionActive()) {
 
@@ -3853,6 +3862,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             // Excel Report and Log
                             performAction.logAndReport(
+                                    currentCondition,
                                     true,
                                     true,
                                     blockStartTime,
@@ -4002,7 +4012,6 @@ public class ABRScannedElementPane extends ABRPane {
                         extraMsg = "";
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
-
                             pauseOperation = true;
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -4016,31 +4025,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     null,
                                     null,
                                     false);
-                            //
-
-                            // Excel Report and Log
-                            performAction.logAndReport(
-                                    true,
-                                    true,
-                                    blockStartTime,
-                                    blockReportName,
-                                    success,
-                                    actions,
-                                    msgInstruction,
-                                    dataExcel,
-                                    writerReport,
-                                    "PAUSE BOT JOB",
-                                    String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()));
-
-                            //                            if
-                            // (!currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                            //                                progressCondition =
-                            // performAction.updateProgressSuccess(success, currentCondition);
-                            //                                continue instructionLoop;
-                            //                            }
-                            //
-                            //                            continue instructionLoop;
-                        }
+                        } 
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
                             parentFieldLoop = performAction.getInstructionParentField(currentInstruction, blockLoad);
@@ -4218,6 +4203,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     // Excel Report and Log
                                     performAction.logAndReport(
+                                            currentCondition,
                                             true,
                                             true,
                                             currentInstructionStartTime,
@@ -4227,9 +4213,7 @@ public class ABRScannedElementPane extends ABRPane {
                                             currentPair,
                                             dataExcel,
                                             writerReport,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
+                                            mainMsg,
                                             resultActions);
 
                                     if (success) {
@@ -4275,6 +4259,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                             // Excel Report and Log
                                             performAction.logAndReport(
+                                                    currentCondition,
                                                     true,
                                                     true,
                                                     currentInstructionStartTime,
@@ -4284,9 +4269,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                     msgInstruction,
                                                     dataExcel,
                                                     writerReport,
-                                                    currentInstruction.isOptional()
-                                                            ? "OPTIONAL INSTRUCTION"
-                                                            : "MANDATORY INSTRUCTION",
+                                                    mainMsg,
                                                     extraLog);
 
                                             // Refresh For REFRESH_LOOP
@@ -4302,6 +4285,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                             // Excel Report and Log
                                             performAction.logAndReport(
+                                                    currentCondition,
                                                     true,
                                                     true,
                                                     currentInstructionStartTime,
@@ -4311,9 +4295,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                     msgInstruction,
                                                     dataExcel,
                                                     writerReport,
-                                                    currentInstruction.isOptional()
-                                                            ? "OPTIONAL INSTRUCTION"
-                                                            : "MANDATORY INSTRUCTION",
+                                                    mainMsg,
                                                     extraLog);
 
                                             refreshLoop = false;
@@ -4333,6 +4315,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                         // Excel Report and Log
                                         performAction.logAndReport(
+                                                currentCondition,
                                                 true,
                                                 true,
                                                 currentInstructionStartTime,
@@ -4342,9 +4325,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                 currentPair,
                                                 dataExcel,
                                                 writerReport,
-                                                currentInstruction.isOptional()
-                                                        ? "OPTIONAL INSTRUCTION"
-                                                        : "MANDATORY INSTRUCTION",
+                                                mainMsg,
                                                 resultActions);
 
                                     } else {
@@ -4388,6 +4369,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 // Excel Report and Log
                                 performAction.logAndReport(
+                                        currentCondition,
                                         true,
                                         true,
                                         currentInstructionStartTime,
@@ -4397,46 +4379,26 @@ public class ABRScannedElementPane extends ABRPane {
                                         msgInstruction,
                                         dataExcel,
                                         writerReport,
-                                        currentInstruction.isOptional()
-                                                ? "OPTIONAL INSTRUCTION"
-                                                : "MANDATORY INSTRUCTION",
+                                        mainMsg,
                                         resultActions);
 
                                 refreshOnly = false;
 
                                 continue;
 
-                            } else if (!execOperation && !checkOperation && !excelWriteOperation && !pauseOperation) {
+                            } else if (actions[0].equals(Constants.HOLD)
+                                    || actions[0].equals(Constants.QUIT)
+                                    || actions[0].equals(Constants.SCREEN)
+                                    || actions[0].equals(Constants.REFRESH_ONLY)) {
 
-                                if (actions[0].equals(Constants.HOLD)
-                                        || actions[0].equals(Constants.QUIT)
-                                        || actions[0].equals(Constants.SCREEN)
-                                        || actions[0].equals(Constants.REFRESH_ONLY)) {
-                                    performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+                                performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                                    if (actions[0].equals(Constants.QUIT)) {
-                                        stopAll = true;
-                                        success = true;
-                                    }
-
-                                    // Excel Report and Log
-                                    performAction.logAndReport(
-                                            true,
-                                            true,
-                                            currentInstructionStartTime,
-                                            blockReportName,
-                                            success,
-                                            actions,
-                                            msgInstruction,
-                                            dataExcel,
-                                            writerReport,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            resultActions);
-
-                                    continue;
+                                if (actions[0].equals(Constants.QUIT)) {
+                                    stopAll = true;
+                                    success = true;
                                 }
+
+                            } else if (!execOperation && !checkOperation && !excelWriteOperation && !pauseOperation) {
 
                                 // Extract dataFieldName and dataFieldValue using a separate method
                                 Pair<String, String> fieldData = performAction.extractFieldData(
@@ -4524,6 +4486,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     // Excel Report and Log
                                     performAction.logAndReport(
+                                            currentCondition,
                                             true,
                                             true,
                                             currentInstructionStartTime,
@@ -4536,23 +4499,6 @@ public class ABRScannedElementPane extends ABRPane {
                                             "By Passing Loop Flag",
                                             resultActions);
 
-                                } else {
-
-                                    // Excel Report and Log
-                                    performAction.logAndReport(
-                                            true,
-                                            true,
-                                            currentInstructionStartTime,
-                                            blockReportName,
-                                            success,
-                                            actions,
-                                            msgInstruction,
-                                            dataExcel,
-                                            writerReport,
-                                            currentInstruction.isOptional()
-                                                    ? "OPTIONAL INSTRUCTION"
-                                                    : "MANDATORY INSTRUCTION",
-                                            resultActions);
                                 }
 
                                 if (stopAll) {
@@ -4605,6 +4551,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 // Excel Report and Log
                                 performAction.logAndReport(
+                                        currentCondition,
                                         true,
                                         true,
                                         currentInstructionStartTime,
@@ -4614,9 +4561,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         msgInstruction,
                                         dataExcel,
                                         writerReport,
-                                        currentInstruction.isOptional()
-                                                ? "OPTIONAL INSTRUCTION"
-                                                : "MANDATORY INSTRUCTION",
+                                        mainMsg,
                                         resultActions);
 
                             } else if (checkOperation) {
@@ -4701,6 +4646,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 // Excel Report and Log
                                 performAction.logAndReport(
+                                        currentCondition,
                                         true,
                                         true,
                                         currentInstructionStartTime,
@@ -4710,9 +4656,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         msgInstruction,
                                         dataExcel,
                                         writerReport,
-                                        currentInstruction.isOptional()
-                                                ? "OPTIONAL INSTRUCTION"
-                                                : "MANDATORY INSTRUCTION",
+                                        mainMsg,
                                         resultActions);
 
                             } else if (excelWriteOperation) {
@@ -4796,22 +4740,6 @@ public class ABRScannedElementPane extends ABRPane {
                                     resultActions = "Failed: " + resultActions;
                                     success = false;
                                 }
-
-                                // Excel Report and Log
-                                performAction.logAndReport(
-                                        true,
-                                        true,
-                                        currentInstructionStartTime,
-                                        blockReportName,
-                                        success,
-                                        actions,
-                                        msgInstruction,
-                                        dataExcel,
-                                        writerReport,
-                                        currentInstruction.isOptional()
-                                                ? "OPTIONAL INSTRUCTION"
-                                                : "MANDATORY INSTRUCTION",
-                                        resultActions);
                             }
 
                         } catch (Throwable t) {
@@ -4824,6 +4752,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             // Excel Report and Log
                             performAction.logAndReport(
+                                    currentCondition,
                                     true,
                                     true,
                                     currentInstructionStartTime,
@@ -4833,7 +4762,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     msgInstruction,
                                     dataExcel,
                                     writerReport,
-                                    currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
+                                    mainMsg,
                                     resultActions);
 
                             if (stopAll) {
@@ -4868,6 +4797,22 @@ public class ABRScannedElementPane extends ABRPane {
                             progressCondition = performAction.updateProgressSuccess(success, currentCondition);
                             //                                continue instructionLoop;
                         }
+
+                        // Excel Report and Log
+                        performAction.logAndReport(
+                                currentCondition,
+                                true,
+                                true,
+                                currentInstructionStartTime,
+                                blockReportName,
+                                success,
+                                actions,
+                                msgInstruction,
+                                dataExcel,
+                                writerReport,
+                                mainMsg,
+                                resultActions);
+
 
                         // Here it Call the next block of IF, ELSIF, ELSE OR ENDIF as Per the Machine State
 
@@ -5014,6 +4959,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             // Excel Report and Log
                             performAction.logAndReport(
+                                    currentCondition,
                                     true,
                                     true,
                                     currentInstructionStartTime,
@@ -5023,7 +4969,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     msgInstruction,
                                     dataExcel,
                                     writerReport,
-                                    currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
+                                    mainMsg,
                                     resultActions);
 
                             continue;
@@ -5059,6 +5005,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                         // Excel Report and Log
                         performAction.logAndReport(
+                                currentCondition,
                                 true,
                                 true,
                                 currentInstructionStartTime,
@@ -5068,7 +5015,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 msgInstruction,
                                 dataExcel,
                                 writerReport,
-                                currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
+                                mainMsg,
                                 resultActions);
 
                     } catch (Throwable t) {
@@ -5077,6 +5024,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                         // Excel Report and Log
                         performAction.logAndReport(
+                                currentCondition,
                                 true,
                                 true,
                                 currentInstructionStartTime,
@@ -5086,7 +5034,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 msgInstruction,
                                 dataExcel,
                                 writerReport,
-                                currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
+                                mainMsg,
                                 resultActions);
 
                         //                        throw new RuntimeException(t);

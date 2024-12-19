@@ -1610,6 +1610,7 @@ public class PerformActions {
     }
 
     public boolean excelReportWriteD(
+            ABRConstants.ConditionStatus currentCondition,
             String blockName,
             boolean success,
             String[] actions,
@@ -1618,12 +1619,7 @@ public class PerformActions {
             Map<String, String> dataExcel,
             ExcelWriter.ExcelChain writerReport) {
         return writerReport.insertInstructionResult(
-                blockName,
-                actions,
-                msgLoop,
-                dataExcel,
-                LocalTime.ofNanoOfDay(duration),
-                success ? "success" : "failed");
+                currentCondition, blockName, actions, msgLoop, dataExcel, LocalTime.ofNanoOfDay(duration), success);
     }
 
     public long duration(long startTime) {
@@ -2804,6 +2800,7 @@ public class PerformActions {
     }
 
     public void logAndReport(
+            ABRConstants.ConditionStatus currentCondition,
             boolean excelReport,
             boolean logOperation,
             long blockStartTime,
@@ -2818,7 +2815,8 @@ public class PerformActions {
         long duration = duration(blockStartTime);
 
         if (excelReport) {
-            excelReportWriteD(blockReportName, success, action, msgBlock, duration, dataExcel, writerReport);
+            excelReportWriteD(
+                    currentCondition, blockReportName, success, action, msgBlock, duration, dataExcel, writerReport);
             totalExecutionTime += duration;
         }
         if (logOperation) {

@@ -117,12 +117,13 @@ public class ExcelWriter {
         }
 
         public boolean insertInstructionResult(
+                ABRConstants.ConditionStatus currentCondition,
                 String blockName,
                 String[] actions,
                 Pair<String, String> msgLoop,
                 Map<String, String> data,
                 LocalTime time,
-                String status) {
+                boolean success) {
             try {
 
                 //                String[] splittedAction = UtilsMethods.splitIfContains(
@@ -216,6 +217,18 @@ public class ExcelWriter {
                     value = operations[1] + " " + operations[2];
                 }
 
+                boolean yellowBackRow = currentCondition.equals(ABRConstants.ConditionStatus.IF_FAILED)
+                        || currentCondition.equals(ABRConstants.ConditionStatus.ELSEIF_FAILED)
+                        || currentCondition.equals(ABRConstants.ConditionStatus.ELSE_FAILED);
+
+                String blockCondition = currentCondition.equals(ABRConstants.ConditionStatus.IF_FAILED)
+                        ? "{IF}"
+                        : currentCondition.equals(ABRConstants.ConditionStatus.ELSEIF_FAILED)
+                                ? "{ELSEIF}"
+                                : currentCondition.equals(ABRConstants.ConditionStatus.ELSE_FAILED) ? "{ELSE}" : "";
+
+                keyAction = keyAction + (blockCondition.length() > 0 ? " " + blockCondition : "");
+
                 if (!action.equals("SCREENSHOT")) {
                     ManagedExcelAction act = managedExcel
                             .onSheet(0)
@@ -225,9 +238,9 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn(keyAction)
                             .insertValueOnLastRowAfterLastColumn(value)
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
-                            .insertValueOnLastRowAfterLastColumn(status);
-                    if (!status.equals("success")) {
-                        IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
+                            .insertValueOnLastRowAfterLastColumn(success ? "success" : "failed");
+                    if (!success) {
+                        IndexedColors color = success && !yellowBackRow ? IndexedColors.RED : IndexedColors.YELLOW;
                         act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     }
                 } else { // add screenshot
@@ -239,10 +252,10 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn(keyAction)
                             .insertValueOnLastRowAfterLastColumn("")
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
-                            .insertValueOnLastRowAfterLastColumn(status)
+                            .insertValueOnLastRowAfterLastColumn(success ? "success" : "failed")
                             .insertScreenshotAfterLastRowOfColumn(0, webDriver);
-                    if (!status.equals("success")) {
-                        IndexedColors color = status.equals("failed") ? IndexedColors.RED : IndexedColors.YELLOW;
+                    if (!success) {
+                        IndexedColors color = success && !yellowBackRow ? IndexedColors.RED : IndexedColors.YELLOW;
                         act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     }
                 }
