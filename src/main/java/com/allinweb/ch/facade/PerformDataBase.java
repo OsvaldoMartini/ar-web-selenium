@@ -155,6 +155,7 @@ public class PerformDataBase {
                             : " AND block_id IS NULL");
 
             if (deleteInstructionDTO.getActions().equals("IF")
+                    || deleteInstructionDTO.getActions().equals("ELSEIF")
                     || deleteInstructionDTO.getActions().equals("ELSE")
                     || deleteInstructionDTO.getActions().equals("ENDIF")) {
 
@@ -1056,12 +1057,13 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-//                    ABRLogger.getInstance(PerformDataBase.class)
-//                            .info(String.format(
-//                                    "preInsertStep - InstructionId: %s in BlockId: %s now has order number: %d",
-//                                    instruction.getInstructionId(),
-//                                    instruction.getBlockId(),
-//                                    instruction.getInstructionOrderNumber() + 1));
+                    //                    ABRLogger.getInstance(PerformDataBase.class)
+                    //                            .info(String.format(
+                    //                                    "preInsertStep - InstructionId: %s in BlockId: %s now has
+                    // order number: %d",
+                    //                                    instruction.getInstructionId(),
+                    //                                    instruction.getBlockId(),
+                    //                                    instruction.getInstructionOrderNumber() + 1));
                 } else {
                     ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
@@ -1295,11 +1297,26 @@ public class PerformDataBase {
     public boolean updateInstructionStatus(InstructionDTO instruction) {
         // Build the SQL update statement
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            String updateSQL = "UPDATE block_loop_instruction SET active = '" + instruction.isInstructionActive() + "'"
-                    + " WHERE id = " + instruction.getInstructionId()
-                    + " and block_id = " + instruction.getBlockId();
+            int rowsAffected = 0;
 
-            int rowsAffected = stmt.executeUpdate(updateSQL);
+            if (instruction.getActions().equals("IF")
+                    || instruction.getActions().equals("ELSEIF")
+                    || instruction.getActions().equals("ELSE")
+                    || instruction.getActions().equals("ENDIF")) {
+                rowsAffected = stmt.executeUpdate(
+                        "UPDATE block_loop_instruction SET active = '" + instruction.isInstructionActive() + "'"
+                                + " WHERE "
+                                + " block_id = " + instruction.getBlockId() + " AND parent_id = "
+                                + instruction.getParentId());
+            } else {
+
+                String updateSQL =
+                        "UPDATE block_loop_instruction SET active = '" + instruction.isInstructionActive() + "'"
+                                + " WHERE id = " + instruction.getInstructionId()
+                                + " and block_id = " + instruction.getBlockId();
+
+                rowsAffected = stmt.executeUpdate(updateSQL);
+            }
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(

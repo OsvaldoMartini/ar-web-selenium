@@ -2,16 +2,19 @@ package com.allinweb.ch.util;
 
 public class ABRConstants {
 
-
     public enum ConditionStatus {
-        NONE,     // No active condition
-        IF_PASSED,  // IF condition was met
-        IF_FAILED,  // IF condition failed
+        NONE, // No active condition
+        IF_PASSED, // IF condition was met
+        IF_FAILED, // IF condition failed
         ELSEIF_PASSED, // ELSEIF condition was met
         ELSEIF_FAILED, // ELSEIF condition failed
-        ELSE_ACTIVE // ELSE block is active
+        ELSE_PASSED,
+        ELSE_FAILED,
+        IF, // ELSE block is active
+        ELSEIF,
+        ELSE, // ELSE block is active
+        ENDIF
     }
-
 
     // DEFAULT VALUES
     public static final String DEFAULT_NAME_ENGINE = "\\ABR_Web_Engine.jar";
@@ -144,6 +147,7 @@ public class ABRConstants {
     public static final String GET_VALUE = "GET";
     public static final String CHECK_VALUE = "CK";
     public static final String IF = "IF";
+    public static final String ELSEIF = "ELSEIF";
     public static final String ELSE = "ELSE";
     public static final String ENDIF = "ENDIF";
     public static final String GOTO = "GOTO";

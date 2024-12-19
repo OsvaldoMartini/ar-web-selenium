@@ -43,6 +43,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +53,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
@@ -81,6 +83,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  * @version 1.0
  */
 public class PerformActions {
+    long totalExecutionTime = 0;
+
     public List<String> windowHandlesList = new ArrayList<>();
 
     private ABRPriorities abrPriorities;
@@ -121,6 +125,14 @@ public class PerformActions {
             instructionElement = locateElement(instruction, botJobId);
         }
         return instructionElement;
+    }
+
+    public long getTotalExecutionTime() {
+        return totalExecutionTime;
+    }
+
+    public void setTotalExecutionTime(long totalExecutionTime) {
+        this.totalExecutionTime = totalExecutionTime;
     }
 
     public WebElement getElementAtCoordinates(int x, int y, WebDriver driver) {
@@ -1315,10 +1327,9 @@ public class PerformActions {
     public String getValueIsNotDefined(
             BlockLoopInstructionLoadDTO currentInstruction,
             String lastInstructionExecuted,
-            boolean ifClause,
-            boolean elseClause) {
+            ABRConstants.ConditionStatus conditionStatus) {
 
-        if (!ifClause && !elseClause) {
+        if (conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             showAlert(
                     Alert.AlertType.ERROR,
                     "GET is Not Defined for \"" + currentInstruction.getName() + "\"",
@@ -1331,11 +1342,15 @@ public class PerformActions {
                             + currentInstruction.getOperation());
         }
 
-        String conditionalBlock = ifClause
+        String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
+                : conditionStatus.equals(ABRConstants.ConditionStatus.ELSEIF_PASSED)
+                        ? "Closing Block { ELSEIF -> ELSE }  -> "
+                        : conditionStatus.equals(ABRConstants.ConditionStatus.ELSE_PASSED)
+                                ? "Closing Block { ELSE -> ENDIF }  -> "
+                                : "";
 
-        if (ifClause || elseClause) {
+        if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
 
         } else {
@@ -1430,9 +1445,9 @@ public class PerformActions {
     public String parentIdWrongBlock(
             BlockLoopInstructionLoadDTO currentInstruction,
             BlockLoadDTO blockLoad,
-            boolean ifClause,
-            boolean elseClause) {
-        if (!ifClause && !elseClause) {
+            ABRConstants.ConditionStatus conditionStatus) {
+
+        if (conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             showAlert(
                     Alert.AlertType.ERROR,
                     "Parent Id Error",
@@ -1450,13 +1465,17 @@ public class PerformActions {
                             + "\nCheck the Web Field \" ( ID ) <NAME> \" per Block");
         }
 
-        String conditionalBlock = ifClause
+        String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
+                : conditionStatus.equals(ABRConstants.ConditionStatus.ELSEIF_PASSED)
+                        ? "Closing Block { ELSEIF -> ELSE }  -> "
+                        : conditionStatus.equals(ABRConstants.ConditionStatus.ELSE_PASSED)
+                                ? "Closing Block { ELSE -> ENDIF }  -> "
+                                : "";
 
-        if (ifClause || elseClause) {
+        if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             ABRLogger.getInstance(PerformActions.class)
-                    .warning(String.format(
+                    .info(String.format(
                             "%sParent Id Error Check Parent Id: %d "
                                     + "For the \"%s\" Does not belong to this block: "
                                     + blockLoad.getId() + "-" + blockLoad.getName(),
@@ -1518,10 +1537,10 @@ public class PerformActions {
             String expected,
             String lastInstructionExecuted,
             String[] operations,
-            boolean ifClause,
-            boolean elseClause,
+            ABRConstants.ConditionStatus conditionStatus,
             boolean byPassFlagLoop) {
-        if (!ifClause && !elseClause && !byPassFlagLoop) {
+
+        if (conditionStatus.equals(ABRConstants.ConditionStatus.NONE) && !byPassFlagLoop) {
             showAlert(
                     Alert.AlertType.ERROR,
                     "Validation Error",
@@ -1541,11 +1560,15 @@ public class PerformActions {
                             + ")");
         }
 
-        String conditionalBlock = ifClause
+        String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
                 ? "Closing Block { IF -> ELSE }  -> "
-                : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
+                : conditionStatus.equals(ABRConstants.ConditionStatus.ELSEIF_PASSED)
+                        ? "Closing Block { ELSEIF -> ELSE }  -> "
+                        : conditionStatus.equals(ABRConstants.ConditionStatus.ELSE_PASSED)
+                                ? "Closing Block { ELSE -> ENDIF }  -> "
+                                : "";
 
-        if (ifClause || elseClause) {
+        if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
 
         } else {
@@ -1586,7 +1609,7 @@ public class PerformActions {
         });
     }
 
-    public boolean excelReportWrite(
+    public boolean excelReportWriteD(
             String blockName,
             boolean success,
             String[] actions,
@@ -2135,6 +2158,79 @@ public class PerformActions {
                     .getName();
         } catch (Exception ex) {
             return null;
+        }
+    }
+
+    // It Must be Greater than CurrentIndex
+    // Ir Predicts if is going to have multiple ENSEIFs
+    public int searchMapConditional(
+            Map<String, Integer> mapConditional,
+            int parentBlockCondition,
+            ABRConstants.ConditionStatus condition,
+            int currentIndex,
+            boolean showMessage) {
+
+        // Construct the key pattern
+        String keyPattern = parentBlockCondition + "-" + condition;
+
+        // Iterate through the map and find the first index that matches the key pattern and is greater than
+        // currentIndex
+        for (Map.Entry<String, Integer> entry : mapConditional.entrySet()) {
+            String key = entry.getKey();
+            int value = entry.getValue();
+
+            // Check if the key matches the pattern and the value is greater than currentIndex
+            if (key.startsWith(keyPattern) && value >= currentIndex) {
+                return value; // Return exactly the index
+            }
+        }
+
+        if (showMessage) {
+            // If no matching condition is found, show an error dialog
+            showCustomModalDialog(
+                    "ERROR ON CONDITIONAL BLOCK",
+                    String.format(
+                            "Cannot find a matching condition for \"%s\" greater than the current index %d",
+                            condition, currentIndex),
+                    " Please click OK to continue!",
+                    null,
+                    null,
+                    true);
+        }
+
+        return -1; // Return -1 if no valid index is found
+    }
+
+    public Map<String, Integer> getConditionIndexMapByParentId(BlockLoadDTO blockLoad) {
+        try {
+            // Create a map where key is "parentId+actions" and value is the index
+            return IntStream.range(
+                            0, blockLoad.getBlockLoopInstructionLoadDTOS().size())
+                    .filter(index -> {
+                        BlockLoopInstructionLoadDTO instruction =
+                                blockLoad.getBlockLoopInstructionLoadDTOS().get(index);
+                        String actions = instruction.getActions();
+                        return actions != null
+                                && (actions.equals("IF")
+                                        || actions.equals("ELSEIF")
+                                        || actions.equals("ELSE")
+                                        || actions.equals("ENDIF"));
+                    })
+                    .boxed() // Convert IntStream to Stream<Integer>
+                    .collect(Collectors.toMap(
+                            index -> {
+                                BlockLoopInstructionLoadDTO instruction = blockLoad
+                                        .getBlockLoopInstructionLoadDTOS()
+                                        .get(index);
+                                return instruction.getParentId() + "-"
+                                        + instruction.getActions(); // Key: parentId+actions
+                            },
+                            index -> index, // Value: index
+                            (existing, replacement) -> existing // Handle duplicates (if any) by keeping the first one
+                            ));
+        } catch (Exception ex) {
+            // Return an empty map in case of an exception
+            return Collections.emptyMap();
         }
     }
 
@@ -2705,5 +2801,71 @@ public class PerformActions {
                         || "LOOP".equalsIgnoreCase(instruction.getActions()))
                 .map(BlockLoopInstructionLoadDTO::getParentId)
                 .collect(Collectors.toSet());
+    }
+
+    public void logAndReport(
+            boolean excelReport,
+            boolean logOperation,
+            long blockStartTime,
+            String blockReportName,
+            boolean success,
+            String[] action,
+            Pair<String, String> msgBlock,
+            Map<String, String> dataExcel,
+            ExcelWriter.ExcelChain writerReport,
+            String mainMsg,
+            String bodyLog) {
+        long duration = duration(blockStartTime);
+
+        if (excelReport) {
+            excelReportWriteD(blockReportName, success, action, msgBlock, duration, dataExcel, writerReport);
+            totalExecutionTime += duration;
+        }
+        if (logOperation) {
+
+            operationLog(success, mainMsg, bodyLog, duration);
+        }
+
+        totalExecutionTime += duration;
+    }
+
+    public ABRConstants.ConditionStatus updateProgressSuccess(
+            boolean success, ABRConstants.ConditionStatus currentCondition) {
+        // It Gets last Progress Status
+        // Machine State
+        if (currentCondition.equals(ABRConstants.ConditionStatus.IF)) {
+            return success ? ABRConstants.ConditionStatus.IF_PASSED : ABRConstants.ConditionStatus.IF_FAILED;
+        } else if (currentCondition.equals(ABRConstants.ConditionStatus.ELSEIF)) {
+            return success ? ABRConstants.ConditionStatus.ELSEIF_PASSED : ABRConstants.ConditionStatus.ELSEIF_FAILED;
+        } else if (currentCondition.equals(ABRConstants.ConditionStatus.ELSE)) {
+            return success ? ABRConstants.ConditionStatus.ELSE_PASSED : ABRConstants.ConditionStatus.ELSE_FAILED;
+        } else if (currentCondition.equals(ABRConstants.ConditionStatus.ENDIF)) {
+            return ABRConstants.ConditionStatus.NONE;
+        }
+        return ABRConstants.ConditionStatus.NONE;
+    }
+
+    public int checkActionToJump(
+            String action,
+            ABRConstants.ConditionStatus progressCondition,
+            Map<String, Integer> mapConditional,
+            int parentBlockCondition,
+            int currentIndex) {
+        if (action.equalsIgnoreCase(ABRConstants.ELSEIF)) {
+            // Goes to the ENDIF (ENDIF index + 1);
+            return searchMapConditional(
+                    mapConditional, parentBlockCondition, ABRConstants.ConditionStatus.ENDIF, currentIndex, true);
+
+        } else if (action.equalsIgnoreCase(ABRConstants.ELSE)) {
+            // Goes to the ENDIF (ENDIF index + 1);
+            return searchMapConditional(
+                    mapConditional, parentBlockCondition, ABRConstants.ConditionStatus.ENDIF, currentIndex, true);
+
+        } else if (action.equalsIgnoreCase(ABRConstants.ELSE)) {
+            // Goes to the ENDIF (ENDIF index + 1);
+            return searchMapConditional(
+                    mapConditional, parentBlockCondition, ABRConstants.ConditionStatus.ENDIF, currentIndex, true);
+        }
+        return 0;
     }
 }

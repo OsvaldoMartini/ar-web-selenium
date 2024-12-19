@@ -3639,11 +3639,13 @@ public class ABRScannedElementPane extends ABRPane {
         boolean searchByJavaScript = checkBoxJavaScript.isSelected();
 
         boolean byPassNotFound = false;
+        boolean byPassFlagLoop = false;
         boolean success = true;
         boolean stopAll = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String resultActions = "No instruction executed yet";
+        boolean showAlert = true;
         String extraMsg = "";
         short status = (short) ExcelReportStatusEnum.ERROR.ordinal();
         Map<String, String> dataExcel = null;
@@ -3672,6 +3674,7 @@ public class ABRScannedElementPane extends ABRPane {
         Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
+        Map<String, Integer> mapConditional = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Map<String, Integer> mapLoops = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Map<String, Integer> mapRefresh = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Set<String> loopBlockActive = new HashSet<>();
@@ -3694,7 +3697,12 @@ public class ABRScannedElementPane extends ABRPane {
             blockLoop:
             while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
                 long blockStartTime = System.nanoTime();
-                ABRConstants.ConditionStatus conditionStatus = ABRConstants.ConditionStatus.NONE;
+                ABRConstants.ConditionStatus currentCondition = ABRConstants.ConditionStatus.NONE;
+                ABRConstants.ConditionStatus previousCondition = ABRConstants.ConditionStatus.NONE;
+                ABRConstants.ConditionStatus progressCondition = ABRConstants.ConditionStatus.NONE;
+                int parentBlockCondition = -1;
+                boolean isExecutingBlock = false;
+                boolean performActionResult = false; // Default to failed action result
                 instructionsExecuted.clear();
 
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
@@ -3720,22 +3728,20 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 Pair<String, String> msgBlock = new Pair(
                                         String.format("Exit Bot Job: \"%s\"", blockLoad.getName()), ABRConstants.EXIT);
-                                long duration = performAction.duration(blockStartTime);
-                                performAction.excelReportWrite(
+
+                                // Excel Report and Log
+                                performAction.logAndReport(
+                                        true,
+                                        true,
+                                        blockStartTime,
                                         blockReportName,
                                         success,
                                         new String[] {ABRConstants.EXIT},
                                         msgBlock,
-                                        duration,
                                         dataExcel,
-                                        writerReport);
-                                totalExecutionTime += duration;
-
-                                status = performAction.operationLog(
-                                        success,
+                                        writerReport,
                                         "Stopping App",
-                                        String.format("Exit at Block Name: \"%s\"", blockName),
-                                        duration);
+                                        String.format("Exit at Block Name: \"%s\"", blockName));
 
                                 continue blockLoop;
                             }
@@ -3748,22 +3754,20 @@ public class ABRScannedElementPane extends ABRPane {
 
                     Pair<String, String> msgBlock =
                             new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ABRConstants.IGNORE);
-                    long duration = performAction.duration(blockStartTime);
-                    performAction.excelReportWrite(
+
+                    // Excel Report and Log
+                    performAction.logAndReport(
+                            true,
+                            true,
+                            blockStartTime,
                             blockReportName,
                             success,
                             new String[] {ABRConstants.IGNORE},
                             msgBlock,
-                            duration,
                             dataExcel,
-                            writerReport);
-                    totalExecutionTime += duration;
-
-                    status = performAction.operationLog(
-                            success,
+                            writerReport,
                             "BLOCK IGNORED",
-                            String.format("Block: \"%s\" is Inactive: ", blockName),
-                            duration);
+                            String.format("Block: \"%s\" is Inactive: ", blockName));
 
                     continue;
                 }
@@ -3775,30 +3779,42 @@ public class ABRScannedElementPane extends ABRPane {
                             .info(String.format(
                                     "Default Wait for Block: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait));
 
-                    long duration = performAction.duration(blockStartTime);
                     Pair<String, String> msgBlock = new Pair(
                             String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
                             ABRConstants.HOLD);
-                    performAction.excelReportWrite(
+
+                    // Excel Report and Log
+                    performAction.logAndReport(
+                            true,
+                            true,
+                            blockStartTime,
                             blockReportName,
                             success,
                             new String[] {ABRConstants.HOLD},
                             msgBlock,
-                            duration,
                             dataExcel,
-                            writerReport);
-                    totalExecutionTime += duration;
+                            writerReport,
+                            "BLOCK DEFAULT WAIT",
+                            String.format("Block: \"%s\" Wait %s Seconds: ", blockName, blockWait));
 
-                    status = performAction.operationLog(
-                            success, "BLOCK DEFAULT WAIT", "Block Default Wait " + blockWait + " Seconds", duration);
                 } catch (Exception ex) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .severe(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                 }
 
-                // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
+                // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on current
+                // Block
                 parentIdsForLoop = performAction.getParentIdsForLoop(
                         blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
+
+                // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF", "ELSEIF",
+                // "ELSE", and "ENDIF"
+                mapConditional = performAction.getConditionIndexMapByParentId(blockLoad);
+
+                // Step 3: Get all Instructions Ids on current Block
+                int[] instructionIds = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+                        .mapToInt(BlockLoopInstructionLoadDTO::getId)
+                        .toArray();
 
                 // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
@@ -3812,25 +3828,19 @@ public class ABRScannedElementPane extends ABRPane {
                 boolean refreshOnly = false;
 
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
-                    boolean ifClause = false;
-                    boolean ifFailed = false;
-                    boolean ifIsDone = false;
-                    boolean elseClause = false;
-                    boolean elseFailed = false;
-                    boolean byPassFlagLoop = false;
                     mapExport.clear();
                     //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
                     dataExcel = extractedData.getRowFieldValues(i);
 
-                    int[] instructionIds = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                            .mapToInt(BlockLoopInstructionLoadDTO::getId)
-                            .toArray();
-
                     int currentIndex = 0;
 
                     instructionLoop:
                     while (currentIndex < instructionIds.length && !stopAll) {
+                        // Resets the success
+                        success = true;
+
+                        long currentInstructionStartTime = System.nanoTime();
 
                         BlockLoopInstructionLoadDTO currentInstruction =
                                 blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
@@ -3838,24 +3848,22 @@ public class ABRScannedElementPane extends ABRPane {
                         if (!currentInstruction.isInstructionActive()) {
 
                             String nameInstruc = "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
-                            Pair<String, String> msgInstruc =
+                            Pair<String, String> msgBlock =
                                     new Pair(String.format("Ignore: \"%s\"", nameInstruc), ABRConstants.IGNORE);
-                            long duration = performAction.duration(blockStartTime);
-                            performAction.excelReportWrite(
+
+                            // Excel Report and Log
+                            performAction.logAndReport(
+                                    true,
+                                    true,
+                                    blockStartTime,
                                     blockReportName,
                                     success,
                                     new String[] {ABRConstants.IGNORE},
-                                    msgInstruc,
-                                    duration,
+                                    msgBlock,
                                     dataExcel,
-                                    writerReport);
-                            totalExecutionTime += duration;
-
-                            status = performAction.operationLog(
-                                    success,
+                                    writerReport,
                                     "INSTRUCTION IGNORED",
-                                    String.format("Instruction: \"%s\" is Inactive: ", nameInstruc),
-                                    duration);
+                                    String.format("Instruction: \"%s\" is Inactive: ", nameInstruc));
 
                             currentIndex++;
 
@@ -3881,6 +3889,7 @@ public class ABRScannedElementPane extends ABRPane {
                         boolean execOperation = false;
                         boolean checkOperation = false;
                         boolean excelWriteOperation = false;
+                        boolean pauseOperation = false;
 
                         String xPathOperation = null;
                         String parentField = null;
@@ -3901,6 +3910,51 @@ public class ABRScannedElementPane extends ABRPane {
                                 ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
                                 : null;
 
+                        if (actions[0].equalsIgnoreCase(ABRConstants.IF)
+                                || actions[0].equalsIgnoreCase(ABRConstants.ELSEIF)
+                                || actions[0].equalsIgnoreCase(ABRConstants.ELSE)
+                                || actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
+                            currentCondition = ABRConstants.ConditionStatus.valueOf(actions[0]);
+                            if (previousCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                                previousCondition = currentCondition;
+                                parentBlockCondition = parentId;
+                            } else if (!previousCondition.equals(
+                                    currentCondition)) { // To Reset the Progress to the Next Block
+                                previousCondition = currentCondition;
+                            }
+
+                            // Conditions When Pass to any of then
+                            if (progressCondition.equals(ABRConstants.ConditionStatus.IF_PASSED)
+                                    || progressCondition.equals(ABRConstants.ConditionStatus.ELSEIF_PASSED)) {
+                                int jumpPassed = performAction.checkActionToJump(
+                                        actions[0],
+                                        progressCondition,
+                                        mapConditional,
+                                        parentBlockCondition,
+                                        currentIndex);
+
+                                // Any Error
+                                if (jumpPassed < 0) {
+                                    stopAll = true;
+                                    continue blockLoop;
+                                }
+                                // Found Next Block
+                                if (jumpPassed > 0) {
+                                    currentIndex = jumpPassed;
+                                    // reset all Conditional
+                                    currentCondition = ABRConstants.ConditionStatus.NONE;
+                                    progressCondition = ABRConstants.ConditionStatus.NONE;
+                                    continue instructionLoop;
+                                }
+                            } else if (currentCondition.equals(ABRConstants.ConditionStatus.ENDIF)) {
+                                currentCondition = ABRConstants.ConditionStatus.NONE;
+                                previousCondition = ABRConstants.ConditionStatus.NONE;
+                                progressCondition = ABRConstants.ConditionStatus.NONE;
+                                parentBlockCondition = -1;
+                            }
+                            continue;
+                        }
+
                         // Case for Inputs
                         String valueInsert = "No Data Found";
                         if (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) {
@@ -3908,61 +3962,51 @@ public class ABRScannedElementPane extends ABRPane {
                             valueInsert = dataExcel.get(reference);
                         }
 
-                        Pair<String, String> msgInitial = null;
+                        Pair<String, String> msgInstruction = null;
                         if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
                             // <currentId:blockId:blockOrderNumber:bockName>
-                            msgInitial = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
-                            if (!mapLoops.containsKey(msgInitial.getKey())) {
+                            msgInstruction = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
+                            if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                 mapLoops.put(
-                                        msgInitial.getKey(),
-                                        Integer.valueOf(msgInitial.getValue())); // <id:orderId:blockName>
+                                        msgInstruction.getKey(),
+                                        Integer.valueOf(msgInstruction.getValue())); // <id:orderId:blockName>
                             }
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
                             // <currentId:parentId:parentName>
-                            msgInitial = performAction.getInstructionDetailsById(
+                            msgInstruction = performAction.getInstructionDetailsById(
                                     blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS(),
                                     currentInstruction);
-                            if (!mapLoops.containsKey(msgInitial.getKey())) {
-                                mapLoops.put(msgInitial.getKey(), Integer.valueOf(msgInitial.getValue()));
+                            if (!mapLoops.containsKey(msgInstruction.getKey())) {
+                                mapLoops.put(msgInstruction.getKey(), Integer.valueOf(msgInstruction.getValue()));
                             }
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-                            msgInitial = performAction.getInstructionDetailsById(
+                            msgInstruction = performAction.getInstructionDetailsById(
                                     blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS(),
                                     currentInstruction);
-                            if (!mapLoops.containsKey(msgInitial.getKey())) {
-                                String[] parts = msgInitial.getValue().split(":"); // Split by ':'
-                                mapLoops.put(msgInitial.getKey(), Integer.valueOf(parts[1])); // Loop Times
-                                mapRefresh.put(msgInitial.getKey(), Integer.valueOf(parts[0])); // Wait Time
+                            if (!mapLoops.containsKey(msgInstruction.getKey())) {
+                                String[] parts = msgInstruction.getValue().split(":"); // Split by ':'
+                                mapLoops.put(msgInstruction.getKey(), Integer.valueOf(parts[1])); // Loop Times
+                                mapRefresh.put(msgInstruction.getKey(), Integer.valueOf(parts[0])); // Wait Time
                             }
                         } else {
-                            msgInitial = new Pair(
+                            msgInstruction = new Pair(
                                     currentInstruction.getName(),
                                     (currentInstruction.getOperation() != null
                                             ? currentInstruction.getOperation()
                                             : (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) ? valueInsert : ""));
                         }
 
-                        resultActions = performAction.actionResultMessage(blockName, actions, msgInitial);
+                        resultActions = performAction.actionResultMessage(blockName, actions, msgInstruction);
 
                         extraMsg = "";
 
-                        boolean isEndIf = actions[0].equalsIgnoreCase(ABRConstants.ENDIF);
-
-                        if ((ifIsDone && !isEndIf) || isEndIf) {
-
-                            if (isEndIf) {
-                                ifIsDone = false;
-                            }
-                            continue;
-                        }
-
                         if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
+
+                            pauseOperation = true;
 
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .info(String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()));
-
-                            long currentInstructionStartTime = System.nanoTime();
 
                             //                                SwingUtilities.invokeLater(() ->
                             performAction.showCustomModalDialog(
@@ -3973,102 +4017,29 @@ public class ABRScannedElementPane extends ABRPane {
                                     null,
                                     false);
                             //
-                            long duration = performAction.duration(currentInstructionStartTime);
 
-                            performAction.excelReportWrite(
-                                    blockReportName, success, actions, msgInitial, duration, dataExcel, writerReport);
+                            // Excel Report and Log
+                            performAction.logAndReport(
+                                    true,
+                                    true,
+                                    blockStartTime,
+                                    blockReportName,
+                                    success,
+                                    actions,
+                                    msgInstruction,
+                                    dataExcel,
+                                    writerReport,
+                                    "PAUSE BOT JOB",
+                                    String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()));
 
-                            totalExecutionTime += duration;
-
-                            continue;
-
-                        } else if (actions[0].equalsIgnoreCase(ABRConstants.IF)) {
-
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Initial Execution { IF -> ELSE } ->  inside Block :\"" + blockLoad.getName()
-                                            + "\"");
-
-                            ifClause = true;
-                            ifFailed = false; // Reset failure status for this IF clause
-                            ifIsDone = false;
-                            continue;
-                        }
-
-                        if (ifClause && ifFailed && !ifIsDone) {
-
-                            if (actions[0].equalsIgnoreCase(ABRConstants.ELSE)) {
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .warning("Closing Block { IF -> ELSE } -> Failed Execution inside Block :\""
-                                                + blockLoad.getName() + "\"");
-
-                                ifClause = false;
-                                ifFailed = false;
-                                elseClause = true;
-                                elseFailed = false; // Reset failure status for this ELSE clause
-                                continue;
-                            } else {
-                                // Skip until ELSE is found
-                                continue;
-                            }
-                        } else if (elseClause && elseFailed) {
-                            if (actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .warning("Closing Block { ELSE -> ENDIF } -> Failed Execution inside Block :\""
-                                                + blockLoad.getName() + "\"");
-
-                                elseClause = false;
-                                elseFailed = false; // Reset failure status for this ELSE clause
-                                continue;
-                            } else {
-                                // Skip until ELSE is found
-                                continue;
-                            }
-                        }
-
-                        // AND SOME REASON JUMPED INTO A FIELD INSIDE OF THE IF STATEMENT
-                        if ((ifClause && !ifFailed && !ifIsDone && actions[0].equalsIgnoreCase(ABRConstants.ELSE))) {
-
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Closing Block { IF -> ELSE } -> Success Execution inside Block :\""
-                                            + blockLoad.getName() + "\"");
-
-                            ifClause = false;
-                            if (!ifFailed) {
-                                ifFailed = false;
-                                elseClause = false;
-                                ifIsDone = true;
-                            } else {
-                                ifFailed = false;
-                                elseClause = true;
-                            }
-                            elseFailed = false; // Reset failure status for this ELSE clause
-                            continue;
-                        }
-
-                        // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
-                        if (elseClause && !elseFailed && actions[0].equalsIgnoreCase(ABRConstants.ENDIF)) {
-
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Closing Block { ELSE -> ENDIF } -> Success Execution inside Block :\""
-                                            + blockLoad.getName() + "\"");
-
-                            elseClause = false;
-                            elseFailed = false;
-                            continue;
-                        }
-                        //                        else if (ifIsDone && !actions[0].equalsIgnoreCase(ABRConstants.ENDIF))
-                        // {
-                        //                            continue;
-                        //                        }
-
-                        // Process ENDIF to reset flags and resume normal flow after IF-ELSE blocks
-                        if (!ifClause && !ifFailed && !elseClause && !elseFailed && !isEndIf && ifIsDone) {
-                            ifIsDone = false;
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info("Skipping { ENDIF } -> Success Skipping inside Block :\""
-                                            + blockLoad.getName() + "\"");
-
-                            continue;
+                            //                            if
+                            // (!currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                            //                                progressCondition =
+                            // performAction.updateProgressSuccess(success, currentCondition);
+                            //                                continue instructionLoop;
+                            //                            }
+                            //
+                            //                            continue instructionLoop;
                         }
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
@@ -4152,16 +4123,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             } else {
                                 resultActions = performAction.parentIdWrongBlock(
-                                        currentInstruction, blockLoad, ifClause, elseClause);
-
-                                if (!ifClause && !elseClause) {
-                                    stopAll = true;
-                                    success = false;
-                                } else if (ifClause) {
-                                    ifFailed = true;
-                                } else if (elseClause) {
-                                    elseFailed = true;
-                                }
+                                        currentInstruction, blockLoad, ABRConstants.ConditionStatus.NONE);
 
                                 if (stopAll) {
                                     break;
@@ -4179,16 +4141,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             } else {
                                 resultActions = performAction.getValueIsNotDefined(
-                                        currentInstruction, resultActions, ifClause, elseClause);
-
-                                if (!ifClause && !elseClause) {
-                                    stopAll = true;
-                                    success = false;
-                                } else if (ifClause) {
-                                    ifFailed = true;
-                                } else if (elseClause) {
-                                    elseFailed = true;
-                                }
+                                        currentInstruction, resultActions, ABRConstants.ConditionStatus.NONE);
 
                                 if (stopAll) {
                                     break;
@@ -4205,16 +4158,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 parentField = parentId + "-" + parentField;
                             } else {
                                 resultActions = performAction.getValueIsNotDefined(
-                                        currentInstruction, resultActions, ifClause, elseClause);
-
-                                if (!ifClause && !elseClause) {
-                                    stopAll = true;
-                                    success = false;
-                                } else if (ifClause) {
-                                    ifFailed = true;
-                                } else if (elseClause) {
-                                    elseFailed = true;
-                                }
+                                        currentInstruction, resultActions, ABRConstants.ConditionStatus.NONE);
 
                                 if (stopAll) {
                                     break;
@@ -4222,7 +4166,6 @@ public class ABRScannedElementPane extends ABRPane {
                             }
                         }
 
-                        long currentInstructionStartTime = System.nanoTime();
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
                         fillUpCurretLocators(currentInstruction);
@@ -4230,18 +4173,19 @@ public class ABRScannedElementPane extends ABRPane {
                         try {
                             if (jumpGoto) {
 
-                                msgInitial = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
+                                msgInstruction = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
 
-                                if (!loopBlockActive.contains(msgInitial.getKey())) {
-                                    loopBlockActive.add(msgInitial.getKey());
-                                    loopBlockLimits.put(msgInitial.getKey(), Integer.valueOf(msgInitial.getValue()));
+                                if (!loopBlockActive.contains(msgInstruction.getKey())) {
+                                    loopBlockActive.add(msgInstruction.getKey());
+                                    loopBlockLimits.put(
+                                            msgInstruction.getKey(), Integer.valueOf(msgInstruction.getValue()));
                                 }
-                                int repeat = mapLoops.get(msgInitial.getKey()) - 1;
+                                int repeat = mapLoops.get(msgInstruction.getKey()) - 1;
                                 if (repeat > 0) {
-                                    mapLoops.put(msgInitial.getKey(), repeat);
+                                    mapLoops.put(msgInstruction.getKey(), repeat);
                                     try {
 
-                                        String[] parts = msgInitial.getKey().split(":");
+                                        String[] parts = msgInstruction.getKey().split(":");
                                         int blockOrderNumber = Integer.parseInt(parts[2]);
 
                                         currentBlock = blockOrderNumber - 1;
@@ -4259,6 +4203,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                         executedSuccess.add(currentInstruction.getId());
                                         success = true;
+
                                     } catch (Exception ex) {
                                         resultActions = "Failed " + resultActions;
 
@@ -4268,26 +4213,24 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
 
                                     Pair<String, String> currentPair = new Pair(
-                                            msgInitial.getKey(), String.valueOf(mapLoops.get(msgInitial.getKey())));
+                                            msgInstruction.getKey(),
+                                            String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
-                                    long duration = performAction.duration(currentInstructionStartTime);
-                                    performAction.excelReportWrite(
+                                    // Excel Report and Log
+                                    performAction.logAndReport(
+                                            true,
+                                            true,
+                                            currentInstructionStartTime,
                                             blockReportName,
                                             success,
                                             actions,
                                             currentPair,
-                                            duration,
                                             dataExcel,
-                                            writerReport);
-                                    totalExecutionTime += duration;
-
-                                    status = performAction.operationLog(
-                                            success,
+                                            writerReport,
                                             currentInstruction.isOptional()
                                                     ? "OPTIONAL INSTRUCTION"
                                                     : "MANDATORY INSTRUCTION",
-                                            resultActions,
-                                            duration);
+                                            resultActions);
 
                                     if (success) {
                                         continue blockLoop;
@@ -4299,7 +4242,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
 
                                 } else {
-                                    mapLoops.put(msgInitial.getKey(), repeat);
+                                    mapLoops.put(msgInstruction.getKey(), repeat);
                                     continue blockLoop;
                                 }
 
@@ -4321,58 +4264,57 @@ public class ABRScannedElementPane extends ABRPane {
                                         if (refreshLoop) {
 
                                             String extraLog = performAction.actionResultMessage(
-                                                    blockName, new String[] {ABRConstants.REFRESH_HOLD}, msgInitial);
+                                                    blockName,
+                                                    new String[] {ABRConstants.REFRESH_HOLD},
+                                                    msgInstruction);
 
                                             performAction.performOtherActions(
                                                     byPassNotFound,
                                                     currentInstruction,
                                                     new String[] {ABRConstants.REFRESH_HOLD});
 
-                                            long duration = performAction.duration(currentInstructionStartTime);
-                                            performAction.excelReportWrite(
+                                            // Excel Report and Log
+                                            performAction.logAndReport(
+                                                    true,
+                                                    true,
+                                                    currentInstructionStartTime,
                                                     blockReportName,
                                                     success,
                                                     new String[] {ABRConstants.REFRESH_HOLD},
-                                                    msgInitial,
-                                                    duration,
+                                                    msgInstruction,
                                                     dataExcel,
-                                                    writerReport);
-                                            totalExecutionTime += duration;
-
-                                            performAction.operationLog(
-                                                    success,
+                                                    writerReport,
                                                     currentInstruction.isOptional()
                                                             ? "OPTIONAL INSTRUCTION"
                                                             : "MANDATORY INSTRUCTION",
-                                                    extraLog,
-                                                    duration);
+                                                    extraLog);
 
+                                            // Refresh For REFRESH_LOOP
                                             extraLog = performAction.actionResultMessage(
-                                                    blockName, new String[] {ABRConstants.REFRESH_ONLY}, msgInitial);
+                                                    blockName,
+                                                    new String[] {ABRConstants.REFRESH_ONLY},
+                                                    msgInstruction);
 
                                             performAction.performOtherActions(
                                                     byPassNotFound,
                                                     currentInstruction,
                                                     new String[] {ABRConstants.REFRESH_ONLY});
 
-                                            duration = performAction.duration(currentInstructionStartTime);
-                                            performAction.excelReportWrite(
+                                            // Excel Report and Log
+                                            performAction.logAndReport(
+                                                    true,
+                                                    true,
+                                                    currentInstructionStartTime,
                                                     blockReportName,
                                                     success,
                                                     new String[] {ABRConstants.REFRESH_ONLY},
-                                                    msgInitial,
-                                                    duration,
+                                                    msgInstruction,
                                                     dataExcel,
-                                                    writerReport);
-                                            totalExecutionTime += duration;
-
-                                            performAction.operationLog(
-                                                    success,
+                                                    writerReport,
                                                     currentInstruction.isOptional()
                                                             ? "OPTIONAL INSTRUCTION"
                                                             : "MANDATORY INSTRUCTION",
-                                                    extraLog,
-                                                    duration);
+                                                    extraLog);
 
                                             refreshLoop = false;
                                         }
@@ -4386,26 +4328,25 @@ public class ABRScannedElementPane extends ABRPane {
 
                                         // Get Correct Updated Pair for REFRESH_LOOP ACTION
                                         Pair<String, String> currentPair = new Pair(
-                                                msgInitial.getKey(), String.valueOf(mapLoops.get(msgInitial.getKey())));
+                                                msgInstruction.getKey(),
+                                                String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
-                                        long duration = performAction.duration(currentInstructionStartTime);
-                                        performAction.excelReportWrite(
+                                        // Excel Report and Log
+                                        performAction.logAndReport(
+                                                true,
+                                                true,
+                                                currentInstructionStartTime,
                                                 blockReportName,
                                                 success,
                                                 actions,
                                                 currentPair,
-                                                duration,
                                                 dataExcel,
-                                                writerReport);
-                                        totalExecutionTime += duration;
-
-                                        status = performAction.operationLog(
-                                                success,
+                                                writerReport,
                                                 currentInstruction.isOptional()
                                                         ? "OPTIONAL INSTRUCTION"
                                                         : "MANDATORY INSTRUCTION",
-                                                resultActions,
-                                                duration);
+                                                resultActions);
+
                                     } else {
                                         mapLoops.put(parentFieldLoop, repeat);
                                     }
@@ -4445,32 +4386,27 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                                long duration = performAction.duration(currentInstructionStartTime);
-                                performAction.excelReportWrite(
+                                // Excel Report and Log
+                                performAction.logAndReport(
+                                        true,
+                                        true,
+                                        currentInstructionStartTime,
                                         blockReportName,
                                         success,
                                         actions,
-                                        msgInitial,
-                                        duration,
+                                        msgInstruction,
                                         dataExcel,
-                                        writerReport);
-                                totalExecutionTime += duration;
-
-                                status = performAction.operationLog(
-                                        success,
+                                        writerReport,
                                         currentInstruction.isOptional()
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
-                                        resultActions,
-                                        duration);
+                                        resultActions);
 
                                 refreshOnly = false;
 
                                 continue;
 
-                            } else if (!execOperation && !checkOperation && !excelWriteOperation) {
-
-                                Pair<String, String> msgLoop = null;
+                            } else if (!execOperation && !checkOperation && !excelWriteOperation && !pauseOperation) {
 
                                 if (actions[0].equals(Constants.HOLD)
                                         || actions[0].equals(Constants.QUIT)
@@ -4483,26 +4419,21 @@ public class ABRScannedElementPane extends ABRPane {
                                         success = true;
                                     }
 
-                                    long duration = performAction.duration(currentInstructionStartTime);
-
-                                    performAction.excelReportWrite(
+                                    // Excel Report and Log
+                                    performAction.logAndReport(
+                                            true,
+                                            true,
+                                            currentInstructionStartTime,
                                             blockReportName,
                                             success,
                                             actions,
-                                            msgInitial,
-                                            duration,
+                                            msgInstruction,
                                             dataExcel,
-                                            writerReport);
-
-                                    totalExecutionTime += duration;
-
-                                    status = performAction.operationLog(
-                                            success,
+                                            writerReport,
                                             currentInstruction.isOptional()
                                                     ? "OPTIONAL INSTRUCTION"
                                                     : "MANDATORY INSTRUCTION",
-                                            resultActions,
-                                            duration);
+                                            resultActions);
 
                                     continue;
                                 }
@@ -4532,7 +4463,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
                                 }
 
-                                byPassNotFound = byPassFlagLoop || ifClause || elseClause;
+                                byPassNotFound =
+                                        byPassFlagLoop || !currentCondition.equals(ABRConstants.ConditionStatus.NONE);
 
                                 if (webElementFound != null && success) {
 
@@ -4548,9 +4480,9 @@ public class ABRScannedElementPane extends ABRPane {
                                     if (actions[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
                                         fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
                                         if (mapOperators.containsKey(fieldName)) {
-                                            msgInitial = new Pair(fieldName, mapOperators.get(fieldName));
+                                            msgInstruction = new Pair(fieldName, mapOperators.get(fieldName));
                                         } else {
-                                            msgInitial = new Pair(fieldName, "TEXT OUTPUT NOT FOUND");
+                                            msgInstruction = new Pair(fieldName, "TEXT OUTPUT NOT FOUND");
                                         }
                                     }
                                 }
@@ -4573,20 +4505,16 @@ public class ABRScannedElementPane extends ABRPane {
                                     success = true;
                                 }
 
-                                long duration = performAction.duration(currentInstructionStartTime);
-
                                 if (!success) {
                                     byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
                                     success = byPassFlagLoop;
                                 }
 
-                                if (!success && !ifClause && !elseClause && !byPassFlagLoop) {
+                                if (!success
+                                        && currentCondition.equals(ABRConstants.ConditionStatus.NONE)
+                                        && !byPassFlagLoop) {
                                     stopAll = true;
                                     success = false;
-                                } else if (ifClause && !success) {
-                                    ifFailed = true;
-                                } else if (elseClause && !success) {
-                                    elseFailed = true;
                                 }
 
                                 if (byPassFlagLoop) {
@@ -4594,40 +4522,42 @@ public class ABRScannedElementPane extends ABRPane {
                                     resultActions = "By Passing Loop Flag "
                                             + performAction.actionResultMessage(blockName, actions, fieldData);
 
-                                    performAction.excelReportWrite(
+                                    // Excel Report and Log
+                                    performAction.logAndReport(
+                                            true,
+                                            true,
+                                            currentInstructionStartTime,
                                             blockReportName,
                                             success,
                                             new String[] {ABRConstants.BY_PASS},
-                                            msgInitial,
-                                            duration,
+                                            msgInstruction,
                                             dataExcel,
-                                            writerReport);
+                                            writerReport,
+                                            "By Passing Loop Flag",
+                                            resultActions);
 
                                 } else {
-                                    performAction.excelReportWrite(
+
+                                    // Excel Report and Log
+                                    performAction.logAndReport(
+                                            true,
+                                            true,
+                                            currentInstructionStartTime,
                                             blockReportName,
                                             success,
                                             actions,
-                                            msgInitial,
-                                            duration,
+                                            msgInstruction,
                                             dataExcel,
-                                            writerReport);
+                                            writerReport,
+                                            currentInstruction.isOptional()
+                                                    ? "OPTIONAL INSTRUCTION"
+                                                    : "MANDATORY INSTRUCTION",
+                                            resultActions);
                                 }
-
-                                totalExecutionTime += duration;
-
-                                status = performAction.operationLog(
-                                        success,
-                                        currentInstruction.isOptional()
-                                                ? "OPTIONAL INSTRUCTION"
-                                                : "MANDATORY INSTRUCTION",
-                                        resultActions,
-                                        duration);
 
                                 if (stopAll) {
                                     break;
                                 }
-
                             } else if (execOperation) {
 
                                 resultActions = currentInstruction.getName()
@@ -4673,24 +4603,21 @@ public class ABRScannedElementPane extends ABRPane {
                                     success = false;
                                 }
 
-                                long duration = performAction.duration(currentInstructionStartTime);
-                                performAction.excelReportWrite(
+                                // Excel Report and Log
+                                performAction.logAndReport(
+                                        true,
+                                        true,
+                                        currentInstructionStartTime,
                                         blockReportName,
                                         success,
                                         actions,
-                                        msgInitial,
-                                        duration,
+                                        msgInstruction,
                                         dataExcel,
-                                        writerReport);
-                                totalExecutionTime += duration;
-
-                                status = performAction.operationLog(
-                                        success,
+                                        writerReport,
                                         currentInstruction.isOptional()
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
-                                        resultActions,
-                                        duration);
+                                        resultActions);
 
                             } else if (checkOperation) {
                                 // Check Validation Operator
@@ -4750,18 +4677,8 @@ public class ABRScannedElementPane extends ABRPane {
                                                     mapOperators.get(parentField),
                                                     resultActions,
                                                     operations,
-                                                    ifClause,
-                                                    elseClause,
+                                                    ABRConstants.ConditionStatus.NONE,
                                                     byPassFlagLoop);
-
-                                            if (!ifClause && !elseClause && !byPassFlagLoop) {
-                                                stopAll = true;
-                                                success = false;
-                                            } else if (ifClause) {
-                                                ifFailed = true;
-                                            } else if (elseClause) {
-                                                elseFailed = true;
-                                            }
 
                                             if (stopAll) {
                                                 break;
@@ -4770,15 +4687,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     } else {
                                         resultActions = performAction.getValueIsNotDefined(
-                                                currentInstruction, resultActions, ifClause, elseClause);
-                                        if (!ifClause && !elseClause) {
-                                            stopAll = true;
-                                            success = false;
-                                        } else if (ifClause) {
-                                            ifFailed = true;
-                                        } else if (elseClause) {
-                                            elseFailed = true;
-                                        }
+                                                currentInstruction, resultActions, ABRConstants.ConditionStatus.NONE);
 
                                         if (stopAll) {
                                             break;
@@ -4790,24 +4699,21 @@ public class ABRScannedElementPane extends ABRPane {
                                     success = false;
                                 }
 
-                                long duration = performAction.duration(currentInstructionStartTime);
-                                performAction.excelReportWrite(
+                                // Excel Report and Log
+                                performAction.logAndReport(
+                                        true,
+                                        true,
+                                        currentInstructionStartTime,
                                         blockReportName,
                                         success,
                                         actions,
-                                        msgInitial,
-                                        duration,
+                                        msgInstruction,
                                         dataExcel,
-                                        writerReport);
-                                totalExecutionTime += duration;
-
-                                status = performAction.operationLog(
-                                        success,
+                                        writerReport,
                                         currentInstruction.isOptional()
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
-                                        resultActions,
-                                        duration);
+                                        resultActions);
 
                             } else if (excelWriteOperation) {
                                 // Excel Write Operator
@@ -4879,15 +4785,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     } else {
                                         resultActions = performAction.getValueIsNotDefined(
-                                                currentInstruction, resultActions, ifClause, elseClause);
-                                        if (!ifClause && !elseClause) {
-                                            stopAll = true;
-                                            success = false;
-                                        } else if (ifClause) {
-                                            ifFailed = true;
-                                        } else if (elseClause) {
-                                            elseFailed = true;
-                                        }
+                                                currentInstruction, resultActions, ABRConstants.ConditionStatus.NONE);
+
                                         if (stopAll) {
                                             break;
                                         }
@@ -4898,47 +4797,44 @@ public class ABRScannedElementPane extends ABRPane {
                                     success = false;
                                 }
 
-                                long duration = performAction.duration(currentInstructionStartTime);
-                                performAction.excelReportWrite(
+                                // Excel Report and Log
+                                performAction.logAndReport(
+                                        true,
+                                        true,
+                                        currentInstructionStartTime,
                                         blockReportName,
                                         success,
                                         actions,
-                                        msgInitial,
-                                        duration,
+                                        msgInstruction,
                                         dataExcel,
-                                        writerReport);
-                                totalExecutionTime += duration;
-
-                                status = performAction.operationLog(
-                                        success,
+                                        writerReport,
                                         currentInstruction.isOptional()
                                                 ? "OPTIONAL INSTRUCTION"
                                                 : "MANDATORY INSTRUCTION",
-                                        resultActions,
-                                        duration);
+                                        resultActions);
                             }
 
                         } catch (Throwable t) {
-                            if (!ifClause && !elseClause) {
+                            if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
                                 stopAll = true;
                                 success = false;
-                            } else if (ifClause) {
-                                ifFailed = true;
-                            } else if (elseClause) {
-                                elseFailed = true;
                             }
+
                             currentInstruction.setExecuted(false);
 
-                            long duration = performAction.duration(currentInstructionStartTime);
-                            performAction.excelReportWrite(
-                                    blockReportName, false, actions, msgInitial, duration, dataExcel, writerReport);
-                            totalExecutionTime += duration;
-
-                            status = performAction.operationLog(
-                                    false,
+                            // Excel Report and Log
+                            performAction.logAndReport(
+                                    true,
+                                    true,
+                                    currentInstructionStartTime,
+                                    blockReportName,
+                                    success,
+                                    actions,
+                                    msgInstruction,
+                                    dataExcel,
+                                    writerReport,
                                     currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
-                                    resultActions,
-                                    duration);
+                                    resultActions);
 
                             if (stopAll) {
                                 break;
@@ -4952,7 +4848,8 @@ public class ABRScannedElementPane extends ABRPane {
                         if (!success) {
                             countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
                             countdownTextField.setText(resultActions);
-                            if (!ifClause && !elseClause) {
+
+                            if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
                                 stopAll = true;
                                 success = false;
                                 break;
@@ -4964,22 +4861,90 @@ public class ABRScannedElementPane extends ABRPane {
                             stopAll = true;
                             break;
                         }
+
+                        // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
+                        // of Execution
+                        if (!currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                            progressCondition = performAction.updateProgressSuccess(success, currentCondition);
+                            //                                continue instructionLoop;
+                        }
+
+                        // Here it Call the next block of IF, ELSIF, ELSE OR ENDIF as Per the Machine State
+
+                        // Conditions When Pass to any of then
+                        if (progressCondition.equals(ABRConstants.ConditionStatus.IF_PASSED)
+                                || progressCondition.equals(ABRConstants.ConditionStatus.ELSEIF_PASSED)) {
+                            int jumpPassed = performAction.checkActionToJump(
+                                    actions[0], progressCondition, mapConditional, parentBlockCondition, currentIndex);
+
+                            // Any Error
+                            if (jumpPassed < 0) {
+                                stopAll = true;
+                                continue blockLoop;
+                            }
+                            // Found Next Block
+                            if (jumpPassed > 0) {
+                                currentIndex = jumpPassed;
+                                // reset all Conditional
+                                currentCondition = ABRConstants.ConditionStatus.NONE;
+                                progressCondition = ABRConstants.ConditionStatus.NONE;
+                                continue instructionLoop;
+                            }
+                        }
+
+                        // Conditions When Fails to any of then and Look for the next Correct Block
+                        if (progressCondition.equals(ABRConstants.ConditionStatus.IF_FAILED)
+                                || progressCondition.equals(ABRConstants.ConditionStatus.ELSEIF_FAILED)) {
+
+                            // Goes to the next ELSEIF IF EXIST (ELSEIF index + 1);
+                            int index = performAction.searchMapConditional(
+                                    mapConditional,
+                                    parentBlockCondition,
+                                    ABRConstants.ConditionStatus.ELSEIF,
+                                    currentIndex,
+                                    false);
+
+                            // Goes to the next ELSE IF ELSEIF  DOES NOT EXIST  (ELSE index + 1);
+                            if (index < 0) {
+                                index = performAction.searchMapConditional(
+                                        mapConditional,
+                                        parentBlockCondition,
+                                        ABRConstants.ConditionStatus.ELSE,
+                                        currentIndex,
+                                        true);
+                            }
+                            if (index < 0) {
+                                stopAll = true;
+                                continue blockLoop;
+                            }
+                            currentIndex = index;
+                            currentCondition = ABRConstants.ConditionStatus.NONE;
+                            progressCondition = ABRConstants.ConditionStatus.NONE;
+                            continue instructionLoop;
+
+                        } else if (progressCondition.equals(ABRConstants.ConditionStatus.ELSE_FAILED)) {
+                            // Goes to the ENDIF (ENDIF index + 1);
+                            int index = performAction.searchMapConditional(
+                                    mapConditional,
+                                    parentBlockCondition,
+                                    ABRConstants.ConditionStatus.ENDIF,
+                                    currentIndex,
+                                    true);
+
+                            if (index < 0) {
+                                stopAll = true;
+                                continue blockLoop;
+                            }
+                            currentIndex = index;
+                            currentCondition = ABRConstants.ConditionStatus.NONE;
+                            progressCondition = ABRConstants.ConditionStatus.NONE;
+                            continue instructionLoop;
+                        }
                     }
                 }
-                // Increment currentBlock only if executing all blocks
-                //                if (executeSpecificBlock == -1) {
-                //                    currentBlock++;
-                //                } else {
-                //                    break; // Exit loop after executing the specific block
-                //                }
 
-                // Increment currentBlock only if executing all blocks
                 currentBlock++;
             }
-
-            //            if (executionTimes >= execLimitReach) {
-            //                performAction.alertExecutionTimes(executionTimes, resultActions);
-            //            }
 
         } else { //  if dataExel is NULL
             // Creating Dynamic Data if Default is Null
@@ -5026,13 +4991,13 @@ public class ABRScannedElementPane extends ABRPane {
                         valueInsert = dataExcel.get(reference);
                     }
 
-                    Pair<String, String> msgInitial = new Pair(
+                    Pair<String, String> msgInstruction = new Pair(
                             currentInstruction.getName(),
                             (currentInstruction.getOperation() != null
                                     ? currentInstruction.getOperation()
                                     : (actions[0].equalsIgnoreCase(ABRConstants.INSERT)) ? valueInsert : ""));
 
-                    resultActions = performAction.actionResultMessage(blockName, actions, msgInitial);
+                    resultActions = performAction.actionResultMessage(blockName, actions, msgInstruction);
 
                     try {
 
@@ -5047,18 +5012,19 @@ public class ABRScannedElementPane extends ABRPane {
                                 success = true;
                             }
 
-                            long duration = performAction.duration(currentInstructionStartTime);
-
-                            performAction.excelReportWrite(
-                                    blockReportName, success, actions, msgInitial, duration, dataExcel, writerReport);
-
-                            totalExecutionTime += duration;
-
-                            status = performAction.operationLog(
+                            // Excel Report and Log
+                            performAction.logAndReport(
+                                    true,
+                                    true,
+                                    currentInstructionStartTime,
+                                    blockReportName,
                                     success,
+                                    actions,
+                                    msgInstruction,
+                                    dataExcel,
+                                    writerReport,
                                     currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
-                                    resultActions,
-                                    duration);
+                                    resultActions);
 
                             continue;
                         }
@@ -5091,37 +5057,46 @@ public class ABRScannedElementPane extends ABRPane {
                             success = false;
                         }
 
-                        long duration = performAction.duration(currentInstructionStartTime);
-                        performAction.excelReportWrite(
-                                blockReportName, success, actions, msgInitial, duration, null, writerReport);
-                        totalExecutionTime += duration;
-
-                        status = performAction.operationLog(
+                        // Excel Report and Log
+                        performAction.logAndReport(
+                                true,
+                                true,
+                                currentInstructionStartTime,
+                                blockReportName,
                                 success,
+                                actions,
+                                msgInstruction,
+                                dataExcel,
+                                writerReport,
                                 currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
-                                resultActions,
-                                duration);
+                                resultActions);
 
                     } catch (Throwable t) {
                         success = false;
                         currentInstruction.setExecuted(false);
 
-                        long duration = performAction.duration(currentInstructionStartTime);
-                        performAction.excelReportWrite(
-                                blockReportName, false, actions, msgInitial, duration, null, writerReport);
-                        totalExecutionTime += duration;
-
-                        status = performAction.operationLog(
-                                false,
+                        // Excel Report and Log
+                        performAction.logAndReport(
+                                true,
+                                true,
+                                currentInstructionStartTime,
+                                blockReportName,
+                                success,
+                                actions,
+                                msgInstruction,
+                                dataExcel,
+                                writerReport,
                                 currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION",
-                                resultActions,
-                                duration);
+                                resultActions);
+
                         //                        throw new RuntimeException(t);
                     }
                     printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
                 }
             }
         }
+
+        totalExecutionTime = performAction.getTotalExecutionTime();
 
         if (totalExecutionTime == 0) {
             //            report.setDuration(0);
