@@ -32,6 +32,12 @@ public class ABRConfigurationPane extends ABRPane {
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
 
+    private static final ABRNewHomeBankingScene abrNewHomeBankingScene;
+    // Static block to initialize
+    static {
+        abrNewHomeBankingScene = ABRNewHomeBankingScene.getInstance();
+    }
+
     // UI Components
     Label title;
     Label pathExcelLabel;
@@ -389,7 +395,8 @@ public class ABRConfigurationPane extends ABRPane {
         //                        .subtract(saveButton.heightProperty())
         //                        .subtract(ABRConstants.SPACE_M * 2)
         //                        .subtract(ABRConstants.SPACE_L * 2));
-        addHomeBankingButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
+        addHomeBankingButton.setOnMouseClicked(e -> abrNewHomeBankingScene.show());
+
         pathExcelButton.setOnMouseClicked(e -> openChooserFor(pathExcel, true));
         pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, true));
         pathLogButton.setOnMouseClicked(e -> openChooserFor(pathLog, true));
@@ -582,6 +589,13 @@ public class ABRConfigurationPane extends ABRPane {
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
             }
             ABRLogger.getInstance(ABRWebDriver.class)
                     .info("All Rows DELETED for:\n"

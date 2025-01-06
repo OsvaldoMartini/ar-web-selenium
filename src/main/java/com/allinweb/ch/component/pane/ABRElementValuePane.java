@@ -5,6 +5,8 @@ import com.allinweb.ch.component.model.JobDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.persistence.VariableUserDTO;
@@ -60,6 +62,15 @@ public class ABRElementValuePane extends ABRPane {
     CheckBox numericCheckBox;
     Button updateButton;
     Button deleteButton;
+
+    private static final PerformActions performAction;
+    private static final PerformDataBase performDataBase;
+
+    // Static block to initialize
+    static {
+        performAction = PerformActions.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+    }
 
     public ABRElementValuePane(
             RowMoveDTO rowMoveDTO, int instructionId, String instructionName, String varName, String instructionType) {
@@ -159,11 +170,13 @@ public class ABRElementValuePane extends ABRPane {
                     -1, selectedType, nameField.getText().trim(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
 
             if (nameExists(nameField.getText().trim())) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
-                        "Env Name Already Exists",
-                        String.format("This '%s' cannot be inserted with the same name.\n", nameField.getText()));
+                performAction.errorMessage(
+                        "Variable Name Already Exists",
+                        String.format("'%s' cannot be inserted with the existent name!", nameField.getText()),
+                        null,
+                        null,
+                        null);
+
                 return;
             }
 
@@ -201,13 +214,13 @@ public class ABRElementValuePane extends ABRPane {
         deleteButton.setOnAction(event -> {
             String id = idField.getText();
             if (Integer.parseInt(usedVarsField.getText()) > 0) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
+                performAction.errorMessage(
                         "Action Remove Error",
-                        String.format(
-                                "This '%s' cannot be deleted.\nIt has %s Steps attached!",
-                                nameField.getText(), usedVarsField.getText()));
+                        String.format("This '%s' cannot be deleted!", nameField.getText()),
+                        String.format("Exist %s Steps attached!", usedVarsField.getText()),
+                        null,
+                        null);
+
                 return;
             }
 
@@ -446,7 +459,7 @@ public class ABRElementValuePane extends ABRPane {
         String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "
                 + " left join block_loop_instruction blk on blk.variable_id = vars.id "
-                + " where bot_job_id = " + rowMoveDTO.getBotJobId()
+                + " where vars.bot_job_id = " + rowMoveDTO.getBotJobId()
                 + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
@@ -461,7 +474,10 @@ public class ABRElementValuePane extends ABRPane {
                         new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            performAction.errorMessage(
+                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null);
+
+            return;
         }
         //        jobUserList.clear();
         //        loadBotJobData();
@@ -476,7 +492,8 @@ public class ABRElementValuePane extends ABRPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            performAction.errorMessage(
+                    "Error loading Next Id Data", "Could Not Load the Next Id Data", null, null, null);
         }
         return null;
     }
@@ -499,7 +516,14 @@ public class ABRElementValuePane extends ABRPane {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
-            e.printStackTrace();
+            performAction.errorMessage(
+                    "Error Inserting new Variable",
+                    String.format("The '%s' cannot be inserted!", user.getName()),
+                    e.getMessage(),
+                    null,
+                    null);
+
+            return;
         }
     }
 
@@ -517,13 +541,13 @@ public class ABRElementValuePane extends ABRPane {
                 System.out.println("No matching record found to update.");
             }
         } catch (SQLException e) {
-            showAlert(
-                    Alert.AlertType.ERROR,
-                    "Error",
+            performAction.errorMessage(
                     "MAX CHARACTERS LIMIT FOR ACCESS",
-                    String.format(
-                            "This '%s' \n cannot be updated with same name.\nError: %s",
-                            user.getName(), e.getMessage()));
+                    String.format("The '%s' cannot be updated.", user.getName()),
+                    e.getMessage(),
+                    null,
+                    null);
+
             return;
         }
         //        } catch (NumberFormatException e) {
@@ -539,15 +563,17 @@ public class ABRElementValuePane extends ABRPane {
                     ABRSharedResources.getInstance().getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(deleteSQL);
                 if (rowsAffected > 0) {
-                    System.out.println("Data updated successfully.");
+                    System.out.println("Data deleted successfully.");
                 } else {
-                    System.out.println("No matching record found to update.");
+                    System.out.println("No matching record found to delete.");
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                performAction.errorMessage(
+                        "Error Deleting", String.format("Cannot be deleted id: '%s'", Id), e.getMessage(), null, null);
             }
         } catch (NumberFormatException e) {
-            System.out.println("Invalid ID format.");
+            performAction.errorMessage(
+                    "Invalid ID format.", String.format("The id: '%s' is in invalid format!", Id), null, null, null);
         }
     }
 

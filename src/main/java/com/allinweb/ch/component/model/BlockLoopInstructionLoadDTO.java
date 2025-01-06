@@ -19,13 +19,13 @@ public class BlockLoopInstructionLoadDTO {
     private String name;
     private String path;
     private String description;
-    private Integer optional;
+    private Boolean optional;
     private Boolean blockMarked;
-    private String default_val;
+    private String defaultValue;
     private Integer actionCustomMaxWaitSec;
     private Integer onHoldSeconds;
-    private Integer encrypted;
-    private Integer exportToABR;
+    private Boolean codified;
+    private Boolean exportToABR;
     private Boolean executed;
     private String priority;
     private String operation;
@@ -79,17 +79,5 @@ public class BlockLoopInstructionLoadDTO {
         this.parentId = parentId;
         this.operation = operation;
         this.exportFile = exportFile;
-    }
-
-    public Boolean isOptional() {
-        return optional >= 1;
-    }
-
-    public Boolean isEncrypted() {
-        return encrypted >= 1;
-    }
-
-    public String getDefaultValue() {
-        return default_val;
     }
 }

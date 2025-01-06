@@ -71,7 +71,7 @@ public class Repository {
             //            session.remove(obj);
             transaction.commit();
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe("Error Repository Remove.\nCause: " + e.getMessage());
+            ABRLogger.getInstance(ABRWebDriver.class).severe("Error Repository Remove -> Cause: " + e.getMessage());
         }
     }
 

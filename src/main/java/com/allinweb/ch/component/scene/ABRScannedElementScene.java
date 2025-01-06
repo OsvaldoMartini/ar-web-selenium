@@ -19,13 +19,17 @@ public class ABRScannedElementScene extends ABRScene {
     private static final String TITLE = "Scanner Tool";
 
     private ABRWebDriver abrWebDriver;
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<ABRScannedElementScene> instance = () -> new ABRScannedElementScene();
 
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-    // Private constructor to prevent instantiation
+    // Public method to access the singleton instance
+    public static ABRScannedElementScene getInstance() {
+        return instance.get();
+    }
 
+    // Private constructor to prevent instantiation
     public ABRScannedElementScene() {
         // Initialize if necessary
         super();
@@ -40,11 +44,6 @@ public class ABRScannedElementScene extends ABRScene {
         this.botJobId = botJobId;
         this.blockId = blockId;
         return this;
-    }
-
-    // Public method to access the singleton instance
-    public static ABRScannedElementScene getInstance() {
-        return instance.get();
     }
 
     @Override

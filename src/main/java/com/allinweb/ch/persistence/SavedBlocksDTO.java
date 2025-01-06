@@ -7,7 +7,7 @@ import javax.persistence.*;
 
 @Entity
 @Table(name = "saved_blocks")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockSeq", allocationSize = 1)
 public class SavedBlocksDTO extends BaseDTO {
 
     @Column(name = "block_order_number")

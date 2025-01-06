@@ -2,7 +2,9 @@ package com.allinweb.ch.component.listCell;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.ABRSaveBlockPane;
 import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.component.pane.ABRViewBotJobPane;
@@ -19,9 +21,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
@@ -56,14 +56,14 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
         performAction = PerformActions.getInstance();
     }
 
-    private BlockDTO blockDTO;
+    private BlockLoadDTO blockLoadDTO;
     private BotJobDTO botJobDTO;
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
 
-    private List<BlockLoopInstructionDTO> originalLoopInstruction;
-    private List<InstructionReferenceDTO> originalReferences;
+    private List<BlockLoopInstructionLoadDTO> originalLoopInstruction;
+    private List<InstructionReferenceLoadDTO> originalReferences;
 
     protected void updateItem(SavedBlocksDTO savedBlocksDTO, boolean empty) {
         super.updateItem(savedBlocksDTO, empty);
@@ -155,10 +155,11 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                 if (result.isPresent() && result.get() == ButtonType.YES) {
 
                     try {
-                        loadBlocksForBotJob(savedBlocksDTO.getBotJobDTO().getId());
+                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(
+                                savedBlocksDTO.getBotJobDTO().getId());
 
-                        BotJobLoadDTO botJobLoadDTO =
-                                loadBotJob(savedBlocksDTO.getBotJobDTO().getId());
+                        BotJobLoadDTO botJobLoadDTO = performDataBase.loadBotJobById(
+                                savedBlocksDTO.getBotJobDTO().getId());
 
                         if (botJobLoadDTO == null) {
                             performAction.showAlert(
@@ -198,30 +199,30 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                             return;
                         }
 
-                        this.blockDTO = performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
-                        this.blockDTO.setTypeId(1);
-                        this.blockDTO.setActive(savedBlocksDTO.getActive());
-                        this.blockDTO.setWait(savedBlocksDTO.getWait());
-                        this.blockDTO.setBotJob(this.botJobDTO);
-                        this.blockDTO.setName(savedBlocksDTO.getName());
-                        this.blockDTO.setDescription(savedBlocksDTO.getDescription());
+                        this.blockLoadDTO =
+                                performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
+                        this.blockLoadDTO.setTypeId(1);
+                        this.blockLoadDTO.setActive(savedBlocksDTO.getActive());
+                        this.blockLoadDTO.setWait(savedBlocksDTO.getWait());
+                        this.blockLoadDTO.setName(savedBlocksDTO.getName());
+                        this.blockLoadDTO.setDescription(savedBlocksDTO.getDescription());
 
                         BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
                         newBlockDetails.setBlockName("Default Block");
                         newBlockDetails.setBlockDescription(
-                                !Strings.isNullOrEmpty(this.blockDTO.getDescription())
-                                        ? this.blockDTO.getDescription()
+                                !Strings.isNullOrEmpty(this.blockLoadDTO.getDescription())
+                                        ? this.blockLoadDTO.getDescription()
                                         : "Default Block description");
                         newBlockDetails.setTypeId(1);
                         newBlockDetails.setActive(savedBlocksDTO.getActive());
                         newBlockDetails.setWait(savedBlocksDTO.getWait());
 
-                        newBlockDetails.setBotJobId(this.blockDTO.getId());
+                        newBlockDetails.setBotJobId(this.blockLoadDTO.getId());
 
                         int currentBlockId = performDataBase.createNewBlock(newBlockDetails);
 
                         if (currentBlockId > 0) {
-                            this.blockDTO.setId(currentBlockId);
+                            this.blockLoadDTO.setId(currentBlockId);
 
                             ABRSharedResources.getInstance().cacheEntitiesFromDB();
 
@@ -248,10 +249,10 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                             return;
                         }
 
-                        if (this.botJobDTO != null && this.blockDTO != null) {
+                        if (this.botJobDTO != null) {
 
-                            originalLoopInstruction = performAction.createBlockLoopInstructionsFromSavedBlocksDTO(
-                                    savedBlocksDTO, this.blockDTO);
+                            originalLoopInstruction =
+                                    performAction.createBlockLoopInstructionsFromSavedBlocksDTO(savedBlocksDTO);
 
                             // Debugging: Ensure originalLoopInstruction has the right data
                             ABRLogger.getInstance(ComponentListCell.class)
@@ -259,7 +260,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
                             boolean savedInstStatus = false;
                             for (int j = 0; j < originalLoopInstruction.size(); j++) {
-                                BlockLoopInstructionDTO task = originalLoopInstruction.get(j);
+                                BlockLoopInstructionLoadDTO task = originalLoopInstruction.get(j);
                                 int newId = preFillInstruction(
                                         task.getName(),
                                         task.getDescription(),
@@ -270,7 +271,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                         task.getInstructionOrderNumber(),
                                         task.getExportToABR(),
                                         task.getPath(),
-                                        this.blockDTO);
+                                        this.blockLoadDTO);
 
                                 task.setId(newId);
 
@@ -292,8 +293,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                 // Build References
                                 originalReferences = new ArrayList<>();
                                 originalLoopInstruction.forEach(instruction -> {
-                                    originalReferences.addAll(instruction.getInstructionReferenceDTOList());
-                                    instruction.setInstructionReferenceDTOList(null);
+                                    originalReferences.addAll(instruction.getInstructionReferenceLoadDTOList());
+                                    instruction.setInstructionReferenceLoadDTOList(null);
                                 });
 
                                 if (savedInstStatus && originalReferences.size() > 0) {
@@ -301,9 +302,10 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                             .fine("originalReferences Size: " + originalReferences.size());
 
                                     boolean success = false;
-                                    for (InstructionReferenceDTO reference : originalReferences) {
+                                    for (InstructionReferenceLoadDTO reference : originalReferences) {
 
-                                        BlockLoopInstructionDTO instructionDTO = reference.getBlockLoopInstructionDTO();
+                                        BlockLoopInstructionLoadDTO instructionDTO =
+                                                reference.getBlockLoopInstructionLoadDTO();
                                         if (instructionDTO == null) {
                                             ABRLogger.getInstance(ABRViewBotJobPane.class)
                                                     .warning("BlockLoopInstructionDTO is null for reference: "
@@ -327,7 +329,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                                             "Re utilize Component:\n" + "Added Block Name: %s"
                                                                     + "" + "\nAdded %d Instructions"
                                                                     + "\nAdded %d references locators",
-                                                            this.blockDTO.getName(),
+                                                            this.blockLoadDTO.getName(),
                                                             originalLoopInstruction.size(),
                                                             originalReferences.size()));
 
@@ -336,7 +338,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                                             "Re utilize Component:\n" + "Added Block Name: %s"
                                                                     + "" + "\nAdded %d Instructions"
                                                                     + "\nAdded %d references locators",
-                                                            this.blockDTO.getName(),
+                                                            this.blockLoadDTO.getName(),
                                                             originalLoopInstruction.size(),
                                                             originalReferences.size()));
 
@@ -350,7 +352,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                                                     + "Block Name: %s\nWAS NOT INCLUDED"
                                                                     + "\nWAS NOT INCLUDED- %d Instructions"
                                                                     + "\nWAS NOT INCLUDED -  %d references locators",
-                                                            this.blockDTO.getName(),
+                                                            this.blockLoadDTO.getName(),
                                                             originalLoopInstruction.size(),
                                                             originalReferences.size()));
 
@@ -360,7 +362,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                                                     + "Block Name: %s\nWAS NOT INCLUDED"
                                                                     + "\nWAS NOT INCLUDED- %d Instructions"
                                                                     + "\nWAS NOT INCLUDED -  %d references locators",
-                                                            this.blockDTO.getName(),
+                                                            this.blockLoadDTO.getName(),
                                                             originalLoopInstruction.size(),
                                                             originalReferences.size()));
 
@@ -423,97 +425,6 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
         });
     }
 
-    public List<BlockLoadDTO> loadBlocksForBotJob(int botJobId) {
-        // SQL query to get the block for a specific bot job
-        String query = "SELECT " + "b.id AS block_id, "
-                + "b.block_order_number, "
-                + "b.name AS block_name, "
-                + "b.description AS block_description, "
-                + "b.type_id, "
-                + "b.active, "
-                + "b.wait, "
-                + "bj.id AS bot_job_id, "
-                + "bj.name AS bot_job_name "
-                + "FROM bot_job bj "
-                + "JOIN block b ON b.bot_job_id = bj.id "
-                + "WHERE bj.id = "
-                + botJobId + " " + // Use the botJobId directly in the query string
-                "ORDER BY b.block_order_number ASC";
-
-        // Initialize the necessary data structures
-        blockLoadList.clear();
-        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
-
-        // Use Statement to execute the query
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-
-            while (rs.next()) {
-                // Load the Block information
-                int blockId = rs.getInt("block_id");
-                BlockLoadDTO blockDTO = blockMap.get(blockId);
-
-                if (blockDTO == null) {
-                    blockDTO = new BlockLoadDTO();
-                    blockDTO.setId(blockId);
-                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    blockDTO.setName(rs.getString("block_name"));
-                    blockDTO.setDescription(rs.getString("block_description"));
-                    blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setActive(rs.getBoolean("active"));
-                    blockDTO.setWait(rs.getInt("wait"));
-
-                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
-                    blockDTO.setBotJobName(rs.getString("bot_job_name"));
-
-                    blockMap.put(blockId, blockDTO);
-                    blockLoadList.add(blockDTO);
-                }
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
-        }
-
-        return blockLoadList;
-    }
-
-    public BotJobLoadDTO loadBotJob(int botJobId) {
-        // SQL query to get the block for a specific bot job
-        String query = "SELECT bj.id, "
-                + " bj.name, "
-                + " bj.description, "
-                + " bj.home_banking_id, "
-                + " bj.priority "
-                + " FROM bot_job bj "
-                + " WHERE bj.id = " + botJobId;
-
-        // Initialize the necessary data structures
-
-        // Use Statement to execute the query
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-            BotJobLoadDTO botJobLoadDTO = new BotJobLoadDTO();
-
-            while (rs.next()) {
-                botJobLoadDTO = new BotJobLoadDTO();
-
-                botJobLoadDTO.setId(rs.getInt("id"));
-                botJobLoadDTO.setName(rs.getString("name"));
-                botJobLoadDTO.setDescription(rs.getString("description"));
-                botJobLoadDTO.setPriority(rs.getString("priority"));
-                botJobLoadDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-            }
-            return botJobLoadDTO;
-
-        } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
-        }
-
-        return null;
-    }
-
     private Integer loadNextIdBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
@@ -553,15 +464,15 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
             Integer instructionOrderNumber,
             boolean exportABR,
             String xPath,
-            BlockDTO blockDTO) {
+            BlockLoadDTO blockDTOLoad) {
 
-        BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+        BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
 
         instruction.setName(name);
 
-        instruction.setEncrypted(false);
+        instruction.setCodified(false);
         instruction.setExportToABR(true);
-        instruction.setActive(true);
+        instruction.setInstructionActive(true);
 
         instruction.setInstructionOrderNumber(instructionOrderNumber);
 
@@ -575,7 +486,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
-        instruction.setBlock(blockDTO);
+        instruction.setBlockId(blockLoadDTO.getId());
         instruction.setExportToABR(exportABR);
         instruction.setPath(xPath);
 
@@ -626,7 +537,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
         return newId;
     }
 
-    private int insertInstruction(BlockLoopInstructionDTO instructionDTO) throws SQLException {
+    private int insertInstruction(BlockLoopInstructionLoadDTO instructionDTO) throws SQLException {
         // Generate a Unique-ID for the block
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
@@ -642,9 +553,9 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + "action_custom_max_wait_sec, "
                     + "actions, "
                     + "block_marked, "
-                    + "default_val, "
+                    + "defaultValue, "
                     + "description, "
-                    + "encrypted, "
+                    + "codified, "
                     + "export_to_abr, "
                     + "instruction_order_number, "
                     + "name, "
@@ -655,26 +566,28 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + "path, "
                     + "variable_id, "
                     + "block_id, "
+                    + "bot_job_id, "
                     + "active)\n"
                     + "VALUES ("
                     + instructionDTO.getId()
                     + ", " + instructionDTO.getActionCustomMaxWaitSec()
                     + ", '" + instructionDTO.getActions() + "'"
-                    + ", " + (instructionDTO.isBlockMarked() ? "true" : "false")
+                    + ", " + instructionDTO.getBlockMarked()
                     + "," + instructionDTO.getDefaultValue()
                     + ", '" + instructionDTO.getDescription() + "'"
-                    + ", " + (instructionDTO.isEncrypted() ? 1 : 0)
-                    + ", " + (instructionDTO.getExportToABR() ? 1 : 0)
+                    + ", " + instructionDTO.getCodified()
+                    + ", " + instructionDTO.getExportToABR()
                     + ", " + instructionDTO.getInstructionOrderNumber()
                     + ", '" + instructionDTO.getName() + "'"
                     + ", " + instructionDTO.getOnHoldSeconds()
                     + ", '" + instructionDTO.getOperation() + "'"
-                    + ", " + (instructionDTO.isOptional() ? 1 : 0)
+                    + ", " + instructionDTO.getOptional()
                     + ", " + instructionDTO.getParentId()
                     + ", " + pathValue
                     + ", " + instructionDTO.getVariableId()
-                    + ", " + instructionDTO.getBlock().getId()
-                    + ", " + (instructionDTO.getActive() ? 1 : 0)
+                    + ", " + instructionDTO.getBlockId()
+                    + ", " + instructionDTO.getBotJobId()
+                    + ", " + instructionDTO.getInstructionActive()
                     + ");";
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
@@ -700,7 +613,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
         }
     }
 
-    private boolean insertComponentReferences(InstructionReferenceDTO referenceDTO, int instructionId) {
+    private boolean insertComponentReferences(InstructionReferenceLoadDTO referenceDTO, int instructionId) {
 
         // Generate a Unique-ID for the block
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {

@@ -383,8 +383,8 @@ public class ABRWebElement {
             nameLabel.setText(textLabel);
             nameField.setText(tagName);
         } else {
-            nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
-            nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
+            nameLabel.setText(ABRConstants.defaultValueUE_NO_IDENTIFICATION);
+            nameField.setText(ABRConstants.defaultValueUE_NO_IDENTIFICATION);
         }
         try {
 
@@ -825,8 +825,8 @@ public class ABRWebElement {
                     }
                 } catch (SQLException ex) {
                     ABRLogger.getInstance(Thread.class)
-                            .finer("An exception has occurred deleting Instruction id: " + instructionId + "\nCause: "
-                                    + ex.getCause());
+                            .finer("An exception has occurred deleting Instruction id: " + instructionId + " -> Cause: "
+                                    + ex.getMessage());
                     Platform.runLater(() -> {
                         new ABRAlertScene(
                                 Alert.AlertType.INFORMATION,
@@ -848,7 +848,7 @@ public class ABRWebElement {
                                 .forEach(ref -> ref.setBlockLoopInstructionDTO(null));
                     } catch (Exception ef) {
                         ABRLogger.getInstance(Thread.class)
-                                .severe("getInstructionReferenceDTOList Error: \nCause: " + ef.getMessage());
+                                .severe("getInstructionReferenceDTOList -> Cause: " + ef.getMessage());
                     }
                     try {
                         ABRSharedResources.getInstance()
@@ -863,35 +863,8 @@ public class ABRWebElement {
                                                             .collect(Collectors.toCollection(LinkedBlockingQueue::new));
                                             instructionQueue.forEach(instr -> instr.setInstructionOrderNumber(
                                                     instr.getInstructionOrderNumber() - 1));
-                                            //
-                                            // ABRSharedResources.getInstance()
-                                            //                                                    .updateAllEntity(
-                                            //
-                                            // instructionQueue,
-                                            //
-                                            // BlockLoopInstructionDTO.class,
-                                            //                                                            () ->
-                                            // Platform.runLater(() -> {
-                                            //
-                                            // ABRLogger.getInstance(Thread.class)
-                                            //
-                                            // .finer(
-                                            //
-                                            //      "Success deleting Instruction has occurred deleting Instruction : "
-                                            //
-                                            //              + instrName);
-                                            //                                                            }));
                                         },
                                         ex -> {
-                                            // Handle the exception here (e.g., show an alert)
-                                            //                                    ex.printStackTrace();
-                                            //
-                                            // ABRLogger.getInstance(Thread.class)
-                                            //                                                .finer("Error deleting
-                                            // for: "
-                                            // + instructionId + "\nCause: "
-                                            //                                                        +
-                                            // ex.getMessage());
                                             Platform.runLater(() -> {
                                                 new ABRAlertScene(
                                                         Alert.AlertType.INFORMATION,
@@ -905,7 +878,7 @@ public class ABRWebElement {
                                         });
                     } catch (Exception ex) {
                         ABRLogger.getInstance(Thread.class)
-                                .finer("Error deleting for: " + instructionId + "\nCause: " + ex.getMessage());
+                                .finer("Error deleting for: " + instructionId + " -> Cause: " + ex.getMessage());
                     }
                 }
             }
@@ -936,7 +909,7 @@ public class ABRWebElement {
                                     .updateEntity(instructionToChange, BlockLoopInstructionDTO.class));
 
         } catch (Exception ex) {
-            ABRLogger.getInstance(Thread.class).severe("Error switch Instruction!\nCause: " + ex.getMessage());
+            ABRLogger.getInstance(Thread.class).severe("Error switch Instruction -> Cause: " + ex.getMessage());
         }
     }
 
@@ -945,7 +918,7 @@ public class ABRWebElement {
         BlockLoopInstructionDTO loop = new BlockLoopInstructionDTO();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
-        loop.setEncrypted(false);
+        loop.setCodified(false);
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
         loop.setActive(true);
@@ -1196,7 +1169,8 @@ public class ABRWebElement {
         } else if (hasDiv) {
             setElementText(textLabel, tagname);
         } else {
-            setElementText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION, ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
+            setElementText(
+                    ABRConstants.defaultValueUE_NO_IDENTIFICATION, ABRConstants.defaultValueUE_NO_IDENTIFICATION);
         }
     }
 

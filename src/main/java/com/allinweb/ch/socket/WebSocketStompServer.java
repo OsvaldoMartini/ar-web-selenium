@@ -348,7 +348,9 @@ public class WebSocketStompServer {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
-            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadJustJobBlocks(rowMoveDTO.getBotJobId());
+            //            List<BotJobLoadDTO> botJobLoadList =
+            // performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+            BotJobLoadDTO botJobLoad = performDataBase.loadBotJobById(rowMoveDTO.getBotJobId());
 
             if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
                     && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
@@ -358,7 +360,7 @@ public class WebSocketStompServer {
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
                     ABRNewCommandScene newCommandScene =
-                            new ABRNewCommandScene(rowMoveDTO, botJobLoadList, this.webPageItems);
+                            new ABRNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems);
                     newCommandScene.showModal();
                 });
             } else {
@@ -379,7 +381,7 @@ public class WebSocketStompServer {
                                 null,
                                 parentId,
                                 rowMoveDTO,
-                                botJobLoadList.get(0),
+                                botJobLoad,
                                 false);
 
                     } catch (Exception e) {

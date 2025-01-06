@@ -1,9 +1,10 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ABRNewBotJobPane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
-import com.allinweb.ch.persistence.BotJobDTO;
+import com.allinweb.ch.facade.SingletonSupplier;
 import javafx.scene.Scene;
 import javafx.scene.control.ListView;
 import javafx.stage.Modality;
@@ -11,18 +12,32 @@ import javafx.stage.Stage;
 
 public class ABRNewBotJobScene extends ABRScene {
 
+    // Static final variable to hold the singleton instance
+    protected static final SingletonSupplier<ABRNewBotJobScene> instance = () -> new ABRNewBotJobScene();
+
+    // Public method to access the singleton instance
+    public static ABRNewBotJobScene getInstance() {
+        return instance.get();
+    }
+
+    // Private constructor to prevent instantiation
+    public ABRNewBotJobScene() {
+        // Initialize if necessary
+        super();
+    }
+
     private static final Double SCENE_HEIGHT = 400D;
     private static final Double SCENE_WIDTH = 300D;
     private static final String TITLE = "New Bot Job";
-    ListView<BotJobDTO> viewBotJobListView;
+    ListView<BotJobLoadDTO> viewBotJobListView;
 
-    public ABRNewBotJobScene(ListView<BotJobDTO> viewBotJobListView) {
-        super();
+    public void initialize(ListView<BotJobLoadDTO> viewBotJobListView) {
         this.viewBotJobListView = viewBotJobListView;
     }
 
     @Override
     public IABRPane buildPane() {
+        // Create ABRNewBotJobPane without passing ListView here
         return new ABRNewBotJobPane(viewBotJobListView);
     }
 

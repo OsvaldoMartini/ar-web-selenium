@@ -10,7 +10,8 @@ import javax.persistence.*;
  */
 @Entity
 @Table(name = "saved_block_loop_instruction")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockLoopInstructionSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockLoopInstructionSeq", allocationSize =
+// 1)
 public class SavedBlockLoopInstructionDTO extends BaseDTO {
 
     @Column(name = "instruction_order_number")
@@ -32,13 +33,13 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
     private String operation;
 
     @Column(name = "optional")
-    private int optional;
+    private Boolean optional;
 
     @Column(name = "block_marked")
-    private boolean blockMarked;
+    private Boolean blockMarked;
 
-    @Column(name = "default_val")
-    private String default_val;
+    @Column(name = "default_value")
+    private String defaultValue;
 
     @Column(name = "action_custom_max_wait_sec")
     private Integer actionCustomMaxWaitSec;
@@ -46,11 +47,11 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "on_hold_seconds")
     private Integer onHoldSeconds;
 
-    @Column(name = "encrypted")
-    private Integer encrypted;
+    @Column(name = "codified")
+    private Boolean codified;
 
     @Column(name = "export_to_abr")
-    private Integer exportToABR;
+    private Boolean exportToABR;
 
     @Column(name = "active")
     private Boolean active;
@@ -70,6 +71,18 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
 
     @Column(name = "parent_id")
     private Integer parentId;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "bot_job_id")
+    private BotJobDTO botJobDTO;
+
+    public BotJobDTO getBotJobDTO() {
+        return botJobDTO;
+    }
+
+    public void setBotJobDTO(BotJobDTO botJobDTO) {
+        this.botJobDTO = botJobDTO;
+    }
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "saved_block_loop_instruction_id")
@@ -136,6 +149,14 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
         this.description = description;
     }
 
+    public String getDefaultValue() {
+        return defaultValue;
+    }
+
+    public void setDefaultValue(String defaultValue) {
+        this.defaultValue = defaultValue;
+    }
+
     public String getOperation() {
         return operation;
     }
@@ -152,14 +173,6 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
         this.savedBlocksDTO = savedBlocksDTO;
     }
 
-    public String getDefaultValue() {
-        return default_val;
-    }
-
-    public void setDefaultValue(String default_val) {
-        this.default_val = default_val;
-    }
-
     public Integer getActionCustomMaxWaitSec() {
         return actionCustomMaxWaitSec;
     }
@@ -168,36 +181,36 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
         this.actionCustomMaxWaitSec = actionCustomMaxWaitSec;
     }
 
-    public boolean isOptional() {
-        return optional >= 1;
+    public Boolean getOptional() {
+        return optional;
     }
 
-    public void setOptional(boolean optional) {
-        this.optional = optional ? 1 : 0;
+    public void setOptional(Boolean optional) {
+        this.optional = optional;
     }
 
-    public void setBlockMarked(boolean isMarked) {
-        this.blockMarked = isMarked;
+    public Boolean getCodified() {
+        return codified;
     }
 
-    public boolean isBlockMarked() {
+    public void setCodified(Boolean codified) {
+        this.codified = codified;
+    }
+
+    public Boolean getExportToABR() {
+        return exportToABR;
+    }
+
+    public void setExportToABR(Boolean exportToABR) {
+        this.exportToABR = exportToABR;
+    }
+
+    public Boolean getBlockMarked() {
         return blockMarked;
     }
 
-    public boolean isEncrypted() {
-        return encrypted >= 1;
-    }
-
-    public void setEncrypted(boolean encrypted) {
-        this.encrypted = encrypted ? 1 : 0;
-    }
-
-    public boolean getExportToABR() {
-        return exportToABR >= 1;
-    }
-
-    public void setExportToABR(boolean exportToABR) {
-        this.exportToABR = exportToABR ? 1 : 0;
+    public void setBlockMarked(Boolean blockMarked) {
+        this.blockMarked = blockMarked;
     }
 
     public Boolean getActive() {

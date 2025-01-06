@@ -6,7 +6,7 @@ import javax.persistence.*;
 public class BaseDTO {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO, generator = "idgen")
+    // @GeneratedValue(strategy = GenerationType.AUTO, generator = "idgen")
     @Column(name = "id")
     private int id;
 

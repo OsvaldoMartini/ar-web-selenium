@@ -89,7 +89,7 @@ that would void the explicitly declared functions.
 ```java
 @Entity
 @Table(name = "bot_job")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
+//@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
 public class BotJobDTO extends BaseDTO implements Serializable {
 
     @Column(name = "name")

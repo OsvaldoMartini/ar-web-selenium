@@ -7,6 +7,7 @@ import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -42,9 +43,11 @@ public class ABRSaveBlockPane extends ABRPane {
     private List<SavedBlockLoopInstructionDTO> originalLoopInstruction;
     private List<SavedInstructionReferenceDTO> originalReferences;
 
+    private static final PerformDataBase performDataBase;
     private static final PerformActions performAction;
     // Static block to initialize
     static {
+        performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
     }
 
@@ -174,13 +177,15 @@ public class ABRSaveBlockPane extends ABRPane {
                             .fine("Saving Component Block: " + savedBlocksDTO.getName());
 
                     // Here Always Creating a New Component Block
-                    BlockDTO blockDTO = performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
+                    BlockLoadDTO blockDTO =
+                            performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
                     blockDTO.setTypeId(1);
-                    blockDTO.setBotJob(botJobDTO);
+                    blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setName(savedBlocksDTO.getName());
                     blockDTO.setDescription(savedBlocksDTO.getDescription());
                     blockDTO.setExportFile(savedBlocksDTO.getExportFile());
 
+                    int savedCurrentBotJobId = blockDTO.getBotJobId();
                     int savedCurrentBlockId = createSavedBlock(blockDTO);
 
                     if (savedCurrentBlockId > 0) {
@@ -220,6 +225,7 @@ public class ABRSaveBlockPane extends ABRPane {
                                 task.getInstructionOrderNumber(),
                                 task.getExportToABR(),
                                 task.getPath(),
+                                savedCurrentBotJobId,
                                 savedCurrentBlockId);
 
                         task.setId(newId);
@@ -391,14 +397,15 @@ public class ABRSaveBlockPane extends ABRPane {
             Integer instructionOrderNumber,
             boolean exportToABR,
             String xPath,
-            int savedCurrentBlockId) {
+            Integer savedCurrentBotJobId,
+            Integer savedCurrentBlockId) {
 
         SavedBlockLoopInstructionDTO savedInstruction = new SavedBlockLoopInstructionDTO();
 
         savedInstruction.setName(name);
         savedInstruction.setActive(true);
 
-        savedInstruction.setEncrypted(false);
+        savedInstruction.setCodified(false);
         savedInstruction.setExportToABR(true);
 
         savedInstruction.setInstructionOrderNumber(instructionOrderNumber);
@@ -422,7 +429,7 @@ public class ABRSaveBlockPane extends ABRPane {
         int newId = -1;
 
         try {
-            newId = insertSavedInstruction(savedInstruction, savedCurrentBlockId);
+            newId = performDataBase.insertSavedInstruction(savedInstruction, savedCurrentBotJobId, savedCurrentBlockId);
 
         } catch (SQLException e) {
 
@@ -432,96 +439,6 @@ public class ABRSaveBlockPane extends ABRPane {
                             savedInstruction.getName(), e.getMessage()));
         }
         return newId;
-    }
-
-    private int insertSavedInstruction(SavedBlockLoopInstructionDTO savedInstructionDTO, int savedCurrentBlockId)
-            throws SQLException {
-        // Generate a Unique-ID for the block
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-
-            Integer nextId = loadNextIdSavedInstructionData() + 1;
-            savedInstructionDTO.setId(nextId);
-
-            String pathValue = (savedInstructionDTO.getPath() != null) ? "'" + savedInstructionDTO.getPath() + "'" : "";
-
-            // Build the SQL insert query
-
-            String insertSQL = "INSERT INTO saved_block_loop_instruction(\n" + "id, "
-                    + "action_custom_max_wait_sec, "
-                    + "actions, "
-                    + "block_marked, "
-                    //                    + "default_val, "
-                    + "description, "
-                    + "encrypted, "
-                    + "export_to_abr, "
-                    + "instruction_order_number, "
-                    + "name, "
-                    + "on_hold_seconds, "
-                    + "operation, "
-                    + "optional, "
-                    + "parent_id, "
-                    + "path, "
-                    + "variable_id, "
-                    + "saved_block_id, "
-                    + "active)\n"
-                    + "VALUES ("
-                    + savedInstructionDTO.getId()
-                    + ", " + savedInstructionDTO.getActionCustomMaxWaitSec()
-                    + ", '" + savedInstructionDTO.getActions() + "'"
-                    + ", " + (savedInstructionDTO.isBlockMarked() ? "true" : "false")
-                    //                    + ", '" + savedInstructionDTO.getDefaultValue() + "'"
-                    + ", '" + savedInstructionDTO.getDescription() + "'"
-                    + ", " + (savedInstructionDTO.isEncrypted() ? 1 : 0)
-                    + ", " + (savedInstructionDTO.getExportToABR() ? 1 : 0)
-                    + ", " + savedInstructionDTO.getInstructionOrderNumber()
-                    + ", '" + savedInstructionDTO.getName() + "'"
-                    + ", " + savedInstructionDTO.getOnHoldSeconds()
-                    + ", '" + savedInstructionDTO.getOperation() + "'"
-                    + ", " + (savedInstructionDTO.isOptional() ? 1 : 0)
-                    + ", " + savedInstructionDTO.getParentId()
-                    + ", " + pathValue
-                    + ", " + savedInstructionDTO.getVariableId()
-                    + ", " + savedCurrentBlockId + ", "
-                    + savedInstructionDTO.getActive() // active
-                    + ");";
-
-            int rowsAffected = stmt.executeUpdate(insertSQL);
-            if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
-                        .info(String.format(
-                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
-                                savedInstructionDTO.getId(),
-                                savedInstructionDTO.getName(),
-                                savedInstructionDTO.getActions(),
-                                savedInstructionDTO.getOperation()));
-                return nextId;
-            } else {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
-                        .warning(String.format(
-                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
-                                savedInstructionDTO.getId(),
-                                savedInstructionDTO.getName(),
-                                savedInstructionDTO.getActions(),
-                                savedInstructionDTO.getOperation()));
-                return -1;
-            }
-        }
-    }
-
-    private Integer loadNextIdSavedInstructionData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_block_loop_instruction";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class)
-                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
-        }
-        return null;
     }
 
     private boolean insertComponentReferences(SavedInstructionReferenceDTO referenceDTO, int instructionId) {
@@ -627,17 +544,17 @@ public class ABRSaveBlockPane extends ABRPane {
             }
         } catch (SQLException e) {
             ABRLogger.getInstance(Thread.class)
-                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
+                    .severe(String.format(
+                            "Error loadSavedBlocksForBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
 
         return savedBlockLoadList;
     }
 
-    private int createSavedBlock(BlockDTO blockDTO) {
+    private int createSavedBlock(BlockLoadDTO blockDTO) {
         // Generate a Unique-ID for the block
         Integer nextId = loadNextIdSavedBlockData() + 1;
-        Integer nextBlockOrder =
-                loadNextSavedBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
+        Integer nextBlockOrder = loadNextSavedBlockOrderNumber(blockDTO.getId()) + 1;
 
         // Build the SQL insert query
         String insertSQL =
@@ -647,8 +564,8 @@ public class ABRSaveBlockPane extends ABRPane {
                         + "'" + blockDTO.getDescription() + "', " // description
                         + "'" + blockDTO.getName() + "', " // name
                         + 1 + ", " // type_id
-                        + blockDTO.getBotJobDTO().getId() + ", " // bot_job_id, assuming BotJobDTO has an ID
-                        + blockDTO.getActive() + ", " // active
+                        + blockDTO.getBotJobId() + ", " // bot_job_id, assuming BotJobDTO has an ID
+                        + blockDTO.isActive() + ", " // active
                         + ")";
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
@@ -714,11 +631,11 @@ public class ABRSaveBlockPane extends ABRPane {
                 instruction.setActions(rs.getString("actions"));
                 instruction.setPath(rs.getString("path"));
                 instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getInt("optional"));
+                instruction.setOptional(rs.getBoolean("optional"));
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
                 instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setEncrypted(rs.getInt("encrypted"));
-                instruction.setExportToABR(rs.getInt("export_to_abr"));
+                instruction.setCodified(rs.getBoolean("codified"));
+                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                 instruction.setInstructionActive(rs.getBoolean("active"));
 
                 // Add the instruction to the list

@@ -11,7 +11,7 @@ import org.hibernate.annotations.FetchMode;
 
 @Entity
 @Table(name = "bot_job")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
 public class BotJobDTO extends BaseDTO implements Serializable {
 
     @Column(name = "name", unique = true)

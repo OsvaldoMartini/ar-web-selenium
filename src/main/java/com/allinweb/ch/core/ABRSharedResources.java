@@ -312,7 +312,7 @@ public class ABRSharedResources {
                 callback.execute();
             }
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe("Error removeEntitySync.\nCause: " + e.getMessage());
+            ABRLogger.getInstance(ABRWebDriver.class).severe("Error removeEntitySync -> Cause: " + e.getMessage());
         }
     }
 

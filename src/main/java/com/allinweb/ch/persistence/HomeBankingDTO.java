@@ -7,7 +7,7 @@ import javax.persistence.*;
 
 @Entity()
 @Table(name = "home_banking")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "homeBankingSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "homeBankingSeq", allocationSize = 1)
 public class HomeBankingDTO extends BaseDTO implements Serializable {
     @Column(name = "url")
     private String url;

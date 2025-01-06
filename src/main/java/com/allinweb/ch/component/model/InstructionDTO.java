@@ -13,13 +13,14 @@ public class InstructionDTO {
     private Integer instructionOrderNumber;
     private String instructionName;
     private String description;
+    private String defaultValue;
     private String path;
     private String operation;
     private String actions;
     private Integer parentId;
-    private Integer optional;
+    private Boolean optional;
     private Integer actionCustomMaxWaitSec;
     private Integer onHoldSeconds;
-    private Integer encrypted;
-    private Integer exportToABR;
+    private Boolean codified;
+    private Boolean exportToABR;
 }

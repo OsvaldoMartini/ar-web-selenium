@@ -2,19 +2,16 @@ package com.allinweb.ch.persistence;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 
 @Entity
 @Table(name = "configuration")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "configurationSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "configurationSeq", allocationSize = 1)
 public class ConfigurationDTO extends BaseDTO {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO, generator = "idgen")
+    // @GeneratedValue(strategy = GenerationType.AUTO, generator = "idgen")
     @Column(name = "id")
     private int id;
 

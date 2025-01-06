@@ -12,7 +12,7 @@
 //
 // @Entity
 // @Table(name = "job_run_report")
-// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "excelReportSeq", allocationSize = 1)
+// //@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "excelReportSeq", allocationSize = 1)
 // public class ExcelReportDTO extends BaseDTO {
 //
 //    @Column(name = "TR_BR_ID")

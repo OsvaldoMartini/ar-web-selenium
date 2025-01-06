@@ -6,6 +6,7 @@ import com.allinweb.ch.component.listCell.ComponentListCell;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.pane.base.ABRPane;
@@ -17,8 +18,6 @@ import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.persistence.VariableUserDTO;
@@ -92,10 +91,10 @@ public class ABRViewBotJobPane extends ABRPane {
     private Connection conn = null;
     private ObservableList<VariableUserDTO> variablesList;
 
-    private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
+    private ObservableList<ComboBoxVars> webPageItems;
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
-    private BotJobDTO botJob;
+    private BotJobLoadDTO botJobLoad;
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private ObservableList<BlockDTO> blockDTOObservableList;
     private ListView<BlockDTO> uiBlockList;
@@ -148,11 +147,12 @@ public class ABRViewBotJobPane extends ABRPane {
     private WebEngine webEngine;
     private ABRScene abrScene;
 
-    public ABRViewBotJobPane(BotJobDTO botJob, ABRScene abrScene) {
+    public ABRViewBotJobPane(BotJobLoadDTO botJobLoad, ABRScene abrScene) {
         this.abrScene = abrScene;
-        this.botJob = botJob;
+        this.botJobLoad = botJobLoad;
         // Initialize database IF IS ACCESS TO BE USED
         variablesList = FXCollections.observableArrayList();
+        webPageItems = FXCollections.observableArrayList();
 
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
 
@@ -165,8 +165,9 @@ public class ABRViewBotJobPane extends ABRPane {
         if (!POSTGRES_DB) {
             initializeDatabase();
         }
-        Platform.runLater(() -> loadJobVariables());
-        Platform.runLater(() -> loadWebPageFields());
+
+        Platform.runLater(() -> this.variablesList = performDataBase.loadJobVariables(this.botJobLoad.getId()));
+        Platform.runLater(() -> this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId()));
     }
 
     public void initUIComponents() {
@@ -303,9 +304,9 @@ public class ABRViewBotJobPane extends ABRPane {
 
         double botJobNameWidth = 100;
 
-        this.botJobNameLabel = new Label(this.botJob.getName());
+        this.botJobNameLabel = new Label(this.botJobLoad.getName());
         this.botJobNameLabel.setPrefWidth(botJobNameWidth);
-        this.botJobName = new TextField(this.botJob.getName());
+        this.botJobName = new TextField(this.botJobLoad.getName());
         this.botJobName.setPrefWidth(botJobNameWidth);
 
         this.initComponentUI();
@@ -315,63 +316,65 @@ public class ABRViewBotJobPane extends ABRPane {
         StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
         StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
 
-        this.botJobDescriptionLabel = new Label(this.botJob.getDescription());
+        this.botJobDescriptionLabel = new Label(this.botJobLoad.getDescription());
         this.botJobDescriptionLabel.setPrefWidth(botJobNameWidth);
-        this.botJobDescription = new TextField(this.botJob.getDescription());
+        this.botJobDescription = new TextField(this.botJobLoad.getDescription());
         this.botJobDescription.setPrefWidth(botJobNameWidth);
 
         StackPane botJobDescriptionGroup =
                 new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescription});
 
         //        this.blockDTOObservableList = FXCollections.observableArrayList(ABRSharedResources.getInstance()
-        //                .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() == botJob.getId()));
+        //                .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() ==
+        // this.botJobLoad.getId()));
 
         // Send a message to all connected clients after 5 seconds
         //        WebSocketStompServer.sendMessageToAll(jsonData);
         List<InstructionDTO> listForDeletion =
-                performDataBase.getBlockLoopInstructionIdsWithNullBlock(this.botJob.getId());
+                performDataBase.getBlockLoopInstructionIdsWithNullBlock(this.botJobLoad.getId());
         for (InstructionDTO instruction : listForDeletion) {
-            performDataBase.deleteInstruction(this.botJob.getId(), instruction);
+            performDataBase.deleteInstruction(this.botJobLoad.getId(), instruction);
         }
-        performDataBase.deleteNullBlocks(this.botJob.getId());
-        performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(this.botJob.getId()), true);
+        performDataBase.deleteNullBlocks(this.botJobLoad.getId());
+        performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(this.botJobLoad.getId()), true);
 
-        this.botLoadJobs = performDataBase.loadBlockAll(botJob.getId());
+        this.botLoadJobs = performDataBase.loadBotJobComplete(this.botJobLoad.getId());
 
         Gson gson = new Gson();
         String jsonData = "";
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
 
-        if (botLoadJobs.size() > 0) {
-            createExcelDataFile(botLoadJobs, this.botJob.getName(), this.botJob.getId());
+        if (this.botLoadJobs.size() > 0) {
+            createExcelDataFile();
 
             List<InstructionDTO> rowList = null;
-            for (BlockLoadDTO block : botLoadJobs.get(0).getBlockLoadDTOList()) {
-                rowList = getInstructionsByBlockId(botLoadJobs.get(0).getId(), block.getId());
+            for (BlockLoadDTO block : this.botLoadJobs.get(0).getBlockLoadDTOList()) {
+                rowList = getInstructionsByBlockId(this.botLoadJobs.get(0).getId(), block.getId());
                 reorderInstructions(rowList);
             }
 
-            List<BlockLoopInstructionLoadDTO> blockLoopInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
-                    .flatMap(blockLoadDTO -> blockLoadDTO.getBlockLoopInstructionLoadDTOS().stream()
-                            .map(blockLoopInstructionDTO -> new BlockLoopInstructionLoadDTO(
-                                    botLoadJobs.get(0).getId(), // Use botJobLoadDTO instead of botJob
-                                    botLoadJobs.get(0).getName(),
-                                    blockLoopInstructionDTO.getId(),
-                                    blockLoopInstructionDTO.getInstructionOrderNumber(),
-                                    blockLoopInstructionDTO.getName(),
-                                    blockLoopInstructionDTO.getDescription(),
-                                    blockLoadDTO.getId(), // block ID from BlockLoadDTO
-                                    blockLoadDTO.getBlockOrderNumber(),
-                                    blockLoadDTO.getName(),
-                                    blockLoadDTO.isActive(),
-                                    blockLoopInstructionDTO.getInstructionActive(),
-                                    blockLoadDTO.getWait(),
-                                    blockLoopInstructionDTO.getActions(),
-                                    blockLoopInstructionDTO.getParentId(),
-                                    blockLoopInstructionDTO.getOperation(),
-                                    blockLoadDTO.getExportFile())))
-                    .collect(Collectors.toList());
+            List<BlockLoopInstructionLoadDTO> blockLoopInstructions =
+                    this.botLoadJobs.get(0).getBlockLoadDTOList().stream()
+                            .flatMap(itemBlock -> itemBlock.getBlockLoopInstructionLoadDTOS().stream()
+                                    .map(blockLoopInstructionDTO -> new BlockLoopInstructionLoadDTO(
+                                            itemBlock.getBotJobId(), // botJobId
+                                            itemBlock.getBotJobName(), // botJob Name
+                                            blockLoopInstructionDTO.getId(), // Instruction Id
+                                            blockLoopInstructionDTO.getInstructionOrderNumber(), // Instruction Order
+                                            blockLoopInstructionDTO.getName(), // Instruction Name
+                                            blockLoopInstructionDTO.getDescription(), // Instruction Description
+                                            itemBlock.getId(), // block ID
+                                            itemBlock.getBlockOrderNumber(), // block Order
+                                            itemBlock.getName(), // block Name
+                                            itemBlock.isActive(),
+                                            blockLoopInstructionDTO.getInstructionActive(),
+                                            itemBlock.getWait(),
+                                            blockLoopInstructionDTO.getActions(),
+                                            blockLoopInstructionDTO.getParentId(),
+                                            blockLoopInstructionDTO.getOperation(),
+                                            itemBlock.getExportFile())))
+                            .collect(Collectors.toList());
 
             // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
             Set<Integer> parentIdsForRefreshLoop = blockLoopInstructions.stream()
@@ -405,14 +408,14 @@ public class ABRViewBotJobPane extends ABRPane {
         } else {
 
             BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-            botJobDTO.setId(this.botJob.getId());
-            botJobDTO.setName(this.botJob.getName());
+            botJobDTO.setId(this.botJobLoad.getId());
+            botJobDTO.setName(this.botJobLoad.getName());
             botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-            botLoadJobs.add(botJobDTO);
+            this.botLoadJobs.add(botJobDTO);
 
-            createExcelDataFile(botLoadJobs, this.botJob.getName(), this.botJob.getId());
+            createExcelDataFile();
 
-            PayloadJson payload = new PayloadJson(this.botJob.getId(), this.botJob.getName(), 0);
+            PayloadJson payload = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
             // Convert the object to JSON using Gson
             jsonData = gson.toJson(payload);
         }
@@ -444,31 +447,48 @@ public class ABRViewBotJobPane extends ABRPane {
 
     }
 
-    private void createExcelDataFile(List<BotJobLoadDTO> botLoadJobs, String botJobName, int botJobId) {
+    private void createExcelDataFile() {
 
         // Retrieve the updated BotJobDTO
-        BotJobDTO botJobUpdated = (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
+        //        BotJobDTO botJobUpdated = (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class,
+        // botJobId);
 
-        String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-        String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ABRConstants.FILE_FORMAT_EXCEL);
+        if (this.botLoadJobs.size() > 0) {
 
-        // Create a File object
-        File fileCheck = new File(fileName);
-        if (!fileCheck.exists() && !fileCheck.isDirectory()) {
+            String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+            String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ABRConstants.FILE_FORMAT_EXCEL);
 
-            // Check if the Excel file already exists
-            ExtractedData extractedData = ExcelWriter.isFileExists(botJobName, botLoadJobs);
+            // Create a File object
+            File fileCheck = new File(fileName);
+            if (!fileCheck.exists() && !fileCheck.isDirectory()) {
 
-            // Create a task for generating the Excel file
-            Task<Void> excelTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelWriter().generateExcelFiles(botJobUpdated, botLoadJobs, extractedData, false);
-                    return null;
-                }
-            };
+                // Check if the Excel file already exists
+                ExtractedData extractedData =
+                        ExcelWriter.isFileExists(botLoadJobs.get(0).getName(), botLoadJobs);
 
-            new Thread(excelTask).start();
+                // Create a task for generating the Excel file
+                Task<Void> excelTask = new Task<>() {
+                    @Override
+                    protected Void call() throws Exception {
+                        new ExcelWriter().generateExcelFiles(botLoadJobs, extractedData, false);
+                        return null;
+                    }
+                };
+
+                new Thread(excelTask).start();
+            }
+        } else {
+
+            Text variableText1Styled = new Text("Not Able to Create a Excel File");
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer.getChildren().add(variableText1Styled);
+
+            performDataBase.showAlertCombinedVBOX(
+                    Alert.AlertType.WARNING, "Not Bot Job", "Bot-Job List is empty!", null, combinedTextContainer);
         }
     }
 
@@ -494,9 +514,9 @@ public class ABRViewBotJobPane extends ABRPane {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
 
-            new ABRViewBotJobScene(botJob.getId()).show();
+            new ABRViewBotJobScene(this.botJobLoad.getId()).show();
         });
-        saveAsBotJobButton.setOnMouseClicked(e -> new ABRSaveBotJobAsScene(botJob.getId()).show());
+        saveAsBotJobButton.setOnMouseClicked(e -> new ABRSaveBotJobAsScene(this.botJobLoad.getId()).show());
         this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
         this.botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
         this.botJobName.visibleProperty().bind(this.isEditingBotJob);
@@ -508,21 +528,21 @@ public class ABRViewBotJobPane extends ABRPane {
             this.isEditingBotJob.set(false);
             this.botJobNameLabel.setText(this.botJobName.getText());
             this.botJobDescriptionLabel.setText(this.botJobDescription.getText());
-            this.botJob.setName(this.botJobNameLabel.getText());
-            this.botJob.setDescription(this.botJobDescriptionLabel.getText());
+            this.botJobLoad.setName(this.botJobNameLabel.getText());
+            this.botJobLoad.setDescription(this.botJobDescriptionLabel.getText());
 
-            boolean botJobUpdate =
-                    performDataBase.updateBotJobNme(botJob.getId(), botJobName.getText(), botJobDescription.getText());
+            boolean botJobUpdate = performDataBase.updateBotJobNme(
+                    this.botJobLoad.getId(), botJobName.getText(), botJobDescription.getText());
 
-            //            ABRSharedResources.getInstance().updateEntity(this.botJob, BotJobDTO.class);
+            //            ABRSharedResources.getInstance().updateEntity(this.botJobLoad, BotJobDTO.class);
 
             ABRSharedResources.getInstance().changeDbConnection();
 
-            Text variableText1Styled = new Text(String.format("Bot Job \"%s\" Updated", botJob.getName()));
+            Text variableText1Styled = new Text(String.format("Bot Job \"%s\" Updated", this.botJobLoad.getName()));
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
             if (!botJobUpdate) {
-                variableText1Styled = new Text(String.format("Bot Job \"%s\" NOT Updated!", botJob.getName()));
+                variableText1Styled = new Text(String.format("Bot Job \"%s\" NOT Updated!", this.botJobLoad.getName()));
                 variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
             }
 
@@ -553,15 +573,16 @@ public class ABRViewBotJobPane extends ABRPane {
 
         this.generateExcelButton.setOnMouseClicked((e) -> {
             // Cache entities from the database
-            ABRSharedResources.getInstance().changeDbConnection();
+            //            ABRSharedResources.getInstance().changeDbConnection();
 
-            performDataBase.loadBlockAll(this.botJob.getId());
+            this.botLoadJobs = performDataBase.loadBotJobAndBlocks(this.botJobLoad.getId());
 
             // Retrieve the updated BotJobDTO
-            BotJobDTO botJobUpdated =
-                    (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJob.getId());
+            //            BotJobDTO botJobUpdated = (BotJobDTO)
+            //                    ABRSharedResources.getInstance().getEntityById(BotJobDTO.class,
+            // this.botJobLoad.getId());
 
-            List<BlockDTO> blockList = botJob.getBlocks();
+            //            List<BlockLoadDTO> blockList = this.botJobLoad.getBlockLoadDTOList();
 
             //            boolean hasInputFields = blockList.stream()
             //                    .flatMap(
@@ -571,7 +592,8 @@ public class ABRViewBotJobPane extends ABRPane {
             //                    .anyMatch(instruction -> instruction.getActions() != null
             //                            && instruction.getActions().startsWith("I:"));
 
-            Text variableText1Styled = new Text("File name: " + this.botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL);
+            Text variableText1Styled =
+                    new Text("File name: " + this.botJobLoad.getName() + ABRConstants.FILE_FORMAT_EXCEL);
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
 
             VBox combinedTextContainer = new VBox();
@@ -582,7 +604,7 @@ public class ABRViewBotJobPane extends ABRPane {
             //                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
             //
             //                variableText1Styled =
-            //                        new Text("Excel Data File: " + this.botJob.getName() +
+            //                        new Text("Excel Data File: " + this.botJobLoad.getName() +
             // ABRConstants.FILE_FORMAT_EXCEL);
             //                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
             //
@@ -602,7 +624,7 @@ public class ABRViewBotJobPane extends ABRPane {
             combinedTextContainer.getChildren().add(variableText1Styled);
 
             // Check if the Excel file already exists
-            ExtractedData extractedData = ExcelWriter.isFileExists(this.botJob.getName(), this.botLoadJobs);
+            ExtractedData extractedData = ExcelWriter.isFileExists(this.botJobLoad.getName(), this.botLoadJobs);
 
             if (extractedData.getErrorMessage() != null) {
 
@@ -616,7 +638,7 @@ public class ABRViewBotJobPane extends ABRPane {
             Task<Void> excelTask = new Task<>() {
                 @Override
                 protected Void call() throws Exception {
-                    new ExcelWriter().generateExcelFiles(botJobUpdated, botLoadJobs, extractedData, true);
+                    new ExcelWriter().generateExcelFiles(botLoadJobs, extractedData, true);
                     return null;
                 }
             };
@@ -660,13 +682,13 @@ public class ABRViewBotJobPane extends ABRPane {
             }
         });
         this.openExcelFilterPanelButton.setOnMouseClicked((e) -> {
-            (new ABRExportFilterScene(this.botJob)).show();
+            (new ABRExportFilterScene(this.botJobLoad)).show();
         });
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
             String enginePath = managerProps.getProperty(ABRPropertyEnum.PATH_ENGINE) + "\\ABR_Web_Engine.jar";
             String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-            excelPath = excelPath + "\\" + this.botJob.getName() + ".xlsx";
+            excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
             if (!(new File(excelPath)).exists()) {
                 new ABRAlertScene(
                         AlertType.WARNING,
@@ -682,8 +704,8 @@ public class ABRViewBotJobPane extends ABRPane {
                 "-jar",
                 "\"" + enginePath + "\"",
                 "execute/j",
-                String.valueOf(this.botJob.getHomeBanking().getId()),
-                String.valueOf(this.botJob.getId()),
+                String.valueOf(this.botJobLoad.getHomeBankingLoadDTO().getId()),
+                String.valueOf(this.botJobLoad.getId()),
                 "\"" + excelPath + "\"",
                 "-c",
                 ABRPropertyManager.getConfigurationFileName()
@@ -729,8 +751,8 @@ public class ABRViewBotJobPane extends ABRPane {
         });
         this.openExcelFileButton.setOnMouseClicked((e) -> {
             String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-            String fileName =
-                    String.format("%s/%s%s", excelFolderPath, botJob.getName(), ABRConstants.FILE_FORMAT_EXCEL);
+            String fileName = String.format(
+                    "%s/%s%s", excelFolderPath, this.botJobLoad.getName(), ABRConstants.FILE_FORMAT_EXCEL);
 
             //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
@@ -758,7 +780,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 try {
                     String excelFilePath =
                             ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-                    excelFilePath = excelFilePath + "\\" + this.botJob.getName() + ".xlsx";
+                    excelFilePath = excelFilePath + "\\" + this.botJobLoad.getName() + ".xlsx";
                     File file = new File(excelFilePath);
                     Desktop.getDesktop().open(file);
                     //                    Runtime.getRuntime().exec("rundll32 url.dll, FileProtocolHandler " +
@@ -803,16 +825,25 @@ public class ABRViewBotJobPane extends ABRPane {
     }
 
     private void executeScannerTask() {
+
+        HomeBankingLoadDTO homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+
         try {
             Platform.runLater(() -> {
                 try {
                     // Call the ABRScannedElementScene here
                     ABRScannedElementScene scene = abrScannedElementScene.initialize(
-                            this.botJob.getHomeBanking().getPriority(),
-                            this.botJob.getId(),
-                            this.botJob.getBlocks() != null
-                                            && this.botJob.getBlocks().size() > 0
-                                    ? this.botJob.getBlocks().get(0).getId()
+                            homeBankingLoadDTO.getPriority(),
+                            this.botJobLoad.getId(),
+                            this.botJobLoad.getBlockLoadDTOList() != null
+                                            && this.botJobLoad
+                                                            .getBlockLoadDTOList()
+                                                            .size()
+                                                    > 0
+                                    ? this.botJobLoad
+                                            .getBlockLoadDTOList()
+                                            .get(0)
+                                            .getId()
                                     : null);
 
                     scene.show(); // Make sure the scene is shown
@@ -828,13 +859,13 @@ public class ABRViewBotJobPane extends ABRPane {
     private void handleExceptionScan(Exception ex) {
         // Log the exception
         ABRLogger.getInstance(ABRWebDriver.class)
-                .severe("ERROR Calling openScannerButton\n" + ex.getMessage() + "\nRoot cause: " + ex.getMessage());
+                .severe("ERROR Calling openScannerButton -> Cause: " + ex.getMessage());
 
         // Display the error message to the user
         Platform.runLater(() -> {
             JOptionPane.showMessageDialog(
                     null,
-                    "An error has occurred Calling SCAN: \nError: " + ex.getMessage() + "\nCause: " + ex.getMessage(),
+                    "An error has occurred Calling SCAN: \nCause: " + ex.getMessage(),
                     "Error calling in SCAN",
                     JOptionPane.ERROR_MESSAGE);
         });
@@ -925,96 +956,8 @@ public class ABRViewBotJobPane extends ABRPane {
         this.componentContainer.setManaged(false);
     }
 
-    public BotJobDTO getBotJobDTO() {
-        return this.botJob;
-    }
-
-    private void addWaitTask(Integer secondsToWait) {
-        Alert alert = new Alert(
-                Alert.AlertType.CONFIRMATION,
-                "Are you sure you want to add a wait of " + secondsToWait + " seconds to the botjob?",
-                ButtonType.YES,
-                ButtonType.NO);
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-            Task<Void> waitTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    List<BlockLoopInstructionDTO> instructionList =
-                            botJob.getBlocks().get(0).getBlockLoopInstructions();
-                    BlockLoopInstructionDTO waitInstruction = new BlockLoopInstructionDTO();
-                    waitInstruction.setName("Wait " + secondsToWait + "second(s)");
-                    waitInstruction.setDescription("Waiting action");
-                    waitInstruction.setEncrypted(false);
-                    waitInstruction.setInstructionOrderNumber(instructionList.size());
-                    waitInstruction.setOptional(false);
-                    waitInstruction.setActions(ABRConstants.HOLD);
-                    waitInstruction.setOnHoldSeconds(secondsToWait);
-                    waitInstruction.setBlock(botJob.getBlocks().get(0));
-                    waitInstruction.setExportToABR(false);
-                    waitInstruction.setActive(true);
-                    ABRSharedResources.getInstance()
-                            .addEntity(
-                                    waitInstruction,
-                                    BlockLoopInstructionDTO.class,
-                                    () -> new ABRAlertScene(
-                                            Alert.AlertType.INFORMATION,
-                                            "Instruction Added",
-                                            "Instruction Wait " + secondsToWait
-                                                    + " second(s) has been added successfully",
-                                            ButtonType.OK));
-                    return null;
-                }
-            };
-            new Thread(waitTask).start();
-        }
-    }
-
-    private void addInstruction(String name, String operation, Integer varId) {
-        Alert alert = new Alert(
-                Alert.AlertType.CONFIRMATION,
-                "Are you sure you want to add a " + name + " to the botjob?",
-                ButtonType.YES,
-                ButtonType.NO);
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
-            Task<Void> waitTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    List<BlockLoopInstructionDTO> instructionList =
-                            botJob.getBlocks().get(0).getBlockLoopInstructions();
-                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
-                    instruction.setName(name);
-                    instruction.setOperation(operation);
-                    instruction.setVariableId(varId);
-                    instruction.setEncrypted(false);
-                    instruction.setInstructionOrderNumber(instructionList.size());
-                    instruction.setOptional(false);
-                    if (name.equalsIgnoreCase("setValue")) {
-                        instruction.setActions(ABRConstants.SET_VALUE);
-                    } else if (name.equalsIgnoreCase("getValue")) {
-                        instruction.setActions(ABRConstants.GET_VALUE);
-                    } else if (name.equalsIgnoreCase("check")) {
-                        instruction.setActions(ABRConstants.CHECK_VALUE);
-                    }
-                    instruction.setOnHoldSeconds(1);
-                    instruction.setBlock(botJob.getBlocks().get(0));
-                    instruction.setExportToABR(false);
-                    instruction.setActive(true);
-                    ABRSharedResources.getInstance()
-                            .addEntity(
-                                    instruction,
-                                    BlockLoopInstructionDTO.class,
-                                    () -> new ABRAlertScene(
-                                            Alert.AlertType.INFORMATION,
-                                            "Instruction Added",
-                                            "Instruction " + instruction.getName() + " has been added successfully",
-                                            ButtonType.OK));
-                    return null;
-                }
-            };
-            new Thread(waitTask).start();
-        }
+    public BotJobLoadDTO getBotJobDTO() {
+        return this.botJobLoad;
     }
 
     private void initializeDatabase() {
@@ -1037,76 +980,6 @@ public class ABRViewBotJobPane extends ABRPane {
         } else {
             ABRLogger.getInstance(ABRViewBotJobPane.class)
                     .info(String.format("Database '%s' Already exist!", dbFile.getName()));
-        }
-    }
-
-    private void loadJobVariables() {
-        variablesList.clear();
-        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
-                + " FROM variable vars "
-                + " left join block_loop_instruction blk on blk.variable_id = vars.id "
-                + " where bot_job_id = " + this.botJob.getId()
-                //                                + " and  block_loop_instruction_id = " + instructionId
-                + " group by vars.id, vars.type, vars.Name, vars.value ";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                int id = rs.getInt("ID");
-                String type = rs.getString("type");
-                String name = rs.getString("name");
-                String value = rs.getString("value");
-                String usedVars = rs.getString("UsedVars");
-                variablesList.add(new VariableUserDTO(id, type, name, value, this.botJob.getId(), -1, usedVars));
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadJobVariables  \nError: " + e.getMessage());
-        }
-    }
-
-    private void loadWebPageFields() {
-        webPageItems.clear();
-        String selectSQL = " SELECT  "
-                + "  bj.id AS bot_job_id,  "
-                + "  bli.id AS block_loop_instruction_id,  "
-                + "  bli.instruction_order_number,  "
-                + "  bli.actions,  "
-                + "  bli.name AS instruction_name,  "
-                + "  bli.path,  "
-                + "  bli.operation      "
-                + " FROM bot_job bj  "
-                + " LEFT JOIN block b ON b.bot_job_id = bj.id  "
-                + " JOIN block_loop_instruction bli ON bli.block_id = b.id  "
-                + " where bj.id = " + this.botJob.getId()
-                + "   and operation is null  "
-                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number ASC;";
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                int id = rs.getInt("block_loop_instruction_id");
-                String name = rs.getString("instruction_name");
-                String actions = rs.getString("actions");
-
-                // Filter out "SET", "GET", "CK", and "H"
-                if (actions != null
-                        && !actions.equalsIgnoreCase(ABRConstants.SET_VALUE)
-                        && !actions.equalsIgnoreCase(ABRConstants.GET_VALUE)
-                        && !actions.equalsIgnoreCase(ABRConstants.CHECK_VALUE)
-                        && !actions.equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)
-                        && !actions.equalsIgnoreCase(ABRConstants.SCREEN)
-                        && !actions.equalsIgnoreCase(ABRConstants.QUIT)
-                        && !actions.equalsIgnoreCase(ABRConstants.HOLD)
-                        && !actions.equalsIgnoreCase(ABRConstants.IF)
-                        && !actions.equalsIgnoreCase(ABRConstants.ELSE)
-                        && !actions.equalsIgnoreCase(ABRConstants.ENDIF)
-                        && !actions.equalsIgnoreCase(ABRConstants.GOTO)) {
-                    webPageItems.add(new ComboBoxVars(name, name, id, -1));
-                }
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRWebDriver.class)
-                    .severe(String.format(
-                            "loadWebPageFields - Error selecting Web Page Fields.\n Error: %s", e.getMessage()));
         }
     }
 
@@ -1194,11 +1067,11 @@ public class ABRViewBotJobPane extends ABRPane {
                 instruction.setActions(rs.getString("actions"));
                 instruction.setPath(rs.getString("path"));
                 instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getInt("optional"));
+                instruction.setOptional(rs.getBoolean("optional"));
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
                 instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setEncrypted(rs.getInt("encrypted"));
-                instruction.setExportToABR(rs.getInt("export_to_abr"));
+                instruction.setCodified(rs.getBoolean("codified"));
+                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                 instruction.setInstructionActive(rs.getBoolean("active"));
 
                 // Add the instruction to the list
@@ -1276,7 +1149,7 @@ public class ABRViewBotJobPane extends ABRPane {
         instruction1.setDefaultValue("default1");
         instruction1.setActionCustomMaxWaitSec(10);
         instruction1.setOnHoldSeconds(5);
-        instruction1.setEncrypted(false);
+        instruction1.setCodified(false);
         instruction1.setExportToABR(true);
         instruction1.setActive(true);
 
@@ -1290,7 +1163,7 @@ public class ABRViewBotJobPane extends ABRPane {
         instruction2.setDefaultValue("default2");
         instruction2.setActionCustomMaxWaitSec(20);
         instruction2.setOnHoldSeconds(10);
-        instruction2.setEncrypted(false);
+        instruction2.setCodified(false);
         instruction2.setExportToABR(true);
         instruction1.setActive(true);
 

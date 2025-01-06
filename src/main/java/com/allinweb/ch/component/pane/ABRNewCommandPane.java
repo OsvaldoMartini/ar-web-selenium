@@ -29,10 +29,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -135,6 +132,7 @@ public class ABRNewCommandPane extends ABRPane {
     double comboOperatorWidth = 50;
     double comboTimesWidth = 70;
     double comboLoopsWidth = 80;
+    boolean variablesDisable = false;
 
     Button addNewInstructionButton;
     Button cancelButton;
@@ -156,9 +154,10 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxVars> comboBoxWebPage;
     private ObservableList<ComboBoxVars> webPageItems;
 
+    private BotJobLoadDTO botJobLoad;
     private List<BotJobLoadDTO> botJobLoadList;
 
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+    private List<BlockLoadDTO> blockLoadList;
     private ComboBox<ComboBoxVars> comboBoxAllBlocks;
     private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
 
@@ -169,10 +168,23 @@ public class ABRNewCommandPane extends ABRPane {
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
     public ABRNewCommandPane(
-            RowMoveDTO rowMoveDTO, List<BotJobLoadDTO> botJobLoadList, ObservableList<ComboBoxVars> webPageItems) {
+            RowMoveDTO rowMoveDTO, BotJobLoadDTO botJobLoad, ObservableList<ComboBoxVars> webPageItems) {
         this.rowMoveDTO = rowMoveDTO;
-        this.botJobLoadList = botJobLoadList;
+        this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
+
+        if (this.botJobLoad.getBlockLoadDTOList() == null) {
+            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+            this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
+        } else if (this.botJobLoad.getBlockLoadDTOList() != null
+                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
+            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+            this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
+        }
+
+        if (webPageItems.size() == 0) {
+            variablesDisable = true;
+        }
 
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
 
@@ -683,6 +695,8 @@ public class ABRNewCommandPane extends ABRPane {
         variableButton = componentBuilder.buildButton(
                 "Variables", ABRConstants.SPACE_L, ABRConstants.ICON_VARIABLES, ABRConstants.SPACE_M, Insets.EMPTY);
 
+        variableButton.setDisable(variablesDisable);
+
         addPauseButton = componentBuilder.buildButton(
                 "", ABRConstants.SPACE_L, ABRConstants.ICON_PAUSE, ABRConstants.SPACE_M, new Insets(5));
         addWaitButton30 = componentBuilder.buildButton(
@@ -846,19 +860,19 @@ public class ABRNewCommandPane extends ABRPane {
     @Override
     public void initUIBehaviour() {
         addPauseButton.setOnAction(
-                e -> addInstruction("PAUSE", "PAUSE Action", ABRConstants.PAUSE, 0, "", null, null, rowMoveDTO));
-        addWaitButton30.setOnAction(e -> addInstruction(
+                e -> insertNewInstruction("PAUSE", "PAUSE Action", ABRConstants.PAUSE, 0, "", null, null, rowMoveDTO));
+        addWaitButton30.setOnAction(e -> insertNewInstruction(
                 "Wait 30second(s)", "Waiting action", ABRConstants.HOLD, 30, "", null, null, rowMoveDTO));
-        addWaitButton15.setOnAction(e -> addInstruction(
+        addWaitButton15.setOnAction(e -> insertNewInstruction(
                 "Wait 15second(s)", "Waiting action", ABRConstants.HOLD, 15, "", null, null, rowMoveDTO));
-        addWaitButton5.setOnAction(e ->
-                addInstruction("Wait 5second(s)", "Waiting action", ABRConstants.HOLD, 5, "", null, null, rowMoveDTO));
-        addWaitButton2.setOnAction(e ->
-                addInstruction("Wait 2second(s)", "Waiting action", ABRConstants.HOLD, 2, "", null, null, rowMoveDTO));
-        addCloseActionButton.setOnAction(e ->
-                addInstruction("Close Browser", "Close Browser", ABRConstants.QUIT, 0, "", null, null, rowMoveDTO));
+        addWaitButton5.setOnAction(e -> insertNewInstruction(
+                "Wait 5second(s)", "Waiting action", ABRConstants.HOLD, 5, "", null, null, rowMoveDTO));
+        addWaitButton2.setOnAction(e -> insertNewInstruction(
+                "Wait 2second(s)", "Waiting action", ABRConstants.HOLD, 2, "", null, null, rowMoveDTO));
+        addCloseActionButton.setOnAction(e -> insertNewInstruction(
+                "Close Browser", "Close Browser", ABRConstants.QUIT, 0, "", null, null, rowMoveDTO));
 
-        addScreenButton.setOnAction(e -> addInstruction(
+        addScreenButton.setOnAction(e -> insertNewInstruction(
                 "Screenshot Browser", "Screenshot Browser", ABRConstants.SCREEN, 0, "", null, null, rowMoveDTO));
 
         comboBoxOperator.setVisible(false);
@@ -1318,7 +1332,7 @@ public class ABRNewCommandPane extends ABRPane {
                                 ? "EMPTY"
                                 : comboBoxVars.getValue().getValue();
                 //                variableText3.setText(variableValue);
-                addInstruction(
+                insertNewInstruction(
                         "SetValue",
                         "SetValue",
                         ABRConstants.SET_VALUE,
@@ -1328,7 +1342,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getInstructionId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
-                addInstruction(
+                insertNewInstruction(
                         "GetValue",
                         "GetValue",
                         ABRConstants.GET_VALUE,
@@ -1344,7 +1358,7 @@ public class ABRNewCommandPane extends ABRPane {
                                 ? "EMPTY"
                                 : comboBoxVars.getValue().getValue();
 
-                addInstruction(
+                insertNewInstruction(
                         "Check",
                         "Check Value",
                         ABRConstants.CHECK_VALUE,
@@ -1355,7 +1369,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getInstructionId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("excelWrite")) {
-                addInstruction(
+                insertNewInstruction(
                         "ExcelWrite",
                         "ExcelWrite",
                         ABRConstants.EXTRACT_FIELD,
@@ -1365,9 +1379,10 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getInstructionId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh")) {
-                addInstruction("Refresh", "Refresh", ABRConstants.REFRESH_ONLY, 10, "", null, null, this.rowMoveDTO);
+                insertNewInstruction(
+                        "Refresh", "Refresh", ABRConstants.REFRESH_ONLY, 10, "", null, null, this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Loop")) {
-                addInstruction(
+                insertNewInstruction(
                         "LOOP",
                         "LOOP",
                         ABRConstants.LOOP,
@@ -1377,7 +1392,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxWebPage.getValue().getVarId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh Loop")) {
-                addInstruction(
+                insertNewInstruction(
                         "Refresh Loop",
                         "Refresh Loop",
                         ABRConstants.REFRESH_LOOP,
@@ -1388,7 +1403,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxWebPage.getValue().getVarId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("GO TO")) {
-                addInstruction(
+                insertNewInstruction(
                         "GOTO",
                         "GOTO",
                         ABRConstants.GOTO,
@@ -1398,7 +1413,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF")) {
-                addInstruction(
+                insertNewInstruction(
                         "IF",
                         "IF",
                         ABRConstants.IF,
@@ -1876,7 +1891,7 @@ public class ABRNewCommandPane extends ABRPane {
         String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "
                 + " left join block_loop_instruction blk on blk.variable_id = vars.id "
-                + " where bot_job_id = " + rowMoveDTO.getBotJobId()
+                + " where vars.bot_job_id = " + rowMoveDTO.getBotJobId()
                 + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
@@ -1891,7 +1906,8 @@ public class ABRNewCommandPane extends ABRPane {
                         new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            performAction.errorMessage(
+                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null);
         }
     }
 
@@ -2037,7 +2053,7 @@ public class ABRNewCommandPane extends ABRPane {
         }
     }
 
-    private void addInstruction(
+    private void insertNewInstruction(
             String name,
             String description,
             String actions,
@@ -2068,8 +2084,13 @@ public class ABRNewCommandPane extends ABRPane {
 
         // Create and show alert inside Platform.runLater
 
-        if (this.botJobLoadList.size() == 0) {
-            this.botJobLoadList = loadBotJobs(rowMoveDTO.getBotJobId());
+        if (this.botJobLoad.getBlockLoadDTOList() == null) {
+            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+            this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
+        } else if (this.botJobLoad.getBlockLoadDTOList() != null
+                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
+            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+            this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
         }
 
         // Combine the texts using TextFlow
@@ -2088,6 +2109,7 @@ public class ABRNewCommandPane extends ABRPane {
             regularText4.setText("");
             variableText1.setText("");
             variableText2.setText(name);
+            variableText2.setVisible(true);
             variableText3.setText("");
         }
 
@@ -2110,15 +2132,15 @@ public class ABRNewCommandPane extends ABRPane {
 
         Text variableText1Copy = new Text(variableText1.getText());
         variableText1Copy.setStyle(variableText1.getStyle());
-        variableText1Copy.setVisible((variableText1.isVisible()));
+        variableText1Copy.setVisible(variableText1.isVisible());
 
         Text variableText2Copy = new Text(variableText2.getText());
         variableText2Copy.setStyle(variableText2.getStyle());
-        variableText2Copy.setVisible((variableText2.isVisible()));
+        variableText2Copy.setVisible(variableText2.isVisible());
 
         Text variableText3Copy = new Text(variableText3.getText());
         variableText3Copy.setStyle(variableText3.getStyle());
-        variableText3Copy.setVisible((variableText3.isVisible()));
+        variableText3Copy.setVisible(variableText3.isVisible());
 
         if (regularTextCopy1.getText().trim().length() == 0) {
             regularTextCopy1.setText("");
@@ -2185,12 +2207,8 @@ public class ABRNewCommandPane extends ABRPane {
 
         if (alertResponse) {
 
-            BotJobLoadDTO botJobLoad = null;
-            if (botJobLoadList.size() > 0) {
-                botJobLoad = botJobLoadList.get(0);
-            } else {
-                this.botJobLoadList = loadBotJobs(rowMoveDTO.getBotJobId());
-                botJobLoad = botJobLoadList.get(0);
+            if (blockLoadList == null) {
+                blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
             }
 
             // Handle loop outside Platform.runLater to ensure multiple iterations
@@ -2242,56 +2260,6 @@ public class ABRNewCommandPane extends ABRPane {
         defineTextFlow(comboBoxInstruc.getValue().getValue());
     }
 
-    public List<BotJobLoadDTO> loadBotJobs(int botJobId) {
-        // SQL query to get the blocks for a specific bot job
-        String query = "SELECT " + "b.id AS block_id, "
-                + "b.block_order_number, "
-                + "b.name AS block_name, "
-                + "b.description AS block_description, "
-                + "b.type_id, "
-                + "bj.id AS bot_job_id, "
-                + "bj.name AS bot_job_name "
-                + "FROM bot_job bj "
-                + "JOIN block b ON b.bot_job_id = bj.id "
-                + "WHERE bj.id = "
-                + botJobId + " " + // Use the botJobId directly in the query string
-                "ORDER BY b.block_order_number ASC";
-
-        // Initialize the necessary data structures
-        botJobLoadList.clear();
-        Map<Integer, BotJobLoadDTO> blockMap = new HashMap<>();
-
-        // Use Statement to execute the query
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-
-            while (rs.next()) {
-                // Load the Block information
-                int blockId = rs.getInt("block_id");
-                BotJobLoadDTO blockDTO = blockMap.get(blockId);
-
-                if (blockDTO == null) {
-                    blockDTO = new BotJobLoadDTO();
-                    blockDTO.setId(blockId);
-                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    blockDTO.setName(rs.getString("block_name"));
-                    blockDTO.setDescription(rs.getString("block_description"));
-                    blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
-                    blockDTO.setBotJobName(rs.getString("bot_job_name"));
-
-                    blockMap.put(blockId, blockDTO);
-                    botJobLoadList.add(blockDTO);
-                }
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
-        }
-
-        return botJobLoadList;
-    }
-
     private void runAddInstructionTask(
             String name,
             String description,
@@ -2303,6 +2271,8 @@ public class ABRNewCommandPane extends ABRPane {
             RowMoveDTO rowMoveDTO,
             BotJobDTO botJob,
             boolean isShowAlert) {
+
+        if ("INSERT_BEFORE_ELSEIF".equals(actions) || "INSERT_AFTER_ELSEIF".equals(actions)) {}
 
         List<InstructionDTO> rowList =
                 performDataBase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
@@ -2332,7 +2302,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                     instruction.setName(name);
 
-                    instruction.setEncrypted(false);
+                    instruction.setCodified(false);
                     instruction.setExportToABR(false);
                     instruction.setActive(true);
 

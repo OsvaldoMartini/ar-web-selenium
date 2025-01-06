@@ -6,6 +6,7 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import java.awt.*;
@@ -42,14 +43,17 @@ public class ExcelWriter {
     private static List<BlockLoadDTO> blocksLoaded;
     private ExtractedData extractedData;
     private static final PerformActions performAction;
+    private static final PerformDataBase performDataBase;
+
     // Static block to initialize
     static {
         performAction = PerformActions.getInstance();
+        performDataBase = PerformDataBase.getInstance();
     }
 
-    public void generateExcelFiles(
-            BotJobDTO botJob, List<BotJobLoadDTO> botLoadJobs, ExtractedData extractedData, boolean openExcel) {
+    public void generateExcelFiles(List<BotJobLoadDTO> botLoadJobs, ExtractedData extractedData, boolean openExcel) {
 
+        BotJobLoadDTO botJobLoad = botLoadJobs.get(0);
         this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
         this.extractedData = extractedData;
 
@@ -58,7 +62,7 @@ public class ExcelWriter {
             excelFolder.mkdirs();
         }
         //        generateUnfilteredCSVFile(botJob);
-        File file = generateUnfilteredExcelFile(botJob, extractedData);
+        File file = generateUnfilteredExcelFile(botJobLoad, extractedData);
 
         if (openExcel) {
             try {
@@ -71,7 +75,7 @@ public class ExcelWriter {
                         ButtonType.OK);
             }
         }
-        generateFilteredExcelFile(botJob, extractedData);
+        generateFilteredExcelFile(botJobLoad, extractedData);
     }
 
     private void generateUnfilteredCSVFile(BotJobDTO botJob) {
@@ -143,9 +147,9 @@ public class ExcelWriter {
         }
     }
 
-    private File generateUnfilteredExcelFile(BotJobDTO botJob, ExtractedData extractedData) {
+    private File generateUnfilteredExcelFile(BotJobLoadDTO botJobLoad, ExtractedData extractedData) {
         String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJob.getName() + ABRConstants.FILE_FORMAT_EXCEL;
+                + botJobLoad.getName() + ABRConstants.FILE_FORMAT_EXCEL;
 
         File file = new File(fileName);
         try {
@@ -154,7 +158,7 @@ public class ExcelWriter {
             e.printStackTrace();
         }
 
-        List<BlockDTO> blockList = botJob.getBlocks();
+        List<BlockLoadDTO> blockList = botJobLoad.getBlockLoadDTOList();
 
         Set<String> fieldAddedSet = new HashSet<>();
 
@@ -165,7 +169,7 @@ public class ExcelWriter {
         int currentIndex = 0;
         if (blockList.size() > 0) {
 
-            for (BlockDTO block : blockList) {
+            for (BlockLoadDTO block : blockList) {
                 Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
                 blockNameCell.setCellValue("#" + block.getName());
                 List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
@@ -232,15 +236,15 @@ public class ExcelWriter {
             }
         } else {
             Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
-            blockNameCell.setCellValue("#" + botJob.getName() + " default block");
+            blockNameCell.setCellValue("#" + botJobLoad.getName() + " default block");
         }
         writeExcelWorkbookOnDisk(workbook, file);
         return file;
     }
 
-    private void generateFilteredExcelFile(BotJobDTO botJob, ExtractedData extractedData) {
+    private void generateFilteredExcelFile(BotJobLoadDTO botJobLoadDTO, ExtractedData extractedData) {
         String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJob.getName() + ABRConstants.DEFAULT_FILENAME_FOR_ABR + ABRConstants.FILE_FORMAT_EXCEL;
+                + botJobLoadDTO.getName() + ABRConstants.DEFAULT_FILENAME_FOR_ABR + ABRConstants.FILE_FORMAT_EXCEL;
 
         File file = new File(fileName);
         try {
@@ -250,17 +254,17 @@ public class ExcelWriter {
         }
 
         Set<String> fieldSet = new HashSet<>();
-        if (botJob.getBlocks().size() > 0) {
-            fieldSet = botJob.getBlocks().stream()
-                    .map(BlockDTO::getBlockLoopInstructions)
+        if (botJobLoadDTO.getBlockLoadDTOList().size() > 0) {
+            fieldSet = botJobLoadDTO.getBlockLoadDTOList().stream()
+                    .map(BlockLoadDTO::getBlockLoopInstructionLoadDTOS)
                     .reduce((identity, accumulated) -> {
                         accumulated.addAll(identity);
                         return accumulated;
                     })
                     .get()
                     .stream()
-                    .filter(BlockLoopInstructionDTO::getExportToABR)
-                    .map(BlockLoopInstructionDTO::getActions)
+                    .filter(BlockLoopInstructionLoadDTO::getExportToABR)
+                    .map(BlockLoopInstructionLoadDTO::getActions)
                     .filter(action -> action.contains(ABRConstants.INSERT))
                     .map(action -> action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
                     .collect(Collectors.toSet());
@@ -295,6 +299,8 @@ public class ExcelWriter {
 
         List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
+        List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
+
         String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
         String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ABRConstants.FILE_FORMAT_EXCEL);
 
@@ -307,13 +313,13 @@ public class ExcelWriter {
             File file = new File(fileName);
 
             // Assuming blocksLoaded is your List<BlockLoadDTO>
-            List<String> allActions = blocksLoaded.stream()
-                    .flatMap(
-                            blockLoadDTO -> blockLoadDTO
-                                    .getBlockLoopInstructionLoadDTOS()
-                                    .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
-                    .map(BlockLoopInstructionLoadDTO::getActions) // Extract the actions
-                    .collect(Collectors.toList()); // Collect all actions into a List
+            //            List<String> allActions = blocksLoaded.stream()
+            //                    .flatMap(
+            //                            blockLoadDTO -> blockLoadDTO
+            //                                    .getBlockLoopInstructionLoadDTOS()
+            //                                    .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
+            //                    .map(BlockLoopInstructionLoadDTO::getActions) // Extract the actions
+            //                    .collect(Collectors.toList()); // Collect all actions into a List
 
             ExcelReader excelReader = new ExcelReader();
             ExtractedData extractedData = null;

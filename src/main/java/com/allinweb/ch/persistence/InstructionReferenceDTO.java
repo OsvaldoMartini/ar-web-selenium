@@ -1,13 +1,10 @@
 package com.allinweb.ch.persistence;
 
-import com.allinweb.ch.core.ABRSharedResources;
-import java.util.ArrayList;
-import java.util.List;
 import javax.persistence.*;
 
 @Entity
 @Table(name = "instruction_reference")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "instructionReferenceSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "instructionReferenceSeq", allocationSize = 1)
 public class InstructionReferenceDTO extends BaseDTO {
 
     @Column(name = "reference_type")
@@ -19,6 +16,18 @@ public class InstructionReferenceDTO extends BaseDTO {
     @ManyToOne(fetch = FetchType.LAZY, optional = false) // Ensures the foreign key is not null
     @JoinColumn(name = "block_loop_instruction_id", nullable = false) // Adds non-null constraint on the foreign key
     private BlockLoopInstructionDTO blockLoopInstructionDTO;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "bot_job_id")
+    private BotJobDTO botJobDTO;
+
+    public BotJobDTO getBotJobDTO() {
+        return botJobDTO;
+    }
+
+    public void setBotJobDTO(BotJobDTO botJobDTO) {
+        this.botJobDTO = botJobDTO;
+    }
 
     public InstructionReferenceDTO() {
         super();
@@ -56,26 +65,27 @@ public class InstructionReferenceDTO extends BaseDTO {
         this.blockLoopInstructionDTO = blockLoopInstructionDTO;
     }
 
-    public static List<InstructionReferenceDTO> createReferencesFromSavedInstructionForInstruction(
-            SavedBlockLoopInstructionDTO savedInstructionDTO, BlockLoopInstructionDTO blockLoopInstructionDTO) {
-        List<SavedInstructionReferenceDTO> referenceList = ABRSharedResources.getInstance()
-                .getEntityList(
-                        SavedInstructionReferenceDTO.class,
-                        savedReference ->
-                                savedReference.getSavedBlockLoopInstructionDTO().getId()
-                                        == savedInstructionDTO.getId());
-        List<InstructionReferenceDTO> list = new ArrayList<>();
-        referenceList.forEach(
-                reference -> list.add(copyFromSavedReferenceForInstruction(reference, blockLoopInstructionDTO)));
-        return list;
-    }
-
-    private static InstructionReferenceDTO copyFromSavedReferenceForInstruction(
-            SavedInstructionReferenceDTO savedReference, BlockLoopInstructionDTO instruction) {
-        InstructionReferenceDTO saved = new InstructionReferenceDTO();
-        saved.setValue(savedReference.getValue());
-        saved.setReferenceType(savedReference.getReferenceType());
-        saved.setBlockLoopInstructionDTO(instruction);
-        return saved;
-    }
+    //    public static List<InstructionReferenceDTO> createReferencesFromSavedInstructionForInstruction(
+    //            SavedBlockLoopInstructionDTO savedInstructionDTO, BlockLoopInstructionLoadDTO blockLoopInstructionDTO)
+    // {
+    //        List<SavedInstructionReferenceDTO> referenceList = ABRSharedResources.getInstance()
+    //                .getEntityList(
+    //                        SavedInstructionReferenceDTO.class,
+    //                        savedReference ->
+    //                                savedReference.getSavedBlockLoopInstructionDTO().getId()
+    //                                        == savedInstructionDTO.getId());
+    //        List<InstructionReferenceDTO> list = new ArrayList<>();
+    //        referenceList.forEach(
+    //                reference -> list.add(copyFromSavedReferenceForInstruction(reference, blockLoopInstructionDTO)));
+    //        return list;
+    //    }
+    //
+    //    private static InstructionReferenceDTO copyFromSavedReferenceForInstruction(
+    //            SavedInstructionReferenceDTO savedReference, BlockLoopInstructionDTO instruction) {
+    //        InstructionReferenceDTO saved = new InstructionReferenceDTO();
+    //        saved.setValue(savedReference.getValue());
+    //        saved.setReferenceType(savedReference.getReferenceType());
+    //        saved.setBlockLoopInstructionDTO(instruction);
+    //        return saved;
+    //    }
 }

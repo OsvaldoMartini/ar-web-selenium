@@ -6,7 +6,8 @@ import javax.persistence.*;
 
 @Entity
 @Table(name = "saved_instruction_reference")
-@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedInstructionReferenceSeq", allocationSize = 1)
+// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedInstructionReferenceSeq", allocationSize =
+// 1)
 public class SavedInstructionReferenceDTO extends BaseDTO {
 
     @Column(name = "reference_type")
@@ -14,6 +15,18 @@ public class SavedInstructionReferenceDTO extends BaseDTO {
 
     @Column(name = "value", length = 1000)
     private String value;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "bot_job_id")
+    private BotJobDTO botJobDTO;
+
+    public BotJobDTO getBotJobDTO() {
+        return botJobDTO;
+    }
+
+    public void setBotJobDTO(BotJobDTO botJobDTO) {
+        this.botJobDTO = botJobDTO;
+    }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "saved_block_loop_instruction_id")

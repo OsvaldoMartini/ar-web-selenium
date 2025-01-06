@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRConfigurationScene;
@@ -10,7 +11,7 @@ import com.allinweb.ch.component.scene.ABRNewBotJobScene;
 import com.allinweb.ch.component.scene.ABRViewBotJobScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.persistence.BotJobDTO;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.ConfigUserDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -23,6 +24,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -33,6 +35,17 @@ import javafx.scene.layout.*;
 import javax.swing.*;
 
 public class ABRMainPane extends ABRPane {
+
+    private static final PerformDataBase performDataBase;
+    private static final ABRConfigurationScene abrConfigurationScene;
+    private static final ABRNewBotJobScene abrNewBotJobScene;
+
+    // Static block to initialize
+    static {
+        abrNewBotJobScene = ABRNewBotJobScene.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        abrConfigurationScene = ABRConfigurationScene.getInstance();
+    }
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private Properties properties = new Properties();
@@ -50,12 +63,14 @@ public class ABRMainPane extends ABRPane {
 
     GridPane header = new GridPane();
 
-    ListView<BotJobDTO> viewBotJobListView = new ListView<>();
+    ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
 
     public ABRMainPane() {
+        abrNewBotJobScene.initialize(viewBotJobListView);
+
         String pathDB = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
         if (pathDB == null || pathDB.isBlank()) {
-            new ABRConfigurationScene().show();
+            abrConfigurationScene.show();
             new ABRAlertScene(
                     Alert.AlertType.WARNING,
                     "Configuration Needed",
@@ -123,7 +138,9 @@ public class ABRMainPane extends ABRPane {
 
         initHeader();
 
-        ObservableList<BotJobDTO> botJobList = ABRSharedResources.getInstance().getEntityList(BotJobDTO.class);
+        //        ObservableList<BotJobLoadDTO> botJobList =
+        // ABRSharedResources.getInstance().getEntityList(BotJobDTO.class);
+        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ABRCellFactory<>(BotJobListCell.class)::call);
 
@@ -141,12 +158,12 @@ public class ABRMainPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
-        newBotJobButton.setOnMouseClicked(e -> new ABRNewBotJobScene(viewBotJobListView).showModal());
+        newBotJobButton.setOnMouseClicked(e -> abrNewBotJobScene.showModal());
 
         /*viewBotJobButton.setOnMouseClicked(
                 e -> new ABRViewBotJobListScene().show()
         );*/
-        configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
+        configureButton.setOnMouseClicked(e -> abrConfigurationScene.show());
         infoButton.setOnMouseClicked(e -> new ABRInfoScene().showModal());
         exitButton.setOnMouseClicked(e -> {
             //            Platform.exit();
@@ -194,7 +211,7 @@ public class ABRMainPane extends ABRPane {
                         "-jar",
                         "\"" + enginePath + "\"",
                         "execute/j",
-                        String.valueOf(selecBotJobDTO.getHomeBanking().getId()),
+                        String.valueOf(selecBotJobDTO.getHomeBankingLoadDTO().getId()),
                         String.valueOf(selecBotJobDTO.getId()),
                         "\"" + excelPath + "\"",
                         "-c",

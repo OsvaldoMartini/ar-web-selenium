@@ -1,9 +1,9 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ABRExportFilterPane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
-import com.allinweb.ch.persistence.BotJobDTO;
 
 public class ABRExportFilterScene extends ABRScene {
 
@@ -11,15 +11,15 @@ public class ABRExportFilterScene extends ABRScene {
     private static final Double SCENE_WIDTH = 1000D;
     private static final String TITLE = "Excel Export Field Filters";
 
-    private BotJobDTO botJob;
+    private BotJobLoadDTO botJobLoad;
 
-    public ABRExportFilterScene(BotJobDTO botJob) {
-        this.botJob = botJob;
+    public ABRExportFilterScene(BotJobLoadDTO botJobLoad) {
+        this.botJobLoad = botJobLoad;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRExportFilterPane(botJob);
+        return new ABRExportFilterPane(botJobLoad);
     }
 
     @Override

@@ -187,12 +187,14 @@ public class ABRScannedElementPane extends ABRPane {
     private static ABRPriorities abrPriorities;
     private static final PerformActions performAction;
     private static final PerformDataBase performDataBase;
+    private static final ABRNewHomeBankingScene abrNewHomeBankingScene;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
         abrPriorities = ABRPriorities.getInstance();
         performAction = PerformActions.getInstance();
         managerProps = ABRPropertyManager.getInstance();
+        abrNewHomeBankingScene = ABRNewHomeBankingScene.getInstance();
     }
 
     public ABRWebDriver getAbrWebDriver() {
@@ -412,7 +414,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         updateSceneTitleWithCurrentURL(botJob.getHomeBanking().getUrl());
 
-        this.blockLoadList = performDataBase.loadBlocksForBotJob(this.botJob.getId());
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJob.getId());
         loadAllBlockItems(this.blockLoadList);
 
         refreshBlocksButton = createPathButton();
@@ -709,7 +711,7 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void refreshBlocks(boolean secondItem) {
-        this.blockLoadList = performDataBase.loadBlocksForBotJob(this.botJob.getId());
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJob.getId());
         loadAllBlockItems(this.blockLoadList);
 
         if (!secondItem) {
@@ -854,7 +856,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         //        configureButton.setOnMouseClicked(e -> new ABRConfigurationScene().show());
-        configureButton.setOnMouseClicked(e -> new ABRNewHomeBankingScene().show());
+        configureButton.setOnMouseClicked(e -> abrNewHomeBankingScene.show());
         launchBotJobButton.setOnMouseClicked(e -> {
             //                        loadBotJob(botJob);
 
@@ -862,7 +864,7 @@ public class ABRScannedElementPane extends ABRPane {
                 return;
             }
 
-            this.botLoadJobs = performDataBase.loadBlockAll(botJob.getId());
+            this.botLoadJobs = performDataBase.loadBotJobComplete(botJob.getId());
             instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
@@ -878,7 +880,7 @@ public class ABRScannedElementPane extends ABRPane {
                 return;
             }
 
-            this.botLoadJobs = performDataBase.loadBlockAll(botJob.getId());
+            this.botLoadJobs = performDataBase.loadBotJobComplete(botJob.getId());
             // loadBotJob(botJob);
             recallJob();
         });
@@ -1967,7 +1969,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                     if (result) {
 
-                        BotJobLoadDTO botJobLoadDTO = loadBotJob(this.botJob.getId());
+                        BotJobLoadDTO botJobLoadDTO = performDataBase.loadBotJobById(this.botJob.getId());
 
                         if (botJobLoadDTO == null) {
 
@@ -1993,7 +1995,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
 
                         // It Prevents Start without blocks
-                        this.blockLoadList = performDataBase.loadBlocksForBotJob(this.botJob.getId());
+                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJob.getId());
                         if (blockLoadList.isEmpty()) {
 
                             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
@@ -2106,6 +2108,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 //                                        .addEntity(instruction,
                                 // BlockLoopInstructionDTO.class, () -> {
 
+                                Integer currentBotJobId = botJob.getId();
+
                                 int newId = preFillAddInstruction(
                                         instruction.getName().trim(),
                                         instruction.getDescription().trim(),
@@ -2116,6 +2120,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         instruction.getInstructionOrderNumber(),
                                         instruction.getExportToABR(),
                                         instruction.getPath(),
+                                        currentBotJobId,
                                         currentBlockId);
 
                                 if (newId < 0) {
@@ -3359,8 +3364,8 @@ public class ABRScannedElementPane extends ABRPane {
     //                + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
     //                + " bli.actions, bli.name AS instruction_name, bli.path, bli.description AS
     // instruction_description, "
-    //                + " bli.optional, bli.block_marked, bli.default_val, bli.action_custom_max_wait_sec, "
-    //                + " bli.on_hold_seconds, bli.encrypted, bli.export_to_abr, "
+    //                + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
+    //                + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
     //                + " irl.reference_type, irl.value, "
     //                + "  bli.operation, bli.parent_id, "
     //                + "  b.export_file "
@@ -3422,13 +3427,13 @@ public class ABRScannedElementPane extends ABRPane {
     //                    previousInstruction.setName(rs.getString("instruction_name"));
     //                    previousInstruction.setPath(rs.getString("path"));
     //                    previousInstruction.setDescription(rs.getString("instruction_description"));
-    //                    previousInstruction.setOptional(rs.getInt("optional"));
+    //                    previousInstruction.setOptional(rs.getBoolean("optional"));
     //                    previousInstruction.setBlockMarked(rs.getBoolean("block_marked"));
-    //                    previousInstruction.setDefault_val(rs.getString("default_val"));
+    //                    previousInstruction.setDefaultValue(rs.getString("default_value"));
     //                    previousInstruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
     //                    previousInstruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-    //                    previousInstruction.setEncrypted(rs.getInt("encrypted"));
-    //                    previousInstruction.setExportToABR(rs.getInt("export_to_abr"));
+    //                    previousInstruction.setCodified(rs.getBoolean("codified"));
+    //                    previousInstruction.setExportToABR(rs.getBoolean("export_to_abr"));
     //                    previousInstruction.setInstructionActive(rs.getBoolean("active"));
     //                    previousInstruction.setOperation(rs.getString("operation"));
     //                    previousInstruction.setParentId(rs.getInt("parent_id"));
@@ -3851,7 +3856,7 @@ public class ABRScannedElementPane extends ABRPane {
                         BlockLoopInstructionLoadDTO currentInstruction =
                                 blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
 
-                        mainMsg = currentInstruction.isOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION";
+                        mainMsg = currentInstruction.getOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION";
 
                         if (!currentInstruction.getInstructionActive()) {
 
@@ -4096,58 +4101,39 @@ public class ABRScannedElementPane extends ABRPane {
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
-                            execOperation = true;
-                            xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
+                            resultActions = currentInstruction.getName()
+                                    + Constants.BLANK_STRING
+                                    + currentInstruction.getActions()
+                                    + Constants.BLANK_STRING
+                                    + currentInstruction.getOperation();
 
+                            execOperation = true;
+
+                            xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
                             parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
 
-                            if (xPathOperation != null && parentField != null) {
-                                fieldName = parentField;
-                                parentField = parentId + "-" + parentField;
-
-                            } else {
-                                resultActions = performAction.parentIdWrongBlock(
-                                        currentInstruction, blockLoad, ABRConstants.ConditionStatus.NONE);
-
-                                if (stopAll) {
-                                    break;
-                                }
-                            }
-
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
+
+                            resultActions = currentInstruction.getName()
+                                    + Constants.BLANK_STRING
+                                    + currentInstruction.getActions()
+                                    + Constants.BLANK_STRING
+                                    + currentInstruction.getOperation();
 
                             checkOperation = true;
                             parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
 
-                            if (parentField != null) {
-                                fieldName = parentField;
-                                parentField = parentId + "-" + parentField;
-
-                            } else {
-                                resultActions = performAction.getValueIsNotDefined(
-                                        currentInstruction, resultActions, ABRConstants.ConditionStatus.NONE);
-
-                                if (stopAll) {
-                                    break;
-                                }
-                            }
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
+
+                            resultActions = currentInstruction.getName()
+                                    + Constants.BLANK_STRING
+                                    + currentInstruction.getActions()
+                                    + Constants.BLANK_STRING
+                                    + currentInstruction.getOperation();
 
                             excelWriteOperation = true;
 
                             parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
-                            if (parentField != null) {
-
-                                fieldName = parentField;
-                                parentField = parentId + "-" + parentField;
-                            } else {
-                                resultActions = performAction.getValueIsNotDefined(
-                                        currentInstruction, resultActions, ABRConstants.ConditionStatus.NONE);
-
-                                if (stopAll) {
-                                    break;
-                                }
-                            }
                         }
 
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -4404,7 +4390,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         dataExcel,
                                         actions,
                                         currentInstruction.getDefaultValue(),
-                                        currentInstruction.getEncrypted() > 0);
+                                        currentInstruction.getCodified());
 
                                 WebElement webElementFound = null;
                                 try {
@@ -4503,15 +4489,12 @@ public class ABRScannedElementPane extends ABRPane {
                                     break;
                                 }
                             } else if (execOperation) {
+                                // GET && SET Special Operators
 
-                                resultActions = currentInstruction.getName()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getActions()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getOperation();
+                                if (xPathOperation != null && parentField != null && operations.length == 2) {
+                                    //                                    fieldName = parentField;
+                                    parentField = parentId + "-" + parentField;
 
-                                // Special Operators
-                                if (operations.length == 2) {
                                     resultActions = performAction.performOperatorActions(
                                             byPassNotFound,
                                             currentInstruction,
@@ -4543,225 +4526,216 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
 
                                 } else {
-                                    resultActions = "Failed: " + resultActions;
-                                    success = false;
-                                }
+                                    resultActions = performAction.parentIdWrongBlock(
+                                            currentInstruction, blockLoad, resultActions, currentCondition);
 
-                                // Excel Report and Log
-                                performAction.logAndReport(
-                                        currentCondition,
-                                        true,
-                                        true,
-                                        currentInstructionStartTime,
-                                        blockReportName,
-                                        success,
-                                        actions,
-                                        msgInstruction,
-                                        dataExcel,
-                                        writerReport,
-                                        mainMsg,
-                                        resultActions);
+                                    success = false;
+                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                                        stopAll = true;
+                                    }
+
+                                    if (stopAll) {
+                                        break;
+                                    }
+                                }
 
                             } else if (checkOperation) {
                                 // Check Validation Operator
-                                resultActions = currentInstruction.getName()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getActions()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getOperation();
 
-                                if (operations.length == 3) {
-                                    if (mapOperators.containsKey(parentField)) {
-
-                                        byPassFlagLoop = parentIdsForLoop.contains(parentId);
-                                        success = byPassFlagLoop;
-
-                                        resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
-                                                + String.join(" ", operations);
-                                        boolean isOperationValid = false;
-                                        if (operations[1].equalsIgnoreCase("=")) {
-                                            isOperationValid = mapOperators
-                                                    .get(parentField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2]);
-
-                                        } else if (operations[1].equalsIgnoreCase(">")) {
-                                            isOperationValid = mapOperators
-                                                    .get(parentField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2]);
-                                        } else if (operations[1].equalsIgnoreCase("!=")) {
-                                            isOperationValid = !mapOperators
-                                                    .get(parentField)
-                                                    .trim()
-                                                    .equalsIgnoreCase(operations[2]);
-                                        }
-
-                                        if (isOperationValid) {
-
-                                            currentInstruction.setExecuted(true);
-
-                                            // Assuming currentInstruction and instructionsExecuted are already
-                                            // defined
-                                            if (currentInstruction != null
-                                                    && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
-                                                instructionsExecuted.add(currentInstruction);
-                                            }
-
-                                            executedSuccess.add(currentInstruction.getId());
-                                            success = true;
-                                        } else {
-                                            resultActions = performAction.checkValidationFailed(
-                                                    parentField,
-                                                    mapOperators.get(parentField),
-                                                    resultActions,
-                                                    operations,
-                                                    ABRConstants.ConditionStatus.NONE,
-                                                    byPassFlagLoop);
-
-                                            if (stopAll) {
-                                                break;
-                                            }
-                                        }
-
-                                    } else {
-                                        resultActions = performAction.getValueIsNotDefined(
-                                                currentInstruction, resultActions, ABRConstants.ConditionStatus.NONE);
-
-                                        if (stopAll) {
-                                            break;
-                                        }
-                                    }
-
-                                } else {
-                                    resultActions = "Failed: " + resultActions;
-                                    success = false;
+                                if (parentField != null) {
+                                    parentField = parentId + "-" + parentField;
                                 }
 
-                                // Excel Report and Log
-                                performAction.logAndReport(
-                                        currentCondition,
-                                        true,
-                                        true,
-                                        currentInstructionStartTime,
-                                        blockReportName,
-                                        success,
-                                        actions,
-                                        msgInstruction,
-                                        dataExcel,
-                                        writerReport,
-                                        mainMsg,
-                                        resultActions);
+                                if (parentField == null) {
+                                    resultActions = performAction.parentIdWrongBlock(
+                                            currentInstruction, blockLoad, resultActions, currentCondition);
 
-                            } else if (excelWriteOperation) {
-                                // Excel Write Operator
-                                resultActions = currentInstruction.getName()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getActions()
-                                        + Constants.BLANK_STRING
-                                        + currentInstruction.getOperation();
+                                    resultActions = performAction.getValueIsNotDefined(
+                                            currentInstruction, resultActions, currentCondition);
 
-                                if (operations.length == 2) {
-                                    if (mapOperators.containsKey(parentField)) {
+                                    success = false;
+                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                                        stopAll = true;
+                                    }
 
-                                        if (excelExportOnceCreation) {
-                                            //
-                                            // writerExport.insertReportHead();
-                                            excelExportOnceCreation = false;
+                                    if (stopAll) {
+                                        break;
+                                    }
+
+                                } else if (!mapOperators.containsKey(parentField)) {
+                                    resultActions = performAction.getValueIsNotDefined(
+                                            currentInstruction, resultActions, currentCondition);
+
+                                    success = false;
+                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                                        stopAll = true;
+                                    }
+
+                                    if (stopAll) {
+                                        break;
+                                    }
+                                } else {
+                                    //                                    fieldName = parentField;
+
+                                    byPassFlagLoop = parentIdsForLoop.contains(parentId);
+                                    success = byPassFlagLoop;
+
+                                    resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
+                                            + String.join(" ", operations);
+                                    boolean isOperationValid = false;
+                                    if (operations[1].equalsIgnoreCase("=")) {
+                                        isOperationValid = mapOperators
+                                                .get(parentField)
+                                                .trim()
+                                                .equalsIgnoreCase(operations[2]);
+
+                                    } else if (operations[1].equalsIgnoreCase(">")) {
+                                        isOperationValid = mapOperators
+                                                .get(parentField)
+                                                .trim()
+                                                .equalsIgnoreCase(operations[2]);
+                                    } else if (operations[1].equalsIgnoreCase("!=")) {
+                                        isOperationValid = !mapOperators
+                                                .get(parentField)
+                                                .trim()
+                                                .equalsIgnoreCase(operations[2]);
+                                    }
+
+                                    if (isOperationValid) {
+
+                                        currentInstruction.setExecuted(true);
+
+                                        // Assuming currentInstruction and instructionsExecuted are already
+                                        // defined
+                                        if (currentInstruction != null
+                                                && instructionsExecuted.stream()
+                                                        .noneMatch(
+                                                                instruction -> instruction.getInstructionOrderNumber()
+                                                                        == currentInstruction
+                                                                                .getInstructionOrderNumber())) {
+                                            instructionsExecuted.add(currentInstruction);
                                         }
 
-                                        if (!Strings.isNullOrEmpty(excelFieldName)) {
-                                            writerExport = new ExcelWriter(
-                                                            excelFieldName, abrWebDriver.getDriver(), true)
-                                                    .withPurpose("export");
-                                        }
-
-                                        if (writerExport != null) {
-
-                                            resultActions = "insertValueFieldNameInExcel-->" + parentField + "-"
-                                                    + mapOperators.get(parentField);
-                                        } else {
-                                            resultActions = "NO Export Excel File defined -->" + parentField + "-"
-                                                    + mapOperators.get(parentField);
-                                        }
-
-                                        if (mapExport.size() == 0) {
-                                            //
-                                            // writerExport.insertBlockSeparation(blockLoad.getName());
-                                            //                                            exportIndex *= 2;
-                                        }
-
-                                        // Insert the updated mapExport into the Excel after each instruction
-                                        if (writerExport != null) {
-                                            mapExport.put("KEY", "EXTERNAL");
-                                            mapExport.put(fieldName, mapOperators.get(parentField));
-
-                                            writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
-                                        }
-                                        performAction.onHoldForSeconds(null);
-
-                                        if (resultActions != null) {
-                                            currentInstruction.setExecuted(true);
-
-                                            // Assuming currentInstruction and instructionsExecuted are already
-                                            // defined
-                                            if (currentInstruction != null
-                                                    && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
-                                                instructionsExecuted.add(currentInstruction);
-                                            }
-
-                                            executedSuccess.add(currentInstruction.getId());
-                                            success = true;
-                                        } else {
-                                            resultActions = "Failed: " + resultActions;
-                                            success = false;
-                                        }
-
+                                        executedSuccess.add(currentInstruction.getId());
+                                        success = true;
                                     } else {
-                                        resultActions = performAction.getValueIsNotDefined(
-                                                currentInstruction, resultActions, ABRConstants.ConditionStatus.NONE);
+                                        resultActions = performAction.checkValidationFailed(
+                                                parentField,
+                                                mapOperators.get(parentField),
+                                                resultActions,
+                                                operations,
+                                                ABRConstants.ConditionStatus.NONE,
+                                                byPassFlagLoop);
+
+                                        success = false;
+                                        if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                                            stopAll = true;
+                                        }
 
                                         if (stopAll) {
                                             break;
                                         }
                                     }
+                                }
 
-                                } else {
-                                    resultActions = "Failed: " + resultActions;
+                            } else if (excelWriteOperation && operations.length == 2) {
+                                // Excel Write Operator
+
+                                if (parentField != null) {
+                                    fieldName = parentField;
+                                    parentField = parentId + "-" + parentField;
+                                }
+
+                                if (parentField == null) {
+
+                                    resultActions = performAction.parentIdWrongBlock(
+                                            currentInstruction, blockLoad, resultActions, currentCondition);
+
                                     success = false;
+                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                                        stopAll = true;
+                                    }
+
+                                    if (stopAll) {
+                                        break;
+                                    }
+                                } else if (!mapOperators.containsKey(parentField)) {
+                                    resultActions = performAction.getValueIsNotDefined(
+                                            currentInstruction, resultActions, currentCondition);
+
+                                    success = false;
+                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                                        stopAll = true;
+                                    }
+
+                                    if (stopAll) {}
+                                } else {
+
+                                    if (excelExportOnceCreation) {
+                                        //
+                                        // writerExport.insertReportHead();
+                                        excelExportOnceCreation = false;
+                                    }
+
+                                    if (!Strings.isNullOrEmpty(excelFieldName)) {
+                                        writerExport = new ExcelWriter(excelFieldName, abrWebDriver.getDriver(), true)
+                                                .withPurpose("export");
+                                    }
+
+                                    if (writerExport != null) {
+
+                                        resultActions = "insertValueFieldNameInExcel -> " + parentField + "-"
+                                                + mapOperators.get(parentField);
+                                    } else {
+                                        resultActions = "NO Export Excel File defined -> " + parentField + "-"
+                                                + mapOperators.get(parentField);
+                                    }
+
+                                    if (mapExport.size() == 0) {
+                                        //
+                                        // writerExport.insertBlockSeparation(blockLoad.getName());
+                                        //                                            exportIndex *= 2;
+                                    }
+
+                                    // Insert the updated mapExport into the Excel after each instruction
+                                    if (writerExport != null) {
+                                        mapExport.put("KEY", "EXTERNAL");
+                                        mapExport.put(fieldName, mapOperators.get(parentField));
+
+                                        writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
+                                    }
+                                    performAction.onHoldForSeconds(null);
+
+                                    if (resultActions != null) {
+                                        currentInstruction.setExecuted(true);
+
+                                        // Assuming currentInstruction and instructionsExecuted are already
+                                        // defined
+                                        if (currentInstruction != null
+                                                && instructionsExecuted.stream()
+                                                        .noneMatch(
+                                                                instruction -> instruction.getInstructionOrderNumber()
+                                                                        == currentInstruction
+                                                                                .getInstructionOrderNumber())) {
+                                            instructionsExecuted.add(currentInstruction);
+                                        }
+
+                                        executedSuccess.add(currentInstruction.getId());
+                                        success = true;
+                                    } else {
+                                        resultActions = "Failed: " + resultActions;
+                                        success = false;
+                                    }
                                 }
                             }
 
                         } catch (Throwable t) {
+                            success = false;
                             if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
                                 stopAll = true;
-                                success = false;
                             }
 
                             currentInstruction.setExecuted(false);
-
-                            // Excel Report and Log
-                            performAction.logAndReport(
-                                    currentCondition,
-                                    true,
-                                    true,
-                                    currentInstructionStartTime,
-                                    blockReportName,
-                                    success,
-                                    actions,
-                                    msgInstruction,
-                                    dataExcel,
-                                    writerReport,
-                                    mainMsg,
-                                    resultActions);
 
                             if (stopAll) {
                                 break;
@@ -4773,12 +4747,9 @@ public class ABRScannedElementPane extends ABRPane {
                         printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
 
                         if (!success) {
-                            countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
-                            countdownTextField.setText(resultActions);
 
                             if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
                                 stopAll = true;
-                                success = false;
                                 break;
                             }
                             //                                return false;
@@ -5095,6 +5066,9 @@ public class ABRScannedElementPane extends ABRPane {
                     Alert.AlertType.INFORMATION, "Success", "Execution Finished", null, combinedTextContainer);
 
         } else {
+            countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
+            countdownTextField.setText(resultActions);
+
             baseLogString = blocksLoaded.get(0).getName()
                     + Constants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
@@ -5522,42 +5496,6 @@ public class ABRScannedElementPane extends ABRPane {
         });
     }
 
-    public BotJobLoadDTO loadBotJob(int botJobId) {
-        // SQL query to get the blocks for a specific bot job
-        String query = "SELECT bj.id, "
-                + " bj.name, "
-                + " bj.description, "
-                + " bj.home_banking_id, "
-                + " bj.priority "
-                + " FROM bot_job bj "
-                + " WHERE bj.id = " + botJobId;
-
-        // Initialize the necessary data structures
-
-        // Use Statement to execute the query
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-            BotJobLoadDTO botJobLoadDTO = new BotJobLoadDTO();
-
-            while (rs.next()) {
-                botJobLoadDTO = new BotJobLoadDTO();
-
-                botJobLoadDTO.setId(rs.getInt("id"));
-                botJobLoadDTO.setName(rs.getString("name"));
-                botJobLoadDTO.setDescription(rs.getString("description"));
-                botJobLoadDTO.setPriority(rs.getString("priority"));
-                botJobLoadDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-            }
-            return botJobLoadDTO;
-
-        } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId, e.getMessage()));
-        }
-
-        return null;
-    }
-
     //    private int createBlock(BlockDTO blockDTO) {
     //        // Generate a Unique-ID for the block
     //        Integer nextId = loadNextIdBlockData() + 1;
@@ -5683,13 +5621,14 @@ public class ABRScannedElementPane extends ABRPane {
             Integer instructionOrderNumber,
             boolean exportToABR,
             String xPath,
-            int savedCurrentBlockId) {
+            Integer currentBotJobId,
+            Integer currentBlockId) {
 
-        BlockLoopInstructionDTO instructionDTO = new BlockLoopInstructionDTO();
+        BlockLoopInstructionLoadDTO instructionDTO = new BlockLoopInstructionLoadDTO();
 
         instructionDTO.setName(name);
 
-        instructionDTO.setEncrypted(false);
+        instructionDTO.setCodified(false);
 
         instructionDTO.setInstructionOrderNumber(instructionOrderNumber);
 
@@ -5705,7 +5644,7 @@ public class ABRScannedElementPane extends ABRPane {
         instructionDTO.setOnHoldSeconds(onHold);
         //        instructionDTO.setBlock(savedBlockDTO);
         instructionDTO.setExportToABR(exportToABR);
-        instructionDTO.setActive(true);
+        instructionDTO.setInstructionActive(true);
 
         instructionDTO.setPath(xPath);
 
@@ -5713,14 +5652,16 @@ public class ABRScannedElementPane extends ABRPane {
         int newId = -1;
 
         try {
-            newId = performDataBase.insertInstruction(instructionDTO, savedCurrentBlockId);
+            newId = performDataBase.insertInstruction(instructionDTO, currentBotJobId, currentBlockId);
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
 
             ABRLogger.getInstance(ABRScannedElementPane.class)
                     .severe(String.format(
                             "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
                             instructionDTO.getName(), e.getMessage()));
+
+            return -1;
         }
         return newId;
     }

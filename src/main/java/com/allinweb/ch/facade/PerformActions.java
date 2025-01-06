@@ -9,7 +9,6 @@ import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
-import com.allinweb.ch.persistence.InstructionReferenceDTO;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.persistence.SavedInstructionReferenceDTO;
@@ -83,6 +82,13 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  * @version 1.0
  */
 public class PerformActions {
+
+    private static final PerformDataBase performDataBase;
+
+    static {
+        performDataBase = PerformDataBase.getInstance();
+    }
+
     long totalExecutionTime = 0;
 
     public List<String> windowHandlesList = new ArrayList<>();
@@ -217,7 +223,7 @@ public class PerformActions {
                                     instructionElement,
                                     data.getValue(),
                                     currentInstruction.getDefaultValue(),
-                                    currentInstruction.isEncrypted());
+                                    currentInstruction.getCodified());
 
                             if (!passed) {
                                 // Try by coordinates
@@ -340,7 +346,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
-                            "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
+                            "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                             tagName, targetXPath, e.getMessage()));
         }
 
@@ -363,7 +369,7 @@ public class PerformActions {
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
 
                             showNotFoundElement(targetXPath, criteria);
@@ -381,7 +387,7 @@ public class PerformActions {
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
                             if (!byPassNotFound) {
                                 couldNotFindElement(String.valueOf(criteria));
@@ -393,7 +399,7 @@ public class PerformActions {
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                             targetXPath, criteria, e.getMessage()));
 
                             if (!byPassNotFound) {
@@ -458,7 +464,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
-                            "Error RemoveTrailingSlash for %s   \nxPath  %s\nCause: %s",
+                            "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
                             tagName, instructionPath, e.getMessage()));
         }
         List<InstructionReferenceLoadDTO> instructionReferenceList =
@@ -612,7 +618,7 @@ public class PerformActions {
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
                                         //
@@ -629,7 +635,7 @@ public class PerformActions {
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
                                         //
@@ -641,7 +647,7 @@ public class PerformActions {
                                     } catch (Exception e) {
                                         ABRLogger.getInstance(PerformActions.class)
                                                 .fine(String.format(
-                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" Cause: %s",
+                                                        "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
                                                         instructionPath, criteria, e.getMessage()));
 
                                         //
@@ -726,7 +732,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
-                            "Could Not Find Field Name \"%s\" Value \"%s\" Cause: %s",
+                            "Could Not Find Field Name \"%s\" Value \"%s\" -> Cause: %s",
                             fieldName, dataFieldValue, e.getMessage()));
 
             if (!byPassNotFound) {
@@ -750,7 +756,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
-                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             if (!byPassNotFound) {
                 couldNotFindElement(element.getTagName());
@@ -833,7 +839,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
-                            "Failed to Scroll to Element \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+                            "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 couldNotFindElement("Failed to Scroll to Element " + element.getTagName());
             }
@@ -862,7 +868,8 @@ public class PerformActions {
         //        } catch (Exception e) {
         //            ABRLogger.getInstance(PerformActions.class)
         //                    .fine(String.format(
-        //                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+        //                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(),
+        // e.getMessage()));
         //
         //            if (!byPassNotFound) {
         //                couldNotFindElement(element.getTagName());
@@ -882,7 +889,7 @@ public class PerformActions {
 
                 ABRLogger.getInstance(PerformActions.class)
                         .fine(String.format(
-                                "Could Not Click on  \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+                                "Could Not Click on  \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
                 return false;
             }
         }
@@ -917,7 +924,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
-                            "Could Not Find TagName \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
             if (!byPassNotFound) {
                 couldNotFindElement(element.getTagName());
             }
@@ -952,7 +959,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
-                            "Could Not Input Value to \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+                            "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             couldNotFindElement("Could Input Values to Element " + element.getTagName());
             return false;
@@ -998,7 +1005,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .fine(String.format(
-                            "Could Not Find Select \"%s\" Value  \"%s\" Cause: %s",
+                            "Could Not Find Select \"%s\" Value  \"%s\" -> Cause: %s",
                             data.getKey(), data.getValue(), e.getMessage()));
             if (!byPassNotFound) {
                 couldNotFindElement(data.getKey());
@@ -1017,7 +1024,7 @@ public class PerformActions {
         } catch (Exception e) {
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
-                            "Could Not Input Value to \"%s\" Cause: %s", element.getTagName(), e.getMessage()));
+                            "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
             couldNotFindElement("Could Input Values to Element " + element.getTagName());
 
@@ -1040,7 +1047,8 @@ public class PerformActions {
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception ex) {
             ABRLogger.getInstance(PerformActions.class)
-                    .warning(String.format("Could Not Find Field Name \"%s\" Cause: %s", fieldName, ex.getMessage()));
+                    .warning(
+                            String.format("Could Not Find Field Name \"%s\" -> Cause: %s", fieldName, ex.getMessage()));
 
             if (!byPassNotFound) {
                 couldNotFindElement(fieldName);
@@ -1153,7 +1161,7 @@ public class PerformActions {
             } catch (Exception e) {
                 ABRLogger.getInstance(PerformActions.class)
                         .fine(String.format(
-                                "Could Not Find TagName \"%s\" Criteria \"%s\" Cause: %s",
+                                "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
                                 complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
 
                 if (!byPassNotFound) {
@@ -1178,7 +1186,7 @@ public class PerformActions {
                     } catch (Exception e) {
                         ABRLogger.getInstance(PerformActions.class)
                                 .fine(String.format(
-                                        "Could Not Find TagName \"%s\" Criteria \"%s\" Cause: %s",
+                                        "Could Not Find TagName \"%s\" Criteria \"%s\" -> Cause: %s",
                                         complexActionParts[2], By.tagName(complexActionParts[2]), e.getMessage()));
 
                         if (!byPassNotFound) {
@@ -1281,11 +1289,11 @@ public class PerformActions {
         //        JavascriptExecutor js = (JavascriptExecutor) abrWebDriver.getDriver();
         //        js.executeScript("alert('This is a custom alert modal!');");
         String message = "PAUSE REQUESTED "
-                + "<br>----------------------------------------------<br>"
+                + "<br>-------------------------------------------------<br>"
                 + "BOT JOB in PAUSE MODE:: <b style='color:red;'><br>"
                 + blockName
                 + "</b>"
-                + "<br>----------------------------------------------<br>";
+                + "<br>-------------------------------------------------<br>";
 
         alertMessage(message);
 
@@ -1300,11 +1308,11 @@ public class PerformActions {
 
         if (!ifClause && !elseClause) {
             String message = "There is NOT GET VALUE defined for: "
-                    + "<br>----------------------------------------------<br>"
+                    + "<br>-------------------------------------------------<br>"
                     + "Validation Error: <b style='color:red;'>"
                     + currentInstruction.getName()
                     + "</b>"
-                    + "<br>----------------------------------------------<br>"
+                    + "<br>-------------------------------------------------<br>"
                     + "Check the GET for <b style='color:red;'>"
                     + currentInstruction.getParentId() + "-"
                     + currentInstruction.getOperation()
@@ -1330,16 +1338,22 @@ public class PerformActions {
             ABRConstants.ConditionStatus conditionStatus) {
 
         if (conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
-            showAlert(
-                    Alert.AlertType.ERROR,
-                    "GET is Not Defined for \"" + currentInstruction.getName() + "\"",
-                    "\"" + currentInstruction.getName() + "\" - GET is Not Defined",
-                    "There is NOT GET VALUE defined for: "
-                            + currentInstruction.getName()
-                            + "\n --------------------- "
-                            + "\nCheck the GET for "
-                            + currentInstruction.getParentId() + "-"
-                            + currentInstruction.getOperation());
+            //            showAlert(
+            //                    Alert.AlertType.ERROR,
+            //                    "GET is Not Defined for \"" + currentInstruction.getName() + "\"",
+            //                    "\"" + currentInstruction.getName() + "\" - GET is Not Defined",
+            //                    "There is NOT GET VALUE defined for: "
+            //                            + currentInstruction.getName()
+            //                            + "\n --------------------- "
+            //                            + "\nCheck the GET for "
+            //                            + currentInstruction.getParentId() + "-"
+            //                            + currentInstruction.getOperation());
+
+            String msg1 = "There is NOT GET VALUE defined for: " + currentInstruction.getName();
+            String msg2 =
+                    "Check the GET for " + currentInstruction.getParentId() + "-" + currentInstruction.getOperation();
+
+            errorMessage("GET is Not Defined for \"" + currentInstruction.getName() + "\"", msg1, msg2, null, null);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1351,7 +1365,7 @@ public class PerformActions {
                                 : "";
 
         if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
-            return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return "Failed to Execute Cmd: " + conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
             return "Failed to Execute Cmd: " + lastInstructionExecuted;
@@ -1399,14 +1413,14 @@ public class PerformActions {
                     + currentInstruction
                             .getOperation()
                             .substring(0, currentInstruction.getOperation().indexOf(":")) + "\""
-                    + "<br>----------------------------------------------<br>"
+                    + "<br>-------------------------------------------------<br>"
                     + "<b style='color:red;'>" + "Does not belong to this block: \"" + blockLoad.getBlockOrderNumber()
                     + "-\"" + blockLoad.getName() + "\"" + "</b>"
                     + "</br>"
                     + "<b style='color:red;'>"
                     + "Attempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
                     + currentInstruction.getOperation() + "\"" + "</b>"
-                    + "<br>----------------------------------------------<br>"
+                    + "<br>-------------------------------------------------<br>"
                     + "<b style='color:blue;'>"
                     + "Check the Web Field \" ( ID ) <NAME>\" per Block</b>";
 
@@ -1445,24 +1459,41 @@ public class PerformActions {
     public String parentIdWrongBlock(
             BlockLoopInstructionLoadDTO currentInstruction,
             BlockLoadDTO blockLoad,
+            String lastInstructionExecuted,
             ABRConstants.ConditionStatus conditionStatus) {
 
         if (conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
-            showAlert(
-                    Alert.AlertType.ERROR,
-                    "Parent Id Error",
-                    "Check Parent Id",
-                    "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
-                            + currentInstruction
-                                    .getOperation()
-                                    .substring(
-                                            0, currentInstruction.getOperation().indexOf(":"))
-                            + "\""
-                            + "\nDoes not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
-                            + blockLoad.getName() + "\""
-                            + "\nAttempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
-                            + currentInstruction.getOperation() + "\""
-                            + "\nCheck the Web Field \" ( ID ) <NAME> \" per Block");
+            //            showAlert(
+            //                    Alert.AlertType.ERROR,
+            //                    "Parent Id Error",
+            //                    "Check Parent Id",
+            //                    "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
+            //                            + currentInstruction
+            //                                    .getOperation()
+            //                                    .substring(
+            //                                            0, currentInstruction.getOperation().indexOf(":"))
+            //                            + "\""
+            //                            + "\nDoes not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
+            //                            + blockLoad.getName() + "\""
+            //                            + "\nAttempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
+            //                            + currentInstruction.getOperation() + "\""
+            //                            + "\nCheck the Web Field \" ( ID ) <NAME> \" per Block");
+
+            String msg1 = "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
+                    + currentInstruction
+                            .getOperation()
+                            .substring(0, currentInstruction.getOperation().indexOf(":"))
+                    + "\"";
+
+            String msg2 = "Does not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
+                    + blockLoad.getName() + "\"";
+
+            String msg3 = "Attempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
+                    + currentInstruction.getOperation() + "\"";
+
+            String msg4 = "Check the Web Field \" ( ID ) <NAME> \" per Block";
+
+            errorMessage("Parent Id Error", msg1, msg2, msg3, msg4);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1493,9 +1524,17 @@ public class PerformActions {
                             currentInstruction.getOperation()));
         }
 
-        return String.format(
-                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields Ids",
-                currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
+        //        return String.format(
+        //                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields
+        // Ids",
+        //                currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
+
+        if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
+            return "Failed to Execute Cmd: " + conditionalBlock + " -> " + lastInstructionExecuted;
+
+        } else {
+            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+        }
     }
 
     public String checkValidationFailedEngine(
@@ -1510,7 +1549,7 @@ public class PerformActions {
             String message = "The Value of: <b style='color:red;'>\"" + operations[2] + "\""
                     + "</b> is not " + "<b>" + operations[1] + " "
                     + " \"" + expected + "\"" + "</b> Length: (<b>" + expected.length() + "</b>)"
-                    + "<br>----------------------------------------------<br>"
+                    + "<br>-------------------------------------------------<br>"
                     + "The Variable \"" + operations[0] + "\" holds value \"" + operations[2] + "\"</br>"
                     + "<br>Current Web Field: <b style='color:red;'> \"" + parent + "\" value: \"" + expected
                     + "\"</b> Length: (<b>\"" + expected.length() + ")</b>"
@@ -1701,13 +1740,13 @@ public class PerformActions {
 
             savedBlockLoopInstructionDTO.setDefaultValue(blockLoopInstructionDTO.getDefaultValue());
             savedBlockLoopInstructionDTO.setDescription(blockLoopInstructionDTO.getDescription());
-            savedBlockLoopInstructionDTO.setEncrypted(blockLoopInstructionDTO.isEncrypted());
+            savedBlockLoopInstructionDTO.setCodified(blockLoopInstructionDTO.getCodified());
             savedBlockLoopInstructionDTO.setExportToABR(blockLoopInstructionDTO.getExportToABR());
             savedBlockLoopInstructionDTO.setActive(blockLoopInstructionDTO.getActive());
             savedBlockLoopInstructionDTO.setInstructionOrderNumber(blockLoopInstructionDTO.getInstructionOrderNumber());
             savedBlockLoopInstructionDTO.setName(blockLoopInstructionDTO.getName());
             savedBlockLoopInstructionDTO.setOnHoldSeconds(blockLoopInstructionDTO.getOnHoldSeconds());
-            savedBlockLoopInstructionDTO.setOptional(blockLoopInstructionDTO.isOptional());
+            savedBlockLoopInstructionDTO.setOptional(blockLoopInstructionDTO.getOptional());
             savedBlockLoopInstructionDTO.setPath(blockLoopInstructionDTO.getPath());
 
             List<SavedInstructionReferenceDTO> referenceDTOList = new ArrayList<>(
@@ -1722,10 +1761,10 @@ public class PerformActions {
     }
 
     // Creating BLOCKS DTO FROM SAVED BLOCKS
-    public static BlockDTO createBlocksDTOFromSavedBlocksDTO(SavedBlocksDTO savedBlocksDTO, BotJobDTO botJobDTO) {
-        BlockDTO blocksDTO = new BlockDTO();
+    public static BlockLoadDTO createBlocksDTOFromSavedBlocksDTO(SavedBlocksDTO savedBlocksDTO, BotJobDTO botJobDTO) {
+        BlockLoadDTO blocksDTO = new BlockLoadDTO();
         blocksDTO.setName(savedBlocksDTO.getName());
-        blocksDTO.setBotJob(botJobDTO);
+        blocksDTO.setBotJobId(botJobDTO.getId());
         blocksDTO.setDescription(savedBlocksDTO.getDescription());
         blocksDTO.setTypeId(savedBlocksDTO.getTypeId());
         blocksDTO.setExportFile(savedBlocksDTO.getExportFile());
@@ -1733,44 +1772,49 @@ public class PerformActions {
     }
 
     // Creating BLOCK INSTRUCTIONS FROM COMPONENT SAVED INSTRUCTIONS
-    public static List<BlockLoopInstructionDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
-            SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO) {
-        List<BlockLoopInstructionDTO> blockLoopInstructionDTOs = new ArrayList<>();
+    public static List<BlockLoopInstructionLoadDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
+            SavedBlocksDTO savedBlocksDTO) {
 
-        BlockLoopInstructionDTO blockLoopInstructionDTO;
+        BlockLoopInstructionLoadDTO blockLoopInstructionDTO;
 
-        List<SavedBlockLoopInstructionDTO> savedInstructions = ABRSharedResources.getInstance()
-                .getEntityList(
-                        SavedBlockLoopInstructionDTO.class,
-                        saved -> saved.getBlock().getId() == savedBlocksDTO.getId());
+        //        List<BlockLoopInstructionLoadDTO> savedInstructions = ABRSharedResources.getInstance()
+        //                .getEntityList(
+        //                        SavedBlockLoopInstructionDTO.class,
+        //                        saved -> saved.getBlock().getId() == savedBlocksDTO.getId());
 
-        for (SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO : savedInstructions) {
-            blockLoopInstructionDTO = new BlockLoopInstructionDTO();
+        List<BlockLoopInstructionLoadDTO> savedInstructions = performDataBase.getSavedInstructionsByBlockId(
+                savedBlocksDTO.getBotJobDTO().getId(), savedBlocksDTO.getId());
 
-            blockLoopInstructionDTO.setActionCustomMaxWaitSec(savedBlockLoopInstructionDTO.getActionCustomMaxWaitSec());
-            blockLoopInstructionDTO.setActions(savedBlockLoopInstructionDTO.getActions());
+        //        for (BlockLoopInstructionLoadDTO savedBlockLoopInstructionDTO : savedInstructions) {
+        //            blockLoopInstructionDTO = new BlockLoopInstructionLoadDTO();
+        //
+        //
+        // blockLoopInstructionDTO.setActionCustomMaxWaitSec(savedBlockLoopInstructionDTO.getActionCustomMaxWaitSec());
+        //            blockLoopInstructionDTO.setActions(savedBlockLoopInstructionDTO.getActions());
+        //
+        //            blockLoopInstructionDTO.setBlockId(blockDTO.getId());
+        //            blockLoopInstructionDTO.setDefaultValue(savedBlockLoopInstructionDTO.getDefaultValue());
+        //            blockLoopInstructionDTO.setDescription(savedBlockLoopInstructionDTO.getDescription());
+        //            blockLoopInstructionDTO.setCodified(savedBlockLoopInstructionDTO.getCodified());
+        //            blockLoopInstructionDTO.setExportToABR(savedBlockLoopInstructionDTO.getExportToABR());
+        //            blockLoopInstructionDTO.setInstructionActive(savedBlockLoopInstructionDTO.getInstructionActive());
+        //
+        // blockLoopInstructionDTO.setInstructionOrderNumber(savedBlockLoopInstructionDTO.getInstructionOrderNumber());
+        //            blockLoopInstructionDTO.setName(savedBlockLoopInstructionDTO.getName());
+        //            blockLoopInstructionDTO.setOnHoldSeconds(savedBlockLoopInstructionDTO.getOnHoldSeconds());
+        //            blockLoopInstructionDTO.setOptional(savedBlockLoopInstructionDTO.getOptional());
+        //            blockLoopInstructionDTO.setPath(savedBlockLoopInstructionDTO.getPath());
+        //
+        //            List<InstructionReferenceLoadDTO> referenceDTOList =
+        //                    new
+        // ArrayList<>(InstructionReferenceDTO.createReferencesFromSavedInstructionForInstruction(
+        //                            savedBlockLoopInstructionDTO, blockLoopInstructionDTO));
+        //            blockLoopInstructionDTO.setInstructionReferenceDTOList(referenceDTOList);
+        //
+        //            blockLoopInstructionDTOs.add(blockLoopInstructionDTO);
+        //        }
 
-            blockLoopInstructionDTO.setBlock(blockDTO);
-            blockLoopInstructionDTO.setDefaultValue(savedBlockLoopInstructionDTO.getDefaultValue());
-            blockLoopInstructionDTO.setDescription(savedBlockLoopInstructionDTO.getDescription());
-            blockLoopInstructionDTO.setEncrypted(savedBlockLoopInstructionDTO.isEncrypted());
-            blockLoopInstructionDTO.setExportToABR(savedBlockLoopInstructionDTO.getExportToABR());
-            blockLoopInstructionDTO.setActive(savedBlockLoopInstructionDTO.getActive());
-            blockLoopInstructionDTO.setInstructionOrderNumber(savedBlockLoopInstructionDTO.getInstructionOrderNumber());
-            blockLoopInstructionDTO.setName(savedBlockLoopInstructionDTO.getName());
-            blockLoopInstructionDTO.setOnHoldSeconds(savedBlockLoopInstructionDTO.getOnHoldSeconds());
-            blockLoopInstructionDTO.setOptional(savedBlockLoopInstructionDTO.isOptional());
-            blockLoopInstructionDTO.setPath(savedBlockLoopInstructionDTO.getPath());
-
-            List<InstructionReferenceDTO> referenceDTOList =
-                    new ArrayList<>(InstructionReferenceDTO.createReferencesFromSavedInstructionForInstruction(
-                            savedBlockLoopInstructionDTO, blockLoopInstructionDTO));
-            blockLoopInstructionDTO.setInstructionReferenceDTOList(referenceDTOList);
-
-            blockLoopInstructionDTOs.add(blockLoopInstructionDTO);
-        }
-
-        return blockLoopInstructionDTOs;
+        return savedInstructions;
     }
 
     private int createSavedBlock(BlockDTO blockDTO) {
@@ -1970,7 +2014,7 @@ public class PerformActions {
         // Style the message
         JLabel messageLabel = new JLabel(
                 "<html><br><span style='color: blue;'>" + message
-                        + "</span><<br>---------------------------<br><span style='color: blue;'>" + message2
+                        + "</span><<br>------------------------------<br><span style='color: blue;'>" + message2
                         + "</span></html>",
                 SwingConstants.CENTER);
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
@@ -2014,17 +2058,22 @@ public class PerformActions {
         // Build the message
         String titleMessage = "<html><br><span style='color: blue;'>";
         titleMessage += "<span style='font-size: 14px; font-weight: bold;'>" + title
-                + "</span><br>---------------------------<br>";
+                + "</span><br>------------------------------<br>";
 
-        String concatenaMsg = "<span style='color: blue;'>" + message
-                + "</span><br>---------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+        String concatenaMsg = "<span style='color: blue;'>" + message;
+        if (message2 != null) {
+            concatenaMsg +=
+                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+        } else {
+            concatenaMsg += "</span><br>------------------------------<br><br>                            <br>";
+        }
 
         if (message3 != null && message4 == null) {
             concatenaMsg +=
-                    "<br>---------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
+                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
         } else if (message3 != null && message4 != null) {
-            concatenaMsg += "<br>---------------------------<br><span style='color: blue;'>"
-                    + message3 + "</span><br>---------------------------<br><span style='color: blue;'>"
+            concatenaMsg += "<br>------------------------------<br><span style='color: blue;'>"
+                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
                     + message4 + "</span><br><br></html>";
         } else {
             concatenaMsg += "</html>";
@@ -2300,10 +2349,10 @@ public class PerformActions {
             updatedInstruction.setDescription(instruction.getDescription());
             updatedInstruction.setOptional(instruction.getOptional());
             updatedInstruction.setBlockMarked(instruction.getBlockMarked());
-            updatedInstruction.setDefault_val(instruction.getDefault_val());
+            updatedInstruction.setDefaultValue(instruction.getDefaultValue());
             updatedInstruction.setActionCustomMaxWaitSec(instruction.getActionCustomMaxWaitSec());
             updatedInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());
-            updatedInstruction.setEncrypted(instruction.getEncrypted());
+            updatedInstruction.setCodified(instruction.getCodified());
             updatedInstruction.setExportToABR(instruction.getExportToABR());
             updatedInstruction.setExportToABR(instruction.getExportToABR());
             updatedInstruction.setExecuted(instruction.getExecuted());

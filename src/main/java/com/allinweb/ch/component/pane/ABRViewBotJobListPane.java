@@ -2,10 +2,12 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
-import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRConstants;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.HPos;
 import javafx.scene.control.Label;
@@ -17,7 +19,13 @@ public class ABRViewBotJobListPane extends ABRPane {
     // UI components
     GridPane header = new GridPane();
 
-    ListView<BotJobDTO> uiBotJobList = new ListView<>();
+    ListView<BotJobLoadDTO> uiBotJobList = new ListView<>();
+
+    private static final PerformDataBase performDataBase;
+    // Static block to initialize
+    static {
+        performDataBase = PerformDataBase.getInstance();
+    }
 
     @Override
     public Pane getPaneReference() {
@@ -26,7 +34,8 @@ public class ABRViewBotJobListPane extends ABRPane {
 
     @Override
     public void initUIComponents() {
-        ObservableList<BotJobDTO> botJobList = ABRSharedResources.getInstance().getEntityList(BotJobDTO.class);
+        //        ABRSharedResources.getInstance().getEntityList(BotJobDTO.class);
+        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
         uiBotJobList = new ListView<>(botJobList);
         uiBotJobList.setCellFactory(new ABRCellFactory<>(BotJobListCell.class)::call);
         AnchorPane.setTopAnchor(uiBotJobList, ABRConstants.SPACE_M + ABRConstants.SPACE_M);
