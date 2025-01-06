@@ -1580,23 +1580,37 @@ public class PerformActions {
             boolean byPassFlagLoop) {
 
         if (conditionStatus.equals(ABRConstants.ConditionStatus.NONE) && !byPassFlagLoop) {
-            showAlert(
-                    Alert.AlertType.ERROR,
-                    "Validation Error",
-                    "Check Validation Error",
-                    "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
-                            + expected + "\" Length: ("
-                            + expected.length()
-                            + ")" + "\n --------------------- "
-                            + "\nThe Variable \""
-                            + operations[0] + "\" holds value \"" + operations[2] + "\""
-                            + "\nCurrent Web Field \"" + parent + "\" value: \""
-                            + expected + "\" Length: (" + expected.length()
-                            + ")" + "\nExpected value: "
-                            + operations[2]
-                            + " Length: ("
-                            + operations[2].length()
-                            + ")");
+            //            showAlert(
+            //                    Alert.AlertType.ERROR,
+            //                    "Validation Error",
+            //                    "Check Validation Error",
+            //                    "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
+            //                            + expected + "\" Length: ("
+            //                            + expected.length()
+            //                            + ")" + "\n --------------------- "
+            //                            + "\nThe Variable \""
+            //                            + operations[0] + "\" holds value \"" + operations[2] + "\""
+            //                            + "\nCurrent Web Field \"" + parent + "\" value: \""
+            //                            + expected + "\" Length: (" + expected.length()
+            //                            + ")" + "\nExpected value: "
+            //                            + operations[2]
+            //                            + " Length: ("
+            //                            + operations[2].length()
+            //                            + ")");
+
+            String msg1 = "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
+                    + expected + "\" Length: ("
+                    + expected.length()
+                    + ")";
+
+            String msg2 = "The Variable \"" + operations[0] + "\" holds value \"" + operations[2] + "\"";
+
+            String msg3 = "Current Web Field \"" + parent + "\" value: \""
+                    + expected + "\" Length: (" + expected.length()
+                    + ")";
+            String msg4 = "\nExpected value: " + operations[2] + " Length: (" + operations[2].length() + ")";
+
+            errorMessage("Check Validation Error", msg1, msg2, msg3, msg4);
         }
 
         String conditionalBlock = conditionStatus.equals(ABRConstants.ConditionStatus.IF_PASSED)
@@ -1608,7 +1622,7 @@ public class PerformActions {
                                 : "";
 
         if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
-            return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return "Failed to Execute Cmd: " + conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
             return "Failed to Execute Cmd: " + lastInstructionExecuted;
@@ -2209,7 +2223,7 @@ public class PerformActions {
     // It Must be Greater than CurrentIndex
     // Ir Predicts if is going to have multiple ENSEIFs
     public int searchMapConditional(
-            Map<String, Integer> mapConditional,
+            Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
             ABRConstants.ConditionStatus condition,
             int currentIndex,
@@ -2218,15 +2232,19 @@ public class PerformActions {
         // Construct the key pattern
         String keyPattern = parentBlockCondition + "-" + condition;
 
-        // Iterate through the map and find the first index that matches the key pattern and is greater than
-        // currentIndex
-        for (Map.Entry<String, Integer> entry : mapConditional.entrySet()) {
+        // Iterate through the map entries
+        for (Map.Entry<String, List<Integer>> entry : mapConditional.entrySet()) {
             String key = entry.getKey();
-            int value = entry.getValue();
+            List<Integer> indices = entry.getValue();
 
-            // Check if the key matches the pattern and the value is greater than currentIndex
-            if (key.startsWith(keyPattern) && value >= currentIndex) {
-                return value; // Return exactly the index
+            // Check if the key matches the pattern
+            if (key.startsWith(keyPattern)) {
+                // Find the first index in the list that is greater than or equal to currentIndex
+                for (int index : indices) {
+                    if (index >= currentIndex) {
+                        return index; // Return the matching index
+                    }
+                }
             }
         }
 
@@ -2246,9 +2264,9 @@ public class PerformActions {
         return -1; // Return -1 if no valid index is found
     }
 
-    public Map<String, Integer> getConditionIndexMapByParentId(BlockLoadDTO blockLoad) {
+    public Map<String, List<Integer>> getConditionIndexMapByParentId(BlockLoadDTO blockLoad) {
         try {
-            // Create a map where key is "parentId+actions" and value is the index
+            // Create a map where key is "parentId-actions" and value is a list of indices
             return IntStream.range(
                             0, blockLoad.getBlockLoopInstructionLoadDTOS().size())
                     .filter(index -> {
@@ -2268,10 +2286,17 @@ public class PerformActions {
                                         .getBlockLoopInstructionLoadDTOS()
                                         .get(index);
                                 return instruction.getParentId() + "-"
-                                        + instruction.getActions(); // Key: parentId+actions
+                                        + instruction.getActions(); // Key: parentId-actions
                             },
-                            index -> index, // Value: index
-                            (existing, replacement) -> existing // Handle duplicates (if any) by keeping the first one
+                            index -> {
+                                List<Integer> indices = new ArrayList<>();
+                                indices.add(index);
+                                return indices;
+                            }, // Value: list of indices
+                            (existing, replacement) -> {
+                                existing.addAll(replacement);
+                                return existing;
+                            } // Handle duplicates by merging lists
                             ));
         } catch (Exception ex) {
             // Return an empty map in case of an exception
@@ -2895,7 +2920,7 @@ public class PerformActions {
     public int checkActionToJump(
             String action,
             ABRConstants.ConditionStatus progressCondition,
-            Map<String, Integer> mapConditional,
+            Map<String, List<Integer>> mapConditional,
             int parentBlockCondition,
             int currentIndex) {
         if (action.equalsIgnoreCase(ABRConstants.ELSEIF)) {

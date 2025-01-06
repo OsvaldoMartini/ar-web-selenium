@@ -3680,7 +3680,7 @@ public class ABRScannedElementPane extends ABRPane {
         Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
-        Map<String, Integer> mapConditional = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
+        Map<String, List<Integer>> mapConditional = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Map<String, Integer> mapLoops = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Map<String, Integer> mapRefresh = new HashMap<>(); // <parentId:Limit Loops> -> <1|5 Times>
         Set<String> loopBlockActive = new HashSet<>();
@@ -4578,7 +4578,6 @@ public class ABRScannedElementPane extends ABRPane {
                                     //                                    fieldName = parentField;
 
                                     byPassFlagLoop = parentIdsForLoop.contains(parentId);
-                                    success = byPassFlagLoop;
 
                                     resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
                                             + String.join(" ", operations);
@@ -4624,7 +4623,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                 mapOperators.get(parentField),
                                                 resultActions,
                                                 operations,
-                                                ABRConstants.ConditionStatus.NONE,
+                                                currentCondition,
                                                 byPassFlagLoop);
 
                                         success = false;
