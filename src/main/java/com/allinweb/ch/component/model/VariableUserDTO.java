@@ -1,4 +1,4 @@
-package com.allinweb.ch.persistence;
+package com.allinweb.ch.component.model;
 
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;

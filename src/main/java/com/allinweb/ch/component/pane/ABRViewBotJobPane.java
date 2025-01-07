@@ -9,6 +9,7 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.PayloadJson;
+import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.component.scene.base.ABRScene;
@@ -20,7 +21,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
-import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.socket.WebSocketStompServer;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -360,22 +360,22 @@ public class ABRViewBotJobPane extends ABRPane {
             List<BlockLoopInstructionLoadDTO> blockLoopInstructions =
                     this.botLoadJobs.get(0).getBlockLoadDTOList().stream()
                             .flatMap(itemBlock -> itemBlock.getBlockLoopInstructionLoadDTOS().stream()
-                                    .map(blockLoopInstructionDTO -> new BlockLoopInstructionLoadDTO(
+                                    .map(blockLoopInstLoad -> new BlockLoopInstructionLoadDTO(
                                             itemBlock.getBotJobId(), // botJobId
                                             itemBlock.getBotJobName(), // botJob Name
-                                            blockLoopInstructionDTO.getId(), // Instruction Id
-                                            blockLoopInstructionDTO.getInstructionOrderNumber(), // Instruction Order
-                                            blockLoopInstructionDTO.getName(), // Instruction Name
-                                            blockLoopInstructionDTO.getDescription(), // Instruction Description
+                                            blockLoopInstLoad.getId(), // Instruction Id
+                                            blockLoopInstLoad.getInstructionOrderNumber(), // Instruction Order
+                                            blockLoopInstLoad.getName(), // Instruction Name
+                                            blockLoopInstLoad.getDescription(), // Instruction Description
                                             itemBlock.getId(), // block ID
                                             itemBlock.getBlockOrderNumber(), // block Order
                                             itemBlock.getName(), // block Name
                                             itemBlock.isActive(),
-                                            blockLoopInstructionDTO.getInstructionActive(),
+                                            blockLoopInstLoad.getInstructionActive(),
                                             itemBlock.getWait(),
-                                            blockLoopInstructionDTO.getActions(),
-                                            blockLoopInstructionDTO.getParentId(),
-                                            blockLoopInstructionDTO.getOperation(),
+                                            blockLoopInstLoad.getActions(),
+                                            blockLoopInstLoad.getParentId(),
+                                            blockLoopInstLoad.getOperation(),
                                             itemBlock.getExportFile())))
                             .collect(Collectors.toList());
 

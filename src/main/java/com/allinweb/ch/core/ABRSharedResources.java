@@ -55,6 +55,14 @@ public class ABRSharedResources {
     private static ABRPriorities abrPriorities;
     private String previousDB;
 
+    public Connection getConn() {
+        return conn;
+    }
+
+    public void setConn(Connection conn) {
+        this.conn = conn;
+    }
+
     // Static block to initialize
     static {
         abrPriorities = ABRPriorities.getInstance();
@@ -396,6 +404,17 @@ public class ABRSharedResources {
         }
     }
 
+    public void closeConnection() {
+        if (this.conn != null) {
+            try {
+                this.conn.close();
+                this.conn = null; // Reset the connection to null after closing
+            } catch (SQLException e) {
+                e.printStackTrace(); // Handle the exception, log it or rethrow it as needed
+            }
+        }
+    }
+
     public void changeDbConnection() {
         //        String priorityPath =
         // ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
@@ -408,7 +427,7 @@ public class ABRSharedResources {
 
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
         if (previousDB != null && previousDB != dataBaseType) {
-            this.conn = null;
+            closeConnection();
             previousDB = dataBaseType;
         } else {
             previousDB = dataBaseType;

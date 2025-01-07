@@ -12,23 +12,25 @@ import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.ABRNewCommandPane;
 import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.component.pane.ABRViewBotJobPane;
-import com.allinweb.ch.component.scene.ABRAlertScene;
-import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.InstructionReferenceDTO;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
-import com.allinweb.ch.persistence.VariableUserDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
+import com.allinweb.ch.util.ABRPropertyEnum;
+import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import java.awt.*;
+import java.io.File;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -40,20 +42,38 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
-import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.Label;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javax.swing.*;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.cfg.Configuration;
 
 public class PerformDataBase {
+
+    private static Connection conn = null;
+
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+
+    // Postgres
+    private static boolean POSTGRES_DB = false;
+    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    private static final String DB_PORT = "5432"; // default PostgreSQL port
+    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String USERNAME = "postgres"; // your database username
+    private static final String PASSWORD = "martini"; // your database password
+
+    private static SessionFactory sessionFactory = null;
+    private static Session session = null;
+
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
@@ -77,6 +97,107 @@ public class PerformDataBase {
         return instance.get();
     }
 
+    public static Connection getConn() {
+        return conn;
+    }
+
+    public static void setConn(Connection conn) {
+        PerformDataBase.conn = conn;
+    }
+
+    public static void closeConnection() {
+        if (conn != null) {
+            try {
+                conn.close();
+                conn = null; // Reset the connection to null after closing
+            } catch (SQLException e) {
+                e.printStackTrace(); // Handle the exception, log it or rethrow it as needed
+            }
+        }
+    }
+
+    public static void changeDbConnection() {
+        String priorityPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+
+        closeConnection();
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+        } else {
+            POSTGRES_DB = false;
+        }
+
+        if (priorityPath != null) {
+
+            //            if (priorityPath != null && !priorityPath.isBlank()) {
+            //                abrPriorities.loadPriorities();
+            //            }
+
+            if (POSTGRES_DB) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                sessionFactory = new Configuration()
+                        .configure()
+                        .setProperty("hibernate.connection.url", dbUrl)
+                        .setProperty("hibernate.connection.username", USERNAME)
+                        .setProperty("hibernate.connection.password", PASSWORD)
+                        .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
+                        .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
+                        .buildSessionFactory();
+                session = sessionFactory.openSession();
+                //                cacheEntitiesFromDB();
+            } else {
+
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                if (!dbPath.isBlank()) {
+                    File dbFolder = new File(dbPath);
+                    dbFolder.mkdirs();
+                    String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                    sessionFactory = new Configuration()
+                            .configure()
+                            .setProperty("hibernate.connection.url", dbUrl)
+                            .buildSessionFactory();
+                    session = sessionFactory.openSession();
+                    //                    cacheEntitiesFromDB();
+                }
+            }
+        }
+    }
+
+    private static Connection getConnection() {
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+        } else {
+            POSTGRES_DB = false;
+        }
+
+        if (!POSTGRES_DB) {
+            if (conn == null) {
+                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                try {
+                    conn = DriverManager.getConnection(dbUrl);
+                } catch (SQLException e) {
+                    ABRLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + e.getMessage());
+                }
+            }
+            return conn;
+        } else {
+
+            if (conn == null) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                try {
+                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                } catch (SQLException e) {
+                    ABRLogger.getInstance(PerformDataBase.class).severe("Get DB connection Error: " + e.getMessage());
+                }
+            }
+            return conn;
+        }
+    }
+
     // Handle DELETE_INSTRUCTION message
     public static void deleteInstruction(int botJobId, InstructionDTO deleteInstructionDTO) {
         if (deleteVariable(botJobId, deleteInstructionDTO.getInstructionId()))
@@ -90,7 +211,7 @@ public class PerformDataBase {
     private static boolean deleteVariable(int bot_job_id, int instructionId) {
         // Build the SQL delete statement
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             String deleteSQL = "DELETE FROM variable WHERE "
                     + " block_loop_instruction_id = " + instructionId
@@ -124,7 +245,7 @@ public class PerformDataBase {
 
     private static boolean deleteReferences(int botJobId, int instructionId) {
         // Build the SQL delete statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             String deleteSQL =
                     "DELETE FROM instruction_reference" + " WHERE block_loop_instruction_id = " + instructionId;
@@ -155,7 +276,7 @@ public class PerformDataBase {
 
     private static boolean deleteRow(InstructionDTO deleteInstructionDTO) {
         // Build the SQL delete statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             int rowsAffected = 0;
             String deleteSQL = "DELETE FROM block_loop_instruction" + " WHERE id = "
@@ -205,7 +326,7 @@ public class PerformDataBase {
 
     public static void deleteNullBlocks(int botJobId) {
         // Build the SQL delete statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             String deleteSQL = "DELETE FROM block b "
                     + "WHERE b.bot_job_id = " + botJobId
@@ -234,7 +355,7 @@ public class PerformDataBase {
         //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
         blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             int newOrderNumber = 1; // Start reordering from 1
 
             for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
@@ -270,7 +391,7 @@ public class PerformDataBase {
 
     public static List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             // Select blocks based on botJobId, ordered by block_order_number ASC
             String selectSQL =
@@ -306,7 +427,7 @@ public class PerformDataBase {
 
     // Handle BLOCK_UPDATE message
     public void updateBlockName(int botJobId, int blockId, String blockName) {
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             // Update each block's block_order_number starting from 1
             String updateSQL = "UPDATE block SET name = '" + blockName + "',"
@@ -334,7 +455,7 @@ public class PerformDataBase {
 
     // Handle BLOCK_UPDATE message
     public boolean updateBlockExportFile(int botJobId, int blockId, String expoprtFile) {
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             // Update each block's block_order_number starting from 1
             String updateSQL = "UPDATE block SET export_file = '" + expoprtFile + "'"
@@ -366,7 +487,7 @@ public class PerformDataBase {
 
     // Handle BLOCK_UPDATE message
     public boolean updateExportABR(BlockLoopInstructionLoadDTO instruction) {
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             // Update each export_to_abr
             String updateSQL = "UPDATE block_loop_instruction SET export_to_abr = " + instruction.getExportToABR()
@@ -464,7 +585,7 @@ public class PerformDataBase {
                         + blockDTO.getActive() + ", " // active
                         + 3 + ", " // wait
                         + botJobId + ")"; // bot_job_id, assuming BotJobDTO has an ID
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             ABRLogger.getInstance(PerformDataBase.class)
                     .info(String.format("Block data saved successfully.\n BlockId: %d", nextId));
@@ -490,7 +611,7 @@ public class PerformDataBase {
                 + "'" + createdBotJob.getName() + "', " // name
                 + "'" + createdBotJob.getName() + " description', " // description
                 + createdBotJob.getHomeBankingId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             ABRLogger.getInstance(PerformDataBase.class)
                     .info(String.format("BotJob data saved successfully.\n BotJobId: %d", nextId));
@@ -505,7 +626,7 @@ public class PerformDataBase {
     public boolean updateInstructionsSplitter(List<InstructionDTO> instructions, int originalBlockId, int newBlockId) {
         // Build the SQL update statement
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             for (InstructionDTO instruction : instructions) {
 
                 String updateSQL = "UPDATE block_loop_instruction SET  "
@@ -534,7 +655,7 @@ public class PerformDataBase {
 
     public boolean rowsUpdateName(List<InstructionDTO> instructions) {
         // Build the SQL update statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             for (InstructionDTO instruction : instructions) {
 
                 String updateSQL = "UPDATE block_loop_instruction SET  "
@@ -566,7 +687,7 @@ public class PerformDataBase {
 
     public boolean updateMoveRowsOrder(List<InstructionDTO> instructions) {
         // Build the SQL update statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             for (InstructionDTO instruction : instructions) {
 
                 String updateSQL = "UPDATE block_loop_instruction SET  "
@@ -600,7 +721,7 @@ public class PerformDataBase {
     public void rollBackBlocksRows(RollBackBlocksDTO rollBackBlocksDTO) {
         // Build the SQL update statement
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             for (InstructionDTO instruction : rollBackBlocksDTO.getInstructions()) {
 
                 String updateSQL = "UPDATE block_loop_instruction SET  "
@@ -634,7 +755,7 @@ public class PerformDataBase {
     public void rollBackBlocksOrder(RollBackBlocksDTO rollBackBlocksDTO) {
         // Build the SQL update statement
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             String updateSQL = "UPDATE block SET  "
                     + " block_order_number = " + 1
@@ -670,7 +791,7 @@ public class PerformDataBase {
         String selectSQL = "SELECT i.id FROM block_loop_instruction i " + " WHERE i.block_id IS NULL";
 
         // Try-with-resources to handle the SQL statement and result set
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             ResultSet rs = stmt.executeQuery(selectSQL);
 
             // Iterate through the result set and add each ID to the list
@@ -695,7 +816,7 @@ public class PerformDataBase {
 
     public boolean deleteBlock(int botJobId, int blockId) {
         // Build the SQL delete statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             String deleteSQL = "DELETE FROM block " + " WHERE id = " + blockId + " and bot_job_id = " + botJobId;
 
@@ -725,7 +846,7 @@ public class PerformDataBase {
     private Integer loadNextIdBotJobData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM bot_job";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -739,7 +860,7 @@ public class PerformDataBase {
     private Integer loadNextIdBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -753,7 +874,7 @@ public class PerformDataBase {
     public int loadNextBlockOrderNumber(int botJobId) {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT COUNT(*) AS quantity FROM block WHERE bot_job_id = " + botJobId;
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("quantity");
@@ -784,7 +905,7 @@ public class PerformDataBase {
                 + " where bj.id = " + botJobId
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
             Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
@@ -890,7 +1011,7 @@ public class PerformDataBase {
     //                + " where bot_job_id = " + botJobId
     //                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
     //
-    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+    //        try (Statement stmt = getConnection().createStatement();
     //             ResultSet rs = stmt.executeQuery(query)) {
     //
     //            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
@@ -971,113 +1092,114 @@ public class PerformDataBase {
     //        }
     //    }
 
-    private void addInstruction(
-            String name, String operation, Integer variableId, Integer parentId, RowMoveDTO rowMoveDTO) {
-
-        // Create and show alert inside Platform.runLater
-        Platform.runLater(() -> {
-            // Create a label to display the instruction
-            javafx.scene.control.Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
-            newInstruction.setStyle("-fx-font-size: 18px;");
-
-            StackPane stackPane = new StackPane(newInstruction);
-            stackPane.setPadding(new Insets(20));
-
-            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
-            alert.setHeaderText("Are you sure you want to Add the Instruction to the Bot-Job?");
-            alert.getDialogPane().setContent(stackPane);
-
-            Optional<ButtonType> result = alert.showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.YES) {
-                List<BlockLoopInstructionDTO> instructionList = null;
-                BotJobDTO botJob =
-                        ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
-                List<BlockDTO> matchingBlocks = null;
-                if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-                    int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
-
-                    matchingBlocks = botJob.getBlocks().stream()
-                            .filter(block -> block.getId() == targetBlockId)
-                            .collect(Collectors.toList());
-
-                    if (!matchingBlocks.isEmpty()) {
-                        instructionList = matchingBlocks.get(0).getBlockLoopInstructions();
-                    } else {
-                        instructionList = botJob.getBlocks().get(0).getBlockLoopInstructions();
-                    }
-                }
-
-                List<BlockLoopInstructionDTO> finalInstructionList = instructionList;
-                List<BlockDTO> finalMatchingBlocks = matchingBlocks;
-
-                Task<Void> waitTask = new Task<>() {
-                    @Override
-                    protected Void call() throws Exception {
-                        try {
-                            BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
-                            instruction.setName(name);
-                            instruction.setDescription("loop desc");
-                            instruction.setOperation(operation);
-                            instruction.setVariableId(variableId);
-                            instruction.setParentId(parentId);
-                            instruction.setCodified(false);
-                            instruction.setExportToABR(true);
-                            if (rowMoveDTO != null
-                                    && rowMoveDTO.getUpdatedRows().size() > 0) {
-                                instruction.setInstructionOrderNumber(
-                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
-                            } else {
-                                instruction.setInstructionOrderNumber(finalInstructionList.size());
-                            }
-                            instruction.setOptional(false);
-                            if (name.equalsIgnoreCase("setValue")) {
-                                instruction.setActions(ABRConstants.SET_VALUE);
-                            } else if (name.equalsIgnoreCase("getValue")) {
-                                instruction.setActions(ABRConstants.GET_VALUE);
-                            } else if (name.equalsIgnoreCase("check")) {
-                                instruction.setActions(ABRConstants.CHECK_VALUE);
-                            } else if (name.equalsIgnoreCase("ExcelWrite")) {
-                                instruction.setActions(ABRConstants.EXTRACT_FIELD);
-                            } else if (name.equalsIgnoreCase("GoTo")) {
-                                instruction.setActions(ABRConstants.GOTO);
-                            } else if (name.equalsIgnoreCase("IF")) {
-                                instruction.setActions(ABRConstants.IF);
-                            }
-                            instruction.setActionCustomMaxWaitSec(30);
-                            instruction.setOnHoldSeconds(1);
-                            if (finalMatchingBlocks != null) {
-                                instruction.setBlock(finalMatchingBlocks.get(0));
-                            } else {
-                                instruction.setBlock(botJob.getBlocks().get(0));
-                            }
-                            instruction.setExportToABR(false);
-
-                            // Wrap the persistence in a try-catch block
-                            try {
-                                ABRSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
-                            } catch (Exception e) {
-                                System.err.println("Error while saving instruction: " + e.getMessage());
-                                e.printStackTrace();
-                            }
-
-                            // Move the UI update to the JavaFX Application Thread
-                            Platform.runLater(() -> {
-                                new ABRAlertScene(
-                                        Alert.AlertType.INFORMATION,
-                                        "Instruction Added",
-                                        "Instruction " + instruction.getName() + " has been added successfully",
-                                        ButtonType.OK);
-                            });
-                        } catch (Exception ex) {
-                            ex.printStackTrace(); // Handle any exception
-                        }
-                        return null;
-                    }
-                };
-                new Thread(waitTask).start();
-            }
-        });
-    }
+    //    private void addInstruction(
+    //            String name, String operation, Integer variableId, Integer parentId, RowMoveDTO rowMoveDTO) {
+    //
+    //        // Create and show alert inside Platform.runLater
+    //        Platform.runLater(() -> {
+    //            // Create a label to display the instruction
+    //            javafx.scene.control.Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
+    //            newInstruction.setStyle("-fx-font-size: 18px;");
+    //
+    //            StackPane stackPane = new StackPane(newInstruction);
+    //            stackPane.setPadding(new Insets(20));
+    //
+    //            Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+    //            alert.setHeaderText("Are you sure you want to Add the Instruction to the Bot-Job?");
+    //            alert.getDialogPane().setContent(stackPane);
+    //
+    //            Optional<ButtonType> result = alert.showAndWait();
+    //            if (result.isPresent() && result.get() == ButtonType.YES) {
+    //                List<BlockLoopInstructionDTO> instructionList = null;
+    //                BotJobDTO botJob =
+    //                        getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
+    //                List<BlockDTO> matchingBlocks = null;
+    //                if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+    //                    int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
+    //
+    //                    matchingBlocks = botJob.getBlocks().stream()
+    //                            .filter(block -> block.getId() == targetBlockId)
+    //                            .collect(Collectors.toList());
+    //
+    //                    if (!matchingBlocks.isEmpty()) {
+    //                        instructionList = matchingBlocks.get(0).getBlockLoopInstructions();
+    //                    } else {
+    //                        instructionList = botJob.getBlocks().get(0).getBlockLoopInstructions();
+    //                    }
+    //                }
+    //
+    //                List<BlockLoopInstructionDTO> finalInstructionList = instructionList;
+    //                List<BlockDTO> finalMatchingBlocks = matchingBlocks;
+    //
+    //                Task<Void> waitTask = new Task<>() {
+    //                    @Override
+    //                    protected Void call() throws Exception {
+    //                        try {
+    //                            BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+    //                            instruction.setName(name);
+    //                            instruction.setDescription("loop desc");
+    //                            instruction.setOperation(operation);
+    //                            instruction.setVariableId(variableId);
+    //                            instruction.setParentId(parentId);
+    //                            instruction.setCodified(false);
+    //                            instruction.setExportToABR(true);
+    //                            if (rowMoveDTO != null
+    //                                    && rowMoveDTO.getUpdatedRows().size() > 0) {
+    //                                instruction.setInstructionOrderNumber(
+    //                                        rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+    //                            } else {
+    //                                instruction.setInstructionOrderNumber(finalInstructionList.size());
+    //                            }
+    //                            instruction.setOptional(false);
+    //                            if (name.equalsIgnoreCase("setValue")) {
+    //                                instruction.setActions(ABRConstants.SET_VALUE);
+    //                            } else if (name.equalsIgnoreCase("getValue")) {
+    //                                instruction.setActions(ABRConstants.GET_VALUE);
+    //                            } else if (name.equalsIgnoreCase("check")) {
+    //                                instruction.setActions(ABRConstants.CHECK_VALUE);
+    //                            } else if (name.equalsIgnoreCase("ExcelWrite")) {
+    //                                instruction.setActions(ABRConstants.EXTRACT_FIELD);
+    //                            } else if (name.equalsIgnoreCase("GoTo")) {
+    //                                instruction.setActions(ABRConstants.GOTO);
+    //                            } else if (name.equalsIgnoreCase("IF")) {
+    //                                instruction.setActions(ABRConstants.IF);
+    //                            }
+    //                            instruction.setActionCustomMaxWaitSec(30);
+    //                            instruction.setOnHoldSeconds(1);
+    //                            if (finalMatchingBlocks != null) {
+    //                                instruction.setBlock(finalMatchingBlocks.get(0));
+    //                            } else {
+    //                                instruction.setBlock(botJob.getBlocks().get(0));
+    //                            }
+    //                            instruction.setExportToABR(false);
+    //
+    //                            // Wrap the persistence in a try-catch block
+    //                            try {
+    //                                addEntity(instruction,
+    // BlockLoopInstructionDTO.class);
+    //                            } catch (Exception e) {
+    //                                System.err.println("Error while saving instruction: " + e.getMessage());
+    //                                e.printStackTrace();
+    //                            }
+    //
+    //                            // Move the UI update to the JavaFX Application Thread
+    //                            Platform.runLater(() -> {
+    //                                new ABRAlertScene(
+    //                                        Alert.AlertType.INFORMATION,
+    //                                        "Instruction Added",
+    //                                        "Instruction " + instruction.getName() + " has been added successfully",
+    //                                        ButtonType.OK);
+    //                            });
+    //                        } catch (Exception ex) {
+    //                            ex.printStackTrace(); // Handle any exception
+    //                        }
+    //                        return null;
+    //                    }
+    //                };
+    //                new Thread(waitTask).start();
+    //            }
+    //        });
+    //    }
 
     public boolean reorderInstructions(List<InstructionDTO> rowList) {
         int orderNumber = 1;
@@ -1089,7 +1211,7 @@ public class PerformDataBase {
         }
 
         // Build the SQL update statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             // Loop through each instruction in the rowList
             for (InstructionDTO instruction : rowList) {
                 // Increment the instructionOrderNumber by 1 for each instruction
@@ -1184,7 +1306,7 @@ public class PerformDataBase {
 
     public int deleteBotJob(int botJobId) {
         // Build the SQL delete statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             // Saved Blocks
             int rowsAffected =
@@ -1223,7 +1345,7 @@ public class PerformDataBase {
 
     public boolean updateBotJobNme(int botJobId, String name, String description) {
         // Build the SQL delete statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             String updateSQL = "UPDATE bot_job set name = '" + name + "', description = '" + description
                     + "' WHERE id = " + botJobId;
@@ -1253,7 +1375,7 @@ public class PerformDataBase {
         String querySQL = "SELECT * FROM block WHERE block_id = " + blockId + " and bot_job_id = " + botJobId;
 
         // Execute the query and process the result set
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(querySQL)) {
 
             while (rs.next()) {
@@ -1290,7 +1412,7 @@ public class PerformDataBase {
                 + " order by instruction_order_number ASC";
 
         // Execute the query and process the result set
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(querySQL)) {
 
             while (rs.next()) {
@@ -1352,7 +1474,7 @@ public class PerformDataBase {
         WHERE block_loop_instruction_id = ?
     """;
 
-        try (Connection connection = ABRSharedResources.getInstance().getConnection();
+        try (Connection connection = getConnection();
                 PreparedStatement blockLoopStmt = connection.prepareStatement(blockLoopQuery);
                 PreparedStatement instructionRefStmt = connection.prepareStatement(instructionReferenceQuery)) {
 
@@ -1427,7 +1549,7 @@ public class PerformDataBase {
                 + "LEFT JOIN home_banking hb ON bj.home_banking_id = hb.id "
                 + "ORDER BY bj.id ASC";
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
             while (rs.next()) {
@@ -1478,7 +1600,7 @@ public class PerformDataBase {
                 + " where bot_job_id = " + botJobId
                 + "  ORDER BY bj.id, b.block_order_number ASC";
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
             Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
@@ -1540,8 +1662,7 @@ public class PerformDataBase {
                     + " WHERE block_id = " + blockDTO.getId()
                     + " and  bot_job_id = " + blockDTO.getBotJobId();
 
-            try (Statement stmt =
-                            ABRSharedResources.getInstance().getConnection().createStatement();
+            try (Statement stmt = getConnection().createStatement();
                     ResultSet rs = stmt.executeQuery(query)) {
 
                 // Iterate through the result set and add actions to the list
@@ -1560,7 +1681,7 @@ public class PerformDataBase {
 
     public boolean updateInstructionStatus(InstructionDTO instruction) {
         // Build the SQL update statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = 0;
 
             if (instruction.getActions().equals("IF")
@@ -1601,7 +1722,7 @@ public class PerformDataBase {
     }
 
     public void updateBlockStatus(int botJobId, int blockId, String blockName, boolean blockActive, int wait) {
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             // Update each block's block_order_number starting from 1
             String updateSQL = "UPDATE block SET active = '" + blockActive + "',"
@@ -1642,7 +1763,7 @@ public class PerformDataBase {
         // Initialize the necessary data structures
 
         // Use Statement to execute the query
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
             BotJobLoadDTO botJobLoadDTO = new BotJobLoadDTO();
 
@@ -1675,7 +1796,7 @@ public class PerformDataBase {
                         + " join bot_job bot on bot.id = " + botJob.getId()
                         + " join block blk on blk.bot_job_id = bot.id "
                         + " order by blockInstr.id, blockInstr.instruction_order_number, instr.id";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
 
             List<InstructionReferenceDTO> instructions = new ArrayList<>();
@@ -1766,7 +1887,7 @@ public class PerformDataBase {
         Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
 
         // Use Statement to execute the query
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
             while (rs.next()) {
@@ -1802,7 +1923,7 @@ public class PerformDataBase {
             throws SQLException {
         // Generate a Unique-ID for the block
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             Integer nextId = loadNextIdSavedInstructionData() + 1;
             savedInstructionDTO.setId(nextId);
@@ -1878,7 +1999,7 @@ public class PerformDataBase {
     private Integer loadNextIdSavedInstructionData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_block_loop_instruction";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -1892,83 +2013,130 @@ public class PerformDataBase {
 
     public int insertInstruction(
             BlockLoopInstructionLoadDTO instructionDTO, Integer currentBotJobId, Integer currentBlockId) {
-        // Generate a Unique-ID for the block
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            Integer nextId = -1;
+        boolean isPostgres = POSTGRES_DB;
 
-            if (instructionDTO.getId() == null) {
-                nextId = loadNextIdInstructionData() + 1;
-                instructionDTO.setId(nextId);
-            } else {
-                nextId = instructionDTO.getId();
+        try (Statement stmt = getConnection().createStatement()) {
+            Integer nextId = instructionDTO.getId() == null ? loadNextIdInstructionData() + 1 : instructionDTO.getId();
+            instructionDTO.setId(nextId);
+
+            StringBuilder columns = new StringBuilder("id");
+            StringBuilder values = new StringBuilder(nextId.toString());
+
+            // Helper method to add columns and values
+            BiConsumer<String, Object> addColumnValue = (column, value) -> {
+                if (value != null) {
+                    columns.append(", ").append(column);
+                    if (value instanceof String) {
+                        values.append(", '")
+                                .append(((String) value).replace("'", "''"))
+                                .append("'");
+                    } else {
+                        values.append(", ").append(value);
+                    }
+                }
+            };
+
+            // Add non-boolean fields
+            addColumnValue.accept("action_custom_max_wait_sec", instructionDTO.getActionCustomMaxWaitSec());
+            addColumnValue.accept("actions", instructionDTO.getActions());
+            addColumnValue.accept("default_value", instructionDTO.getDefaultValue());
+            addColumnValue.accept("description", instructionDTO.getDescription());
+            addColumnValue.accept("instruction_order_number", instructionDTO.getInstructionOrderNumber());
+            addColumnValue.accept("name", instructionDTO.getName());
+            addColumnValue.accept(
+                    "on_hold_seconds",
+                    instructionDTO.getOnHoldSeconds() != null ? instructionDTO.getOnHoldSeconds() : 1);
+            addColumnValue.accept("operation", instructionDTO.getOperation());
+            addColumnValue.accept("parent_id", instructionDTO.getParentId());
+            addColumnValue.accept("path", instructionDTO.getPath());
+            addColumnValue.accept("variable_id", instructionDTO.getVariableId());
+            addColumnValue.accept("block_id", currentBlockId);
+            addColumnValue.accept("bot_job_id", currentBotJobId);
+
+            // Add boolean fields with conditional logic
+            if (instructionDTO.getBlockMarked() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("block_marked", instructionDTO.getBlockMarked());
+                } else if (instructionDTO.getBlockMarked()) {
+                    addColumnValue.accept("block_marked", 1);
+                }
             }
 
-            String actions = (instructionDTO.getActions() != null)
-                    ? "'" + instructionDTO.getActions().trim() + "'"
-                    : null;
-            String name = (instructionDTO.getName() != null)
-                    ? "'" + instructionDTO.getName().trim() + "'"
-                    : null;
-            String operations = (instructionDTO.getOperation() != null)
-                    ? "'" + instructionDTO.getOperation().trim() + "'"
-                    : null;
-            String pathValue = (instructionDTO.getPath() != null)
-                    ? "'" + instructionDTO.getPath().trim() + "'"
-                    : null;
-            String defaultValue = (instructionDTO.getDefaultValue() != null)
-                    ? "'" + instructionDTO.getDefaultValue().trim() + "'"
-                    : null;
-            String description = (instructionDTO.getDescription() != null)
-                    ? "'" + instructionDTO.getDescription().trim() + "'"
-                    : null;
-
-            if (instructionDTO.getOnHoldSeconds() == null) {
-                instructionDTO.setOnHoldSeconds(1);
+            if (instructionDTO.getCodified() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("codified", instructionDTO.getCodified());
+                } else if (instructionDTO.getCodified()) {
+                    addColumnValue.accept("codified", 1);
+                }
             }
 
-            // Build the SQL insert query
+            if (instructionDTO.getExportToABR() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("export_to_abr", instructionDTO.getExportToABR());
+                } else if (instructionDTO.getExportToABR()) {
+                    addColumnValue.accept("export_to_abr", 1);
+                }
+            }
 
-            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
-                    + "action_custom_max_wait_sec, "
-                    + "actions, "
-                    + "block_marked, "
-                    + "default_value, "
-                    + "description, "
-                    + "codified, "
-                    + "export_to_abr, "
-                    + "instruction_order_number, "
-                    + "name, "
-                    + "on_hold_seconds, "
-                    + "operation, "
-                    + "optional, "
-                    + "parent_id, "
-                    + "path, "
-                    + "variable_id, "
-                    + "block_id, "
-                    + "bot_job_id, "
-                    + "active)\n"
-                    + "VALUES ("
-                    + instructionDTO.getId()
-                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
-                    + ", " + actions
-                    + ", " + instructionDTO.getBlockMarked()
-                    + "," + defaultValue
-                    + ", " + description
-                    + ", " + instructionDTO.getCodified()
-                    + ", " + instructionDTO.getExportToABR()
-                    + ", " + instructionDTO.getInstructionOrderNumber()
-                    + ", " + name
-                    + ", " + instructionDTO.getOnHoldSeconds()
-                    + ", " + operations
-                    + ", " + instructionDTO.getOptional()
-                    + ", " + instructionDTO.getParentId()
-                    + ", " + pathValue
-                    + ", " + instructionDTO.getVariableId()
-                    + ", " + currentBlockId
-                    + ", " + currentBotJobId
-                    + ", " + instructionDTO.getInstructionActive()
-                    + ");";
+            if (instructionDTO.getOptional() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("optional", instructionDTO.getOptional());
+                } else if (instructionDTO.getOptional()) {
+                    addColumnValue.accept("optional", 1);
+                }
+            }
+
+            if (instructionDTO.getInstructionActive() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("active", instructionDTO.getInstructionActive());
+                } else if (instructionDTO.getInstructionActive()) {
+                    addColumnValue.accept("active", 1);
+                }
+            }
+
+            if (instructionDTO.getExecuted() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("executed", instructionDTO.getExecuted());
+                } else if (instructionDTO.getExecuted()) {
+                    addColumnValue.accept("executed", 1);
+                }
+            }
+
+            if (instructionDTO.getBlockActive() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("block_active", instructionDTO.getBlockActive());
+                } else if (instructionDTO.getBlockActive()) {
+                    addColumnValue.accept("block_active", 1);
+                }
+            }
+
+            if (instructionDTO.getRefreshLoop() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("refresh_loop", instructionDTO.getRefreshLoop());
+                } else if (instructionDTO.getRefreshLoop()) {
+                    addColumnValue.accept("refresh_loop", 1);
+                }
+            }
+
+            if (instructionDTO.getLoopOnly() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("loop_only", instructionDTO.getLoopOnly());
+                } else if (instructionDTO.getLoopOnly()) {
+                    addColumnValue.accept("loop_only", 1);
+                }
+            }
+
+            //            if (instructionDTO.getEditMode() != null) {
+            //                if (isPostgres) {
+            //                    addColumnValue.accept("edit_mode", instructionDTO.getEditMode());
+            //                } else if (instructionDTO.getEditMode()) {
+            //                    addColumnValue.accept("edit_mode", 1);
+            //                }
+            //            }
+
+            // Construct final SQL query
+            String insertSQL = String.format("INSERT INTO block_loop_instruction (%s) VALUES (%s)", columns, values);
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
@@ -1980,7 +2148,6 @@ public class PerformDataBase {
                                 instructionDTO.getActions(),
                                 instructionDTO.getOperation()));
                 return nextId;
-
             } else {
                 ABRLogger.getInstance(ABRNewCommandPane.class)
                         .warning(String.format(
@@ -2007,7 +2174,7 @@ public class PerformDataBase {
     private Integer loadNextIdInstructionData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -2042,8 +2209,7 @@ public class PerformDataBase {
             }
 
             // Build the SQL update statement
-            try (Statement stmt =
-                    ABRSharedResources.getInstance().getConnection().createStatement()) {
+            try (Statement stmt = getConnection().createStatement()) {
                 // Loop through each instruction in the rowList
                 for (InstructionDTO instruction : rowList) {
                     // For "INSERT_BEFORE", shift instructions with an order number greater than or equal to the target
@@ -2249,7 +2415,7 @@ public class PerformDataBase {
     public static HomeBankingLoadDTO loadHomeBanking(int homeBankingId) {
         HomeBankingLoadDTO homeBanking = null;
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
 
             // Select the home banking record based on homeBankingId
             String selectSQL =
@@ -2291,7 +2457,7 @@ public class PerformDataBase {
                 + " where blk.bot_job_id = " + botJobId
                 //                                + " and  block_loop_instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 int id = rs.getInt("ID");
@@ -2302,7 +2468,7 @@ public class PerformDataBase {
                 variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, -1, usedVars));
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadJobVariables  \nError: " + e.getMessage());
+            ABRLogger.getInstance(PerformDataBase.class).severe("loadJobVariables  \nError: " + e.getMessage());
         }
 
         return variablesList;
@@ -2325,7 +2491,7 @@ public class PerformDataBase {
                 + "   and operation is null  "
                 + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number ASC;";
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 int id = rs.getInt("block_loop_instruction_id");
@@ -2352,7 +2518,7 @@ public class PerformDataBase {
     // Migration Scripts
     public int migrationScripts() {
         // Build the SQL update statement
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = 0;
 
             // Update the bot_job_id in block_loop_instruction using the bot_job_id from block

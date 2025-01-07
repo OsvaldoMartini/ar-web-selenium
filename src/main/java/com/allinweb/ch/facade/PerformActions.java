@@ -2210,7 +2210,7 @@ public class PerformActions {
     public String getInstructionParentField(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
         try {
             return blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                    .filter(f -> f.getId() == currentInstruction.getParentId())
+                    .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
                     .getName();
@@ -2791,7 +2791,7 @@ public class PerformActions {
     public Pair<String, String> getBlockDetailsById(
             List<BlockLoadDTO> blocksLoaded, BlockLoopInstructionLoadDTO currentInstruction) {
         for (BlockLoadDTO block : blocksLoaded) {
-            if (block.getId() == currentInstruction.getParentId()) {
+            if (block.getId() != null && block.getId().equals(currentInstruction.getParentId())) {
                 Pair<String, String> blockDetails = new Pair<>(
                         currentInstruction.getId() + ":" + block.getId() + ":" + block.getBlockOrderNumber() + ":"
                                 + block.getName().trim(),
@@ -2806,7 +2806,7 @@ public class PerformActions {
             List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS,
             BlockLoopInstructionLoadDTO currentInstruction) {
         for (BlockLoopInstructionLoadDTO instParent : blockLoopInstructionLoadDTOS) {
-            if (instParent.getId() == currentInstruction.getParentId()) {
+            if (instParent.getId() != null && instParent.getId().equals(currentInstruction.getParentId())) {
                 Pair<String, String> blockDetails = new Pair<>(
                         currentInstruction.getId() + ":" + instParent.getId() + ":"
                                 + instParent.getName().trim(),

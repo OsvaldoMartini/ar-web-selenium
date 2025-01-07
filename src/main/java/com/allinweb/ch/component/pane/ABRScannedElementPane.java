@@ -2248,7 +2248,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Set<WebElement> managePrioritiesCriteria() {
 
         // Gets Always the Latest info form DB
-        loadUserData(botJob.getHomeBanking().getId());
+        databaseUserDto = loadUserData(botJob.getHomeBanking().getId());
         abrPriorities.loadSearchElementsConfig(databaseUserDto.getSearchConfig());
 
         Set<WebElement> elementsResponse = new HashSet<>();
@@ -3249,7 +3249,7 @@ public class ABRScannedElementPane extends ABRPane {
         XPATH
     }
 
-    private void loadUserData(int bankId) {
+    private DatabaseUserDTO loadUserData(int bankId) {
         String selectSQL =
                 "SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
                         + "                         FROM home_banking bank "
@@ -3274,6 +3274,7 @@ public class ABRScannedElementPane extends ABRPane {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        return databaseUserDto;
         //        jobUserList.clear();
         //        loadBotJobData();
     }
@@ -3358,106 +3359,6 @@ public class ABRScannedElementPane extends ABRPane {
         //        jobUserList.clear();
         //        loadBotJobData();
     }
-
-    //    private void loadBlockAll(int botJobId) {
-    //        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
-    //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
-    //                + " b.description AS block_description, b.type_id, "
-    //                + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
-    //                + " bli.actions, bli.name AS instruction_name, bli.path, bli.description AS
-    // instruction_description, "
-    //                + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
-    //                + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
-    //                + " irl.reference_type, irl.value, "
-    //                + "  bli.operation, bli.parent_id, "
-    //                + "  b.export_file "
-    //                + " FROM bot_job bj "
-    //                + " LEFT JOIN block b ON b.bot_job_id = bj.id "
-    //                + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
-    //                + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
-    //                + " where bot_job_id = " + botJobId
-    //                + " ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
-    //
-    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-    //                ResultSet rs = stmt.executeQuery(query)) {
-    //
-    //            botLoadJobs.clear();
-    //
-    //            int previousBotJobId = -1;
-    //            int previousBlockId = -1;
-    //            int previousInstructionId = -1;
-    //
-    //            BotJobLoadDTO previousBotJob = null;
-    //            BlockLoadDTO previousBlock = null;
-    //            BlockLoopInstructionLoadDTO previousInstruction = null;
-    //
-    //            while (rs.next()) {
-    //                int currentBotJobId = rs.getInt("bot_job_id");
-    //                if (previousBotJobId < 0 || previousBotJobId != currentBotJobId) {
-    //                    previousBotJob = new BotJobLoadDTO();
-    //                    previousBotJob.setId(currentBotJobId);
-    //                    previousBotJob.setName(rs.getString("bot_job_name"));
-    //                    previousBotJob.setBlockLoadDTOList(new ArrayList<>());
-    //                    botLoadJobs.add(previousBotJob);
-    //                    previousBotJobId = currentBotJobId;
-    //                }
-    //
-    //                int currentBlockId = rs.getInt("block_id");
-    //                if (previousBlockId < 0 || previousBlockId != currentBlockId) {
-    //                    previousBlock = new BlockLoadDTO();
-    //                    previousBlock.setId(currentBlockId);
-    //                    previousBlock.setBlockOrderNumber(rs.getInt("block_order_number"));
-    //                    previousBlock.setName(rs.getString("block_name"));
-    //                    previousBlock.setDescription(rs.getString("block_description"));
-    //                    previousBlock.setTypeId(rs.getInt("type_id"));
-    //                    previousBlock.setExportFile(rs.getString("export_file"));
-    //                    previousBlock.setBotJobId(previousBotJob.getId());
-    //                    previousBlock.setBotJobName(previousBotJob.getName());
-    //
-    //                    previousBlockId = currentBlockId;
-    //
-    //                    previousBlock.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
-    //                    previousBotJob.getBlockLoadDTOList().add(previousBlock);
-    //                }
-    //
-    //                int currentInstructionId = rs.getInt("block_loop_instruction_id");
-    //                if (previousInstructionId < 0 || previousInstructionId != currentInstructionId) {
-    //                    previousInstruction = new BlockLoopInstructionLoadDTO();
-    //                    previousInstruction.setId(currentInstructionId);
-    //                    previousInstruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-    //                    previousInstruction.setActions(rs.getString("actions"));
-    //                    previousInstruction.setName(rs.getString("instruction_name"));
-    //                    previousInstruction.setPath(rs.getString("path"));
-    //                    previousInstruction.setDescription(rs.getString("instruction_description"));
-    //                    previousInstruction.setOptional(rs.getBoolean("optional"));
-    //                    previousInstruction.setBlockMarked(rs.getBoolean("block_marked"));
-    //                    previousInstruction.setDefaultValue(rs.getString("default_value"));
-    //                    previousInstruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-    //                    previousInstruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-    //                    previousInstruction.setCodified(rs.getBoolean("codified"));
-    //                    previousInstruction.setExportToABR(rs.getBoolean("export_to_abr"));
-    //                    previousInstruction.setInstructionActive(rs.getBoolean("active"));
-    //                    previousInstruction.setOperation(rs.getString("operation"));
-    //                    previousInstruction.setParentId(rs.getInt("parent_id"));
-    //
-    //                    previousInstructionId = currentInstructionId;
-    //
-    //                    previousInstruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
-    //                    previousBlock.getBlockLoopInstructionLoadDTOS().add(previousInstruction);
-    //                }
-    //
-    //                String referenceType = rs.getString("reference_type");
-    //                if (referenceType != null) {
-    //                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
-    //                    reference.setReferenceType(referenceType);
-    //                    reference.setValue(rs.getString("value"));
-    //                    previousInstruction.getInstructionReferenceLoadDTOList().add(reference);
-    //                }
-    //            }
-    //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(ABRScannedElementPane.class).severe("LoadBlockAll - Error: " + e.getMessage());
-    //        }
-    //    }
 
     private void recallJob() {
         executeJob();
@@ -3842,6 +3743,8 @@ public class ABRScannedElementPane extends ABRPane {
 
                         BlockLoopInstructionLoadDTO currentInstruction =
                                 blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
+
+                        byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
                         mainMsg = currentInstruction.getOptional() ? "OPTIONAL INSTRUCTION" : "MANDATORY INSTRUCTION";
 
@@ -4436,45 +4339,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
 
                                     executedSuccess.add(currentInstruction.getId());
-                                    success = true;
                                 }
 
-                                if (!success) {
-                                    byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
-                                    success = byPassFlagLoop;
-                                }
-
-                                if (!success
-                                        && currentCondition.equals(ABRConstants.ConditionStatus.NONE)
-                                        && !byPassFlagLoop) {
-                                    stopAll = true;
-                                    success = false;
-                                }
-
-                                if (byPassFlagLoop) {
-
-                                    resultActions = "By Passing Loop Flag "
-                                            + performAction.actionResultMessage(blockName, actions, fieldData);
-
-                                    // Excel Report and Log
-                                    performAction.logAndReport(
-                                            currentCondition,
-                                            true,
-                                            true,
-                                            currentInstructionStartTime,
-                                            blockReportName,
-                                            success,
-                                            new String[] {ABRConstants.BY_PASS},
-                                            msgInstruction,
-                                            dataExcel,
-                                            writerReport,
-                                            "By Passing Loop Flag",
-                                            resultActions);
-                                }
-
-                                if (stopAll) {
-                                    break;
-                                }
                             } else if (execOperation) {
                                 // GET && SET Special Operators
 
@@ -4564,8 +4430,6 @@ public class ABRScannedElementPane extends ABRPane {
                                 } else {
                                     //                                    fieldName = parentField;
 
-                                    byPassFlagLoop = parentIdsForLoop.contains(parentId);
-
                                     resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
                                             + String.join(" ", operations);
                                     boolean isOperationValid = false;
@@ -4611,7 +4475,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                 resultActions,
                                                 operations,
                                                 currentCondition,
-                                                byPassFlagLoop);
+                                                byPassNotFound);
 
                                         success = false;
                                         if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
@@ -4732,20 +4596,6 @@ public class ABRScannedElementPane extends ABRPane {
 
                         printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
 
-                        if (!success) {
-
-                            if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                stopAll = true;
-                                break;
-                            }
-                            //                                return false;
-                        }
-
-                        if (resultActions.equalsIgnoreCase("Close Browser")) {
-                            stopAll = true;
-                            break;
-                        }
-
                         // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
                         // of Execution
                         if (!currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
@@ -4753,23 +4603,53 @@ public class ABRScannedElementPane extends ABRPane {
                             //                                continue instructionLoop;
                         }
 
-                        // Excel Report and Log
-                        performAction.logAndReport(
-                                currentCondition,
-                                true,
-                                true,
-                                currentInstructionStartTime,
-                                blockReportName,
-                                success,
-                                actions,
-                                msgInstruction,
-                                dataExcel,
-                                writerReport,
-                                mainMsg,
-                                resultActions);
+                        if (byPassFlagLoop) {
+
+                            // Excel Report and Log
+                            performAction.logAndReport(
+                                    currentCondition,
+                                    true,
+                                    true,
+                                    currentInstructionStartTime,
+                                    blockReportName,
+                                    success,
+                                    new String[] {ABRConstants.BY_PASS},
+                                    msgInstruction,
+                                    dataExcel,
+                                    writerReport,
+                                    "By Passing Loop Flag",
+                                    resultActions);
+                        } else {
+
+                            // Excel Report and Log
+                            performAction.logAndReport(
+                                    currentCondition,
+                                    true,
+                                    true,
+                                    currentInstructionStartTime,
+                                    blockReportName,
+                                    success,
+                                    actions,
+                                    msgInstruction,
+                                    dataExcel,
+                                    writerReport,
+                                    mainMsg,
+                                    resultActions);
+                        }
+
+                        // It decides Hewre if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
+                        if (!success && !byPassFlagLoop && currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
+                            stopAll = true;
+                            break;
+                        }
+
+                        // Close Browser Action
+                        if (resultActions.equalsIgnoreCase("Close Browser")) {
+                            stopAll = true;
+                            break;
+                        }
 
                         // Here it Call the next block of IF, ELSIF, ELSE OR ENDIF as Per the Machine State
-
                         // Conditions When Pass to any of then
                         if (progressCondition.equals(ABRConstants.ConditionStatus.IF_PASSED)
                                 || progressCondition.equals(ABRConstants.ConditionStatus.ELSEIF_PASSED)) {

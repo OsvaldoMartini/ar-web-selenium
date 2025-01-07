@@ -5,6 +5,9 @@ import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
 import com.allinweb.ch.facade.SingletonSupplier;
 import java.time.format.DateTimeFormatter;
+import javafx.scene.Scene;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 public class ABRConfigurationScene extends ABRScene {
 
@@ -45,5 +48,17 @@ public class ABRConfigurationScene extends ABRScene {
     @Override
     public String getTitle() {
         return TITLE;
+    }
+
+    public void showModal() {
+        Stage modalStage = new Stage();
+        IABRPane pane = buildPane();
+        if (pane != null) {
+            Scene scene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+            modalStage.setScene(scene);
+            modalStage.setTitle(getTitle());
+            modalStage.initModality(Modality.APPLICATION_MODAL); // Make it modal
+            modalStage.showAndWait(); // Block until this window is closed
+        }
     }
 }

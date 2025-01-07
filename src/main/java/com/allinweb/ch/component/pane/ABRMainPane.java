@@ -168,7 +168,13 @@ public class ABRMainPane extends ABRPane {
         /*viewBotJobButton.setOnMouseClicked(
                 e -> new ABRViewBotJobListScene().show()
         );*/
-        configureButton.setOnMouseClicked(e -> abrConfigurationScene.show());
+        configureButton.setOnMouseClicked(e -> {
+            abrConfigurationScene.showModal();
+            performDataBase.changeDbConnection();
+            ObservableList<BotJobLoadDTO> botJobList =
+                    FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+            viewBotJobListView.setItems(botJobList);
+        });
         infoButton.setOnMouseClicked(e -> new ABRInfoScene().showModal());
         exitButton.setOnMouseClicked(e -> {
             //            Platform.exit();
