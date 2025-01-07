@@ -1860,7 +1860,7 @@ public class PerformDataBase {
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(ABRNewCommandPane.class)
                         .info(String.format(
-                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
+                                "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 savedInstructionDTO.getId(),
                                 savedInstructionDTO.getName(),
                                 savedInstructionDTO.getActions(),
@@ -1869,7 +1869,7 @@ public class PerformDataBase {
             } else {
                 ABRLogger.getInstance(ABRNewCommandPane.class)
                         .warning(String.format(
-                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
+                                "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                                 savedInstructionDTO.getId(),
                                 savedInstructionDTO.getName(),
                                 savedInstructionDTO.getActions(),
@@ -1978,7 +1978,7 @@ public class PerformDataBase {
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(ABRNewCommandPane.class)
                         .info(String.format(
-                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
+                                "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 instructionDTO.getId(),
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
@@ -1988,7 +1988,7 @@ public class PerformDataBase {
             } else {
                 ABRLogger.getInstance(ABRNewCommandPane.class)
                         .warning(String.format(
-                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
+                                "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                                 instructionDTO.getId(),
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
@@ -1999,7 +1999,7 @@ public class PerformDataBase {
         } catch (SQLException e) {
             ABRLogger.getInstance(ABRNewCommandPane.class)
                     .warning(String.format(
-                            "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
+                            "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                             instructionDTO.getId(),
                             instructionDTO.getName(),
                             instructionDTO.getActions(),
@@ -2007,81 +2007,6 @@ public class PerformDataBase {
             return -1;
         }
     }
-
-    //    public int insertInstruction(BlockLoopInstructionDTO instructionDTO, int botJobId) throws SQLException {
-    //        // Generate a Unique-ID for the block
-    //
-    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-    //
-    //            Integer nextId = loadNextIdInstructionData() + 1;
-    //            instructionDTO.setId(nextId);
-    //
-    //            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
-    //
-    //            // Build the SQL insert query
-    //
-    //            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
-    //                    + "action_custom_max_wait_sec, "
-    //                    + "actions, "
-    //                    + "block_marked, "
-    //                    + "default_value, "
-    //                    + "description, "
-    //                    + "codified, "
-    //                    + "export_to_abr, "
-    //                    + "instruction_order_number, "
-    //                    + "name, "
-    //                    + "on_hold_seconds, "
-    //                    //                    + "operation, "
-    //                    + "optional, "
-    //                    + "parent_id, "
-    //                    + "path, "
-    //                    + "variable_id, "
-    //                    + "block_id, "
-    //                    + "active)\n"
-    //                    + "VALUES ("
-    //                    + instructionDTO.getId()
-    //                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
-    //                    + ", '" + instructionDTO.getActions() + "'"
-    //                    + ", " + instructionDTO.getBlockMarked()
-    //                    + "," + instructionDTO.getDefaultValue()
-    //                    + ", '" + instructionDTO.getDescription() + "'"
-    //                    + ", " + instructionDTO.getCodified()
-    //                    + ", " + instructionDTO.getExportToABR()
-    //                    + ", " + instructionDTO.getInstructionOrderNumber()
-    //                    + ", '" + instructionDTO.getName() + "'"
-    //                    + ", " + instructionDTO.getOnHoldSeconds()
-    //                    //                    + ", '" + instructionDTO.getOperation() + "'"
-    //                    + ", " + instructionDTO.getOptional()
-    //                    + ", " + instructionDTO.getParentId()
-    //                    + ", " + pathValue
-    //                    + ", " + instructionDTO.getVariableId()
-    //                    + ", " + botJobId
-    //                    + ", " + instructionDTO.getActive()
-    //                    + ");";
-    //
-    //            int rowsAffected = stmt.executeUpdate(insertSQL);
-    //            if (rowsAffected > 0) {
-    //                ABRLogger.getInstance(ABRNewCommandPane.class)
-    //                        .info(String.format(
-    //                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation:
-    // %s",
-    //                                instructionDTO.getId(),
-    //                                instructionDTO.getName(),
-    //                                instructionDTO.getActions(),
-    //                                instructionDTO.getOperation()));
-    //                return nextId;
-    //            } else {
-    //                ABRLogger.getInstance(ABRNewCommandPane.class)
-    //                        .warning(String.format(
-    //                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
-    //                                instructionDTO.getId(),
-    //                                instructionDTO.getName(),
-    //                                instructionDTO.getActions(),
-    //                                instructionDTO.getOperation()));
-    //                return -1;
-    //            }
-    //        }
-    //    }
 
     private Integer loadNextIdInstructionData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq;

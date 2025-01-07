@@ -141,7 +141,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private CheckBox checkBoxAction;
     private CheckBox checkBoxJavaScript;
-    private CheckBox checkBoxCoordenates;
+    private CheckBox checkBoxCoordinates;
     private CheckBox checkActiveHover;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
@@ -320,7 +320,7 @@ public class ABRScannedElementPane extends ABRPane {
         checkBoxJavaScript = new CheckBox("JS");
 
         checkClickElement = new CheckBox("For Click");
-        checkBoxCoordenates = new CheckBox("Coordenates");
+        checkBoxCoordinates = new CheckBox("Coordinates");
 
         //        checkClickElement.setSelected(true);
         checkInputText = new CheckBox("For Input");
@@ -492,12 +492,13 @@ public class ABRScannedElementPane extends ABRPane {
             checkClickElement
                     .prefWidthProperty()
                     .bind(boxCoordenates.widthProperty().multiply(0.50));
-            checkBoxCoordenates
+            checkBoxCoordinates
                     .prefWidthProperty()
                     .bind(boxCoordenates.widthProperty().multiply(0.50));
 
             // Add elements to the HBox
-            boxCoordenates.getChildren().addAll(checkClickElement, checkBoxCoordenates);
+            //            boxCoordenates.getChildren().addAll(checkClickElement, checkBoxCoordinates);
+            boxCoordenates.getChildren().addAll(checkClickElement);
 
             VBox vBoxCheckBox = new VBox();
             vBoxCheckBox.getChildren().addAll(boxCoordenates, checkInputText, checkOutputText);
@@ -549,7 +550,8 @@ public class ABRScannedElementPane extends ABRPane {
             testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.5));
 
             // Add elements to the HBox
-            boxActions.getChildren().addAll(checkBoxAction, checkBoxJavaScript, testActionsField);
+            //            boxActions.getChildren().addAll(checkBoxAction, checkBoxJavaScript, testActionsField);
+            boxActions.getChildren().addAll(checkBoxAction, testActionsField);
 
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
@@ -560,20 +562,20 @@ public class ABRScannedElementPane extends ABRPane {
                             checkActiveHover,
                             defineNameLabel,
                             boxName,
-                            attribIdTextFieldLabel,
-                            attribIdTextField,
-                            attribNameTextFieldLabel,
-                            attribNameTextField,
-                            currentXPathLabel,
-                            currentXPathTextField,
+                            //                            attribIdTextFieldLabel,
+                            //                            attribIdTextField,
+                            //                            attribNameTextFieldLabel,
+                            //                            attribNameTextField,
+                            //                            currentXPathLabel,
+                            //                            currentXPathTextField,
                             //                            currentAbsoluteXPathLabel,
                             //                            absolutXPathTextField,
                             //                            customXPathLabel,
                             //                            customXPathTextField,
                             //                            originalTagNameLabel,
                             //                            originalTagNameField,
-                            coordsTextFieldLabel,
-                            coordsTextField,
+                            //                            coordsTextFieldLabel,
+                            //                            coordsTextField,
                             vBoxCheckBox,
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacerVert(),
@@ -1803,7 +1805,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             String mainCoordenates = coordsTextField.getText().trim();
                             String savedCoordenates =
-                                    abrWebElement.getSavedReferences().get("coordenantes");
+                                    abrWebElement.getSavedReferences().get("coordinates");
                             if (Strings.isNullOrEmpty(mainCoordenates)) {
                                 mainCoordenates = abrWebElement.getMainCoordinates();
                             }
@@ -1814,7 +1816,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             String[] coordinates = new String[] {mainCoordenates, savedCoordenates};
 
-                            if (checkBoxCoordenates.isSelected()) {
+                            if (checkBoxCoordinates.isSelected()) {
                                 performAction.executeActionsAtCoordinates(
                                         coordinates[1], fieldData, ABRConstants.VISUALIZE);
                                 performAction.executeActionsAtCoordinates(
@@ -3670,12 +3672,6 @@ public class ABRScannedElementPane extends ABRPane {
 
         mapOperators = new HashMap<>();
         mapExport = new LinkedHashMap<>();
-        int executionTimes = 0;
-        int execLimitReach = 0;
-        String limitReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
-        if (limitReach != null) {
-            execLimitReach = Integer.parseInt(limitReach);
-        }
 
         Map<String, String> mapSavedLocators = new HashMap<>();
 
@@ -3694,14 +3690,6 @@ public class ABRScannedElementPane extends ABRPane {
             // Execute All Blocks starting from executeSpecificBlock if Defined
             int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
 
-            //            while ((executeSpecificBlock > -1
-            //                    && currentBlock == executeSpecificBlock - 1) // Execute specific block only
-            //                    || (executeSpecificBlock == -1 && currentBlock <= blocksLoaded.size() - 1) // Execute
-            // all blocks
-            //                    && blocksLoaded.size() > 0
-            //                    && !stopAll
-            //                    && executionTimes < execLimitReach) {
-
             blockLoop:
             while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
                 long blockStartTime = System.nanoTime();
@@ -3709,8 +3697,7 @@ public class ABRScannedElementPane extends ABRPane {
                 ABRConstants.ConditionStatus previousCondition = ABRConstants.ConditionStatus.NONE;
                 ABRConstants.ConditionStatus progressCondition = ABRConstants.ConditionStatus.NONE;
                 int parentBlockCondition = -1;
-                boolean isExecutingBlock = false;
-                boolean performActionResult = false; // Default to failed action result
+
                 instructionsExecuted.clear();
 
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);

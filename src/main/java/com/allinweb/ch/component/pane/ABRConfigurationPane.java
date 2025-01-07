@@ -41,16 +41,16 @@ public class ABRConfigurationPane extends ABRPane {
     // UI Components
     Label title;
     Label pathExcelLabel;
-    Label pathExportLabel;
+    //    Label pathExportLabel;
+    //    Label fileExportLabel;
     Label pathLogLabel;
     Label sizeLogLabel;
-    Label fileExportLabel;
     Label reduceSearchLabel;
     Label pathJavaLabel;
     Label pathDBLabel;
     Label databaseLabel;
     Label socketPortLabel;
-    Label blockLimitLabel;
+    //    Label blockLimitLabel;
     Label pathReportLabel;
     Label pathPriorityLabel;
     Label pathJavaFXLabel;
@@ -62,15 +62,15 @@ public class ABRConfigurationPane extends ABRPane {
     Label pathWebDriverLabel;
 
     TextField pathExcel;
-    TextField pathExport;
+    //    TextField pathExport;
+    //    TextField fileExport;
     TextField pathLog;
     TextField sizeLog;
-    TextField fileExport;
     TextField reduceSearch;
     TextField pathJava;
     TextField pathDB;
     TextField socketPort;
-    TextField blockLimit;
+    //    TextField blockLimit;
     TextField pathReport;
     TextField pathPriority;
     TextField pathJavaFX;
@@ -85,7 +85,7 @@ public class ABRConfigurationPane extends ABRPane {
             FXCollections.observableArrayList(ABRConstants.ACCESS, ABRConstants.POSTGRES, ABRConstants.SQLSERVER);
 
     Button pathExcelButton;
-    Button pathExportButton;
+    //    Button pathExportButton;
     Button pathLogButton;
     Button pathJavaButton;
     Button pathDBButton;
@@ -141,41 +141,41 @@ public class ABRConfigurationPane extends ABRPane {
         pathExcelButton = createPathButton();
         AnchorPane excelGroup = new AnchorPane(pathExcel, pathExcelButton);
 
-        pathExportLabel = new Label("Export Path:");
-        pathExport = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXPORT);
-        pathExportButton = createPathButton();
-        fileExportLabel = new Label("File Name");
-        fileExport = createPathTextField(ABRPropertyEnum.FILE_NAME_EXPORT);
+        //        pathExportLabel = new Label("Export Path:");
+        //        pathExport = createPathTextField(ABRPropertyEnum.FOLDER_PATH_EXPORT);
+        //        pathExportButton = createPathButton();
+        //        fileExportLabel = new Label("File Name");
+        //        fileExport = createPathTextField(ABRPropertyEnum.FILE_NAME_EXPORT);
         //        AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
 
-        GridPane gridPaneExport = new GridPane();
-        //        gridPaneLog.setVgap(10);
-        gridPaneExport.setHgap(10);
-        // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
-        ColumnConstraints colExp1 = new ColumnConstraints();
-        colExp1.setPercentWidth(65);
+        //        GridPane gridPaneExport = new GridPane();
+        //        //        gridPaneLog.setVgap(10);
+        //        gridPaneExport.setHgap(10);
+        //        // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
+        //        ColumnConstraints colExp1 = new ColumnConstraints();
+        //        colExp1.setPercentWidth(65);
+        //
+        //        ColumnConstraints colExp2 = new ColumnConstraints();
+        //        colExp2.setPercentWidth(30);
+        //
+        //        ColumnConstraints colExp3 = new ColumnConstraints();
+        //        colExp3.setPercentWidth(5);
+        //
+        //        gridPaneExport.getColumnConstraints().addAll(colExp1, colExp2, colExp3);
 
-        ColumnConstraints colExp2 = new ColumnConstraints();
-        colExp2.setPercentWidth(30);
-
-        ColumnConstraints colExp3 = new ColumnConstraints();
-        colExp3.setPercentWidth(5);
-
-        gridPaneExport.getColumnConstraints().addAll(colExp1, colExp2, colExp3);
-
-        // Add labels in the first row
-        gridPaneExport.add(pathExportLabel, 0, 0);
-        gridPaneExport.add(fileExportLabel, 1, 0);
-
-        // Add text fields in the second row
-        gridPaneExport.add(pathExport, 0, 1);
-        gridPaneExport.add(fileExport, 1, 1);
-
-        // Add button in the second row, third column
-        gridPaneExport.add(pathExportButton, 2, 1);
-
-        // Set margin for pathLogButton to create spacing from right border
-        GridPane.setMargin(pathExportButton, new Insets(0, 0, 0, 5));
+        //        // Add labels in the first row
+        //        gridPaneExport.add(pathExportLabel, 0, 0);
+        //        gridPaneExport.add(fileExportLabel, 1, 0);
+        //
+        //        // Add text fields in the second row
+        //        gridPaneExport.add(pathExport, 0, 1);
+        //        gridPaneExport.add(fileExport, 1, 1);
+        //
+        //        // Add button in the second row, third column
+        //        gridPaneExport.add(pathExportButton, 2, 1);
+        //
+        //        // Set margin for pathLogButton to create spacing from right border
+        //        GridPane.setMargin(pathExportButton, new Insets(0, 0, 0, 5));
 
         // LOGs
         pathLogLabel = new Label("Log Path:");
@@ -232,12 +232,12 @@ public class ABRConfigurationPane extends ABRPane {
             socketPort.setText("8080");
         }
 
-        blockLimitLabel = new Label("Block Exec. Limit");
-        blockLimit = createPathTextField(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
-        String processReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
-        if (Strings.isNullOrEmpty(processReach)) {
-            blockLimit.setText("50");
-        }
+        //        blockLimitLabel = new Label("Block Exec. Limit");
+        //        blockLimit = createPathTextField(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
+        //        String processReach = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT);
+        //        if (Strings.isNullOrEmpty(processReach)) {
+        //            blockLimit.setText("50");
+        //        }
 
         GridPane gridPaneDB = new GridPane();
         gridPaneDB.setHgap(10);
@@ -247,26 +247,23 @@ public class ABRConfigurationPane extends ABRPane {
         col1DB.setPercentWidth(65);
 
         ColumnConstraints col2DB = new ColumnConstraints();
-        col2DB.setPercentWidth(15);
+        col2DB.setPercentWidth(30);
 
         ColumnConstraints col3DB = new ColumnConstraints();
-        col3DB.setPercentWidth(15);
+        col3DB.setPercentWidth(5);
 
-        ColumnConstraints col4DB = new ColumnConstraints();
-        col4DB.setPercentWidth(5);
-
-        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB, col3DB, col4DB);
+        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB, col3DB);
 
         // Add labels in the first row
         gridPaneDB.add(pathDBLabel, 0, 0);
         gridPaneDB.add(socketPortLabel, 1, 0);
-        gridPaneDB.add(blockLimitLabel, 2, 0);
+        //        gridPaneDB.add(blockLimitLabel, 2, 0);
 
         // Add text fields in the second row
         gridPaneDB.add(pathDB, 0, 1);
         //        gridPaneDB.add(databaseChoiceBox, 1, 1);
         gridPaneDB.add(socketPort, 1, 1);
-        gridPaneDB.add(blockLimit, 2, 1);
+        //        gridPaneDB.add(blockLimit, 2, 1);
 
         // Add button in the second row, third column
         gridPaneDB.add(pathDBButton, 3, 1);
@@ -360,7 +357,7 @@ public class ABRConfigurationPane extends ABRPane {
         pathGroup = new VBox(
                 pathExcelLabel,
                 excelGroup,
-                gridPaneExport,
+                //                gridPaneExport,
                 gridPaneLog,
                 gridPaneDB,
                 pathReportLabel,
@@ -398,7 +395,7 @@ public class ABRConfigurationPane extends ABRPane {
         addHomeBankingButton.setOnMouseClicked(e -> abrNewHomeBankingScene.show());
 
         pathExcelButton.setOnMouseClicked(e -> openChooserFor(pathExcel, true));
-        pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, true));
+        //        pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, true));
         pathLogButton.setOnMouseClicked(e -> openChooserFor(pathLog, true));
         // pathExtRefButton.setOnMouseClicked(e -> openChooserFor(pathExtRef, true));
         pathJavaButton.setOnMouseClicked(e -> openChooserFor(pathJava, true));
@@ -409,7 +406,12 @@ public class ABRConfigurationPane extends ABRPane {
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, true));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, false));
         browserChoiceBox.setValue(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER));
-        databaseChoiceBox.setValue(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE));
+
+        if (ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE) == null) {
+            databaseChoiceBox.setValue("Access");
+        } else {
+            databaseChoiceBox.setValue(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE));
+        }
 
         saveButton.setOnMouseClicked(e -> saveConfigurations());
         deleteAllDBButton.setOnMouseClicked(e -> deleteAllDB());
@@ -421,14 +423,16 @@ public class ABRConfigurationPane extends ABRPane {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Excel Path must be filed!", ButtonType.OK);
             validfields = false;
         }
-        if (Strings.isNullOrEmpty(pathExport.getText())) {
-            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Export Path must be filed!", ButtonType.OK);
-            validfields = false;
-        }
-        if (Strings.isNullOrEmpty(fileExport.getText())) {
-            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "File Name Export must be filed!", ButtonType.OK);
-            validfields = false;
-        }
+        //        if (Strings.isNullOrEmpty(pathExport.getText())) {
+        //            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Export Path must be filed!",
+        // ButtonType.OK);
+        //            validfields = false;
+        //        }
+        //        if (Strings.isNullOrEmpty(fileExport.getText())) {
+        //            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "File Name Export must be filed!",
+        // ButtonType.OK);
+        //            validfields = false;
+        //        }
 
         if (Strings.isNullOrEmpty(pathLog.getText())) {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Log Path must be filed!", ButtonType.OK);
@@ -449,10 +453,11 @@ public class ABRConfigurationPane extends ABRPane {
             validfields = false;
         }
 
-        if (Strings.isNullOrEmpty(blockLimit.getText())) {
-            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Process Limit must be filed!", ButtonType.OK);
-            validfields = false;
-        }
+        //        if (Strings.isNullOrEmpty(blockLimit.getText())) {
+        //            new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Process Limit must be filed!",
+        // ButtonType.OK);
+        //            validfields = false;
+        //        }
 
         if (Strings.isNullOrEmpty(pathDB.getText())) {
             new ABRAlertScene(Alert.AlertType.ERROR, "Field Blank", "Database Path must be filed!", ButtonType.OK);
@@ -492,10 +497,10 @@ public class ABRConfigurationPane extends ABRPane {
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), pathExcel.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT.getValue(), pathExport.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.FILE_NAME_EXPORT.getValue(), fileExport.getText());
+            //            ABRPropertyManager.getInstance()
+            //                    .setProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT.getValue(), pathExport.getText());
+            //            ABRPropertyManager.getInstance()
+            //                    .setProperty(ABRPropertyEnum.FILE_NAME_EXPORT.getValue(), fileExport.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
             ABRPropertyManager.getInstance()
@@ -511,8 +516,8 @@ public class ABRConfigurationPane extends ABRPane {
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
             ABRPropertyManager.getInstance().setProperty(ABRPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
-            ABRPropertyManager.getInstance()
-                    .setProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT.getValue(), blockLimit.getText());
+            //            ABRPropertyManager.getInstance()
+            //                    .setProperty(ABRPropertyEnum.BLOCK_EXEC_LIMIT.getValue(), blockLimit.getText());
             ABRPropertyManager.getInstance()
                     .setProperty(ABRPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
 

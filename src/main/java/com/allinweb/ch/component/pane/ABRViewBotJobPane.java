@@ -119,7 +119,7 @@ public class ABRViewBotJobPane extends ABRPane {
     Button editBotJobButton;
     Button launchBotJobButton;
     Button saveBotJobButton;
-    Button saveAsBotJobButton;
+    //    Button saveAsBotJobButton;
     Button printBotJobButton;
     Button copyBotJobButton;
     Button openExcelFileButton;
@@ -228,14 +228,17 @@ public class ABRViewBotJobPane extends ABRPane {
         this.openScannerButton = builder.buildButton(
                 "Scan", ABRConstants.SPACE_ZERO, "/open_browser.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.editBotJobButton = builder.buildButton(
-                "Edit", ABRConstants.SPACE_ZERO, "/edit.png", ABRConstants.SPACE_M, new Insets(5.0D));
+                "Edit Job", ABRConstants.SPACE_ZERO, "/edit.png", ABRConstants.SPACE_M, new Insets(5.0D));
+
         this.launchBotJobButton = builder.buildButton(
                 "Launch", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
         this.saveBotJobButton = builder.buildButton(
-                "Save", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, new Insets(5.0D));
+                "Save Job ", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, new Insets(5.0D));
+        this.saveBotJobButton.setDisable(true);
 
-        this.saveAsBotJobButton = builder.buildButton(
-                "Save As", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, new Insets(5.0D));
+        //        this.saveAsBotJobButton = builder.buildButton(
+        //                "Save As", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, new
+        // Insets(5.0D));
         this.printBotJobButton = builder.buildButton(
                 "Print", ABRConstants.SPACE_ZERO, ABRConstants.ICON_PRINT, ABRConstants.SPACE_M, new Insets(5.0D));
         this.copyBotJobButton = builder.buildButton(
@@ -267,14 +270,14 @@ public class ABRViewBotJobPane extends ABRPane {
         saveBotJobButton.setPrefWidth(buttonWidth);
         leftGridPane.add(saveBotJobButton, 2, 0);
 
-        saveAsBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(saveAsBotJobButton, 3, 0);
+        //        saveAsBotJobButton.setPrefWidth(buttonWidth);
+        //        leftGridPane.add(saveAsBotJobButton, 3, 0);
 
         editBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(editBotJobButton, 4, 0);
+        leftGridPane.add(editBotJobButton, 3, 0);
 
         launchBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(launchBotJobButton, 5, 0);
+        leftGridPane.add(launchBotJobButton, 4, 0);
 
         // Add the bottom row of buttons
         //        saveBotJobButton.setPrefWidth(buttonWidth);
@@ -516,13 +519,14 @@ public class ABRViewBotJobPane extends ABRPane {
 
             new ABRViewBotJobScene(this.botJobLoad.getId()).show();
         });
-        saveAsBotJobButton.setOnMouseClicked(e -> new ABRSaveBotJobAsScene(this.botJobLoad.getId()).show());
+        //        saveAsBotJobButton.setOnMouseClicked(e -> new ABRSaveBotJobAsScene(this.botJobLoad.getId()).show());
         this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
         this.botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
         this.botJobName.visibleProperty().bind(this.isEditingBotJob);
         this.botJobDescription.visibleProperty().bind(this.isEditingBotJob);
         this.editBotJobButton.setOnMouseClicked((e) -> {
             this.isEditingBotJob.set(this.isEditingBotJob.not().getValue());
+            this.saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
         });
         this.saveBotJobButton.setOnMouseClicked((e) -> {
             this.isEditingBotJob.set(false);
@@ -530,6 +534,7 @@ public class ABRViewBotJobPane extends ABRPane {
             this.botJobDescriptionLabel.setText(this.botJobDescription.getText());
             this.botJobLoad.setName(this.botJobNameLabel.getText());
             this.botJobLoad.setDescription(this.botJobDescriptionLabel.getText());
+            this.saveBotJobButton.setDisable(true);
 
             boolean botJobUpdate = performDataBase.updateBotJobNme(
                     this.botJobLoad.getId(), botJobName.getText(), botJobDescription.getText());

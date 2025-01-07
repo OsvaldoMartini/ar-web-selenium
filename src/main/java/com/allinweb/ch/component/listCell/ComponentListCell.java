@@ -594,7 +594,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
             if (rowsAffected > 0) {
                 ABRLogger.getInstance(ComponentListCell.class)
                         .info(String.format(
-                                "New Instruction SAVED SUCCESSFULLY\nid: %d\nName: %s\nActions: %s\nOperation: %s",
+                                "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 instructionDTO.getId(),
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),
@@ -603,7 +603,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
             } else {
                 ABRLogger.getInstance(ComponentListCell.class)
                         .warning(String.format(
-                                "Instruction NOT SAVED\nid: %d\nName: %s\nActions: %s\nOperations: %s",
+                                "Instruction NOT SAVED id: %d Name: %s Actions: %s Operations: %s",
                                 instructionDTO.getId(),
                                 instructionDTO.getName(),
                                 instructionDTO.getActions(),

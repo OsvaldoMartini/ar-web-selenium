@@ -47,7 +47,7 @@ public class ABRPropertyManager {
             this.properties.load(conf);
             String logLevel = this.properties.getProperty(ABRPropertyEnum.LOG_LEVEL.getValue());
             String extReference = this.properties.getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue());
-            // System.out.println("LOG_LEVEL = " + logLevel + "ConfigFile=" + configurationFileName);
+            System.out.println("LOG_LEVEL = " + logLevel + "   ConfigFile=" + configurationFileName);
         } catch (FileNotFoundException e) {
             JOptionPane.showMessageDialog(
                     null,
@@ -64,7 +64,7 @@ public class ABRPropertyManager {
                 setProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_LOG.getValue(), "");
                 setProperty(ABRPropertyEnum.FOLDER_PATH_EXPORT.getValue(), "");
-                setProperty(ABRPropertyEnum.FILE_NAME_EXPORT.getValue(), "");
+                //                setProperty(ABRPropertyEnum.FILE_NAME_EXPORT.getValue(), "");
                 setProperty(
                         ABRPropertyEnum.FOLDER_PATH_JAVA.getValue(),
                         ABRConstants.CURRENT_PATH + ABRConstants.DEFAULT_PATH_JAVA);
