@@ -158,7 +158,12 @@ public class ABRMainPane extends ABRPane {
 
     @Override
     public void initUIBehaviour() {
-        newBotJobButton.setOnMouseClicked(e -> abrNewBotJobScene.showModal());
+        newBotJobButton.setOnMouseClicked(e -> {
+            abrNewBotJobScene.showModal();
+            ObservableList<BotJobLoadDTO> botJobList =
+                    FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+            viewBotJobListView.setItems(botJobList);
+        });
 
         /*viewBotJobButton.setOnMouseClicked(
                 e -> new ABRViewBotJobListScene().show()

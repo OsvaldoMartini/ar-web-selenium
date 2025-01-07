@@ -295,11 +295,7 @@ public class ExcelWriter {
         }
     }
 
-    public static ExtractedData isFileExists(String botJobName, List<BotJobLoadDTO> botLoadJobs) {
-
-        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
-
-        List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
+    public static ExtractedData isFileExists(String botJobName, List<String> allActions) {
 
         String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
         String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ABRConstants.FILE_FORMAT_EXCEL);

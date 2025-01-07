@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ABRViewBotJobScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
@@ -115,7 +114,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     }
 
     private void deleteBotJob(BotJobLoadDTO botJob) {
-        List<BlockOrderDetailDTO> blockDetails = performDataBase.selectAllBlocks(botJob.getId());
+        // List<BlockOrderDetailDTO> blockDetails = performDataBase.selectAllBlocks(botJob.getId());
 
         //        boolean botJobDeletion = false;
         //        for (BlockOrderDetailDTO block : blockDetails) {

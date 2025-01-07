@@ -7,10 +7,19 @@ import java.util.Set;
 public class ExtractedData {
     private Map<String, Map<Integer, String>> extractedData = new HashMap<>();
 
+    private String errorTitle;
     private String errorMessage;
     private String missingFields;
 
     public ExtractedData() {}
+
+    public String getErrorTitle() {
+        return errorTitle;
+    }
+
+    public void setErrorTitle(String errorTitle) {
+        this.errorTitle = errorTitle;
+    }
 
     public String getErrorMessage() {
         return errorMessage;

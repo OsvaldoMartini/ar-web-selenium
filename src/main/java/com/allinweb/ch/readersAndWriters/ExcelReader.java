@@ -35,12 +35,18 @@ public class ExcelReader {
             Sheet firstSheet = workbook.getSheetAt(0);
 
             if (allActions == null || allActions.isEmpty()) {
-                throw new Exception("No actions provided");
+                String errorMessage = "File Exist but No actions were provided";
+                extractedDataWithMissingFields.setErrorTitle("No Actions Provided");
+                extractedDataWithMissingFields.setErrorMessage(errorMessage);
+                throw new Exception(errorMessage);
             }
 
             Row fieldNamesRow = firstSheet.getRow(EXCEL_DATA_COLUMN_INTESTATION_ROW);
             if (fieldNamesRow == null) {
-                throw new Exception("Field names row is missing in the Excel sheet");
+                String errorMessage = "Field names row is missing in the Excel sheet";
+                extractedDataWithMissingFields.setErrorTitle("Missing Field Names Row");
+                extractedDataWithMissingFields.setErrorMessage(errorMessage);
+                throw new Exception(errorMessage); // Throwing exception if field row is missing
             }
 
             // Extract block fields from actions
@@ -106,17 +112,21 @@ public class ExcelReader {
         } catch (FileNotFoundException e) {
             // Handle FileNotFoundException and set an appropriate error message
             if (isFileInUse(e)) {
+                extractedDataWithMissingFields.setErrorTitle("File In Use");
                 extractedDataWithMissingFields.setErrorMessage("The file is currently in use by another process.");
             } else {
+                extractedDataWithMissingFields.setErrorTitle("File Not Found");
                 extractedDataWithMissingFields.setErrorMessage("The file does not exist.");
             }
         } catch (IOException e) {
             // Handle IOException and set an appropriate error message
+            extractedDataWithMissingFields.setErrorTitle("IOException");
             extractedDataWithMissingFields.setErrorMessage(
                     "An unexpected error occurred while processing the file: " + e.getMessage());
         } catch (Exception e) {
             // Handle other exceptions
-            extractedDataWithMissingFields.setErrorMessage("An error occurred: " + e.getMessage());
+            // extractedDataWithMissingFields.setErrorTitle("An error occurred");
+            // extractedDataWithMissingFields.setErrorMessage(e.getMessage());
         }
 
         return extractedDataWithMissingFields;

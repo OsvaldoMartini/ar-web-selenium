@@ -458,6 +458,10 @@ public class ABRViewBotJobPane extends ABRPane {
 
         if (this.botLoadJobs.size() > 0) {
 
+            List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+
+            List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
+
             String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
             String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ABRConstants.FILE_FORMAT_EXCEL);
 
@@ -467,18 +471,23 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 // Check if the Excel file already exists
                 ExtractedData extractedData =
-                        ExcelWriter.isFileExists(botLoadJobs.get(0).getName(), botLoadJobs);
+                        ExcelWriter.isFileExists(botLoadJobs.get(0).getName(), allActions);
 
-                // Create a task for generating the Excel file
-                Task<Void> excelTask = new Task<>() {
-                    @Override
-                    protected Void call() throws Exception {
-                        new ExcelWriter().generateExcelFiles(botLoadJobs, extractedData, false);
-                        return null;
-                    }
-                };
+                if (extractedData == null
+                        || (extractedData.getErrorTitle() != null
+                                && !extractedData.getErrorTitle().contains("No Actions Provided"))) {
 
-                new Thread(excelTask).start();
+                    // Create a task for generating the Excel file
+                    Task<Void> excelTask = new Task<>() {
+                        @Override
+                        protected Void call() throws Exception {
+                            new ExcelWriter().generateExcelFiles(botLoadJobs, extractedData, false);
+                            return null;
+                        }
+                    };
+
+                    new Thread(excelTask).start();
+                }
             }
         } else {
 
@@ -529,6 +538,7 @@ public class ABRViewBotJobPane extends ABRPane {
             this.saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
         });
         this.saveBotJobButton.setOnMouseClicked((e) -> {
+            this.isEditingBotJob.set(false);
             this.isEditingBotJob.set(false);
             this.botJobNameLabel.setText(this.botJobName.getText());
             this.botJobDescriptionLabel.setText(this.botJobDescription.getText());
@@ -628,62 +638,69 @@ public class ABRViewBotJobPane extends ABRPane {
 
             combinedTextContainer.getChildren().add(variableText1Styled);
 
-            // Check if the Excel file already exists
-            ExtractedData extractedData = ExcelWriter.isFileExists(this.botJobLoad.getName(), this.botLoadJobs);
+            if (botLoadJobs.size() > 0) {
 
-            if (extractedData.getErrorMessage() != null) {
+                List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 
-                performAction.errorMessage(
-                        "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null);
+                List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
-                return;
-            }
+                // Check if the Excel file already exists
+                ExtractedData extractedData = ExcelWriter.isFileExists(this.botJobLoad.getName(), allActions);
 
-            // Create a task for generating the Excel file
-            Task<Void> excelTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelWriter().generateExcelFiles(botLoadJobs, extractedData, true);
-                    return null;
+                if (extractedData.getErrorMessage() != null) {
+
+                    performAction.errorMessage(
+                            "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null);
+
+                    return;
                 }
-            };
 
-            if (extractedData != null) {
+                // Create a task for generating the Excel file
+                Task<Void> excelTask = new Task<>() {
+                    @Override
+                    protected Void call() throws Exception {
+                        new ExcelWriter().generateExcelFiles(botLoadJobs, extractedData, true);
+                        return null;
+                    }
+                };
 
-                // Prepare the combined text container for the dialog
-                // You can add more content to the combinedTextContainer if needed
+                if (extractedData != null) {
 
-                // Show confirmation dialog
-                boolean confirmed = performAction.showAlertCombinedVBOX(
-                        AlertType.CONFIRMATION,
-                        "Warning: Excel File Already Exists",
-                        "The Excel file already exists. Would you like to overwrite it?",
-                        null,
-                        combinedTextContainer);
+                    // Prepare the combined text container for the dialog
+                    // You can add more content to the combinedTextContainer if needed
 
-                if (confirmed) {
+                    // Show confirmation dialog
+                    boolean confirmed = performAction.showAlertCombinedVBOX(
+                            AlertType.CONFIRMATION,
+                            "Warning: Excel File Already Exists",
+                            "The Excel file already exists. Would you like to overwrite it?",
+                            null,
+                            combinedTextContainer);
+
+                    if (confirmed) {
+
+                        new Thread(excelTask).start();
+
+                        performAction.showAlertCombinedVBOX(
+                                AlertType.INFORMATION,
+                                "Warning: Excel File Already Exists",
+                                "Success Excel File Override.", // No header text
+                                null,
+                                combinedTextContainer);
+                    }
+                } else {
+                    // If file does not exist, start the Excel generation task directly
 
                     new Thread(excelTask).start();
 
+                    // Show confirmation dialog
                     performAction.showAlertCombinedVBOX(
                             AlertType.INFORMATION,
-                            "Warning: Excel File Already Exists",
-                            "Success Excel File Override.", // No header text
+                            "Warning: New Excel File Created!",
+                            "Success Excel File Generated.", // No header text
                             null,
                             combinedTextContainer);
                 }
-            } else {
-                // If file does not exist, start the Excel generation task directly
-
-                new Thread(excelTask).start();
-
-                // Show confirmation dialog
-                performAction.showAlertCombinedVBOX(
-                        AlertType.INFORMATION,
-                        "Warning: New Excel File Created!",
-                        "Success Excel File Generated.", // No header text
-                        null,
-                        combinedTextContainer);
             }
         });
         this.openExcelFilterPanelButton.setOnMouseClicked((e) -> {

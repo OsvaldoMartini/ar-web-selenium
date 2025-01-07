@@ -1187,22 +1187,18 @@ public class PerformDataBase {
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
             // Saved Blocks
-            int rowsAffected = stmt.executeUpdate("DELETE FROM saved_instruction_reference where bot_job_id = "
-                    + botJobId + " or bot_job_id is null");
-            rowsAffected += stmt.executeUpdate("DELETE FROM saved_block_loop_instruction where bot_job_id = " + botJobId
-                    + " or bot_job_id is null");
-            rowsAffected += stmt.executeUpdate(
-                    "DELETE FROM saved_blocks where bot_job_id = " + botJobId + " or bot_job_id is null");
+            int rowsAffected =
+                    stmt.executeUpdate("DELETE FROM saved_instruction_reference where bot_job_id = " + botJobId);
+            rowsAffected +=
+                    stmt.executeUpdate("DELETE FROM saved_block_loop_instruction where bot_job_id = " + botJobId);
+            rowsAffected += stmt.executeUpdate("DELETE FROM saved_blocks where bot_job_id = " + botJobId);
 
             rowsAffected += stmt.executeUpdate("DELETE FROM variable where bot_job_id = " + botJobId);
 
-            rowsAffected += stmt.executeUpdate(
-                    "DELETE FROM instruction_reference where bot_job_id = " + botJobId + " or bot_job_id is null");
-            rowsAffected += stmt.executeUpdate(
-                    "DELETE FROM complex_instruction where bot_job_id = " + botJobId + " or bot_job_id is null");
+            rowsAffected += stmt.executeUpdate("DELETE FROM instruction_reference where bot_job_id = " + botJobId);
+            rowsAffected += stmt.executeUpdate("DELETE FROM complex_instruction where bot_job_id = " + botJobId);
 
-            rowsAffected += stmt.executeUpdate(
-                    "DELETE FROM block_loop_instruction where bot_job_id = " + botJobId + " or bot_job_id is null");
+            rowsAffected += stmt.executeUpdate("DELETE FROM block_loop_instruction where bot_job_id = " + botJobId);
 
             rowsAffected += stmt.executeUpdate("DELETE FROM block " + " WHERE bot_job_id = " + botJobId);
 
@@ -2348,8 +2344,57 @@ public class PerformDataBase {
         } catch (SQLException e) {
             ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
-                            "loadWebPageFields - Error selecting Web Page Fields.\n Error: %s", e.getMessage()));
+                            "loadWebPageFields - Error selecting Web Page Fields. Error: %s", e.getMessage()));
         }
         return webPageItems;
+    }
+
+    // Migration Scripts
+    public int migrationScripts() {
+        // Build the SQL update statement
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            int rowsAffected = 0;
+
+            // Update the bot_job_id in block_loop_instruction using the bot_job_id from block
+            String updateSQL = "UPDATE block_loop_instruction AS bli "
+                    + "SET bli.bot_job_id = (SELECT b.bot_job_id FROM block AS b WHERE b.id = bli.block_id);";
+
+            rowsAffected = stmt.executeUpdate(updateSQL);
+
+            // Update the bot_job_id in instruction_reference using the block_loop_instruction_id from
+            // block_loop_instruction
+            updateSQL = "UPDATE instruction_reference AS ref "
+                    + "SET ref.bot_job_id = (SELECT bli.bot_job_id FROM block_loop_instruction AS bli WHERE bli.id = ref.block_loop_instruction_id);";
+
+            rowsAffected += stmt.executeUpdate(updateSQL);
+
+            // Update the bot_job_id in complex_instruction using the block_loop_instruction_id from
+            // block_loop_instruction
+            updateSQL = "UPDATE complex_instruction AS com "
+                    + "SET com.bot_job_id = (SELECT bli.bot_job_id FROM block_loop_instruction AS bli WHERE bli.id = com.block_loop_instruction_id);";
+
+            rowsAffected += stmt.executeUpdate(updateSQL);
+
+            // Update All Active on block_loop_instruction
+            updateSQL = "UPDATE block_loop_instruction " + "SET active = true;";
+
+            rowsAffected += stmt.executeUpdate(updateSQL);
+
+            // Update All Active on block
+            updateSQL = "UPDATE block " + "SET active = true;";
+
+            rowsAffected += stmt.executeUpdate(updateSQL);
+
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
+            } else {
+                ABRLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
+            }
+            return rowsAffected;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(PerformDataBase.class).warning("Migration DB Scripts - Error: " + e.getMessage());
+        }
+        return -1;
     }
 }

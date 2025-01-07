@@ -8,6 +8,8 @@ import com.allinweb.ch.component.scene.ABRNewHomeBankingScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -33,8 +35,12 @@ public class ABRConfigurationPane extends ABRPane {
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
 
     private static final ABRNewHomeBankingScene abrNewHomeBankingScene;
+    private static final PerformActions performAction;
+    private static final PerformDataBase performDataBase;
     // Static block to initialize
     static {
+        performAction = PerformActions.getInstance();
+        performDataBase = PerformDataBase.getInstance();
         abrNewHomeBankingScene = ABRNewHomeBankingScene.getInstance();
     }
 
@@ -57,6 +63,7 @@ public class ABRConfigurationPane extends ABRPane {
     Label pathEngineLabel;
     Label browserLabel;
     Label reloadDBLabel;
+    Label migrationDBLabel;
     Label deleteAllDBLabel;
     Label insertSitesLabel;
     Label pathWebDriverLabel;
@@ -95,7 +102,8 @@ public class ABRConfigurationPane extends ABRPane {
     Button pathEngineButton;
     Button pathWebDriverButton;
 
-    Button saveButton;
+    Button reloadDBButton;
+    Button migrationDBButton;
     Button deleteAllDBButton;
     Button addHomeBankingButton;
 
@@ -122,7 +130,7 @@ public class ABRConfigurationPane extends ABRPane {
         AnchorPane.setRightAnchor(title, ABRConstants.SPACE_M);
 
         //        ButtonBar homeBankingActionGroup = new ButtonBar();
-        addHomeBankingButton = builder.buildButton("Insert / Update / Config Scan");
+        addHomeBankingButton = builder.buildButton("Insert / Config Scan");
         //        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
         ObservableList<HomeBankingDTO> homeBankingList =
@@ -272,35 +280,45 @@ public class ABRConfigurationPane extends ABRPane {
         GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
 
         GridPane gridPaneButton = new GridPane();
-        gridPaneButton.setHgap(5);
+        gridPaneButton.setHgap(2);
 
         // Set column constraints for each column to take up 33.33% of the grid width
         ColumnConstraints col1Button = new ColumnConstraints();
-        col1Button.setPercentWidth(20);
+        col1Button.setPercentWidth(16);
 
         ColumnConstraints col2Button = new ColumnConstraints();
-        col2Button.setPercentWidth(20);
+        col2Button.setPercentWidth(16);
 
         ColumnConstraints col3Button = new ColumnConstraints();
-        col3Button.setPercentWidth(20);
+        col3Button.setPercentWidth(16);
 
         ColumnConstraints col4Button = new ColumnConstraints();
-        col4Button.setPercentWidth(20);
+        col4Button.setPercentWidth(16);
 
         ColumnConstraints col5Button = new ColumnConstraints();
-        col5Button.setPercentWidth(20);
+        col5Button.setPercentWidth(16);
 
-        gridPaneButton.getColumnConstraints().addAll(col1Button, col2Button, col3Button, col4Button, col5Button);
+        ColumnConstraints col6Button = new ColumnConstraints();
+        col6Button.setPercentWidth(16);
+
+        gridPaneButton
+                .getColumnConstraints()
+                .addAll(col1Button, col2Button, col3Button, col4Button, col5Button, col6Button);
 
         browserLabel = new Label("Browser");
         databaseLabel = new Label("DB Type");
+
+        migrationDBLabel = new Label("Migrate DB");
 
         reloadDBLabel = new Label("Reload DB");
         deleteAllDBLabel = new Label("Delete ALL DB");
         insertSitesLabel = new Label("Insert Sites");
 
-        saveButton = builder.buildButton("Reload Configs");
-        saveButton.setMaxHeight(ABRConstants.SPACE_L);
+        migrationDBButton = builder.buildButton("Migrate");
+        migrationDBButton.setMaxHeight(ABRConstants.SPACE_XXS);
+
+        reloadDBButton = builder.buildButton("Reload Configs");
+        reloadDBButton.setMaxHeight(ABRConstants.SPACE_L);
 
         deleteAllDBButton = builder.buildButton("Delete DB");
         deleteAllDBButton.setMaxHeight(ABRConstants.SPACE_L);
@@ -313,15 +331,17 @@ public class ABRConfigurationPane extends ABRPane {
         gridPaneButton.add(browserLabel, 0, 0);
         gridPaneButton.add(databaseLabel, 1, 0);
         gridPaneButton.add(reloadDBLabel, 2, 0);
-        gridPaneButton.add(deleteAllDBLabel, 3, 0);
-        gridPaneButton.add(insertSitesLabel, 4, 0);
+        gridPaneButton.add(migrationDBLabel, 3, 0);
+        gridPaneButton.add(deleteAllDBLabel, 4, 0);
+        gridPaneButton.add(insertSitesLabel, 5, 0);
 
         // Add components in the second row, each occupying 25% of the width
         gridPaneButton.add(browserChoiceBox, 0, 1);
         gridPaneButton.add(databaseChoiceBox, 1, 1);
-        gridPaneButton.add(saveButton, 2, 1);
-        gridPaneButton.add(deleteAllDBButton, 3, 1);
-        gridPaneButton.add(addHomeBankingButton, 4, 1);
+        gridPaneButton.add(reloadDBButton, 2, 1);
+        gridPaneButton.add(migrationDBButton, 3, 1);
+        gridPaneButton.add(deleteAllDBButton, 4, 1);
+        gridPaneButton.add(addHomeBankingButton, 5, 1);
 
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         pathJavaLabel = new Label("Java Path:");
@@ -389,7 +409,7 @@ public class ABRConfigurationPane extends ABRPane {
         //                .bind(mainPane.heightProperty()
         //                        .subtract(title.heightProperty())
         //                        .subtract(pathGroup.heightProperty())
-        //                        .subtract(saveButton.heightProperty())
+        //                        .subtract(reloadDBButton.heightProperty())
         //                        .subtract(ABRConstants.SPACE_M * 2)
         //                        .subtract(ABRConstants.SPACE_L * 2));
         addHomeBankingButton.setOnMouseClicked(e -> abrNewHomeBankingScene.show());
@@ -413,8 +433,30 @@ public class ABRConfigurationPane extends ABRPane {
             databaseChoiceBox.setValue(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE));
         }
 
-        saveButton.setOnMouseClicked(e -> saveConfigurations());
+        reloadDBButton.setOnMouseClicked(e -> saveConfigurations());
+        migrationDBButton.setOnMouseClicked(e -> runMigrateScripts());
         deleteAllDBButton.setOnMouseClicked(e -> deleteAllDB());
+    }
+
+    private void runMigrateScripts() {
+
+        int rowsAffected = performDataBase.migrationScripts();
+        if (rowsAffected < 0) {
+            performAction.errorMessage(
+                    "Migration DB Scripts error",
+                    "Cannot perform  Migration for the Database",
+                    databaseChoiceBox.getValue(),
+                    null,
+                    null);
+        } else {
+            performAction.showCustomModalDialog(
+                    "Migration DB Scripts Success!",
+                    String.format("Perform Migration on %s records", rowsAffected),
+                    "Database",
+                    databaseChoiceBox.getValue(),
+                    null,
+                    false);
+        }
     }
 
     private void saveConfigurations() {
