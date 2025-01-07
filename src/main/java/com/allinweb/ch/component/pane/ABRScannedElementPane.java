@@ -1142,7 +1142,7 @@ public class ABRScannedElementPane extends ABRPane {
                     if (element != null) {
                         searchReturn.setElement(element);
                         searchReturn.setxPathWorkedFirst(
-                                Constants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+                                ABRConstants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -1157,7 +1157,7 @@ public class ABRScannedElementPane extends ABRPane {
                     if (element != null) {
                         searchReturn.setElement(element);
                         searchReturn.setxPathWorkedFirst(
-                                Constants.ABSOLUT_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+                                ABRConstants.ABSOLUT_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
@@ -3614,7 +3614,7 @@ public class ABRScannedElementPane extends ABRPane {
         //                .get()
         //                .stream()
         //                .map(BlockLoopInstructionLoadDTO::getActions)
-        //                .filter(action -> action.contains(Constants.CLICK))
+        //                .filter(action -> action.contains(ABRConstants.CLICK))
         //                .collect(Collectors.toSet());
 
         //        String browser = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.BROWSER);
@@ -3626,7 +3626,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        BotJobDTO selectedJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
 
         String baseLogString = blocksLoaded.get(0).getBotJobName()
-                + Constants.FIELDS_SEPARATOR
+                + ABRConstants.FIELDS_SEPARATOR
                 + labelsValue.getProperty(Labels.START);
 
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
@@ -3904,11 +3904,11 @@ public class ABRScannedElementPane extends ABRPane {
 
                         //                        String[] operation =
                         // UtilsMethods.splitIfContains(instruction.getOperation(),
-                        // Constants.ACTION_SPECIFICATIONS_SPLITTER);
+                        // ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
                         String[] actions =
-                                currentInstruction.getActions().split(Constants.ACTION_SPECIFICATIONS_SPLITTER);
+                                currentInstruction.getActions().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
                         String[] operations = currentInstruction.getOperation() != null
-                                ? currentInstruction.getOperation().split(Constants.ACTION_SPECIFICATIONS_SPLITTER)
+                                ? currentInstruction.getOperation().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)
                                 : null;
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.IF)
@@ -4089,9 +4089,9 @@ public class ABRScannedElementPane extends ABRPane {
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
                             resultActions = currentInstruction.getName()
-                                    + Constants.BLANK_STRING
+                                    + ABRConstants.BLANK_STRING
                                     + currentInstruction.getActions()
-                                    + Constants.BLANK_STRING
+                                    + ABRConstants.BLANK_STRING
                                     + currentInstruction.getOperation();
 
                             execOperation = true;
@@ -4102,9 +4102,9 @@ public class ABRScannedElementPane extends ABRPane {
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
 
                             resultActions = currentInstruction.getName()
-                                    + Constants.BLANK_STRING
+                                    + ABRConstants.BLANK_STRING
                                     + currentInstruction.getActions()
-                                    + Constants.BLANK_STRING
+                                    + ABRConstants.BLANK_STRING
                                     + currentInstruction.getOperation();
 
                             checkOperation = true;
@@ -4113,9 +4113,9 @@ public class ABRScannedElementPane extends ABRPane {
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
 
                             resultActions = currentInstruction.getName()
-                                    + Constants.BLANK_STRING
+                                    + ABRConstants.BLANK_STRING
                                     + currentInstruction.getActions()
-                                    + Constants.BLANK_STRING
+                                    + ABRConstants.BLANK_STRING
                                     + currentInstruction.getOperation();
 
                             excelWriteOperation = true;
@@ -4358,14 +4358,14 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 continue;
 
-                            } else if (actions[0].equals(Constants.HOLD)
-                                    || actions[0].equals(Constants.QUIT)
-                                    || actions[0].equals(Constants.SCREEN)
-                                    || actions[0].equals(Constants.REFRESH_ONLY)) {
+                            } else if (actions[0].equals(ABRConstants.HOLD)
+                                    || actions[0].equals(ABRConstants.QUIT)
+                                    || actions[0].equals(ABRConstants.SCREEN)
+                                    || actions[0].equals(ABRConstants.REFRESH_ONLY)) {
 
                                 performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                                if (actions[0].equals(Constants.QUIT)) {
+                                if (actions[0].equals(ABRConstants.QUIT)) {
                                     stopAll = true;
                                     success = true;
                                 }
@@ -4857,9 +4857,9 @@ public class ABRScannedElementPane extends ABRPane {
                 for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
                     if (currentInstruction.getDefaultValue() == null) {
                         String[] arr = UtilsMethods.splitIfContains(
-                                currentInstruction.getActions(), Constants.ACTION_SPECIFICATIONS_SPLITTER);
+                                currentInstruction.getActions(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
                         if (arr.length > 1) {
-                            String dataFieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+                            String dataFieldName = arr[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
                             performAction.insertRandomName(dataFieldName);
                         }
                     }
@@ -4880,7 +4880,7 @@ public class ABRScannedElementPane extends ABRPane {
                     long currentInstructionStartTime = System.nanoTime();
                     File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
-                    String[] actions = currentInstruction.getActions().split(Constants.ACTIONS_AND_PATHS_SPLITTER);
+                    String[] actions = currentInstruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
 
                     // Case for Inputs
                     String valueInsert = "No Data Found";
@@ -4900,13 +4900,13 @@ public class ABRScannedElementPane extends ABRPane {
 
                     try {
 
-                        if (actions[0].equals(Constants.HOLD)
-                                || actions[0].equals(Constants.QUIT)
-                                || actions[0].equals(Constants.SCREEN)
-                                || actions[0].equals(Constants.REFRESH_ONLY)) {
+                        if (actions[0].equals(ABRConstants.HOLD)
+                                || actions[0].equals(ABRConstants.QUIT)
+                                || actions[0].equals(ABRConstants.SCREEN)
+                                || actions[0].equals(ABRConstants.REFRESH_ONLY)) {
                             performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                            if (actions[0].equals(Constants.QUIT)) {
+                            if (actions[0].equals(ABRConstants.QUIT)) {
                                 stopAll = true;
                                 success = true;
                             }
@@ -5039,9 +5039,9 @@ public class ABRScannedElementPane extends ABRPane {
             //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
             //            }
             baseLogString = blocksLoaded.get(0).getName()
-                    + Constants.FIELDS_SEPARATOR
+                    + ABRConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
-                    + Constants.FIELDS_SEPARATOR
+                    + ABRConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
 
             combinedTextContainer
@@ -5056,11 +5056,11 @@ public class ABRScannedElementPane extends ABRPane {
             countdownTextField.setText(resultActions);
 
             baseLogString = blocksLoaded.get(0).getName()
-                    + Constants.FIELDS_SEPARATOR
+                    + ABRConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
-                    + Constants.FIELDS_SEPARATOR
+                    + ABRConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.KO)
-                    + Constants.FIELDS_SEPARATOR
+                    + ABRConstants.FIELDS_SEPARATOR
                     + resultActions;
             //            report.setStatus(status);
             //            report.setDuration(totalExecutionTime / 100);
@@ -5152,7 +5152,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private static void printBaseLog(File logFile, String timeStamp, String msg) {
         String resultMsg;
-        String log = String.join(Constants.FIELDS_SEPARATOR, timeStamp, msg);
+        String log = String.join(ABRConstants.FIELDS_SEPARATOR, timeStamp, msg);
 
         try {
             FileWriter fileWriter = new FileWriter(logFile, true);
@@ -5170,8 +5170,8 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private static void printLog(String timeStamp, File logFile, String resultActions, boolean result) {
-        String resultMsg = result ? Constants.SUCCESS : Constants.FAIL;
-        String log = String.join(Constants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultActions);
+        String resultMsg = result ? ABRConstants.SUCCESS : ABRConstants.FAIL;
+        String log = String.join(ABRConstants.FIELDS_SEPARATOR, timeStamp, resultMsg, resultActions);
 
         try {
             FileWriter fileWriter = new FileWriter(logFile, true);
@@ -5205,9 +5205,9 @@ public class ABRScannedElementPane extends ABRPane {
             innerHTMLValue = innerHTMLValue.substring(firstIndexOfCloseTag + 1, firstIndexOfOpenTag);
         }
         String fieldName = null;
-        String[] arr = UtilsMethods.splitIfContains(action, Constants.ACTION_SPECIFICATIONS_SPLITTER);
+        String[] arr = UtilsMethods.splitIfContains(action, ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
         if (arr.length > 1) {
-            fieldName = arr[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+            fieldName = arr[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
         new ExcelWriter(botJobName, abrWebDriver.getDriver(), false)

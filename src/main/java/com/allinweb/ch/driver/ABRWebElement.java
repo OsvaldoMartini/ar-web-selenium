@@ -253,7 +253,7 @@ public class ABRWebElement {
             } else {
                 // Most Important to find any kind of element
 
-                if (searchReturn != null && searchReturn.getxPathWorkedFirst().equals(Constants.ABSOLUT_XPATH)) {
+                if (searchReturn != null && searchReturn.getxPathWorkedFirst().equals(ABRConstants.ABSOLUT_XPATH)) {
                     savedReferences.put(
                             "absolutXPath",
                             searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -263,7 +263,7 @@ public class ABRWebElement {
                     savedReferences.put(
                             "customXPath",
                             searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (searchReturn.getxPathWorkedFirst().equals(Constants.REGULAR_XPATH)) {
+                } else if (searchReturn.getxPathWorkedFirst().equals(ABRConstants.REGULAR_XPATH)) {
                     savedReferences.put(
                             "currentXPath",
                             searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -383,8 +383,8 @@ public class ABRWebElement {
             nameLabel.setText(textLabel);
             nameField.setText(tagName);
         } else {
-            nameLabel.setText(ABRConstants.defaultValueUE_NO_IDENTIFICATION);
-            nameField.setText(ABRConstants.defaultValueUE_NO_IDENTIFICATION);
+            nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
+            nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
         }
         try {
 
@@ -1169,8 +1169,7 @@ public class ABRWebElement {
         } else if (hasDiv) {
             setElementText(textLabel, tagname);
         } else {
-            setElementText(
-                    ABRConstants.defaultValueUE_NO_IDENTIFICATION, ABRConstants.defaultValueUE_NO_IDENTIFICATION);
+            setElementText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION, ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
         }
     }
 

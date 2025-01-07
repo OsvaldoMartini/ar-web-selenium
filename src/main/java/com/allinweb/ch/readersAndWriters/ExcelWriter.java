@@ -294,8 +294,8 @@ public class ExcelWriter {
 
         public static boolean checkIfExcelExist(String fileName, String purpose, boolean isFullPath) {
             if (!isFullPath) {
-                String fullPath =
-                        System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName + Constants.FILE_FORMAT;
+                String fullPath = System.getProperty("user.dir") + "\\" + purpose + "\\" + fileName
+                        + ABRConstants.FILE_FORMAT_EXCEL;
                 return new FileManager(fullPath).getFile().exists();
             } else {
                 return new FileManager(fileName).getFile().exists();
@@ -314,7 +314,7 @@ public class ExcelWriter {
             String fullPath = "";
 
             if (!isFullPath) {
-                fileNamePath = "\\" + fileName + Constants.FILE_FORMAT;
+                fileNamePath = "\\" + fileName + ABRConstants.FILE_FORMAT_EXCEL;
                 fullPath = ABRPropertyManager.getInstance().getProperty(property) + fileNamePath;
             } else {
                 fullPath = fileName;

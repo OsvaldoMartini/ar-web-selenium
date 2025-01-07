@@ -19,7 +19,6 @@ import com.allinweb.ch.util.ABRPriorities;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ABRWebUtil;
-import com.allinweb.ch.util.Constants;
 import com.allinweb.ch.util.CryptationAlgorithm;
 import com.allinweb.ch.util.ExcelReportStatusEnum;
 import com.allinweb.ch.util.PriorityTypeEnum;
@@ -181,7 +180,7 @@ public class PerformActions {
             if (instructionElement != null) {
                 boolean passed = true;
                 switch (actions[0]) {
-                    case Constants.VISUALIZE:
+                    case ABRConstants.VISUALIZE:
                         passed = scrollToElement(byPassNotFound, instructionElement);
 
                         if (!passed) {
@@ -190,7 +189,7 @@ public class PerformActions {
                             passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.VISUALIZE);
                         }
                         return passed;
-                    case Constants.OUTPUT:
+                    case ABRConstants.OUTPUT:
                         String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
                         return getOutPutElement(
                                 byPassNotFound,
@@ -198,8 +197,8 @@ public class PerformActions {
                                 fieldName,
                                 currentInstruction.getActions(),
                                 mapOperators);
-                    case Constants.CLICK:
-                    case Constants.OTHER:
+                    case ABRConstants.CLICK:
+                    case ABRConstants.OTHER:
                         passed = clickElement(byPassNotFound, instructionElement);
                         if (!passed) {
                             // Try by coordinates
@@ -207,7 +206,7 @@ public class PerformActions {
                             passed = executeActionsAtCoordinates(savedCoordinates, filedData, ABRConstants.CLICK);
                         }
                         return passed;
-                    case Constants.INSERT:
+                    case ABRConstants.INSERT:
                         if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
                             passed = insertDataInSelectElement(
                                     byPassNotFound, instructionElement, savedCoordinates, data);
@@ -249,19 +248,19 @@ public class PerformActions {
             throws Exception {
 
         switch (actions[0]) {
-            case Constants.LIST_OPERATION:
+            case ABRConstants.LIST_OPERATION:
                 listOperation(byPassNotFound, instruction);
                 break;
-            case Constants.HOLD:
-            case Constants.REFRESH_HOLD:
+            case ABRConstants.HOLD:
+            case ABRConstants.REFRESH_HOLD:
                 //                        executeAlert(instruction);
                 onHoldForSeconds(instruction);
                 break;
-            case Constants.REFRESH_ONLY:
-            case Constants.REFRESH_LOOP:
+            case ABRConstants.REFRESH_ONLY:
+            case ABRConstants.REFRESH_LOOP:
                 refreshPage();
                 break;
-            case Constants.QUIT:
+            case ABRConstants.QUIT:
                 Alert alert = new Alert(
                         Alert.AlertType.CONFIRMATION, "Do you want to continue?", ButtonType.YES, ButtonType.NO);
                 alert.setTitle("Confirmation");
@@ -276,12 +275,12 @@ public class PerformActions {
                     ABRSharedResources.getInstance().cacheEntitiesFromDB();
                 }
                 break;
-                //                    case Constants.EXTRACT:
+                //                    case ABRConstants.EXTRACT:
                 //                        result = "insertValueFieldNameInExcel-->"
                 //                                + insertValueFieldNameInExcel(instructionElement, instruction,
                 // action, blockJobName);
                 //                        break;
-            case Constants.SCREEN:
+            case ABRConstants.SCREEN:
                 break;
         }
 
@@ -979,7 +978,7 @@ public class PerformActions {
 
         if (data != null) {
             if (actions.length > 1) {
-                dataFieldName = actions[1].split(Constants.PATH_FIELD_SUBSTITUTION)[0];
+                dataFieldName = actions[1].split(ABRConstants.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
 
                 if (isEncrypted && dataFieldValue != null) {
@@ -1148,7 +1147,7 @@ public class PerformActions {
         */
         List<ComplexInstructionLoadDTO> complexInstructionDTOS = instructionDTO.getComplexInstructionLoadDTOList();
         String[] complexActionParts =
-                complexInstructionDTOS.get(0).getInstruction().split(Constants.COMPLEX_INSTRUCTION_SEPARATOR);
+                complexInstructionDTOS.get(0).getInstruction().split(ABRConstants.COMPLEX_INSTRUCTION_SEPARATOR);
         List<WebElement> webElementList;
         WebElement forwardButton;
         WebElement backwardButton;
@@ -1506,7 +1505,7 @@ public class PerformActions {
 
         if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             ABRLogger.getInstance(PerformActions.class)
-                    .info(String.format(
+                    .warning(String.format(
                             "%sParent Id Error Check Parent Id: %d "
                                     + "For the \"%s\" Does not belong to this block: "
                                     + blockLoad.getId() + "-" + blockLoad.getName(),
@@ -2123,49 +2122,49 @@ public class PerformActions {
     public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> fieldData) {
 
         switch (actions[0]) {
-            case Constants.VISUALIZE:
+            case ABRConstants.VISUALIZE:
                 return "Visualize action executed for " + fieldData.getKey();
-            case Constants.OTHER:
+            case ABRConstants.OTHER:
                 return "Other Element --> " + fieldData.getKey();
-            case Constants.OUTPUT:
+            case ABRConstants.OUTPUT:
                 return "Output Element --> " + fieldData.getKey();
-            case Constants.CLICK:
+            case ABRConstants.CLICK:
                 return "Click Element --> " + fieldData.getKey();
-            case Constants.INSERT:
+            case ABRConstants.INSERT:
                 return "Insert action for  -> " + fieldData.getKey() + " = " + fieldData.getValue();
-            case Constants.LIST_OPERATION:
+            case ABRConstants.LIST_OPERATION:
                 return "List Operation performed for " + fieldData.getKey();
-            case Constants.HOLD:
+            case ABRConstants.HOLD:
                 return "Hold executed ( " + fieldData.getKey() + " )";
-            case Constants.PAUSE:
+            case ABRConstants.PAUSE:
                 return "Pause action triggered";
-            case Constants.GOTO:
+            case ABRConstants.GOTO:
                 String[] parts = fieldData.getKey().split(":");
                 return String.format(
                         "GO TO Block \"%s\" Limit %s times",
                         "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], fieldData.getValue());
-            case Constants.REFRESH_ONLY:
+            case ABRConstants.REFRESH_ONLY:
                 return " Refresh Web Page";
-            case Constants.REFRESH_HOLD:
+            case ABRConstants.REFRESH_HOLD:
                 String[] msgParent = fieldData.getKey().split(":");
                 String[] msgValue = fieldData.getValue().split(":");
                 return String.format(
                         "Wait for Parent \"%s\" Limit %s seconds",
                         "(" + msgParent[1] + ") " + msgParent[2], msgValue[0]);
-            case Constants.LOOP:
+            case ABRConstants.LOOP:
                 msgParent = fieldData.getKey().split(":");
                 return String.format(
                         "Jump To Parent \"%s\" Limit %s times",
                         msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], fieldData.getValue());
-            case Constants.REFRESH_LOOP:
+            case ABRConstants.REFRESH_LOOP:
                 msgParent = fieldData.getKey().split(":");
                 msgValue = fieldData.getValue().split(":");
                 return String.format(
                         "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
                         msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
-            case Constants.QUIT:
+            case ABRConstants.QUIT:
                 return "Quit action processed";
-            case Constants.SCREEN:
+            case ABRConstants.SCREEN:
                 return "Screen action executed for " + fieldData.getKey() + " --> " + blockJobName;
             default:
                 return "No Action Detected for " + fieldData.getKey();
@@ -2493,15 +2492,15 @@ public class PerformActions {
             String[] actions = currentInstruction.getActions().split(ABRConstants.ACTIONS_AND_PATHS_SPLITTER);
             for (String action : actions) {
                 switch (String.valueOf(action.charAt(0))) {
-                    case Constants.VISUALIZE:
+                    case ABRConstants.VISUALIZE:
                         scrollToCoordinates(x, y);
                         break;
-                    case Constants.CLICK:
+                    case ABRConstants.CLICK:
                         scrollToCoordinates(x, y);
                         onHoldForSeconds(null);
                         clickAtCoordinates(xCoord, yCoord);
                         break;
-                    case Constants.INSERT:
+                    case ABRConstants.INSERT:
                         scrollToCoordinates(x, y);
                         onHoldForSeconds(null);
                         clickAtCoordinates(xCoord, yCoord);

@@ -3,7 +3,6 @@ package com.allinweb.ch.readersAndWriters;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
-import com.allinweb.ch.util.Constants;
 import com.allinweb.ch.util.ExtractedData;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -46,9 +45,9 @@ public class ExcelReader {
 
             // Extract block fields from actions
             Set<String> blockFields = allActions.stream()
-                    .filter(action -> action.contains(Constants.INSERT)
-                            && action.contains(Constants.ACTION_SPECIFICATIONS_SPLITTER))
-                    .map(action -> action.split(Constants.ACTION_SPECIFICATIONS_SPLITTER)[1])
+                    .filter(action -> action.contains(ABRConstants.INSERT)
+                            && action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER))
+                    .map(action -> action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
                     .collect(Collectors.toSet());
 
             // Cache field names and values from extractedData
