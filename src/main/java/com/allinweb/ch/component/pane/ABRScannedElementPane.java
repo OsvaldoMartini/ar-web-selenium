@@ -3620,10 +3620,8 @@ public class ABRScannedElementPane extends ABRPane {
                             if (mapLoops.get(blocLoopKey) == 0) {
                                 stopAll = true;
                                 int limit = loopBlockLimits.get(blocLoopKey);
-                                performAction.gotoLimitExecution(limit, resultActions);
 
-                                Pair<String, String> msgBlock = new Pair(
-                                        String.format("Block Name: \"%s\"", blockLoad.getName()), ABRConstants.GOTO);
+                                Pair<String, String> msgBlock = new Pair(blocLoopKey, "0");
 
                                 // Excel Report and Log
                                 performAction.logAndReport(
@@ -3638,10 +3636,11 @@ public class ABRScannedElementPane extends ABRPane {
                                         dataExcel,
                                         writerReport,
                                         "GOTO Limit Reached",
-                                        resultActions);
+                                        blocLoopKey + " Reached: 0");
 
                                 msgBlock = new Pair(
-                                        String.format("Exit Bot Job: \"%s\"", blockLoad.getName()), ABRConstants.EXIT);
+                                        String.format("Exit at Block Name: \"%s\"", blockLoad.getName()),
+                                        ABRConstants.EXIT);
 
                                 // Excel Report and Log
                                 performAction.logAndReport(
@@ -3657,6 +3656,8 @@ public class ABRScannedElementPane extends ABRPane {
                                         writerReport,
                                         "Stopping App",
                                         String.format("Exit at Block Name: \"%s\"", blockName));
+
+                                performAction.gotoLimitExecution(limit, resultActions);
 
                                 continue blockLoop;
                             }
