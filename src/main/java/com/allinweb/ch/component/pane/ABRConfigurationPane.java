@@ -455,7 +455,8 @@ public class ABRConfigurationPane extends ABRPane {
                     "Database",
                     databaseChoiceBox.getValue(),
                     null,
-                    false);
+                    false,
+                    null);
         }
     }
 

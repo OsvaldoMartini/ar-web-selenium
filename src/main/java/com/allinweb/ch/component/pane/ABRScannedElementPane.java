@@ -969,7 +969,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void insertNewElement() {
 
-        if (Strings.isNullOrEmpty(defineNameField.getText())) {
+        if (Strings.isNullOrEmpty(defineNameField.getText().trim())) {
 
             Text variableText1Styled = new Text("Web Element \"NAME\" must be defined!");
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
@@ -987,7 +987,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         if (searchReturn != null) {
 
-            searchReturn.setDefinedName(defineNameField.getText());
+            searchReturn.setDefinedName(defineNameField.getText().trim());
 
             try {
                 if (searchReturn.getElement() == null) {
@@ -1951,16 +1951,19 @@ public class ABRScannedElementPane extends ABRPane {
                     Text blockNameText = new Text(blockName);
                     blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
 
-                    Text variableText1Styled = new Text(String.format(
-                            "Web Element Instruction \"%s\"",
-                            abrWebElement.getElement().getTagName()));
-
+                    Text variableText1Styled = new Text("Web Element Instruction");
                     variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+                    Text variableText2Styled =
+                            new Text(defineNameField.getText().trim());
+                    variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
 
                     VBox combinedTextContainer = new VBox();
                     combinedTextContainer.setSpacing(5); // Add some sp
 
-                    combinedTextContainer.getChildren().addAll(blockNameLabel, blockNameText, variableText1Styled);
+                    combinedTextContainer
+                            .getChildren()
+                            .addAll(blockNameLabel, blockNameText, variableText1Styled, variableText2Styled);
 
                     boolean result = performAction.showAlertCombinedVBOX(
                             Alert.AlertType.CONFIRMATION,
@@ -3584,6 +3587,9 @@ public class ABRScannedElementPane extends ABRPane {
         Map<String, Integer> loopBlockLimits = new HashMap<>();
 
         ABRConstants.ConditionStatus currentCondition = ABRConstants.ConditionStatus.NONE;
+        ABRConstants.ConditionStatus previousCondition;
+        ABRConstants.ConditionStatus progressCondition;
+        ABRConstants.DialogModal respModal;
 
         int exportIndex = 1;
         if (extractedData.getNumberOfDataRows() > 0) {
@@ -3594,9 +3600,13 @@ public class ABRScannedElementPane extends ABRPane {
             blockLoop:
             while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
                 long blockStartTime = System.nanoTime();
+
                 currentCondition = ABRConstants.ConditionStatus.NONE;
-                ABRConstants.ConditionStatus previousCondition = ABRConstants.ConditionStatus.NONE;
-                ABRConstants.ConditionStatus progressCondition = ABRConstants.ConditionStatus.NONE;
+                previousCondition = ABRConstants.ConditionStatus.NONE;
+                progressCondition = ABRConstants.ConditionStatus.NONE;
+
+                respModal = ABRConstants.DialogModal.NONE;
+
                 int parentBlockCondition = -1;
 
                 instructionsExecuted.clear();
@@ -3931,13 +3941,15 @@ public class ABRScannedElementPane extends ABRPane {
                                     .info(String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()));
 
                             //                                SwingUtilities.invokeLater(() ->
-                            performAction.showCustomModalDialog(
+
+                            respModal = performAction.showCustomModalDialog(
                                     "PAUSE BOT JOB",
                                     String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
                                     " Please click OK to continue!",
                                     null,
                                     null,
-                                    false);
+                                    false,
+                                    "stop all");
                         }
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
@@ -4660,6 +4672,35 @@ public class ABRScannedElementPane extends ABRPane {
                                     writerReport,
                                     mainMsg,
                                     resultActions);
+                        }
+
+                        if (pauseOperation && respModal.equals(ABRConstants.DialogModal.STOP)) {
+
+                            String nameInstruc = "(" + currentInstruction.getId() + ") " + currentInstruction.getName();
+
+                            resultActions = String.format("STOP ALL PROCESSES: \"%s\"", nameInstruc);
+
+                            Pair<String, String> msgBlock = new Pair(resultActions, ABRConstants.PAUSE);
+
+                            // Excel Report and Log
+                            performAction.logAndReport(
+                                    currentCondition,
+                                    true,
+                                    true,
+                                    blockStartTime,
+                                    blockReportName,
+                                    success,
+                                    new String[] {ABRConstants.PAUSE},
+                                    msgBlock,
+                                    dataExcel,
+                                    writerReport,
+                                    "PAUSE -> STOP",
+                                    String.format("STOP ALL CALLED AT: \"%s\" : ", nameInstruc));
+
+                            pauseOperation = false;
+                            respModal = ABRConstants.DialogModal.NONE;
+                            stopAll = true;
+                            break;
                         }
 
                         // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks

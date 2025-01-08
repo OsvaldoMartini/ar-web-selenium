@@ -16,6 +16,13 @@ public class ABRConstants {
         ENDIF
     }
 
+    public enum DialogModal {
+        NONE,
+        OK,
+        STOP,
+        EXIT
+    }
+
     public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
     public static final String PROPERTIES_FILE_EXTENSION = ".properties";
     public static final String CONFIG_FILE_NAME = "config";

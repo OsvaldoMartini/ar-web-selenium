@@ -425,7 +425,8 @@ public class PerformActions {
                 null,
                 null,
                 null,
-                true);
+                true,
+                null);
     }
 
     private void showNotFoundElement(String targetXPath, By criteria) {}
@@ -907,11 +908,12 @@ public class PerformActions {
                 "2. Check if the page layout or content has been updated. (Page Refreshed)",
                 "3. Consider increasing the wait time to ensure the page loads completely.",
                 "4. Consider to Re Scanner or Re Select the Element!",
-                true);
+                true,
+                null);
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4) {
-        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true);
+        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, null);
     }
 
     public void refreshPage() {
@@ -2067,23 +2069,28 @@ public class PerformActions {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public static void showCustomModalDialog(
-            String title, String message, String message2, String message3, String message4, boolean redMsg) {
-        // Create a JDialog as a custom modal message dialog
+    public static ABRConstants.DialogModal showCustomModalDialog(
+            String title,
+            String message,
+            String message2,
+            String message3,
+            String message4,
+            boolean redMsg,
+            String secondButton) {
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        if (message3 == null && message4 == null) {
+        if (message2 != null && message3 == null && message4 == null) {
             dialog.setSize(350, 210);
-        } else if (message3 != null && message4 == null) {
-            dialog.setSize(350, 230);
-        } else if (message3 != null && message4 != null) {
-            dialog.setSize(350, 300);
+        } else if (message2 != null && message3 != null && message4 == null) {
+            dialog.setSize(350, 250);
+        } else if (message2 != null && message3 != null && message4 != null) {
+            dialog.setSize(350, 260);
         } else {
-            dialog.setSize(350, 300);
+            dialog.setSize(350, 150);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border  IT REMOVE TEH ORIGINAL TITLE
+        dialog.setUndecorated(true); // Remove the default border
 
         // Style the dialog's main panel
         JPanel panel = new JPanel();
@@ -2096,50 +2103,88 @@ public class PerformActions {
         titleMessage += "<span style='font-size: 14px; font-weight: bold;'>" + title
                 + "</span><br>------------------------------<br>";
 
-        String concatenaMsg = "<span style='color: blue;'>" + message;
+        String concatenateMsg = "<span style='color: blue;'>" + message;
         if (message2 != null) {
-            concatenaMsg +=
+            concatenateMsg +=
                     "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
         } else {
-            concatenaMsg += "</span><br>------------------------------<br><br>                            <br>";
+            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
         }
 
         if (message3 != null && message4 == null) {
-            concatenaMsg +=
+            concatenateMsg +=
                     "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
         } else if (message3 != null && message4 != null) {
-            concatenaMsg += "<br>------------------------------<br><span style='color: blue;'>"
+            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
                     + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
                     + message4 + "</span><br><br></html>";
         } else {
-            concatenaMsg += "</html>";
+            concatenateMsg += "</html>";
         }
 
         // Apply red color to message if redMsg is true
         if (redMsg) {
-            concatenaMsg = concatenaMsg.replaceAll("blue", "red");
+            concatenateMsg = concatenateMsg.replaceAll("blue", "red");
         }
-        concatenaMsg = titleMessage + concatenaMsg;
+        concatenateMsg = titleMessage + concatenateMsg;
 
         // Create a JLabel to display the formatted message
-        JLabel messageLabel = new JLabel(concatenaMsg, SwingConstants.CENTER);
+        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        // OK button to close the dialog
-        JButton okButton = new JButton("OK");
-        okButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                dialog.dispose();
-            }
-        });
-        panel.add(okButton, BorderLayout.SOUTH);
+        final ABRConstants.DialogModal[] status = {ABRConstants.DialogModal.NONE};
+
+        if (!Strings.isNullOrEmpty(secondButton)) {
+
+            // Create a JPanel for the buttons with horizontal layout
+            JPanel buttonPanel = new JPanel();
+            buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 0));
+            buttonPanel.setBackground(new Color(255, 218, 51)); // Light orange background
+            buttonPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+            // OK button to close the dialog
+            JButton okButton = new JButton("OK");
+            okButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    dialog.dispose();
+                    status[0] = ABRConstants.DialogModal.OK;
+                }
+            });
+            buttonPanel.add(okButton);
+
+            // Stop button with its action
+            JButton stopButton = new JButton(secondButton);
+            stopButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    System.out.println("Stop button clicked!");
+                    dialog.dispose();
+                    status[0] = ABRConstants.DialogModal.STOP;
+                }
+            });
+            buttonPanel.add(stopButton);
+            panel.add(buttonPanel, BorderLayout.SOUTH);
+        } else {
+
+            // OK button to close the dialog
+            JButton okButton = new JButton("OK");
+            okButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    dialog.dispose();
+                }
+            });
+            panel.add(okButton, BorderLayout.SOUTH);
+        }
 
         // Add panel to dialog and set properties
         dialog.getContentPane().add(panel);
         dialog.setAlwaysOnTop(true);
         dialog.setVisible(true); // This will block other input until the dialog is closed
+
+        return status[0];
     }
 
     public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> fieldData) {
@@ -2280,7 +2325,8 @@ public class PerformActions {
                     " Please click OK to continue!",
                     null,
                     null,
-                    true);
+                    true,
+                    null);
         }
 
         return -1; // Return -1 if no valid index is found

@@ -1722,6 +1722,29 @@ public class PerformDataBase {
         return false;
     }
 
+    public boolean updateInstructionStatusByBlock(int botJobId, int blockId, boolean blockActive) {
+        // Build the SQL update statement
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = 0;
+
+            rowsAffected = stmt.executeUpdate("UPDATE block_loop_instruction SET active = '" + blockActive + "'"
+                    + " WHERE "
+                    + " block_id = " + blockId + " AND bot_job_id = " + botJobId);
+
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(PerformDataBase.class)
+                        .info(String.format("Instruction Status Updated - rowsAffected: %s ", rowsAffected));
+            } else {
+                ABRLogger.getInstance(PerformDataBase.class).warning("No Instruction Status were Updated!");
+            }
+            return true;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
+        }
+        return false;
+    }
+
     public void updateBlockStatus(int botJobId, int blockId, String blockName, boolean blockActive, int wait) {
         try (Statement stmt = getConnection().createStatement()) {
 

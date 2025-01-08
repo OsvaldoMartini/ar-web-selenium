@@ -154,6 +154,10 @@ public class WebSocketStompServer {
                         blockStateDTO.getBlockName(),
                         blockStateDTO.isBlockActive(),
                         3); // Block wait time Default 3 seconds per block
+
+                performDataBase.updateInstructionStatusByBlock(
+                        blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.isBlockActive());
+
                 ABRSharedResources.getInstance().changeDbConnection();
 
                 break;
