@@ -447,7 +447,8 @@ public class ABRConfigurationPane extends ABRPane {
                     "Cannot perform  Migration for the Database",
                     databaseChoiceBox.getValue(),
                     null,
-                    null);
+                    null,
+                    0);
         } else {
             performAction.showCustomModalDialog(
                     "Migration DB Scripts Success!",
@@ -456,7 +457,8 @@ public class ABRConfigurationPane extends ABRPane {
                     databaseChoiceBox.getValue(),
                     null,
                     false,
-                    null);
+                    null,
+                    0);
         }
     }
 

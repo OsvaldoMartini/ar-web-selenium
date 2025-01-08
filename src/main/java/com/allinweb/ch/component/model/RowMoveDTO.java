@@ -9,6 +9,7 @@ public class RowMoveDTO {
     private int botJobId;
     private String botJobName;
     private int blockId;
+    private int blockOrderNumber;
     private int deleteBlockId;
     private String blockName;
     private boolean blockActive;

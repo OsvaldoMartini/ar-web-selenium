@@ -116,6 +116,7 @@ public class WebSocketStompServer {
                 break;
             case "INSERT_BEFORE":
             case "INSERT_AFTER":
+            case "INSERT_NEW":
             case "INSERT_AFTER_ELSEIF":
             case "INSERT_BEFORE_ELSEIF":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);

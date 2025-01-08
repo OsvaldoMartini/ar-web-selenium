@@ -175,7 +175,8 @@ public class ABRElementValuePane extends ABRPane {
                         String.format("'%s' cannot be inserted with the existent name!", nameField.getText()),
                         null,
                         null,
-                        null);
+                        null,
+                        0);
 
                 return;
             }
@@ -219,7 +220,8 @@ public class ABRElementValuePane extends ABRPane {
                         String.format("This '%s' cannot be deleted!", nameField.getText()),
                         String.format("Exist %s Steps attached!", usedVarsField.getText()),
                         null,
-                        null);
+                        null,
+                        0);
 
                 return;
             }
@@ -475,7 +477,7 @@ public class ABRElementValuePane extends ABRPane {
             }
         } catch (SQLException e) {
             performAction.errorMessage(
-                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null);
+                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null, 0);
 
             return;
         }
@@ -493,7 +495,7 @@ public class ABRElementValuePane extends ABRPane {
             }
         } catch (SQLException e) {
             performAction.errorMessage(
-                    "Error loading Next Id Data", "Could Not Load the Next Id Data", null, null, null);
+                    "Error loading Next Id Data", "Could Not Load the Next Id Data", null, null, null, 0);
         }
         return null;
     }
@@ -521,7 +523,8 @@ public class ABRElementValuePane extends ABRPane {
                     String.format("The '%s' cannot be inserted!", user.getName()),
                     e.getMessage(),
                     null,
-                    null);
+                    null,
+                    0);
 
             return;
         }
@@ -546,7 +549,8 @@ public class ABRElementValuePane extends ABRPane {
                     String.format("The '%s' cannot be updated.", user.getName()),
                     e.getMessage(),
                     null,
-                    null);
+                    null,
+                    0);
 
             return;
         }
@@ -569,11 +573,16 @@ public class ABRElementValuePane extends ABRPane {
                 }
             } catch (SQLException e) {
                 performAction.errorMessage(
-                        "Error Deleting", String.format("Cannot be deleted id: '%s'", Id), e.getMessage(), null, null);
+                        "Error Deleting",
+                        String.format("Cannot be deleted id: '%s'", Id),
+                        e.getMessage(),
+                        null,
+                        null,
+                        0);
             }
         } catch (NumberFormatException e) {
             performAction.errorMessage(
-                    "Invalid ID format.", String.format("The id: '%s' is in invalid format!", Id), null, null, null);
+                    "Invalid ID format.", String.format("The id: '%s' is in invalid format!", Id), null, null, null, 0);
         }
     }
 

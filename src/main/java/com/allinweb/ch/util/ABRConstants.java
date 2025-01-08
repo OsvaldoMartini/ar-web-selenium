@@ -23,6 +23,7 @@ public class ABRConstants {
         EXIT
     }
 
+    // Labels & Properties
     public static final String LABELS_FILE_NAME_COMMON = "lang/labels.";
     public static final String PROPERTIES_FILE_EXTENSION = ".properties";
     public static final String CONFIG_FILE_NAME = "config";
@@ -199,6 +200,7 @@ public class ABRConstants {
     public static final String FILE_FORMAT_CSV = ".csv";
     public static final String FILE_FORMAT_LOG = ".log";
 
+    // DATABASES
     public static final String POSTGRES = "PostGres";
     public static final String ACCESS = "Access";
     public static final String SQLSERVER = "SQLServer";

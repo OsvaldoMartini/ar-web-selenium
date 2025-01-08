@@ -74,9 +74,9 @@ public class PerformDataBase {
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
+    private BotJobLoadDTO botJobLoadDTO;
+    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-
-    private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
 
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<PerformDataBase> instance = () -> new PerformDataBase();
@@ -909,7 +909,7 @@ public class PerformDataBase {
             Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
             Map<Integer, BlockLoopInstructionLoadDTO> instructionMap = new HashMap<>();
 
-            botLoadJobs.clear();
+            botJobLoadList.clear();
 
             while (rs.next()) {
                 botJobId = rs.getInt("bot_job_id");
@@ -921,7 +921,7 @@ public class PerformDataBase {
                     botJobDTO.setName(rs.getString("bot_job_name"));
                     botJobDTO.setBlockLoadDTOList(new ArrayList<>());
                     botJobMap.put(botJobId, botJobDTO);
-                    botLoadJobs.add(botJobDTO);
+                    botJobLoadList.add(botJobDTO);
                 }
 
                 int blockId = rs.getInt("block_id");
@@ -986,7 +986,7 @@ public class PerformDataBase {
                             "Error loadBotJobWithBlock for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
 
-        return botLoadJobs;
+        return botJobLoadList;
     }
 
     //    public static List<BotJobLoadDTO> loadBlockAll(int botJobId) {
@@ -1015,7 +1015,7 @@ public class PerformDataBase {
     //            Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
     //            Map<Integer, BlockLoopInstructionLoadDTO> instructionMap = new HashMap<>();
     //
-    //            botLoadJobs.clear();
+    //            botJobLoadList.clear();
     //
     //            while (rs.next()) {
     //                botJobId = rs.getInt("bot_job_id");
@@ -1027,7 +1027,7 @@ public class PerformDataBase {
     //                    botJobDTO.setName(rs.getString("bot_job_name"));
     //                    botJobDTO.setBlockLoadDTOList(new ArrayList<>());
     //                    botJobMap.put(botJobId, botJobDTO);
-    //                    botLoadJobs.add(botJobDTO);
+    //                    botJobLoadList.add(botJobDTO);
     //                }
     //
     //                int blockId = rs.getInt("block_id");
@@ -1090,7 +1090,7 @@ public class PerformDataBase {
     //            ABRLogger.getInstance(PerformDataBase.class).severe("loadBlockAll Error: " + e.getMessage());
     //        }
     //
-    //        return botLoadJobs;
+    //        return botJobLoadList;
     //    }
 
     //    private void addInstruction(
@@ -1299,9 +1299,9 @@ public class PerformDataBase {
         Optional<ButtonType> result = alert.showAndWait();
 
         if (alertType.equals(Alert.AlertType.CONFIRMATION)) {
-            return result.isPresent() && result.get() == ButtonType.YES;
+            return result.isPresent() && result.get().equals(ButtonType.YES);
         } else {
-            return result.isPresent() && result.get() == ButtonType.OK;
+            return result.isPresent() && result.get().equals(ButtonType.OK);
         }
     }
 
@@ -1537,7 +1537,7 @@ public class PerformDataBase {
 
     public List<BotJobLoadDTO> loadAllBotJobs() {
 
-        this.botLoadJobs.clear();
+        this.botJobLoadList.clear();
         String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
                 + "bj.description AS bot_job_description, bj.priority AS bot_job_priority, "
                 + "bj.home_banking_id, "
@@ -1581,14 +1581,14 @@ public class PerformDataBase {
                     botJobDTO.setHomeBankingLoadDTO(homeBankingDTO);
                 }
 
-                this.botLoadJobs.add(botJobDTO);
+                this.botJobLoadList.add(botJobDTO);
             }
         } catch (SQLException e) {
             ABRLogger.getInstance(Thread.class)
                     .severe(String.format("Error loadAllBotJobs\nError: %s", e.getMessage()));
         }
 
-        return this.botLoadJobs;
+        return this.botJobLoadList;
     }
 
     public List<BotJobLoadDTO> loadBotJobAndBlocks(int botJobId) {
@@ -1607,7 +1607,7 @@ public class PerformDataBase {
             Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
             Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
 
-            botLoadJobs.clear();
+            botJobLoadList.clear();
 
             while (rs.next()) {
                 botJobId = rs.getInt("bot_job_id");
@@ -1619,7 +1619,7 @@ public class PerformDataBase {
                     botJobDTO.setName(rs.getString("bot_job_name"));
                     botJobDTO.setBlockLoadDTOList(new ArrayList<>());
                     botJobMap.put(botJobId, botJobDTO);
-                    botLoadJobs.add(botJobDTO);
+                    botJobLoadList.add(botJobDTO);
                 }
 
                 int blockId = rs.getInt("block_id");
@@ -1649,7 +1649,7 @@ public class PerformDataBase {
                             "Error loadJustJobBlocks for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
 
-        return botLoadJobs;
+        return botJobLoadList;
     }
 
     public List<String> loadAllActionsPerBlock(List<BlockLoadDTO> blockLoadDTOList) {
@@ -2288,11 +2288,7 @@ public class PerformDataBase {
             BotJobLoadDTO botJob,
             boolean isShowAlert) {
 
-        if ("INSERT_BEFORE_ELSEIF".equals(actions) || "INSERT_AFTER_ELSEIF".equals(actions)) {}
-
-        if (this.botLoadJobs != null && this.botLoadJobs.size() == 0) {
-            this.botLoadJobs = loadBotJobComplete(rowMoveDTO.getBotJobId());
-        }
+        this.botJobLoadDTO = loadBotJobById(rowMoveDTO.getBotJobId());
 
         List<InstructionDTO> rowList = getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
 
@@ -2301,17 +2297,33 @@ public class PerformDataBase {
         preInsertStep(rowMoveDTO, rowList);
 
         List<BlockLoopInstructionLoadDTO> instructionList = null;
-        List<BotJobLoadDTO> matchingBlocks = null;
+        List<BlockLoadDTO> matchingBlocks = null;
+
+        this.botJobLoadList = loadBotJobAndBlocks(rowMoveDTO.getBotJobId());
+        this.blockLoadList = loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
 
         if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-            int targetBlockId = rowMoveDTO.getBlockId();
 
-            matchingBlocks = botLoadJobs.stream()
-                    .filter(block -> block.getId() == targetBlockId)
-                    .collect(Collectors.toList());
+            Integer targetBlockId = -1;
+
+            if (rowMoveDTO.getType().equals("INSERT_NEW")) {
+                targetBlockId = rowMoveDTO.getBlockOrderNumber();
+
+                Integer finalTargetBlockId = targetBlockId;
+                matchingBlocks = blockLoadList.stream()
+                        .filter(block -> block.getBlockOrderNumber().equals(finalTargetBlockId))
+                        .collect(Collectors.toList());
+
+            } else {
+                targetBlockId = rowMoveDTO.getBlockId();
+                Integer finalTargetBlockId1 = targetBlockId;
+                matchingBlocks = blockLoadList.stream()
+                        .filter(block -> block.getId().equals(finalTargetBlockId1))
+                        .collect(Collectors.toList());
+            }
         }
 
-        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
+        List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
         List<InstructionDTO> finalInstructionList = rowList;
 
         BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
@@ -2378,13 +2390,17 @@ public class PerformDataBase {
             newBlockDetails.setActive(true);
             newBlockDetails.setWait(3);
 
-            newBlockDetails.setBotJobId(rowMoveDTO.getBlockId());
+            newBlockDetails.setBotJobId(rowMoveDTO.getBotJobId());
+            newBlockDetails.setBlockId(rowMoveDTO.getBlockId());
 
             int newBlockId = createNewBlock(newBlockDetails);
 
             if (newBlockId > 0) {
 
-                this.blockLoadList = loadBlocksByBotJobId(botJob.getId());
+                // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
+                rowMoveDTO.setBlockId(newBlockId);
+
+                this.blockLoadList = loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
 
                 instruction.setBlockId(newBlockId);
             }
@@ -2397,7 +2413,7 @@ public class PerformDataBase {
         try {
             Integer currentBlockId = rowMoveDTO.getBlockId();
 
-            if (instruction.getBlockId() != null) {
+            if (instruction.getBlockId() != null && !instruction.getBlockId().equals(currentBlockId)) {
                 currentBlockId = instruction.getBlockId();
             }
             response = insertInstruction(instruction, botJob.getId(), currentBlockId);
@@ -2501,6 +2517,7 @@ public class PerformDataBase {
         webPageItems.clear();
         String selectSQL = " SELECT  "
                 + "  bj.id AS bot_job_id,  "
+                + "  b.id AS block_id,  "
                 + "  bli.id AS block_loop_instruction_id,  "
                 + "  bli.instruction_order_number,  "
                 + "  bli.actions,  "
@@ -2520,6 +2537,7 @@ public class PerformDataBase {
                 int id = rs.getInt("block_loop_instruction_id");
                 String name = rs.getString("instruction_name").trim();
                 String actions = rs.getString("actions").trim();
+                Integer blockId = rs.getInt("block_id");
 
                 // Filter out "SET", "GET", "CK", adn "H"
                 if (actions != null
@@ -2527,7 +2545,7 @@ public class PerformDataBase {
                         && !actions.equalsIgnoreCase(ABRConstants.GET_VALUE)
                         && !actions.equalsIgnoreCase(ABRConstants.CHECK_VALUE)
                         && !actions.equalsIgnoreCase(ABRConstants.HOLD)) {
-                    webPageItems.add(new ComboBoxVars(name + "(" + id + ")", name, id, -1));
+                    webPageItems.add(new ComboBoxVars("(" + id + ")" + name, name, id, blockId));
                 }
             }
         } catch (SQLException e) {

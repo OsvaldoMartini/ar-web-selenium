@@ -139,9 +139,9 @@ public class ABRScannedElementPane extends ABRPane {
     private Button rightButton;
     private Button cleanListButton;
 
-    private CheckBox checkBoxAction;
-    private CheckBox checkBoxJavaScript;
-    private CheckBox checkBoxCoordinates;
+    private CheckBox checkTestAction;
+    private CheckBox checkJavaScript;
+    private CheckBox checkCoordinates;
     private CheckBox checkActiveHover;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
@@ -316,11 +316,11 @@ public class ABRScannedElementPane extends ABRPane {
                 new Insets(2.0) // Reduced padding
                 );
 
-        checkBoxAction = new CheckBox("Test Actions");
-        checkBoxJavaScript = new CheckBox("JS");
+        checkTestAction = new CheckBox("Test Actions");
+        checkJavaScript = new CheckBox("JS");
 
         checkClickElement = new CheckBox("For Click");
-        checkBoxCoordinates = new CheckBox("Coordinates");
+        checkCoordinates = new CheckBox("Coordinates");
 
         //        checkClickElement.setSelected(true);
         checkInputText = new CheckBox("For Input");
@@ -492,12 +492,12 @@ public class ABRScannedElementPane extends ABRPane {
             checkClickElement
                     .prefWidthProperty()
                     .bind(boxCoordenates.widthProperty().multiply(0.50));
-            checkBoxCoordinates
+            checkCoordinates
                     .prefWidthProperty()
                     .bind(boxCoordenates.widthProperty().multiply(0.50));
 
             // Add elements to the HBox
-            //            boxCoordenates.getChildren().addAll(checkClickElement, checkBoxCoordinates);
+            //            boxCoordenates.getChildren().addAll(checkClickElement, checkCoordinates);
             boxCoordenates.getChildren().addAll(checkClickElement);
 
             VBox vBoxCheckBox = new VBox();
@@ -524,7 +524,7 @@ public class ABRScannedElementPane extends ABRPane {
             //            gridPane.add(searchWithoutIdsAndNamesBtn, 3, 0);
             //            gridPane.add(refreshOutputFieldsButton, 4, 0);
             //            gridPane.add(refreshOtherFieldsButton, 5, 0);
-            //        gridPane.add(checkBoxAction, 6, 0);
+            //        gridPane.add(checkTestAction, 6, 0);
             //        gridPane.add(originalTagNameField, 7, 0);
             //        gridPane.add(coordsTextField, 8, 0);
 
@@ -543,15 +543,13 @@ public class ABRScannedElementPane extends ABRPane {
 
             // Set proportional widths for each child
             testActionsField = new TextField("0001");
-            checkBoxAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.40));
-            checkBoxJavaScript
-                    .prefWidthProperty()
-                    .bind(boxActions.widthProperty().multiply(0.10));
-            testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.5));
+            checkTestAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.70));
+            checkJavaScript.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.10));
+            testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
 
             // Add elements to the HBox
-            //            boxActions.getChildren().addAll(checkBoxAction, checkBoxJavaScript, testActionsField);
-            boxActions.getChildren().addAll(checkBoxAction, testActionsField);
+            //            boxActions.getChildren().addAll(checkTestAction, checkJavaScript, testActionsField);
+            boxActions.getChildren().addAll(checkTestAction, testActionsField);
 
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
@@ -886,7 +884,11 @@ public class ABRScannedElementPane extends ABRPane {
             // loadBotJob(botJob);
             recallJob();
         });
-        checkActiveHover.setOnMouseClicked(e -> handleHoverCheckClick());
+        checkActiveHover.setOnMouseClicked(e -> {
+            checkTestAction.setSelected(false);
+
+            handleHoverCheckClick();
+        });
         checkClickElement.setOnAction(event -> {
             if (checkClickElement.isSelected()) {
                 checkInputText.setSelected(false);
@@ -1231,18 +1233,21 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void handleHoverCheckClick() {
         if (checkActiveHover.isSelected()) {
-            periodicThread(abrWebDriver.getDriver());
+            Platform.runLater(() -> periodicThread(abrWebDriver.getDriver()));
             //            injectJavaScript(abrWebDriver.getDriver());
             //            injectJumpTab(abrWebDriver.getDriver());
         } else {
-            revertInjectedChanges(abrWebDriver.getDriver());
+            Platform.runLater(() -> revertInjectedChanges(abrWebDriver.getDriver()));
         }
         //        checkClickElement.setDisable(checkActiveHover.isSelected());
         //        checkInputText.setDisable(checkActiveHover.isSelected());
         //        addNewElement.setDisable(checkActiveHover.isSelected());
-        launchBotJobButton.setDisable(checkActiveHover.isSelected());
-        recallJobButton.setDisable(checkActiveHover.isSelected());
-        periodicActivated = checkActiveHover.isSelected();
+        Platform.runLater(() -> {
+            checkTestAction.setDisable(checkActiveHover.isSelected());
+            launchBotJobButton.setDisable(checkActiveHover.isSelected());
+            recallJobButton.setDisable(checkActiveHover.isSelected());
+            periodicActivated = checkActiveHover.isSelected();
+        });
     }
 
     private void manageUIScan() {
@@ -1736,7 +1741,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                 // IF SOME REFRESH CHANGED THE ELEMENT IT TRIGGERS THIS EXCEPTION
                 String elemTagName = "No TagName";
-                if (!checkBoxAction.isSelected()) {
+                if (!checkTestAction.isSelected()) {
                     try {
 
                         if (abrWebElement.getMainXPath() == null) {
@@ -1788,7 +1793,7 @@ public class ABRScannedElementPane extends ABRPane {
                     }
                 }
 
-                if (checkBoxAction.isSelected()) {
+                if (checkTestAction.isSelected()) {
                     try {
                         if (abrWebElement.getElement() != null) {
 
@@ -1816,7 +1821,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             String[] coordinates = new String[] {mainCoordenates, savedCoordenates};
 
-                            if (checkBoxCoordinates.isSelected()) {
+                            if (checkCoordinates.isSelected()) {
                                 performAction.executeActionsAtCoordinates(
                                         coordinates[1], fieldData, ABRConstants.VISUALIZE);
                                 performAction.executeActionsAtCoordinates(
@@ -1923,7 +1928,7 @@ public class ABRScannedElementPane extends ABRPane {
                     ABRLogger.getInstance(ABRScannedElementPane.class)
                             .info("Double clicked the element: " + abrWebElement.getMainXPath());
 
-                    currentBlockId = comboBoxBlocks.getValue().getInstructionId();
+                    currentBlockId = comboBoxBlocks.getValue().getExtraId();
                     String blockName = comboBoxBlocks.getValue().getText();
 
                     if (currentBlockId < 0) {
@@ -1968,7 +1973,7 @@ public class ABRScannedElementPane extends ABRPane {
                     boolean result = performAction.showAlertCombinedVBOX(
                             Alert.AlertType.CONFIRMATION,
                             "Add Instruction to Bot-Job",
-                            "Are you sure you want to Add the Instruction Selected to the Bot-Job?",
+                            "Add the Instruction Selected to the Bot-Job?",
                             null,
                             combinedTextContainer);
 
@@ -3464,7 +3469,12 @@ public class ABRScannedElementPane extends ABRPane {
         } catch (Exception e) {
 
             performAction.errorMessage(
-                    "Excel Error", "Could Not Execute Excel File", "Check All Excel Columns and Values!", null, null);
+                    "Excel Error",
+                    "Could Not Execute Excel File",
+                    "Check All Excel Columns and Values!",
+                    null,
+                    null,
+                    0);
 
             //            Platform.exit();
         }
@@ -3504,7 +3514,7 @@ public class ABRScannedElementPane extends ABRPane {
             //                    combinedTextContainer);
 
             performAction.errorMessage(
-                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null);
+                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
 
             return false;
         }
@@ -3547,7 +3557,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         Set<String> mapIgnore = new HashSet<>();
 
-        boolean searchByJavaScript = checkBoxJavaScript.isSelected();
+        boolean searchByJavaScript = checkJavaScript.isSelected();
 
         String mainMsg = "";
         boolean byPassNotFound = false;
@@ -3702,9 +3712,6 @@ public class ABRScannedElementPane extends ABRPane {
                 try {
 
                     performAction.onHoldInSeconds(blockWait);
-                    ABRLogger.getInstance(ABRScannedElementPane.class)
-                            .info(String.format(
-                                    "Default Wait for Block: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait));
 
                     Pair<String, String> msgBlock = new Pair(
                             String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
@@ -3937,11 +3944,6 @@ public class ABRScannedElementPane extends ABRPane {
                         if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
                             pauseOperation = true;
 
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .info(String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()));
-
-                            //                                SwingUtilities.invokeLater(() ->
-
                             respModal = performAction.showCustomModalDialog(
                                     "PAUSE BOT JOB",
                                     String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
@@ -3949,7 +3951,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     null,
                                     null,
                                     false,
-                                    "stop all");
+                                    "stop all",
+                                    0);
                         }
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
@@ -3969,16 +3972,6 @@ public class ABRScannedElementPane extends ABRPane {
                                     jumpLoop = false;
                                     refreshLoop = false;
 
-                                    //                                    String[] parts = parentFieldLoop.split(":");
-                                    //
-                                    // ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    //                                            .info(String.format(
-                                    //                                                    "IGNORING Loop to Parent
-                                    // :\"%s\" - %d Times",
-                                    //                                                    parts[0] + "-(" + parts[1] +
-                                    // ") " + parts[2],
-                                    //
-                                    // mapLoops.get(parentFieldLoop)));
                                     continue;
                                 }
 
@@ -4006,16 +3999,6 @@ public class ABRScannedElementPane extends ABRPane {
                                     jumpLoop = false;
                                     refreshLoop = false;
 
-                                    //                                    String[] parts = parentFieldLoop.split(":");
-                                    //
-                                    // ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    //                                            .info(String.format(
-                                    //                                                    "IGNORING Refresh Loop to
-                                    // Parent :\"%s\" - %d Times",
-                                    //                                                    parts[0] + "-(" + parts[1] +
-                                    // ") " + parts[2],
-                                    //
-                                    // mapLoops.get(parentFieldLoop)));
                                     continue;
                                 }
 
@@ -4028,38 +4011,16 @@ public class ABRScannedElementPane extends ABRPane {
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE)
                                 || actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
 
-                            resultActions = currentInstruction.getName()
-                                    + ABRConstants.BLANK_STRING
-                                    + currentInstruction.getActions()
-                                    + ABRConstants.BLANK_STRING
-                                    + currentInstruction.getOperation();
-
                             execOperation = true;
 
                             xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
                             parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
 
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
-
-                            resultActions = currentInstruction.getName()
-                                    + ABRConstants.BLANK_STRING
-                                    + currentInstruction.getActions()
-                                    + ABRConstants.BLANK_STRING
-                                    + currentInstruction.getOperation();
-
                             checkOperation = true;
                             parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
-
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.EXTRACT_FIELD)) {
-
-                            resultActions = currentInstruction.getName()
-                                    + ABRConstants.BLANK_STRING
-                                    + currentInstruction.getActions()
-                                    + ABRConstants.BLANK_STRING
-                                    + currentInstruction.getOperation();
-
                             excelWriteOperation = true;
-
                             parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
                         }
 
@@ -4273,30 +4234,12 @@ public class ABRScannedElementPane extends ABRPane {
 
                             } else if (refreshOnly) {
 
-                                ABRLogger.getInstance(ABRScannedElementPane.class)
-                                        .info("Refresh Current Web Page ->  inside Block :\"" + blockLoad.getName()
-                                                + "\"");
-
                                 performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
 
-                                // Excel Report and Log
-                                performAction.logAndReport(
-                                        currentCondition,
-                                        true,
-                                        true,
-                                        currentInstructionStartTime,
-                                        blockReportName,
-                                        success,
-                                        actions,
-                                        msgInstruction,
-                                        dataExcel,
-                                        writerReport,
-                                        mainMsg,
-                                        resultActions);
+                                resultActions =
+                                        "Refresh Current Web Page ->  inside Block :\"" + blockLoad.getName() + "\"";
 
                                 refreshOnly = false;
-
-                                continue;
 
                             } else if (actions[0].equals(ABRConstants.HOLD)
                                     || actions[0].equals(ABRConstants.QUIT)
@@ -4420,13 +4363,6 @@ public class ABRScannedElementPane extends ABRPane {
                                             currentInstruction, blockLoad, resultActions, currentCondition);
 
                                     success = false;
-                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                        stopAll = true;
-                                    }
-
-                                    if (stopAll) {
-                                        break;
-                                    }
                                 }
 
                             } else if (checkOperation) {
@@ -4444,26 +4380,12 @@ public class ABRScannedElementPane extends ABRPane {
                                             currentInstruction, resultActions, currentCondition);
 
                                     success = false;
-                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                        stopAll = true;
-                                    }
-
-                                    if (stopAll) {
-                                        break;
-                                    }
 
                                 } else if (!mapOperators.containsKey(parentField)) {
                                     resultActions = performAction.getValueIsNotDefined(
                                             currentInstruction, resultActions, currentCondition);
 
                                     success = false;
-                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                        stopAll = true;
-                                    }
-
-                                    if (stopAll) {
-                                        break;
-                                    }
                                 } else {
                                     //                                    fieldName = parentField;
 
@@ -4515,13 +4437,6 @@ public class ABRScannedElementPane extends ABRPane {
                                                 byPassNotFound);
 
                                         success = false;
-                                        if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                            stopAll = true;
-                                        }
-
-                                        if (stopAll) {
-                                            break;
-                                        }
                                     }
                                 }
 
@@ -4539,23 +4454,12 @@ public class ABRScannedElementPane extends ABRPane {
                                             currentInstruction, blockLoad, resultActions, currentCondition);
 
                                     success = false;
-                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                        stopAll = true;
-                                    }
 
-                                    if (stopAll) {
-                                        break;
-                                    }
                                 } else if (!mapOperators.containsKey(parentField)) {
                                     resultActions = performAction.getValueIsNotDefined(
                                             currentInstruction, resultActions, currentCondition);
 
                                     success = false;
-                                    if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                        stopAll = true;
-                                    }
-
-                                    if (stopAll) {}
                                 } else {
 
                                     if (excelExportOnceCreation) {
@@ -4618,16 +4522,24 @@ public class ABRScannedElementPane extends ABRPane {
 
                         } catch (Throwable t) {
                             success = false;
-                            if (currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
-                                stopAll = true;
+
+                            String[] lines = t.getMessage().split("\n");
+                            String msg1 = "";
+                            String msg2 = "";
+
+                            for (String line : lines) {
+                                int indexMessage = line.indexOf("Message: ");
+                                if (indexMessage != -1) {
+                                    msg1 = line.substring(indexMessage + "Message: ".length());
+                                }
+
+                                int indexCause = line.indexOf("Cause: ");
+                                if (indexCause != -1) {
+                                    msg2 = line.substring(indexCause);
+                                }
                             }
 
-                            currentInstruction.setExecuted(false);
-
-                            if (stopAll) {
-                                break;
-                            }
-
+                            performAction.errorMessage(resultActions, msg1, msg2, null, null, 260);
                             //                            throw new RuntimeException(t);
                         }
 
@@ -4697,7 +4609,6 @@ public class ABRScannedElementPane extends ABRPane {
                                     "PAUSE -> STOP",
                                     String.format("STOP ALL CALLED AT: \"%s\" : ", nameInstruc));
 
-                            pauseOperation = false;
                             respModal = ABRConstants.DialogModal.NONE;
                             stopAll = true;
                             break;
@@ -4947,14 +4858,7 @@ public class ABRScannedElementPane extends ABRPane {
         totalExecutionTime = performAction.getTotalExecutionTime();
 
         if (totalExecutionTime == 0) {
-            //            report.setDuration(0);
             writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
-            //            try {
-            //                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
-            //            } catch (Exception ex) {
-            //                ABRLogger.getInstance(ABRScannedElementPane.class)
-            //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
-            //            }
         }
 
         // PRINT END BASE LOG//
@@ -4975,15 +4879,9 @@ public class ABRScannedElementPane extends ABRPane {
         combinedTextContainer.setSpacing(5); // Add some sp
 
         if (success) {
-            //            report.setStatus((short) ExcelReportStatusEnum.SUCCESS.ordinal());
-            //            report.setDuration(totalExecutionTime / 100);
+
             writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-            //            try {
-            //                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
-            //            } catch (Exception ex) {
-            //                ABRLogger.getInstance(ABRScannedElementPane.class)
-            //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
-            //            }
+
             baseLogString = blocksLoaded.get(0).getName()
                     + ABRConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
@@ -5011,13 +4909,6 @@ public class ABRScannedElementPane extends ABRPane {
             //            report.setStatus(status);
             //            report.setDuration(totalExecutionTime / 100);
             writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-            //            try {
-            //                ABRSharedResources.getInstance().addEntity(report, ExcelReportDTO.class);
-            //                //                repository.write(report);
-            //            } catch (Exception ex) {
-            //                ABRLogger.getInstance(ABRScannedElementPane.class)
-            //                        .warning("Repository.write(report) Error:\n" + ex.getMessage());
-            //            }
 
             variableText1Styled = new Text("Bot-Job Error");
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");

@@ -1,9 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
@@ -12,9 +10,6 @@ import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -29,18 +24,17 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -154,10 +148,6 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxVars> comboBoxWebPage;
     private ObservableList<ComboBoxVars> webPageItems;
 
-    private BotJobLoadDTO botJobLoad;
-    private List<BotJobLoadDTO> botJobLoadList;
-
-    private List<BlockLoadDTO> blockLoadList;
     private ComboBox<ComboBoxVars> comboBoxAllBlocks;
     private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
 
@@ -167,20 +157,27 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
+    private BotJobLoadDTO botJobLoad;
+    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+
     public ABRNewCommandPane(
             RowMoveDTO rowMoveDTO, BotJobLoadDTO botJobLoad, ObservableList<ComboBoxVars> webPageItems) {
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
 
-        if (this.botJobLoad.getBlockLoadDTOList() == null) {
-            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-            this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        } else if (this.botJobLoad.getBlockLoadDTOList() != null
-                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
-            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-            this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        }
+        //        if (this.botJobLoad.getBlockLoadDTOList() == null) {
+        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+        //            if (this.botJobLoadList.size() > 0) {
+        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
+        //            }
+        //        } else if (this.botJobLoad.getBlockLoadDTOList() != null
+        //                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
+        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+        //            if (this.botJobLoadList.size() > 0) {
+        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
+        //            }
+        //        }
 
         if (webPageItems.size() == 0) {
             variablesDisable = true;
@@ -266,15 +263,16 @@ public class ABRNewCommandPane extends ABRPane {
             loadJobVariables(webPageItems.get(0).getVarId());
         }
 
-        if (this.botJobLoadList != null && this.botJobLoadList.size() > 0) {
-            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
-                loadBlockItems(botJobLoadDTO.getBlockLoadDTOList(), rowMoveDTO.getBlockId());
-            }
-            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {}
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
 
-            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
-                loadAllBlockItems(botJobLoadDTO.getBlockLoadDTOList());
-            }
+        if (this.blockLoadList != null && this.blockLoadList.size() > 0) {
+            //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
+            loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
+            //            }
+
+            //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
+            loadAllBlockItems(blockLoadList);
+            //            }
         } else {
             allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1));
         }
@@ -675,7 +673,7 @@ public class ABRNewCommandPane extends ABRPane {
 
             // Iterate through items in comboBoxAllBlocks
             for (ComboBoxVars item : comboBoxAllBlocks.getItems()) {
-                if (item.getInstructionId() != null && item.getInstructionId() == targetBlockId) {
+                if (item.getExtraId() != null && item.getExtraId() == targetBlockId) {
                     comboBoxAllBlocks.getSelectionModel().select(item); // Select the matching item
                 }
             }
@@ -1291,24 +1289,48 @@ public class ABRNewCommandPane extends ABRPane {
 
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.IF)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
-                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.REFRESH_ONLY)
-                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.LOOP)
-                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
                 if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
-                    performAction.showAlert(
-                            Alert.AlertType.ERROR,
-                            "Error",
-                            "No Variable Defined",
-                            "Define a variable for: \""
-                                    + comboBoxWebPage.getValue().getText() + "\"");
+                    performAction.errorMessage(
+                            "Variables Not Defined!",
+                            "No variables have been created!",
+                            "Please define a variable for: \""
+                                    + comboBoxWebPage.getValue().getText() + "\".",
+                            null,
+                            null,
+                            0);
                     return;
                 } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
-                    performAction.showAlert(
-                            Alert.AlertType.ERROR,
-                            "Error",
+                    performAction.errorMessage(
                             "No Web Fields Defined",
-                            "Select Web Fields (Web Elements)!");
+                            "Missing Web Fields (Web Elements)!",
+                            "Web Elements are required to insert operations.",
+                            null,
+                            null,
+                            0);
+
+                    return;
+                } else if (comboBoxAllBlocks.getValue() != null
+                        && comboBoxWebPage.getValue() != null
+                        && !comboBoxAllBlocks
+                                .getValue()
+                                .getExtraId()
+                                .equals(comboBoxWebPage.getValue().getExtraId())) {
+
+                    String outsideBlock = allBlocksItems.stream()
+                            .filter(f -> f.getExtraId()
+                                    .equals(comboBoxWebPage.getValue().getExtraId()))
+                            .map(ComboBoxVars::getText)
+                            .findFirst()
+                            .orElse(null);
+
+                    performAction.errorMessage(
+                            "Error: Web Field Outside of Scope",
+                            "Selected Block: " + comboBoxAllBlocks.getValue().getText(),
+                            "The Web Field belongs to Block: " + outsideBlock,
+                            "Referencing Web Fields outside of their designated block is not allowed.",
+                            null,
+                            0);
 
                     return;
                 }
@@ -1316,7 +1338,7 @@ public class ABRNewCommandPane extends ABRPane {
 
             if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
                     && blocksItems.size() == 1
-                    && (comboBoxBlocks.getValue().getInstructionId() == -1)) {
+                    && (comboBoxBlocks.getValue().getExtraId() == -1)) {
                 performAction.showAlert(
                         Alert.AlertType.ERROR,
                         "Error",
@@ -1339,7 +1361,7 @@ public class ABRNewCommandPane extends ABRPane {
                         1,
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":" + setValueTo,
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getInstructionId(),
+                        comboBoxVars.getValue().getExtraId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
                 insertNewInstruction(
@@ -1350,7 +1372,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
                                 + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getInstructionId(),
+                        comboBoxVars.getValue().getExtraId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("check")) {
                 String checkValueFor =
@@ -1366,7 +1388,7 @@ public class ABRNewCommandPane extends ABRPane {
                         comboBoxVars.getValue().getText().toLowerCase() + ":"
                                 + comboBoxOperator.getValue().getOperator() + ":" + checkValueFor,
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getInstructionId(),
+                        comboBoxVars.getValue().getExtraId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("excelWrite")) {
                 insertNewInstruction(
@@ -1374,9 +1396,10 @@ public class ABRNewCommandPane extends ABRPane {
                         "ExcelWrite",
                         ABRConstants.EXTRACT_FIELD,
                         2,
-                        "ExcelWrite" + ":" + comboBoxVars.getValue().getText().toUpperCase(),
+                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
+                                + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getInstructionId(),
+                        comboBoxVars.getValue().getExtraId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh")) {
                 insertNewInstruction(
@@ -1410,7 +1433,7 @@ public class ABRNewCommandPane extends ABRPane {
                         1,
                         comboBoxLoops.getValue().getValue(),
                         null, // Block Order Number as VarId
-                        comboBoxBlocks.getValue().getInstructionId(), // BLOCK ID as Parent Id
+                        comboBoxBlocks.getValue().getExtraId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF")) {
                 insertNewInstruction(
@@ -1907,7 +1930,7 @@ public class ABRNewCommandPane extends ABRPane {
             }
         } catch (SQLException e) {
             performAction.errorMessage(
-                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null);
+                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null, 0);
         }
     }
 
@@ -2063,7 +2086,7 @@ public class ABRNewCommandPane extends ABRPane {
             Integer instructionId,
             RowMoveDTO rowMoveDTO) {
 
-        int blockId = comboBoxAllBlocks.getValue().getInstructionId();
+        int blockId = comboBoxAllBlocks.getValue().getExtraId();
         String blockName = comboBoxAllBlocks.getValue().getText();
         rowMoveDTO.setBlockId(blockId);
         rowMoveDTO.setBlockName(blockName);
@@ -2084,14 +2107,18 @@ public class ABRNewCommandPane extends ABRPane {
 
         // Create and show alert inside Platform.runLater
 
-        if (this.botJobLoad.getBlockLoadDTOList() == null) {
-            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-            this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        } else if (this.botJobLoad.getBlockLoadDTOList() != null
-                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
-            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-            this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        }
+        //        if (this.botJobLoad.getBlockLoadDTOList() == null) {
+        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+        //            if (this.botJobLoadList.size() > 0) {
+        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
+        //            }
+        //        } else if (this.botJobLoad.getBlockLoadDTOList() != null
+        //                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
+        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+        //            if (this.botJobLoadList.size() > 0) {
+        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
+        //            }
+        //        }
 
         // Combine the texts using TextFlow
 
@@ -2200,16 +2227,9 @@ public class ABRNewCommandPane extends ABRPane {
         combinedTextContainer.getChildren().addAll(allMsgVer);
 
         boolean alertResponse = performAction.showCombinedConfirmation(
-                "Add new Instruction",
-                "Are you sure you want to Add the Instruction to the Bot-Job?",
-                "",
-                combinedTextContainer);
+                "Add new Instruction", "Add the New Instruction to the Bot-Job?", "", combinedTextContainer);
 
         if (alertResponse) {
-
-            if (blockLoadList == null) {
-                blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
-            }
 
             // Handle loop outside Platform.runLater to ensure multiple iterations
             int endifCount = actions.equalsIgnoreCase(ABRConstants.IF) ? 3 : 1;
@@ -2260,140 +2280,141 @@ public class ABRNewCommandPane extends ABRPane {
         defineTextFlow(comboBoxInstruc.getValue().getValue());
     }
 
-    private void runAddInstructionTask(
-            String name,
-            String description,
-            String actions,
-            String operation,
-            Integer onHold,
-            Integer varId,
-            Integer instructionId,
-            RowMoveDTO rowMoveDTO,
-            BotJobDTO botJob,
-            boolean isShowAlert) {
+    //    private void runAddInstructionTask(
+    //            String name,
+    //            String description,
+    //            String actions,
+    //            String operation,
+    //            Integer onHold,
+    //            Integer varId,
+    //            Integer instructionId,
+    //            RowMoveDTO rowMoveDTO,
+    //            BotJobDTO botJob,
+    //            boolean isShowAlert) {
+    //
+    //        if ("INSERT_BEFORE_ELSEIF".equals(actions) || "INSERT_AFTER_ELSEIF".equals(actions)) {}
+    //
+    //        List<InstructionDTO> rowList =
+    //                performDataBase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
+    //
+    //        performDataBase.reorderInstructions(rowList);
+    //
+    //        performDataBase.preInsertStep(rowMoveDTO, rowList);
+    //
+    //        List<BlockLoopInstructionLoadDTO> instructionList = null;
+    //        List<BotJobLoadDTO> matchingBlocks = null;
+    //
+    //        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+    //            int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
+    //
+    //            matchingBlocks = botJobLoadList.stream()
+    //                    .filter(block -> block.getId() == targetBlockId)
+    //                    .collect(Collectors.toList());
+    //        }
+    //
+    //        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
+    //        List<InstructionDTO> finalInstructionList = rowList;
+    //        Task<Void> waitTask = new Task<>() {
+    //            @Override
+    //            protected Void call() throws Exception {
+    //                try {
+    //                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+    //
+    //                    instruction.setName(name);
+    //
+    //                    instruction.setCodified(false);
+    //                    instruction.setExportToABR(false);
+    //                    instruction.setActive(true);
+    //
+    //                    if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+    //                        if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
+    //                            instruction.setInstructionOrderNumber(
+    //                                    rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
+    //                        } else {
+    //                            instruction.setInstructionOrderNumber(
+    //                                    rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
+    //                        }
+    //                    } else {
+    //                        instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
+    //                    }
+    //                    instruction.setOptional(false);
+    //
+    //                    instruction.setVariableId(varId);
+    //                    instruction.setParentId(instructionId);
+    //
+    //                    instruction.setOperation(operation);
+    //                    instruction.setActions(actions);
+    //                    instruction.setDescription(description);
+    //
+    //                    instruction.setActionCustomMaxWaitSec(30);
+    //                    instruction.setOnHoldSeconds(onHold);
+    //                    if (finalMatchingBlocks != null) {
+    //                        instruction.setBlock(ABRSharedResources.getInstance()
+    //                                .getEntityById(
+    //                                        BlockDTO.class,
+    //                                        finalMatchingBlocks.get(0).getId()));
+    //                    } else {
+    //                        instruction.setBlock(botJob.getBlocks().get(0));
+    //                    }
+    //
+    //                    // Wrap the persistence in a try-catch block
+    //                    try {
+    //                        ABRSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
+    //                    } catch (Exception e) {
+    //                        performAction.showAlert(
+    //                                Alert.AlertType.ERROR,
+    //                                "Error while saving instruction",
+    //                                "Error while saving instruction",
+    //                                "Error Inserting Instruction \n" + instruction.getName() + "\"!");
+    //
+    //                        ABRLogger.getInstance(ABRNewCommandPane.class)
+    //                                .severe(String.format("Error Adding new instruction.\nError: %s",
+    // e.getMessage()));
+    //                    }
+    //
+    //                    // Move the UI update to the JavaFX Application Thread
+    //                    Platform.runLater(() -> {
+    //                        // This makes insertion in a Roll after the Target Position
+    //                        int targetOrderNumber =
+    //                                rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
+    //                        rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
+    //                        if (isShowAlert) {
+    //                            performAction.showAlert(
+    //                                    Alert.AlertType.INFORMATION,
+    //                                    "News Instruction Add",
+    //                                    "Instruction Added",
+    //                                    "Instruction " + instruction.getName() + " has been added successfully");
+    //                        }
+    //                    });
+    //                } catch (Exception ex) {
+    //                    ABRLogger.getInstance(ABRNewCommandPane.class)
+    //                            .severe(String.format("Error Adding new instruction.\nError: %s", ex.getMessage()));
+    //
+    //                    performAction.showAlert(
+    //                            Alert.AlertType.ERROR,
+    //                            "Error Add New Instruction",
+    //                            "Not possible to inser new Operation",
+    //                            ex.getMessage());
+    //                }
+    //                return null;
+    //            }
+    //        };
+    //
+    //        new Thread(waitTask).start();
+    //    }
 
-        if ("INSERT_BEFORE_ELSEIF".equals(actions) || "INSERT_AFTER_ELSEIF".equals(actions)) {}
-
-        List<InstructionDTO> rowList =
-                performDataBase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
-
-        performDataBase.reorderInstructions(rowList);
-
-        performDataBase.preInsertStep(rowMoveDTO, rowList);
-
-        List<BlockLoopInstructionLoadDTO> instructionList = null;
-        List<BotJobLoadDTO> matchingBlocks = null;
-
-        if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-            int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
-
-            matchingBlocks = botJobLoadList.stream()
-                    .filter(block -> block.getId() == targetBlockId)
-                    .collect(Collectors.toList());
-        }
-
-        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
-        List<InstructionDTO> finalInstructionList = rowList;
-        Task<Void> waitTask = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                try {
-                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
-
-                    instruction.setName(name);
-
-                    instruction.setCodified(false);
-                    instruction.setExportToABR(false);
-                    instruction.setActive(true);
-
-                    if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
-                        if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
-                            instruction.setInstructionOrderNumber(
-                                    rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber());
-                        } else {
-                            instruction.setInstructionOrderNumber(
-                                    rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber() + 1);
-                        }
-                    } else {
-                        instruction.setInstructionOrderNumber(finalMatchingBlocks.size() + 1);
-                    }
-                    instruction.setOptional(false);
-
-                    instruction.setVariableId(varId);
-                    instruction.setParentId(instructionId);
-
-                    instruction.setOperation(operation);
-                    instruction.setActions(actions);
-                    instruction.setDescription(description);
-
-                    instruction.setActionCustomMaxWaitSec(30);
-                    instruction.setOnHoldSeconds(onHold);
-                    if (finalMatchingBlocks != null) {
-                        instruction.setBlock(ABRSharedResources.getInstance()
-                                .getEntityById(
-                                        BlockDTO.class,
-                                        finalMatchingBlocks.get(0).getId()));
-                    } else {
-                        instruction.setBlock(botJob.getBlocks().get(0));
-                    }
-
-                    // Wrap the persistence in a try-catch block
-                    try {
-                        ABRSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
-                    } catch (Exception e) {
-                        performAction.showAlert(
-                                Alert.AlertType.ERROR,
-                                "Error while saving instruction",
-                                "Error while saving instruction",
-                                "Error Inserting Instruction \n" + instruction.getName() + "\"!");
-
-                        ABRLogger.getInstance(ABRNewCommandPane.class)
-                                .severe(String.format("Error Adding new instruction.\nError: %s", e.getMessage()));
-                    }
-
-                    // Move the UI update to the JavaFX Application Thread
-                    Platform.runLater(() -> {
-                        // This makes insertion in a Roll after the Target Position
-                        int targetOrderNumber =
-                                rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber();
-                        rowMoveDTO.getUpdatedRows().get(0).setInstructionOrderNumber(targetOrderNumber + 1);
-                        if (isShowAlert) {
-                            performAction.showAlert(
-                                    Alert.AlertType.INFORMATION,
-                                    "News Instruction Add",
-                                    "Instruction Added",
-                                    "Instruction " + instruction.getName() + " has been added successfully");
-                        }
-                    });
-                } catch (Exception ex) {
-                    ABRLogger.getInstance(ABRNewCommandPane.class)
-                            .severe(String.format("Error Adding new instruction.\nError: %s", ex.getMessage()));
-
-                    performAction.showAlert(
-                            Alert.AlertType.ERROR,
-                            "Error Add New Instruction",
-                            "Not possible to inser new Operation",
-                            ex.getMessage());
-                }
-                return null;
-            }
-        };
-
-        new Thread(waitTask).start();
-    }
-
-    private Integer loadNextIdInstructionData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class)
-                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
+    //    private Integer loadNextIdInstructionData() {
+    //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+    //        String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
+    //        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
+    //            while (rs.next()) {
+    //                return rs.getInt("max_id");
+    //            }
+    //        } catch (SQLException e) {
+    //            ABRLogger.getInstance(ABRViewBotJobPane.class)
+    //                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+    //        }
+    //        return null;
+    //    }
 }

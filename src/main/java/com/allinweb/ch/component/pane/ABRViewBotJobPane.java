@@ -184,7 +184,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     try {
                         startWebSocketServer(finalPort);
                     } catch (Exception e) {
-                        ABRLogger.getInstance(ABRWebDriver.class).fine("port Alrey in Use: " + finalPort);
+                        ABRLogger.getInstance(ABRWebDriver.class).fine("Port already in Use: " + finalPort);
 
                         Alert alert = new Alert(AlertType.ERROR);
                         alert.setTitle("Port Error");
@@ -650,7 +650,12 @@ public class ABRViewBotJobPane extends ABRPane {
                 if (extractedData.getErrorMessage() != null) {
 
                     performAction.errorMessage(
-                            "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null);
+                            "Excel Error",
+                            "Could Not Execute Excel File",
+                            extractedData.getErrorMessage(),
+                            null,
+                            null,
+                            0);
 
                     return;
                 }
@@ -884,13 +889,47 @@ public class ABRViewBotJobPane extends ABRPane {
                 .severe("ERROR Calling openScannerButton -> Cause: " + ex.getMessage());
 
         // Display the error message to the user
-        Platform.runLater(() -> {
-            JOptionPane.showMessageDialog(
+        if (ex.getMessage().contains("no such window: target window already closed")
+                || ex.getMessage().contains("web view not found")) {
+            performAction.errorMessage(
+                    "Error Calling SCAN",
+                    "Web Browser was closed before the Scanner Tool",
+                    "Close and Re-Open the Scanner Tool",
                     null,
-                    "An error has occurred Calling SCAN: \nCause: " + ex.getMessage(),
-                    "Error calling in SCAN",
-                    JOptionPane.ERROR_MESSAGE);
-        });
+                    null,
+                    0);
+        } else {
+
+            if (ex.getMessage().contains("Current browser version")) {
+                String[] lines = ex.getMessage().split("\n");
+                String msg1 = "";
+                String msg2 = "";
+
+                for (String line : lines) {
+                    int indexMessage = line.indexOf("Message: ");
+                    if (indexMessage != -1) {
+                        msg1 = line.substring(indexMessage + "Message: ".length());
+                    }
+
+                    int indexBrowserVersion = line.indexOf("Current browser version");
+                    if (indexBrowserVersion != -1) {
+                        msg2 = line.substring(indexBrowserVersion);
+                    }
+                }
+
+                ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
+
+                performAction.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
+            }
+        }
+
+        //        Platform.runLater(() -> {
+        //            JOptionPane.showMessageDialog(
+        //                    null,
+        //                    "An error has occurred Calling SCAN: \nCause: " + ex.getMessage(),
+        //                    "Error calling in SCAN",
+        //                    JOptionPane.ERROR_MESSAGE);
+        //        });
     }
 
     private void showAlert(String title, String content) {
