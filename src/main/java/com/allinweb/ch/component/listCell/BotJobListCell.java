@@ -135,8 +135,13 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
         if (rowsAffected == 0) {
-            variableText1Styled = new Text(String.format("Bot Job \"%s\" NOT Deleted!", botJob.getName()));
+            variableText1Styled = new Text(String.format("Bot Job \"%s\" Deleted!", botJob.getName()));
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+        } else if (rowsAffected < 0) {
+            variableText1Styled = new Text(String.format("Bot Job NOT Deleted!", botJob.getName()));
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            variableText2Styled = new Text("Contact the Database Administrator");
             variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
         }
 
