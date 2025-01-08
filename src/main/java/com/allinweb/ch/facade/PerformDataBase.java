@@ -13,9 +13,6 @@ import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
-import com.allinweb.ch.component.pane.ABRNewCommandPane;
-import com.allinweb.ch.component.pane.ABRScannedElementPane;
-import com.allinweb.ch.component.pane.ABRViewBotJobPane;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -992,7 +989,7 @@ public class PerformDataBase {
         return botLoadJobs;
     }
 
-    //    private void loadBlockAll(int botJobId) {
+    //    public static List<BotJobLoadDTO> loadBlockAll(int botJobId) {
     //        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
     //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
     //                + " b.description AS block_description, b.type_id, "
@@ -1003,7 +1000,7 @@ public class PerformDataBase {
     //                + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
     //                + " irl.reference_type, irl.value, "
     //                + "  bli.operation, bli.parent_id, "
-    //                + "  b.export_file "
+    //                + "  b.export_file, b.active, b.wait "
     //                + " FROM bot_job bj "
     //                + " LEFT JOIN block b ON b.bot_job_id = bj.id "
     //                + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
@@ -1043,9 +1040,11 @@ public class PerformDataBase {
     //                    blockDTO.setName(rs.getString("block_name"));
     //                    blockDTO.setDescription(rs.getString("block_description"));
     //                    blockDTO.setTypeId(rs.getInt("type_id"));
+    //                    blockDTO.setActive(rs.getBoolean("active"));
+    //                    blockDTO.setWait(rs.getInt("wait"));
+    //                    blockDTO.setExportFile(rs.getString("export_file"));
     //                    blockDTO.setBotJobId(botJobDTO.getId());
     //                    blockDTO.setBotJobName(botJobDTO.getName());
-    //                    blockDTO.setExportFile(rs.getString("export_file"));
     //
     //                    blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
     //                    botJobDTO.getBlockLoadDTOList().add(blockDTO);
@@ -1088,8 +1087,10 @@ public class PerformDataBase {
     //                }
     //            }
     //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadBlockAll  \nError: " + e.getMessage());
+    //            ABRLogger.getInstance(PerformDataBase.class).severe("loadBlockAll Error: " + e.getMessage());
     //        }
+    //
+    //        return botLoadJobs;
     //    }
 
     //    private void addInstruction(
@@ -1113,6 +1114,7 @@ public class PerformDataBase {
     //                List<BlockLoopInstructionDTO> instructionList = null;
     //                BotJobDTO botJob =
     //                        getEntityById(BotJobDTO.class, rowMoveDTO.getBotJobId());
+    //
     //                List<BlockDTO> matchingBlocks = null;
     //                if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
     //                    int targetBlockId = rowMoveDTO.getUpdatedRows().get(0).getBlockId();
@@ -1175,8 +1177,7 @@ public class PerformDataBase {
     //
     //                            // Wrap the persistence in a try-catch block
     //                            try {
-    //                                addEntity(instruction,
-    // BlockLoopInstructionDTO.class);
+    //                                addEntity(instruction, BlockLoopInstructionDTO.class);
     //                            } catch (Exception e) {
     //                                System.err.println("Error while saving instruction: " + e.getMessage());
     //                                e.printStackTrace();
@@ -1975,7 +1976,7 @@ public class PerformDataBase {
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 savedInstructionDTO.getId(),
@@ -1984,7 +1985,7 @@ public class PerformDataBase {
                                 savedInstructionDTO.getOperation()));
                 return nextId;
             } else {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                                 savedInstructionDTO.getId(),
@@ -2005,8 +2006,7 @@ public class PerformDataBase {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class)
-                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+            ABRLogger.getInstance(PerformDataBase.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -2140,7 +2140,7 @@ public class PerformDataBase {
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 instructionDTO.getId(),
@@ -2148,8 +2148,9 @@ public class PerformDataBase {
                                 instructionDTO.getActions(),
                                 instructionDTO.getOperation()));
                 return nextId;
+
             } else {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                                 instructionDTO.getId(),
@@ -2160,7 +2161,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRNewCommandPane.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .warning(String.format(
                             "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                             instructionDTO.getId(),
@@ -2180,7 +2181,7 @@ public class PerformDataBase {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(ABRScannedElementPane.class)
+            ABRLogger.getInstance(PerformDataBase.class)
                     .severe("loadNextIdInstructionData  \nError: " + e.getMessage());
         }
         return null;
@@ -2201,7 +2202,7 @@ public class PerformDataBase {
 
             if (!orderNumberExists) {
                 // If the target order number doesn't exist, return false without shifting
-                ABRLogger.getInstance(ABRNewCommandPane.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "preInsertStep - Target order number %d does not exist in the row list.",
                                 targetOrderNumber));
@@ -2227,7 +2228,7 @@ public class PerformDataBase {
 
                         int rowsAffected = stmt.executeUpdate(updateSQL);
                         if (rowsAffected > 0) {
-                            //                            ABRLogger.getInstance(ABRNewCommandPane.class)
+                            //                            ABRLogger.getInstance(PerformDataBase.class)
                             //                                    .info(String.format(
                             //                                            "preInsertStep - InstructionId: %s in BlockId:
                             // %s now has order number: %d",
@@ -2235,7 +2236,7 @@ public class PerformDataBase {
                             //                                            instruction.getBlockId(),
                             //                                            instruction.getInstructionOrderNumber() + 1));
                         } else {
-                            ABRLogger.getInstance(ABRNewCommandPane.class)
+                            ABRLogger.getInstance(PerformDataBase.class)
                                     .warning(String.format(
                                             "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
                                             instruction.getBlockId(), instruction.getInstructionId()));
@@ -2244,7 +2245,7 @@ public class PerformDataBase {
                 }
                 return true;
             } catch (SQLException e) {
-                ABRLogger.getInstance(ABRNewCommandPane.class)
+                ABRLogger.getInstance(PerformDataBase.class)
                         .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
             }
         }
@@ -2386,13 +2387,13 @@ public class PerformDataBase {
                 if (isShowAlert) {
                     if (finalResponse > -1) {
 
-                        ABRLogger.getInstance(ABRViewBotJobPane.class)
+                        ABRLogger.getInstance(PerformDataBase.class)
                                 .info(String.format(
                                         "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
                                         instruction.getName()));
                     } else {
 
-                        ABRLogger.getInstance(ABRViewBotJobPane.class)
+                        ABRLogger.getInstance(PerformDataBase.class)
                                 .severe(String.format(
                                         "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
                                         instruction.getName()));
@@ -2405,8 +2406,7 @@ public class PerformDataBase {
             }
 
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class)
-                    .severe("Cannot Insert Instruction\nError: " + e.getMessage());
+            ABRLogger.getInstance(PerformDataBase.class).severe("Cannot Insert Instruction\nError: " + e.getMessage());
         }
 
         return -1;

@@ -3569,7 +3569,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
 
         // Execute All Blocks starting from executeSpecificBlock if Defined
-        int executeSpecificBlock = comboBoxBlocks.getValue().getVarId(); // Block Order Number
+        int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
 
         mapOperators = new HashMap<>();
         mapExport = new LinkedHashMap<>();
@@ -3923,6 +3923,9 @@ public class ABRScannedElementPane extends ABRPane {
 
                         if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
                             parentFieldLoop = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            if (parentField == null) {
+                                parentField = parentFieldLoop;
+                            }
                             parentFieldLoop = currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
 
                             if (mapLoops.containsKey(parentFieldLoop)) {
@@ -3957,6 +3960,9 @@ public class ABRScannedElementPane extends ABRPane {
                             refreshOnly = true;
                         } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
                             parentFieldLoop = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            if (parentField == null) {
+                                parentField = parentFieldLoop;
+                            }
                             parentFieldLoop = currentInstruction.getId() + ":" + parentId + ":" + parentFieldLoop;
 
                             if (mapLoops.containsKey(parentFieldLoop)) {
@@ -4224,7 +4230,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 } else {
                                     resultActions = performAction.parentValueIsNotDefined(
                                             currentInstruction.getName(),
-                                            currentInstruction.getParentId(),
+                                            "(" + parentId + ")-" + parentField,
                                             resultActions);
 
                                     stopAll = true;
@@ -4637,7 +4643,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     resultActions);
                         }
 
-                        // It decides Hewre if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
+                        // It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
                         if (!success && !byPassFlagLoop && currentCondition.equals(ABRConstants.ConditionStatus.NONE)) {
                             stopAll = true;
                             break;

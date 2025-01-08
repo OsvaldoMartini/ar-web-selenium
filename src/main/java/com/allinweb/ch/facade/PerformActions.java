@@ -584,11 +584,18 @@ public class PerformActions {
                     }
 
                     if (abrWebDriver.getDriver() == null) {
-                        showAlert(
-                                Alert.AlertType.ERROR,
-                                "ABR Web Driver is NULL",
-                                "Restart the APP",
-                                "Close all Browser or Restart the APP");
+                        //                        showAlert(
+                        //                                Alert.AlertType.ERROR,
+                        //                                "ABR Web Driver is NULL",
+                        //                                "Restart the APP",
+                        //                                "Close all Browser attached or Restart the APP");
+
+                        String msg1 = "ABR Web Driver is NULL";
+                        String msg2 = "Restart the APP";
+                        String msg3 = "Close all Browser or Restart the APP";
+
+                        errorMessage("Parent Id Error", msg1, msg2, msg3, null);
+
                         return null;
                     }
 
@@ -1371,32 +1378,42 @@ public class PerformActions {
         }
     }
 
-    public String parentValueIsNotDefined(String instructionName, int parentId, String resultActions) {
+    public String parentValueIsNotDefined(String instructionName, String parentField, String resultActions) {
 
-        showAlert(
-                Alert.AlertType.ERROR,
-                "Parent is Not Defined for \"" + instructionName + "\"",
-                "\"" + instructionName + "\" - Parent is Not Defined",
-                "There is NOT PARENT VALUE defined for: "
-                        + instructionName
-                        + "\n --------------------- "
-                        + "\nCheck the PARENT Web field for "
-                        + parentId + "- Unknown");
+        //        showAlert(
+        //                Alert.AlertType.ERROR,
+        //                "Parent is Not Defined for \"" + instructionName + "\"",
+        //                "\"" + instructionName + "\" - Parent is Not Defined",
+        //                "There is NOT PARENT VALUE defined for: "
+        //                        + instructionName
+        //                        + "\n --------------------- "
+        //                        + "\nCheck the PARENT Web field for "
+        //                        + parentId + "- Unknown");
+        String msg1 = "Parent is Not Defined for \"" + instructionName + "\"";
+        String msg2 = "There is NOT PARENT VALUE defined for: ";
+        String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
+
+        errorMessage("Parent Id Error", msg1, msg2, msg3, null);
 
         return "Failed to Execute Cmd: " + resultActions;
     }
 
-    public String parentValueIsNotDefinedEngine(String instructionName, int parentId, String resultActions) {
+    public String parentValueIsNotDefinedEngine(String instructionName, String parentField, String resultActions) {
 
-        showAlert(
-                Alert.AlertType.ERROR,
-                "Parent is Not Defined for \"" + instructionName + "\"",
-                "\"" + instructionName + "\" - Parent is Not Defined",
-                "There is NOT PARENT VALUE defined for: "
-                        + instructionName
-                        + "\n --------------------- "
-                        + "\nCheck the PARENT Web field for "
-                        + parentId + "- Unknown");
+        //        showAlert(
+        //                Alert.AlertType.ERROR,
+        //                "Parent is Not Defined for \"" + instructionName + "\"",
+        //                "\"" + instructionName + "\" - Parent is Not Defined",
+        //                "There is NOT PARENT VALUE defined for: "
+        //                        + instructionName
+        //                        + "\n --------------------- "
+        //                        + "\nCheck the PARENT Web field for \"" + parentField+ "\"");
+
+        String msg1 = "Parent is Not Defined for \"" + instructionName + "\"";
+        String msg2 = "There is NOT PARENT VALUE defined for: \"" + instructionName + "\"";
+        String msg3 = "Check the PARENT Web field for \"" + parentField + "\"";
+
+        errorMessage("Parent Id Error", msg1, msg2, msg3, null);
 
         return "Failed to Execute Cmd: " + resultActions;
     }
@@ -1680,11 +1697,18 @@ public class PerformActions {
     }
 
     public String blockGotoFailed(String resultActions) {
-        showAlert(
-                Alert.AlertType.ERROR, "Block GO TO Error", "Check Correct Block Existence", "CMD: \n" + resultActions);
+        //        showAlert(
+        //                Alert.AlertType.ERROR, "Block GO TO Error", "Check Correct Block Existence", "CMD: \n" +
+        // resultActions);
+
+        String msg1 = "Block GO TO Error";
+        String msg2 = "Check Correct Block Existence";
+        String msg3 = "CMD: " + resultActions;
+
+        errorMessage("Parent Id Error", msg1, msg2, msg3, null);
 
         ABRLogger.getInstance(PerformActions.class)
-                .severe("Block GO TO Error.\n" + "Check Correct Block Existence!\n" + "CMD: \n" + resultActions);
+                .severe("Block GO TO Error: -> Check Correct Block Existence! -> CMD: " + resultActions);
 
         return resultActions;
     }
