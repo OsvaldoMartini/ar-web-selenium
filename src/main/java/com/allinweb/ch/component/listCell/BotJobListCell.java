@@ -104,7 +104,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             AnchorPane row = new AnchorPane(uiBotJob);
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    new ABRViewBotJobScene(item.getId()).show();
+                    new ABRViewBotJobScene(item).show();
                 }
             });
             graphic = row;

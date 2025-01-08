@@ -526,7 +526,7 @@ public class ABRViewBotJobPane extends ABRPane {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
 
-            new ABRViewBotJobScene(this.botJobLoad.getId()).show();
+            new ABRViewBotJobScene(this.botJobLoad).show();
         });
         //        saveAsBotJobButton.setOnMouseClicked(e -> new ABRSaveBotJobAsScene(this.botJobLoad.getId()).show());
         this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());

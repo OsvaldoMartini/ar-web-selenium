@@ -3,6 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.ABRViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
@@ -18,6 +19,7 @@ public class ABRViewBotJobScene extends ABRScene {
 
     private BotJobLoadDTO botLoadJob = null;
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+    private HomeBankingLoadDTO homeBankingLoadDTO;
 
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 1100D;
@@ -32,11 +34,11 @@ public class ABRViewBotJobScene extends ABRScene {
         performAction = PerformActions.getInstance();
     }
 
-    private final Integer botJobId;
+    private final BotJobLoadDTO botJobLoad;
 
-    public ABRViewBotJobScene(Integer botJobId) {
+    public ABRViewBotJobScene(BotJobLoadDTO botJobLoad) {
         super();
-        this.botJobId = botJobId;
+        this.botJobLoad = botJobLoad;
         this.currentScene = currentScene;
     }
 
@@ -47,9 +49,13 @@ public class ABRViewBotJobScene extends ABRScene {
 
         //        BotJobDTO botJobDTO = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJobId);
 
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobId);
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
-        this.botLoadJob = performDataBase.loadBotJobById(this.botJobId);
+        this.botLoadJob = performDataBase.loadBotJobById(this.botJobLoad.getId());
+        this.homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        if (homeBankingLoadDTO != null) {
+            this.botLoadJob.setHomeBankingLoadDTO(homeBankingLoadDTO);
+        }
 
         if (this.botLoadJob.getBlockLoadDTOList() == null) {
             this.botLoadJob.setBlockLoadDTOList(this.blockLoadList);

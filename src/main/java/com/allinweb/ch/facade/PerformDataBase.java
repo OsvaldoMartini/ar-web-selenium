@@ -1462,7 +1462,7 @@ public class PerformDataBase {
         SELECT id, action_custom_max_wait_sec, actions, active, block_marked, codified,
                default_val, description, export_to_abr, instruction_order_number, name,
                on_hold_seconds, operation, optional, parent_id, path, variable_id, block_id, bot_job_id
-        FROM public.block_loop_instruction
+        FROM block_loop_instruction
         WHERE block_id = ?
         ORDER BY instruction_order_number ASC
     """;
@@ -1471,7 +1471,7 @@ public class PerformDataBase {
         String instructionReferenceQuery =
                 """
         SELECT id, reference_type, value, block_loop_instruction_id, bot_job_id
-        FROM public.instruction_reference
+        FROM instruction_reference
         WHERE block_loop_instruction_id = ?
     """;
 
@@ -1659,7 +1659,7 @@ public class PerformDataBase {
         // Loop through the list of BlockLoadDTO and create a set of unique keys
         for (BlockLoadDTO blockDTO : blockLoadDTOList) {
 
-            String query = "SELECT actions FROM public.block_loop_instruction "
+            String query = "SELECT actions FROM block_loop_instruction "
                     + " WHERE block_id = " + blockDTO.getId()
                     + " and  bot_job_id = " + blockDTO.getBotJobId();
 
@@ -2420,7 +2420,7 @@ public class PerformDataBase {
             // Select the home banking record based on homeBankingId
             String selectSQL =
                     "SELECT id, cookies, driver_session, name, options_config, password, priority, search_config, url, username "
-                            + "FROM public.home_banking WHERE id = " + homeBankingId;
+                            + "FROM home_banking WHERE id = " + homeBankingId;
 
             ResultSet rs = stmt.executeQuery(selectSQL);
 

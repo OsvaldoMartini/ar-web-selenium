@@ -204,7 +204,7 @@ public class ABRNewBotJobPane extends ABRPane {
                 viewBotJobListView.setItems(botJobList);
                 viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
-                new ABRViewBotJobScene(newJobId).show();
+                new ABRViewBotJobScene(createdBotJob).show();
 
                 // Close the current window
                 Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();

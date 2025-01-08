@@ -187,7 +187,7 @@ public class ABRMainPane extends ABRPane {
             if (selecBotJobDTO != null) {
                 try {
                     Platform.runLater(() -> {
-                        new ABRViewBotJobScene(selecBotJobDTO.getId()).show();
+                        new ABRViewBotJobScene(selecBotJobDTO).show();
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
                     });
 
