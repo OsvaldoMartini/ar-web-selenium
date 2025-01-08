@@ -1340,8 +1340,8 @@ public class PerformDataBase {
         } catch (SQLException e) {
             ABRLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error deleting BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
+            return -1;
         }
-        return 0;
     }
 
     public boolean updateBotJobNme(int botJobId, String name, String description) {

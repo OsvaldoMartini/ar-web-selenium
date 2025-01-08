@@ -1247,6 +1247,10 @@ public class ABRScannedElementPane extends ABRPane {
             launchBotJobButton.setDisable(checkActiveHover.isSelected());
             recallJobButton.setDisable(checkActiveHover.isSelected());
             periodicActivated = checkActiveHover.isSelected();
+
+            if (!checkActiveHover.isSelected()) {
+                defineNameField.clear();
+            }
         });
     }
 
@@ -1959,8 +1963,12 @@ public class ABRScannedElementPane extends ABRPane {
                     Text variableText1Styled = new Text("Web Element Instruction");
                     variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
-                    Text variableText2Styled =
-                            new Text(defineNameField.getText().trim());
+                    String nameWebElement = defineNameField.getText().trim();
+                    if (Strings.isNullOrEmpty(nameWebElement)) {
+                        nameWebElement = abrWebElement.getNameFieldTitle().trim();
+                    }
+
+                    Text variableText2Styled = new Text(nameWebElement);
                     variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
 
                     VBox combinedTextContainer = new VBox();
@@ -2056,6 +2064,7 @@ public class ABRScannedElementPane extends ABRPane {
                         //                            }
                         //                        }
 
+                        String finalNameWebElement = nameWebElement;
                         Task<Void> handleEvent = new Task<>() {
                             @Override
                             protected Void call() throws Exception {
@@ -2120,6 +2129,11 @@ public class ABRScannedElementPane extends ABRPane {
 
                                 Integer currentBotJobId = botJob.getId();
 
+                                // Change the Name on the fly
+                                if (!Strings.isNullOrEmpty(finalNameWebElement)) {
+                                    instruction.setName(finalNameWebElement);
+                                }
+
                                 int newId = preFillAddInstruction(
                                         instruction.getName().trim(),
                                         instruction.getDescription().trim(),
@@ -2158,13 +2172,16 @@ public class ABRScannedElementPane extends ABRPane {
                                 instruction.setId(newId);
 
                                 abrWebElement.setInstructionId(instruction.getId());
-                                List<InstructionReferenceDTO> queue = new ArrayList<>();
+                                List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
                                 for (String key :
                                         abrWebElement.getSavedReferences().keySet()) {
-                                    InstructionReferenceDTO reference = new InstructionReferenceDTO();
+                                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
                                     reference.setReferenceType(key);
                                     reference.setValue(
                                             abrWebElement.getSavedReferences().get(key));
+
+                                    reference.setBotJobId(currentBotJobId);
+
                                     //
                                     // reference.setBlockLoopInstructionDTO(instruction);
                                     queue.add(reference);
@@ -5361,22 +5378,23 @@ public class ABRScannedElementPane extends ABRPane {
         return null;
     }
 
-    private boolean insertReferences(List<InstructionReferenceDTO> queue, int instructionId) {
+    private boolean insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) {
         // Generate a Unique-ID for the block
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
 
-            for (InstructionReferenceDTO reference : queue) {
+            for (InstructionReferenceLoadDTO reference : queue) {
 
                 Integer nextId = loadNextIdBReferenceData() + 1;
 
                 // Build the SQL insert query
                 String insertSQL =
-                        "INSERT INTO instruction_reference(id, reference_type, value, block_loop_instruction_id) VALUES ("
+                        "INSERT INTO instruction_reference(id, reference_type, value, block_loop_instruction_id, bot_job_id) VALUES ("
                                 + nextId + ", "
                                 + "'" + reference.getReferenceType() + "', "
                                 + "'" + reference.getValue() + "', " // name
-                                + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
+                                + instructionId + ","
+                                + reference.getBotJobId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
 
                 int rowsAffected = stmt.executeUpdate(insertSQL);
                 if (rowsAffected > 0) {

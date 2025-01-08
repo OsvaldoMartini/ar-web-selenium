@@ -665,7 +665,7 @@ public class ABRWebElement {
                                     blockButton,
                                     moveUpButton,
                                     moveDownButton,
-                                    moreOptionsButton,
+                                    //                                    moreOptionsButton,
                                     deleteButton);
                 } else {
                     actionPanel
@@ -677,7 +677,7 @@ public class ABRWebElement {
                                     blockButton,
                                     moveUpButton,
                                     moveDownButton,
-                                    moreOptionsButton,
+                                    //                                    moreOptionsButton,
                                     deleteButton);
                 }
 
@@ -693,7 +693,7 @@ public class ABRWebElement {
                                 blockButton,
                                 moveUpButton,
                                 moveDownButton,
-                                moreOptionsButton,
+                                //                                moreOptionsButton,
                                 deleteButton);
 
                 // Optionally, you can set additional styles or properties
@@ -705,7 +705,12 @@ public class ABRWebElement {
             blockButton.setPrefWidth(ABRConstants.SPACE_L);
             actionPanel
                     .getChildren()
-                    .addAll(blockButton, moveUpButton, moveDownButton, moreOptionsButton, deleteButton);
+                    .addAll(
+                            blockButton,
+                            moveUpButton,
+                            moveDownButton,
+                            //                            moreOptionsButton,
+                            deleteButton);
         }
 
         actionPanel.setSpacing(ABRConstants.SPACE_XS);
