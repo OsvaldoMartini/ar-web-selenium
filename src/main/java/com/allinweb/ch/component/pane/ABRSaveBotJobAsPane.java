@@ -1,28 +1,50 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.InstructionReferenceDTO;
 import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRPropertyEnum;
+import com.allinweb.ch.util.ABRPropertyManager;
+import com.google.common.base.Strings;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Queue;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class ABRSaveBotJobAsPane extends ABRPane {
 
-    private int botJobId;
+    private static final PerformMessage performMessage;
+    private static final PerformDataBase performDataBase;
 
+    // Static block to initialize
+    static {
+        performMessage = PerformMessage.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+    }
+
+    private BotJobLoadDTO selecBotJobDTO;
+    private List<BotJobLoadDTO> botJobList;
     // UI
 
     private Label nameLabel;
@@ -35,8 +57,9 @@ public class ABRSaveBotJobAsPane extends ABRPane {
 
     private Pane mainPane;
 
-    public ABRSaveBotJobAsPane(int botJobId) {
-        this.botJobId = botJobId;
+    public ABRSaveBotJobAsPane(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
+        this.selecBotJobDTO = selecBotJobDTO;
+        this.botJobList = botJobList;
     }
 
     @Override
@@ -48,10 +71,10 @@ public class ABRSaveBotJobAsPane extends ABRPane {
     public void initUIComponents() {
         nameLabel = new Label("Name:");
         descriptionLabel = new Label("Description:");
-        nameField = new TextField();
-        descriptionField = new TextField();
+        nameField = new TextField(selecBotJobDTO.getName().trim() + "Cloned");
+        descriptionField = new TextField("Description");
 
-        saveButton = new Button("Save  TO DB");
+        saveButton = new Button("Clone Bot Job");
 
         VBox group = new VBox(nameLabel, nameField, descriptionLabel, descriptionField, saveButton);
         group.setAlignment(Pos.CENTER);
@@ -66,33 +89,44 @@ public class ABRSaveBotJobAsPane extends ABRPane {
     @Override
     public void initUIBehaviour() {
 
-        BotJobDTO botJob = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
-
         saveButton.setOnMouseClicked(e -> {
-            List<BotJobDTO> botJobList = ABRSharedResources.getInstance()
-                    .getEntityList(
-                            BotJobDTO.class, botJobDTO -> botJobDTO.getName().equals(nameField.getText()));
-            boolean executeCopy = true;
-            if (botJobList.size() != 0) {
-                Alert alert = new Alert(
-                        Alert.AlertType.CONFIRMATION,
-                        "Bot job already exists with that name. Overwrite it?",
-                        ButtonType.YES,
-                        ButtonType.NO);
-                Optional<ButtonType> result = alert.showAndWait();
-                if (result.isPresent() && result.get() == ButtonType.YES) {
-                    clearBotJob(botJobList.get(0));
-                } else {
-                    executeCopy = false;
-                }
+            String newBotJob = nameField.getText().trim();
+
+            // Clean Spaces
+            Platform.runLater(() -> nameField.setText(newBotJob));
+
+            if (Strings.isNullOrEmpty(nameField.getText().trim())) {
+                performMessage.errorMessage(
+                        "Select a new Bot Job name", "There is NOT a name defined", null, null, null, 0);
+                return;
             }
-            if (executeCopy) {
-                BotJobDTO newBotJob = new BotJobDTO(botJob.getHomeBanking());
-                newBotJob.setName(nameField.getText());
-                newBotJob.setDescription(descriptionField.getText());
-                ABRSharedResources.getInstance()
-                        .addEntity(newBotJob, BotJobDTO.class, () -> copyBotJob(botJob, newBotJob));
+
+            BotJobLoadDTO existBotJob = botJobList.stream()
+                    .filter(botJob -> botJob.getName().equals(newBotJob))
+                    .findFirst()
+                    .orElse(null); //
+
+            if (existBotJob != null) {
+                performMessage.errorMessage(
+                        "Bot Job Name Already Exists",
+                        "The name you have entered is already in use.",
+                        "Please choose a different name and try again.",
+                        null,
+                        null,
+                        0);
+                return;
             }
+
+            ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
+            String excelPath = managerProps.getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+            String originalFilePath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
+            String newFilePath = excelPath + "\\" + newBotJob + ".xlsx";
+            boolean excelCreation = duplicateExcelFile(originalFilePath, newFilePath);
+            if (!excelCreation) {
+                return;
+            }
+
+            int rowsAffected = performDataBase.duplicateBotJobById(selecBotJobDTO.getId(), newBotJob, "Description");
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
         });
@@ -147,5 +181,47 @@ public class ABRSaveBotJobAsPane extends ABRPane {
                                         "Bot Job Saved",
                                         "The bot job has been saved successfully",
                                         ButtonType.OK))));
+    }
+
+    private boolean duplicateExcelFile(String originalFilePath, String newFilePath) {
+        try {
+            // Load the existing Excel file
+            FileInputStream fis = new FileInputStream(new File(originalFilePath));
+            Workbook workbook = new XSSFWorkbook(fis);
+
+            // Create a new file output stream for the new file (to a restricted folder)
+            FileOutputStream fos = new FileOutputStream(new File(newFilePath));
+
+            // Write the workbook data to the new file
+            workbook.write(fos);
+
+            // Close all streams
+            fos.close();
+            fis.close();
+            return true;
+        } catch (IOException e) {
+            String errorMessage = "Error occurred while copying the Excel file.";
+            String errorDetails = "An error occurred while attempting to clone the file.";
+
+            // Check if the exception message contains "Access is denied"
+            if (e.getMessage() != null && e.getMessage().contains("Access is denied")) {
+                errorDetails =
+                        "Access Denied: You do not have permission to write to this location. Please check your permissions.";
+            } else if (e instanceof FileNotFoundException) {
+                File file = new File(newFilePath);
+                if (!file.exists()
+                        && file.getParentFile() != null
+                        && !file.getParentFile().canWrite()) {
+                    errorDetails =
+                            "You don't have permission to write in the specified folder. Please check the folder's write permissions.";
+                } else {
+                    errorDetails = "The specified file path is invalid or the file is already in use.";
+                }
+            }
+
+            // Show the error message
+            performMessage.errorMessage("Excel File Cloning Error", errorMessage, errorDetails, null, null, 0);
+            return false;
+        }
     }
 }

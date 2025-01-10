@@ -5,6 +5,7 @@ import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRViewBotJobScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -52,9 +53,11 @@ public class ABRNewBotJobPane extends ABRPane {
     private Alert alertToShow;
 
     private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
 
     static {
         performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     public ABRNewBotJobPane(ListView<BotJobLoadDTO> viewBotJobListView) {
@@ -173,7 +176,7 @@ public class ABRNewBotJobPane extends ABRPane {
 
                 combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
 
-                performDataBase.showAlertCombinedVBOX(
+                performMessage.showAlertCombinedVBOX(
                         Alert.AlertType.WARNING,
                         "Duplicate Name",
                         "The name already exists!",

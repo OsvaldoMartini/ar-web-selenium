@@ -6,8 +6,7 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ABRConstants;
@@ -63,13 +62,10 @@ public class ABRElementValuePane extends ABRPane {
     Button updateButton;
     Button deleteButton;
 
-    private static final PerformActions performAction;
-    private static final PerformDataBase performDataBase;
-
+    private static final PerformMessage performMessage;
     // Static block to initialize
     static {
-        performAction = PerformActions.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     public ABRElementValuePane(
@@ -170,7 +166,7 @@ public class ABRElementValuePane extends ABRPane {
                     -1, selectedType, nameField.getText().trim(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
 
             if (nameExists(nameField.getText().trim())) {
-                performAction.errorMessage(
+                performMessage.errorMessage(
                         "Variable Name Already Exists",
                         String.format("'%s' cannot be inserted with the existent name!", nameField.getText()),
                         null,
@@ -215,7 +211,7 @@ public class ABRElementValuePane extends ABRPane {
         deleteButton.setOnAction(event -> {
             String id = idField.getText();
             if (Integer.parseInt(usedVarsField.getText()) > 0) {
-                performAction.errorMessage(
+                performMessage.errorMessage(
                         "Action Remove Error",
                         String.format("This '%s' cannot be deleted!", nameField.getText()),
                         String.format("Exist %s Steps attached!", usedVarsField.getText()),
@@ -476,7 +472,7 @@ public class ABRElementValuePane extends ABRPane {
                         new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
             }
         } catch (SQLException e) {
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null, 0);
 
             return;
@@ -494,7 +490,7 @@ public class ABRElementValuePane extends ABRPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Error loading Next Id Data", "Could Not Load the Next Id Data", null, null, null, 0);
         }
         return null;
@@ -518,7 +514,7 @@ public class ABRElementValuePane extends ABRPane {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Error Inserting new Variable",
                     String.format("The '%s' cannot be inserted!", user.getName()),
                     e.getMessage(),
@@ -544,7 +540,7 @@ public class ABRElementValuePane extends ABRPane {
                 System.out.println("No matching record found to update.");
             }
         } catch (SQLException e) {
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "MAX CHARACTERS LIMIT FOR ACCESS",
                     String.format("The '%s' cannot be updated.", user.getName()),
                     e.getMessage(),
@@ -572,7 +568,7 @@ public class ABRElementValuePane extends ABRPane {
                     System.out.println("No matching record found to delete.");
                 }
             } catch (SQLException e) {
-                performAction.errorMessage(
+                performMessage.errorMessage(
                         "Error Deleting",
                         String.format("Cannot be deleted id: '%s'", Id),
                         e.getMessage(),
@@ -581,7 +577,7 @@ public class ABRElementValuePane extends ABRPane {
                         0);
             }
         } catch (NumberFormatException e) {
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Invalid ID format.", String.format("The id: '%s' is in invalid format!", Id), null, null, null, 0);
         }
     }

@@ -6,7 +6,7 @@ import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
@@ -116,11 +116,11 @@ public class ABRWebElement {
 
     // Very important sequence on initiation
     private static ABRPriorities abrPriorities;
-    private static final PerformActions performAction;
+    private static final PerformMessage performMessage;
     // Static block to initialize
     static {
         abrPriorities = ABRPriorities.getInstance();
-        performAction = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     public ABRWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch) {
@@ -189,7 +189,7 @@ public class ABRWebElement {
 
             if (element.getTagName() == null) {
 
-                performAction.couldNotFindElement("No TagName");
+                performMessage.couldNotFindElement("No TagName");
                 //                new ABRAlertScene(
                 //                        Alert.AlertType.ERROR,
                 //                        "Not possible to identity the Tag Name",
@@ -199,7 +199,7 @@ public class ABRWebElement {
                 return;
             }
         } catch (Exception e) {
-            performAction.couldNotFindElement("No TagName");
+            performMessage.couldNotFindElement("No TagName");
             //            new ABRAlertScene(
             //                    Alert.AlertType.ERROR,
             //                    "Not possible to identity the Tag Name",

@@ -16,8 +16,8 @@ import com.allinweb.ch.component.scene.base.ABRScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
@@ -99,13 +99,13 @@ public class ABRViewBotJobPane extends ABRPane {
     private ObservableList<BlockDTO> blockDTOObservableList;
     private ListView<BlockDTO> uiBlockList;
 
-    private static final PerformActions performAction;
+    private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final ABRScannedElementScene abrScannedElementScene;
 
     // Static block to initialize
     static {
-        performAction = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         abrScannedElementScene = ABRScannedElementScene.getInstance();
     }
@@ -405,7 +405,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 }
             });
 
-            performAction.outputJson(blockLoopInstructions);
+            performMessage.outputJson(blockLoopInstructions);
 
             jsonData = gson.toJson(blockLoopInstructions);
         } else {
@@ -499,7 +499,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
             combinedTextContainer.getChildren().add(variableText1Styled);
 
-            performDataBase.showAlertCombinedVBOX(
+            performMessage.showAlertCombinedVBOX(
                     Alert.AlertType.WARNING, "Not Bot Job", "Bot-Job List is empty!", null, combinedTextContainer);
         }
     }
@@ -566,7 +566,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
             combinedTextContainer.getChildren().add(variableText1Styled);
 
-            performDataBase.showAlertCombinedVBOX(
+            performMessage.showAlertCombinedVBOX(
                     botJobUpdate ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
                     "Update Bot-Job",
                     botJobUpdate ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!\"",
@@ -625,7 +625,7 @@ public class ABRViewBotJobPane extends ABRPane {
             //
             //                combinedTextContainer.getChildren().addAll(variableText2Styled, variableText1Styled);
             //
-            //                performAction.showAlertCombinedVBOX(
+            //                performMessage.showAlertCombinedVBOX(
             //                        AlertType.ERROR,
             //                        "Error: No \"INPUT\" Web Elements",
             //                        "Error: Don't Have Any Web Element as INPUT", // No header text
@@ -649,7 +649,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 if (extractedData.getErrorMessage() != null) {
 
-                    performAction.errorMessage(
+                    performMessage.errorMessage(
                             "Excel Error",
                             "Could Not Execute Excel File",
                             extractedData.getErrorMessage(),
@@ -675,7 +675,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     // You can add more content to the combinedTextContainer if needed
 
                     // Show confirmation dialog
-                    boolean confirmed = performAction.showAlertCombinedVBOX(
+                    boolean confirmed = performMessage.showAlertCombinedVBOX(
                             AlertType.CONFIRMATION,
                             "Warning: Excel File Already Exists",
                             "The Excel file already exists. Would you like to overwrite it?",
@@ -686,7 +686,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
                         new Thread(excelTask).start();
 
-                        performAction.showAlertCombinedVBOX(
+                        performMessage.showAlertCombinedVBOX(
                                 AlertType.INFORMATION,
                                 "Warning: Excel File Already Exists",
                                 "Success Excel File Override.", // No header text
@@ -699,7 +699,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     new Thread(excelTask).start();
 
                     // Show confirmation dialog
-                    performAction.showAlertCombinedVBOX(
+                    performMessage.showAlertCombinedVBOX(
                             AlertType.INFORMATION,
                             "Warning: New Excel File Created!",
                             "Success Excel File Generated.", // No header text
@@ -714,7 +714,7 @@ public class ABRViewBotJobPane extends ABRPane {
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
             String enginePath = managerProps.getProperty(ABRPropertyEnum.PATH_ENGINE) + "\\ABR_Web_Engine.jar";
-            String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+            String excelPath = managerProps.getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
             excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
             if (!(new File(excelPath)).exists()) {
                 new ABRAlertScene(
@@ -798,7 +798,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 combinedTextContainer.getChildren().addAll(variableText1Styled, variableText3Styled);
 
-                performAction.showAlertCombinedVBOX(
+                performMessage.showAlertCombinedVBOX(
                         Alert.AlertType.ERROR, "Excel File Error", "File Not Exist!", null, combinedTextContainer);
                 return;
                 //            Platform.exit();
@@ -830,7 +830,7 @@ public class ABRViewBotJobPane extends ABRPane {
                             .getChildren()
                             .addAll(variableText1Styled, variableText2Styled, variableText3Styled);
 
-                    performAction.showAlertCombinedVBOX(
+                    performMessage.showAlertCombinedVBOX(
                             Alert.AlertType.ERROR,
                             "Excel File Error",
                             "Check All Excel Columns and Values!",
@@ -891,7 +891,7 @@ public class ABRViewBotJobPane extends ABRPane {
         // Display the error message to the user
         if (ex.getMessage().contains("no such window: target window already closed")
                 || ex.getMessage().contains("web view not found")) {
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Error Calling SCAN",
                     "Web Browser was closed before the Scanner Tool",
                     "Close and Re-Open the Scanner Tool",
@@ -919,7 +919,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
 
-                performAction.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
+                performMessage.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
             }
         }
 

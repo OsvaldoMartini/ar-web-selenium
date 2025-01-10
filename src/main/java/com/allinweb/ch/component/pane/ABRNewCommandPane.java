@@ -2,14 +2,15 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRElementValueScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -50,12 +51,12 @@ import javafx.stage.Stage;
 public class ABRNewCommandPane extends ABRPane {
 
     private static final PerformDataBase performDataBase;
-    private static final PerformActions performAction;
+    private static final PerformMessage performMessage;
 
     // Static block to initialize
     static {
+        performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
-        performAction = PerformActions.getInstance();
     }
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
@@ -97,6 +98,16 @@ public class ABRNewCommandPane extends ABRPane {
     Label blocksLabel;
     Label addNewsLabel;
 
+    TextFlow operationSelected;
+    TextFlow textFlow;
+
+    Text currentActionText1;
+    Text currentActionText2;
+    Text currentActionText3;
+    Text currentActionText4;
+    Text currentActionText5;
+    Text currentActionText6;
+
     Text timesText;
     Text loopText;
     Text regularText1;
@@ -106,7 +117,6 @@ public class ABRNewCommandPane extends ABRPane {
     Text variableText1;
     Text variableText2;
     Text variableText3;
-    TextFlow textFlow;
     Text blankText;
 
     TextField nameField;
@@ -324,6 +334,40 @@ public class ABRNewCommandPane extends ABRPane {
         loopText.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
         textFlow = new TextFlow();
+        operationSelected = new TextFlow();
+
+        InstructionDTO firstInstruction = rowMoveDTO.getUpdatedRows().get(0);
+        String operation = performMessage.renderInstructionActions(firstInstruction);
+
+        // Create individual text elements with the necessary styling
+        currentActionText1 = new Text(rowMoveDTO.getType().replace("_", " "));
+        currentActionText1.setStyle("-fx-font-size: 14px; -fx-fill: green;");
+
+        currentActionText2 = new Text(" Instruction: ");
+        currentActionText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+        currentActionText3 = new Text(firstInstruction.getInstructionName());
+        currentActionText3.setStyle("-fx-font-size: 14px; -fx-fill: green;");
+
+        currentActionText4 = new Text(operation);
+        currentActionText4.setStyle("-fx-font-size: 14px; -fx-fill: green;");
+
+        currentActionText5 = new Text(" on Block Name: ");
+        currentActionText5.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+        currentActionText6 = new Text(rowMoveDTO.getBlockName());
+        currentActionText6.setStyle("-fx-font-size: 14px; -fx-fill: green;");
+
+        operationSelected
+                .getChildren()
+                .addAll(
+                        currentActionText1,
+                        currentActionText2,
+                        currentActionText3,
+                        currentActionText4,
+                        currentActionText5,
+                        currentActionText6);
+
         // Create regular Text for the first part of the label
         regularText1 = new Text("Variable to SET : ");
         regularText2 = new Text("");
@@ -824,6 +868,7 @@ public class ABRNewCommandPane extends ABRPane {
         vboxAll = new VBox(20);
         vboxAll.getChildren()
                 .addAll(
+                        operationSelected,
                         // labelRow, // Web Page Label row
                         comboBoxesRow, // ComboBoxes row
                         variableButtonRow, // Variable Button row
@@ -917,6 +962,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                         vboxAll.getChildren()
                                 .addAll(
+                                        operationSelected,
                                         // labelRow, // Web Page Label row
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
@@ -969,6 +1015,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                         vboxAll.getChildren()
                                 .addAll(
+                                        operationSelected,
                                         // labelRow, // Web Page Label row
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
@@ -1018,6 +1065,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                         vboxAll.getChildren()
                                 .addAll(
+                                        operationSelected,
                                         // labelRow, // Web Page Label row
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
@@ -1071,6 +1119,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                         vboxAll.getChildren()
                                 .addAll(
+                                        operationSelected,
                                         // labelRow, // Web Page Label row
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
@@ -1125,6 +1174,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                         vboxAll.getChildren()
                                 .addAll(
+                                        operationSelected,
                                         // labelRow, // Web Page Label row
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
@@ -1173,6 +1223,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                         vboxAll.getChildren()
                                 .addAll(
+                                        operationSelected,
                                         // labelRow, // Web Page Label row
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
@@ -1225,6 +1276,7 @@ public class ABRNewCommandPane extends ABRPane {
 
                         vboxAll.getChildren()
                                 .addAll(
+                                        operationSelected,
                                         // labelRow, // Web Page Label row
                                         comboBoxesRow, // ComboBoxes row
                                         variableButtonRow, // Variable Button row
@@ -1291,7 +1343,7 @@ public class ABRNewCommandPane extends ABRPane {
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
                 if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
-                    performAction.errorMessage(
+                    performMessage.errorMessage(
                             "Variables Not Defined!",
                             "No variables have been created!",
                             "Please define a variable for: \""
@@ -1301,7 +1353,7 @@ public class ABRNewCommandPane extends ABRPane {
                             0);
                     return;
                 } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
-                    performAction.errorMessage(
+                    performMessage.errorMessage(
                             "No Web Fields Defined",
                             "Missing Web Fields (Web Elements)!",
                             "Web Elements are required to insert operations.",
@@ -1324,7 +1376,7 @@ public class ABRNewCommandPane extends ABRPane {
                             .findFirst()
                             .orElse(null);
 
-                    performAction.errorMessage(
+                    performMessage.errorMessage(
                             "Error: Web Field Outside of Scope",
                             "Selected Block: " + comboBoxAllBlocks.getValue().getText(),
                             "The Web Field belongs to Block: " + outsideBlock,
@@ -1339,11 +1391,9 @@ public class ABRNewCommandPane extends ABRPane {
             if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ABRConstants.GOTO)
                     && blocksItems.size() == 1
                     && (comboBoxBlocks.getValue().getExtraId() == -1)) {
-                performAction.showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
-                        "No Blocks Defined",
-                        "It must have ate least Two Blocks defined ");
+
+                performMessage.errorMessage(
+                        "Error", "No Blocks Defined", "It must have ate least Two Blocks defined ", null, null, 0);
 
                 return;
             }
@@ -1929,7 +1979,7 @@ public class ABRNewCommandPane extends ABRPane {
                         new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
             }
         } catch (SQLException e) {
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null, 0);
         }
     }
@@ -2001,13 +2051,15 @@ public class ABRNewCommandPane extends ABRPane {
                     System.out.println("No matching record found to update.");
                 }
             } catch (SQLException e) {
-                performAction.showAlert(
-                        Alert.AlertType.ERROR,
+                performMessage.errorMessage(
                         "Error",
                         "MAX CHARACTERS LIMIT FOR ACCESS",
                         String.format(
                                 "This '%s' \n cannot be updated with same name.\nError: %s",
-                                user.getName(), e.getMessage()));
+                                user.getName(), e.getMessage()),
+                        null,
+                        null,
+                        0);
                 return;
             }
         } catch (NumberFormatException e) {
@@ -2091,17 +2143,7 @@ public class ABRNewCommandPane extends ABRPane {
         rowMoveDTO.setBlockId(blockId);
         rowMoveDTO.setBlockName(blockName);
         if (blockId < 0) {
-
-            Text variableText1Styled = new Text("Select the block you wan to Add New Command!");
-            variableText1Styled.setStyle("-fx-font-size: 16px; -fx-fill: red;");
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            combinedTextContainer.getChildren().add(variableText1Styled);
-
-            performAction.showAlertCombinedVBOX(
-                    Alert.AlertType.ERROR, "Block Not Selected", "Select the Block!", null, combinedTextContainer);
+            performMessage.errorMessage("Block Not Selected", "Select the Block!", null, null, null, 0);
             return;
         }
 
@@ -2226,8 +2268,12 @@ public class ABRNewCommandPane extends ABRPane {
 
         combinedTextContainer.getChildren().addAll(allMsgVer);
 
-        boolean alertResponse = performAction.showCombinedConfirmation(
-                "Add new Instruction", "Add the New Instruction to the Bot-Job?", "", combinedTextContainer);
+        boolean alertResponse = performMessage.showCombinedHBox(
+                Alert.AlertType.CONFIRMATION,
+                "Add new Instruction",
+                "Add the New Instruction to the Bot-Job?",
+                "",
+                combinedTextContainer);
 
         if (alertResponse) {
 

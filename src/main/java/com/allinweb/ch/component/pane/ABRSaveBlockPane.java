@@ -8,6 +8,7 @@ import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -43,12 +44,14 @@ public class ABRSaveBlockPane extends ABRPane {
     private List<SavedBlockLoopInstructionDTO> originalLoopInstruction;
     private List<SavedInstructionReferenceDTO> originalReferences;
 
-    private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
     private static final PerformActions performAction;
+    private static final PerformDataBase performDataBase;
     // Static block to initialize
     static {
-        performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
         performAction = PerformActions.getInstance();
+        performDataBase = PerformDataBase.getInstance();
     }
 
     TextField nameTextField;
@@ -310,7 +313,7 @@ public class ABRSaveBlockPane extends ABRPane {
                                 if (successFinal) {
 
                                     // Create Text for the variable part and set the color to red
-                                    performAction.showAlertCombinedVBOX(
+                                    performMessage.showAlertCombinedVBOX(
                                             Alert.AlertType.INFORMATION,
                                             "Created Web Component",
                                             String.format(

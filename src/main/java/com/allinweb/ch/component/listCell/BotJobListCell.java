@@ -3,8 +3,8 @@ package com.allinweb.ch.component.listCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ABRViewBotJobScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRConstants;
 import java.util.*;
@@ -20,12 +20,12 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
     public BotJobListCell() {}
 
+    private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
-    private static final PerformActions performAction;
     // Static block to initialize
     static {
+        performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
-        performAction = PerformActions.getInstance();
     }
 
     @Override
@@ -62,7 +62,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
                 combinedTextContainer.getChildren().addAll(allMsgVer);
 
-                boolean alertResponse = performDataBase.showAlertCombinedVBOX(
+                boolean alertResponse = performMessage.showAlertCombinedVBOX(
                         Alert.AlertType.CONFIRMATION,
                         "Bot Job Deletion",
                         "Remove All Details Bot Job",
@@ -150,7 +150,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
         combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
 
-        performDataBase.showAlertCombinedVBOX(
+        performMessage.showAlertCombinedVBOX(
                 rowsAffected > 0 ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
                 "Delete Bot-Job",
                 rowsAffected > 0 ? "Bot-Job deleted successfully!" : "Bot-Job NOT deleted!\"",

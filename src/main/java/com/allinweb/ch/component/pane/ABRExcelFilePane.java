@@ -5,6 +5,7 @@ import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -37,9 +38,11 @@ import javax.swing.*;
 public class ABRExcelFilePane extends ABRPane {
 
     private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
@@ -255,7 +258,7 @@ public class ABRExcelFilePane extends ABRPane {
 
                 combinedTextContainer.getChildren().add(variableText1Styled);
 
-                performDataBase.showAlertCombinedVBOX(
+                performMessage.showAlertCombinedVBOX(
                         Alert.AlertType.ERROR, "Excel File Name", "Type  the File Name!", null, combinedTextContainer);
                 return;
             }
@@ -294,7 +297,7 @@ public class ABRExcelFilePane extends ABRPane {
 
         combinedTextContainer.getChildren().add(variableText1Styled);
 
-        performDataBase.showAlertCombinedVBOX(
+        performMessage.showAlertCombinedVBOX(
                 updateBlock ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
                 "Update Bot-Job",
                 updateBlock ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!\"",

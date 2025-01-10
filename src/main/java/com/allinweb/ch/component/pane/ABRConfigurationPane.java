@@ -8,8 +8,8 @@ import com.allinweb.ch.component.scene.ABRNewHomeBankingScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -35,11 +35,11 @@ public class ABRConfigurationPane extends ABRPane {
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
 
     private static final ABRNewHomeBankingScene abrNewHomeBankingScene;
-    private static final PerformActions performAction;
+    private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     // Static block to initialize
     static {
-        performAction = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         abrNewHomeBankingScene = ABRNewHomeBankingScene.getInstance();
     }
@@ -442,7 +442,7 @@ public class ABRConfigurationPane extends ABRPane {
 
         int rowsAffected = performDataBase.migrationScripts();
         if (rowsAffected < 0) {
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Migration DB Scripts error",
                     "Cannot perform  Migration for the Database",
                     databaseChoiceBox.getValue(),
@@ -450,7 +450,7 @@ public class ABRConfigurationPane extends ABRPane {
                     null,
                     0);
         } else {
-            performAction.showCustomModalDialog(
+            performMessage.showCustomModalDialog(
                     "Migration DB Scripts Success!",
                     String.format("Perform Migration on %s records", rowsAffected),
                     "Database",

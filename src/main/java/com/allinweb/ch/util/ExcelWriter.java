@@ -5,8 +5,8 @@ import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import java.awt.*;
@@ -42,12 +42,12 @@ public class ExcelWriter {
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private static List<BlockLoadDTO> blocksLoaded;
     private ExtractedData extractedData;
-    private static final PerformActions performAction;
+    private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
 
     // Static block to initialize
     static {
-        performAction = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
 
@@ -342,7 +342,7 @@ public class ExcelWriter {
                         .getChildren()
                         .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
 
-                performAction.showAlertCombinedVBOX(
+                performMessage.showAlertCombinedVBOX(
                         Alert.AlertType.ERROR,
                         "Excel File Error",
                         "Check All Excel Columns and Values!",

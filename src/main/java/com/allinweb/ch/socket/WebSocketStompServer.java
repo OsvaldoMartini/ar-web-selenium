@@ -119,6 +119,7 @@ public class WebSocketStompServer {
             case "INSERT_NEW":
             case "INSERT_AFTER_ELSEIF":
             case "INSERT_BEFORE_ELSEIF":
+            case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
                 injectStepAfterOrBefore(insertBeforeDTO);
                 ABRSharedResources.getInstance().changeDbConnection();

@@ -18,6 +18,7 @@ import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.driver.ABRWebElement;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -185,14 +186,16 @@ public class ABRScannedElementPane extends ABRPane {
     private static int reduceSearchCriteria;
     private static ABRPropertyManager managerProps;
     private static ABRPriorities abrPriorities;
+    private static final PerformMessage performMessage;
     private static final PerformActions performAction;
     private static final PerformDataBase performDataBase;
     private static final ABRNewHomeBankingScene abrNewHomeBankingScene;
     // Static block to initialize
     static {
+        performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
-        abrPriorities = ABRPriorities.getInstance();
         performAction = PerformActions.getInstance();
+        abrPriorities = ABRPriorities.getInstance();
         managerProps = ABRPropertyManager.getInstance();
         abrNewHomeBankingScene = ABRNewHomeBankingScene.getInstance();
     }
@@ -965,7 +968,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
 
-        performAction.showAlertCombinedVBOX(
+        performMessage.showAlertCombinedVBOX(
                 Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
     }
 
@@ -981,7 +984,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             combinedTextContainer.getChildren().add(variableText1Styled);
 
-            performAction.showAlertCombinedVBOX(
+            performMessage.showAlertCombinedVBOX(
                     Alert.AlertType.ERROR, "MANDATORY FIELD", "Define the Element Name", null, combinedTextContainer);
 
             return;
@@ -1730,7 +1733,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                     combinedTextContainer.getChildren().add(variableText1Styled);
 
-                    performAction.showAlertCombinedVBOX(
+                    performMessage.showAlertCombinedVBOX(
                             Alert.AlertType.ERROR,
                             "ERROR ADD WEB ELEMENT",
                             "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
@@ -1792,7 +1795,7 @@ public class ABRScannedElementPane extends ABRPane {
                             elemTagName = abrWebElement.getElement().getTagName();
                         }
                     } catch (Exception ex) {
-                        performAction.couldNotFindElement(elemTagName);
+                        performMessage.couldNotFindElement(elemTagName);
                         return;
                     }
                 }
@@ -1925,7 +1928,7 @@ public class ABRScannedElementPane extends ABRPane {
                         }
                         //                                abrWebElement.getElement().click();
                     } catch (Exception e) {
-                        performAction.couldNotFindElement("No TagName");
+                        performMessage.couldNotFindElement("No TagName");
                         return;
                     }
                 } else {
@@ -1945,7 +1948,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                         combinedTextContainer.getChildren().add(variableText1Styled);
 
-                        performAction.showAlertCombinedVBOX(
+                        performMessage.showAlertCombinedVBOX(
                                 Alert.AlertType.ERROR,
                                 "Block Not Selected",
                                 "Select the Block!",
@@ -1978,7 +1981,7 @@ public class ABRScannedElementPane extends ABRPane {
                             .getChildren()
                             .addAll(blockNameLabel, blockNameText, variableText1Styled, variableText2Styled);
 
-                    boolean result = performAction.showAlertCombinedVBOX(
+                    boolean result = performMessage.showAlertCombinedVBOX(
                             Alert.AlertType.CONFIRMATION,
                             "Add Instruction to Bot-Job",
                             "Add the Instruction Selected to the Bot-Job?",
@@ -1998,7 +2001,7 @@ public class ABRScannedElementPane extends ABRPane {
                             combinedTextContainer.getChildren().clear();
                             combinedTextContainer.getChildren().add(variableText1Styled);
 
-                            performAction.showAlertCombinedVBOX(
+                            performMessage.showAlertCombinedVBOX(
                                     Alert.AlertType.ERROR,
                                     "Bot Job DOES NOT EXIST",
                                     "Verify the Bot Job Name if have any: ",
@@ -2159,7 +2162,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     combinedTextContainer.getChildren().add(variableText1Styled);
 
-                                    performAction.showAlertCombinedVBOX(
+                                    performMessage.showAlertCombinedVBOX(
                                             Alert.AlertType.ERROR,
                                             "Error Add New \"Component\" Instruction",
                                             "Not possible to insert new Operation",
@@ -2221,7 +2224,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                             variableText2Styled,
                                                             variableText3Styled);
 
-                                            performAction.showAlertCombinedVBOX(
+                                            performMessage.showAlertCombinedVBOX(
                                                     Alert.AlertType.INFORMATION,
                                                     "Web Instruction Add",
                                                     "Added New \"Web Instruction\" Instruction",
@@ -2242,7 +2245,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                             combinedTextContainer.getChildren().add(variableText1Styled);
 
-                                            performAction.showAlertCombinedVBOX(
+                                            performMessage.showAlertCombinedVBOX(
                                                     Alert.AlertType.ERROR,
                                                     "Web Instruction Failed",
                                                     "Add Web Instruction FAILED",
@@ -3408,7 +3411,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             combinedTextContainer.getChildren().add(variableText1Styled);
 
-            //            boolean result = performAction.showAlertCombinedVBOX(
+            //            boolean result = performMessage.showAlertCombinedVBOX(
             //                    Alert.AlertType.CONFIRMATION, "Recall Pre-Launch", "Recall Pre Test.", null,
             // combinedTextContainer);
             //
@@ -3462,7 +3465,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
 
-            performAction.showAlertCombinedVBOX(
+            performMessage.showAlertCombinedVBOX(
                     Alert.AlertType.WARNING, "Missing file excel", "File Not Exist!", null, combinedTextContainer);
             return false;
         }
@@ -3485,7 +3488,7 @@ public class ABRScannedElementPane extends ABRPane {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
 
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Excel Error",
                     "Could Not Execute Excel File",
                     "Check All Excel Columns and Values!",
@@ -3523,14 +3526,14 @@ public class ABRScannedElementPane extends ABRPane {
             //                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled,
             // variableText4Styled);
             //
-            //            performAction.showAlertCombinedVBOX(
+            //            performMessage.showAlertCombinedVBOX(
             //                    Alert.AlertType.ERROR,
             //                    "Excel File Error",
             //                    "Check All Excel Columns and Values!",
             //                    null,
             //                    combinedTextContainer);
 
-            performAction.errorMessage(
+            performMessage.errorMessage(
                     "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
 
             return false;
@@ -3961,7 +3964,7 @@ public class ABRScannedElementPane extends ABRPane {
                         if (actions[0].equalsIgnoreCase(ABRConstants.PAUSE)) {
                             pauseOperation = true;
 
-                            respModal = performAction.showCustomModalDialog(
+                            respModal = performMessage.showCustomModalDialog(
                                     "PAUSE BOT JOB",
                                     String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
                                     " Please click OK to continue!",
@@ -4556,7 +4559,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                             }
 
-                            performAction.errorMessage(resultActions, msg1, msg2, null, null, 260);
+                            performMessage.errorMessage(resultActions, msg1, msg2, null, null, 260);
                             //                            throw new RuntimeException(t);
                         }
 
@@ -4909,7 +4912,7 @@ public class ABRScannedElementPane extends ABRPane {
                     .getChildren()
                     .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
 
-            performAction.showAlertCombinedVBOX(
+            performMessage.showAlertCombinedVBOX(
                     Alert.AlertType.INFORMATION, "Success", "Execution Finished", null, combinedTextContainer);
 
         } else {
@@ -4950,7 +4953,7 @@ public class ABRScannedElementPane extends ABRPane {
                             variableText4Styled,
                             variableText5Styled);
 
-            performAction.showAlertCombinedVBOX(
+            performMessage.showAlertCombinedVBOX(
                     Alert.AlertType.ERROR, "FAIL", "Execution Failed", null, combinedTextContainer);
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);

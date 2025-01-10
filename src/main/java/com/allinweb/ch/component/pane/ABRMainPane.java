@@ -8,10 +8,12 @@ import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.component.scene.ABRConfigurationScene;
 import com.allinweb.ch.component.scene.ABRInfoScene;
 import com.allinweb.ch.component.scene.ABRNewBotJobScene;
+import com.allinweb.ch.component.scene.ABRSaveBotJobAsScene;
 import com.allinweb.ch.component.scene.ABRViewBotJobScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.ConfigUserDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -37,6 +39,7 @@ import javax.swing.*;
 public class ABRMainPane extends ABRPane {
 
     private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
     private static final ABRConfigurationScene abrConfigurationScene;
     private static final ABRNewBotJobScene abrNewBotJobScene;
 
@@ -44,6 +47,7 @@ public class ABRMainPane extends ABRPane {
     static {
         abrNewBotJobScene = ABRNewBotJobScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
         abrConfigurationScene = ABRConfigurationScene.getInstance();
     }
 
@@ -52,6 +56,7 @@ public class ABRMainPane extends ABRPane {
 
     // UI components
     Button newBotJobButton;
+    Button cloneBotJobButton;
     // Button viewBotJobButton;
     Button configureButton;
     Button infoButton;
@@ -113,6 +118,12 @@ public class ABRMainPane extends ABRPane {
     public void initUIComponents() {
         newBotJobButton = builder.buildButton(
                 "New", ABRConstants.SPACE_M, ABRConstants.ICON_NEW, ABRConstants.SPACE_M, new Insets(8, 10, 8, 10));
+        cloneBotJobButton = builder.buildButton(
+                "Clone Job",
+                ABRConstants.SPACE_M,
+                ABRConstants.ICON_SAVE,
+                ABRConstants.SPACE_M,
+                new Insets(8, 10, 8, 10));
         configureButton = builder.buildButton(
                 "Config",
                 ABRConstants.SPACE_M,
@@ -122,14 +133,24 @@ public class ABRMainPane extends ABRPane {
         infoButton = builder.buildButton(
                 "Info", ABRConstants.SPACE_M, ABRConstants.ICON_INFO, ABRConstants.SPACE_M, new Insets(8, 10, 8, 10));
         editBotJobButton = builder.buildButton(
-                "Edit", ABRConstants.SPACE_L, ABRConstants.ICON_EDIT, ABRConstants.SPACE_M, new Insets(8, 10, 8, 10));
+                "Open Job",
+                ABRConstants.SPACE_L,
+                ABRConstants.ICON_EDIT,
+                ABRConstants.SPACE_M,
+                new Insets(8, 10, 8, 10));
         launchBotJobButton = builder.buildButton(
                 "Launch", ABRConstants.SPACE_L, ABRConstants.ICON_PLAY, ABRConstants.SPACE_M, new Insets(8, 10, 8, 10));
         exitButton = builder.buildButton(
                 "Exit", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, new Insets(8, 10, 8, 10));
 
         buttonPane = new HBox(
-                newBotJobButton, configureButton, infoButton, launchBotJobButton, editBotJobButton, exitButton);
+                newBotJobButton,
+                cloneBotJobButton,
+                configureButton,
+                infoButton,
+                launchBotJobButton,
+                editBotJobButton,
+                exitButton);
         buttonPane.maxHeight(ABRConstants.SPACE_L);
         AnchorPane.setTopAnchor(buttonPane, ABRConstants.SPACE_ZERO);
         AnchorPane.setLeftAnchor(buttonPane, ABRConstants.SPACE_ZERO);
@@ -165,6 +186,20 @@ public class ABRMainPane extends ABRPane {
             viewBotJobListView.setItems(botJobList);
         });
 
+        cloneBotJobButton.setOnMouseClicked(e -> {
+            var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
+            if (selecBotJobDTO != null) {
+                new ABRSaveBotJobAsScene(selecBotJobDTO, performDataBase.loadAllBotJobs()).showModal();
+                ObservableList<BotJobLoadDTO> botJobList =
+                        FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+                viewBotJobListView.setItems(botJobList);
+                viewBotJobListView.refresh();
+
+            } else {
+                performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
+                return;
+            }
+        });
         /*viewBotJobButton.setOnMouseClicked(
                 e -> new ABRViewBotJobListScene().show()
         );*/
@@ -196,6 +231,9 @@ public class ABRMainPane extends ABRPane {
                             .show(); // TODO: handle exception
                 }
                 // new ABRMoveBlockScene(selecBotJobDTO.getBlocks().get(0));
+            } else {
+                performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
+                return;
             }
         });
 
@@ -205,7 +243,7 @@ public class ABRMainPane extends ABRPane {
                 if (selecBotJobDTO != null) {
                     ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
                     String enginePath = managerProps.getProperty(ABRPropertyEnum.PATH_ENGINE) + "\\ABR_Web_Engine.jar";
-                    String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
+                    String excelPath = managerProps.getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
                     excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
                     if (!new File(excelPath).exists()) {
                         new ABRAlertScene(
@@ -256,6 +294,9 @@ public class ABRMainPane extends ABRPane {
                     } catch (IOException ex) {
                         ABRLogger.getInstance(ABRScannedElementPane.class).fine("Error : " + ex);
                     }
+                } else {
+                    performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
+                    return;
                 }
             }
         });
