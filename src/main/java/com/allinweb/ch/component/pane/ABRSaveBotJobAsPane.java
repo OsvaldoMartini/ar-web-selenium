@@ -189,7 +189,7 @@ public class ABRSaveBotJobAsPane extends ABRPane {
                             "The bot job has been successfully duplicated!",
                             "has been successfully duplicated!",
                             String.format("Bot Job (ID: %d) Name '%s' ", newBotJobId, newBotJobName),
-                            "Description: %s");
+                            newBotJobName + "Description");
 
                 } else {
                     String[] lines = errorMessage.getErrorMessage().split("\n");
