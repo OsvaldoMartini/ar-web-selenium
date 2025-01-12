@@ -370,7 +370,7 @@ public class ABRViewBotJobPane extends ABRPane {
                                             itemBlock.getId(), // block ID
                                             itemBlock.getBlockOrderNumber(), // block Order
                                             itemBlock.getName(), // block Name
-                                            itemBlock.isActive(),
+                                            itemBlock.getActive(),
                                             blockLoopInstLoad.getInstructionActive(),
                                             itemBlock.getWait(),
                                             blockLoopInstLoad.getActions(),

@@ -3651,7 +3651,7 @@ public class ABRScannedElementPane extends ABRPane {
                 int blockWait = blocksLoaded.get(currentBlock).getWait() > 0
                         ? blocksLoaded.get(currentBlock).getWait()
                         : 2;
-                boolean blockActive = blocksLoaded.get(currentBlock).isActive();
+                boolean blockActive = blocksLoaded.get(currentBlock).getActive();
 
                 // It Searches the Block That have finished the Loops to Avoid recursivity
                 if (loopBlockActive.size() > 0) {

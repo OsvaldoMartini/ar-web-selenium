@@ -168,29 +168,22 @@ public class PerformDataBase {
             POSTGRES_DB = false;
         }
 
-        if (!POSTGRES_DB) {
-            if (conn == null) {
-                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                try {
+        try {
+            if (conn == null || conn.isClosed()) {
+                if (!POSTGRES_DB) {
+                    String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                    String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                     conn = DriverManager.getConnection(dbUrl);
-                } catch (SQLException e) {
-                    ABRLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + e.getMessage());
-                }
-            }
-            return conn;
-        } else {
-
-            if (conn == null) {
-                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                try {
+                } else {
+                    String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
                     conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
-                } catch (SQLException e) {
-                    ABRLogger.getInstance(PerformDataBase.class).severe("Get DB connection Error: " + e.getMessage());
                 }
             }
-            return conn;
+        } catch (SQLException e) {
+            ABRLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + e.getMessage());
         }
+
+        return conn;
     }
 
     // Handle DELETE_INSTRUCTION message
@@ -2807,6 +2800,14 @@ public class PerformDataBase {
             for (InstructionDTO instruction : instList) {
                 instruction.setInstructionId(currentId++); // Holds the News Ids
                 instruction.setBotJobId(newBotJobId); // Holds the News Ids
+                // Loop through the instList and find a matching InstructionDTO
+                for (BlockLoadDTO block : blockList) {
+                    if (instruction.getBlockOrderNumber().equals(block.getBlockOrderNumber())) {
+                        // Once found, update the blockLoopInstructionId with the new instructionId
+                        instruction.setBlockId(block.getId());
+                        break; // Exit the inner loop since we've found a match
+                    }
+                }
             }
             // Duplicate block_loop_instruction
             duplicateBlockLoopInstructions(conn, instList);
@@ -2915,20 +2916,21 @@ public class PerformDataBase {
 
     private void duplicateBlocks(Connection conn, List<BlockLoadDTO> blockList) throws SQLException {
         String blockInsertQuery =
-                "INSERT INTO block (id, block_order_number, description, export_file, name, type_id, wait, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                "INSERT INTO block (id, block_order_number, name, description, type_id, bot_job_id, export_file, active, wait) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement blockStmt = conn.prepareStatement(blockInsertQuery)) {
             for (BlockLoadDTO block : blockList) {
                 // Set values for the insert
                 blockStmt.setInt(1, block.getId());
                 blockStmt.setInt(2, block.getBlockOrderNumber());
-                blockStmt.setString(3, block.getDescription());
-                blockStmt.setString(4, block.getExportFile());
-                blockStmt.setString(5, block.getName()); // Changing name as required
-                blockStmt.setInt(6, block.getTypeId());
-                blockStmt.setInt(7, block.getWait());
-                blockStmt.setInt(8, block.getBotJobId());
+                blockStmt.setString(3, block.getName()); // Changing name as required
+                blockStmt.setString(4, block.getDescription());
+                blockStmt.setInt(5, block.getTypeId());
+                blockStmt.setInt(6, block.getBotJobId());
+                blockStmt.setString(7, block.getExportFile());
+                blockStmt.setBoolean(8, block.getActive());
+                blockStmt.setInt(9, block.getWait());
 
                 blockStmt.addBatch(); // Add the current block to the batch
             }
@@ -3027,8 +3029,9 @@ public class PerformDataBase {
     }
 
     private void duplicateVariables(Connection conn, List<VariableLoadDTO> varsList) throws SQLException {
-        String variableInsertQuery = "INSERT INTO variable (id, name, type, value, block_loop_instruction_id, bot_job_id) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
+        String variableInsertQuery =
+                "INSERT INTO variable (id, name, type, value, block_loop_instruction_id, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement varStmt = conn.prepareStatement(variableInsertQuery)) {
             for (VariableLoadDTO variableDTO : varsList) {

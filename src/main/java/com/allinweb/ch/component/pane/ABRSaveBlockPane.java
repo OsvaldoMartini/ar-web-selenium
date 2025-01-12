@@ -568,7 +568,7 @@ public class ABRSaveBlockPane extends ABRPane {
                         + "'" + blockDTO.getName() + "', " // name
                         + 1 + ", " // type_id
                         + blockDTO.getBotJobId() + ", " // bot_job_id, assuming BotJobDTO has an ID
-                        + blockDTO.isActive() + ", " // active
+                        + blockDTO.getActive() + ", " // active
                         + ")";
 
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
