@@ -92,7 +92,7 @@ public class JavaFXWithReactApp2 extends Application {
                     // Initialize navigation
                     initializeNavigation();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             }
         });
@@ -139,7 +139,7 @@ public class JavaFXWithReactApp2 extends Application {
                     try {
                         startWebSocketServer();
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
                 })
                 .start();

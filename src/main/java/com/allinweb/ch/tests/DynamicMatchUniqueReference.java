@@ -79,7 +79,7 @@ public class DynamicMatchUniqueReference {
             try {
                 Thread.sleep(15000);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
 
             // Clean up

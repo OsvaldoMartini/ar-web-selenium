@@ -45,7 +45,7 @@ public class CountdownAlert extends Application {
                 alert.close(); // Close the alert dialog
             }
         }));
-        timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
+        timeline.setCycleCount(SECONDS); // Run for seconds
         timeline.play(); // Start the timeline
 
         // Show the alert

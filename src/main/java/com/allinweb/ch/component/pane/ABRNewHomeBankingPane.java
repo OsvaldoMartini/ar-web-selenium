@@ -447,7 +447,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
                 }
                 System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } else {
             System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
@@ -477,7 +477,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
                         id, jobs, name, url, priority, searchConfig, optionsConfig, username, password));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         //        jobUserList.clear();
         //        loadBotJobData();
@@ -492,7 +492,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         return null;
     }
@@ -520,7 +520,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -595,7 +595,7 @@ public class ABRNewHomeBankingPane extends ABRPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
     }

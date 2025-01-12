@@ -61,7 +61,7 @@ public class ProgressBarDynamic_3 extends Application {
                         int delayMillis = random.nextInt(7000) + 3000;
                         TimeUnit.MILLISECONDS.sleep(delayMillis);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
                 },
                 executorService);

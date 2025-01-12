@@ -94,7 +94,7 @@ public class DynamicXPathWebElement {
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
 
             // Clean up

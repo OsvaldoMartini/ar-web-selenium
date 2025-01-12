@@ -74,7 +74,7 @@ public class ProgressBarDynamic_2 extends Application {
                         try {
                             TimeUnit.MILLISECONDS.sleep(delayMillis); // Wait for the specified delay
                         } catch (InterruptedException e) {
-                            e.printStackTrace();
+                            System.out.println(e.getMessage());
                         }
                     },
                     executorService);

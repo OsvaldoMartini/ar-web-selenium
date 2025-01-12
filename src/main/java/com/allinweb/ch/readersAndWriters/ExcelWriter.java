@@ -500,7 +500,7 @@ public class ExcelWriter {
                 getOrCreateColumnCell(row, columnIndex);
                 row.setHeightInPoints(300);
             } catch (IOException | AWTException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
             return this;
         }
@@ -533,7 +533,7 @@ public class ExcelWriter {
                 getOrCreateColumnCell(row, columnIndex);
                 row.setHeightInPoints(300);
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
             return this;
         }

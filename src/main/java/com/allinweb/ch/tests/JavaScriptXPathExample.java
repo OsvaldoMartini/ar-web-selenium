@@ -34,7 +34,7 @@ public class JavaScriptXPathExample {
     //        try {
     //            return (String) engine.eval(script + "getXPath(arguments[0]);", element);
     //        } catch (ScriptException e) {
-    //            e.printStackTrace();
+    //            System.out.println(e.getMessage());
     //            return null;
     //        }
     //    }

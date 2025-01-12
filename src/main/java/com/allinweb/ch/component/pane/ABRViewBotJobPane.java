@@ -940,7 +940,7 @@ public class ABRViewBotJobPane extends ABRPane {
         alertToShow.setContentText(content);
 
         executorService.execute(() -> {
-            timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
+            timeline.setCycleCount(SECONDS); // Run for seconds
             timeline.play(); // Start the timeline
 
             // Show the alert on the JavaFX Application Thread

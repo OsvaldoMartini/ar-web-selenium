@@ -419,7 +419,7 @@ public class ABRElementValuePane extends ABRPane {
                 }
                 System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } else {
             System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
@@ -434,7 +434,7 @@ public class ABRElementValuePane extends ABRPane {
     //                try {
     //                    conn = DriverManager.getConnection(dbUrl);
     //                } catch (SQLException e) {
-    //                    e.printStackTrace();
+    //                    System.out.println(e.getMessage());
     //                }
     //            }
     //            return conn;
@@ -445,7 +445,7 @@ public class ABRElementValuePane extends ABRPane {
     //                try {
     //                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
     //                } catch (SQLException e) {
-    //                    e.printStackTrace();
+    //                    System.out.println(e.getMessage());
     //                }
     //            }
     //            return conn;
@@ -588,7 +588,7 @@ public class ABRElementValuePane extends ABRPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
     }

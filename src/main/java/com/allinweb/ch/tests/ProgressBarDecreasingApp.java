@@ -39,7 +39,7 @@ public class ProgressBarDecreasingApp extends Application {
                             progressBar.setProgress(Math.max(progress, 0));
                         }
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
                 })
                 .start();

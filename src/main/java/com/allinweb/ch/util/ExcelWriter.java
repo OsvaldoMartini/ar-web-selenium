@@ -123,7 +123,7 @@ public class ExcelWriter {
 
         } catch (Exception e) {
             System.out.println("Error in CsvFileWriter!");
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         } finally {
             try {
                 if (bufferedWriter != null) {
@@ -132,7 +132,7 @@ public class ExcelWriter {
                 }
             } catch (IOException e) {
                 System.out.println("Error while flushing/closing bufferedWriter!");
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
 
@@ -155,7 +155,7 @@ public class ExcelWriter {
         try {
             file.createNewFile();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
 
         List<BlockLoadDTO> blockList = botJobLoad.getBlockLoadDTOList();
@@ -250,7 +250,7 @@ public class ExcelWriter {
         try {
             file.createNewFile();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
 
         Set<String> fieldSet = new HashSet<>();
@@ -379,14 +379,14 @@ public class ExcelWriter {
 
         } catch (Exception e) {
             System.out.println("Error in CsvFileWriter!");
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         } finally {
             try {
                 fileWriter.flush();
                 fileWriter.close();
             } catch (IOException e) {
                 System.out.println("Error while flushing/closing fileWriter!");
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
     }

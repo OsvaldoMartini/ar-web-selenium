@@ -55,7 +55,7 @@ public class CountdownAlertAsynchronous extends Application {
 
         // Execute the countdown in a separate thread
         executorService.execute(() -> {
-            timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
+            timeline.setCycleCount(SECONDS); // Run for seconds
             timeline.play(); // Start the timeline
 
             // Show the alert on the JavaFX Application Thread
@@ -70,7 +70,7 @@ public class CountdownAlertAsynchronous extends Application {
         try {
             Thread.sleep(3000); // Simulate some other work
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
 
         // Cleanup: Shutdown the executor service

@@ -38,7 +38,7 @@ public class AccessVersionChecker {
                     System.out.println("Unknown format");
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 }

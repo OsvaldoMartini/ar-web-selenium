@@ -106,7 +106,7 @@ public class TooltipInjector extends Application {
                         try {
                             Thread.sleep(500); // Check every 500 milliseconds
                         } catch (InterruptedException e) {
-                            e.printStackTrace();
+                            System.out.println(e.getMessage());
                         }
                     }
                 })

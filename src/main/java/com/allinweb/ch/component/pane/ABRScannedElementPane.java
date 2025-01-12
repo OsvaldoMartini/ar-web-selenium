@@ -833,7 +833,7 @@ public class ABRScannedElementPane extends ABRPane {
             try {
                 TimeUnit.MILLISECONDS.sleep(delayMillis); // Wait for the specified delay
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
             Platform.runLater(
                     () -> bottomPane.getChildren().remove(node)); // Remove the node on the JavaFX Application Thread
@@ -1765,7 +1765,7 @@ public class ABRScannedElementPane extends ABRPane {
                             elementFinder =
                                     abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getMainXPath()));
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            System.out.println(e.getMessage());
                         }
 
                         if (elementFinder == null) {
@@ -1781,7 +1781,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 // I am Setting here to avoid the Not Found Message
                                 elementFinder = abrWebElement.getElement();
                             } catch (Exception e) {
-                                e.printStackTrace();
+                                System.out.println(e.getMessage());
                             }
                         }
 
@@ -2848,7 +2848,7 @@ public class ABRScannedElementPane extends ABRPane {
             return Jsoup.connect(Url).get();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         return null;
     }
@@ -3002,7 +3002,7 @@ public class ABRScannedElementPane extends ABRPane {
             // Allow some time to see the effect
             Thread.sleep(10000); // Sleep for 10 seconds to observe the result
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         } finally {
             // Close the browser
             driver.quit();
@@ -3300,7 +3300,7 @@ public class ABRScannedElementPane extends ABRPane {
                         id, jobs, name, url, priority, searchConfig, optionsConfig, username, password);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         return databaseUserDto;
         //        jobUserList.clear();
@@ -3382,7 +3382,7 @@ public class ABRScannedElementPane extends ABRPane {
                 // password);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         //        jobUserList.clear();
         //        loadBotJobData();
@@ -3440,7 +3440,7 @@ public class ABRScannedElementPane extends ABRPane {
             baseLogFile = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_LOG)
                     + ABRConstants.FILE_NAME_SCANNER_BASE_LOG);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
 
         List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
@@ -5016,7 +5016,7 @@ public class ABRScannedElementPane extends ABRPane {
             fileWriter.write(log + System.lineSeparator());
             fileWriter.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -5035,7 +5035,7 @@ public class ABRScannedElementPane extends ABRPane {
             fileWriter.write(log + System.lineSeparator());
             fileWriter.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -5136,7 +5136,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
                             });
                         } catch (InterruptedException e) {
-                            e.printStackTrace(); // Handle interruption
+                            System.out.println(e.getMessage()); // Handle interruption
                         }
                     })
                     .start();

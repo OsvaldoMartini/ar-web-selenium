@@ -35,7 +35,7 @@ public class Computable_Runnable_Tasks_Test {
             allOf.join();
             System.out.println("All tasks have finished.");
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -50,7 +50,7 @@ public class Computable_Runnable_Tasks_Test {
                     Thread.sleep(1000); // 1 second
                     System.out.println(this.getName());
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
                 System.out.println("Task " + taskId + " completed.");
             }
@@ -66,7 +66,7 @@ public class Computable_Runnable_Tasks_Test {
 
                 Thread.sleep(1000); // 1 second
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
             System.out.println("Task " + taskId + " completed.");
         };

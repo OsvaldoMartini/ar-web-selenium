@@ -560,7 +560,7 @@ public class PerformActions {
                             //                                executeActionsAtInstructionCoordinates(currentInstruction,
                             // filedData);
                             //                            } catch (Exception e) {
-                            //                                e.printStackTrace();
+                            //                                System.out.println(e.getMessage());
                             //
                         } // System.out.println("coordinates case");
                         case ById -> {} // System.out.println("ById case");
@@ -607,7 +607,7 @@ public class PerformActions {
                             //                            try {
                             //                                elementFound = scroolUntilFindElement(criteria);
                             //                            } catch (Exception e) {
-                            //                                e.printStackTrace();
+                            //                                System.out.println(e.getMessage());
                             //                            }
                             //                            if (elementFound != null) {
                             //                                break;
@@ -1952,7 +1952,7 @@ public class PerformActions {
         try {
             Thread.sleep(5000); // 10 minutes in milliseconds
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
 
         // Accept (close) the alert
@@ -2207,7 +2207,7 @@ public class PerformActions {
         try {
             return element.isDisplayed() && isInViewport(element, driver);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             return false;
         }
     }

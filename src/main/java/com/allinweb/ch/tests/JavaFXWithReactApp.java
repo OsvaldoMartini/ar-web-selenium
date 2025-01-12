@@ -68,7 +68,7 @@ public class JavaFXWithReactApp extends Application {
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
                             + jsonData + ")) }, 1000)");
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             }
         });
@@ -112,7 +112,7 @@ public class JavaFXWithReactApp extends Application {
                     try {
                         startWebSocketServer();
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
                 })
                 .start();

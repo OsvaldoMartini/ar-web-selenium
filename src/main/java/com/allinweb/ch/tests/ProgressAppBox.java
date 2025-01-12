@@ -46,7 +46,7 @@ public class ProgressAppBox extends Application {
                                     .remove(progressBox.getChildren().size() - 1);
                         }
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
                 })
                 .start();

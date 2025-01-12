@@ -30,7 +30,7 @@ public class BlockSplitTest {
             System.out.println("New Block Name: " + newBlock.getBlockName());
             System.out.println("Updated Block Count: " + updatedBlocks.size());
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 }

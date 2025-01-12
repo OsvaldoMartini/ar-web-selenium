@@ -152,7 +152,7 @@ public class ExcelReader {
             logFile = new File(logFilePath);
             logFile.createNewFile();
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             System.exit(0);
         }
 
@@ -197,7 +197,7 @@ public class ExcelReader {
     		logExcelWorkbook.close();
 
     	} catch (Exception e) {
-    		e.printStackTrace();
+    		System.out.println(e.getMessage());
     		System.exit(0);
     	}
     	return new File(logExcelFilePath);

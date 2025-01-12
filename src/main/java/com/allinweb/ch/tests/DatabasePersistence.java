@@ -251,7 +251,7 @@ public class DatabasePersistence extends Application {
                 }
                 System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } else {
             System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
@@ -265,7 +265,7 @@ public class DatabasePersistence extends Application {
                 try {
                     conn = DriverManager.getConnection(DB_URL_2);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             }
             return conn;
@@ -276,7 +276,7 @@ public class DatabasePersistence extends Application {
                 try {
                     conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             }
             return conn;
@@ -316,7 +316,7 @@ public class DatabasePersistence extends Application {
                         id, jobs, name, url, priority, searchConfig, optionsConfig, username, password));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         //        jobUserList.clear();
         //        loadBotJobData();
@@ -331,7 +331,7 @@ public class DatabasePersistence extends Application {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         return null;
     }
@@ -342,7 +342,7 @@ public class DatabasePersistence extends Application {
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         return null;
     }
@@ -365,7 +365,7 @@ public class DatabasePersistence extends Application {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -399,7 +399,7 @@ public class DatabasePersistence extends Application {
                     System.out.println("No matching record found to update.");
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } catch (NumberFormatException e) {
             System.out.println("Invalid ID format.");
@@ -418,7 +418,7 @@ public class DatabasePersistence extends Application {
                     System.out.println("No matching record found to update.");
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } catch (NumberFormatException e) {
             System.out.println("Invalid ID format.");
@@ -431,7 +431,7 @@ public class DatabasePersistence extends Application {
             try {
                 conn.close();
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
     }

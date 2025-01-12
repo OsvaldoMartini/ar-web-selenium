@@ -268,7 +268,7 @@ public class SearchTest {
                 }
 
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
 
             // Attempt to Locate the WebElement to be clickable
@@ -296,7 +296,7 @@ public class SearchTest {
                     webElements.add(webElement);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             } finally {
                 // Close the WebDriver
                 driver.quit();
@@ -434,7 +434,7 @@ public class SearchTest {
                     webElements.add(webElement);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             } finally {
                 // Close the WebDriver
                 driver.quit();
@@ -455,7 +455,7 @@ public class SearchTest {
         try {
             return driver.findElements(criteria);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         return null;
     }

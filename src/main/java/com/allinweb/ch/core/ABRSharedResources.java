@@ -410,7 +410,7 @@ public class ABRSharedResources {
                 this.conn.close();
                 this.conn = null; // Reset the connection to null after closing
             } catch (SQLException e) {
-                e.printStackTrace(); // Handle the exception, log it or rethrow it as needed
+                System.out.println(e.getMessage()); // Handle the exception, log it or rethrow it as needed
             }
         }
     }
@@ -530,7 +530,7 @@ public class ABRSharedResources {
                 try {
                     conn = DriverManager.getConnection(dbUrl);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             }
             return conn;
@@ -541,7 +541,7 @@ public class ABRSharedResources {
                 try {
                     conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             }
             return conn;
@@ -571,7 +571,7 @@ public class ABRSharedResources {
                         id, jobs, name, url, priority, searchConfig, optionsConfig, username, password));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         //        jobUserList.clear();
         //        loadBotJobData();
@@ -621,7 +621,7 @@ public class ABRSharedResources {
             }
             return configList;
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         return null;
     }

@@ -32,7 +32,7 @@ public class Computable_JavaFX_Tasks_Test {
                     task.get();
                     System.out.println("Task Name: " + task.getName());
                 } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             });
             completableFutures.add(future);
@@ -46,7 +46,7 @@ public class Computable_JavaFX_Tasks_Test {
             allOf.join();
             System.out.println("All JavaFX tasks have finished.");
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 

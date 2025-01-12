@@ -296,6 +296,7 @@ public class ABRNewCommandPane extends ABRPane {
     @Override
     public void initUIComponents() {
 
+        //  Alert Timer Components
         // Create a label to display the countdown
         Label countdownLabel = new Label(String.valueOf(remainingSeconds));
         countdownLabel.setStyle("-fx-font-size: 24px;");
@@ -303,6 +304,7 @@ public class ABRNewCommandPane extends ABRPane {
         // Create a stack pane to hold the label
         StackPane stackPane = new StackPane(countdownLabel);
         stackPane.setPadding(new Insets(20));
+
         // Create a dialog for the alert
         alertToShow = new Alert(Alert.AlertType.INFORMATION);
         alertToShow.setTitle("Title");
@@ -1937,7 +1939,7 @@ public class ABRNewCommandPane extends ABRPane {
                 }
                 System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } else {
             System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
@@ -1953,7 +1955,7 @@ public class ABRNewCommandPane extends ABRPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         return null;
     }
@@ -2030,7 +2032,7 @@ public class ABRNewCommandPane extends ABRPane {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -2080,7 +2082,7 @@ public class ABRNewCommandPane extends ABRPane {
                     System.out.println("No matching record found to update.");
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } catch (NumberFormatException e) {
             System.out.println("Invalid ID format.");
@@ -2093,7 +2095,7 @@ public class ABRNewCommandPane extends ABRPane {
             try {
                 conn.close();
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
     }
@@ -2115,7 +2117,7 @@ public class ABRNewCommandPane extends ABRPane {
         alertToShow.getDialogPane().setContent(stackPane);
 
         executorService.execute(() -> {
-            timeline.setCycleCount(SECONDS); // Run for SECONDS seconds
+            timeline.setCycleCount(SECONDS); // Run for seconds
             timeline.play(); // Start the timeline
 
             // Show the alert on the JavaFX Application Thread
