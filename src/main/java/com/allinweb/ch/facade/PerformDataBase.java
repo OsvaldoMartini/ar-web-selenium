@@ -26,6 +26,7 @@ import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
+import com.allinweb.ch.util.ErrorMessage;
 import java.awt.*;
 import java.io.File;
 import java.sql.Connection;
@@ -106,7 +107,7 @@ public class PerformDataBase {
                 conn.close();
                 conn = null; // Reset the connection to null after closing
             } catch (SQLException e) {
-                e.printStackTrace(); // Handle the exception, log it or rethrow it as needed
+                System.out.println(e.getMessage()); // Handle the exception, log it or rethrow it as needed
             }
         }
     }
@@ -159,7 +160,7 @@ public class PerformDataBase {
         }
     }
 
-    private static Connection getConnection() {
+    public static Connection getConnection() {
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
@@ -1171,7 +1172,7 @@ public class PerformDataBase {
     //                                addEntity(instruction, BlockLoopInstructionDTO.class);
     //                            } catch (Exception e) {
     //                                System.err.println("Error while saving instruction: " + e.getMessage());
-    //                                e.printStackTrace();
+    //                                System.out.println(e.getMessage());
     //                            }
     //
     //                            // Move the UI update to the JavaFX Application Thread
@@ -1855,7 +1856,7 @@ public class PerformDataBase {
                 // password);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
         //        jobUserList.clear();
         //        loadBotJobData();
@@ -2737,33 +2738,35 @@ public class PerformDataBase {
         return instructionDTOList;
     }
 
-    public int duplicateBotJobById(int botJobId, String newName, String newDescription) {
-        try (Connection conn = getConnection()) {
-            // Duplicate bot_job
-            int maxBotJobId = getMaxId(conn, "bot_job") + 1;
-            String botJobInsertQuery = "INSERT INTO bot_job (id, name, description, priority, home_banking_id) "
-                    + "SELECT ?, ?, ?, priority, home_banking_id FROM bot_job WHERE id = ?";
-            try (PreparedStatement stmt = conn.prepareStatement(botJobInsertQuery, Statement.RETURN_GENERATED_KEYS)) {
-                stmt.setInt(1, maxBotJobId); // Set new name
-                stmt.setString(2, newName); // Set new name
-                stmt.setString(3, newDescription); // Set new description
-                stmt.setInt(4, botJobId); // Set original botJobId for the SELECT query
-                stmt.executeUpdate();
+    public ErrorMessage duplicateBotJobById(
+            Connection conn, int oldBotJobId, int newBotJobId, String newName, String newDescription) {
 
-                System.out.println("Generated BotJob ID: " + maxBotJobId);
+        String botJobInsertQuery = "INSERT INTO bot_job (id, name, description, priority, home_banking_id) "
+                + "SELECT ?, ?, ?, priority, home_banking_id FROM bot_job WHERE id = ?";
 
-                // Now you can proceed with duplicating the related tables
-                duplicateRelatedTables(conn, botJobId, maxBotJobId);
+        try (PreparedStatement stmt = conn.prepareStatement(botJobInsertQuery)) {
+            stmt.setInt(1, newBotJobId); // Set new name
+            stmt.setString(2, newName); // Set new name
+            stmt.setString(3, newDescription); // Set new description
+            stmt.setInt(4, oldBotJobId); // Set original botJobId for the SELECT query
+            stmt.executeUpdate();
+
+            System.out.println("Generated BotJob ID: " + newBotJobId);
+
+            // Now you can proceed with duplicating the related tables
+            ErrorMessage errorMessage = duplicateRelatedTables(conn, oldBotJobId, newBotJobId);
+            if (errorMessage != null) {
+                return errorMessage;
             }
-            return 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
 
-            return -1;
+            return null;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return new ErrorMessage("Error Duplicating Bot Job", "Bot Job Name", newName);
         }
     }
 
-    private int getMaxId(Connection conn, String tableName) throws SQLException {
+    public int getMaxId(Connection conn, String tableName) throws SQLException {
         String query = "SELECT MAX(id) FROM " + tableName;
         try (Statement stmt = conn.createStatement()) {
             ResultSet rs = stmt.executeQuery(query);
@@ -2774,7 +2777,7 @@ public class PerformDataBase {
         return 0;
     }
 
-    private void duplicateRelatedTables(Connection conn, int oldBotJobId, int newBotJobId) throws SQLException {
+    private ErrorMessage duplicateRelatedTables(Connection conn, int oldBotJobId, int newBotJobId) throws SQLException {
 
         List<BlockLoadDTO> blockList = blocksToDuplicate(conn, oldBotJobId);
         // Duplicate related blocks
@@ -2789,7 +2792,10 @@ public class PerformDataBase {
             }
 
             // Duplicate Blocks
-            duplicateBlocks(conn, blockList);
+            ErrorMessage errorMessage = duplicateBlocks(conn, blockList);
+            if (errorMessage != null) {
+                return errorMessage;
+            }
         }
 
         List<InstructionDTO> instList = instructionsToDuplicate(conn, oldBotJobId);
@@ -2810,7 +2816,10 @@ public class PerformDataBase {
                 }
             }
             // Duplicate block_loop_instruction
-            duplicateBlockLoopInstructions(conn, instList);
+            ErrorMessage errorMessage = duplicateBlockLoopInstructions(conn, instList);
+            if (errorMessage != null) {
+                return errorMessage;
+            }
 
             List<InstructionReferenceLoadDTO> refersList = instReferenceToDuplicate(conn, oldBotJobId);
             if (refersList.size() > 0) {
@@ -2833,7 +2842,10 @@ public class PerformDataBase {
                 }
 
                 // Duplicate instruction_reference
-                duplicateInstructionReferences(conn, refersList);
+                errorMessage = duplicateInstructionReferences(conn, refersList);
+                if (errorMessage != null) {
+                    return errorMessage;
+                }
             }
 
             List<ComplexInstructionLoadDTO> complexList = instComplexToDuplicate(conn, oldBotJobId);
@@ -2857,7 +2869,10 @@ public class PerformDataBase {
                 }
 
                 // Duplicate complex_instruction
-                duplicateComplexInstructions(conn, complexList);
+                errorMessage = duplicateComplexInstructions(conn, complexList);
+                if (errorMessage != null) {
+                    return errorMessage;
+                }
             }
 
             List<VariableLoadDTO> varsList = instVariablesToDuplicate(conn, oldBotJobId);
@@ -2881,9 +2896,13 @@ public class PerformDataBase {
                 }
 
                 // Duplicate variable
-                duplicateVariables(conn, varsList);
+                errorMessage = duplicateVariables(conn, varsList);
+                if (errorMessage != null) {
+                    return errorMessage;
+                }
             }
         }
+        return null;
     }
 
     public List<BlockLoadDTO> blocksToDuplicate(Connection conn, int oldBotJobId) throws SQLException {
@@ -2914,7 +2933,7 @@ public class PerformDataBase {
         return blockDTOList; // Return the list of block DTOs
     }
 
-    private void duplicateBlocks(Connection conn, List<BlockLoadDTO> blockList) throws SQLException {
+    private ErrorMessage duplicateBlocks(Connection conn, List<BlockLoadDTO> blockList) throws SQLException {
         String blockInsertQuery =
                 "INSERT INTO block (id, block_order_number, name, description, type_id, bot_job_id, export_file, active, wait) "
                         + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -2936,10 +2955,15 @@ public class PerformDataBase {
             }
 
             blockStmt.executeBatch(); // Execute the batch insert
+            return null;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return new ErrorMessage("Error Duplicating Blocks", "Block Insertion Failure", e.getMessage());
         }
     }
 
-    private void duplicateBlockLoopInstructions(Connection conn, List<InstructionDTO> instList) throws SQLException {
+    private ErrorMessage duplicateBlockLoopInstructions(Connection conn, List<InstructionDTO> instList)
+            throws SQLException {
         String blockLoopInstructionInsertQuery =
                 "INSERT INTO block_loop_instruction (id, action_custom_max_wait_sec, actions, active, block_marked, codified, "
                         + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, parent_id, path, variable_id, block_id, bot_job_id) "
@@ -2972,10 +2996,14 @@ public class PerformDataBase {
             }
 
             blockLoopStmt.executeBatch(); // Execute the batch insert
+            return null;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return new ErrorMessage("Error Duplicating Instructions", "Block Insertion Failure", e.getMessage());
         }
     }
 
-    private void duplicateInstructionReferences(Connection conn, List<InstructionReferenceLoadDTO> refersList)
+    private ErrorMessage duplicateInstructionReferences(Connection conn, List<InstructionReferenceLoadDTO> refersList)
             throws SQLException {
         // Prepare the insert statement for instruction references
         String instructionReferenceInsertQuery =
@@ -2998,10 +3026,14 @@ public class PerformDataBase {
             }
 
             refStmt.executeBatch(); // Execute the batch insert
+            return null;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return new ErrorMessage("Error Duplicating References", "Block Insertion Failure", e.getMessage());
         }
     }
 
-    private void duplicateComplexInstructions(Connection conn, List<ComplexInstructionLoadDTO> complexList)
+    private ErrorMessage duplicateComplexInstructions(Connection conn, List<ComplexInstructionLoadDTO> complexList)
             throws SQLException {
         // Prepare the insert statement for complex instructions
         String complexInstructionInsertQuery =
@@ -3025,10 +3057,15 @@ public class PerformDataBase {
             }
 
             complexStmt.executeBatch(); // Execute the batch insert
+            return null;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return new ErrorMessage(
+                    "Error Duplicating Complex Instructions", "Block Insertion Failure", e.getMessage());
         }
     }
 
-    private void duplicateVariables(Connection conn, List<VariableLoadDTO> varsList) throws SQLException {
+    private ErrorMessage duplicateVariables(Connection conn, List<VariableLoadDTO> varsList) throws SQLException {
         String variableInsertQuery =
                 "INSERT INTO variable (id, name, type, value, block_loop_instruction_id, bot_job_id) "
                         + "VALUES (?, ?, ?, ?, ?, ?)";
@@ -3046,6 +3083,10 @@ public class PerformDataBase {
             }
 
             varStmt.executeBatch(); // Execute the batch insert
+            return null;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            return new ErrorMessage("Error Duplicating Variables", "Block Insertion Failure", e.getMessage());
         }
     }
 }

@@ -13,21 +13,32 @@ import com.allinweb.ch.persistence.InstructionReferenceDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -42,6 +53,12 @@ public class ABRSaveBotJobAsPane extends ABRPane {
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
+
+    private static final int SECONDS = 3; // Total seconds for the countdown
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private ExecutorService executorService;
+    private Alert alertToShow;
 
     private BotJobLoadDTO selecBotJobDTO;
     private List<BotJobLoadDTO> botJobList;
@@ -69,6 +86,33 @@ public class ABRSaveBotJobAsPane extends ABRPane {
 
     @Override
     public void initUIComponents() {
+        //  Alert Timer Components
+        // Create a label to display the countdown
+        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
+        countdownLabel.setStyle("-fx-font-size: 24px;");
+        countdownLabel.setVisible(false);
+        // Create a stack pane to hold the label
+        StackPane stackPane = new StackPane(countdownLabel);
+        stackPane.setPadding(new Insets(20));
+
+        // Create a dialog for the alert
+        alertToShow = new Alert(Alert.AlertType.INFORMATION);
+        alertToShow.setTitle("Title");
+        alertToShow.setHeaderText("Header Message");
+        alertToShow.setContentText("Main Message");
+        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        // Set the content of the alert
+        alertToShow.getDialogPane().setContent(stackPane);
+        // Create a timeline to update the countdown
+        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
+            remainingSeconds--;
+            countdownLabel.setText(String.valueOf(remainingSeconds));
+            if (remainingSeconds <= 0) {
+                timeline.stop(); // Stop the timeline when countdown finishes
+                alertToShow.close(); // Close the alert dialog
+            }
+        }));
+
         nameLabel = new Label("Name:");
         descriptionLabel = new Label("Description:");
         nameField = new TextField(selecBotJobDTO.getName().trim() + "Cloned");
@@ -90,10 +134,10 @@ public class ABRSaveBotJobAsPane extends ABRPane {
     public void initUIBehaviour() {
 
         saveButton.setOnMouseClicked(e -> {
-            String newBotJob = nameField.getText().trim();
+            String newBotJobName = nameField.getText().trim();
 
             // Clean Spaces
-            Platform.runLater(() -> nameField.setText(newBotJob));
+            Platform.runLater(() -> nameField.setText(newBotJobName));
 
             if (Strings.isNullOrEmpty(nameField.getText().trim())) {
                 performMessage.errorMessage(
@@ -102,7 +146,7 @@ public class ABRSaveBotJobAsPane extends ABRPane {
             }
 
             BotJobLoadDTO existBotJob = botJobList.stream()
-                    .filter(botJob -> botJob.getName().equals(newBotJob))
+                    .filter(botJob -> botJob.getName().equals(newBotJobName))
                     .findFirst()
                     .orElse(null); //
 
@@ -119,16 +163,63 @@ public class ABRSaveBotJobAsPane extends ABRPane {
 
             ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
             String excelPath = managerProps.getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-            String originalFilePath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
-            String newFilePath = excelPath + "\\" + newBotJob + ".xlsx";
+            String originalFilePath =
+                    excelPath + "\\" + selecBotJobDTO.getName().trim() + ".xlsx";
+            String newFilePath = excelPath + "\\" + newBotJobName + ".xlsx";
             boolean excelCreation = duplicateExcelFile(originalFilePath, newFilePath);
             if (!excelCreation) {
+                showAlertTimer(
+                        Alert.AlertType.ERROR,
+                        "Error Duplicating File Excel",
+                        "Excel File Name",
+                        selecBotJobDTO.getName().trim() + ".xlsx",
+                        null);
                 return;
             }
 
-            int rowsAffected = performDataBase.duplicateBotJobById(selecBotJobDTO.getId(), newBotJob, "Description");
-            Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-            stage.close();
+            try (Connection conn = performDataBase.getConnection()) {
+                int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
+
+                ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
+                        conn, selecBotJobDTO.getId(), newBotJobId, newBotJobName, newBotJobName + "Description");
+
+                if (errorMessage == null) {
+                    showAlertTimer(
+                            Alert.AlertType.INFORMATION,
+                            "The bot job has been successfully duplicated!",
+                            "has been successfully duplicated!",
+                            String.format("Bot Job (ID: %d) Name '%s' ", newBotJobId, newBotJobName),
+                            "Description: %s");
+
+                } else {
+                    String[] lines = errorMessage.getErrorMessage().split("\n");
+
+                    String errorType = "";
+                    String errorDetail = "";
+
+                    for (String line : lines) {
+                        if (line.contains("ERROR:")) {
+                            errorType =
+                                    line.substring(line.indexOf("ERROR:") + 6).trim();
+                        } else if (line.startsWith("  Position:")) {
+                            errorDetail = line.substring(line.indexOf("Position:") + 10)
+                                    .trim();
+                        }
+                    }
+
+                    String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
+                    showAlertTimer(
+                            Alert.AlertType.ERROR,
+                            errorMessage.getErrorTitle(),
+                            errorMessage.getErrorHeader(),
+                            detailedMessage,
+                            null);
+                }
+                Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
+                stage.close();
+            } catch (SQLException ex) {
+                System.out.println(ex.getMessage());
+            }
         });
     }
 
@@ -222,6 +313,71 @@ public class ABRSaveBotJobAsPane extends ABRPane {
             // Show the error message
             performMessage.errorMessage("Excel File Cloning Error", errorMessage, errorDetails, null, null, 0);
             return false;
+        }
+    }
+
+    private void showAlertTimer(Alert.AlertType alertType, String title, String header, String content, String msg1) {
+        executorService = Executors.newSingleThreadExecutor();
+        alertToShow.setAlertType(alertType);
+        //        alertToShow.setTitle(title);
+        //        alertToShow.setHeaderText(header);
+        //        alertToShow.setContentText(content);
+
+        // Remove the border of the DialogPane
+        alertToShow.getDialogPane().setStyle("-fx-border-color: transparent; -fx-border-width: 0;");
+
+        // Create VBox to hold multiple Text elements
+        VBox allMsgVer = new VBox();
+        allMsgVer.setSpacing(10); // Add some spacing between texts
+        allMsgVer.setPadding(new Insets(20));
+
+        Text variableText1Styled = new Text(title);
+        Text variableText2Styled = new Text(header);
+        Text variableText3Styled = new Text(content);
+        Text variableText4Styled = new Text(msg1);
+
+        // Set styles based on alert type
+        if (alertType.equals(Alert.AlertType.ERROR)) {
+            // Change the font color of the title to red
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+        } else {
+            // Change the font color of the title to red
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+        }
+
+        // Add Text elements to VBox
+        if (msg1 != null) {
+            allMsgVer
+                    .getChildren()
+                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
+        } else {
+            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
+        }
+
+        // Create a StackPane to hold the VBox
+        StackPane stackPane = new StackPane(allMsgVer);
+        stackPane.setPadding(new Insets(20));
+
+        // Set StackPane content to alert dialog pane
+        alertToShow.getDialogPane().setContent(stackPane);
+
+        executorService.execute(() -> {
+            timeline.setCycleCount(SECONDS); // Run for seconds
+            timeline.play(); // Start the timeline
+
+            // Show the alert on the JavaFX Application Thread
+            javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
+        });
+
+        if (executorService != null) {
+            remainingSeconds = SECONDS;
+            executorService.shutdown();
         }
     }
 }
