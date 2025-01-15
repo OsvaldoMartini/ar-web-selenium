@@ -305,7 +305,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
         // Other UI components
 
-        double botJobNameWidth = 100;
+        double botJobNameWidth = 200;
 
         this.botJobNameLabel = new Label(this.botJobLoad.getName());
         this.botJobNameLabel.setPrefWidth(botJobNameWidth);

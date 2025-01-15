@@ -3731,6 +3731,21 @@ public class ABRScannedElementPane extends ABRPane {
 
                 try {
 
+                    // Block Header Format
+                    performAction.logAndReport(
+                            currentCondition,
+                            true,
+                            false,
+                            blockStartTime,
+                            blockReportName,
+                            success,
+                            new String[] {ABRConstants.EXCEL_BLOCK_HEADER},
+                            null,
+                            null,
+                            writerReport,
+                            null,
+                            null);
+
                     performAction.onHoldInSeconds(blockWait);
 
                     Pair<String, String> msgBlock = new Pair(

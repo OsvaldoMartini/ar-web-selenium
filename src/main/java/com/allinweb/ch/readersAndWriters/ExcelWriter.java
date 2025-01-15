@@ -92,9 +92,9 @@ public class ExcelWriter {
         public void insertReportHead() {
             managedExcel
                     .onSheet(0)
-                    .insertValueAtCoordinates(botJobName, 0, 0)
+                    .insertValueAtCoordinates("Bot-Job: " + botJobName, 0, 0)
                     .insertValueAtCoordinates(LocalDateTime.now().format(FORMAT_DATE_AND_TIME), 0, 1)
-                    .setFontStyleOfLastRow(true, false, false, (short) 14);
+                    .setFontStyleOfLastRow(true, false, false, (short) 14, null, null);
             managedExcel.save();
         }
 
@@ -163,10 +163,11 @@ public class ExcelWriter {
                             case ABRConstants.IGNORE -> "IGNORE";
                             case ABRConstants.EXIT -> "EXIT";
                             case ABRConstants.BY_PASS -> "BY_PASS";
+                            case ABRConstants.EXCEL_BLOCK_HEADER -> "EXCEL_BLOCK_HEADER";
                             default -> "Unsupported action";
                         };
                 String value = "";
-                String keyAction = msgLoop.getKey();
+                String keyAction = msgLoop != null ? msgLoop.getKey() : blockName;
 
                 if (actions.length > 1) {
                     String reference = actions[1];
@@ -234,12 +235,21 @@ public class ExcelWriter {
 
                 keyAction = keyAction + (blockCondition.length() > 0 ? " " + blockCondition : "");
 
-                if (!action.equals("SCREENSHOT")) {
+                if (action.equals("EXCEL_BLOCK_HEADER")) {
+                    ManagedExcelAction act = managedExcel
+                            .onSheet(0)
+                            .insertValueAfterLastRowOfColumn(blockName, 0)
+                            .setCellFontStyleOfColumnOfLastRow(
+                                    0, true, false, false, IndexedColors.BLUE_GREY, IndexedColors.WHITE);
+                    if (!success) {
+                        IndexedColors color = success && !yellowBackRow ? IndexedColors.RED : IndexedColors.YELLOW;
+                        act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
+                    }
+                } else if (!action.equals("SCREENSHOT")) {
                     ManagedExcelAction act = managedExcel
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(action, 0)
-                            .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
-                            .insertValueOnLastRowAfterLastColumn(blockName)
+                            .setCellFontStyleOfColumnOfLastRow(0, true, false, false, null, null)
                             .insertValueOnLastRowAfterLastColumn(keyAction)
                             .insertValueOnLastRowAfterLastColumn(value)
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
@@ -252,8 +262,7 @@ public class ExcelWriter {
                     ManagedExcelAction act = managedExcel
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(action, 0)
-                            .setCellFontStyleOfColumnOfLastRow(0, true, false, false)
-                            .insertValueOnLastRowAfterLastColumn(blockName)
+                            .setCellFontStyleOfColumnOfLastRow(0, true, false, false, null, null)
                             .insertValueOnLastRowAfterLastColumn(keyAction)
                             .insertValueOnLastRowAfterLastColumn("")
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
@@ -582,30 +591,76 @@ public class ExcelWriter {
         }
 
         public ManagedExcelAction setFontStyleOfLastRow(
-                boolean isBold, boolean isItalic, boolean isStrikeout, short height) {
+                boolean isBold,
+                boolean isItalic,
+                boolean isStrikeout,
+                short height,
+                IndexedColors backgroundColorHex,
+                IndexedColors fontColorHex) {
             Row row = getOrCreateRow(sheet.getLastRowNum());
             for (int i = 0; i < row.getLastCellNum(); i++) {
-                setCellFontStyleOfColumnOfLastRow(i, isBold, isItalic, isStrikeout, height);
+                setCellFontStyleOfColumnOfLastRow(
+                        i, isBold, isItalic, isStrikeout, height, backgroundColorHex, fontColorHex);
             }
             return this;
         }
 
         public ManagedExcelAction setCellFontStyleOfColumnOfLastRow(
-                int columnIndex, boolean isBold, boolean isItalic, boolean isStrikeout) {
-            return setCellFontStyle(sheet.getLastRowNum(), columnIndex, isBold, isItalic, isStrikeout, (short) 0);
+                int columnIndex,
+                boolean isBold,
+                boolean isItalic,
+                boolean isStrikeout,
+                IndexedColors backgroundColorHex,
+                IndexedColors fontColorHex) {
+            return setCellFontStyle(
+                    sheet.getLastRowNum(),
+                    columnIndex,
+                    isBold,
+                    isItalic,
+                    isStrikeout,
+                    (short) 0,
+                    backgroundColorHex,
+                    fontColorHex);
         }
 
         public ManagedExcelAction setCellFontStyleOfColumnOfLastRow(
-                int columnIndex, boolean isBold, boolean isItalic, boolean isStrikeout, short height) {
-            return setCellFontStyle(sheet.getLastRowNum(), columnIndex, isBold, isItalic, isStrikeout, height);
+                int columnIndex,
+                boolean isBold,
+                boolean isItalic,
+                boolean isStrikeout,
+                short height,
+                IndexedColors backgroundColorHex,
+                IndexedColors fontColorHex) {
+            return setCellFontStyle(
+                    sheet.getLastRowNum(),
+                    columnIndex,
+                    isBold,
+                    isItalic,
+                    isStrikeout,
+                    height,
+                    backgroundColorHex,
+                    fontColorHex);
         }
 
         public ManagedExcelAction setCellFontStyle(
-                int rowIndex, int columnIndex, boolean isBold, boolean isItalic, boolean isStrikeout, short height) {
+                int rowIndex,
+                int columnIndex,
+                boolean isBold,
+                boolean isItalic,
+                boolean isStrikeout,
+                short height,
+                IndexedColors backgroundColor,
+                IndexedColors fontColor) {
+
+            // Get or create the row and cell
             Row row = getOrCreateRow(rowIndex);
             Cell cell = getOrCreateColumnCell(row, columnIndex);
+
+            // Create a new cell style
             CellStyle cellStyle = workbook.createCellStyle();
             cellStyle.cloneStyleFrom(cell.getCellStyle());
+
+            // Create a new font
             Font font = workbook.createFont();
             font.setBold(isBold);
             font.setItalic(isItalic);
@@ -613,8 +668,23 @@ public class ExcelWriter {
             if (height > 0) {
                 font.setFontHeightInPoints(height);
             }
+
+            // Set the font color using the Excel IndexedColors
+            if (fontColor != null) {
+                font.setColor(IndexedColors.valueOf(fontColor.toString()).getIndex());
+            }
+
+            // Set background color using the Excel IndexedColors
+            if (backgroundColor != null) {
+                cellStyle.setFillForegroundColor(
+                        IndexedColors.valueOf(backgroundColor.toString()).getIndex());
+                cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            }
+
+            // Apply the font and cell style to the cell
             cellStyle.setFont(font);
             cell.setCellStyle(cellStyle);
+
             return this;
         }
 

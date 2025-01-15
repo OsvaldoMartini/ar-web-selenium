@@ -13,7 +13,7 @@ public class ABRSaveBotJobAsScene extends ABRScene {
 
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 300D;
-    private static final String TITLE = "Save Bot Job As";
+    private static final String TITLE = "Clone Job As";
 
     private BotJobLoadDTO selecBotJobDTO;
     private List<BotJobLoadDTO> botJobList;

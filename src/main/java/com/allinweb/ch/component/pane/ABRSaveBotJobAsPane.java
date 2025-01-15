@@ -113,9 +113,9 @@ public class ABRSaveBotJobAsPane extends ABRPane {
             }
         }));
 
-        nameLabel = new Label("Name:");
+        nameLabel = new Label("Name of new Bot Job:");
         descriptionLabel = new Label("Description:");
-        nameField = new TextField(selecBotJobDTO.getName().trim() + "Cloned");
+        nameField = new TextField(selecBotJobDTO.getName().trim());
         descriptionField = new TextField("Description");
 
         saveButton = new Button("Clone Bot Job");
@@ -135,6 +135,7 @@ public class ABRSaveBotJobAsPane extends ABRPane {
 
         saveButton.setOnMouseClicked(e -> {
             String newBotJobName = nameField.getText().trim();
+            String newDescription = descriptionField.getText().trim();
 
             // Clean Spaces
             Platform.runLater(() -> nameField.setText(newBotJobName));
@@ -170,9 +171,11 @@ public class ABRSaveBotJobAsPane extends ABRPane {
             if (!excelCreation) {
                 showAlertTimer(
                         Alert.AlertType.ERROR,
+                        "Error",
                         "Error Duplicating File Excel",
                         "Excel File Name",
-                        selecBotJobDTO.getName().trim() + ".xlsx",
+                        newBotJobName + ".xlsx",
+                        null,
                         null);
                 return;
             }
@@ -181,15 +184,17 @@ public class ABRSaveBotJobAsPane extends ABRPane {
                 int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
 
                 ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
-                        conn, selecBotJobDTO.getId(), newBotJobId, newBotJobName, newBotJobName + "Description");
+                        conn, selecBotJobDTO.getId(), newBotJobId, newBotJobName, newDescription);
 
                 if (errorMessage == null) {
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
+                            "Success",
+                            "Bot Job Duplication",
                             "The bot job has been successfully duplicated!",
-                            "has been successfully duplicated!",
                             String.format("Bot Job (ID: %d) Name '%s' ", newBotJobId, newBotJobName),
-                            newBotJobName + "Description");
+                            newDescription,
+                            null);
 
                 } else {
                     String[] lines = errorMessage.getErrorMessage().split("\n");
@@ -210,9 +215,11 @@ public class ABRSaveBotJobAsPane extends ABRPane {
                     String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
                     showAlertTimer(
                             Alert.AlertType.ERROR,
+                            "Error",
                             errorMessage.getErrorTitle(),
                             errorMessage.getErrorHeader(),
                             detailedMessage,
+                            null,
                             null);
                 }
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
@@ -316,11 +323,18 @@ public class ABRSaveBotJobAsPane extends ABRPane {
         }
     }
 
-    private void showAlertTimer(Alert.AlertType alertType, String title, String header, String content, String msg1) {
+    private void showAlertTimer(
+            Alert.AlertType alertType,
+            String title,
+            String header,
+            String msg1,
+            String msg2,
+            String msg3,
+            String msg4) {
         executorService = Executors.newSingleThreadExecutor();
         alertToShow.setAlertType(alertType);
-        //        alertToShow.setTitle(title);
-        //        alertToShow.setHeaderText(header);
+        alertToShow.setTitle(title);
+        alertToShow.setHeaderText(header);
         //        alertToShow.setContentText(content);
 
         // Remove the border of the DialogPane
@@ -331,10 +345,10 @@ public class ABRSaveBotJobAsPane extends ABRPane {
         allMsgVer.setSpacing(10); // Add some spacing between texts
         allMsgVer.setPadding(new Insets(20));
 
-        Text variableText1Styled = new Text(title);
-        Text variableText2Styled = new Text(header);
-        Text variableText3Styled = new Text(content);
-        Text variableText4Styled = new Text(msg1);
+        Text variableText1Styled = new Text(msg1);
+        Text variableText2Styled = new Text(msg2);
+        Text variableText3Styled = new Text(msg3);
+        Text variableText4Styled = new Text(msg4);
 
         // Set styles based on alert type
         if (alertType.equals(Alert.AlertType.ERROR)) {
@@ -352,10 +366,12 @@ public class ABRSaveBotJobAsPane extends ABRPane {
         }
 
         // Add Text elements to VBox
-        if (msg1 != null) {
-            allMsgVer
-                    .getChildren()
-                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
+        if (msg1 != null && msg2 == null && msg3 == null && msg4 == null) {
+            allMsgVer.getChildren().addAll(variableText1Styled);
+        } else if (msg1 != null && msg2 != null && msg3 == null && msg4 == null) {
+            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled);
+        } else if (msg1 != null && msg2 != null && msg3 != null && msg4 == null) {
+            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
         } else {
             allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
         }
