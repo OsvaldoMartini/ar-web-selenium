@@ -13,7 +13,8 @@ public class ABRConstants {
         IF, // ELSE block is active
         ELSEIF,
         ELSE, // ELSE block is active
-        ENDIF
+        ENDIF,
+        BY_PASS
     }
 
     public enum DialogModal {

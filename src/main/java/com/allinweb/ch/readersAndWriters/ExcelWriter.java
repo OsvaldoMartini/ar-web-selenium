@@ -1,6 +1,7 @@
 package com.allinweb.ch.readersAndWriters;
 
 import com.allinweb.ch.util.*;
+import com.google.common.base.Strings;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -134,7 +135,9 @@ public class ExcelWriter {
                 //                            instruction.getOperation(), ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
                 //                }
 
-                String[] operations = msgLoop != null ? msgLoop.getValue().split(":") : new String[] {};
+                String[] operations = !Strings.isNullOrEmpty(msgLoop.getValue())
+                        ? msgLoop.getValue().split(":")
+                        : new String[] {};
 
                 String action =
                         switch (actions[0]) {
@@ -167,7 +170,7 @@ public class ExcelWriter {
                             default -> "Unsupported action";
                         };
                 String value = "";
-                String keyAction = msgLoop != null ? msgLoop.getKey() : blockName;
+                String keyAction = msgLoop.getKey();
 
                 if (actions.length > 1) {
                     String reference = actions[1];
@@ -179,21 +182,31 @@ public class ExcelWriter {
                 }
 
                 if (actions[0].equalsIgnoreCase(ABRConstants.GOTO)) {
-                    String[] parts = msgLoop.getKey().split(":");
-                    if (!msgLoop.getValue().equals("0")) {
-                        keyAction = String.format(
-                                "GO TO Block \"%s\" Id: \"%s\"",
-                                "#" + parts[2] + " " + parts[3], parts[0] + "-(" + parts[1] + ")");
+                    if (msgLoop.getValue().equals("Unknown")) {
+                        keyAction = msgLoop.getKey();
+                        value = msgLoop.getValue();
                     } else {
-                        keyAction =
-                                String.format("GO TO Block Limit Reached for \"%s\"", "#" + parts[2] + " " + parts[3]);
+                        String[] parts = msgLoop.getKey().split(":");
+                        if (!msgLoop.getValue().equals("0")) {
+                            keyAction = String.format(
+                                    "GO TO Block \"%s\" Id: \"%s\"",
+                                    "#" + parts[2] + " " + parts[3], parts[0] + "-(" + parts[1] + ")");
+                        } else {
+                            keyAction = String.format(
+                                    "GO TO Block Limit Reached for \"%s\"", "#" + parts[2] + " " + parts[3]);
+                        }
+                        value = String.format("Block Loop %s times", msgLoop.getValue());
                     }
-                    value = String.format("Block Loop %s times", msgLoop.getValue());
                 } else if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
-                    String[] msgParent = msgLoop.getKey().split(":");
-                    keyAction = String.format(
-                            "Jump To Parent \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
-                    value = String.format("Loop %s times", msgLoop.getValue());
+                    if (msgLoop.getValue().equals("Unknown")) {
+                        keyAction = msgLoop.getKey();
+                        value = msgLoop.getValue();
+                    } else {
+                        String[] msgParent = msgLoop.getKey().split(":");
+                        keyAction = String.format(
+                                "Jump To Parent \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                        value = String.format("Loop %s times", msgLoop.getValue());
+                    }
                 } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
                     String[] msgParent = msgLoop.getKey().split(":");
                     if (msgParent.length == 1) {
@@ -211,21 +224,30 @@ public class ExcelWriter {
                             String.format("Wait for \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
                     value = String.format("Wait %s seconds", msgValue[0]);
                 } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_LOOP)) {
-                    String[] msgParent = msgLoop.getKey().split(":");
-                    keyAction =
-                            String.format("Jump To \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
-                    value = String.format("Loop %s times", msgLoop.getValue());
+                    if (msgLoop.getValue().equals("Unknown")) {
+                        keyAction = msgLoop.getKey();
+                        value = msgLoop.getValue();
+                    } else {
+                        String[] msgParent = msgLoop.getKey().split(":");
+                        keyAction = String.format(
+                                "Jump To \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                        value = String.format("Loop %s times", msgLoop.getValue());
+                    }
                 } else if (actions[0].equalsIgnoreCase(ABRConstants.HOLD)) {
                     value = "";
-                } else if (operations.length == 2) {
+                } else if (operations.length == 2
+                        && (actions[0].equalsIgnoreCase(ABRConstants.SET_VALUE)
+                                || actions[0].equalsIgnoreCase(ABRConstants.GET_VALUE))) {
+                    keyAction = operations[0];
                     value = operations[1];
                 } else if (operations.length == 3) {
                     value = operations[1] + " " + operations[2];
                 }
 
-                boolean yellowBackRow = currentCondition.equals(ABRConstants.ConditionStatus.IF_FAILED)
+                boolean byPassError = currentCondition.equals(ABRConstants.ConditionStatus.IF_FAILED)
                         || currentCondition.equals(ABRConstants.ConditionStatus.ELSEIF_FAILED)
-                        || currentCondition.equals(ABRConstants.ConditionStatus.ELSE_FAILED);
+                        || currentCondition.equals(ABRConstants.ConditionStatus.ELSE_FAILED)
+                        || currentCondition.equals(ABRConstants.ConditionStatus.BY_PASS);
 
                 String blockCondition = currentCondition.equals(ABRConstants.ConditionStatus.IF_FAILED)
                         ? "{IF}"
@@ -233,18 +255,18 @@ public class ExcelWriter {
                                 ? "{ELSEIF}"
                                 : currentCondition.equals(ABRConstants.ConditionStatus.ELSE_FAILED) ? "{ELSE}" : "";
 
-                keyAction = keyAction + (blockCondition.length() > 0 ? " " + blockCondition : "");
-
                 if (action.equals("EXCEL_BLOCK_HEADER")) {
                     ManagedExcelAction act = managedExcel
                             .onSheet(0)
                             .insertValueAfterLastRowOfColumn(blockName, 0)
-                            .setCellFontStyleOfColumnOfLastRow(
-                                    0, true, false, false, IndexedColors.BLUE_GREY, IndexedColors.WHITE);
-                    if (!success) {
-                        IndexedColors color = success && !yellowBackRow ? IndexedColors.RED : IndexedColors.YELLOW;
-                        act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
-                    }
+                            .setCellFontStyleOfColumnsOfLastRow(
+                                    0,
+                                    4, // Apply styles to the first 5 columns (0 to 4)
+                                    true,
+                                    false,
+                                    false,
+                                    IndexedColors.BLUE_GREY,
+                                    IndexedColors.WHITE);
                 } else if (!action.equals("SCREENSHOT")) {
                     ManagedExcelAction act = managedExcel
                             .onSheet(0)
@@ -253,10 +275,26 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn(keyAction)
                             .insertValueOnLastRowAfterLastColumn(value)
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
-                            .insertValueOnLastRowAfterLastColumn(success ? "success" : "failed");
+                            .insertValueOnLastRowAfterLastColumn(success ? "success" : "error")
+                            .setCellFontStyleOfColumnOfLastRow(
+                                    4, true, false, false, null, !success ? IndexedColors.RED : null);
+
                     if (!success) {
-                        IndexedColors color = success && !yellowBackRow ? IndexedColors.RED : IndexedColors.YELLOW;
-                        act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
+
+                        String msgCant = !success ? "Can't " + action : "";
+                        keyAction = (blockCondition.length() > 0
+                                ? blockCondition + " by passing error " + keyAction
+                                : byPassError ? "LOOP by passing error " + keyAction : keyAction);
+
+                        IndexedColors backColor = !byPassError ? IndexedColors.RED : IndexedColors.YELLOW;
+                        IndexedColors fontColor = !byPassError ? IndexedColors.WHITE : IndexedColors.BLUE;
+
+                        act.insertValueAfterLastRowOfColumn(msgCant, 0)
+                                .insertValueOnLastRowAfterLastColumn(keyAction)
+                                .setCellFontStyleOfColumnsOfLastRow(
+                                        0, 4, // Apply styles to the first 5 columns (0 to 4)
+                                        false, false, false, backColor, fontColor);
+                        act.insertScreenshotAfterLastRowOfColumn(0, webDriver);
                     }
                 } else { // add screenshot
                     ManagedExcelAction act = managedExcel
@@ -266,12 +304,10 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn(keyAction)
                             .insertValueOnLastRowAfterLastColumn("")
                             .insertValueOnLastRowAfterLastColumn(time.format(FORMAT_TIME))
-                            .insertValueOnLastRowAfterLastColumn(success ? "success" : "failed")
+                            .insertValueOnLastRowAfterLastColumn(success ? "success" : "error")
+                            .setCellFontStyleOfColumnOfLastRow(
+                                    4, true, false, false, null, success ? null : IndexedColors.RED)
                             .insertScreenshotAfterLastRowOfColumn(0, webDriver);
-                    if (!success) {
-                        IndexedColors color = success && !yellowBackRow ? IndexedColors.RED : IndexedColors.YELLOW;
-                        act.fillRowBackgroundColorOfLastRow(color).insertScreenshotAfterLastRowOfColumn(0, webDriver);
-                    }
                 }
                 managedExcel.save();
                 return true;
@@ -698,6 +734,38 @@ public class ExcelWriter {
             }
             for (int i = 0; i < maximumColumns; i++) {
                 sheet.autoSizeColumn(i);
+            }
+            return this;
+        }
+
+        public ManagedExcelAction setCellFontStyleOfColumnsOfLastRow(
+                int startColumnIndex,
+                int endColumnIndex,
+                boolean bold,
+                boolean italic,
+                boolean underline,
+                IndexedColors backgroundColor,
+                IndexedColors fontColor) {
+            int lastRowIndex = sheet.getLastRowNum();
+            Row row = getOrCreateRow(lastRowIndex);
+            CellStyle cellStyle = workbook.createCellStyle();
+            Font font = workbook.createFont();
+
+            // Set font styles
+            font.setBold(bold);
+            font.setItalic(italic);
+            font.setUnderline(underline ? Font.U_SINGLE : Font.U_NONE);
+            font.setColor(fontColor.getIndex());
+
+            // Apply font and background styles
+            cellStyle.setFont(font);
+            cellStyle.setFillForegroundColor(backgroundColor.getIndex());
+            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            // Apply styles to each column in the specified range
+            for (int i = startColumnIndex; i <= endColumnIndex; i++) {
+                Cell cell = getOrCreateColumnCell(row, i);
+                cell.setCellStyle(cellStyle);
             }
             return this;
         }

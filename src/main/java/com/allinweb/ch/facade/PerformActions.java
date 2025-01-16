@@ -1462,37 +1462,19 @@ public class PerformActions {
             ABRConstants.ConditionStatus conditionStatus) {
 
         if (conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
-            //            showAlert(
-            //                    Alert.AlertType.ERROR,
-            //                    "Parent Id Error",
-            //                    "Check Parent Id",
-            //                    "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
-            //                            + currentInstruction
-            //                                    .getOperation()
-            //                                    .substring(
-            //                                            0, currentInstruction.getOperation().indexOf(":"))
-            //                            + "\""
-            //                            + "\nDoes not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
-            //                            + blockLoad.getName() + "\""
-            //                            + "\nAttempted Operation : \"" + currentInstruction.getActions() + "\" -> \""
-            //                            + currentInstruction.getOperation() + "\""
-            //                            + "\nCheck the Web Field \" ( ID ) <NAME> \" per Block");
+            String operation = currentInstruction.getOperation();
+            int colonIndex = operation.indexOf(":");
+            String parentOperationPart = colonIndex != -1 ? operation.substring(0, colonIndex) : "Unknown Operation";
 
-            String msg1 = "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
-                    + currentInstruction
-                            .getOperation()
-                            .substring(0, currentInstruction.getOperation().indexOf(":"))
-                    + "\"";
-
+            String msg1 = "The Parent Id: \"(" + currentInstruction.getParentId() + ")" + parentOperationPart + "\"";
             String msg2 = "Does not belong to the block: \"" + blockLoad.getBlockOrderNumber() + "-"
                     + blockLoad.getName() + "\"";
-
             String msg3 = "Attempted Operation : \""
                     + (currentInstruction.getActions().equals(ABRConstants.EXTRACT_FIELD)
                             ? "Extract "
                             : currentInstruction.getActions())
-                    + "\" -> \"" + currentInstruction.getOperation() + "\"";
-
+                    + "\" -> \""
+                    + operation + "\"";
             String msg4 = "Check the Web Field \" ( ID ) <NAME> \" per Block";
 
             performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, msg4, 0);
@@ -1509,31 +1491,24 @@ public class PerformActions {
         if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             ABRLogger.getInstance(PerformActions.class)
                     .warning(String.format(
-                            "%sParent Id Error Check Parent Id: %d "
-                                    + "For the \"%s\" Does not belong to this block: "
-                                    + blockLoad.getId() + "-" + blockLoad.getName(),
+                            "%sParent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                             conditionalBlock,
                             currentInstruction.getParentId(),
-                            currentInstruction.getOperation()));
-
+                            currentInstruction.getOperation(),
+                            blockLoad.getId(),
+                            blockLoad.getName()));
         } else {
             ABRLogger.getInstance(PerformActions.class)
                     .severe(String.format(
-                            "Parent Id Error Check Parent Id: %d "
-                                    + "For the \"%s\" Does not belong to this block: "
-                                    + blockLoad.getId() + "-" + blockLoad.getName(),
+                            "Parent Id Error Check Parent Id: %d For the \"%s\" Does not belong to this block: %d-%s",
                             currentInstruction.getParentId(),
-                            currentInstruction.getOperation()));
+                            currentInstruction.getOperation(),
+                            blockLoad.getId(),
+                            blockLoad.getName()));
         }
-
-        //        return String.format(
-        //                "This ParentId: %d does not belong to this block: %d - %s. Check the Field Names and Fields
-        // Ids",
-        //                currentInstruction.getParentId(), blockLoad.getId(), blockLoad.getName());
 
         if (!conditionStatus.equals(ABRConstants.ConditionStatus.NONE)) {
             return "Failed to Execute Cmd: " + conditionalBlock + " -> " + lastInstructionExecuted;
-
         } else {
             return "Failed to Execute Cmd: " + lastInstructionExecuted;
         }
@@ -1959,74 +1934,86 @@ public class PerformActions {
         alert.accept();
     }
 
-    public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> fieldData) {
+    public String actionResultMessage(String blockJobName, String actions[], Pair<String, String> msgInstruction) {
 
         switch (actions[0]) {
             case ABRConstants.VISUALIZE:
-                return "Visualize action executed for " + fieldData.getKey();
+                return "Visualize action executed for " + msgInstruction.getKey();
             case ABRConstants.OTHER:
-                return "Other Element --> " + fieldData.getKey();
+                return "Other Element --> " + msgInstruction.getKey();
             case ABRConstants.OUTPUT:
-                return "Output Element --> " + fieldData.getKey();
+                return "Output Element --> " + msgInstruction.getKey();
             case ABRConstants.CLICK:
-                return "Click Element --> " + fieldData.getKey();
+                return "Click Element --> " + msgInstruction.getKey();
             case ABRConstants.INSERT:
-                return "Insert action for  -> " + fieldData.getKey() + " = " + fieldData.getValue();
+                return "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
             case ABRConstants.LIST_OPERATION:
-                return "List Operation performed for " + fieldData.getKey();
+                return "List Operation performed for " + msgInstruction.getKey();
             case ABRConstants.HOLD:
-                return "Hold executed ( " + fieldData.getKey() + " )";
+                return "Hold executed ( " + msgInstruction.getKey() + " )";
             case ABRConstants.PAUSE:
                 return "Pause action triggered";
             case ABRConstants.GOTO:
-                String[] parts = fieldData.getKey().split(":");
-                return String.format(
-                        "GO TO Block \"%s\" Limit %s times",
-                        "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], fieldData.getValue());
+                if (msgInstruction.getValue().equals("Unknown")) {
+                    return msgInstruction.getKey();
+                } else {
+                    String[] parts = msgInstruction.getKey().split(":");
+                    return String.format(
+                            "GO TO Block \"%s\" Limit %s times",
+                            "(" + parts[0] + ")-#" + parts[2] + " " + parts[3], msgInstruction.getValue());
+                }
             case ABRConstants.REFRESH_ONLY:
                 return " Refresh Web Page";
             case ABRConstants.REFRESH_HOLD:
-                String[] msgParent = fieldData.getKey().split(":");
-                String[] msgValue = fieldData.getValue().split(":");
+                String[] msgParent = msgInstruction.getKey().split(":");
+                String[] msgValue = msgInstruction.getValue().split(":");
                 return String.format(
                         "Wait for Parent \"%s\" Limit %s seconds",
                         "(" + msgParent[1] + ") " + msgParent[2], msgValue[0]);
             case ABRConstants.LOOP:
-                msgParent = fieldData.getKey().split(":");
-                return String.format(
-                        "Jump To Parent \"%s\" Limit %s times",
-                        msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], fieldData.getValue());
+                if (msgInstruction.getValue().equals("Unknown")) {
+                    return msgInstruction.getKey();
+                } else {
+                    msgParent = msgInstruction.getKey().split(":");
+                    return String.format(
+                            "Jump To Parent \"%s\" Limit %s times",
+                            msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2], msgInstruction.getValue());
+                }
             case ABRConstants.REFRESH_LOOP:
-                msgParent = fieldData.getKey().split(":");
-                msgValue = fieldData.getValue().split(":");
-                return String.format(
-                        "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
-                        msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                if (msgInstruction.getValue().equals("Unknown")) {
+                    return msgInstruction.getKey();
+                } else {
+                    msgParent = msgInstruction.getKey().split(":");
+                    msgValue = msgInstruction.getValue().split(":");
+                    return String.format(
+                            "Refresh in %s seconds Loop %s times Jump To Parent \"%s\" ",
+                            msgValue[0], msgValue[1], msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
+                }
             case ABRConstants.QUIT:
                 return "Quit action processed";
             case ABRConstants.SCREEN:
-                return "Screen action executed for " + fieldData.getKey() + " --> " + blockJobName;
+                return "Screen action executed for " + msgInstruction.getKey() + " --> " + blockJobName;
             case ABRConstants.GET_VALUE:
             case ABRConstants.SET_VALUE:
                 return actions[0]
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getKey()
+                        + msgInstruction.getKey()
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getValue();
+                        + msgInstruction.getValue();
             case ABRConstants.CHECK_VALUE:
                 return actions[0]
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getValue()
+                        + msgInstruction.getValue()
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getKey();
+                        + msgInstruction.getKey();
             case ABRConstants.EXTRACT_FIELD:
                 return ABRConstants.BLANK_STRING
-                        + fieldData.getKey() + " Extract "
+                        + msgInstruction.getKey() + " Extract "
                         + ABRConstants.BLANK_STRING
-                        + fieldData.getValue();
+                        + msgInstruction.getValue();
 
             default:
-                return "No Action Detected for " + fieldData.getKey();
+                return "No Action Detected for " + msgInstruction.getKey();
         }
     }
 
