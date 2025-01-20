@@ -35,6 +35,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -2798,14 +2799,36 @@ public class PerformDataBase {
             }
         }
 
+        Map<Integer, Integer> parentOlderAndNewId = new HashMap<>();
+        Map<Integer, Integer> variableOlderAndNewId = new HashMap<>();
+
         List<InstructionDTO> instList = instructionsToDuplicate(conn, oldBotJobId);
+        List<VariableLoadDTO> varsList = instVariablesToDuplicate(conn, oldBotJobId);
+
+        int currentVarId = getMaxId(conn, "variable") + 1;
+
+        if (varsList.size() > 0) {
+            for (VariableLoadDTO variable : varsList) {
+                if (!variableOlderAndNewId.containsKey(variable.getId())) {
+                    variableOlderAndNewId.put(variable.getId(), currentVarId);
+                    variable.setId(currentVarId);
+                }
+                currentVarId++;
+            }
+        }
+
         if (instList.size() > 0) {
 
             // Prepare the Ne Ids
             int currentId = getMaxId(conn, "block_loop_instruction") + 1;
             for (InstructionDTO instruction : instList) {
-                instruction.setInstructionId(currentId++); // Holds the News Ids
+                instruction.setInstructionId(currentId); // Holds the News Ids
                 instruction.setBotJobId(newBotJobId); // Holds the News Ids
+
+                if (!parentOlderAndNewId.containsKey(instruction.getParentId())) {
+                    parentOlderAndNewId.put(instruction.getId(), currentId);
+                }
+
                 // Loop through the instList and find a matching InstructionDTO
                 for (BlockLoadDTO block : blockList) {
                     if (instruction.getBlockOrderNumber().equals(block.getBlockOrderNumber())) {
@@ -2814,11 +2837,38 @@ public class PerformDataBase {
                         break; // Exit the inner loop since we've found a match
                     }
                 }
+                currentId++;
             }
             // Duplicate block_loop_instruction
-            ErrorMessage errorMessage = duplicateBlockLoopInstructions(conn, instList);
+            ErrorMessage errorMessage =
+                    duplicateBlockLoopInstructions(conn, instList, parentOlderAndNewId, variableOlderAndNewId);
             if (errorMessage != null) {
                 return errorMessage;
+            }
+
+            if (varsList.size() > 0) {
+
+                // Assuming instList is a List<InstructionDTO> and refersList is a List<InstructionReferenceLoadDTO>
+                for (VariableLoadDTO variable : varsList) {
+                    //                    variable.setId(currentVarId);
+
+                    // Loop through the instList and find a matching InstructionDTO
+                    for (InstructionDTO instruction : instList) {
+                        if (variable.getInstructionId().equals(instruction.getId())) {
+                            // Once found, update the blockLoopInstructionId with the new instructionId
+                            variable.setInstructionId(instruction.getInstructionId());
+                            variable.setBotJobId(newBotJobId);
+                            break; // Exit the inner loop since we've found a match
+                        }
+                    }
+                    //                    currentVarId++;
+                }
+
+                // Duplicate variable
+                errorMessage = duplicateVariables(conn, varsList);
+                if (errorMessage != null) {
+                    return errorMessage;
+                }
             }
 
             List<InstructionReferenceLoadDTO> refersList = instReferenceToDuplicate(conn, oldBotJobId);
@@ -2870,33 +2920,6 @@ public class PerformDataBase {
 
                 // Duplicate complex_instruction
                 errorMessage = duplicateComplexInstructions(conn, complexList);
-                if (errorMessage != null) {
-                    return errorMessage;
-                }
-            }
-
-            List<VariableLoadDTO> varsList = instVariablesToDuplicate(conn, oldBotJobId);
-            if (varsList.size() > 0) {
-
-                currentId = getMaxId(conn, "variable") + 1;
-
-                // Assuming instList is a List<InstructionDTO> and refersList is a List<InstructionReferenceLoadDTO>
-                for (VariableLoadDTO variable : varsList) {
-                    variable.setId(currentId++);
-
-                    // Loop through the instList and find a matching InstructionDTO
-                    for (InstructionDTO instruction : instList) {
-                        if (variable.getInstructionId().equals(instruction.getId())) {
-                            // Once found, update the blockLoopInstructionId with the new instructionId
-                            variable.setInstructionId(instruction.getInstructionId());
-                            variable.setBotJobId(newBotJobId);
-                            break; // Exit the inner loop since we've found a match
-                        }
-                    }
-                }
-
-                // Duplicate variable
-                errorMessage = duplicateVariables(conn, varsList);
                 if (errorMessage != null) {
                     return errorMessage;
                 }
@@ -2962,7 +2985,11 @@ public class PerformDataBase {
         }
     }
 
-    private ErrorMessage duplicateBlockLoopInstructions(Connection conn, List<InstructionDTO> instList)
+    private ErrorMessage duplicateBlockLoopInstructions(
+            Connection conn,
+            List<InstructionDTO> instList,
+            Map<Integer, Integer> parentOlderAndNewId,
+            Map<Integer, Integer> variableOlderAndNewId)
             throws SQLException {
         String blockLoopInstructionInsertQuery =
                 "INSERT INTO block_loop_instruction (id, action_custom_max_wait_sec, actions, active, block_marked, codified, "
@@ -2971,26 +2998,58 @@ public class PerformDataBase {
 
         try (PreparedStatement blockLoopStmt = conn.prepareStatement(blockLoopInstructionInsertQuery)) {
             for (InstructionDTO instruction : instList) {
+
+                Integer newParentId = parentOlderAndNewId.get(instruction.getParentId());
+
+                Integer newVariableId = variableOlderAndNewId.get(instruction.getVariableId());
+
                 blockLoopStmt.setInt(1, instruction.getInstructionId()); // The New Id
                 blockLoopStmt.setInt(2, instruction.getActionCustomMaxWaitSec());
                 blockLoopStmt.setString(3, instruction.getActions());
                 blockLoopStmt.setBoolean(4, instruction.getInstructionActive());
                 blockLoopStmt.setBoolean(5, instruction.getBlockMarked());
                 blockLoopStmt.setBoolean(6, instruction.getCodified());
-                blockLoopStmt.setString(7, instruction.getDefaultValue());
+
+                if (instruction.getDefaultValue() != null) {
+                    blockLoopStmt.setString(7, instruction.getDefaultValue());
+                } else {
+                    blockLoopStmt.setNull(7, Types.VARCHAR);
+                }
+
                 blockLoopStmt.setString(8, instruction.getDescription());
                 blockLoopStmt.setBoolean(9, instruction.getExportToABR());
                 blockLoopStmt.setInt(10, instruction.getInstructionOrderNumber());
                 blockLoopStmt.setString(11, instruction.getInstructionName());
                 blockLoopStmt.setInt(12, instruction.getOnHoldSeconds());
-                blockLoopStmt.setString(13, instruction.getOperation());
+
+                if (instruction.getOperation() != null) {
+                    blockLoopStmt.setString(13, instruction.getOperation());
+                } else {
+                    blockLoopStmt.setNull(13, Types.VARCHAR);
+                }
+
                 blockLoopStmt.setBoolean(14, instruction.getOptional());
-                blockLoopStmt.setInt(15, instruction.getParentId());
-                blockLoopStmt.setString(16, instruction.getPath());
-                blockLoopStmt.setInt(17, instruction.getVariableId());
+
+                if (instruction.getParentId() != null && instruction.getParentId() > 0) {
+                    blockLoopStmt.setInt(15, newParentId != null ? newParentId : instruction.getParentId());
+                } else {
+                    blockLoopStmt.setNull(15, java.sql.Types.INTEGER);
+                }
+
+                if (instruction.getPath() != null) {
+                    blockLoopStmt.setString(16, instruction.getPath());
+                } else {
+                    blockLoopStmt.setNull(16, Types.VARCHAR);
+                }
+
+                if (instruction.getVariableId() != null && instruction.getVariableId() > 0) {
+                    blockLoopStmt.setInt(17, newVariableId != null ? newVariableId : instruction.getVariableId());
+                } else {
+                    blockLoopStmt.setNull(17, java.sql.Types.INTEGER);
+                }
+
                 blockLoopStmt.setInt(18, instruction.getBlockId());
                 blockLoopStmt.setInt(19, instruction.getBotJobId());
-                // blockLoopStmt.executeUpdate();
 
                 blockLoopStmt.addBatch(); // Add to batch
             }
