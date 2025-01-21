@@ -317,6 +317,9 @@ public class ABRConfigurationPane extends ABRPane {
         migrationDBButton = builder.buildButton("Migrate");
         migrationDBButton.setMaxHeight(ABRConstants.SPACE_XXS);
 
+        migrationDBLabel.setVisible(false);
+        migrationDBButton.setVisible(false);
+
         reloadDBButton = builder.buildButton("Reload Configs");
         reloadDBButton.setMaxHeight(ABRConstants.SPACE_L);
 
@@ -439,26 +442,40 @@ public class ABRConfigurationPane extends ABRPane {
     }
 
     private void runMigrateScripts() {
+        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
 
-        int rowsAffected = performDataBase.migrationScripts();
-        if (rowsAffected < 0) {
-            performMessage.errorMessage(
-                    "Migration DB Scripts error",
-                    "Cannot perform  Migration for the Database",
-                    databaseChoiceBox.getValue(),
-                    null,
-                    null,
-                    0);
-        } else {
-            performMessage.showCustomModalDialog(
-                    "Migration DB Scripts Success!",
-                    String.format("Perform Migration on %s records", rowsAffected),
-                    "Database",
-                    databaseChoiceBox.getValue(),
-                    null,
-                    false,
-                    null,
-                    0);
+        Label newInstruction =
+                new Label("DB MIGRATION\nDatabase Selected: \"" + dataBaseType + "\" \nRelease : \"v2.1f Beta Test\"");
+        newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+        ;
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
+        alert.setHeaderText("Are you sure you want to EXECUTE MIGRATION DB (\"" + dataBaseType + "\")?");
+        alert.getDialogPane().setContent(newInstruction);
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.YES) {
+
+            int rowsAffected = performDataBase.migrationScripts();
+            if (rowsAffected < 0) {
+                performMessage.errorMessage(
+                        "Migration DB Scripts error",
+                        "Cannot perform  Migration for the Database",
+                        databaseChoiceBox.getValue(),
+                        null,
+                        null,
+                        0);
+            } else {
+                performMessage.showCustomModalDialog(
+                        "Migration DB Scripts Success!",
+                        String.format("Perform Migration on %s records", rowsAffected),
+                        "Database",
+                        databaseChoiceBox.getValue(),
+                        null,
+                        false,
+                        null,
+                        0);
+            }
         }
     }
 
@@ -581,7 +598,8 @@ public class ABRConfigurationPane extends ABRPane {
         String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
 
         Label newInstruction = new Label("DELETE ALL JOB DETAILS\nDatabase Selected: \"" + dataBaseType + "\"");
-        newInstruction.setStyle("-fx-font-size: 18px;");
+        newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
+        ;
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
         alert.setHeaderText("Are you sure you want to DELETE ALL JOB TABLES ROWS (\"" + dataBaseType + "\")?");

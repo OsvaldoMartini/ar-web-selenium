@@ -1093,7 +1093,7 @@ public class PerformDataBase {
     //        Platform.runLater(() -> {
     //            // Create a label to display the instruction
     //            javafx.scene.control.Label newInstruction = new Label("\"" + name + "\" -> \"" + operation + "\"");
-    //            newInstruction.setStyle("-fx-font-size: 18px;");
+    //            newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");;
     //
     //            StackPane stackPane = new StackPane(newInstruction);
     //            stackPane.setPadding(new Insets(20));
