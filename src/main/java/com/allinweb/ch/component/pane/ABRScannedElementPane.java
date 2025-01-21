@@ -3948,6 +3948,7 @@ public class ABRScannedElementPane extends ABRPane {
                             if (msgInstruction == null) {
                                 msgInstruction = new Pair("GO TO Block \"Unknown\"", "Unknown");
                                 success = false;
+                                jumpGotoError = true;
                                 jumpGoto = true;
                             } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                 jumpGoto = true;
@@ -4625,18 +4626,16 @@ public class ABRScannedElementPane extends ABRPane {
                             String msg2 = "";
 
                             for (String line : lines) {
-                                int indexMessage = line.indexOf("Message: ");
-                                if (indexMessage != -1) {
-                                    msg1 = line.substring(indexMessage + "Message: ".length());
-                                }
-
-                                int indexCause = line.indexOf("Cause: ");
-                                if (indexCause != -1) {
-                                    msg2 = line.substring(indexCause);
+                                if (Strings.isNullOrEmpty(msg1)) {
+                                    msg1 = line;
+                                } else if (Strings.isNullOrEmpty(msg2)) {
+                                    msg2 = line;
                                 }
                             }
 
-                            performMessage.errorMessage(resultActions, msg1, msg2, null, null, 260);
+                            String msg3 = resultActions;
+
+                            performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
                             //                            throw new RuntimeException(t);
                         }
 

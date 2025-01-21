@@ -15,6 +15,7 @@ import com.allinweb.ch.component.scene.ABRExcelFileScene;
 import com.allinweb.ch.component.scene.ABRNewCommandScene;
 import com.allinweb.ch.component.scene.ABRSaveBlockScene;
 import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -61,9 +62,11 @@ public class WebSocketStompServer {
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     private static final PerformDataBase performDataBase;
+    private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
+        performDBSavedBlock = PerformDBSavedBlock.getInstance();
     }
 
     public int getBotJobId() {
@@ -154,11 +157,11 @@ public class WebSocketStompServer {
                         blockStateDTO.getBotJobId(),
                         blockStateDTO.getBlockId(),
                         blockStateDTO.getBlockName(),
-                        blockStateDTO.isBlockActive(),
+                        blockStateDTO.getBlockActive(),
                         3); // Block wait time Default 3 seconds per block
 
                 performDataBase.updateInstructionStatusByBlock(
-                        blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.isBlockActive());
+                        blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
 
                 ABRSharedResources.getInstance().changeDbConnection();
 
@@ -299,7 +302,7 @@ public class WebSocketStompServer {
 
     private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        SavedBlocksDTO savedBlocksDTO = performDataBase.createSavedBlockDTO(blockSplitDTO);
+        SavedBlocksDTO savedBlocksDTO = performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
 
         BlockDTO blockDTO = new BlockDTO();
         blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());

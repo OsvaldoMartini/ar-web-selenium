@@ -1,6 +1,5 @@
 package com.allinweb.ch.persistence;
 
-import com.allinweb.ch.core.ABRSharedResources;
 import java.io.Serializable;
 import java.util.List;
 import javax.persistence.*;
@@ -123,9 +122,7 @@ public class HomeBankingDTO extends BaseDTO implements Serializable {
     }
 
     public List<BotJobDTO> getBotJobs() {
-        return ABRSharedResources.getInstance()
-                .getEntityList(
-                        BotJobDTO.class, botJobDTO -> botJobDTO.getHomeBanking().getId() == this.getId());
+        return botJobDTOS;
     }
 
     public void setBotJobs(List<BotJobDTO> botJobDTOS) {

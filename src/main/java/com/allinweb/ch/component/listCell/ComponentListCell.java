@@ -12,6 +12,7 @@ import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRConstants;
@@ -48,11 +49,13 @@ import javafx.scene.text.FontWeight;
 public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
     private static final PerformDataBase performDataBase;
+    private static final PerformDBSavedBlock performDBSavedBlock;
     private static final PerformActions performAction;
 
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
+        performDBSavedBlock = PerformDBSavedBlock.getInstance();
         performAction = PerformActions.getInstance();
     }
 
@@ -200,7 +203,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                         }
 
                         this.blockLoadDTO =
-                                performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
+                                performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
                         this.blockLoadDTO.setTypeId(1);
                         this.blockLoadDTO.setActive(savedBlocksDTO.getActive());
                         this.blockLoadDTO.setWait(savedBlocksDTO.getWait());
@@ -252,7 +255,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                         if (this.botJobDTO != null) {
 
                             originalLoopInstruction =
-                                    performAction.createBlockLoopInstructionsFromSavedBlocksDTO(savedBlocksDTO);
+                                    performDBSavedBlock.createBlockLoopInstructionsFromSavedBlocksDTO(savedBlocksDTO);
 
                             // Debugging: Ensure originalLoopInstruction has the right data
                             ABRLogger.getInstance(ComponentListCell.class)

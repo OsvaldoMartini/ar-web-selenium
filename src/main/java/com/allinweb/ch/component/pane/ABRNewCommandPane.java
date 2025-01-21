@@ -225,7 +225,7 @@ public class ABRNewCommandPane extends ABRPane {
                     new ComboBoxImage("Check", new Image(ABRConstants.ICON_CHECK), ABRConstants.CHECK_VALUE));
 
             // Add "IF" only if it does not meet the exclusion conditions
-            if (!rowMoveDTO.isBetween()) {
+            if (!rowMoveDTO.getIsBetween()) {
 
                 itemsInstructions.add(new ComboBoxImage("IF", new Image(ABRConstants.ICON_IF_ELSE), ABRConstants.IF));
             }

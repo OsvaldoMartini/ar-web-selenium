@@ -1,9 +1,7 @@
 package com.allinweb.ch.persistence;
 
-import com.allinweb.ch.core.ABRSharedResources;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import javax.persistence.*;
 import org.hibernate.annotations.Fetch;
@@ -37,11 +35,6 @@ public class BotJobDTO extends BaseDTO implements Serializable {
     @JoinColumn(name = "bot_job_id")
     @Fetch(FetchMode.SUBSELECT)
     private List<VariableDTO> variableDTOS = new ArrayList<>();
-
-    //    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    //    @JoinColumn(name = "bot_job_id")
-    //    @Fetch(FetchMode.SUBSELECT)
-    //    private List<ExcelReportDTO> excelReportDTO = new ArrayList<>();
 
     public BotJobDTO() {
         super();
@@ -89,35 +82,34 @@ public class BotJobDTO extends BaseDTO implements Serializable {
     }
 
     public List<BlockDTO> getBlocks() {
-        return ABRSharedResources.getInstance()
-                .getEntityList(BlockDTO.class, block -> block.getBotJobDTO().getId() == this.getId())
-                .stream()
-                .sorted(Comparator.comparingInt(BlockDTO::getBlockOrderNumber))
-                .toList();
+        return blockDTOS;
     }
 
     public void setBlocks(List<BlockDTO> blockDTOS) {
         this.blockDTOS = blockDTOS;
     }
 
-    public List<VariableDTO> getVariables() {
-        return ABRSharedResources.getInstance()
-                .getEntityList(
-                        VariableDTO.class, variable -> variable.getBotJobDTO().getId() == this.getId());
+    public HomeBankingDTO getHomeBankingDTO() {
+        return homeBankingDTO;
     }
 
-    public void setVariables(List<VariableDTO> variableDTOS) {
+    public void setHomeBankingDTO(HomeBankingDTO homeBankingDTO) {
+        this.homeBankingDTO = homeBankingDTO;
+    }
+
+    public List<BlockDTO> getBlockDTOS() {
+        return blockDTOS;
+    }
+
+    public void setBlockDTOS(List<BlockDTO> blockDTOS) {
+        this.blockDTOS = blockDTOS;
+    }
+
+    public List<VariableDTO> getVariableDTOS() {
+        return variableDTOS;
+    }
+
+    public void setVariableDTOS(List<VariableDTO> variableDTOS) {
         this.variableDTOS = variableDTOS;
     }
-
-    //    public List<ExcelReportDTO> getExcelReportDTO() {
-    //        return ABRSharedResources.getInstance()
-    //                .getEntityList(
-    //                        ExcelReportDTO.class,
-    //                        excelReportDTO -> excelReportDTO.getBotJobDTO().getId() == this.getId());
-    //    }
-    //
-    //    public void setExcelReportDTO(List<ExcelReportDTO> excelReportDTO) {
-    //        this.excelReportDTO = excelReportDTO;
-    //    }
 }

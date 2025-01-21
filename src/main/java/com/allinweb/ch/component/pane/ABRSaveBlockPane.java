@@ -7,7 +7,7 @@ import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ABRConstants;
@@ -46,12 +46,12 @@ public class ABRSaveBlockPane extends ABRPane {
 
     private static final PerformMessage performMessage;
     private static final PerformActions performAction;
-    private static final PerformDataBase performDataBase;
+    private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
         performAction = PerformActions.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+        performDBSavedBlock = PerformDBSavedBlock.getInstance();
     }
 
     TextField nameTextField;
@@ -155,8 +155,8 @@ public class ABRSaveBlockPane extends ABRPane {
 
                     loadSavedBlocksForBotJob(this.botJobDTO.getId());
 
-                    originalLoopInstruction =
-                            performAction.createSavedBlockLoopInstructionsFromBlocksDTO(this.blockDTO, savedBlocksDTO);
+                    originalLoopInstruction = performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
+                            this.blockDTO, savedBlocksDTO);
 
                     // Debugging: Ensure originalLoopInstruction has the right data
                     ABRLogger.getInstance(ABRSaveBlockPane.class)
@@ -181,7 +181,7 @@ public class ABRSaveBlockPane extends ABRPane {
 
                     // Here Always Creating a New Component Block
                     BlockLoadDTO blockDTO =
-                            performAction.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
+                            performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
                     blockDTO.setTypeId(1);
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setName(savedBlocksDTO.getName());
@@ -432,7 +432,8 @@ public class ABRSaveBlockPane extends ABRPane {
         int newId = -1;
 
         try {
-            newId = performDataBase.insertSavedInstruction(savedInstruction, savedCurrentBotJobId, savedCurrentBlockId);
+            newId = performDBSavedBlock.insertSavedInstruction(
+                    savedInstruction, savedCurrentBotJobId, savedCurrentBlockId);
 
         } catch (SQLException e) {
 
