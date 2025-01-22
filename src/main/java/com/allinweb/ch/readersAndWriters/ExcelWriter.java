@@ -192,10 +192,10 @@ public class ExcelWriter {
                                     "GO TO Block \"%s\" Id: \"%s\"",
                                     "#" + parts[2] + " " + parts[3], parts[0] + "-(" + parts[1] + ")");
                         } else {
-                            keyAction = String.format(
-                                    "GO TO Block Limit Reached for \"%s\"", "#" + parts[2] + " " + parts[3]);
+                            keyAction =
+                                    String.format("GO TO Limit Reached for \"%s\"", "#" + parts[2] + " " + parts[3]);
                         }
-                        value = String.format("Block Loop %s times", msgLoop.getValue());
+                        value = String.format("GO TO Remains %s times", msgLoop.getValue());
                     }
                 } else if (actions[0].equalsIgnoreCase(ABRConstants.LOOP)) {
                     if (msgLoop.getValue().equals("Unknown")) {
@@ -205,7 +205,7 @@ public class ExcelWriter {
                         String[] msgParent = msgLoop.getKey().split(":");
                         keyAction = String.format(
                                 "Jump To Parent \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
-                        value = String.format("Loop %s times", msgLoop.getValue());
+                        value = String.format("Loop Remains %s times", msgLoop.getValue());
                     }
                 } else if (actions[0].equalsIgnoreCase(ABRConstants.REFRESH_ONLY)) {
                     String[] msgParent = msgLoop.getKey().split(":");
@@ -231,7 +231,7 @@ public class ExcelWriter {
                         String[] msgParent = msgLoop.getKey().split(":");
                         keyAction = String.format(
                                 "Jump To \"%s\"", msgParent[0] + "-(" + msgParent[1] + ") " + msgParent[2]);
-                        value = String.format("Loop %s times", msgLoop.getValue());
+                        value = String.format("Loop Remains %s times", msgLoop.getValue());
                     }
                 } else if (actions[0].equalsIgnoreCase(ABRConstants.HOLD)) {
                     value = "";

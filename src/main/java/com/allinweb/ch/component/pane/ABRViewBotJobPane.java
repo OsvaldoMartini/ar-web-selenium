@@ -27,7 +27,7 @@ import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
-import com.allinweb.ch.util.ExcelWriter;
+import com.allinweb.ch.util.ExcelUtils;
 import com.allinweb.ch.util.ExtractedData;
 import com.google.gson.Gson;
 import java.awt.*;
@@ -74,7 +74,6 @@ import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import javax.swing.*;
 import javax.websocket.server.ServerContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -471,7 +470,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 // Check if the Excel file already exists
                 ExtractedData extractedData =
-                        ExcelWriter.isFileExists(botLoadJobs.get(0).getName(), allActions);
+                        ExcelUtils.isFileExists(botLoadJobs.get(0).getName(), allActions);
 
                 if (extractedData == null
                         || (extractedData.getErrorTitle() != null
@@ -481,7 +480,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     Task<Void> excelTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            new ExcelWriter().generateExcelFiles(botLoadJobs, extractedData, false);
+                            new ExcelUtils().generateExcelFiles(botLoadJobs, extractedData, false);
                             return null;
                         }
                     };
@@ -645,7 +644,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
                 // Check if the Excel file already exists
-                ExtractedData extractedData = ExcelWriter.isFileExists(this.botJobLoad.getName(), allActions);
+                ExtractedData extractedData = ExcelUtils.isFileExists(this.botJobLoad.getName(), allActions);
 
                 if (extractedData.getErrorMessage() != null) {
 
@@ -664,7 +663,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 Task<Void> excelTask = new Task<>() {
                     @Override
                     protected Void call() throws Exception {
-                        new ExcelWriter().generateExcelFiles(botLoadJobs, extractedData, true);
+                        new ExcelUtils().generateExcelFiles(botLoadJobs, extractedData, true);
                         return null;
                     }
                 };
