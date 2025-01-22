@@ -1,6 +1,5 @@
 package com.allinweb.ch.persistence;
 
-import com.allinweb.ch.core.ABRSharedResources;
 import java.util.*;
 import javax.persistence.*;
 
@@ -116,15 +115,8 @@ public class BlockDTO extends BaseDTO {
         this.botJobDTO = botJobDTO;
     }
 
-    public List<BlockLoopInstructionDTO> getBlockLoopInstructions() {
-        return ABRSharedResources.getInstance()
-                .getEntityList(
-                        BlockLoopInstructionDTO.class,
-                        instruction -> instruction.getBlock().getId() == this.getId());
-    }
-
-    public void setBlockLoopInstructions(List<BlockLoopInstructionDTO> blockLoopInstructionDTOS) {
-        this.blockLoopInstructionDTOS = blockLoopInstructionDTOS;
+    public void setBotJobDTO(BotJobDTO botJobDTO) {
+        this.botJobDTO = botJobDTO;
     }
 
     public List<BlockLoopInstructionDTO> getBlockLoopInstructionDTOS() {

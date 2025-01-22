@@ -2,14 +2,11 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
-import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
-import com.allinweb.ch.persistence.InstructionReferenceDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
@@ -233,52 +230,6 @@ public class ABRSaveBotJobAsPane extends ABRPane {
     private void clearBotJob(BotJobDTO botJob) {
         Queue<BlockDTO> blocks = new LinkedList<>(botJob.getBlocks());
         ABRSharedResources.getInstance().removeAllEntity(blocks, BlockDTO.class);
-    }
-
-    private void copyBotJob(BotJobDTO from, BotJobDTO to) {
-        Queue<BlockDTO> blocks = new LinkedList<>();
-        Queue<BlockLoopInstructionDTO> instructions = new LinkedList<>();
-        Queue<InstructionReferenceDTO> references = new LinkedList<>();
-        from.getBlocks().forEach(block -> {
-            BlockDTO newBlock = new BlockDTO(to);
-            newBlock.setName(block.getName());
-            newBlock.setDescription(block.getDescription());
-            block.getBlockLoopInstructions().forEach(instruction -> {
-                BlockLoopInstructionDTO newInstruction = new BlockLoopInstructionDTO(newBlock);
-                newInstruction.setActionCustomMaxWaitSec(instruction.getActionCustomMaxWaitSec());
-                newInstruction.setActions(instruction.getActions());
-                newInstruction.setDefaultValue(instruction.getDefaultValue());
-                newInstruction.setDescription(instruction.getDescription());
-                newInstruction.setCodified(instruction.getCodified());
-                newInstruction.setExportToABR(instruction.getExportToABR());
-                newInstruction.setActive(instruction.getActive());
-                newInstruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber());
-                newInstruction.setName(instruction.getName());
-                newInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());
-                newInstruction.setOptional(instruction.getOptional());
-                newInstruction.setPath(instruction.getPath());
-
-                instruction.getInstructionReferenceDTOList().forEach(reference -> {
-                    InstructionReferenceDTO newReference = new InstructionReferenceDTO(newInstruction);
-                    newReference.setReferenceType(reference.getReferenceType());
-                    newReference.setValue(reference.getValue());
-                    references.add(newReference);
-                });
-
-                instructions.add(newInstruction);
-            });
-            blocks.add(newBlock);
-        });
-        ABRSharedResources.getInstance().addAllEntity(blocks, BlockDTO.class, () -> ABRSharedResources.getInstance()
-                .addAllEntity(instructions, BlockLoopInstructionDTO.class, () -> ABRSharedResources.getInstance()
-                        .addAllEntity(
-                                references,
-                                InstructionReferenceDTO.class,
-                                () -> new ABRAlertScene(
-                                        Alert.AlertType.INFORMATION,
-                                        "Bot Job Saved",
-                                        "The bot job has been saved successfully",
-                                        ButtonType.OK))));
     }
 
     private boolean duplicateExcelFile(String originalFilePath, String newFilePath) {

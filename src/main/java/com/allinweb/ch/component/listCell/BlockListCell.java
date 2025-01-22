@@ -130,7 +130,7 @@ public class BlockListCell extends ListCell<BlockDTO> {
                 uiBlock.setAlignment(Pos.TOP_CENTER);
 
                 VBox.setVgrow(instructionList, Priority.ALWAYS);
-                int size = item.getBlockLoopInstructions().size();
+                int size = item.getBlockLoopInstructionDTOS().size();
 
                 setMaxHeight(Double.MAX_VALUE);
                 this.setPrefHeight(ABRConstants.SPACE_L * (double) size + 35.0D);
@@ -177,9 +177,9 @@ public class BlockListCell extends ListCell<BlockDTO> {
                         if (block != null) {
                             List<BlockLoopInstructionDTO> blockLoopInstructions =
                                     new ArrayList<BlockLoopInstructionDTO>();
-                            blockLoopInstructions.addAll(block.getBlockLoopInstructions());
-                            blockLoopInstructions.addAll(item.getBlockLoopInstructions());
-                            block.setBlockLoopInstructions(blockLoopInstructions);
+                            blockLoopInstructions.addAll(block.getBlockLoopInstructionDTOS());
+                            blockLoopInstructions.addAll(item.getBlockLoopInstructionDTOS());
+                            block.setBlockLoopInstructionDTOS(blockLoopInstructions);
                             ABRSharedResources.getInstance().updateEntity(block, BlockDTO.class, () -> {
                                 ABRSharedResources.getInstance().refreshEntity(item, BlockDTO.class, () -> {
                                     ABRSharedResources.getInstance().removeEntity(item, BlockDTO.class, () -> {

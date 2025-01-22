@@ -1692,7 +1692,7 @@ public class PerformDataBase {
                     for (BlockDTO block : botJob.getBlocks()) {
                         if (block.getId() == Integer.parseInt(blockId)) {
                             boolean exist = false;
-                            for (BlockLoopInstructionDTO blockInstruction : block.getBlockLoopInstructions()) {
+                            for (BlockLoopInstructionDTO blockInstruction : block.getBlockLoopInstructionDTOS()) {
                                 if (blockInstruction.getId() == Integer.parseInt(blockInstrId)) {
                                     for (InstructionReferenceDTO instructionReference :
                                             blockInstruction.getInstructionReferenceDTOList()) {
