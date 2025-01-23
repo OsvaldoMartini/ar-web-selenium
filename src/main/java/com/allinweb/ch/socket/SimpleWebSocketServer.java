@@ -41,15 +41,15 @@ public class SimpleWebSocketServer {
                     broadcastMessageToAll(broadcastMessage);
                     break;
                 case "echo":
-                    sendMessage(session, "Echo: " + jsonMessage.get("body").getAsString());
+                    sendMessageJson(session, "Echo: " + jsonMessage.get("body").getAsString());
                     break;
                 default:
-                    sendMessage(session, "Unknown message type: " + type);
+                    sendMessageJson(session, "Unknown message type: " + type);
                     break;
             }
         } catch (Exception e) {
             System.err.println("Error processing message: " + e.getMessage());
-            sendMessage(session, "Error processing message.");
+            sendMessageJson(session, "Error processing message.");
         }
     }
 
@@ -75,7 +75,7 @@ public class SimpleWebSocketServer {
         synchronized (sessions) {
             for (Session session : sessions) {
                 if (session.isOpen()) {
-                    sendMessage(session, message);
+                    sendMessageJson(session, message);
                 }
             }
         }
@@ -84,6 +84,22 @@ public class SimpleWebSocketServer {
     private void sendMessage(Session session, String message) {
         try {
             session.getBasicRemote().sendText(message);
+        } catch (IOException e) {
+            System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+        }
+    }
+
+    private void sendMessageJson(Session session, String message) {
+        try {
+            // Create a JSON object with the key "body" and the provided message
+            JsonObject jsonMessage = new JsonObject();
+            jsonMessage.addProperty("body", message);
+
+            // Convert the JSON object to a string
+            String jsonString = jsonMessage.toString();
+
+            // Send the JSON string over WebSocket
+            session.getBasicRemote().sendText(jsonString);
         } catch (IOException e) {
             System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
         }

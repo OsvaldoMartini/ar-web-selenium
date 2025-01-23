@@ -21,7 +21,7 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
-import com.allinweb.ch.socket.WebSocketStompServer;
+import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ABRPropertyEnum;
@@ -1058,11 +1058,12 @@ public class ABRViewBotJobPane extends ABRPane {
         // Initialize WebSocket container
         wsContainer = WebSocketServerContainerInitializer.configureContext(context);
         //        wsContainer.setDefaultMaxSessionIdleTimeout(600000);
-        wsContainer.addEndpoint(WebSocketStompServer.class);
+        //        wsContainer.addEndpoint(WebSocketStompServer.class);
+        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register SimpleWebSocketServer
 
         // Start Jetty server
         jettyServer.start();
-        System.out.println("WebSocket server started at ws://localhost:8080/websocket");
+        System.out.println("WebSocket server started at ws://localhost:" + port + "/websocket");
     }
 
     // Method to check if the port is already in use
@@ -1072,20 +1073,6 @@ public class ABRViewBotJobPane extends ABRPane {
         } catch (IOException e) {
             return true; // Port is already in use
         }
-    }
-
-    private Integer loadNextIdBlockData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ABRLogger.getInstance(ABRViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return null;
     }
 
     public void stopWebSocketServer() {
