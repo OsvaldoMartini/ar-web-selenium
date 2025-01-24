@@ -84,7 +84,7 @@ public class WebSocketStompServer {
                 BlockSplitDTO responseBack = gson.fromJson(body, BlockSplitDTO.class);
                 responseBack.setType("MARTINI");
                 String jsonData = gson.toJson(responseBack);
-                sendMessageToAll(jsonData);
+                sendMessageToAll(formatBodyJson(jsonData));
                 break;
             case "BLOCKS_COMPONENT":
                 BlockSplitDTO blockComponentDTO = gson.fromJson(body, BlockSplitDTO.class);
@@ -239,12 +239,18 @@ public class WebSocketStompServer {
     }
 
     public static void sendMessageToAll(String message) {
+
+        message = "martini";
         synchronized (sessions) {
             for (Session session : sessions) {
                 if (session.isOpen()) {
                     try {
-                        String stompMessage = "MESSAGE\ndestination:/topic/messages\ncontent-length:" + message.length()
-                                + "\n\n" + message + "\u0000";
+                        String stompMessage = "MESSAGE\n" + "destination:/topic/messages\n"
+                                + "content-type:text/plain\n"
+                                + // Add content-type header
+                                "content-length:"
+                                + message.length() + "\n\n" + message
+                                + "\u0000"; // Message body followed by null character
                         session.getBasicRemote().sendText(stompMessage);
                         ABRLogger.getInstance(WebSocketStompServer.class)
                                 .info(String.format("Sent message to session %s: %s", session.getId(), message));
@@ -405,7 +411,14 @@ public class WebSocketStompServer {
         }
     }
 
-    // Handle DELETE_BLOCK message
+    private String formatBodyJson(String message) {
+        // Create a JSON object with the key "body" and the provided message
+        JsonObject jsonMessage = new JsonObject();
+        jsonMessage.addProperty("body", message);
+
+        // Convert the JSON object to a string
+        return jsonMessage.toString();
+    }
 
     // Dummy method to simulate fetching the BotJobDTO (replace with actual logic)
     private BotJobDTO fetchBotJob() {
