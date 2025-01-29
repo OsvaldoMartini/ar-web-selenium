@@ -5,6 +5,7 @@ import org.openqa.selenium.WebElement;
 
 public class SearchReturn {
     String currentXPath;
+    String iFrameXPath;
     String absolutXPath;
     String customXPath;
     String xPathWorkedFirst;
@@ -17,6 +18,14 @@ public class SearchReturn {
     String definedName;
     WebElementTagNameEnum forceTypeEnum;
     WebElement element;
+
+    public String getiFrameXPath() {
+        return iFrameXPath;
+    }
+
+    public void setiFrameXPath(String iFrameXPath) {
+        this.iFrameXPath = iFrameXPath;
+    }
 
     public String getAttribId() {
         return attribId;

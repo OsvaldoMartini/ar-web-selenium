@@ -30,6 +30,9 @@ import com.google.gson.JsonObject;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -171,6 +174,7 @@ public class ABRScannedElementPane extends ABRPane {
     private TextField attribIdTextField;
     private TextField attribNameTextField;
     private TextField currentXPathTextField;
+    private TextField iFrameXPathTextField;
     private TextField absolutXPathTextField;
     private TextField customXPathTextField;
     private TextField originalTagNameField;
@@ -332,7 +336,7 @@ public class ABRScannedElementPane extends ABRPane {
                 "/cross.png", // Icon source
                 16.0, // Smaller icon size
                 new Insets(2.0) // Reduced padding
-                );
+        );
 
         checkTestAction = new CheckBox("Test Actions");
         checkJavaScript = new CheckBox("JS");
@@ -393,6 +397,8 @@ public class ABRScannedElementPane extends ABRPane {
         attribNameTextField.setPromptText("Attrib Name");
         currentXPathTextField = new TextField();
         currentXPathTextField.setPromptText("XPath");
+        iFrameXPathTextField = new TextField();
+        iFrameXPathTextField.setPromptText("iFrame XPath");
         absolutXPathTextField = new TextField();
         absolutXPathTextField.setPromptText("Absolut XPath");
         customXPathTextField = new TextField();
@@ -1046,6 +1052,7 @@ public class ABRScannedElementPane extends ABRPane {
         searchReturn.setAttributeValue("");
         searchReturn.setCoords("");
         searchReturn.setCurrentXPath(currentXPathTextField.getText());
+        searchReturn.setiFrameXPath(iFrameXPathTextField.getText());
         searchReturn.setAbsolutXPath(absolutXPathTextField.getText());
         searchReturn.setCustomXPath(customXPathTextField.getText());
         searchReturn.setElement(null);
@@ -1073,6 +1080,7 @@ public class ABRScannedElementPane extends ABRPane {
                 System.out.println("xPath: " + searchReturn.getCurrentXPath());
                 System.out.println("Absolut xPath: " + searchReturn.getAbsolutXPath());
                 System.out.println("Custom xPath: " + searchReturn.getCustomXPath());
+                System.out.println("iFrame xPath: " + searchReturn.getiFrameXPath());
                 System.out.println("CoordLeft: " + coordLeft);
                 System.out.println("CoordRight: " + coordRight);
 
@@ -2286,8 +2294,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 String actionReq = checkClickElement.isSelected()
                                         ? "CLICK"
                                         : checkInputText.isSelected()
-                                                ? "INPUT"
-                                                : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
+                                        ? "INPUT"
+                                        : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
                                 BlockLoopInstructionDTO instruction = abrWebElement.buildBlockLoopInstruction(
                                         abrWebElement.getForceTagEnum(),
                                         actionReq,
@@ -2555,7 +2563,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                                     if (bestMatch == null
                                             || highestSimilarity
-                                                    < 0.8) { // Threshold to add new elements if no close match is
+                                            < 0.8) { // Threshold to add new elements if no close match is
                                         // found
                                         // Convert Jsoup Element to Selenium WebElement
                                         //                WebElement webElement =
@@ -2856,27 +2864,27 @@ public class ABRScannedElementPane extends ABRPane {
                     case dynamic -> System.out.println(
                             "Default case"); //         Generates Dynamic Action -> Click, Hover, Etc.
                     case jsoup -> System.out.println("Default case");
-                        // OLD CASES
-                        //                    case attribute -> {
-                        //                        String attributeValue = element.getAttribute(priority.getName());
-                        //                        if (attributeValue != null && !attributeValue.isBlank()){
-                        //                            savedReferences.put(priority.getName(),attributeValue);
-                        //                            System.out.println("savedReferences size: " +
-                        // savedReferences.size());
-                        //                        }
-                        //                    }
-                        //                    case xpath -> {
-                        //                        savedReferences.put(priority.getName(),
-                        // ABRWebUtil.extractWebElementXPath(element));
-                        //                        System.out.println("savedReferences size: " + savedReferences.size());
-                        //                    }
-                        //                    case coordinates -> {
-                        //                        Rectangle coordinates = element.getRect();
-                        //                        savedReferences.put(priority.getName(), (coordinates.getX() +
-                        // (coordinates.getWidth()/2)) + "," +
-                        //                                (coordinates.getY() + (coordinates.getHeight()/2)));
-                        //                        System.out.println("savedReferences size: " + savedReferences.size());
-                        //                    }
+                    // OLD CASES
+                    //                    case attribute -> {
+                    //                        String attributeValue = element.getAttribute(priority.getName());
+                    //                        if (attributeValue != null && !attributeValue.isBlank()){
+                    //                            savedReferences.put(priority.getName(),attributeValue);
+                    //                            System.out.println("savedReferences size: " +
+                    // savedReferences.size());
+                    //                        }
+                    //                    }
+                    //                    case xpath -> {
+                    //                        savedReferences.put(priority.getName(),
+                    // ABRWebUtil.extractWebElementXPath(element));
+                    //                        System.out.println("savedReferences size: " + savedReferences.size());
+                    //                    }
+                    //                    case coordinates -> {
+                    //                        Rectangle coordinates = element.getRect();
+                    //                        savedReferences.put(priority.getName(), (coordinates.getX() +
+                    // (coordinates.getWidth()/2)) + "," +
+                    //                                (coordinates.getY() + (coordinates.getHeight()/2)));
+                    //                        System.out.println("savedReferences size: " + savedReferences.size());
+                    //                    }
                 }
             }
         }
@@ -3000,15 +3008,15 @@ public class ABRScannedElementPane extends ABRPane {
         try {
             // Set up an all-trusting trust manager
             TrustManager[] trustAllCerts = new TrustManager[] {
-                new X509TrustManager() {
-                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                        return null;
+                    new X509TrustManager() {
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            return null;
+                        }
+
+                        public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
                     }
-
-                    public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
-
-                    public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
-                }
             };
 
             // Install the all-trusting trust manager
@@ -3294,6 +3302,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "          var xpath = getMartiniXPath(elementBelowTooltip);"
                 + "          var absoluteXPath = getMartiniAbsoluteXPath(elementBelowTooltip);"
                 + "          var customXPath = getMartiniCustomXPath(elementBelowTooltip);"
+                + "          var iFrameXPath = 'TO DO';"
                 + "          window.currentXPath = xpath;"
                 + "          window.currentAbsoluteXPath = absoluteXPath;"
                 + "          window.customXPath = customXPath;"
@@ -3303,10 +3312,16 @@ public class ABRScannedElementPane extends ABRPane {
                 + "          window.tagName = elementBelowTooltip.tagName.toLowerCase();"
                 + "          window.coords = elementBelowTooltip.getBoundingClientRect();"
                 + "          window.coords = window.coords.left + ',' + window.coords.top;"
+                + "          console.log('xpath ',window.xpath);"
+                + "          console.log('absoluteXPath ',window.absoluteXPath);"
+                + "          console.log('currentXPath ',window.currentXPath);"
+                + "          console.log('customXPath ',window.customXPath);"
+                + "          console.log('iFrameXPath ', window.iFrameXPath);"
                 + "    }"
                 + "    window.currentXPath = '';"
                 + "    window.currentAbsoluteXPath = '';"
                 + "    window.customXPath = '';"
+                + "    window.iFrameXPath = '';"
                 + "    window.attribId = '';"
                 + "    window.attribName = '';"
                 + "    window.tagName = '';"
@@ -3325,50 +3340,67 @@ public class ABRScannedElementPane extends ABRPane {
 
         // Inject the JavaScript into the webpage
         jsExecutor = (JavascriptExecutor) driver;
-        jsExecutor.executeScript(jsCode);
+       
+
+//        File scriptFile = new File("path/to/tooltipScript.js");
+        
+        String scriptContent = null;
+        try {
+            scriptContent = loadScriptFromResource("tooltipScript.js");
+//            scriptContent = new String(Files.readAllBytes(scriptFile.toPath()), StandardCharsets.UTF_8);
+            
+            jsExecutor.executeScript(scriptContent);
+        } catch (IOException e) {
+            jsExecutor.executeScript(jsCode);
+            e.printStackTrace();
+        }
+
+        
 
         // Start a thread to periodically check the XPath value and update the TextField
         new Thread(() -> {
-                    while (periodicActivated) {
-                        //                        String currentXPath = (String) jsExecutor.executeScript("return
-                        // window.currentXPath;");
+            while (periodicActivated) {
+                //                        String currentXPath = (String) jsExecutor.executeScript("return
+                // window.currentXPath;");
 
-                        // Execute JavaScript to construct and return a custom object
-                        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
-                                jsExecutor.executeScript(
-                                        "var obj = { attribId: window.attribId, attribName: window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords }; return obj;");
+                // Execute JavaScript to construct and return a custom object
+                LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
+                        jsExecutor.executeScript(
+                                "var obj = { attribId: window.attribId, attribName: window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords }; return obj;");
 
-                        // Convert the LinkedHashMap to a Java Map (if necessary)
-                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
+                // Convert the LinkedHashMap to a Java Map (if necessary)
+                Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
 
-                        if (linkedHashMap != null) {
-                            Platform.runLater(() -> {
-                                attribIdTextField.setText((String) resultMap.get("attribId"));
-                                attribNameTextField.setText((String) resultMap.get("attribName"));
-                                currentXPathTextField.setText((String) resultMap.get("currentXPath"));
-                                absolutXPathTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
-                                customXPathTextField.setText((String) resultMap.get("customXPath"));
-                                originalTagNameField.setText((String) resultMap.get("tagName"));
-                                coordsTextField.setText((String) resultMap.get("coords"));
-                                if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
-                                        && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
-                                    extractValidateDynamic();
-                                }
+                if (linkedHashMap != null) {
+                    Platform.runLater(() -> {
+                        attribIdTextField.setText((String) resultMap.get("attribId"));
+                        attribNameTextField.setText((String) resultMap.get("attribName"));
+                        currentXPathTextField.setText((String) resultMap.get("currentXPath"));
+                        iFrameXPathTextField.setText((String) resultMap.get("iFrameXPath"));
+                        absolutXPathTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
+                        customXPathTextField.setText((String) resultMap.get("customXPath"));
+                        originalTagNameField.setText((String) resultMap.get("tagName"));
+                        coordsTextField.setText((String) resultMap.get("coords"));
 
-                                if (Strings.isNullOrEmpty(attribNameTextField.getText())) {
-                                    attribNameTextField.setText(originalTagNameField.getText());
-                                }
-                            });
+                        if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
+                                && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
+                            extractValidateDynamic();
                         }
-                        try {
-                            Thread.sleep(500); // Check every 500 milliseconds
-                        } catch (InterruptedException e) {
-                            ABRLogger.getInstance(ABRScannedElementPane.class)
-                                    .fine(String.format(
-                                            "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
+
+                        if (Strings.isNullOrEmpty(attribNameTextField.getText())) {
+                            attribNameTextField.setText(originalTagNameField.getText());
                         }
-                    }
-                })
+                    });
+                }
+                try {
+                    Thread.sleep(500); // Check every 500 milliseconds
+                } catch (InterruptedException e) {
+                    ABRLogger.getInstance(ABRScannedElementPane.class)
+                            .fine(String.format(
+                                    "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
+                }
+            }
+        })
                 .start();
     }
 
@@ -3467,7 +3499,7 @@ public class ABRScannedElementPane extends ABRPane {
                         + " WHERE bank.id = " + bankId
                         + "                         group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
                 String jobs = rs.getString("Jobs");
@@ -3500,7 +3532,7 @@ public class ABRScannedElementPane extends ABRPane {
                         + " join block blk on blk.bot_job_id = bot.id "
                         + " order by blockInstr.id, blockInstr.instruction_order_number, instr.id";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
 
             List<InstructionReferenceDTO> instructions = new ArrayList<>();
 
@@ -3529,11 +3561,11 @@ public class ABRScannedElementPane extends ABRPane {
                                             blockInstruction.getInstructionReferenceDTOList()) {
                                         if (instructionReference.getId() == Integer.parseInt(instId)
                                                 && instructionReference
-                                                        .getReferenceType()
-                                                        .equalsIgnoreCase(referenceType)
+                                                .getReferenceType()
+                                                .equalsIgnoreCase(referenceType)
                                                 && instructionReference
-                                                        .getValue()
-                                                        .equalsIgnoreCase(value)) {
+                                                .getValue()
+                                                .equalsIgnoreCase(value)) {
                                             exist = true;
                                             break;
                                         }
@@ -4324,10 +4356,10 @@ public class ABRScannedElementPane extends ABRPane {
                                             // Assuming currentInstruction and instructionsExecuted are already defined
                                             if (currentInstruction != null
                                                     && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
+                                                    .noneMatch(instruction ->
+                                                            instruction.getInstructionOrderNumber()
+                                                                    == currentInstruction
+                                                                    .getInstructionOrderNumber())) {
                                                 instructionsExecuted.add(currentInstruction);
                                             }
 
@@ -4587,8 +4619,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     // Assuming currentInstruction and instructionsExecuted are already defined
                                     if (currentInstruction != null
                                             && instructionsExecuted.stream()
-                                                    .noneMatch(instruction -> instruction.getInstructionOrderNumber()
-                                                            == currentInstruction.getInstructionOrderNumber())) {
+                                            .noneMatch(instruction -> instruction.getInstructionOrderNumber()
+                                                    == currentInstruction.getInstructionOrderNumber())) {
                                         instructionsExecuted.add(currentInstruction);
                                     }
 
@@ -4633,10 +4665,10 @@ public class ABRScannedElementPane extends ABRPane {
                                         // defined
                                         if (currentInstruction != null
                                                 && instructionsExecuted.stream()
-                                                        .noneMatch(
-                                                                instruction -> instruction.getInstructionOrderNumber()
-                                                                        == currentInstruction
-                                                                                .getInstructionOrderNumber())) {
+                                                .noneMatch(
+                                                        instruction -> instruction.getInstructionOrderNumber()
+                                                                == currentInstruction
+                                                                .getInstructionOrderNumber())) {
                                             instructionsExecuted.add(currentInstruction);
                                         }
 
@@ -4701,10 +4733,10 @@ public class ABRScannedElementPane extends ABRPane {
                                         // defined
                                         if (currentInstruction != null
                                                 && instructionsExecuted.stream()
-                                                        .noneMatch(
-                                                                instruction -> instruction.getInstructionOrderNumber()
-                                                                        == currentInstruction
-                                                                                .getInstructionOrderNumber())) {
+                                                .noneMatch(
+                                                        instruction -> instruction.getInstructionOrderNumber()
+                                                                == currentInstruction
+                                                                .getInstructionOrderNumber())) {
                                             instructionsExecuted.add(currentInstruction);
                                         }
 
@@ -4787,10 +4819,10 @@ public class ABRScannedElementPane extends ABRPane {
                                         // defined
                                         if (currentInstruction != null
                                                 && instructionsExecuted.stream()
-                                                        .noneMatch(
-                                                                instruction -> instruction.getInstructionOrderNumber()
-                                                                        == currentInstruction
-                                                                                .getInstructionOrderNumber())) {
+                                                .noneMatch(
+                                                        instruction -> instruction.getInstructionOrderNumber()
+                                                                == currentInstruction
+                                                                .getInstructionOrderNumber())) {
                                             instructionsExecuted.add(currentInstruction);
                                         }
 
@@ -5215,6 +5247,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void clearFields() {
         absolutXPathTextField.setText("");
         currentXPathTextField.setText("");
+        iFrameXPathTextField.setText("");
         coordsTextField.setText("");
         customXPathTextField.setText("");
         countdownTextField.setText("10");
@@ -5229,6 +5262,9 @@ public class ABRScannedElementPane extends ABRPane {
                     break;
                 case "currentXPath":
                     currentXPathTextField.setText(reference.getValue());
+                    break;
+                case "iFrameXPath":
+                    iFrameXPathTextField.setText(reference.getValue());
                     break;
                 case "coords":
                     coordsTextField.setText(reference.getValue());
@@ -5377,20 +5413,20 @@ public class ABRScannedElementPane extends ABRPane {
             }
 
             new Thread(() -> {
-                        try {
-                            // Sleep for 3 seconds
-                            Thread.sleep(3000);
+                try {
+                    // Sleep for 3 seconds
+                    Thread.sleep(3000);
 
-                            // Remove elements on the JavaFX Application Thread
-                            Platform.runLater(() -> {
-                                if (bottomPane.getChildren().size() > 0) {
-                                    bottomPane.getChildren().clear();
-                                }
-                            });
-                        } catch (InterruptedException e) {
-                            System.out.println(e.getMessage()); // Handle interruption
+                    // Remove elements on the JavaFX Application Thread
+                    Platform.runLater(() -> {
+                        if (bottomPane.getChildren().size() > 0) {
+                            bottomPane.getChildren().clear();
                         }
-                    })
+                    });
+                } catch (InterruptedException e) {
+                    System.out.println(e.getMessage()); // Handle interruption
+                }
+            })
                     .start();
         }
         return listABRElements;
@@ -5622,7 +5658,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
             }
@@ -5676,7 +5712,7 @@ public class ABRScannedElementPane extends ABRPane {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction_reference";
         try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
+             ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
             }
@@ -5813,4 +5849,17 @@ public class ABRScannedElementPane extends ABRPane {
             System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
         }
     }
+
+    private static String loadScriptFromResource(String resourcePath) throws IOException {
+        // Use ClassLoader to get the resource as an InputStream
+        try (InputStream inputStream = ABRScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            if (inputStream == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
+
+            // Convert InputStream to String
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+    
 }
