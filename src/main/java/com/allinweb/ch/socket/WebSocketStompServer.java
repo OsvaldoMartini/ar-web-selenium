@@ -124,7 +124,7 @@ public class WebSocketStompServer {
             case "INSERT_BEFORE_ELSEIF":
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
-                injectStepAfterOrBefore(insertBeforeDTO);
+                injectStepAfterOrBefore(insertBeforeDTO, session);
                 ABRSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_EXCEL_FILE":
@@ -359,7 +359,7 @@ public class WebSocketStompServer {
         // Add business logic to handle ROW_MOVE
     }
 
-    private void injectStepAfterOrBefore(RowMoveDTO rowMoveDTO) {
+    private void injectStepAfterOrBefore(RowMoveDTO rowMoveDTO, Session session) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
@@ -375,7 +375,7 @@ public class WebSocketStompServer {
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
                     ABRNewCommandScene newCommandScene =
-                            new ABRNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems);
+                            new ABRNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
                     newCommandScene.showModal();
                 });
             } else {

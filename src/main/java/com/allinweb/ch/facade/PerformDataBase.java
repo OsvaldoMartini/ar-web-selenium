@@ -24,6 +24,7 @@ import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
+import com.google.gson.Gson;
 import java.awt.*;
 import java.io.File;
 import java.sql.Connection;
@@ -39,6 +40,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
@@ -72,8 +74,11 @@ public class PerformDataBase {
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     private BotJobLoadDTO botJobLoadDTO;
+
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+
+    private Gson gson = new Gson();
 
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<PerformDataBase> instance = () -> new PerformDataBase();
@@ -691,7 +696,7 @@ public class PerformDataBase {
                 } else {
                     ABRLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
-                                    "UpdateMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: $d",
+                                    "UpdateMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: %d",
                                     instruction.getBlockId(), instruction.getInstructionId()));
                 }
             }
@@ -2956,5 +2961,62 @@ public class PerformDataBase {
                         && !ABRConstants.ELSE.equals(instruction.getActions())
                         && !ABRConstants.ENDIF.equals(instruction.getActions()))
                 .collect(Collectors.toList());
+    }
+
+    public List<BlockLoopInstructionLoadDTO> buildJsonViewData(List<BotJobLoadDTO> botJobLoadList) {
+        List<InstructionDTO> rowList = null;
+        for (BlockLoadDTO block : botJobLoadList.get(0).getBlockLoadDTOList()) {
+            rowList = getInstructionsByBlockId(botJobLoadList.get(0).getId(), block.getId());
+            reorderInstructions(rowList);
+        }
+
+        List<BlockLoopInstructionLoadDTO> blockLoopInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
+                .flatMap(itemBlock -> itemBlock.getBlockLoopInstructionLoadDTOS().stream()
+                        .map(blockLoopInstLoad -> new BlockLoopInstructionLoadDTO(
+                                itemBlock.getBotJobId(), // botJobId
+                                itemBlock.getBotJobName(), // botJob Name
+                                blockLoopInstLoad.getId(), // Instruction Id
+                                blockLoopInstLoad.getInstructionOrderNumber(), // Instruction Order
+                                blockLoopInstLoad.getName(), // Instruction Name
+                                blockLoopInstLoad.getDescription(), // Instruction Description
+                                itemBlock.getId(), // block ID
+                                itemBlock.getBlockOrderNumber(), // block Order
+                                itemBlock.getName(), // block Name
+                                itemBlock.getActive(),
+                                blockLoopInstLoad.getInstructionActive(),
+                                itemBlock.getWait(),
+                                blockLoopInstLoad.getActions(),
+                                blockLoopInstLoad.getParentId(),
+                                blockLoopInstLoad.getOperation(),
+                                itemBlock.getExportFile())))
+                .collect(Collectors.toList());
+
+        // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
+        Set<Integer> parentIdsForRefreshLoop = blockLoopInstructions.stream()
+                .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
+                .map(BlockLoopInstructionLoadDTO::getParentId)
+                .collect(Collectors.toSet());
+
+        // Step 2: Iterate through the list and set refreshLoop = true for rows with id in parentIdsForRefreshLoop
+        blockLoopInstructions.forEach(instruction -> {
+            if (parentIdsForRefreshLoop.contains(instruction.getId())) {
+                instruction.setRefreshLoop(true);
+            }
+        });
+
+        // Step 1: Filter rows where actions = "LOOP" and collect their parent IDs
+        Set<Integer> parentIdsForLoopOnly = blockLoopInstructions.stream()
+                .filter(instruction -> "LOOP".equalsIgnoreCase(instruction.getActions()))
+                .map(BlockLoopInstructionLoadDTO::getParentId)
+                .collect(Collectors.toSet());
+
+        // Step 2: Iterate through the list and set loopOnly = true for rows with id in parentIdsForLoopOnly
+        blockLoopInstructions.forEach(instruction -> {
+            if (parentIdsForLoopOnly.contains(instruction.getId())) {
+                instruction.setLoopOnly(true);
+            }
+        });
+
+        return blockLoopInstructions;
     }
 }

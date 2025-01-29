@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
@@ -19,7 +20,10 @@ import com.allinweb.ch.util.ComboBoxImage;
 import com.allinweb.ch.util.ComboBoxOperator;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -27,6 +31,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -47,17 +52,24 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javax.websocket.Session;
 
 public class ABRNewCommandPane extends ABRPane {
 
+    private Set<Session> sessions;
+
+    //    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
 
     // Static block to initialize
     static {
+        //        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
+
+    private final Gson gson = new Gson();
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
@@ -141,6 +153,10 @@ public class ABRNewCommandPane extends ABRPane {
     Button addNewInstructionButton;
     Button cancelButton;
 
+    private BotJobLoadDTO botJobLoad;
+    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
+    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+
     private ComboBox<ComboBoxImage> comboBoxInstruc;
     private ObservableList<ComboBoxImage> itemsInstructions = FXCollections.observableArrayList();
 
@@ -167,14 +183,15 @@ public class ABRNewCommandPane extends ABRPane {
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
-    private BotJobLoadDTO botJobLoad;
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-
     public ABRNewCommandPane(
-            RowMoveDTO rowMoveDTO, BotJobLoadDTO botJobLoad, ObservableList<ComboBoxVars> webPageItems) {
+            RowMoveDTO rowMoveDTO,
+            BotJobLoadDTO botJobLoad,
+            ObservableList<ComboBoxVars> webPageItems,
+            Set<Session> sessions) {
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
+        this.sessions = sessions;
 
         //        if (this.botJobLoad.getBlockLoadDTOList() == null) {
         //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
@@ -2304,6 +2321,16 @@ public class ABRNewCommandPane extends ABRPane {
                         isShowAlert);
 
                 if (newRowId > 0) {
+
+                    this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+                    if (botJobLoadList.size() > 0) {
+                        List<BlockLoopInstructionLoadDTO> blockLoopInstructions =
+                                performDataBase.buildJsonViewData(botJobLoadList);
+
+                        String jsonData = gson.toJson(blockLoopInstructions);
+                        broadcastMessageToAll(jsonData);
+                    }
+
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
                             "Add Instruction",
@@ -2465,4 +2492,34 @@ public class ABRNewCommandPane extends ABRPane {
     //        }
     //        return null;
     //    }
+
+    private void broadcastMessageToAll(String message) {
+        synchronized (sessions) {
+            for (Session session : sessions) {
+                if (session.isOpen()) {
+                    sendMessageJson(session, "data_updated", message);
+                }
+            }
+        }
+    }
+
+    private void sendMessageJson(Session session, String msg1, String msg2) {
+        if (session != null && session.isOpen()) {
+            try {
+                // Create a JSON object with the key "body" and the provided message
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("body", msg1);
+                if (!Strings.isNullOrEmpty(msg2)) {
+                    jsonMessage.addProperty("footer", msg2);
+                }
+                // Convert the JSON object to a string
+                String jsonString = jsonMessage.toString();
+
+                // Send the JSON string over WebSocket
+                session.getBasicRemote().sendText(jsonString);
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+            }
+        }
+    }
 }

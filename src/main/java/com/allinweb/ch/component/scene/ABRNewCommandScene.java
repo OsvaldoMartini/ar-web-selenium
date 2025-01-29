@@ -5,12 +5,13 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ABRNewCommandPane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.util.ComboBoxVars;
+import java.util.Set;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javax.websocket.Session;
 
 public class ABRNewCommandScene extends ABRScene {
 
@@ -20,24 +21,23 @@ public class ABRNewCommandScene extends ABRScene {
     private RowMoveDTO rowMoveDTO;
     private BotJobLoadDTO botJobLoad;
     private ObservableList<ComboBoxVars> webPageItems;
-    private static final PerformActions performAction;
-
-    // Static block to initialize
-    static {
-        performAction = PerformActions.getInstance();
-    }
+    private Set<Session> sessions;
 
     public ABRNewCommandScene(
-            RowMoveDTO rowMoveDTO, BotJobLoadDTO botJobLoad, ObservableList<ComboBoxVars> webPageItems) {
+            RowMoveDTO rowMoveDTO,
+            BotJobLoadDTO botJobLoad,
+            ObservableList<ComboBoxVars> webPageItems,
+            Set<Session> sessions) {
         super();
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
+        this.sessions = sessions;
     }
 
     @Override
     public IABRPane buildPane() {
-        return new ABRNewCommandPane(rowMoveDTO, botJobLoad, webPageItems);
+        return new ABRNewCommandPane(rowMoveDTO, botJobLoad, webPageItems, sessions);
     }
 
     @Override

@@ -2,11 +2,23 @@ package com.allinweb.ch.socket;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockMoveDTO;
+import com.allinweb.ch.component.model.BlockOrderDTO;
 import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.DeleteBlockDTO;
+import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
+import com.allinweb.ch.component.pane.ABRScannedElementPane;
+import com.allinweb.ch.component.scene.ABRExcelFileScene;
+import com.allinweb.ch.component.scene.ABRNewCommandScene;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ABRLogger;
+import com.allinweb.ch.util.ComboBoxVars;
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -15,6 +27,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -25,9 +40,20 @@ import javax.websocket.server.ServerEndpoint;
 @ServerEndpoint("/websocket")
 public class SimpleWebSocketServer {
 
-    // Store all connected sessions
-    private static final Set<Session> sessions = Collections.synchronizedSet(new HashSet<>());
-    private final Gson gson = new Gson();
+    //    // Static final variable to hold the singleton instance
+    //    protected static final SingletonSupplier<SimpleWebSocketServer> instance = () -> new SimpleWebSocketServer();
+    //
+    //    // Private constructor to prevent instantiation
+    //    private SimpleWebSocketServer() {
+    //        // Initialize if necessary
+    //    }
+    //
+    //    public void initializeSimpleWebSocketServer() {}
+    //
+    //    // Public method to access the singleton instance
+    //    public static SimpleWebSocketServer getInstance() {
+    //        return instance.get();
+    //    }
 
     private static final PerformDataBase performDataBase;
     private static final PerformDBSavedBlock performDBSavedBlock;
@@ -36,6 +62,11 @@ public class SimpleWebSocketServer {
         performDataBase = PerformDataBase.getInstance();
         performDBSavedBlock = PerformDBSavedBlock.getInstance();
     }
+
+    // Store all connected sessions
+    private static final Set<Session> sessions = Collections.synchronizedSet(new HashSet<>());
+    private final Gson gson = new Gson();
+    private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     @OnOpen
     public void onOpen(Session session) {
@@ -106,100 +137,96 @@ public class SimpleWebSocketServer {
             case "ROW_UPDATE":
                 RowMoveDTO rowUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
                 rowUpdate(rowUpdateDTO);
+                sendMessageJson(session, "Success row update", null);
                 break;
-                //            case "ROW_MOVE":
-                //                RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
-                //                if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
-                //                        && rowMoveDTO.getDeleteBlockId() > -1) {
-                //                    performDataBase.deleteBlock(rowMoveDTO.getBotJobId(),
-                // rowMoveDTO.getDeleteBlockId());
-                //
-                //                    performDataBase.updateBlockOrderNumber(
-                //                            performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
-                //                }
-                //                sendMessageToAll("ROW_MOVE");
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //                break;
-                //            case "INSERT_BEFORE":
-                //            case "INSERT_AFTER":
-                //            case "INSERT_NEW":
-                //            case "INSERT_AFTER_ELSEIF":
-                //            case "INSERT_BEFORE_ELSEIF":
-                //            case "EDIT_OPERATION":
-                //                RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
-                //                injectStepAfterOrBefore(insertBeforeDTO);
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //                break;
-                //            case "BLOCK_EXCEL_FILE":
-                //                BlockDetailsDTO blockExcelDTO = gson.fromJson(body, BlockDetailsDTO.class);
-                //                excelFileBlock(blockExcelDTO);
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //                break;
-                //            case "BLOCK_ORDER":
-                //                BlockOrderDTO blockReorder = gson.fromJson(body, BlockOrderDTO.class);
-                //                if (blockReorder.getUpdatedBlocks().size() > 0) {
-                //                    performDataBase.updateBlockOrderNumber(
-                //                            performDataBase.selectAllBlocks(
-                //                                    blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
-                //                            true);
-                //                    performDataBase.deleteNullBlocks(
-                //                            blockReorder.getUpdatedBlocks().get(0).getBotJobId());
-                //
-                //                    ABRSharedResources.getInstance().changeDbConnection();
-                //                }
-                //                break;
-                //            case "INSTRUCTION_STATUS":
-                //                InstructionDTO instructionDTO = gson.fromJson(body, InstructionDTO.class);
-                //                performDataBase.updateInstructionStatus(instructionDTO);
-                //
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //                break;
-                //            case "BLOCK_STATUS":
-                //                RowMoveDTO blockStateDTO = gson.fromJson(body, RowMoveDTO.class);
-                //                performDataBase.updateBlockStatus(
-                //                        blockStateDTO.getBotJobId(),
-                //                        blockStateDTO.getBlockId(),
-                //                        blockStateDTO.getBlockName(),
-                //                        blockStateDTO.getBlockActive(),
-                //                        3); // Block wait time Default 3 seconds per block
-                //
-                //                performDataBase.updateInstructionStatusByBlock(
-                //                        blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(),
-                // blockStateDTO.getBlockActive());
-                //
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //
-                //                break;
-                //            case "BLOCK_UPDATE":
-                //                RowMoveDTO blockUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
-                //                performDataBase.updateBlockName(
-                //                        blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(),
-                // blockUpdateDTO.getBlockName());
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //
-                //                break;
-                //            case "DELETE_INSTRUCTION":
-                //                InstructionDTO deleteInstructionDTO = gson.fromJson(body, InstructionDTO.class);
-                //                performDataBase.deleteInstruction(deleteInstructionDTO.getBotJobId(),
-                // deleteInstructionDTO);
-                //
-                //                List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
-                //                        deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
-                //                performDataBase.reorderInstructions(rowList);
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //                break;
-                //            case "DELETE_BLOCK":
-                //                DeleteBlockDTO deleteBlockDTO = gson.fromJson(body, DeleteBlockDTO.class);
-                //                performDataBase.deleteBlock(deleteBlockDTO);
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //                sendMessageToAll("deleteBlock");
-                //                break;
-                //            case "BLOCK_ROLLBACK":
-                //                RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
-                //                performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
-                //                performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                //                ABRSharedResources.getInstance().changeDbConnection();
-                //                break;
+            case "ROW_MOVE":
+                RowMoveDTO rowMoveDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+                if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
+                        && rowMoveDTO.getDeleteBlockId() != null
+                        && rowMoveDTO.getDeleteBlockId() > -1) {
+                    performDataBase.deleteBlock(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+
+                    performDataBase.updateBlockOrderNumber(
+                            performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
+                }
+                sendMessageJson(session, "Success row move", null);
+                break;
+            case "INSERT_BEFORE":
+            case "INSERT_AFTER":
+            case "INSERT_NEW":
+            case "INSERT_AFTER_ELSEIF":
+            case "INSERT_BEFORE_ELSEIF":
+            case "EDIT_OPERATION":
+                RowMoveDTO insertBeforeDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+                injectStepAfterOrBefore(sessions, insertBeforeDTO);
+                sendMessageJson(session, "Success INSERT Actions", "no Rows were detected!");
+                break;
+            case "BLOCK_EXCEL_FILE":
+                BlockDetailsDTO blockExcelDTO = gson.fromJson(jsonEntry, BlockDetailsDTO.class);
+                excelFileBlock(blockExcelDTO);
+                sendMessageJson(session, "Success Block Excel File", null);
+                break;
+            case "BLOCK_ORDER":
+                BlockOrderDTO blockReorder = gson.fromJson(jsonEntry, BlockOrderDTO.class);
+                if (blockReorder.getUpdatedBlocks().size() > 0) {
+                    performDataBase.updateBlockOrderNumber(
+                            performDataBase.selectAllBlocks(
+                                    blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
+                            true);
+                    performDataBase.deleteNullBlocks(
+                            blockReorder.getUpdatedBlocks().get(0).getBotJobId());
+
+                    sendMessageJson(session, "Success Block Order", null);
+                }
+                break;
+            case "INSTRUCTION_STATUS":
+                InstructionDTO instructionDTO = gson.fromJson(jsonEntry, InstructionDTO.class);
+                performDataBase.updateInstructionStatus(instructionDTO);
+
+                sendMessageJson(session, "Success Instruction Status", null);
+                break;
+            case "BLOCK_STATUS":
+                RowMoveDTO blockStateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+                performDataBase.updateBlockStatus(
+                        blockStateDTO.getBotJobId(),
+                        blockStateDTO.getBlockId(),
+                        blockStateDTO.getBlockName(),
+                        blockStateDTO.getBlockActive(),
+                        3); // Block wait time Default 3 seconds per block
+
+                performDataBase.updateInstructionStatusByBlock(
+                        blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
+
+                sendMessageJson(session, "Success Block Status", null);
+
+                break;
+            case "BLOCK_UPDATE":
+                RowMoveDTO blockUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+                performDataBase.updateBlockName(
+                        blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
+                sendMessageJson(session, "Success Block Update", null);
+
+                break;
+            case "DELETE_INSTRUCTION":
+                InstructionDTO deleteInstructionDTO = gson.fromJson(jsonEntry, InstructionDTO.class);
+                performDataBase.deleteInstruction(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO);
+
+                List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
+                        deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
+                performDataBase.reorderInstructions(rowList);
+                sendMessageJson(session, "Success Delete Instruction", null);
+                break;
+            case "DELETE_BLOCK":
+                DeleteBlockDTO deleteBlockDTO = gson.fromJson(jsonEntry, DeleteBlockDTO.class);
+                performDataBase.deleteBlock(deleteBlockDTO);
+                sendMessageJson(session, "Success Delete Block", null);
+                break;
+            case "BLOCK_ROLLBACK":
+                RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(jsonEntry, RollBackBlocksDTO.class);
+                performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
+                performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
+                sendMessageJson(session, "Success Roll Back", null);
+                break;
 
             default:
                 sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
@@ -248,8 +275,9 @@ public class SimpleWebSocketServer {
             // Create a JSON object with the key "body" and the provided message
             JsonObject jsonMessage = new JsonObject();
             jsonMessage.addProperty("body", msg1);
-            jsonMessage.addProperty("footer", msg2);
-
+            if (!Strings.isNullOrEmpty(msg2)) {
+                jsonMessage.addProperty("footer", msg2);
+            }
             // Convert the JSON object to a string
             String jsonString = jsonMessage.toString();
 
@@ -307,5 +335,65 @@ public class SimpleWebSocketServer {
         }
 
         // Add business logic to handle ROW_MOVE
+    }
+
+    private void injectStepAfterOrBefore(Set<Session> sessions, RowMoveDTO rowMoveDTO) {
+
+        if (rowMoveDTO.getUpdatedRows().size() > 0) {
+
+            //            List<BotJobLoadDTO> botJobLoadList =
+            // performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+            BotJobLoadDTO botJobLoad = performDataBase.loadBotJobById(rowMoveDTO.getBotJobId());
+
+            if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
+                    && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
+
+                this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+
+                // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+                Platform.runLater(() -> {
+                    ABRNewCommandScene newCommandScene =
+                            new ABRNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
+                    newCommandScene.showModal();
+                });
+            } else {
+
+                if (rowMoveDTO.getUpdatedRows().size() > 0) {
+
+                    int parentId = rowMoveDTO.getUpdatedRows().get(0).getParentId();
+                    try {
+                        // Run the instruction add in a separate Task
+
+                        int newRowId = performDataBase.preFillInstruction(
+                                "ELSEIF",
+                                "ELSEIF",
+                                ABRConstants.ELSEIF,
+                                ABRConstants.ELSEIF,
+                                1,
+                                null,
+                                null,
+                                parentId,
+                                rowMoveDTO,
+                                botJobLoad,
+                                false);
+
+                    } catch (Exception e) {
+
+                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                                .severe(String.format(
+                                        "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
+                                        ABRConstants.ELSEIF, e.getMessage()));
+                    }
+                }
+            }
+        }
+    }
+
+    private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {
+        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+        Platform.runLater(() -> {
+            ABRExcelFileScene excelFileScene = new ABRExcelFileScene(blockExcelDTO);
+            excelFileScene.showModal();
+        });
     }
 }

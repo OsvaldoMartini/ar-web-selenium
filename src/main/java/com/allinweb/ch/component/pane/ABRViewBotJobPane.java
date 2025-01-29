@@ -44,7 +44,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -94,16 +93,18 @@ public class ABRViewBotJobPane extends ABRPane {
 
     private static final ABRComponentBuilder builder = new ABRComponentBuilder();
     private BotJobLoadDTO botJobLoad;
-    private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
+    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private ObservableList<BlockDTO> blockDTOObservableList;
     private ListView<BlockDTO> uiBlockList;
 
+    //    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final ABRScannedElementScene abrScannedElementScene;
 
     // Static block to initialize
     static {
+        //        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         abrScannedElementScene = ABRScannedElementScene.getInstance();
@@ -340,80 +341,28 @@ public class ABRViewBotJobPane extends ABRPane {
         performDataBase.deleteNullBlocks(this.botJobLoad.getId());
         performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(this.botJobLoad.getId()), true);
 
-        this.botLoadJobs = performDataBase.loadBotJobComplete(this.botJobLoad.getId());
-
+        this.botJobLoadList = performDataBase.loadBotJobComplete(this.botJobLoad.getId());
         Gson gson = new Gson();
         String jsonData = "";
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
 
-        if (this.botLoadJobs.size() > 0) {
+        if (this.botJobLoadList.size() > 0) {
             createExcelDataFile();
 
-            List<InstructionDTO> rowList = null;
-            for (BlockLoadDTO block : this.botLoadJobs.get(0).getBlockLoadDTOList()) {
-                rowList = getInstructionsByBlockId(this.botLoadJobs.get(0).getId(), block.getId());
-                reorderInstructions(rowList);
-            }
-
-            List<BlockLoopInstructionLoadDTO> blockLoopInstructions =
-                    this.botLoadJobs.get(0).getBlockLoadDTOList().stream()
-                            .flatMap(itemBlock -> itemBlock.getBlockLoopInstructionLoadDTOS().stream()
-                                    .map(blockLoopInstLoad -> new BlockLoopInstructionLoadDTO(
-                                            itemBlock.getBotJobId(), // botJobId
-                                            itemBlock.getBotJobName(), // botJob Name
-                                            blockLoopInstLoad.getId(), // Instruction Id
-                                            blockLoopInstLoad.getInstructionOrderNumber(), // Instruction Order
-                                            blockLoopInstLoad.getName(), // Instruction Name
-                                            blockLoopInstLoad.getDescription(), // Instruction Description
-                                            itemBlock.getId(), // block ID
-                                            itemBlock.getBlockOrderNumber(), // block Order
-                                            itemBlock.getName(), // block Name
-                                            itemBlock.getActive(),
-                                            blockLoopInstLoad.getInstructionActive(),
-                                            itemBlock.getWait(),
-                                            blockLoopInstLoad.getActions(),
-                                            blockLoopInstLoad.getParentId(),
-                                            blockLoopInstLoad.getOperation(),
-                                            itemBlock.getExportFile())))
-                            .collect(Collectors.toList());
-
-            // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
-            Set<Integer> parentIdsForRefreshLoop = blockLoopInstructions.stream()
-                    .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
-                    .map(BlockLoopInstructionLoadDTO::getParentId)
-                    .collect(Collectors.toSet());
-
-            // Step 2: Iterate through the list and set refreshLoop = true for rows with id in parentIdsForRefreshLoop
-            blockLoopInstructions.forEach(instruction -> {
-                if (parentIdsForRefreshLoop.contains(instruction.getId())) {
-                    instruction.setRefreshLoop(true);
-                }
-            });
-
-            // Step 1: Filter rows where actions = "LOOP" and collect their parent IDs
-            Set<Integer> parentIdsForLoopOnly = blockLoopInstructions.stream()
-                    .filter(instruction -> "LOOP".equalsIgnoreCase(instruction.getActions()))
-                    .map(BlockLoopInstructionLoadDTO::getParentId)
-                    .collect(Collectors.toSet());
-
-            // Step 2: Iterate through the list and set loopOnly = true for rows with id in parentIdsForLoopOnly
-            blockLoopInstructions.forEach(instruction -> {
-                if (parentIdsForLoopOnly.contains(instruction.getId())) {
-                    instruction.setLoopOnly(true);
-                }
-            });
+            List<BlockLoopInstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
 
             performMessage.outputJson(blockLoopInstructions);
 
             jsonData = gson.toJson(blockLoopInstructions);
+
         } else {
 
             BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
             botJobDTO.setId(this.botJobLoad.getId());
             botJobDTO.setName(this.botJobLoad.getName());
             botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-            this.botLoadJobs.add(botJobDTO);
+            this.botJobLoadList.add(botJobDTO);
 
             createExcelDataFile();
 
@@ -455,9 +404,9 @@ public class ABRViewBotJobPane extends ABRPane {
         //        BotJobDTO botJobUpdated = (BotJobDTO) ABRSharedResources.getInstance().getEntityById(BotJobDTO.class,
         // botJobId);
 
-        if (this.botLoadJobs.size() > 0) {
+        if (this.botJobLoadList.size() > 0) {
 
-            List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+            List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
 
             List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
@@ -470,7 +419,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 // Check if the Excel file already exists
                 ExtractedData extractedData =
-                        ExcelUtils.isFileExists(botLoadJobs.get(0).getName(), allActions);
+                        ExcelUtils.isFileExists(botJobLoadList.get(0).getName(), allActions);
 
                 if (extractedData == null
                         || (extractedData.getErrorTitle() != null
@@ -480,7 +429,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     Task<Void> excelTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            new ExcelUtils().generateExcelFiles(botLoadJobs, extractedData, false);
+                            new ExcelUtils().generateExcelFiles(botJobLoadList, extractedData, false);
                             return null;
                         }
                     };
@@ -589,7 +538,7 @@ public class ABRViewBotJobPane extends ABRPane {
             // Cache entities from the database
             //            ABRSharedResources.getInstance().changeDbConnection();
 
-            this.botLoadJobs = performDataBase.loadBotJobAndBlocks(this.botJobLoad.getId());
+            this.botJobLoadList = performDataBase.loadBotJobAndBlocks(this.botJobLoad.getId());
 
             // Retrieve the updated BotJobDTO
             //            BotJobDTO botJobUpdated = (BotJobDTO)
@@ -637,9 +586,9 @@ public class ABRViewBotJobPane extends ABRPane {
 
             combinedTextContainer.getChildren().add(variableText1Styled);
 
-            if (botLoadJobs.size() > 0) {
+            if (botJobLoadList.size() > 0) {
 
-                List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+                List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
 
                 List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
@@ -663,7 +612,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 Task<Void> excelTask = new Task<>() {
                     @Override
                     protected Void call() throws Exception {
-                        new ExcelUtils().generateExcelFiles(botLoadJobs, extractedData, true);
+                        new ExcelUtils().generateExcelFiles(botJobLoadList, extractedData, true);
                         return null;
                     }
                 };
