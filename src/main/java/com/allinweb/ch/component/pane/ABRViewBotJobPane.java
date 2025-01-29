@@ -429,7 +429,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     Task<Void> excelTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            new ExcelUtils().generateExcelFiles(botJobLoadList, extractedData, false);
+                            new ExcelUtils().generateExcelFiles(botJobLoadList, allActions,  extractedData, false);
                             return null;
                         }
                     };
@@ -612,7 +612,7 @@ public class ABRViewBotJobPane extends ABRPane {
                 Task<Void> excelTask = new Task<>() {
                     @Override
                     protected Void call() throws Exception {
-                        new ExcelUtils().generateExcelFiles(botJobLoadList, extractedData, true);
+                        new ExcelUtils().generateExcelFiles(botJobLoadList, allActions, extractedData, true);
                         return null;
                     }
                 };

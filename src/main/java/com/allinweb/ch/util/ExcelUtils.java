@@ -3,6 +3,7 @@ package com.allinweb.ch.util;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -51,7 +52,7 @@ public class ExcelUtils {
         performDataBase = PerformDataBase.getInstance();
     }
 
-    public void generateExcelFiles(List<BotJobLoadDTO> botLoadJobs, ExtractedData extractedData, boolean openExcel) {
+    public void generateExcelFiles(List<BotJobLoadDTO> botLoadJobs,     List<String> allActions,  ExtractedData extractedData, boolean openExcel) {
 
         BotJobLoadDTO botJobLoad = botLoadJobs.get(0);
         this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
@@ -62,7 +63,7 @@ public class ExcelUtils {
             excelFolder.mkdirs();
         }
         //        generateUnfilteredCSVFile(botJob);
-        File file = generateUnfilteredExcelFile(botJobLoad, extractedData);
+        File file = generateUnfilteredExcelFile(botJobLoad, allActions, extractedData);
 
         if (openExcel) {
             try {
@@ -147,7 +148,7 @@ public class ExcelUtils {
         }
     }
 
-    private File generateUnfilteredExcelFile(BotJobLoadDTO botJobLoad, ExtractedData extractedData) {
+    private File generateUnfilteredExcelFile(BotJobLoadDTO botJobLoad,  List<String> allActions,  ExtractedData extractedData) {
         String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
                 + botJobLoad.getName() + ABRConstants.FILE_FORMAT_EXCEL;
 
@@ -172,13 +173,23 @@ public class ExcelUtils {
             for (BlockLoadDTO block : blockList) {
                 Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
                 blockNameCell.setCellValue("#" + block.getName());
-                List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
-                        .getEntityList(
-                                BlockLoopInstructionDTO.class,
-                                Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
-                                (instruction) -> instruction.getBlock().getId() == block.getId()
-                                        && instruction.getActions().contains(ABRConstants.INSERT));
-                for (BlockLoopInstructionDTO instruction : instructionList) {
+
+                List<InstructionDTO> instructionDTO =  performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId());
+                
+//                List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
+//                        .getEntityList(
+//                                BlockLoopInstructionDTO.class,
+//                                Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
+//                                (instruction) -> instruction.getBlock().getId() == block.getId()
+//                                        && instruction.getActions().contains(ABRConstants.INSERT));
+                // Filter the list based on the block ID and action condition
+                List<InstructionDTO> filteredInstructions = instructionDTO.stream()
+                        .filter(instruction -> instruction.getBlockId() == block.getId() &&
+                                instruction.getActions().contains(ABRConstants.INSERT+":"))
+                        .sorted(Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber))
+                        .collect(Collectors.toList());
+                
+                for (InstructionDTO instruction : filteredInstructions) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
                     if (hasReference) {
