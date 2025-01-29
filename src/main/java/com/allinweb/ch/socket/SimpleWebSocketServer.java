@@ -13,8 +13,11 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ABRScannedElementPane;
 import com.allinweb.ch.component.scene.ABRExcelFileScene;
 import com.allinweb.ch.component.scene.ABRNewCommandScene;
+import com.allinweb.ch.component.scene.ABRSaveBlockScene;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.persistence.BlockDTO;
+import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -120,10 +123,11 @@ public class SimpleWebSocketServer {
                 String jsonData = gson.toJson(received);
                 sendMessageJson(session, jsonData, null);
                 break;
-                //            case "BLOCKS_COMPONENT":
-                //                BlockSplitDTO blockComponentDTO = gson.fromJson(body, BlockSplitDTO.class);
-                //                createBlockComponent(blockComponentDTO);
-                //                break;
+            case "BLOCKS_COMPONENT":
+                BlockSplitDTO blockComponentDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+                createBlockComponent(blockComponentDTO);
+                sendMessageJson(session, "Success Create Component", null);
+                break;
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 splitBlocks(blockSplitDTO);
@@ -354,7 +358,7 @@ public class SimpleWebSocketServer {
                 Platform.runLater(() -> {
                     ABRNewCommandScene newCommandScene =
                             new ABRNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
-                    newCommandScene.showModal();
+                    newCommandScene.show();
                 });
             } else {
 
@@ -394,6 +398,21 @@ public class SimpleWebSocketServer {
         Platform.runLater(() -> {
             ABRExcelFileScene excelFileScene = new ABRExcelFileScene(blockExcelDTO);
             excelFileScene.showModal();
+        });
+    }
+
+    private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
+        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+        SavedBlocksDTO savedBlocksDTO = performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
+
+        BlockDTO blockDTO = new BlockDTO();
+        blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());
+        //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
+
+        Platform.runLater(() -> {
+            ABRSaveBlockScene newSaveBlockScene = new ABRSaveBlockScene(
+                    savedBlocksDTO, blockDTO, blockSplitDTO.getDetails().getNewBlock());
+            newSaveBlockScene.showModal();
         });
     }
 }
