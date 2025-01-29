@@ -9,8 +9,10 @@ import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import java.time.format.DateTimeFormatter;
+import java.util.Set;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javax.websocket.Session;
 
 public class ABRScannedElementScene extends ABRScene {
 
@@ -38,11 +40,14 @@ public class ABRScannedElementScene extends ABRScene {
     private Integer botJobId;
     private Integer blockId;
     private String priority;
+    private Set<Session> sessions;
 
-    public ABRScannedElementScene initialize(String priority, Integer botJobId, Integer blockId) {
+    public ABRScannedElementScene initialize(
+            String priority, Integer botJobId, Integer blockId, Set<Session> sessions) {
         this.priority = priority;
         this.botJobId = botJobId;
         this.blockId = blockId;
+        this.sessions = sessions;
         return this;
     }
 
@@ -52,7 +57,8 @@ public class ABRScannedElementScene extends ABRScene {
         return new ABRScannedElementPane(
                 ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId),
                 blockId != null ? ABRSharedResources.getInstance().getEntityById(BlockDTO.class, blockId) : null,
-                abrWebDriver);
+                abrWebDriver,
+                sessions);
     }
 
     @Override

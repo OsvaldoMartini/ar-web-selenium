@@ -73,12 +73,16 @@ import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import javax.websocket.Session;
 import javax.websocket.server.ServerContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
 public class ABRViewBotJobPane extends ABRPane {
+
+    // Set to hold all active WebSocket sessions
+    private static Set<Session> activeSessions = new HashSet<>();
 
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
@@ -429,7 +433,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     Task<Void> excelTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            new ExcelUtils().generateExcelFiles(botJobLoadList, allActions,  extractedData, false);
+                            new ExcelUtils().generateExcelFiles(botJobLoadList, allActions, extractedData, false);
                             return null;
                         }
                     };
@@ -806,6 +810,8 @@ public class ABRViewBotJobPane extends ABRPane {
         try {
             Platform.runLater(() -> {
                 try {
+
+                    activeSessions = SimpleWebSocketServer.getAllSessions();
                     // Call the ABRScannedElementScene here
                     ABRScannedElementScene scene = abrScannedElementScene.initialize(
                             homeBankingLoadDTO.getPriority(),
@@ -819,7 +825,8 @@ public class ABRViewBotJobPane extends ABRPane {
                                             .getBlockLoadDTOList()
                                             .get(0)
                                             .getId()
-                                    : null);
+                                    : null,
+                            activeSessions);
 
                     scene.show(); // Make sure the scene is shown
                 } catch (Exception ex) {
@@ -848,7 +855,7 @@ public class ABRViewBotJobPane extends ABRPane {
                     0);
         } else {
 
-            if (ex.getMessage().contains("Current browser version")) {
+            if (ex.getMessage().contains("version")) {
                 String[] lines = ex.getMessage().split("\n");
                 String msg1 = "";
                 String msg2 = "";
@@ -1013,6 +1020,10 @@ public class ABRViewBotJobPane extends ABRPane {
         // Start Jetty server
         jettyServer.start();
         System.out.println("WebSocket server started at ws://localhost:" + port + "/websocket");
+
+        // Example: Retrieve all active sessions
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+        System.out.println("Active WebSocket sessions: " + activeSessions.size());
     }
 
     // Method to check if the port is already in use

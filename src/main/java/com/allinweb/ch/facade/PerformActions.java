@@ -68,10 +68,12 @@ public class PerformActions {
 
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
+    private static final IframeInputLocator iframeInputLocator;
 
     static {
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
+        iframeInputLocator = IframeInputLocator.getInstance();
     }
 
     long totalExecutionTime = 0;
@@ -80,6 +82,7 @@ public class PerformActions {
 
     private ABRPriorities abrPriorities;
     private ABRWebDriver abrWebDriver;
+    private Map<WebElement, List<WebElement>> iframeElementsMap;
     public static Wait<WebDriver> waitForPage;
     public static Wait<WebDriver> waitForAction;
     private boolean justCalledRefreshPage = false;
@@ -418,7 +421,7 @@ public class PerformActions {
 
     private void showNotFoundElement(String targetXPath, By criteria) {}
 
-    private WebElement locateElement(BlockLoopInstructionLoadDTO currentInstruction, int botJobId) {
+    private WebElement locateElementOLD(BlockLoopInstructionLoadDTO currentInstruction, int botJobId) {
 
         //        WebElement elementInsideIframe = null;
         //                if (xPath.toLowerCase().contains("iframe")){
@@ -677,6 +680,172 @@ public class PerformActions {
         } else {
             return null;
         }
+    }
+
+    private WebElement locateElement(BlockLoopInstructionLoadDTO currentInstruction, int botJobId) {
+        String instructionPath = currentInstruction.getPath();
+        String tagName = null;
+
+        try {
+            tagName = removeTrailingSlash(instructionPath);
+            tagName = extractTagName(instructionPath);
+        } catch (Exception e) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Error RemoveTrailingSlash for %s -> xPath  %s -> Cause: %s",
+                            tagName, instructionPath, e.getMessage()));
+        }
+
+        List<InstructionReferenceLoadDTO> instructionReferenceList =
+                currentInstruction.getInstructionReferenceLoadDTOList();
+
+        if (instructionReferenceList.size() == 0) {
+            ABRLogger.getInstance(PerformActions.class)
+                    .warning("####    Not XPath to Be Located!   ####"
+                            + "\n####    Remove and Re-Scan the Failed Field Again   ####");
+            return null;
+        }
+
+        waitPage();
+
+        if (abrPriorities.getJobId() == null) {
+            abrPriorities.setJobId(botJobId);
+            if (currentInstruction.getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(currentInstruction.getPriority());
+            } else {
+                abrPriorities.loadPriorities();
+            }
+        } else if (abrPriorities.getJobId() != botJobId) {
+            abrPriorities.setJobId(botJobId);
+            if (currentInstruction.getPriority() != null) {
+                abrPriorities.loadPrioritiesFromString(currentInstruction.getPriority());
+            } else {
+                abrPriorities.loadPriorities();
+            }
+        }
+
+        if (abrPriorities.getAllPriorityList().size() < 4) {}
+
+        WebElement elementFound = null;
+        WebElement iframeElement = null;
+
+        for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
+            if (elementFound != null) {
+                break;
+            }
+
+            PriorityTypeEnum priorityTypeEnum = null;
+            try {
+                priorityTypeEnum = PriorityTypeEnum.getPriorityType(
+                        priority.getPriorityType().toString());
+            } catch (Exception e) {
+                System.out.println(String.format("The ENUM: was not defined!"));
+                continue;
+            }
+
+            if (priorityTypeEnum == null) {
+                System.out.println("Define priorities!");
+                return null;
+            }
+
+            Optional<InstructionReferenceLoadDTO> instructionReference = instructionReferenceList.stream()
+                    .filter(reference ->
+                            priority.getName().stream().anyMatch(p -> p.equalsIgnoreCase(reference.getReferenceType())))
+                    .findFirst();
+
+            if (instructionReference.isPresent()) {
+                ABRLogger.getInstance(PerformActions.class)
+                        .fine(String.format(
+                                "Search for %s   Type:  %s   Value: %s",
+                                priority.getName(),
+                                instructionReference.get().getReferenceType(),
+                                instructionReference.get().getValue()));
+            }
+
+            List<By> criterias = null;
+
+            // Handle different priority types (like XPath, attribute, etc.)
+            switch (priority.getPriorityType()) {
+                case xpath -> criterias = Arrays.asList(
+                        new By[] {By.xpath(instructionReference.get().getValue())});
+                case attribute -> criterias = convertToCriteriaList(
+                        tagName, priority.getName(), instructionReference.get().getValue());
+                case coordinates -> {
+                    // Coordinates case (not used for locating elements directly)
+                }
+                case ById -> {}
+                case ByClassName -> {}
+                case ByName -> {}
+                case ByTagName -> {}
+                case ByLinkText -> {}
+                case ByPartialLinkText -> {}
+                case ByCssSelector -> {}
+                case ExecuteScript -> {}
+                case createXPath -> {}
+                case dynamic -> {}
+                case jsoup -> {}
+            }
+
+            if (criterias != null) {
+                for (By criteria : criterias) {
+                    List<WebElement> foundElementList = abrWebDriver.getDriver().findElements(criteria);
+
+                    // Check if the element is inside an iframe
+                    if (instructionPath.contains("iframe")) {
+                        try {
+                            // Switch to iframe using XPath
+
+                            iframeElement = iframeInputLocator.findInputInsideIframe(criteria);
+
+                        } catch (Exception e) {
+                            ABRLogger.getInstance(PerformActions.class)
+                                    .fine(String.format(
+                                            "Could not switch to iframe for XPath: %s, Cause: %s",
+                                            instructionPath, e.getMessage()));
+                            continue;
+                        }
+                    }
+
+                    if (foundElementList != null && foundElementList.size() > 0 && iframeElement == null) {
+                        // Wait for element visibility and process
+                        try {
+                            waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                        } catch (Exception e) {
+                            ABRLogger.getInstance(PerformActions.class)
+                                    .fine(String.format(
+                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                            instructionPath, criteria, e.getMessage()));
+                        }
+
+                        // If multiple elements found, verify each
+                        if (foundElementList.size() > 1) {
+                            int k = 0;
+                            while (elementFound == null && k < foundElementList.size()) {
+                                String xpath = ABRWebUtil.extractXPath(
+                                        foundElementList.get(k).toString());
+
+                                // Second verification for XPath found
+                                if (xpath.equals(instructionReference.get().getValue())) {
+                                    elementFound = foundElementList.get(k);
+                                    break;
+                                }
+                                k++;
+                            }
+                        } else {
+                            elementFound = foundElementList.get(0);
+                        }
+                    } else {
+                        elementFound = iframeElement;
+                    }
+
+                    // Switch back to main content after interacting with iframe (if applicable)
+                    if (instructionPath.contains("iframe")) {
+                        abrWebDriver.getDriver().switchTo().defaultContent();
+                    }
+                }
+            }
+        }
+        return elementFound;
     }
 
     public static String removeTrailingSlash(String xPath) {
@@ -2493,5 +2662,37 @@ public class PerformActions {
                     mapConditional, parentBlockCondition, ABRConstants.ConditionStatus.ENDIF, currentIndex, true);
         }
         return 0;
+    }
+
+    public Map<WebElement, List<WebElement>> getIframeElementsMap() {
+        iframeElementsMap = new HashMap<>();
+
+        if (abrWebDriver.getDriver() != null) {
+            // Get all iframe elements on the page
+            List<WebElement> iframeList = abrWebDriver.getDriver().findElements(By.tagName("iframe"));
+            System.out.println("Number of iframes found: " + iframeList.size());
+
+            for (WebElement iframe : iframeList) {
+                try {
+                    // Switch to the iframe
+                    abrWebDriver.getDriver().switchTo().frame(iframe);
+
+                    // Get all elements inside the iframe
+                    List<WebElement> elementsInsideIframe =
+                            abrWebDriver.getDriver().findElements(By.xpath("//*"));
+                    iframeElementsMap.put(iframe, elementsInsideIframe);
+
+                    System.out.println("Iframe contains " + elementsInsideIframe.size() + " elements");
+                } catch (Exception e) {
+                    System.out.println("Could not access iframe: " + e.getMessage());
+                } finally {
+                    // Switch back to the main page
+                    abrWebDriver.getDriver().switchTo().defaultContent();
+                }
+            }
+
+            iframeInputLocator.initializeIframeInputLocator(iframeElementsMap, abrWebDriver.getDriver());
+        }
+        return iframeElementsMap;
     }
 }

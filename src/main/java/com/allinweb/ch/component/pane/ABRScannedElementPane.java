@@ -16,6 +16,7 @@ import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.driver.ABRWebElement;
+import com.allinweb.ch.facade.IframeInputLocator;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -24,8 +25,11 @@ import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -64,6 +68,7 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 import javax.net.ssl.*;
+import javax.websocket.Session;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -76,6 +81,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class ABRScannedElementPane extends ABRPane {
 
     //    private Stage compStage;
+    private final Gson gson = new Gson();
+    private Set<Session> sessions;
 
     private int currentTabIndex = 0; // Track the currently active tab index
     public ABRWebDriver abrWebDriver;
@@ -106,12 +113,12 @@ public class ABRScannedElementPane extends ABRPane {
     double comboWidth = 200;
 
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
+
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
 
     Button refreshBlocksButton;
-
-    private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
 
     // UI COMPONENTS
     private HBox topPane;
@@ -190,8 +197,11 @@ public class ABRScannedElementPane extends ABRPane {
     private static final PerformActions performAction;
     private static final PerformDataBase performDataBase;
     private static final ABRNewHomeBankingScene abrNewHomeBankingScene;
+    private static final IframeInputLocator iframeInputLocator;
+
     // Static block to initialize
     static {
+        iframeInputLocator = IframeInputLocator.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
@@ -204,7 +214,10 @@ public class ABRScannedElementPane extends ABRPane {
         return abrWebDriver;
     }
 
-    public ABRScannedElementPane(BotJobDTO botJob, BlockDTO blockJob, ABRWebDriver abrWebDriver) {
+    public ABRScannedElementPane(
+            BotJobDTO botJob, BlockDTO blockJob, ABRWebDriver abrWebDriver, Set<Session> sessions) {
+        this.sessions = sessions;
+
         ABRLogger.getInstance(ABRWebDriver.class).fine("Calling ABRScannedElementPane");
 
         // Ensure botJob and abrPriorities are not null before accessing their methods
@@ -276,6 +289,8 @@ public class ABRScannedElementPane extends ABRPane {
         abrWebDriver.openDriver(
                 botJob.getHomeBanking().getUrl(),
                 botJob.getHomeBanking().getOptionsConfig().toString());
+
+        performAction.getIframeElementsMap();
 
         handleWindowHandlesChange();
 
@@ -867,11 +882,11 @@ public class ABRScannedElementPane extends ABRPane {
                 return;
             }
 
-            this.botLoadJobs = performDataBase.loadBotJobComplete(botJob.getId());
+            this.botJobLoadList = performDataBase.loadBotJobComplete(botJob.getId());
             instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
-            botLoadJobs.get(0).getBlockLoadDTOList().stream()
+            botJobLoadList.get(0).getBlockLoadDTOList().stream()
                     .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())
                     .forEach(instruction -> instruction.setExecuted(false));
 
@@ -883,7 +898,7 @@ public class ABRScannedElementPane extends ABRPane {
                 return;
             }
 
-            this.botLoadJobs = performDataBase.loadBotJobComplete(botJob.getId());
+            this.botJobLoadList = performDataBase.loadBotJobComplete(botJob.getId());
             // loadBotJob(botJob);
             recallJob();
         });
@@ -1001,15 +1016,6 @@ public class ABRScannedElementPane extends ABRPane {
                 }
 
                 if (searchReturn.getElement() != null) {
-
-                    // Last Moment to Be Change by the User
-                    if (checkClickElement.isSelected()) {
-                        this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
-                    } else if (checkInputText.isSelected()) {
-                        this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
-                    } else if (checkOutputText.isSelected()) {
-                        this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.OUTPUT);
-                    }
 
                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
                     if (abrWebElement != null && abrWebElement.getElement() != null) {
@@ -1258,21 +1264,10 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void manageUIScan() {
-        ABRLogger.getInstance(ABRScannedElementPane.class).info("General scan triggered");
+        ABRLogger.getInstance(ABRScannedElementPane.class).info("iFrames scan triggered");
         webElementObservableList1.clear();
-        webElementObservableList2.clear();
-        webElementObservableList3.clear();
 
-        boolean scanOk = manageUIScanIdsFirst();
-        if (scanOk) {
-            manageUIScanAttributeNameFirst();
-            manageUIScanWithoutNameAndId();
-
-            manageUIScanPriorities();
-            manageUIScanInputs();
-            //        manageUIScanClickable();
-            manageUIScanOutputs();
-        }
+        boolean scanOk = scanIframesAndElements(webElementObservableList1);
     }
 
     private void manageUIScanWithoutNameAndId() {
@@ -1361,8 +1356,6 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void manageUIScanPriorities() {
         Set<WebElement> webElements = managePrioritiesCriteria();
-        //        manageUIScanPrioritiesJSoup();
-        //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList3);
         try {
             if (webElements != null && webElements.size() > 0) {
                 // addProgressBar();
@@ -1374,13 +1367,7 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void manageUIScanOutputs() {
-        String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
-        // addProgressBar();
-
         scanABRElementsAsync(By.xpath("CODE_CRITERIA"), webElementObservableList2, "UI Scan Outputs");
-        //        scanABRElementsAsync(By.xpath("//label[not(@for)]"), webElementObservableList2, "UI Scan Outputs");
-        //        scanABRElementsAsync(By.cssSelector("*[" + extRef + "]"), webElementObservableList2, "UI Scan
-        // Outputs");
     }
 
     private void scanABRElementsAsync(
@@ -1624,6 +1611,191 @@ public class ABRScannedElementPane extends ABRPane {
         });
 
         //        new Thread(workingTask).start();
+        return true;
+    }
+
+    public boolean scanIframesAndElements(ObservableList<ABRWebElement> listToAddNewElements) {
+
+        // Check if Browser is Inactive
+        try {
+            windowHandles = abrWebDriver.getDriver().getWindowHandles();
+        } catch (Exception e) {
+            browserNotAttached();
+            return false;
+        }
+
+        executorService = Executors.newCachedThreadPool();
+        AtomicInteger totalElementsSize = new AtomicInteger(0);
+
+        CompletableFuture<Void> future = CompletableFuture.runAsync(
+                () -> {
+                    // Switch back to the main page before checking the next iframe
+                    abrWebDriver.getDriver().switchTo().defaultContent();
+
+                    List<String> allXPath = iframeInputLocator.listAllXPaths(abrWebDriver.getDriver());
+
+                    for (String xPATH : allXPath) {
+                        if (xPATH.contains("iframe")) {
+                            System.out.println(xPATH);
+                        }
+                    }
+
+                    List<WebElement> iframes = abrWebDriver.getDriver().findElements(By.tagName("iframe"));
+
+                    Map<WebElement, List<WebElement>> iframeElementsMap = new HashMap<>();
+
+                    for (WebElement iframe : iframes) {
+                        try {
+                            abrWebDriver.getDriver().switchTo().frame(iframe);
+                            List<WebElement> elementsInsideIframe =
+                                    abrWebDriver.getDriver().findElements(By.xpath("//*"));
+                            iframeElementsMap.put(iframe, elementsInsideIframe);
+                            totalElementsSize.addAndGet(elementsInsideIframe.size());
+
+                            System.out.println(
+                                    "Scanned " + elementsInsideIframe.size() + " elements inside an iframe.");
+                            abrWebDriver.getDriver().switchTo().defaultContent();
+                        } catch (Exception e) {
+                            System.out.println("Failed to scan iframe: " + e.getMessage());
+                            abrWebDriver.getDriver().switchTo().defaultContent();
+                        }
+                    }
+
+                    for (Map.Entry<WebElement, List<WebElement>> entry : iframeElementsMap.entrySet()) {
+                        WebElement iframe = entry.getKey();
+                        List<WebElement> elementsInsideIframe = entry.getValue();
+
+                        // Switch back to the main page before checking the next iframe
+                        abrWebDriver.getDriver().switchTo().frame(iframe);
+
+                        String iFrameXPath = iframeInputLocator.getElementXPathIFrame(iframe, abrWebDriver.getDriver());
+
+                        for (WebElement elementIFrame : elementsInsideIframe) {
+                            WebElementTagNameEnum typeSearch = WebElementTagNameEnum.ALL; // Default to ALL
+
+                            String tagName = null;
+                            if (elementIFrame.getTagName().equalsIgnoreCase("input")
+                                    || elementIFrame.getTagName().equalsIgnoreCase("textarea")) {
+
+                                // Send keys to the input element
+                                String inputText = "aaaaaa";
+                                elementIFrame.clear(); // Clear any existing value
+                                elementIFrame.sendKeys(inputText);
+
+                                // Retrieve the value back
+                                String retrievedValue = elementIFrame.getAttribute("value");
+
+                                // Validate if the input was correctly received
+                                if (inputText.equals(retrievedValue)) {
+                                    System.out.println("SUCCESS: Sent '" + inputText + "' and received '"
+                                            + retrievedValue + "' in IFrame.");
+                                    tagName = elementIFrame.getTagName().toLowerCase();
+                                } else {
+                                    System.out.println("ERROR: Sent '" + inputText + "' but received '" + retrievedValue
+                                            + "' in IFrame.");
+                                }
+
+                                switch (tagName) {
+                                    case "input":
+                                        typeSearch = WebElementTagNameEnum.INPUT;
+                                        break;
+                                    case "textarea":
+                                        typeSearch = WebElementTagNameEnum.TEXT_AREA;
+                                        break;
+                                    case "button":
+                                        typeSearch = WebElementTagNameEnum.BUTTON;
+                                        break;
+                                    case "form":
+                                        typeSearch = WebElementTagNameEnum.FORM;
+                                        break;
+                                    case "div":
+                                        typeSearch = WebElementTagNameEnum.DIV;
+                                        break;
+                                    case "p":
+                                        typeSearch = WebElementTagNameEnum.PARAGRAPH;
+                                        break;
+                                    case "a":
+                                        typeSearch = WebElementTagNameEnum.ANCHOR;
+                                        break;
+                                    case "select":
+                                        typeSearch = WebElementTagNameEnum.SELECT;
+                                        break;
+                                    case "option":
+                                        typeSearch = WebElementTagNameEnum.OPTION;
+                                        break;
+                                    case "mat-select":
+                                        typeSearch = WebElementTagNameEnum.MAT_SELECT;
+                                        break;
+                                    case "mat-option":
+                                        typeSearch = WebElementTagNameEnum.MAT_OPTION;
+                                        break;
+                                    case "mat-expansion-panel":
+                                        typeSearch = WebElementTagNameEnum.MAT_EXPANSION_PANEL;
+                                        break;
+                                    default:
+                                        typeSearch = WebElementTagNameEnum.ALL;
+                                        break;
+                                }
+
+                                // Check if element can receive input
+                                boolean canSendKeys = false;
+                                try {
+                                    elementIFrame.sendKeys("test"); // Test sending keys
+                                    canSendKeys = true;
+                                } catch (Exception ignored) {
+                                }
+
+                                // Check if element is clickable
+                                boolean isClickable = false;
+                                try {
+                                    if (elementIFrame.isDisplayed() && elementIFrame.isEnabled()) {
+                                        elementIFrame.click(); // Test clicking
+                                        isClickable = true;
+                                    }
+                                } catch (Exception ignored) {
+                                }
+
+                                // Debugging logs
+                                System.out.println("Element: " + tagName + " | CanSendKeys: " + canSendKeys
+                                        + " | Clickable: " + isClickable);
+
+                                // Add to the list with correct typeSearch
+                                if (typeSearch != WebElementTagNameEnum.ALL) {
+
+                                    WebElementTagNameEnum finalTypeSearch = typeSearch;
+
+                                    // Platform.runLater(() -> {
+                                    listToAddNewElements.add(new ABRWebElement(
+                                            elementIFrame, botJob.getId(), finalTypeSearch, iFrameXPath));
+                                    System.out.println("Added element: " + elementIFrame.getTagName() + " | Type: "
+                                            + finalTypeSearch);
+                                    // });
+
+                                    Platform.runLater(() -> {
+                                        scannedElements1.refresh();
+                                        scannedElements2.refresh();
+                                        scannedElements3.refresh();
+                                    });
+                                }
+                            }
+                        }
+                        abrWebDriver.getDriver().switchTo().defaultContent();
+                    }
+                },
+                executorService);
+
+        executorService.shutdown();
+
+        future.handle((result, ex) -> {
+            if (ex != null) {
+                Platform.runLater(() -> System.out.println("Error scanning iframes: " + ex.getMessage()));
+            } else {
+                Platform.runLater(
+                        () -> System.out.println("Scanning complete. Total elements: " + totalElementsSize.get()));
+            }
+            return result;
+        });
+
         return true;
     }
 
@@ -2223,6 +2395,15 @@ public class ABRScannedElementPane extends ABRPane {
                                                             variableText1Styled,
                                                             variableText2Styled,
                                                             variableText3Styled);
+
+                                            botJobLoadList = performDataBase.loadBotJobComplete(currentBotJobId);
+                                            if (botJobLoadList.size() > 0) {
+                                                List<BlockLoopInstructionLoadDTO> blockLoopInstructions =
+                                                        performDataBase.buildJsonViewData(botJobLoadList);
+
+                                                String jsonData = gson.toJson(blockLoopInstructions);
+                                                broadcastMessageToAll(jsonData);
+                                            }
 
                                             performMessage.showAlertCombinedVBOX(
                                                     Alert.AlertType.INFORMATION,
@@ -3116,6 +3297,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "          window.currentXPath = xpath;"
                 + "          window.currentAbsoluteXPath = absoluteXPath;"
                 + "          window.customXPath = customXPath;"
+                + "          window.iFrameXPath = iFrameXPath;"
                 + "          window.attribId = elementBelowTooltip.id || '';"
                 + "          window.attribName = elementBelowTooltip.name || '';"
                 + "          window.tagName = elementBelowTooltip.tagName.toLowerCase();"
@@ -3397,7 +3579,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         // Review if Has Not Executed Instructions
-        boolean hasUnexecutedInstructions = botLoadJobs.get(0).getBlockLoadDTOList().stream()
+        boolean hasUnexecutedInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
                 .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())
                 .anyMatch(instruction -> instruction.getExecuted() == null || !instruction.getExecuted());
 
@@ -3443,8 +3625,8 @@ public class ABRScannedElementPane extends ABRPane {
             System.out.println(e.getMessage());
         }
 
-        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
-        String botJobName = botLoadJobs.get(0).getName();
+        List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
+        String botJobName = botJobLoadList.get(0).getName();
 
         //        ABRPropertyManager managerProps = ABRPropertyManager.getInstance();
         String excelPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
@@ -3566,7 +3748,7 @@ public class ABRScannedElementPane extends ABRPane {
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
         ExcelWriter.ExcelChain writerReport =
-                new ExcelWriter(botLoadJobs.get(0).getName(), abrWebDriver.getDriver(), false).withPurpose("report");
+                new ExcelWriter(botJobLoadList.get(0).getName(), abrWebDriver.getDriver(), false).withPurpose("report");
         writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport = null;
@@ -5602,5 +5784,33 @@ public class ABRScannedElementPane extends ABRPane {
         button.setMaxWidth(ABRConstants.SPACE_L);
         AnchorPane.setRightAnchor(button, 0D);
         return button;
+    }
+
+    private void broadcastMessageToAll(String message) {
+        synchronized (sessions) {
+            for (Session session : sessions) {
+                if (session.isOpen()) {
+                    sendMessageJson(session, "data_updated", message);
+                }
+            }
+        }
+    }
+
+    private void sendMessageJson(Session session, String msg1, String msg2) {
+        try {
+            // Create a JSON object with the key "body" and the provided message
+            JsonObject jsonMessage = new JsonObject();
+            jsonMessage.addProperty("body", msg1);
+            if (!Strings.isNullOrEmpty(msg2)) {
+                jsonMessage.addProperty("footer", msg2);
+            }
+            // Convert the JSON object to a string
+            String jsonString = jsonMessage.toString();
+
+            // Send the JSON string over WebSocket
+            session.getBasicRemote().sendText(jsonString);
+        } catch (IOException e) {
+            System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+        }
     }
 }

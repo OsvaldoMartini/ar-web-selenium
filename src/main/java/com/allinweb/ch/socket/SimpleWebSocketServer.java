@@ -415,4 +415,9 @@ public class SimpleWebSocketServer {
             newSaveBlockScene.showModal();
         });
     }
+
+    // This method can be used to get all active WebSocket sessions
+    public static Set<Session> getAllSessions() {
+        return sessions;
+    }
 }

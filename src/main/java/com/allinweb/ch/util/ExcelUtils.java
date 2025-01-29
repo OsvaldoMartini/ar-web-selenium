@@ -52,7 +52,8 @@ public class ExcelUtils {
         performDataBase = PerformDataBase.getInstance();
     }
 
-    public void generateExcelFiles(List<BotJobLoadDTO> botLoadJobs,     List<String> allActions,  ExtractedData extractedData, boolean openExcel) {
+    public void generateExcelFiles(
+            List<BotJobLoadDTO> botLoadJobs, List<String> allActions, ExtractedData extractedData, boolean openExcel) {
 
         BotJobLoadDTO botJobLoad = botLoadJobs.get(0);
         this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
@@ -148,7 +149,8 @@ public class ExcelUtils {
         }
     }
 
-    private File generateUnfilteredExcelFile(BotJobLoadDTO botJobLoad,  List<String> allActions,  ExtractedData extractedData) {
+    private File generateUnfilteredExcelFile(
+            BotJobLoadDTO botJobLoad, List<String> allActions, ExtractedData extractedData) {
         String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
                 + botJobLoad.getName() + ABRConstants.FILE_FORMAT_EXCEL;
 
@@ -168,27 +170,23 @@ public class ExcelUtils {
         Row blockNameRow = spreadsheet.createRow(FIRST_ROW);
         Row instructionFieldRow = spreadsheet.createRow(SECOND_ROW);
         int currentIndex = 0;
+
         if (blockList.size() > 0) {
 
             for (BlockLoadDTO block : blockList) {
                 Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
                 blockNameCell.setCellValue("#" + block.getName());
 
-                List<InstructionDTO> instructionDTO =  performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId());
-                
-//                List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
-//                        .getEntityList(
-//                                BlockLoopInstructionDTO.class,
-//                                Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
-//                                (instruction) -> instruction.getBlock().getId() == block.getId()
-//                                        && instruction.getActions().contains(ABRConstants.INSERT));
+                List<InstructionDTO> instructionDTO =
+                        performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId());
+
                 // Filter the list based on the block ID and action condition
                 List<InstructionDTO> filteredInstructions = instructionDTO.stream()
-                        .filter(instruction -> instruction.getBlockId() == block.getId() &&
-                                instruction.getActions().contains(ABRConstants.INSERT+":"))
+                        .filter(instruction -> instruction.getBlockId() == block.getId()
+                                && instruction.getActions().contains(ABRConstants.INSERT + ":"))
                         .sorted(Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber))
                         .collect(Collectors.toList());
-                
+
                 for (InstructionDTO instruction : filteredInstructions) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
@@ -249,6 +247,13 @@ public class ExcelUtils {
             Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
             blockNameCell.setCellValue("#" + botJobLoad.getName() + " default block");
         }
+
+        // Auto-resize all columns after content is added
+        for (int i = 0; i < currentIndex; i++) {
+            spreadsheet.autoSizeColumn(i);
+        }
+
+        // Write the workbook to the file
         writeExcelWorkbookOnDisk(workbook, file);
         return file;
     }

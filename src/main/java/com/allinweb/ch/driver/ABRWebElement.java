@@ -71,6 +71,7 @@ public class ABRWebElement {
     private String mainXPath;
     private String mainCoordinates;
     private String nameFieldTitle;
+    private String iFrameXPath;
 
     private String attributeValue;
     private WebElementTagNameEnum forceTagEnum;
@@ -91,6 +92,7 @@ public class ABRWebElement {
     private Label spaceLabel;
 
     private TextField nameField;
+    private String iFrame;
 
     private Button blockButton;
     private Button moveUpButton;
@@ -119,6 +121,13 @@ public class ABRWebElement {
     static {
         abrPriorities = ABRPriorities.getInstance();
         performMessage = PerformMessage.getInstance();
+    }
+
+    public ABRWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch, String iFrameXPath) {
+        abrPriorities.setJobId(jobId);
+        this.forceTagEnum = typeSearch;
+        this.iFrameXPath = iFrameXPath;
+        initFromWebElement(element);
     }
 
     public ABRWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch) {
@@ -378,6 +387,11 @@ public class ABRWebElement {
             nameLabel.setText(textLabel);
             nameField.setText(tagName);
         } else if (hasLabel) {
+            nameLabel.setText(textLabel);
+            nameField.setText(tagName);
+        } else if (tagName.equalsIgnoreCase("input")
+                || tagName.equalsIgnoreCase("button")
+                || tagName.equalsIgnoreCase("output")) {
             nameLabel.setText(textLabel);
             nameField.setText(tagName);
         } else {
