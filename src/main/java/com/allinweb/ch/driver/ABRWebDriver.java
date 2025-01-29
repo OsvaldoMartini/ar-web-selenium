@@ -137,77 +137,13 @@ public class ABRWebDriver {
                         driver = new FirefoxDriver(options);
                     }
                 }
-            } catch (Exception e) {
-                if (!e.getMessage().contains("Current browser version")) {
-                    String[] lines = e.getMessage().split("\n");
-
-                    String msg1 = "";
-                    String msg2 = "";
-
-                    for (String line : lines) {
-                        int indexMessage = line.indexOf("Message: ");
-                        if (indexMessage != -1) {
-                            msg1 = line.substring(indexMessage + "Message: ".length());
-                        }
-
-                        int indexBrowserVersion = line.indexOf("Current browser version");
-                        if (indexBrowserVersion != -1) {
-                            msg2 = line.substring(indexBrowserVersion);
-                        }
-                    }
-
-                    ABRLogger.getInstance(ABRWebDriver.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
-
-                    performMessage.errorMessage("Error Open URL", msg1, msg2, null, null, 260);
-                }
-
-                //                String errorMessage = e.getMessage();
-                //                ABRLogger.getInstance(ABRWebDriver.class)
-                //                        .fine("An error has occurred during driver.get(url) Load " + errorMessage);
-                //
-                //                // Split the message into chunks of 100 characters
-                //                int maxLength = 100;
-                //                int messageLength = errorMessage.length();
-                //                int parts = (int) Math.ceil((double) messageLength / maxLength);
-                //                String[] messageChunks = new String[parts];
-                //
-                //                for (int i = 0; i < parts; i++) {
-                //                    int startIndex = i * maxLength;
-                //                    int endIndex = Math.min(startIndex + maxLength, messageLength);
-                //                    messageChunks[i] = errorMessage.substring(startIndex, endIndex);
-                //                }
-                //
-                //                // Pass a meaningful message for further actions
-                //                performMessage.errorMessage(
-                //                        "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2],
-                // messageChunks[3], 0);
-                //
-                //                // Example: print or log the chunks if needed
-                //                for (String chunk : messageChunks) {
-                //                    ABRLogger.getInstance(ABRWebDriver.class).fine("Error chunk: " + chunk);
-                //                }
-
-                //                ABRLogger.getInstance(ABRWebDriver.class)
-                //                        .severe("An error has occurred during WebDriver Load " + e.getMessage());
-                //                JOptionPane.showMessageDialog(
-                //                        null,
-                //                        "An error has occurred during WebDriver Load: \nError:" + e.getMessage() +
-                // "\nCause: "
-                //                                + e.getCause(),
-                //                        "Error in WebDriver Load",
-                //                        JOptionPane.ERROR_MESSAGE);
-
-                throw new UnsupportedOperationException(e.getMessage());
+            } catch (Exception error) {
+                throw new UnsupportedOperationException(error.getMessage());
             }
         }
         driver.manage().window().maximize();
         if (Strings.isNullOrEmpty(url)) {
             ABRLogger.getInstance(ABRWebDriver.class).fine("URL IS EMPTY");
-            //            JOptionPane.showMessageDialog(
-            //                    null,
-            //                    "An error has occurred during WebDriver Load: \nError:  URL IE NULL",
-            //                    "Error in WebDriver Load",
-            //                    JOptionPane.ERROR_MESSAGE);
         }
 
         try {

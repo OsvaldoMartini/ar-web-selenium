@@ -838,14 +838,14 @@ public class ABRViewBotJobPane extends ABRPane {
         }
     }
 
-    private void handleExceptionScan(Exception ex) {
+    private void handleExceptionScan(Exception error) {
         // Log the exception
         ABRLogger.getInstance(ABRWebDriver.class)
-                .severe("ERROR Calling openScannerButton -> Cause: " + ex.getMessage());
+                .severe("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
 
         // Display the error message to the user
-        if (ex.getMessage().contains("no such window: target window already closed")
-                || ex.getMessage().contains("web view not found")) {
+        if (error.getMessage().contains("no such window: target window already closed")
+                || error.getMessage().contains("web view not found")) {
             performMessage.errorMessage(
                     "Error Calling SCAN",
                     "Web Browser was closed before the Scanner Tool",
@@ -855,26 +855,35 @@ public class ABRViewBotJobPane extends ABRPane {
                     0);
         } else {
 
-            if (ex.getMessage().contains("version")) {
-                String[] lines = ex.getMessage().split("\n");
-                String msg1 = "";
-                String msg2 = "";
+            if (!error.getMessage().contains("Current browser version")) {
+                String[] lines = error.getMessage().split("\n");
+
+                String msg1 = null;
+                String msg2 = null;
+                String msg3 = null;
+                String msg4 = null;
 
                 for (String line : lines) {
-                    int indexMessage = line.indexOf("Message: ");
-                    if (indexMessage != -1) {
-                        msg1 = line.substring(indexMessage + "Message: ".length());
+
+                    // Exclude "Host info", "Build info", and "System info"
+                    if (line.contains("Host info") || line.contains("Build info") || line.contains("System info") || line.contains("Command")) {
+                        continue;
                     }
 
-                    int indexBrowserVersion = line.indexOf("Current browser version");
-                    if (indexBrowserVersion != -1) {
-                        msg2 = line.substring(indexBrowserVersion);
-                    }
+                    if (line.contains("Message: ")) {
+                        msg1 = line.substring(line.indexOf("Message: ") + "Message: ".length()).trim();
+                    } else if (msg2 == null) {
+                        msg2 = line.trim();
+                    } else if (msg3 == null) {
+                        msg3 = line.trim();
+                    } else if (msg4 == null) {
+                        msg4 = line.trim();
+                    } 
                 }
 
-                ABRLogger.getInstance(ABRViewBotJobPane.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
+                ABRLogger.getInstance(ABRWebDriver.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
 
-                performMessage.errorMessage("Error WebDriver Version", msg1, msg2, null, null, 260);
+                performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
             }
         }
 

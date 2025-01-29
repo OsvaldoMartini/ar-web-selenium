@@ -145,7 +145,7 @@ public class PerformMessage {
         } else if (message2 != null && message3 != null && message4 == null) {
             dialog.setSize(380, 250);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 260);
+            dialog.setSize(380, 280);
         } else {
             dialog.setSize(380, 150);
         }
