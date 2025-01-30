@@ -957,12 +957,20 @@ public class ABRScannedElementPane extends ABRPane {
                     handleHoverCheckClick();
                 }
                 insertNewElement();
-            } else if (iFrameElements != null && iFrameElements.length > 0) {
+            } else if (iFrameXPath != null && iFrameElements != null && iFrameElements.length > 0) {
                 if (checkActiveHover.isSelected()) {
                     checkActiveHover.setSelected(false);
                     handleHoverCheckClick();
                 }
                 insertNewElement(iFrameElements);
+            } else {
+                performMessage.errorMessage(
+                        "Not Web Element to be Added!",
+                        "Checkbox -> \"IDENTIFY\" - Hover Web Elements",
+                        "Scanner -> Web Elements",
+                        null,
+                        null,
+                        0);
             }
         });
 
@@ -1130,8 +1138,12 @@ public class ABRScannedElementPane extends ABRPane {
                                 this.searchReturn.setCurrentXPath(parts[1]);
                                 this.searchReturn.setAttributeValue(parts[2]);
 
-                                // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
-                                if (parts[0].equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+                                // Here I am forcing as Button "CLICKABLE" or "INPUTABLE"
+                                if (parts[0].equalsIgnoreCase("html")
+                                        || parts[0].equalsIgnoreCase("script")
+                                        || parts[0].equalsIgnoreCase("meta")) {
+                                    continue;
+                                } else if (parts[0].equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                                         || parts[0].equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
                                         || parts[0].equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
                                         || parts[0].equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
@@ -2414,7 +2426,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         checkActiveHover.isSelected(),
                                         list.size());
 
-                                instruction.setiFrameXPath(iFrameXPath);
+                                instruction.setiFrameXPath(abrWebElement.getiFrameXPath());
                                 instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);
 
@@ -5452,7 +5464,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void clearFields() {
         absolutXPathTextField.setText("");
         currentXPathTextField.setText("");
-        iFrameXPath = "";
+        iFrameXPath = null;
         iFrameElements = null;
         coordsTextField.setText("");
         customXPathTextField.setText("");
