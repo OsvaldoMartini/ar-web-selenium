@@ -1822,7 +1822,7 @@ public class PerformDataBase {
             };
 
             // Add non-boolean fields
-            addColumnValue.accept("iframe_xPath", instructionDTO.getIFrameXPath());
+            addColumnValue.accept("iframe_xpath", instructionDTO.getIFrameXPath());
             addColumnValue.accept("path", instructionDTO.getPath());
             addColumnValue.accept("action_custom_max_wait_sec", instructionDTO.getActionCustomMaxWaitSec());
             addColumnValue.accept("actions", instructionDTO.getActions());
