@@ -1087,6 +1087,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 this.searchReturn.setiFrameXPath(iFrameXPath);
                                 this.searchReturn.setDefinedName(parts[0]);
                                 this.searchReturn.setOriginalTagName(parts[0]);
+                                this.searchReturn.setxPathWorkedFirst(ABRConstants.ABSOLUT_XPATH);
                                 this.searchReturn.setAbsolutXPath(parts[1]);
                                 this.searchReturn.setCurrentXPath(parts[1]);
                                 this.searchReturn.setAttributeValue(parts[2]);
