@@ -134,7 +134,7 @@ public class ABRScannedElementPane extends ABRPane {
     private ListView<ABRWebElement> scannedElements2;
     private ListView<ABRWebElement> scannedElements3;
     private Button scanButton;
-    private Button addNewElement;
+    private Button addButtonNewElement;
     private Button configureButton;
     private Button launchBotJobButton;
     private Button recallJobButton;
@@ -308,7 +308,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         scanButton = componentBuilder.buildButton(
                 "Scan", ABRConstants.SPACE_L, ABRConstants.ICON_SEARCH, ABRConstants.SPACE_M, new Insets(5));
-        addNewElement = componentBuilder.buildButton(
+        addButtonNewElement = componentBuilder.buildButton(
                 "Add", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_SM, new Insets(5));
 
         searchWithIdsButton = componentBuilder.buildButton(
@@ -510,7 +510,7 @@ public class ABRScannedElementPane extends ABRPane {
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
             //        gridPaneTop.add(checkActiveHover, 6, 0);
-            //        gridPaneTop.add(addNewElement, 7, 0);
+            //        gridPaneTop.add(addButtonNewElement, 7, 0);
             //        gridPaneTop.add(currentXPathTextField, 8, 0);
 
             HBox boxCoordenates = new HBox();
@@ -563,7 +563,7 @@ public class ABRScannedElementPane extends ABRPane {
             hBoxLaunchButon.getChildren().addAll(launchBotJobButton, recallJobButton);
 
             HBox boxName = new HBox();
-            boxName.getChildren().addAll(defineNameField, addNewElement);
+            boxName.getChildren().addAll(defineNameField, addButtonNewElement);
 
             HBox boxActions = new HBox();
             boxActions.setSpacing(5);
@@ -622,7 +622,7 @@ public class ABRScannedElementPane extends ABRPane {
             boxActions.maxWidthProperty().bind(textFieldVBox.widthProperty());
 
             // Bind button widths to VBox width
-            addNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
+            addButtonNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
             //            launchBotJobButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
             // Bind the widths of the buttons to percentages of the HBox width
             countdownTextField.maxWidthProperty().bind(textFieldVBox.widthProperty());
@@ -950,10 +950,18 @@ public class ABRScannedElementPane extends ABRPane {
 
         scanButton.setOnAction(e -> manageUIScan());
 
-        addNewElement.setOnAction(e -> {
+        addButtonNewElement.setOnAction(e -> {
             if (searchReturn.getElement() != null && iFrameElements == null) {
+                if (checkActiveHover.isSelected()) {
+                    checkActiveHover.setSelected(false);
+                    handleHoverCheckClick();
+                }
                 insertNewElement();
             } else if (iFrameElements != null && iFrameElements.length > 0) {
+                if (checkActiveHover.isSelected()) {
+                    checkActiveHover.setSelected(false);
+                    handleHoverCheckClick();
+                }
                 insertNewElement(iFrameElements);
             }
         });
@@ -1007,6 +1015,36 @@ public class ABRScannedElementPane extends ABRPane {
 
         performMessage.showAlertCombinedVBOX(
                 Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
+    }
+
+    private void generalError(String xpath) {
+        // Styled text elements
+        Text titleText = new Text("Dynamic Search IFrame Elements");
+        titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text errorText = new Text("Error: Attempt to create an IFrame element");
+        errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+        Text xpathText = new Text(xpath);
+        xpathText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+        // Create a container for the message
+        VBox messageContainer = new VBox(5); // Adds spacing of 5px
+
+        // Add relevant elements to the container
+        messageContainer.getChildren().addAll(titleText, errorText);
+
+        if (!Strings.isNullOrEmpty(xpath)) {
+            messageContainer.getChildren().add(xpathText);
+        }
+
+        // Display the alert message
+        performMessage.showAlertCombinedVBOX(
+                Alert.AlertType.WARNING,
+                "iFrame Web Elements",
+                "Action: Search iFrame Elements!",
+                null,
+                messageContainer);
     }
 
     private void insertNewElement() {
@@ -1106,17 +1144,18 @@ public class ABRScannedElementPane extends ABRPane {
                                 ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
                                 if (abrWebElement != null && abrWebElement.getElement() != null) {
                                     webElementObservableList3.add(abrWebElement);
-                                    scannedElements3.refresh();
+                                    Platform.runLater(() -> scannedElements3.refresh());
                                 }
 
                                 System.out.println("Found element: " + element.getTagName() + " with XPath: " + xpath);
                             } catch (Exception e) {
                                 System.out.println("Element not found for XPath: " + xpath);
+                                generalError(xpath);
                             }
                         }
 
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        browserNotAttached();
                     } finally {
                         // Close the browser
                         abrWebDriver.getDriver().switchTo().defaultContent();
@@ -1124,7 +1163,9 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             } catch (Exception ex) {
                 ABRLogger.getInstance(ABRScannedElementPane.class)
-                        .severe("Error Attempt to create a Dynamic Element\n" + ex.getMessage());
+                        .severe("Error Attempt to create a IFrame Elements\n" + ex.getMessage());
+
+                generalError(null);
             }
         }
     }
@@ -1350,7 +1391,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
         //        checkClickElement.setDisable(checkActiveHover.isSelected());
         //        checkInputText.setDisable(checkActiveHover.isSelected());
-        //        addNewElement.setDisable(checkActiveHover.isSelected());
+        //        addButtonNewElement.setDisable(checkActiveHover.isSelected());
         Platform.runLater(() -> {
             checkTestAction.setDisable(checkActiveHover.isSelected());
             launchBotJobButton.setDisable(checkActiveHover.isSelected());
@@ -2023,6 +2064,8 @@ public class ABRScannedElementPane extends ABRPane {
                 if (!checkTestAction.isSelected()) {
                     try {
 
+                        abrWebDriver.getDriver().switchTo().defaultContent();
+
                         if (abrWebElement.getMainXPath() == null) {
                             abrWebElement.setMainXPath(
                                     abrWebElement.getSavedReferences().get("absolutXPath"));
@@ -2030,6 +2073,23 @@ public class ABRScannedElementPane extends ABRPane {
                         if (abrWebElement.getMainCoordinates() == null) {
                             abrWebElement.setMainCoordinates(
                                     abrWebElement.getSavedReferences().get("coordinates"));
+                        }
+
+                        if (abrWebElement.getiFrameXPath() != null) {
+                            try {
+                                WebElement iFrame =
+                                        abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getiFrameXPath()));
+                                abrWebDriver.getDriver().switchTo().frame(iFrame);
+                            } catch (Exception e) {
+                                performMessage.errorMessage(
+                                        "iFrame Element not Located",
+                                        "Cannot able to find the iFrame",
+                                        "iFrame xPath",
+                                        abrWebElement.getMainXPath(),
+                                        null,
+                                        0);
+                                return;
+                            }
                         }
 
                         WebElement elementFinder = null;
@@ -2328,16 +2388,6 @@ public class ABRScannedElementPane extends ABRPane {
                                 refreshBlocks(true);
                             });
                         }
-                        //                        else {
-                        //                            if (blockLoadList.size() > 0 && this.blockJob == null) {
-                        //                                currentBlockId = blockLoadList.get(0).getId();
-                        //                                setBlockJob(
-                        //
-                        // ABRSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
-                        //                            } else if (this.blockJob != null) {
-                        //                                currentBlockId = this.blockJob.getId();
-                        //                            }
-                        //                        }
 
                         String finalNameWebElement = nameWebElement;
                         Task<Void> handleEvent = new Task<>() {
@@ -2345,36 +2395,6 @@ public class ABRScannedElementPane extends ABRPane {
                             protected Void call() throws Exception {
                                 ABRLogger.getInstance(Task.class).info("THREAD: Started");
 
-                                //                                if
-                                // (Strings.isNullOrEmpty(abrWebElement.getMainXPath())) {
-                                //                                    try {
-                                //                                        abrWebElement.setMainXPath(
-                                //                                                getXPath(abrWebDriver.getDriver(),
-                                // abrWebElement.getElement()));
-                                //
-                                // abrWebDriver.dehighlightElement(abrWebElement.getElement());
-                                //                                    } catch (Exception e) {
-                                //                                        ABRLogger.getInstance(Task.class)
-                                //                                                .severe("Cannot find the XPath for
-                                // this Element ");
-                                //                                    }
-                                //                                }
-
-                                //                            List<WebElement> elementList =
-                                // abrWebDriver.getDriver().findElements((By.xpath(abrWebElement.getXPath()));
-                                //                            ABRLogger.getInstance(Task.class)
-                                //                                    .fine("THREAD: scan ended. Detected " +
-                                // elementList.size() + "element(s)");
-                                //                            ABRLogger.getInstance(Task.class).fine("THREAD:
-                                // dehighlighting
-                                // all elements of list");
-                                //                            for (WebElement element : elementList) {
-                                //                                ABRLogger.getInstance(Task.class).finer("THREAD:
-                                // dehilighting " + element);
-                                //                                abrWebDriver.dehighlightElement(element);
-                                //                                ABRLogger.getInstance(Task.class).finer("THREAD:
-                                // dehilighted " + element);
-                                //                            }
                                 ABRLogger.getInstance(Task.class)
                                         .fine("THREAD: fetching instruction list from database");
                                 ObservableList<BlockLoopInstructionDTO> list = ABRSharedResources.getInstance()
@@ -2394,13 +2414,11 @@ public class ABRScannedElementPane extends ABRPane {
                                         checkActiveHover.isSelected(),
                                         list.size());
 
+                                instruction.setiFrameXPath(iFrameXPath);
                                 instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);
 
                                 ABRLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
-                                //                                ABRSharedResources.getInstance()
-                                //                                        .addEntity(instruction,
-                                // BlockLoopInstructionDTO.class, () -> {
 
                                 Integer currentBotJobId = botJob.getId();
 
@@ -2419,6 +2437,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         instruction.getInstructionOrderNumber(),
                                         instruction.getExportToABR(),
                                         instruction.getPath(),
+                                        instruction.getiFrameXPath(),
                                         currentBotJobId,
                                         currentBlockId);
 
@@ -5937,11 +5956,14 @@ public class ABRScannedElementPane extends ABRPane {
             Integer instructionOrderNumber,
             boolean exportToABR,
             String xPath,
+            String iFrameXPath,
             Integer currentBotJobId,
             Integer currentBlockId) {
 
         BlockLoopInstructionLoadDTO instructionDTO = new BlockLoopInstructionLoadDTO();
 
+        instructionDTO.setPath(xPath);
+        instructionDTO.setIFrameXPath(iFrameXPath);
         instructionDTO.setName(name);
 
         instructionDTO.setCodified(false);
@@ -5961,8 +5983,6 @@ public class ABRScannedElementPane extends ABRPane {
         //        instructionDTO.setBlock(savedBlockDTO);
         instructionDTO.setExportToABR(exportToABR);
         instructionDTO.setInstructionActive(true);
-
-        instructionDTO.setPath(xPath);
 
         // Wrap the persistence in a try-catch block
         int newId = -1;

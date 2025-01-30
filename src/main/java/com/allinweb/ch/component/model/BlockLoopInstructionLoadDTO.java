@@ -18,6 +18,7 @@ public class BlockLoopInstructionLoadDTO {
     private String actions;
     private String name;
     private String path;
+    private String iFrameXPath;
     private String description;
     private Boolean optional;
     private Boolean blockMarked;

@@ -1822,6 +1822,8 @@ public class PerformDataBase {
             };
 
             // Add non-boolean fields
+            addColumnValue.accept("iframe_xPath", instructionDTO.getIFrameXPath());
+            addColumnValue.accept("path", instructionDTO.getPath());
             addColumnValue.accept("action_custom_max_wait_sec", instructionDTO.getActionCustomMaxWaitSec());
             addColumnValue.accept("actions", instructionDTO.getActions());
             addColumnValue.accept("default_value", instructionDTO.getDefaultValue());
@@ -1833,7 +1835,6 @@ public class PerformDataBase {
                     instructionDTO.getOnHoldSeconds() != null ? instructionDTO.getOnHoldSeconds() : 1);
             addColumnValue.accept("operation", instructionDTO.getOperation());
             addColumnValue.accept("parent_id", instructionDTO.getParentId());
-            addColumnValue.accept("path", instructionDTO.getPath());
             addColumnValue.accept("variable_id", instructionDTO.getVariableId());
             addColumnValue.accept("block_id", currentBlockId);
             addColumnValue.accept("bot_job_id", currentBotJobId);

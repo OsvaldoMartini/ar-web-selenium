@@ -141,6 +141,9 @@ public class ABRWebElement {
         this.searchReturn = searchReturn;
         this.forceTagEnum = searchReturn.getForceTypeEnum();
         this.attributeValue = searchReturn.getAttributeValue();
+
+        this.iFrameXPath = searchReturn.getiFrameXPath() != null ? searchReturn.getiFrameXPath() : null;
+
         //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
         initFromWebElement(searchReturn.getElement());
     }
@@ -1029,6 +1032,14 @@ public class ABRWebElement {
         moveUpButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
         moveDownButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
         deleteButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
+    }
+
+    public String getiFrameXPath() {
+        return iFrameXPath;
+    }
+
+    public void setiFrameXPath(String iFrameXPath) {
+        this.iFrameXPath = iFrameXPath;
     }
 
     public String getMainXPath() {
