@@ -190,6 +190,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private String iFrameXPath;
     private String[] iFrameElements;
+    private  String iFrameCoords;
 
     List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
     List<Integer> executedSuccess = new ArrayList<>();
@@ -1091,6 +1092,7 @@ public class ABRScannedElementPane extends ABRPane {
                     this.searchReturn.setCurrentXPath(iFrameXPathToGo);
                     this.searchReturn.setAttributeValue(iFrameXPathToGo);
                     this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                    this.searchReturn.setCoords(coordsTextField.getText());
 
                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
                     if (abrWebElement != null && abrWebElement.getElement() != null) {
@@ -1115,6 +1117,7 @@ public class ABRScannedElementPane extends ABRPane {
                     this.searchReturn.setCurrentXPath(iFrameXPathToGo);
                     this.searchReturn.setAttributeValue(iFrameXPathToGo);
                     this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                    this.searchReturn.setCoords(coordsTextField.getText());
 
                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
                     if (abrWebElement != null && abrWebElement.getElement() != null) {
@@ -1152,6 +1155,7 @@ public class ABRScannedElementPane extends ABRPane {
                         this.searchReturn.setAbsolutXPath(parts[1]);
                         this.searchReturn.setCurrentXPath(parts[1]);
                         this.searchReturn.setAttributeValue(parts[2]);
+                        this.searchReturn.setCoords(coordsTextField.getText());
 
                         // Here I am forcing as Button "CLICKABLE" or "INPUTABLE"
                         if (parts[0].equalsIgnoreCase("html")
@@ -3507,6 +3511,18 @@ public class ABRScannedElementPane extends ABRPane {
                 + "      var iframeDocument = elementBelowTooltip.contentDocument || elementBelowTooltip.contentWindow.document;"
                 + "      var iframeElements = iframeDocument.querySelectorAll('*');"
                 + "      var iframeElementInfo = [];"
+
+                + "      iframeDocument.addEventListener('click', function(event) {"
+                + "      var clickedCoords = {"
+                + "          x: event.clientX,"
+                + "          y: event.clientY"
+                + "      };"
+
+                + "      console.log('Clicked coordinates inside iframe:', clickedCoords);"
+
+                + "      window.iFrameCoords = clickedCoords;"
+                + "      });"
+                
                 + "      iframeElements.forEach(function (elementInsideIframe) {"
                 + "        var iframeElementXPath = getMartiniXPath(elementInsideIframe);"
                 + "        var someText = '';"
@@ -3520,7 +3536,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        } else {"
                 + "          someText = elementInsideIframe.textContent.trim() || elementInsideIframe.innerText.trim() || '';"
                 + "        }"
-                + "        var elementInfoString = 'tagName:' + elementInsideIframe.tagName.toLowerCase() + ';xpath:' + iframeElementXPath + ';text:' + someText;"
+                + "        var elementInfoString = 'tagName:' + elementInsideIframe.tagName.toLowerCase() + ';xpath:' + iframeElementXPath + ';coords:' + clickedCoords + ';text:' + someText;"
                 + "        iframeElementInfo.push(elementInfoString);"
                 + "      });"
                 + "      console.log('iFrameXPath', window.iFrameXPath);"
@@ -3553,6 +3569,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "  function cleanOldValues() {"
                 + "    window.iFrameXPath = '';"
                 + "    window.iframeElements = [];"
+                + "    window.iFrameCoords = '';"
                 + "    window.currentXPath = '';"
                 + "    window.currentAbsoluteXPath = '';"
                 + "    window.customXPath = '';"
@@ -3598,24 +3615,16 @@ public class ABRScannedElementPane extends ABRPane {
                         // Execute JavaScript to construct and return a custom object
                         LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
                                 jsExecutor.executeScript(
-                                        "var obj = { iFrameXPath: window.iFrameXPath, iframeElements: window.iframeElements, attribId: window.attribId, attribName: window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords }; return obj;");
+                                        "var obj = { window.allElementInfo }; return obj;");
 
                         // Convert the LinkedHashMap to a Java Map (if necessary)
                         Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
 
-                        // Loop through resultMap and print each entry
-                        //                        for (Map.Entry<String, Object> entry : resultMap.entrySet()) {
-                        //                            if (!Strings.isNullOrEmpty(entry.getValue().toString())) {
-                        //                                System.out.println("Key: " + entry.getKey() + ", Value: "
-                        //                                        + entry.getValue().toString());
-                        //                            }
-                        //                        }
-
                         if (linkedHashMap != null) {
                             Platform.runLater(() -> {
-                                iFrameXPath = (String) resultMap.get("iFrameXPath");
+//                                iFrameXPath = (String) resultMap.get("iFrameXPath");
 
-                                Object iframeElementsObject = resultMap.get("iframeElements");
+                                Object iframeElementsObject = resultMap.get("allElementInfo");
 
                                 if (iframeElementsObject instanceof List<?>) {
                                     // Convert List to String[]
@@ -3661,6 +3670,8 @@ public class ABRScannedElementPane extends ABRPane {
                                 customXPathTextField.setText((String) resultMap.get("customXPath"));
                                 originalTagNameField.setText((String) resultMap.get("tagName"));
                                 coordsTextField.setText((String) resultMap.get("coords"));
+                                iFrameCoords = (String) resultMap.get("iFrameCoords");
+                                coordsTextField.setText(iFrameCoords);
 
                                 if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
                                         && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
@@ -3673,7 +3684,7 @@ public class ABRScannedElementPane extends ABRPane {
                             });
                         }
                         try {
-                            Thread.sleep(500); // Check every 500 milliseconds
+                            Thread.sleep(300); // Check every 500 milliseconds
                         } catch (InterruptedException e) {
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .fine(String.format(

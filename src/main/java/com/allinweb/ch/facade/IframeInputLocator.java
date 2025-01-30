@@ -137,39 +137,36 @@ public class IframeInputLocator {
                         element);
     }
 
-
     // Helper method to extract XPath of a WebElement, including tagName for iframe
     public String getElementTagName(WebElement element, WebDriver driver) {
         // Make sure we're in the correct frame before executing the script
         return (String) ((JavascriptExecutor) driver)
                 .executeScript(
-                        "function getElementXPath(element) {" +
-                                "    var paths = [];" +
-                                "    while (element && element.nodeType == 1) {" +
-                                "        var index = 0;" +
-                                "        // Loop through previous siblings of the current element" +
-                                "        for (var sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {" +
-                                "            if (sibling.nodeType == 1 && sibling.tagName == element.tagName) {" +
-                                "                index++;" +
-                                "            }" +
-                                "        }" +
-                                "        var tagName = element.tagName.toLowerCase();" +
-                                "        var pathIndex = (index ? '[' + (index + 1) + ']' : '');" +
-                                "        // Add the element's tag and index to the path" +
-                                "        paths.unshift(tagName + pathIndex);" +
-                                "        // If element is an iframe, include its tagName too" +
-                                "        if (tagName === 'iframe') {" +
-                                "            paths.unshift('iframe');" +
-                                "        }" +
-                                "        // Traverse up the DOM tree" +
-                                "        element = element.parentNode;" +
-                                "    }" +
-                                "    return '/' + paths.join('/');" +
-                                "}" +
-                                "return getElementXPath(arguments[0]);",
+                        "function getElementXPath(element) {" + "    var paths = [];"
+                                + "    while (element && element.nodeType == 1) {"
+                                + "        var index = 0;"
+                                + "        // Loop through previous siblings of the current element"
+                                + "        for (var sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {"
+                                + "            if (sibling.nodeType == 1 && sibling.tagName == element.tagName) {"
+                                + "                index++;"
+                                + "            }"
+                                + "        }"
+                                + "        var tagName = element.tagName.toLowerCase();"
+                                + "        var pathIndex = (index ? '[' + (index + 1) + ']' : '');"
+                                + "        // Add the element's tag and index to the path"
+                                + "        paths.unshift(tagName + pathIndex);"
+                                + "        // If element is an iframe, include its tagName too"
+                                + "        if (tagName === 'iframe') {"
+                                + "            paths.unshift('iframe');"
+                                + "        }"
+                                + "        // Traverse up the DOM tree"
+                                + "        element = element.parentNode;"
+                                + "    }"
+                                + "    return '/' + paths.join('/');"
+                                + "}"
+                                + "return getElementXPath(arguments[0]);",
                         element);
     }
-
 
     // Helper method to extract XPath of a WebElement, including nested elements
     public String getElementChildXPathIFrame(WebElement element, WebDriver driver) {

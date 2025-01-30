@@ -72,6 +72,7 @@ public class ABRWebElement {
     private String mainCoordinates;
     private String nameFieldTitle;
     private String iFrameXPath;
+    private String tagNameDefined;
 
     private String attributeValue;
     private WebElementTagNameEnum forceTagEnum;
@@ -141,7 +142,7 @@ public class ABRWebElement {
         this.searchReturn = searchReturn;
         this.forceTagEnum = searchReturn.getForceTypeEnum();
         this.attributeValue = searchReturn.getAttributeValue();
-
+        this.tagNameDefined = searchReturn.getOriginalTagName();
         this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getiFrameXPath()) ? searchReturn.getiFrameXPath() : null;
 
         //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
@@ -197,7 +198,7 @@ public class ABRWebElement {
 
         try {
 
-            if (element.getTagName() == null) {
+            if (this.tagNameDefined == null) {
 
                 performMessage.couldNotFindElement("No TagName");
                 //                new ABRAlertScene(
@@ -219,8 +220,8 @@ public class ABRWebElement {
             return;
         }
 
-        boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
-        boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
+        boolean isAnchor = this.tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
+        boolean isOption = this.tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
 
         try {
             if (abrPriorities.getAllPriorityList().size() == 0) {
@@ -263,7 +264,8 @@ public class ABRWebElement {
             } else {
                 // Most Important to find any kind of element
 
-                if (searchReturn != null && searchReturn.getxPathWorkedFirst().equals(ABRConstants.ABSOLUT_XPATH)) {
+                if (searchReturn != null
+                        && searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ABRConstants.ABSOLUT_XPATH)) {
                     savedReferences.put(
                             "absolutXPath",
                             searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -273,7 +275,7 @@ public class ABRWebElement {
                     savedReferences.put(
                             "customXPath",
                             searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (searchReturn.getxPathWorkedFirst().equals(ABRConstants.REGULAR_XPATH)) {
+                } else if (searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ABRConstants.REGULAR_XPATH)) {
                     savedReferences.put(
                             "currentXPath",
                             searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -291,11 +293,34 @@ public class ABRWebElement {
                     savedReferences.put("xpath", ABRWebUtil.extractWebElementXPath(element));
                 }
 
-                Rectangle coordinates = element.getRect();
-                savedReferences.put(
-                        "coordinates",
-                        (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                                + (coordinates.getY() + (coordinates.getHeight() / 2)));
+                try {
+                    Rectangle coordinates = element.getRect();
+                    savedReferences.put(
+                            "coordinates",
+                            (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                                    + (coordinates.getY() + (coordinates.getHeight() / 2)));
+                } catch (Exception coords) {
+                    // Split the string into X and Y values
+                    if (Strings.isNullOrEmpty(searchReturn.getCoords())) {
+                        String[] parts = searchReturn.getCoords().split(",");
+                        int x = Integer.parseInt(parts[0]);
+                        int y = Integer.parseInt(parts[1]);
+
+                        // Create a Rectangle object (assuming you want to use a width and height)
+                        // For this example, I am using arbitrary width and height
+                        int width = 100; // Replace with actual width
+                        int height = 100; // Replace with actual height
+                        Rectangle coordinates = new Rectangle(x, y, width, height);
+
+                        // Calculate the new coordinates (center of the rectangle)
+                        String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                                + (coordinates.getY() + (coordinates.getHeight() / 2));
+
+                        // Store the result in savedReferences map
+                        Map<String, String> savedReferences = new HashMap<>();
+                        savedReferences.put("coordinates", newCoordinates);
+                    }
+                }
             }
 
         } catch (Exception ex) {
@@ -312,22 +337,21 @@ public class ABRWebElement {
         String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
         String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
 
-        String tagName = element.getTagName();
         String textLabel = element.getText();
 
         if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = extractAllText(element);
+            textLabel = extractAllText(element, tagNameDefined);
         }
 
         if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = getTextRecursively(element);
+            textLabel = getTextRecursively(element, tagNameDefined);
         }
 
         if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = getTextRecursivelyByParent(element);
+            textLabel = getTextRecursivelyByParent(element, tagNameDefined);
         }
 
-        boolean hasButton = tagName.equalsIgnoreCase("button") && isClickable() && !textLabel.isBlank();
+        boolean hasButton = this.tagNameDefined.equalsIgnoreCase("button") && isClickable() && !textLabel.isBlank();
         boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
         boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank() && !hasButton;
         boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
@@ -338,10 +362,10 @@ public class ABRWebElement {
         boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank() && !hasButton;
         boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
         boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
-        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("p");
-        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("span");
-        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("div");
-        boolean hasLabel = !Strings.isNullOrEmpty(textLabel) && tagName.equalsIgnoreCase("label");
+        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("p");
+        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("span");
+        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("div");
+        boolean hasLabel = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("label");
 
         if ((hasSpan || hasDiv || hasLabel) && !outputElement.getValue()) {
             textElement.setValue(true);
@@ -379,24 +403,24 @@ public class ABRWebElement {
             nameField.setText(valueHRefFile + " File");
         } else if (hasParagraph) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagName);
+            nameField.setText(this.tagNameDefined);
         } else if (hasButton) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagName);
+            nameField.setText(this.tagNameDefined);
         } else if (hasSpan) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagName);
+            nameField.setText(this.tagNameDefined);
         } else if (hasDiv) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagName);
+            nameField.setText(this.tagNameDefined);
         } else if (hasLabel) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagName);
-        } else if (tagName.equalsIgnoreCase("input")
-                || tagName.equalsIgnoreCase("button")
-                || tagName.equalsIgnoreCase("output")) {
+            nameField.setText(this.tagNameDefined);
+        } else if (this.tagNameDefined.equalsIgnoreCase("input")
+                || this.tagNameDefined.equalsIgnoreCase("button")
+                || this.tagNameDefined.equalsIgnoreCase("output")) {
             nameLabel.setText(textLabel);
-            nameField.setText(tagName);
+            nameField.setText(this.tagNameDefined);
         } else {
             nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
@@ -407,23 +431,22 @@ public class ABRWebElement {
             if (extRef != null) {
                 String extRefSub = extRef.substring(extRef.indexOf("'") + 1, extRef.length() - 1);
                 // isIdElement.setValue(hasTestId &&
-                // testIdAttributeValue.equals("web-banking-payment-core.payment-details.external-reference"));
-                isIdElement.setValue(hasTestId && testIdAttributeValue.equals(extRefSub));
+                // testIdAttributeValue.equalsIgnoreCase("web-banking-payment-core.payment-details.external-reference"));
+                isIdElement.setValue(hasTestId && testIdAttributeValue.equalsIgnoreCase(extRefSub));
             }
         } catch (Exception ex) {
             throw ex;
         }
 
         // Identify if the element is an INPUT, BUTTON, or LABEL
-        tagName = element.getTagName().toUpperCase();
         nameFieldTitle = nameField.getText();
 
         boolean isElementHidden = element.getAttribute("type") != null
                 && element.getAttribute("type").equalsIgnoreCase("hidden");
 
-        boolean isInput = tagName.equals("INPUT") && element.getAttribute("type") != null;
-        boolean isButton = tagName.equals("BUTTON");
-        boolean isLabel = tagName.equals("LABEL") && !Strings.isNullOrEmpty(element.getText());
+        boolean isInput = this.tagNameDefined.equalsIgnoreCase("INPUT") && element.getAttribute("type") != null;
+        boolean isButton = this.tagNameDefined.equalsIgnoreCase("BUTTON");
+        boolean isLabel = this.tagNameDefined.equalsIgnoreCase("LABEL") && !Strings.isNullOrEmpty(element.getText());
 
         hiddenElement.setValue(false);
         outputElement.setValue(false);
@@ -496,14 +519,14 @@ public class ABRWebElement {
         toBeAddedElement.setValue(true);
     }
 
-    private boolean isClickable(WebElement element) {
+    private boolean isClickable(WebElement element, String tagNameDefined) {
         List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
         boolean isClickableTag =
-                clickableTags.stream().anyMatch(t -> t.getValue().equals(element.getTagName()));
+                clickableTags.stream().anyMatch(t -> t.getValue().equalsIgnoreCase(tagNameDefined));
         List<WebElementAttributeTypeValueEnum> clickableValues = WebElementAttributeTypeValueEnum.getClickableValues();
-        boolean isClickableValue = clickableValues.stream()
-                .anyMatch(v -> v.getValue().equals(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
-        boolean isInputTag = element.getTagName().equals(WebElementTagNameEnum.INPUT.getValue());
+        boolean isClickableValue = clickableValues.stream().anyMatch(v -> v.getValue()
+                .equalsIgnoreCase(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
+        boolean isInputTag = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue());
         return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
     }
 
@@ -523,7 +546,7 @@ public class ABRWebElement {
         }
         String[] actionReference = instruction.getActions().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
 
-        isCheckValidator = actionReference[0].equals(ABRConstants.CHECK_VALUE);
+        isCheckValidator = actionReference[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE);
 
         instructionId = instruction.getId();
         instrName = instruction.getName();
@@ -538,21 +561,21 @@ public class ABRWebElement {
             nameField.setText(actionReference[1]);
         }
 
-        if (actionReference[0].equals(ABRConstants.HIDDEN)) {
+        if (actionReference[0].equalsIgnoreCase(ABRConstants.HIDDEN)) {
             hiddenElement.setValue(true);
-        } else if (actionReference[0].equals(ABRConstants.OUTPUT)) {
+        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
             outputElement.setValue(true);
-        } else if (actionReference[0].equals(ABRConstants.CLICK)) {
+        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.CLICK)) {
             clickElement.setValue(true);
-        } else if (actionReference[0].equals(ABRConstants.INSERT)) {
+        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.INSERT)) {
             textElement.setValue(true);
-        } else if (actionReference[0].equals(ABRConstants.SET_VALUE)) {
+        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
             setValueElem.setValue(true);
-        } else if (actionReference[0].equals(ABRConstants.GET_VALUE)) {
+        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.GET_VALUE)) {
             getValueElem.setValue(true);
-        } else if (actionReference[0].equals(ABRConstants.CHECK_VALUE)) {
+        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
             checkValueElem.setValue(true);
-        } else if (actionReference[0].equals(ABRConstants.HOLD)) {
+        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.HOLD)) {
             holdValueElem.setValue(true);
         }
 
@@ -958,17 +981,17 @@ public class ABRWebElement {
             action = ABRConstants.EXTRACT_FIELD + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + "EXTERNAL_REFERENCE";
         } else {
             if (identityHover) {
-                action = actionReq.equals("INPUT")
+                action = actionReq.equalsIgnoreCase("INPUT")
                         ? ABRConstants.INSERT + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText()
-                        : actionReq.equals("OUTPUT")
+                        : actionReq.equalsIgnoreCase("OUTPUT")
                                 ? ABRConstants.OUTPUT
                                         + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
                                         + nameLabel.getText()
-                                : actionReq.equals("OTHER")
+                                : actionReq.equalsIgnoreCase("OTHER")
                                         ? ABRConstants.OTHER
                                                 + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
                                                 + nameLabel.getText()
-                                        : actionReq.equals("click")
+                                        : actionReq.equalsIgnoreCase("click")
                                                 ? ABRConstants.CLICK
                                                 : clickElement.get()
                                                         ? ABRConstants.CLICK
@@ -1032,6 +1055,14 @@ public class ABRWebElement {
         moveUpButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
         moveDownButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
         deleteButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
+    }
+
+    public String getTagNameDefined() {
+        return tagNameDefined;
+    }
+
+    public void setTagNameDefined(String tagNameDefined) {
+        this.tagNameDefined = tagNameDefined;
     }
 
     public String getiFrameXPath() {
@@ -1149,8 +1180,8 @@ public class ABRWebElement {
     // TODO MORE INTELLIGENT  LOGIC
     public void selectElementType(WebElement element) {
         // Check element tag names
-        boolean isAnchor = element.getTagName().equals(WebElementTagNameEnum.ANCHOR.getValue());
-        boolean isOption = element.getTagName().equals(WebElementTagNameEnum.OPTION.getValue());
+        boolean isAnchor = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
+        boolean isOption = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
 
         // Extract various attributes
         String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
@@ -1162,11 +1193,13 @@ public class ABRWebElement {
         String nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
         String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
         String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
-        String tagname = element.getTagName();
+        String tagname = tagNameDefined;
         String textLabel = element.getText();
 
         // Determine boolean conditions
-        boolean hasButton = tagname.equalsIgnoreCase("button") && isClickable(element) && !textLabel.isBlank();
+        boolean hasButton = this.tagNameDefined.equalsIgnoreCase("button")
+                && isClickable(element, tagNameDefined)
+                && !textLabel.isBlank();
         boolean hasAriaLabel = isValidString(ariaLabelValue);
         boolean hasInnerHTML = isValidString(innerHTMLValue) && !hasButton;
         boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
@@ -1176,9 +1209,9 @@ public class ABRWebElement {
         boolean hasId = isValidString(idAttributeValue) && !hasButton;
         boolean hasValue = isValidString(valueAttributeValue);
         boolean hasHRefFile = isValidString(valueHRefFile);
-        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("p");
-        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("span");
-        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && tagname.equalsIgnoreCase("div");
+        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("p");
+        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("span");
+        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("div");
 
         // Set nameLabel and nameField based on conditions
         if (isOption && hasValue) {
@@ -1222,14 +1255,14 @@ public class ABRWebElement {
     }
 
     // Recursive method to find text or placeholder text
-    public static String getTextRecursively(WebElement element) {
+    public static String getTextRecursively(WebElement element, String tagNameDefined) {
         String text = element.getText();
         if (!text.isEmpty()) {
             return text;
         }
 
         // Check if the element is an input field and look for placeholder
-        if (element.getTagName().equals("input") || element.getTagName().equals("textarea")) {
+        if (tagNameDefined.equalsIgnoreCase("input") || tagNameDefined.equalsIgnoreCase("textarea")) {
             String placeholder = element.getAttribute("placeholder");
             if (placeholder != null && !placeholder.isEmpty()) {
                 return placeholder;
@@ -1239,7 +1272,7 @@ public class ABRWebElement {
         // Recursively search child elements for text
         List<WebElement> children = element.findElements(By.xpath("./*"));
         for (WebElement child : children) {
-            String childText = getTextRecursively(child);
+            String childText = getTextRecursively(child, tagNameDefined);
             if (!childText.isEmpty()) {
                 return childText;
             }
@@ -1249,7 +1282,7 @@ public class ABRWebElement {
     }
 
     // Recursive method to find text or placeholder text
-    public static String getTextRecursivelyByParent(WebElement element) {
+    public static String getTextRecursivelyByParent(WebElement element, String tagNameDefined) {
         // Check if the element has text
         String text = element.getText();
         if (!text.isEmpty()) {
@@ -1257,7 +1290,7 @@ public class ABRWebElement {
         }
 
         // Check if the element is an input field or textarea and look for placeholder
-        if (element.getTagName().equals("input") || element.getTagName().equals("textarea")) {
+        if (tagNameDefined.equalsIgnoreCase("input") || tagNameDefined.equalsIgnoreCase("textarea")) {
             String placeholder = element.getAttribute("placeholder");
             if (placeholder != null && !placeholder.isEmpty()) {
                 return placeholder;
@@ -1266,8 +1299,8 @@ public class ABRWebElement {
 
         // Recursively check parent element
         WebElement parent = element.findElement(By.xpath(".."));
-        if (parent != null && !parent.getTagName().equals("html")) {
-            return getTextRecursively(parent);
+        if (parent != null && !parent.getTagName().equalsIgnoreCase("html")) {
+            return getTextRecursively(parent, tagNameDefined);
         }
 
         // If no text is found, return empty string
@@ -1275,13 +1308,13 @@ public class ABRWebElement {
     }
 
     // Recursive method to extract all text content
-    public static String extractAllText(WebElement element) {
+    public static String extractAllText(WebElement element, String tagNameDefined) {
         StringBuilder textContent = new StringBuilder();
-        extractTextRecursively(element, textContent);
+        extractTextRecursively(element, textContent, tagNameDefined);
         return textContent.toString().trim();
     }
 
-    private static void extractTextRecursively(WebElement element, StringBuilder textContent) {
+    private static void extractTextRecursively(WebElement element, StringBuilder textContent, String tagNameDefined) {
         // Get the text content of the current element
         String text = element.getText();
         if (!text.isEmpty()) {
@@ -1289,7 +1322,7 @@ public class ABRWebElement {
         }
 
         // Get the placeholder if the element is an input or textarea
-        if (element.getTagName().equals("input") || element.getTagName().equals("textarea")) {
+        if (tagNameDefined.equalsIgnoreCase("input") || tagNameDefined.equalsIgnoreCase("textarea")) {
             String placeholder = element.getAttribute("placeholder");
             if (placeholder != null && !placeholder.isEmpty()) {
                 textContent.append(placeholder).append(" ");
@@ -1299,7 +1332,7 @@ public class ABRWebElement {
         // Recursively extract text from child elements
         List<WebElement> children = element.findElements(By.xpath("./*"));
         for (WebElement child : children) {
-            extractTextRecursively(child, textContent);
+            extractTextRecursively(child, textContent, tagNameDefined);
         }
     }
 
