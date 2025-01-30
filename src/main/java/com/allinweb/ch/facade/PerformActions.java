@@ -686,6 +686,8 @@ public class PerformActions {
         String instructionPath = currentInstruction.getPath();
         String tagName = null;
 
+        abrWebDriver.getDriver().switchTo().defaultContent();
+
         try {
             tagName = removeTrailingSlash(instructionPath);
             tagName = extractTagName(instructionPath);
@@ -728,6 +730,18 @@ public class PerformActions {
 
         WebElement elementFound = null;
         WebElement iframeElement = null;
+
+        try {
+            // Locate and switch to the iframe first
+            WebElement iframe = abrWebDriver.getDriver().findElement(By.xpath(currentInstruction.getIFrameXPath()));
+            abrWebDriver.getDriver().switchTo().frame(iframe);
+
+            System.out.println("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
+        } catch (Exception e) {
+            System.out.println("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
+            performMessage.generalErrorIFrame(currentInstruction.getIFrameXPath());
+            return null;
+        }
 
         for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {
             if (elementFound != null) {
@@ -791,20 +805,20 @@ public class PerformActions {
                     List<WebElement> foundElementList = abrWebDriver.getDriver().findElements(criteria);
 
                     // Check if the element is inside an iframe
-                    if (instructionPath.contains("iframe")) {
-                        try {
-                            // Switch to iframe using XPath
-
-                            iframeElement = iframeInputLocator.findInputInsideIframe(criteria);
-
-                        } catch (Exception e) {
-                            ABRLogger.getInstance(PerformActions.class)
-                                    .fine(String.format(
-                                            "Could not switch to iframe for XPath: %s, Cause: %s",
-                                            instructionPath, e.getMessage()));
-                            continue;
-                        }
-                    }
+                    //                    if (instructionPath.contains("iframe")) {
+                    //                        try {
+                    //                            // Switch to iframe using XPath
+                    //
+                    //                            iframeElement = iframeInputLocator.findInputInsideIframe(criteria);
+                    //
+                    //                        } catch (Exception e) {
+                    //                            ABRLogger.getInstance(PerformActions.class)
+                    //                                    .fine(String.format(
+                    //                                            "Could not switch to iframe for XPath: %s, Cause: %s",
+                    //                                            instructionPath, e.getMessage()));
+                    //                            continue;
+                    //                        }
+                    //                    }
 
                     if (foundElementList != null && foundElementList.size() > 0 && iframeElement == null) {
                         // Wait for element visibility and process

@@ -23,6 +23,7 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
 import javax.swing.*;
 
 /**
@@ -476,5 +477,35 @@ public class PerformMessage {
         } catch (IOException e) {
             System.err.println("Error writing JSON to file: " + e.getMessage());
         }
+    }
+
+    public void generalErrorIFrame(String xpath) {
+        // Styled text elements
+        Text titleText = new Text("Fail Searching IFrame Elements");
+        titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text errorText = new Text("Error: Attempt to create an IFrame element");
+        errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+        Text xpathText = new Text(xpath);
+        xpathText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+        // Create a container for the message
+        VBox messageContainer = new VBox(5); // Adds spacing of 5px
+
+        // Add relevant elements to the container
+        messageContainer.getChildren().addAll(titleText, errorText);
+
+        if (!Strings.isNullOrEmpty(xpath)) {
+            messageContainer.getChildren().add(xpathText);
+        }
+
+        // Display the alert message
+        showAlertCombinedVBOX(
+                Alert.AlertType.WARNING,
+                "iFrame Web Elements",
+                "Action: Search iFrame Elements!",
+                null,
+                messageContainer);
     }
 }

@@ -1025,36 +1025,6 @@ public class ABRScannedElementPane extends ABRPane {
                 Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
     }
 
-    private void generalError(String xpath) {
-        // Styled text elements
-        Text titleText = new Text("Dynamic Search IFrame Elements");
-        titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text errorText = new Text("Error: Attempt to create an IFrame element");
-        errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-        Text xpathText = new Text(xpath);
-        xpathText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-        // Create a container for the message
-        VBox messageContainer = new VBox(5); // Adds spacing of 5px
-
-        // Add relevant elements to the container
-        messageContainer.getChildren().addAll(titleText, errorText);
-
-        if (!Strings.isNullOrEmpty(xpath)) {
-            messageContainer.getChildren().add(xpathText);
-        }
-
-        // Display the alert message
-        performMessage.showAlertCombinedVBOX(
-                Alert.AlertType.WARNING,
-                "iFrame Web Elements",
-                "Action: Search iFrame Elements!",
-                null,
-                messageContainer);
-    }
-
     private void insertNewElement() {
 
         if (Strings.isNullOrEmpty(defineNameField.getText().trim())) {
@@ -1162,7 +1132,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 System.out.println("Found element: " + element.getTagName() + " with XPath: " + xpath);
                             } catch (Exception e) {
                                 System.out.println("Element not found for XPath: " + xpath);
-                                generalError(xpath);
+                                performMessage.generalErrorIFrame(xpath);
                             }
                         }
 
@@ -1177,7 +1147,7 @@ public class ABRScannedElementPane extends ABRPane {
                 ABRLogger.getInstance(ABRScannedElementPane.class)
                         .severe("Error Attempt to create a IFrame Elements\n" + ex.getMessage());
 
-                generalError(null);
+                performMessage.generalErrorIFrame(null);
             }
         }
     }
