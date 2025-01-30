@@ -3615,7 +3615,7 @@ public class ABRScannedElementPane extends ABRPane {
                         // Execute JavaScript to construct and return a custom object
                         LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
                                 jsExecutor.executeScript(
-                                        "var obj = { allElementInfo:window.allElementInfo }; return obj;");
+                                        "var obj = { window.allElementInfo }; return obj;");
 
                         // Convert the LinkedHashMap to a Java Map (if necessary)
                         Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
