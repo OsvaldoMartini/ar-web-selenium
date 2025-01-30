@@ -236,8 +236,8 @@ public class ABRWebDriver {
                     optionsEdge.setCapability(
                             "ms:edgeOptions",
                             "{verbose: true, loggingPrefs: {" + "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
-                } else if (config[0].startsWith("arg")) {
-                    optionsEdge.equals(config[1]);
+                } else if (config[0].equalsIgnoreCase("argument")) {
+                    optionsEdge.addArguments(config[1]);
                     //                        options.addArguments("--disable-infobars");
                     //                        options.addArguments("--disable-dev-shm-usage");
                     //                        options.addArguments("--no-sandbox");
