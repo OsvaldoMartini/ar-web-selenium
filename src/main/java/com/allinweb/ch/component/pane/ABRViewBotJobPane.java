@@ -866,19 +866,23 @@ public class ABRViewBotJobPane extends ABRPane {
                 for (String line : lines) {
 
                     // Exclude "Host info", "Build info", and "System info"
-                    if (line.contains("Host info") || line.contains("Build info") || line.contains("System info") || line.contains("Command")) {
+                    if (line.contains("Host info")
+                            || line.contains("Build info")
+                            || line.contains("System info")
+                            || line.contains("Command")) {
                         continue;
                     }
 
                     if (line.contains("Message: ")) {
-                        msg1 = line.substring(line.indexOf("Message: ") + "Message: ".length()).trim();
+                        msg1 = line.substring(line.indexOf("Message: ") + "Message: ".length())
+                                .trim();
                     } else if (msg2 == null) {
                         msg2 = line.trim();
                     } else if (msg3 == null) {
                         msg3 = line.trim();
                     } else if (msg4 == null) {
                         msg4 = line.trim();
-                    } 
+                    }
                 }
 
                 ABRLogger.getInstance(ABRWebDriver.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);

@@ -1,11 +1,13 @@
 package com.allinweb.ch.persistence;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import java.util.List;
 import org.openqa.selenium.WebElement;
 
 public class SearchReturn {
     String currentXPath;
     String iFrameXPath;
+    List<String> iFrameElements;
     String absolutXPath;
     String customXPath;
     String xPathWorkedFirst;
@@ -25,6 +27,14 @@ public class SearchReturn {
 
     public void setiFrameXPath(String iFrameXPath) {
         this.iFrameXPath = iFrameXPath;
+    }
+
+    public List<String> getiFrameElements() {
+        return iFrameElements;
+    }
+
+    public void setiFrameElements(List<String> iFrameElements) {
+        this.iFrameElements = iFrameElements;
     }
 
     public String getAttribId() {
