@@ -948,21 +948,21 @@ public class ABRScannedElementPane extends ABRPane {
             }
         });
 
-        scanButton.setOnAction(e -> manageUIScan());
+        scanButton.setOnAction(e -> manageUIScanIFrames());
 
         addButtonNewElement.setOnAction(e -> {
-            if (searchReturn.getElement() != null && iFrameElements == null) {
+            if (searchReturn.getElement() != null && Strings.isNullOrEmpty(iFrameXPath)) {
                 if (checkActiveHover.isSelected()) {
                     checkActiveHover.setSelected(false);
                     handleHoverCheckClick();
                 }
                 insertNewElement();
-            } else if (iFrameXPath != null && iFrameElements != null && iFrameElements.length > 0) {
+            } else if (!Strings.isNullOrEmpty(iFrameXPath)) {
                 if (checkActiveHover.isSelected()) {
                     checkActiveHover.setSelected(false);
                     handleHoverCheckClick();
                 }
-                insertNewElement(iFrameElements);
+                insertNewElement(iFrameXPath, iFrameElements);
             } else {
                 performMessage.errorMessage(
                         "Not Web Element to be Added!",
@@ -1071,7 +1071,7 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private void insertNewElement(String[] iFrameElements) {
+    private void insertNewElement(String iFrameXPathToGo, String[] iFrameElements) {
 
         if (iFrameElements != null) {
             try {
@@ -1079,10 +1079,10 @@ public class ABRScannedElementPane extends ABRPane {
 
                     try {
                         // Locate and switch to the iframe first
-                        WebElement iframe = abrWebDriver.getDriver().findElement(By.xpath(iFrameXPath));
+                        WebElement iframe = abrWebDriver.getDriver().findElement(By.xpath(iFrameXPathToGo));
                         abrWebDriver.getDriver().switchTo().frame(iframe);
 
-                        List<WebElement> elements = new ArrayList<>();
+                        //                        List<WebElement> elements = new ArrayList<>();
 
                         // Loop through and find elements
                         for (int i = 1; i < iFrameElements.length; i++) { // Start from index 1
@@ -1097,10 +1097,10 @@ public class ABRScannedElementPane extends ABRPane {
                                 }
 
                                 WebElement element = abrWebDriver.getDriver().findElement(By.xpath(parts[1]));
-                                elements.add(element);
+                                //                                elements.add(element);
 
                                 this.searchReturn.setElement(element);
-                                this.searchReturn.setiFrameXPath(iFrameXPath);
+                                this.searchReturn.setiFrameXPath(iFrameXPathToGo);
                                 this.searchReturn.setDefinedName(parts[0]);
                                 this.searchReturn.setOriginalTagName(parts[0]);
                                 this.searchReturn.setxPathWorkedFirst(ABRConstants.ABSOLUT_XPATH);
@@ -1386,7 +1386,7 @@ public class ABRScannedElementPane extends ABRPane {
         });
     }
 
-    private void manageUIScan() {
+    private void manageUIScanIFrames() {
         ABRLogger.getInstance(ABRScannedElementPane.class).info("iFrames scan triggered");
         webElementObservableList1.clear();
 
@@ -1756,151 +1756,165 @@ public class ABRScannedElementPane extends ABRPane {
                     abrWebDriver.getDriver().switchTo().defaultContent();
 
                     List<String> allXPath = iframeInputLocator.listAllXPaths(abrWebDriver.getDriver());
+                    // Filter the list to keep only elements with tag name "iframe"
+                    List<String> onlyIFrames = allXPath.stream()
+                            .filter(xpath -> xpath.toLowerCase().contains("iframe"))
+                            .collect(Collectors.toList());
 
-                    for (String xPATH : allXPath) {
-                        if (xPATH.contains("iframe")) {
-                            System.out.println(xPATH);
-                        }
+                    for (String xPATH : onlyIFrames) {
+                        System.out.println("iFrame: " + xPATH);
                     }
 
                     List<WebElement> iframes = abrWebDriver.getDriver().findElements(By.tagName("iframe"));
 
-                    Map<WebElement, List<WebElement>> iframeElementsMap = new HashMap<>();
+                    //                    Map<WebElement, List<WebElement>> iframeElementsMap = new HashMap<>();
 
-                    for (WebElement iframe : iframes) {
+                    for (String iFrameScan : onlyIFrames) {
                         try {
-                            abrWebDriver.getDriver().switchTo().frame(iframe);
+                            WebElement iFrameElement = abrWebDriver.getDriver().findElement(By.xpath(iFrameScan));
+                            //                        String iFrameXPath =
+                            // iframeInputLocator.getElementXPathIFrame(iFrameElement, abrWebDriver.getDriver());
+                            abrWebDriver.getDriver().switchTo().frame(iFrameElement);
+
                             List<WebElement> elementsInsideIframe =
                                     abrWebDriver.getDriver().findElements(By.xpath("//*"));
-                            iframeElementsMap.put(iframe, elementsInsideIframe);
-                            totalElementsSize.addAndGet(elementsInsideIframe.size());
 
                             System.out.println(
                                     "Scanned " + elementsInsideIframe.size() + " elements inside an iframe.");
-                            abrWebDriver.getDriver().switchTo().defaultContent();
-                        } catch (Exception e) {
-                            System.out.println("Failed to scan iframe: " + e.getMessage());
-                            abrWebDriver.getDriver().switchTo().defaultContent();
-                        }
-                    }
 
-                    for (Map.Entry<WebElement, List<WebElement>> entry : iframeElementsMap.entrySet()) {
-                        WebElement iframe = entry.getKey();
-                        List<WebElement> elementsInsideIframe = entry.getValue();
-
-                        // Switch back to the main page before checking the next iframe
-                        abrWebDriver.getDriver().switchTo().frame(iframe);
-
-                        String iFrameXPath = iframeInputLocator.getElementXPathIFrame(iframe, abrWebDriver.getDriver());
-
-                        for (WebElement elementIFrame : elementsInsideIframe) {
-                            WebElementTagNameEnum typeSearch = WebElementTagNameEnum.ALL; // Default to ALL
-
-                            String tagName = null;
-                            if (elementIFrame.getTagName().equalsIgnoreCase("input")
-                                    || elementIFrame.getTagName().equalsIgnoreCase("textarea")) {
-
-                                // Send keys to the input element
-                                String inputText = "aaaaaa";
-                                elementIFrame.clear(); // Clear any existing value
-                                elementIFrame.sendKeys(inputText);
-
-                                // Retrieve the value back
-                                String retrievedValue = elementIFrame.getAttribute("value");
-
-                                // Validate if the input was correctly received
-                                if (inputText.equals(retrievedValue)) {
-                                    System.out.println("SUCCESS: Sent '" + inputText + "' and received '"
-                                            + retrievedValue + "' in IFrame.");
-                                    tagName = elementIFrame.getTagName().toLowerCase();
-                                } else {
-                                    System.out.println("ERROR: Sent '" + inputText + "' but received '" + retrievedValue
-                                            + "' in IFrame.");
-                                }
-
-                                switch (tagName) {
-                                    case "input":
-                                        typeSearch = WebElementTagNameEnum.INPUT;
-                                        break;
-                                    case "textarea":
-                                        typeSearch = WebElementTagNameEnum.TEXT_AREA;
-                                        break;
-                                    case "button":
-                                        typeSearch = WebElementTagNameEnum.BUTTON;
-                                        break;
-                                    case "form":
-                                        typeSearch = WebElementTagNameEnum.FORM;
-                                        break;
-                                    case "div":
-                                        typeSearch = WebElementTagNameEnum.DIV;
-                                        break;
-                                    case "p":
-                                        typeSearch = WebElementTagNameEnum.PARAGRAPH;
-                                        break;
-                                    case "a":
-                                        typeSearch = WebElementTagNameEnum.ANCHOR;
-                                        break;
-                                    case "select":
-                                        typeSearch = WebElementTagNameEnum.SELECT;
-                                        break;
-                                    case "option":
-                                        typeSearch = WebElementTagNameEnum.OPTION;
-                                        break;
-                                    case "mat-select":
-                                        typeSearch = WebElementTagNameEnum.MAT_SELECT;
-                                        break;
-                                    case "mat-option":
-                                        typeSearch = WebElementTagNameEnum.MAT_OPTION;
-                                        break;
-                                    case "mat-expansion-panel":
-                                        typeSearch = WebElementTagNameEnum.MAT_EXPANSION_PANEL;
-                                        break;
-                                    default:
-                                        typeSearch = WebElementTagNameEnum.ALL;
-                                        break;
-                                }
-
-                                // Check if element can receive input
-                                boolean canSendKeys = false;
+                            for (WebElement elementIFrame : elementsInsideIframe) {
+                                this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL); // Default to ALL
                                 try {
-                                    elementIFrame.sendKeys("test"); // Test sending keys
-                                    canSendKeys = true;
-                                } catch (Exception ignored) {
-                                }
+                                    String tagName = elementIFrame.getTagName().toLowerCase();
 
-                                // Check if element is clickable
-                                boolean isClickable = false;
-                                try {
-                                    if (elementIFrame.isDisplayed() && elementIFrame.isEnabled()) {
-                                        elementIFrame.click(); // Test clicking
-                                        isClickable = true;
+                                    if (tagName.equalsIgnoreCase("html")
+                                            || tagName.equalsIgnoreCase("script")
+                                            || tagName.equalsIgnoreCase("meta")) {
+                                        continue;
                                     }
-                                } catch (Exception ignored) {
-                                }
 
-                                // Debugging logs
-                                System.out.println("Element: " + tagName + " | CanSendKeys: " + canSendKeys
-                                        + " | Clickable: " + isClickable);
+                                    if (tagName.equalsIgnoreCase("input") || tagName.equalsIgnoreCase("textarea")) {
 
-                                // Add to the list with correct typeSearch
-                                if (typeSearch != WebElementTagNameEnum.ALL) {
+                                        // Send keys to the input element
+                                        String inputText = "aaaaaa";
+                                        elementIFrame.clear(); // Clear any existing value
+                                        elementIFrame.sendKeys(inputText);
 
-                                    WebElementTagNameEnum finalTypeSearch = typeSearch;
+                                        // Retrieve the value back
+                                        String retrievedValue = elementIFrame.getAttribute("value");
 
-                                    // Platform.runLater(() -> {
-                                    listToAddNewElements.add(new ABRWebElement(
-                                            elementIFrame, botJob.getId(), finalTypeSearch, iFrameXPath));
-                                    System.out.println("Added element: " + elementIFrame.getTagName() + " | Type: "
-                                            + finalTypeSearch);
-                                    // });
+                                        // Validate if the input was correctly received
+                                        if (inputText.equals(retrievedValue)) {
+                                            System.out.println("SUCCESS: Sent '" + inputText + "' and received '"
+                                                    + retrievedValue + "' in IFrame.");
+                                        } else {
+                                            System.out.println("ERROR: Sent '" + inputText + "' but received '"
+                                                    + retrievedValue + "' in IFrame.");
+                                        }
+                                    }
 
-                                    Platform.runLater(() -> {
-                                        scannedElements1.refresh();
-                                        scannedElements2.refresh();
-                                        scannedElements3.refresh();
-                                    });
+                                    switch (tagName) {
+                                        case "input":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                                            break;
+                                        case "textarea":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.TEXT_AREA);
+                                            break;
+                                        case "button":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                                            break;
+                                        case "form":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.FORM);
+                                            break;
+                                        case "div":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.DIV);
+                                            break;
+                                        case "p":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.PARAGRAPH);
+                                            break;
+                                        case "a":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.ANCHOR);
+                                            break;
+                                        case "select":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.SELECT);
+                                            break;
+                                        case "option":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.OPTION);
+                                            break;
+                                        case "mat-select":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.MAT_SELECT);
+                                            break;
+                                        case "mat-option":
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.MAT_OPTION);
+                                            break;
+                                        case "mat-expansion-panel":
+                                            this.searchReturn.setForceTypeEnum(
+                                                    WebElementTagNameEnum.MAT_EXPANSION_PANEL);
+                                            break;
+                                        default:
+                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
+                                            break;
+                                    }
+
+                                    // Check if element can receive input
+                                    boolean canSendKeys = false;
+                                    try {
+                                        elementIFrame.sendKeys("test"); // Test sending keys
+                                        canSendKeys = true;
+                                    } catch (Exception ignored) {
+                                    }
+
+                                    // Check if element is clickable
+                                    boolean isClickable = false;
+                                    try {
+                                        if (elementIFrame.isDisplayed() && elementIFrame.isEnabled()) {
+                                            elementIFrame.click(); // Test clicking
+                                            isClickable = true;
+                                        }
+                                    } catch (Exception ignored) {
+                                    }
+
+                                    this.searchReturn.setElement(elementIFrame);
+                                    this.searchReturn.setiFrameXPath(iFrameScan);
+                                    this.searchReturn.setDefinedName(tagName);
+                                    this.searchReturn.setOriginalTagName(tagName);
+                                    this.searchReturn.setxPathWorkedFirst(ABRConstants.ABSOLUT_XPATH);
+
+                                    //
+                                    // this.searchReturn.setAbsolutXPath(parts[1]);
+                                    //
+                                    // this.searchReturn.setCurrentXPath(parts[1]);
+                                    //
+                                    // this.searchReturn.setAttributeValue(parts[2]);
+
+                                    if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+                                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
+                                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
+                                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
+                                            || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+                                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                                    } else {
+                                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                                    }
+
+                                    ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
+                                    if (abrWebElement != null && abrWebElement.getElement() != null) {
+                                        webElementObservableList1.add(abrWebElement);
+                                        Platform.runLater(() -> scannedElements1.refresh());
+                                    }
+
+                                    System.out.println("Found element: " + tagName + " with XPath: "
+                                            + "xpath ???");
+                                } catch (Exception error) {
+                                    System.out.println("Element not found for XPath: " + "xpath ???");
+                                    performMessage.generalErrorIFrame("xpath ???");
                                 }
                             }
+                        } catch (Exception error) {
+                            abrWebDriver.getDriver().switchTo().defaultContent();
+                            System.out.println("Failed to scan iframe: " + error.getMessage());
+                            performMessage.generalErrorIFrame("Error Scanning iFrames");
+                            return;
                         }
                         abrWebDriver.getDriver().switchTo().defaultContent();
                     }
@@ -2057,7 +2071,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     abrWebElement.getSavedReferences().get("coordinates"));
                         }
 
-                        if (abrWebElement.getiFrameXPath() != null) {
+                        if (!Strings.isNullOrEmpty(abrWebElement.getiFrameXPath())) {
                             try {
                                 WebElement iFrame =
                                         abrWebDriver.getDriver().findElement(By.xpath(abrWebElement.getiFrameXPath()));
@@ -5434,7 +5448,7 @@ public class ABRScannedElementPane extends ABRPane {
     private void clearFields() {
         absolutXPathTextField.setText("");
         currentXPathTextField.setText("");
-        iFrameXPath = null;
+        iFrameXPath = "";
         iFrameElements = null;
         coordsTextField.setText("");
         customXPathTextField.setText("");

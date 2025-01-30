@@ -142,7 +142,7 @@ public class ABRWebElement {
         this.forceTagEnum = searchReturn.getForceTypeEnum();
         this.attributeValue = searchReturn.getAttributeValue();
 
-        this.iFrameXPath = searchReturn.getiFrameXPath() != null ? searchReturn.getiFrameXPath() : null;
+        this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getiFrameXPath()) ? searchReturn.getiFrameXPath() : null;
 
         //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
         initFromWebElement(searchReturn.getElement());

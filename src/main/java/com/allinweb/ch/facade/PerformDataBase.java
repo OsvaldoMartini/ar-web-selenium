@@ -24,6 +24,7 @@ import com.allinweb.ch.util.ABRPropertyEnum;
 import com.allinweb.ch.util.ABRPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
+import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.awt.*;
 import java.io.File;
@@ -2850,14 +2851,20 @@ public class PerformDataBase {
                     blockLoopStmt.setNull(16, Types.VARCHAR);
                 }
 
-                if (instruction.getVariableId() != null && instruction.getVariableId() > 0) {
-                    blockLoopStmt.setInt(17, newVariableId != null ? newVariableId : instruction.getVariableId());
+                if (!Strings.isNullOrEmpty(instruction.getIFrameXPath())) {
+                    blockLoopStmt.setString(17, instruction.getIFrameXPath());
                 } else {
-                    blockLoopStmt.setNull(17, java.sql.Types.INTEGER);
+                    blockLoopStmt.setNull(17, Types.VARCHAR);
                 }
 
-                blockLoopStmt.setInt(18, instruction.getBlockId());
-                blockLoopStmt.setInt(19, instruction.getBotJobId());
+                if (instruction.getVariableId() != null && instruction.getVariableId() > 0) {
+                    blockLoopStmt.setInt(18, newVariableId != null ? newVariableId : instruction.getVariableId());
+                } else {
+                    blockLoopStmt.setNull(18, java.sql.Types.INTEGER);
+                }
+
+                blockLoopStmt.setInt(19, instruction.getBlockId());
+                blockLoopStmt.setInt(20, instruction.getBotJobId());
 
                 blockLoopStmt.addBatch(); // Add to batch
             }

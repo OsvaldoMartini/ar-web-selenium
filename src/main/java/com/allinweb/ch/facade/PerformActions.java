@@ -731,7 +731,7 @@ public class PerformActions {
         WebElement elementFound = null;
         WebElement iframeElement = null;
 
-        if (currentInstruction.getIFrameXPath() != null) {
+        if (!Strings.isNullOrEmpty(currentInstruction.getIFrameXPath())) {
             try {
                 // Locate and switch to the iframe first
                 WebElement iframe = abrWebDriver.getDriver().findElement(By.xpath(currentInstruction.getIFrameXPath()));

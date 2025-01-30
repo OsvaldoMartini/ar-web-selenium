@@ -549,8 +549,9 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
             instructionDTO.setId(nextId);
 
             String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
-            String iframeXPath =
-                    (instructionDTO.getIFrameXPath() != null) ? "'" + instructionDTO.getIFrameXPath() + "'" : "";
+            String iframeXPath = !Strings.isNullOrEmpty(instructionDTO.getIFrameXPath())
+                    ? "'" + instructionDTO.getIFrameXPath() + "'"
+                    : "";
 
             // Build the SQL insert query
 
