@@ -731,16 +731,18 @@ public class PerformActions {
         WebElement elementFound = null;
         WebElement iframeElement = null;
 
-        try {
-            // Locate and switch to the iframe first
-            WebElement iframe = abrWebDriver.getDriver().findElement(By.xpath(currentInstruction.getIFrameXPath()));
-            abrWebDriver.getDriver().switchTo().frame(iframe);
+        if (currentInstruction.getIFrameXPath() != null) {
+            try {
+                // Locate and switch to the iframe first
+                WebElement iframe = abrWebDriver.getDriver().findElement(By.xpath(currentInstruction.getIFrameXPath()));
+                abrWebDriver.getDriver().switchTo().frame(iframe);
 
-            System.out.println("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
-        } catch (Exception e) {
-            System.out.println("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
-            performMessage.generalErrorIFrame(currentInstruction.getIFrameXPath());
-            return null;
+                System.out.println("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
+            } catch (Exception e) {
+                System.out.println("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
+                performMessage.generalErrorIFrame(currentInstruction.getIFrameXPath());
+                return null;
+            }
         }
 
         for (com.allinweb.ch.util.Priority priority : abrPriorities.getAllPriorityList()) {

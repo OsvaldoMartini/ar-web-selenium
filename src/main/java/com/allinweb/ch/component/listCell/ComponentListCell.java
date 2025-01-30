@@ -549,6 +549,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
             instructionDTO.setId(nextId);
 
             String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
+            String iframeXPath =
+                    (instructionDTO.getIFrameXPath() != null) ? "'" + instructionDTO.getIFrameXPath() + "'" : "";
 
             // Build the SQL insert query
 
@@ -567,6 +569,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + "optional, "
                     + "parent_id, "
                     + "path, "
+                    + "iframe_xpath, "
                     + "variable_id, "
                     + "block_id, "
                     + "bot_job_id, "
@@ -587,6 +590,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + ", " + instructionDTO.getOptional()
                     + ", " + instructionDTO.getParentId()
                     + ", " + pathValue
+                    + ", " + iframeXPath
                     + ", " + instructionDTO.getVariableId()
                     + ", " + instructionDTO.getBlockId()
                     + ", " + instructionDTO.getBotJobId()

@@ -484,7 +484,7 @@ public class PerformMessage {
         Text titleText = new Text("Fail Searching IFrame Elements");
         titleText.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
-        Text errorText = new Text("Error: Attempt to create an IFrame element");
+        Text errorText = new Text("Error: Attempt identify IFrame elements");
         errorText.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
         Text xpathText = new Text(xpath);

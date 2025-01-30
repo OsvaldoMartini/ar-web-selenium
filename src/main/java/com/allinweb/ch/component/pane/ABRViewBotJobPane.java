@@ -1086,6 +1086,7 @@ public class ABRViewBotJobPane extends ABRPane {
 
                 instruction.setActions(rs.getString("actions"));
                 instruction.setPath(rs.getString("path"));
+                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
                 instruction.setDescription(rs.getString("description"));
                 instruction.setOptional(rs.getBoolean("optional"));
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
