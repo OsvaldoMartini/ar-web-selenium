@@ -951,8 +951,10 @@ public class ABRScannedElementPane extends ABRPane {
         scanButton.setOnAction(e -> manageUIScan());
 
         addNewElement.setOnAction(e -> {
-            if (searchReturn.getElement() != null) {
+            if (searchReturn.getElement() != null && iFrameElements == null) {
                 insertNewElement();
+            } else if (iFrameElements != null && iFrameElements.length > 0) {
+                insertNewElement(iFrameElements);
             }
         });
 
@@ -1053,6 +1055,79 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
+    private void insertNewElement(String[] iFrameElements) {
+
+        if (iFrameElements != null) {
+            try {
+                if (searchReturn.getElement() == null) {
+
+                    try {
+                        // Locate and switch to the iframe first
+                        WebElement iframe = abrWebDriver.getDriver().findElement(By.xpath(iFrameXPath));
+                        abrWebDriver.getDriver().switchTo().frame(iframe);
+
+                        List<WebElement> elements = new ArrayList<>();
+
+                        // Loop through and find elements
+                        for (int i = 1; i < iFrameElements.length; i++) { // Start from index 1
+                            String xpath = iFrameElements[i];
+                            try {
+                                String[] parts = xpath.split(";");
+
+                                for (int x = 0; x < parts.length; x++) {
+                                    parts[x] = parts[x].replace("tagName:", "")
+                                            .replace("xpath:", "")
+                                            .replace("text:", "");
+                                }
+
+                                WebElement element = abrWebDriver.getDriver().findElement(By.xpath(parts[1]));
+                                elements.add(element);
+
+                                this.searchReturn.setElement(element);
+                                this.searchReturn.setiFrameXPath(iFrameXPath);
+                                this.searchReturn.setDefinedName(parts[0]);
+                                this.searchReturn.setOriginalTagName(parts[0]);
+                                this.searchReturn.setAbsolutXPath(parts[1]);
+                                this.searchReturn.setCurrentXPath(parts[1]);
+                                this.searchReturn.setAttributeValue(parts[2]);
+
+                                // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
+                                if (parts[0].equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+                                        || parts[0].equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
+                                        || parts[0].equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
+                                        || parts[0].equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
+                                        || parts[0].equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+                                    searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                                } else {
+                                    searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                                }
+
+                                ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
+                                if (abrWebElement != null && abrWebElement.getElement() != null) {
+                                    webElementObservableList3.add(abrWebElement);
+                                    scannedElements3.refresh();
+                                }
+
+                                System.out.println("Found element: " + element.getTagName() + " with XPath: " + xpath);
+                            } catch (Exception e) {
+                                System.out.println("Element not found for XPath: " + xpath);
+                            }
+                        }
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    } finally {
+                        // Close the browser
+                        abrWebDriver.getDriver().switchTo().defaultContent();
+                    }
+                }
+            } catch (Exception ex) {
+                ABRLogger.getInstance(ABRScannedElementPane.class)
+                        .severe("Error Attempt to create a Dynamic Element\n" + ex.getMessage());
+            }
+        }
+    }
+
     private SearchReturn extractValidateDynamic() {
 
         defineNameField.setText("");
@@ -1101,8 +1176,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                 // Here I am forcing as Button "CLICKABLE" or "IMPUTABLE"
                 if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
-                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
-                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())
+                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
                         || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
                         || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
                         || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
@@ -3468,6 +3542,7 @@ public class ABRScannedElementPane extends ABRPane {
                                     checkOutputText.setSelected(false);
                                     checkFrameText.setSelected(true);
                                 } else {
+
                                     checkFrameText.setSelected(false);
                                     countdownTextField.setText("");
                                 }
