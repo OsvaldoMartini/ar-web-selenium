@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +8,8 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class IframeInputLocator {
 
@@ -132,6 +135,98 @@ public class IframeInputLocator {
                                 + "}"
                                 + "return getElementXPath(arguments[0]);",
                         element);
+    }
+
+
+    // Helper method to extract XPath of a WebElement, including tagName for iframe
+    public String getElementTagName(WebElement element, WebDriver driver) {
+        // Make sure we're in the correct frame before executing the script
+        return (String) ((JavascriptExecutor) driver)
+                .executeScript(
+                        "function getElementXPath(element) {" +
+                                "    var paths = [];" +
+                                "    while (element && element.nodeType == 1) {" +
+                                "        var index = 0;" +
+                                "        // Loop through previous siblings of the current element" +
+                                "        for (var sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {" +
+                                "            if (sibling.nodeType == 1 && sibling.tagName == element.tagName) {" +
+                                "                index++;" +
+                                "            }" +
+                                "        }" +
+                                "        var tagName = element.tagName.toLowerCase();" +
+                                "        var pathIndex = (index ? '[' + (index + 1) + ']' : '');" +
+                                "        // Add the element's tag and index to the path" +
+                                "        paths.unshift(tagName + pathIndex);" +
+                                "        // If element is an iframe, include its tagName too" +
+                                "        if (tagName === 'iframe') {" +
+                                "            paths.unshift('iframe');" +
+                                "        }" +
+                                "        // Traverse up the DOM tree" +
+                                "        element = element.parentNode;" +
+                                "    }" +
+                                "    return '/' + paths.join('/');" +
+                                "}" +
+                                "return getElementXPath(arguments[0]);",
+                        element);
+    }
+
+
+    // Helper method to extract XPath of a WebElement, including nested elements
+    public String getElementChildXPathIFrame(WebElement element, WebDriver driver) {
+        // Make sure we're in the correct frame before executing the script
+        return (String) ((JavascriptExecutor) driver)
+                .executeScript(
+                        "function getElementXPath(element) {" + "    var paths = [];"
+                                + "    while (element && element.nodeType == 1) {"
+                                + "        var index = 0;"
+                                + "        // Loop through previous siblings of the current element"
+                                + "        for (var sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {"
+                                + "            if (sibling.nodeType == 1 && sibling.tagName == element.tagName) {"
+                                + "                index++;"
+                                + "            }"
+                                + "        }"
+                                + "        var tagName = element.tagName.toLowerCase();"
+                                + "        var pathIndex = (index ? '[' + (index + 1) + ']' : '');"
+                                + "        // Add the element's tag and index to the path"
+                                + "        paths.unshift(tagName + pathIndex);"
+                                + "        // Traverse into child nodes if the element is not root"
+                                + "        element = element.parentNode;"
+                                + "    }"
+                                + "    return '/' + paths.join('/');"
+                                + "}"
+                                + "return getElementXPath(arguments[0]);",
+                        element);
+    }
+
+    public List<String> getIframeElementsInfo(WebElement iFrameElement, WebDriver driver) {
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
+
+        // Wait for iframe to be available
+        wait.until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(iFrameElement));
+
+        String script = "var doc = document;" + "var elements = doc.querySelectorAll('*');"
+                + "return Array.from(elements).map(el => {"
+                + "   var path = '';"
+                + "   while (el && el.nodeType === 1) {"
+                + "       var index = Array.from(el.parentNode.children).indexOf(el) + 1;"
+                + "       path = '/' + el.tagName.toLowerCase() + '[' + index + ']' + path;"
+                + "       el = el.parentNode;"
+                + "   }"
+                + "   return path;"
+                + "});";
+
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        List<String> allXPathInsideIframe = new ArrayList<>();
+
+        // Execute JavaScript inside the iframe
+        List<String> xpaths = (List<String>) jsExecutor.executeScript(script);
+
+        allXPathInsideIframe.addAll(xpaths);
+
+        // Switch back to the main content
+        driver.switchTo().defaultContent();
+
+        return allXPathInsideIframe;
     }
 
     // Helper method to extract XPath of a WebElement
