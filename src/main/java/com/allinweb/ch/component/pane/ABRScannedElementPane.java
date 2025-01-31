@@ -2633,8 +2633,11 @@ public class ABRScannedElementPane extends ABRPane {
                                     instruction.setName(finalNameWebElement);
 
                                     // Update the action string if it contains "I:"
-                                    String updatedActions = Arrays.stream(instruction.getActions().split("\\s*,\\s*")) // Split by commas
-                                            .map(action -> action.startsWith("I:") ? "I:" + finalNameWebElement : action) // Replace "I:oldValue"
+                                    String updatedActions = Arrays.stream(
+                                                    instruction.getActions().split("\\s*,\\s*")) // Split by commas
+                                            .map(action -> action.startsWith("I:")
+                                                    ? "I:" + finalNameWebElement
+                                                    : action) // Replace "I:oldValue"
                                             .collect(Collectors.joining(", ")); // Join back into a single string
 
                                     instruction.setActions(updatedActions);
