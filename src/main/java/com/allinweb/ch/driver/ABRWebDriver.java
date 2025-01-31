@@ -56,6 +56,14 @@ public class ABRWebDriver {
 
     public WebDriver openDriver(String url, String optionsConfig) {
 
+        if (Strings.isNullOrEmpty(url.trim())) {
+            ABRLogger.getInstance(ABRWebDriver.class).fine("URL IS EMPTY");
+
+            performMessage.errorMessage("URL IS EMPTY", "URL Web Browser is Empty", null, null, null, 0);
+
+            return null;
+        }
+
         String lineSeparator = identifyLineSeparator(optionsConfig);
 
         // Split the text into lines using the detected line separator
@@ -141,12 +149,11 @@ public class ABRWebDriver {
                 throw new UnsupportedOperationException(error.getMessage());
             }
         }
+
         driver.manage().window().maximize();
-        if (Strings.isNullOrEmpty(url)) {
-            ABRLogger.getInstance(ABRWebDriver.class).fine("URL IS EMPTY");
-        }
 
         try {
+
             driver.get(url);
 
             // Wait for the page to finish loading
@@ -157,6 +164,7 @@ public class ABRWebDriver {
                     .equals("complete"));
 
         } catch (Exception e) {
+
             String errorMessage = e.getMessage();
             ABRLogger.getInstance(ABRWebDriver.class)
                     .fine("An error has occurred during driver.get(url) Load " + errorMessage);
@@ -181,7 +189,6 @@ public class ABRWebDriver {
             for (String chunk : messageChunks) {
                 ABRLogger.getInstance(ABRWebDriver.class).fine("Error chunk: " + chunk);
             }
-
             return null;
 
             //            JOptionPane.showMessageDialog(
@@ -237,7 +244,7 @@ public class ABRWebDriver {
                             "ms:edgeOptions",
                             "{verbose: true, loggingPrefs: {" + "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
                 } else if (config[0].startsWith("arg")) {
-                    optionsEdge.equals(config[1]);
+                    optionsEdge.addArguments(config[1]);
                     //                        options.addArguments("--disable-infobars");
                     //                        options.addArguments("--disable-dev-shm-usage");
                     //                        options.addArguments("--no-sandbox");

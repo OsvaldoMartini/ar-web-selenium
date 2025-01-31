@@ -548,6 +548,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
             Integer nextId = loadNextIdInstructionData() + 1;
             instructionDTO.setId(nextId);
 
+            String coordinates =
+                    (instructionDTO.getCoordinates() != null) ? "'" + instructionDTO.getCoordinates() + "'" : "";
             String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
             String iframeXPath = !Strings.isNullOrEmpty(instructionDTO.getIFrameXPath())
                     ? "'" + instructionDTO.getIFrameXPath() + "'"
@@ -570,6 +572,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + "optional, "
                     + "parent_id, "
                     + "path, "
+                    + "coordinates, "
                     + "iframe_xpath, "
                     + "variable_id, "
                     + "block_id, "
@@ -591,6 +594,7 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     + ", " + instructionDTO.getOptional()
                     + ", " + instructionDTO.getParentId()
                     + ", " + pathValue
+                    + ", " + coordinates
                     + ", " + iframeXPath
                     + ", " + instructionDTO.getVariableId()
                     + ", " + instructionDTO.getBlockId()

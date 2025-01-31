@@ -1,7 +1,5 @@
 package com.allinweb.ch.driver;
 
-import com.allinweb.ch.builder.WebElementAttributeEnum;
-import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
@@ -11,7 +9,6 @@ import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.util.*;
-import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -20,7 +17,6 @@ import java.util.*;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
@@ -39,7 +35,7 @@ import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.RemoteWebElement;
 
-public class ABRWebElement {
+public class ABRWebElementNew {
 
     private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
 
@@ -124,57 +120,46 @@ public class ABRWebElement {
         performMessage = PerformMessage.getInstance();
     }
 
-    public ABRWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch, String iFrameXPath) {
+    public ABRWebElementNew(WebElement element, int jobId, WebElementTagNameEnum typeSearch, String iFrameXPath) {
         abrPriorities.setJobId(jobId);
         this.tagType = typeSearch;
         this.iFrameXPath = iFrameXPath;
         initFromWebElement(element);
     }
 
-    public ABRWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch) {
-        this.tagNameDefined = element.getTagName();
+    public ABRWebElementNew(WebElement element, int jobId, WebElementTagNameEnum typeSearch) {
         abrPriorities.setJobId(jobId);
         this.tagType = typeSearch;
         initFromWebElement(element);
     }
 
-    public ABRWebElement(SearchReturn searchReturn, int jobId) {
+    public ABRWebElementNew(SearchReturn searchReturn, int jobId) {
         abrPriorities.setJobId(jobId);
         this.searchReturn = searchReturn;
         this.tagType = searchReturn.getTagType();
         this.attributeValue = searchReturn.getAttributeValue();
         this.tagNameDefined = searchReturn.getOriginalTagName();
-        this.mainXPath = searchReturn.getMainXPath();
-        this.mainCoordinates = searchReturn.getMainCoordinates();
         this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getiFrameXPath()) ? searchReturn.getiFrameXPath() : null;
 
         //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
         initFromWebElement(searchReturn.getElement());
     }
 
-    public ABRWebElement(
+    public ABRWebElementNew(
             Map.Entry<String, WebElement> entry, String attributeName, int jobId, WebElementTagNameEnum typeElement) {
         abrPriorities.setJobId(jobId);
         WebElement element = entry.getValue();
         this.mainXPath = entry.getKey();
         this.attributeValue = element.getAttribute(attributeName);
-        this.tagNameDefined = searchReturn.getOriginalTagName();
         if (typeElement != null) {
             tagType = typeElement;
         }
         initFromWebElement(element);
     }
 
-    public ABRWebElement(WebElement element, String priority) {
+    public ABRWebElementNew(WebElement element, String priority) {
         updatePriorities(priority, null);
-        this.tagNameDefined = searchReturn.getOriginalTagName();
         initFromWebElement(element);
-    }
-
-    public ABRWebElement(BlockLoopInstructionDTO instruction) {
-        botJobId = instruction.getBlock().getBotJobDTO().getId();
-        updatePriorities(null, instruction);
-        initFromBlockLoopInstruction(instruction);
     }
 
     private void updatePriorities(String priority, BlockLoopInstructionDTO instruction) {
@@ -200,247 +185,68 @@ public class ABRWebElement {
 
     private void initFromWebElement(WebElement element) {
         initUI();
-
         try {
-
-            if (this.tagNameDefined == null) {
-
-                performMessage.couldNotFindElement("No TagName");
-                //                new ABRAlertScene(
-                //                        Alert.AlertType.ERROR,
-                //                        "Not possible to identity the Tag Name",
-                //                        "Try to Re Scanner or Re Select the Element!",
-                //                        ButtonType.OK);
-
-                return;
+            if (searchReturn != null
+                    && searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ABRConstants.ABSOLUT_XPATH)) {
+                savedReferences.put(
+                        "absolutXPath",
+                        searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
+                savedReferences.put(
+                        "currentXPath",
+                        searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
+                savedReferences.put(
+                        "customXPath",
+                        searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+            } else if (searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ABRConstants.REGULAR_XPATH)) {
+                savedReferences.put(
+                        "currentXPath",
+                        searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
+                savedReferences.put(
+                        "absolutXPath",
+                        searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
+                savedReferences.put(
+                        "customXPath",
+                        searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
             }
-        } catch (Exception e) {
-            performMessage.couldNotFindElement("No TagName");
-            //            new ABRAlertScene(
-            //                    Alert.AlertType.ERROR,
-            //                    "Not possible to identity the Tag Name",
-            //                    "Try to Re Scanner or Re Select the Element!",
-            //                    ButtonType.OK);
+            try {
+                Rectangle coordinates = element.getRect();
+                savedReferences.put(
+                        "coordinates",
+                        (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                                + (coordinates.getY() + (coordinates.getHeight() / 2)));
+            } catch (Exception coords) {
+                // Split the string into X and Y values
+                if (Strings.isNullOrEmpty(searchReturn.getCoords())) {
+                    String[] parts = searchReturn.getCoords().split(",");
+                    int x = Integer.parseInt(parts[0]);
+                    int y = Integer.parseInt(parts[1]);
 
-            return;
-        }
+                    // Create a Rectangle object (assuming you want to use a width and height)
+                    // For this example, I am using arbitrary width and height
+                    int width = 100; // Replace with actual width
+                    int height = 100; // Replace with actual height
+                    Rectangle coordinates = new Rectangle(x, y, width, height);
 
-        boolean isAnchor = this.tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
-        boolean isOption = this.tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
+                    // Calculate the new coordinates (center of the rectangle)
+                    String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                            + (coordinates.getY() + (coordinates.getHeight() / 2));
 
-        try {
-            if (abrPriorities.getAllPriorityList().size() == 0) {
-                abrPriorities.loadPriorities();
-                ABRLogger.getInstance(Thread.class).finer("Reloaded abrPriorities.loadPriorities()");
-            }
-
-            if (searchReturn == null && abrPriorities.getJobId() != null) {
-                for (Priority priority : abrPriorities.getAllPriorityList()) {
-                    try {
-                        switch (priority.getPriorityType()) {
-                            case attribute -> {
-                                String attributeValue =
-                                        element.getAttribute(priority.getName().get(0));
-                                if (attributeValue != null && !attributeValue.isBlank()) {
-                                    savedReferences.put(priority.getName().get(0), attributeValue);
-                                }
-                            }
-                            case xpath, ByXPath -> {
-                                if (Strings.isNullOrEmpty(mainXPath)) {
-                                    mainXPath = ABRWebUtil.extractWebElementXPath(element);
-                                    savedReferences.put(priority.getName().get(0), mainXPath);
-                                } else {
-
-                                    savedReferences.put(priority.getName().get(0), mainXPath);
-                                }
-                            }
-
-                            case coordinates -> {
-                                Rectangle coord = element.getRect();
-                                String coordTemp = (coord.getX() + (coord.getWidth() / 2)) + ","
-                                        + (coord.getY() + (coord.getHeight() / 2));
-                                savedReferences.put(priority.getName().get(0), coordTemp);
-                            }
-                        }
-                    } catch (EnumConstantNotPresentException ex) {
-                        throw ex;
-                    }
-                }
-            } else {
-                // Most Important to find any kind of element
-
-                if (searchReturn != null
-                        && searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ABRConstants.ABSOLUT_XPATH)) {
-                    savedReferences.put(
-                            "absolutXPath",
-                            searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
-                    savedReferences.put(
-                            "currentXPath",
-                            searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
-                    savedReferences.put(
-                            "customXPath",
-                            searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ABRConstants.REGULAR_XPATH)) {
-                    savedReferences.put(
-                            "currentXPath",
-                            searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
-                    savedReferences.put(
-                            "absolutXPath",
-                            searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
-                    savedReferences.put(
-                            "customXPath",
-                            searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (searchReturn != null && !Strings.isNullOrEmpty(mainXPath)) {
-                    savedReferences.put("xpath", searchReturn.getCurrentXPath());
-                } else if (!Strings.isNullOrEmpty(attributeValue)) {
-                    savedReferences.put("attribute", attributeValue);
-                } else { // In case of Dynamic Creation
-                    savedReferences.put("xpath", ABRWebUtil.extractWebElementXPath(element));
-                }
-
-                try {
-                    Rectangle coordinates = element.getRect();
-                    savedReferences.put(
-                            "coordinates",
-                            (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                                    + (coordinates.getY() + (coordinates.getHeight() / 2)));
-                } catch (Exception coords) {
-                    // Split the string into X and Y values
-                    if (Strings.isNullOrEmpty(searchReturn.getCoords())) {
-                        String[] parts = searchReturn.getCoords().split(",");
-                        int x = Integer.parseInt(parts[0]);
-                        int y = Integer.parseInt(parts[1]);
-
-                        // Create a Rectangle object (assuming you want to use a width and height)
-                        // For this example, I am using arbitrary width and height
-                        int width = 100; // Replace with actual width
-                        int height = 100; // Replace with actual height
-                        Rectangle coordinates = new Rectangle(x, y, width, height);
-
-                        // Calculate the new coordinates (center of the rectangle)
-                        String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                                + (coordinates.getY() + (coordinates.getHeight() / 2));
-
-                        // Store the result in savedReferences map
-                        Map<String, String> savedReferences = new HashMap<>();
-                        savedReferences.put("coordinates", newCoordinates);
-                    }
+                    // Store the result in savedReferences map
+                    Map<String, String> savedReferences = new HashMap<>();
+                    savedReferences.put("coordinates", newCoordinates);
                 }
             }
 
         } catch (Exception ex) {
             throw ex;
         }
-
-        String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
-        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
-        String formControlNameAttributeValue =
-                element.getAttribute(WebElementAttributeEnum.FORM_CONTROL_NAME.getValue());
-        String testIdAttributeValue = element.getAttribute(WebElementAttributeEnum.TEST_ID.getValue());
-        String idAttributeValue = element.getAttribute(WebElementAttributeEnum.ID.getValue());
-        String nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
-        String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
-        String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
-
-        String textLabel = element.getText();
-
-        if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = extractAllText(element, tagNameDefined);
-        }
-
-        if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = getTextRecursively(element, tagNameDefined);
-        }
-
-        if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = getTextRecursivelyByParent(element, tagNameDefined);
-        }
-
-        boolean hasButton = this.tagNameDefined.equalsIgnoreCase("button") && isClickable() && !textLabel.isBlank();
-        boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
-        boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank() && !hasButton;
-        boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
-        boolean hasFormControlName =
-                formControlNameAttributeValue != null && !formControlNameAttributeValue.isBlank() && !hasButton;
-        boolean hasTestId = testIdAttributeValue != null && !testIdAttributeValue.isBlank() && !hasButton;
-        boolean hasName = nameAttributeValue != null && !nameAttributeValue.isBlank() && !hasButton;
-        boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank() && !hasButton;
-        boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
-        boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
-        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("p");
-        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("span");
-        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("div");
-        boolean hasLabel = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("label");
-
-        if ((hasSpan || hasDiv || hasLabel) && !outputElement.getValue()) {
-            textElement.setValue(true);
-        }
-
-        innerHTMLValue = innerHTMLValue.replaceAll("  ", "");
-        innerHTMLValue = innerHTMLValue.replaceAll("\n", "");
 
         if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
             nameLabel.setText(searchReturn.getDefinedName());
             nameField.setText(searchReturn.getDefinedName());
-        } else if (isOption && hasValue) {
-            nameLabel.setText(valueAttributeValue);
-            nameField.setText(valueAttributeValue);
-        } else if (hasFormControlName) {
-            nameLabel.setText(formControlNameAttributeValue);
-            nameField.setText(formControlNameAttributeValue);
-        } else if (hasTestId) {
-            nameLabel.setText(testIdAttributeValue);
-            nameField.setText(testIdAttributeValue);
-        } else if (hasName) {
-            nameLabel.setText(nameAttributeValue);
-            nameField.setText(nameAttributeValue);
-        } else if (hasAriaLabel) {
-            nameLabel.setText(ariaLabelValue);
-            nameField.setText(ariaLabelValue);
-        } else if (isAnchor && hasInnerHTML && !hasInnerHTMLTag) {
-            nameLabel.setText(innerHTMLValue);
-            nameField.setText(innerHTMLValue);
-        } else if (hasId) {
-            nameLabel.setText(idAttributeValue);
-            nameField.setText(idAttributeValue);
-        } else if (hasHRefFile) {
-            nameLabel.setText(valueHRefFile + " File");
-            nameField.setText(valueHRefFile + " File");
-        } else if (hasParagraph) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
-        } else if (hasButton) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
-        } else if (hasSpan) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
-        } else if (hasDiv) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
-        } else if (hasLabel) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
-        } else if (this.tagNameDefined.equalsIgnoreCase("input")
-                || this.tagNameDefined.equalsIgnoreCase("button")
-                || this.tagNameDefined.equalsIgnoreCase("output")) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
         } else {
             nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
-        }
-        try {
-
-            String extRef = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.WEBDRIVER_EXT_REFERENCE);
-            if (extRef != null) {
-                String extRefSub = extRef.substring(extRef.indexOf("'") + 1, extRef.length() - 1);
-                // isIdElement.setValue(hasTestId &&
-                // testIdAttributeValue.equalsIgnoreCase("web-banking-payment-core.payment-details.external-reference"));
-                isIdElement.setValue(hasTestId && testIdAttributeValue.equalsIgnoreCase(extRefSub));
-            }
-        } catch (Exception ex) {
-            throw ex;
         }
 
         // Identify if the element is an INPUT, BUTTON, or LABEL
@@ -458,6 +264,10 @@ public class ABRWebElement {
         insertElement.setValue(false);
         clickElement.setValue(false);
         textElement.setValue(false);
+        setValueElem.setValue(false);
+        getValueElem.setValue(false);
+        checkValueElem.setValue(false);
+        holdValueElem.setValue(false);
 
         // Now proceed with the rest of your code
         if (!isElementHidden) {
@@ -467,6 +277,9 @@ public class ABRWebElement {
                 if (tagType.equals(WebElementTagNameEnum.BUTTON)) {
                     // Handle the button case (if BUTTON is forced)
                     clickElement.setValue(true);
+                } else if (tagType.getValue().equalsIgnoreCase(ABRConstants.HOLD)) {
+                    // Handle the SET_VALUE case
+                    holdValueElem.setValue(true);
                 } else if (tagType.getValue().equalsIgnoreCase(ABRConstants.SET_VALUE)) {
                     // Handle the SET_VALUE case
                     setValueElem.setValue(true);
@@ -522,69 +335,6 @@ public class ABRWebElement {
         elementId = ((RemoteWebElement) element).getId();
         this.element = element;
         toBeAddedElement.setValue(true);
-    }
-
-    private boolean isClickable(WebElement element, String tagNameDefined) {
-        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
-        boolean isClickableTag =
-                clickableTags.stream().anyMatch(t -> t.getValue().equalsIgnoreCase(tagNameDefined));
-        List<WebElementAttributeTypeValueEnum> clickableValues = WebElementAttributeTypeValueEnum.getClickableValues();
-        boolean isClickableValue = clickableValues.stream().anyMatch(v -> v.getValue()
-                .equalsIgnoreCase(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
-        boolean isInputTag = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue());
-        return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
-    }
-
-    private void initFromBlockLoopInstruction(BlockLoopInstructionDTO instruction) {
-
-        // Split the description string
-        if (instruction.getOperation() != null) {
-            String[] descriptionArray = instruction.getOperation().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
-
-            // Initialize the descriptions array with the length of the descriptionArray
-            operationsElement = new StringProperty[descriptionArray.length];
-
-            // Convert each string to a StringProperty
-            for (int i = 0; i < descriptionArray.length; i++) {
-                operationsElement[i] = new SimpleStringProperty(descriptionArray[i]);
-            }
-        }
-        String[] actionReference = instruction.getActions().split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
-
-        isCheckValidator = actionReference[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE);
-
-        instructionId = instruction.getId();
-        instrName = instruction.getName();
-        instrOperation = instruction.getOperation();
-        initUI();
-
-        nameLabel.setText(instruction.getName());
-        nameField.setText(instruction.getName());
-        mainXPath = instruction.getPath();
-        if (actionReference.length > 1) {
-            nameLabel.setText(actionReference[1]);
-            nameField.setText(actionReference[1]);
-        }
-
-        if (actionReference[0].equalsIgnoreCase(ABRConstants.HIDDEN)) {
-            hiddenElement.setValue(true);
-        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.OUTPUT)) {
-            outputElement.setValue(true);
-        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.CLICK)) {
-            clickElement.setValue(true);
-        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.INSERT)) {
-            textElement.setValue(true);
-        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.SET_VALUE)) {
-            setValueElem.setValue(true);
-        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.GET_VALUE)) {
-            getValueElem.setValue(true);
-        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.CHECK_VALUE)) {
-            checkValueElem.setValue(true);
-        } else if (actionReference[0].equalsIgnoreCase(ABRConstants.HOLD)) {
-            holdValueElem.setValue(true);
-        }
-
-        toBeAddedElement.setValue(false);
     }
 
     private void initUI() {
@@ -1179,73 +929,6 @@ public class ABRWebElement {
 
         // Extract the substring after the last period
         return lastSegment.substring(lastIndexOfDot + 1);
-    }
-
-    // CHATGPT   I want select the correct type of element following these conditions
-    // TODO MORE INTELLIGENT  LOGIC
-    public void selectElementType(WebElement element) {
-        // Check element tag names
-        boolean isAnchor = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
-        boolean isOption = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
-
-        // Extract various attributes
-        String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
-        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
-        String formControlNameAttributeValue =
-                element.getAttribute(WebElementAttributeEnum.FORM_CONTROL_NAME.getValue());
-        String testIdAttributeValue = element.getAttribute(WebElementAttributeEnum.TEST_ID.getValue());
-        String idAttributeValue = element.getAttribute(WebElementAttributeEnum.ID.getValue());
-        String nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
-        String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
-        String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
-        String tagname = tagNameDefined;
-        String textLabel = element.getText();
-
-        // Determine boolean conditions
-        boolean hasButton = this.tagNameDefined.equalsIgnoreCase("button")
-                && isClickable(element, tagNameDefined)
-                && !textLabel.isBlank();
-        boolean hasAriaLabel = isValidString(ariaLabelValue);
-        boolean hasInnerHTML = isValidString(innerHTMLValue) && !hasButton;
-        boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
-        boolean hasFormControlName = isValidString(formControlNameAttributeValue);
-        boolean hasTestId = isValidString(testIdAttributeValue);
-        boolean hasName = isValidString(nameAttributeValue);
-        boolean hasId = isValidString(idAttributeValue) && !hasButton;
-        boolean hasValue = isValidString(valueAttributeValue);
-        boolean hasHRefFile = isValidString(valueHRefFile);
-        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("p");
-        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("span");
-        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("div");
-
-        // Set nameLabel and nameField based on conditions
-        if (isOption && hasValue) {
-            setElementText(valueAttributeValue, valueAttributeValue);
-        } else if (hasFormControlName) {
-            setElementText(formControlNameAttributeValue, formControlNameAttributeValue);
-        } else if (hasTestId) {
-            setElementText(testIdAttributeValue, testIdAttributeValue);
-        } else if (hasName) {
-            setElementText(nameAttributeValue, nameAttributeValue);
-        } else if (hasAriaLabel) {
-            setElementText(ariaLabelValue, ariaLabelValue);
-        } else if (isAnchor && hasInnerHTML && !hasInnerHTMLTag) {
-            setElementText(innerHTMLValue, innerHTMLValue);
-        } else if (hasId) {
-            setElementText(idAttributeValue, idAttributeValue);
-        } else if (hasHRefFile) {
-            setElementText(valueHRefFile + " File", valueHRefFile + " File");
-        } else if (hasParagraph) {
-            setElementText(textLabel, tagname);
-        } else if (hasButton) {
-            setElementText(textLabel, tagname);
-        } else if (hasSpan) {
-            setElementText(textLabel, tagname);
-        } else if (hasDiv) {
-            setElementText(textLabel, tagname);
-        } else {
-            setElementText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION, ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
-        }
     }
 
     // Utility methods for better readability and reusability

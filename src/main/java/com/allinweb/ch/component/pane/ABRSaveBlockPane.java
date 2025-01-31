@@ -634,6 +634,7 @@ public class ABRSaveBlockPane extends ABRPane {
 
                 instruction.setActions(rs.getString("actions"));
                 instruction.setPath(rs.getString("path"));
+                instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
                 instruction.setDescription(rs.getString("description"));
                 instruction.setOptional(rs.getBoolean("optional"));

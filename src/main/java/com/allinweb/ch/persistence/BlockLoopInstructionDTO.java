@@ -25,6 +25,9 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "path", length = 1000)
     private String path;
 
+    @Column(name = "coordinates", length = 100)
+    private String coordinates;
+
     @Column(name = "iframe_xpath", length = 1000)
     private String iFrameXPath;
 
@@ -150,6 +153,14 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     public void setiFrameXPath(String iFrameXPath) {
         this.iFrameXPath = iFrameXPath;
+    }
+
+    public String getCoordinates() {
+        return coordinates;
+    }
+
+    public void setCoordinates(String coordinates) {
+        this.coordinates = coordinates;
     }
 
     public String getPath() {

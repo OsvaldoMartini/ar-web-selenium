@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
+import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.listCell.ABRCellFactory;
 import com.allinweb.ch.component.listCell.ABRWebElementListCell;
@@ -16,6 +17,7 @@ import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
 import com.allinweb.ch.driver.ABRWebElement;
+import com.allinweb.ch.driver.ABRWebElementNew;
 import com.allinweb.ch.facade.IframeInputLocator;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -130,10 +132,13 @@ public class ABRScannedElementPane extends ABRPane {
     private ObservableList<ABRWebElement> webElementObservableList1;
     private ObservableList<ABRWebElement> webElementObservableList2;
     private ObservableList<ABRWebElement> webElementObservableList3;
+    private ObservableList<ABRWebElementNew> webElementObservableList4;
     private ListView<ABRWebElement> scannedElements1;
     private ListView<ABRWebElement> scannedElements2;
     private ListView<ABRWebElement> scannedElements3;
-    private Button scanButton;
+    private ListView<ABRWebElementNew> scannedElements4;
+
+    private Button scanIFrameButton;
     private Button addButtonNewElement;
     private Button configureButton;
     private Button launchBotJobButton;
@@ -307,8 +312,8 @@ public class ABRScannedElementPane extends ABRPane {
         contentPane =
                 componentBuilder.createContentPanel(ABRConstants.SPACE_L, ABRConstants.SPACE_XL, ABRConstants.SPACE_SM);
 
-        scanButton = componentBuilder.buildButton(
-                "Scan", ABRConstants.SPACE_L, ABRConstants.ICON_SEARCH, ABRConstants.SPACE_M, new Insets(5));
+        scanIFrameButton = componentBuilder.buildButton(
+                "Scan iFrames", ABRConstants.SPACE_L, ABRConstants.ICON_SEARCH, ABRConstants.SPACE_M, new Insets(5));
         addButtonNewElement = componentBuilder.buildButton(
                 "Add", ABRConstants.SPACE_L, ABRConstants.ICON_TICK, ABRConstants.SPACE_SM, new Insets(5));
 
@@ -367,6 +372,11 @@ public class ABRScannedElementPane extends ABRPane {
         scannedElements3 = new ListView<>(webElementObservableList3);
         scannedElements3 = componentBuilder.setAnchorPaneAnchors(scannedElements3, ABRConstants.SPACE_ZERO);
         scannedElements3.setCellFactory(new ABRCellFactory<>(ABRWebElementListCell.class)::call);
+
+        webElementObservableList4 = FXCollections.observableArrayList();
+        scannedElements4 = new ListView<>(webElementObservableList4);
+        scannedElements4 = componentBuilder.setAnchorPaneAnchors(scannedElements4, ABRConstants.SPACE_ZERO);
+        scannedElements4.setCellFactory(new ABRCellFactory<>(ABRWebElementListCell.class)::call);
 
         configureButton = componentBuilder.buildButton(
                 "Config", ABRConstants.SPACE_M, ABRConstants.ICON_CONFIG, ABRConstants.SPACE_M, new Insets(5.0D));
@@ -497,7 +507,7 @@ public class ABRScannedElementPane extends ABRPane {
             gridPaneTop.setHgap(10); // Set horizontal gap between columns
 
             // Add buttons and checkbox to the GridPane
-            gridPaneTop.add(scanButton, 0, 0);
+            gridPaneTop.add(scanIFrameButton, 0, 0);
             gridPaneTop.add(refreshInputFieldsButton, 1, 0);
             gridPaneTop.add(searchWithIdsButton, 2, 0);
             gridPaneTop.add(searchWithNamesButton, 3, 0);
@@ -642,6 +652,7 @@ public class ABRScannedElementPane extends ABRPane {
             scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
             scannedElements2.prefHeightProperty().bind(boxListViews.heightProperty());
             scannedElements3.prefHeightProperty().bind(boxListViews.heightProperty());
+            scannedElements4.prefHeightProperty().bind(boxListViews.heightProperty());
 
             boxListViews.setSpacing(5);
 
@@ -649,6 +660,7 @@ public class ABRScannedElementPane extends ABRPane {
             HBox.setHgrow(scannedElements1, Priority.ALWAYS);
             HBox.setHgrow(scannedElements2, Priority.ALWAYS);
             HBox.setHgrow(scannedElements3, Priority.ALWAYS);
+            HBox.setHgrow(scannedElements4, Priority.ALWAYS);
 
             StackPane stackCurrentURL = new StackPane();
             stackCurrentURL.getChildren().add(currentURL);
@@ -677,7 +689,19 @@ public class ABRScannedElementPane extends ABRPane {
             stackLabelOthers.setAlignment(Pos.CENTER);
             VBox elements3VBox = new VBox(stackLabelOthers, scannedElements3);
 
-            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, elements3VBox, textFieldVBox);
+            Label labelNew = new Label("New");
+            StackPane stackLabelNew = new StackPane();
+            HBox newWebElem = new HBox();
+            createSpacerHoriz();
+            newWebElem.getChildren().addAll(labelNew, createSpacerHoriz());
+            stackLabelNew.getChildren().addAll(newWebElem);
+
+            stackLabelNew.setAlignment(Pos.CENTER);
+            VBox elements4VBox = new VBox(stackLabelNew, scannedElements4);
+
+            boxListViews
+                    .getChildren()
+                    .addAll(elements1VBox, elements2VBox, elements3VBox, elements4VBox, textFieldVBox);
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
 
@@ -949,7 +973,7 @@ public class ABRScannedElementPane extends ABRPane {
             }
         });
 
-        scanButton.setOnAction(e -> manageUIScanIFrames());
+        scanIFrameButton.setOnAction(e -> manageUIScanIFrames());
 
         addButtonNewElement.setOnAction(e -> {
             if (searchReturn.getElement() != null && Strings.isNullOrEmpty(iFrameXPath)) {
@@ -1091,7 +1115,8 @@ public class ABRScannedElementPane extends ABRPane {
                     this.searchReturn.setAbsolutXPath(iFrameXPathToGo);
                     this.searchReturn.setCurrentXPath(iFrameXPathToGo);
                     this.searchReturn.setAttributeValue(iFrameXPathToGo);
-                    this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                    this.searchReturn.setTagType(WebElementTagNameEnum.BUTTON);
+                    this.searchReturn.setIconType(WebElementIcon.CLICK);
                     this.searchReturn.setCoords(coordsTextField.getText());
 
                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
@@ -1116,7 +1141,8 @@ public class ABRScannedElementPane extends ABRPane {
                     this.searchReturn.setAbsolutXPath(iFrameXPathToGo);
                     this.searchReturn.setCurrentXPath(iFrameXPathToGo);
                     this.searchReturn.setAttributeValue(iFrameXPathToGo);
-                    this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                    this.searchReturn.setTagType(WebElementTagNameEnum.INPUT);
+                    this.searchReturn.setIconType(WebElementIcon.INSERT);
                     this.searchReturn.setCoords(coordsTextField.getText());
 
                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
@@ -1169,12 +1195,15 @@ public class ABRScannedElementPane extends ABRPane {
                                 || parts[0].equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
                                 || parts[0].equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
                                 || parts[0].equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
-                            searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                            searchReturn.setTagType(WebElementTagNameEnum.BUTTON);
+                            searchReturn.setIconType(WebElementIcon.CLICK);
                         } else if (parts[0].equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
                                 || parts[0].equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
-                            searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                            searchReturn.setTagType(WebElementTagNameEnum.INPUT);
+                            searchReturn.setIconType(WebElementIcon.INSERT);
                         } else {
-                            searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
+                            searchReturn.setTagType(WebElementTagNameEnum.ALL);
+                            searchReturn.setIconType(WebElementIcon.TEXT);
                         }
 
                         ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
@@ -1217,7 +1246,8 @@ public class ABRScannedElementPane extends ABRPane {
         searchReturn.setAbsolutXPath(absolutXPathTextField.getText());
         searchReturn.setCustomXPath(customXPathTextField.getText());
         searchReturn.setElement(null);
-        searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
+        searchReturn.setTagType(WebElementTagNameEnum.ALL);
+        searchReturn.setIconType(WebElementIcon.TEXT);
 
         // First  Search for xPath
         searchWebElementSequence();
@@ -1251,9 +1281,15 @@ public class ABRScannedElementPane extends ABRPane {
                         || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
                         || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
                         || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
-                    searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                    searchReturn.setTagType(WebElementTagNameEnum.BUTTON);
+                    searchReturn.setIconType(WebElementIcon.CLICK);
+                } else if (tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                        || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
+                    searchReturn.setTagType(WebElementTagNameEnum.INPUT);
+                    searchReturn.setIconType(WebElementIcon.INSERT);
                 } else {
-                    searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                    searchReturn.setTagType(WebElementTagNameEnum.ALL);
+                    searchReturn.setIconType(WebElementIcon.TEXT);
                 }
 
                 boolean clickable = isClickable(searchReturn.getElement());
@@ -1802,43 +1838,37 @@ public class ABRScannedElementPane extends ABRPane {
                     // Switch back to the main page before checking the next iframe
                     abrWebDriver.getDriver().switchTo().defaultContent();
 
-                    List<String> allXPath = iframeInputLocator.listAllXPaths(abrWebDriver.getDriver());
-                    // Filter the list to keep only elements with tag name "iframe"
-                    List<String> onlyIFrames = allXPath.stream()
-                            .filter(xpath -> xpath.toLowerCase().contains("iframe"))
-                            .collect(Collectors.toList());
-
-                    for (String xPATH : onlyIFrames) {
-                        System.out.println("iFrame: " + xPATH);
-                    }
+                    //                    List<String> allXPath =
+                    // iframeInputLocator.listAllXPaths(abrWebDriver.getDriver());
+                    //                    // Filter the list to keep only elements with tag name "iframe"
+                    //                    List<String> onlyIFrames = allXPath.stream()
+                    //                            .filter(xpath -> xpath.toLowerCase().contains("iframe"))
+                    //                            .collect(Collectors.toList());
+                    //
+                    //                    for (String xPATH : onlyIFrames) {
+                    //                        System.out.println("iFrame: " + xPATH);
+                    //                    }
 
                     List<WebElement> iframes = abrWebDriver.getDriver().findElements(By.tagName("iframe"));
 
                     //                    Map<WebElement, List<WebElement>> iframeElementsMap = new HashMap<>();
 
                     //                    for (String iFrameScan : onlyIFrames) {
-                    int xContFrame = 0;
-                    String iFrameScan;
+                    String iFrameXPathScan = "";
                     for (WebElement iframe : iframes) {
-                        iFrameScan = onlyIFrames.get(xContFrame);
-                        xContFrame++;
 
                         try {
-
-                            //                            WebElement iFrameElement =
-                            // abrWebDriver.getDriver().findElement(By.xpath(iFrameScan));
                             try {
                                 String iFrameTemp =
                                         iframeInputLocator.getElementXPathIFrame(iframe, abrWebDriver.getDriver());
                                 if (!Strings.isNullOrEmpty(iFrameTemp)) {
-                                    iFrameScan = iFrameTemp;
+                                    iFrameXPathScan = iFrameTemp;
                                 }
                             } catch (Exception ignore) {
 
                             }
+                            // CHANGING THE CONTEXT HERE
                             abrWebDriver.getDriver().switchTo().frame(iframe);
-
-                            //                            abrWebDriver.getDriver().switchTo().frame(iFrameElement);
 
                             //                            List<String> allInsedeInfo  =
                             // iframeInputLocator.getIframeElementsInfo(iFrameElement,abrWebDriver.getDriver());
@@ -1855,38 +1885,54 @@ public class ABRScannedElementPane extends ABRPane {
                             List<WebElement> elementsInsideIframe =
                                     abrWebDriver.getDriver().findElements(By.xpath("//*"));
 
-                            List<String> allXPathInsideIframe = new ArrayList<>();
-                            // Get the XPath of each element
-                            for (WebElement element : elementsInsideIframe) {
-                                String elementXPath =
-                                        iframeInputLocator.getElementXPathIFrame(element, abrWebDriver.getDriver());
-                                allXPathInsideIframe.add(elementXPath);
-                            }
-
                             System.out.println(
                                     "Scanned " + elementsInsideIframe.size() + " elements inside an iframe.");
 
-                            for (String xPathInsideFrame : allXPathInsideIframe) {
+                            for (WebElement elementChild : elementsInsideIframe) {
 
-                                this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL); // Default to ALL
+                                this.searchReturn.setTagType(WebElementTagNameEnum.ALL); // Default to ALL
+                                this.searchReturn.setIconType(WebElementIcon.TEXT);
 
-                                String xTagExtract = null;
+                                String xPathElementChild;
+                                // Main XPath
                                 try {
-                                    xTagExtract = performAction.removeTrailingSlash(xPathInsideFrame);
-                                    xTagExtract = performAction.extractTagName(xPathInsideFrame);
-                                } catch (Exception e) {
+                                    xPathElementChild =
+                                            iframeInputLocator.getElementXPath(elementChild, abrWebDriver.getDriver());
+                                } catch (Exception error) {
+                                    System.out.println("Failed to ge iframe element XPATH: " + error.getMessage());
+                                    //                                    performMessage.generalErrorIFrame("Error
+                                    // Scanning iFrames");
                                     continue;
                                 }
 
+                                // Main Coordinates
                                 try {
-                                    WebElement elementInFrame =
-                                            abrWebDriver.getDriver().findElement(By.xpath(xPathInsideFrame));
+                                    Rectangle coord = elementChild.getRect();
+                                    String coordTemp = (coord.getX() + (coord.getWidth() / 2)) + ","
+                                            + (coord.getY() + (coord.getHeight() / 2));
+                                    this.searchReturn.setMainCoordinates(coordTemp);
+                                } catch (Exception error) {
+                                    System.out.println(
+                                            "Failed to get iframe element Coordinates: " + error.getMessage());
+                                    //                                    performMessage.generalErrorIFrame("Error
+                                    // Scanning iFrames");
+                                    continue;
+                                }
 
-                                    String tagName = elementInFrame.getTagName().toLowerCase();
+                                //                                String tagName = null;
+                                //                                try {
+                                //                                    xPathInsideFrame =
+                                // iframeInputLocator.getElementXPathIFrame(
+                                //                                            elementChild, abrWebDriver.getDriver());
+                                //                                    tagName =
+                                // performAction.removeTrailingSlash(xPathInsideFrame);
+                                //                                    tagName =
+                                // performAction.extractTagName(xPathInsideFrame);
+                                //                                } catch (Exception ignore) {
+                                //                                }
 
-                                    if (xTagExtract.equalsIgnoreCase(tagName)) {
-                                        xTagExtract = tagName;
-                                    }
+                                try {
+                                    String tagName = elementChild.getTagName().toLowerCase();
 
                                     if (tagName.equalsIgnoreCase("html")
                                             || tagName.equalsIgnoreCase("script")
@@ -1895,107 +1941,126 @@ public class ABRScannedElementPane extends ABRPane {
                                             || tagName.equalsIgnoreCase("body")) {
                                         continue;
                                     }
+                                } catch (Exception ignore) {
+                                    continue;
+                                }
 
-                                    String elementXPath = null;
+                                try {
+
+                                    String tagName = elementChild.getTagName().toLowerCase();
                                     String retrievedValue = "";
-                                    try {
-                                        elementXPath = iframeInputLocator.getElementXPathIFrame(
-                                                elementInFrame, abrWebDriver.getDriver());
-                                    } catch (Exception x) {
-                                        System.out.println("XPath not found for Element TagName: " + tagName);
-                                        performMessage.generalErrorIFrame(
-                                                "XPath not found for Element TagName: " + tagName);
-                                        continue;
-                                    }
-                                    if (tagName.equalsIgnoreCase("input") || tagName.equalsIgnoreCase("textarea")) {
 
-                                        // Send keys to the input element
-                                        String inputText = "aaaaaa";
-                                        elementInFrame.clear(); // Clear any existing value
-                                        elementInFrame.sendKeys(inputText);
-
-                                        // Retrieve the value back
-                                        retrievedValue = elementInFrame.getAttribute("value");
-
-                                        // Validate if the input was correctly received
-                                        if (inputText.equals(retrievedValue)) {
-                                            System.out.println("SUCCESS: Sent '" + inputText + "' and received '"
-                                                    + retrievedValue + "' in IFrame.");
-                                        } else {
-                                            System.out.println("ERROR: Sent '" + inputText + "' but received '"
-                                                    + retrievedValue + "' in IFrame.");
-                                        }
-                                    }
-
-                                    switch (tagName) {
+                                    switch (tagName.toLowerCase()) {
+                                            // Handle form elements and text inputs
                                         case "input":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.INPUT);
+                                            this.searchReturn.setIconType(WebElementIcon.INSERT);
+                                            elementChild.sendKeys("abc123");
+                                            retrievedValue = elementChild.getAttribute("value");
+                                            String placeholder = elementChild.getAttribute("placeholder");
+                                            if ((retrievedValue == null || retrievedValue.isEmpty())
+                                                    && placeholder != null
+                                                    && !placeholder.isEmpty()) {
+                                                retrievedValue = placeholder; // Use placeholder if value is empty
+                                            }
                                             break;
+
                                         case "textarea":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.TEXT_AREA);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.TEXT_AREA);
+                                            this.searchReturn.setIconType(WebElementIcon.INSERT);
+                                            retrievedValue = elementChild.getAttribute("value");
+                                            placeholder = elementChild.getAttribute("placeholder");
+                                            if ((retrievedValue == null || retrievedValue.isEmpty())
+                                                    && placeholder != null
+                                                    && !placeholder.isEmpty()) {
+                                                retrievedValue = placeholder; // Use placeholder if value is empty
+                                            }
                                             break;
+
+                                            // Handle button, form, select, option, and material elements
                                         case "button":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.BUTTON);
+                                            this.searchReturn.setIconType(WebElementIcon.CLICK);
                                             break;
                                         case "form":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.FORM);
-                                            break;
-                                        case "div":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.DIV);
-                                            break;
-                                        case "p":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.PARAGRAPH);
-                                            break;
-                                        case "a":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.ANCHOR);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.FORM);
+                                            this.searchReturn.setIconType(WebElementIcon.TEXT);
                                             break;
                                         case "select":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.SELECT);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.SELECT);
+                                            this.searchReturn.setIconType(WebElementIcon.CLICK);
                                             break;
                                         case "option":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.OPTION);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.OPTION);
+                                            this.searchReturn.setIconType(WebElementIcon.CLICK);
                                             break;
                                         case "mat-select":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.MAT_SELECT);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.MAT_SELECT);
+                                            this.searchReturn.setIconType(WebElementIcon.CLICK);
                                             break;
                                         case "mat-option":
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.MAT_OPTION);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.MAT_OPTION);
+                                            this.searchReturn.setIconType(WebElementIcon.CLICK);
                                             break;
                                         case "mat-expansion-panel":
-                                            this.searchReturn.setForceTypeEnum(
-                                                    WebElementTagNameEnum.MAT_EXPANSION_PANEL);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.MAT_EXPANSION_PANEL);
+                                            this.searchReturn.setIconType(WebElementIcon.CLICK);
                                             break;
+
+                                            // Handle text container elements (div, span, etc.)
+                                        case "div":
+                                        case "span":
+                                        case "section":
+                                        case "article":
+                                        case "aside":
+                                        case "header":
+                                        case "footer":
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.DIV);
+                                            this.searchReturn.setIconType(WebElementIcon.OUTPUT);
+                                            retrievedValue = elementChild.getText(); // Retrieve the text content
+                                            break;
+
+                                            // Handle heading tags (h1-h6)
+                                        case "h1":
+                                        case "h2":
+                                        case "h3":
+                                        case "h4":
+                                        case "h5":
+                                        case "h6":
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.OUTPUT);
+                                            this.searchReturn.setIconType(WebElementIcon.OUTPUT);
+                                            retrievedValue = elementChild.getText(); // Retrieve heading text
+                                            break;
+
+                                            // Handle anchor tags (links)
+                                        case "a":
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.ANCHOR);
+                                            this.searchReturn.setIconType(WebElementIcon.CLICK);
+                                            retrievedValue = elementChild.getText(); // Retrieve link text
+                                            break;
+
+                                            // Handle other cases (default)
                                         default:
-                                            this.searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
+                                            this.searchReturn.setTagType(WebElementTagNameEnum.ALL);
+                                            this.searchReturn.setIconType(WebElementIcon.TEXT);
                                             break;
                                     }
 
-                                    // Check if element can receive input
-                                    boolean canSendKeys = false;
-                                    try {
-                                        elementInFrame.sendKeys("test"); // Test sending keys
-                                        canSendKeys = true;
-                                    } catch (Exception ignored) {
+                                    // If you need to handle `retrievedValue` further or return it, do so here:
+                                    if (retrievedValue != null && !retrievedValue.isEmpty()) {
+                                        // Perform any further actions with the `retrievedValue`, e.g., logging or
+                                        // storing.
                                     }
 
-                                    // Check if element is clickable
-                                    boolean isClickable = false;
-                                    try {
-                                        if (elementInFrame.isDisplayed() && elementInFrame.isEnabled()) {
-                                            elementInFrame.click(); // Test clicking
-                                            isClickable = true;
-                                        }
-                                    } catch (Exception ignored) {
-                                    }
-
-                                    this.searchReturn.setElement(elementInFrame);
-                                    this.searchReturn.setiFrameXPath(iFrameScan);
+                                    this.searchReturn.setElement(elementChild);
+                                    this.searchReturn.setiFrameXPath(iFrameXPathScan);
                                     this.searchReturn.setDefinedName(tagName);
                                     this.searchReturn.setOriginalTagName(tagName);
                                     this.searchReturn.setxPathWorkedFirst(ABRConstants.ABSOLUT_XPATH);
 
-                                    this.searchReturn.setAbsolutXPath(elementXPath);
-                                    this.searchReturn.setCurrentXPath(elementXPath);
+                                    this.searchReturn.setMainXPath(xPathElementChild);
+                                    this.searchReturn.setAbsolutXPath(xPathElementChild);
+                                    this.searchReturn.setCurrentXPath(xPathElementChild);
                                     this.searchReturn.setAttributeValue(retrievedValue);
 
                                     if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
@@ -2003,12 +2068,15 @@ public class ABRScannedElementPane extends ABRPane {
                                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
                                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
                                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
-                                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.BUTTON);
+                                        searchReturn.setTagType(WebElementTagNameEnum.BUTTON);
+                                        searchReturn.setIconType(WebElementIcon.CLICK);
                                     } else if (tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
                                             || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
-                                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.INPUT);
+                                        searchReturn.setTagType(WebElementTagNameEnum.INPUT);
+                                        searchReturn.setIconType(WebElementIcon.INSERT);
                                     } else {
-                                        searchReturn.setForceTypeEnum(WebElementTagNameEnum.ALL);
+                                        searchReturn.setTagType(WebElementTagNameEnum.ALL);
+                                        searchReturn.setIconType(WebElementIcon.TEXT);
                                     }
 
                                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
@@ -2244,6 +2312,34 @@ public class ABRScannedElementPane extends ABRPane {
                 if (checkTestAction.isSelected()) {
                     try {
                         if (abrWebElement.getElement() != null) {
+
+                            if (abrWebElement.getiFrameXPath() != null) {
+
+                                abrWebDriver.getDriver().switchTo().defaultContent();
+
+                                try {
+                                    WebElement iFrame = abrWebDriver
+                                            .getDriver()
+                                            .findElement(By.xpath(abrWebElement.getiFrameXPath()));
+                                    if (iFrame != null) {
+
+                                        abrWebDriver.getDriver().switchTo().frame(iFrame);
+
+                                        WebElement elementClicked = abrWebDriver
+                                                .getDriver()
+                                                .findElement(By.xpath(abrWebElement.getMainXPath()));
+                                    }
+                                } catch (Exception error) {
+                                    performMessage.errorMessage(
+                                            "iFrame Element error",
+                                            "Not possible to locate the element",
+                                            null,
+                                            null,
+                                            null,
+                                            0);
+                                    return;
+                                }
+                            }
 
                             abrWebDriver.dehighlightElement(abrWebElement.getElement());
 
@@ -2518,11 +2614,12 @@ public class ABRScannedElementPane extends ABRPane {
                                                 ? "INPUT"
                                                 : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
                                 BlockLoopInstructionDTO instruction = abrWebElement.buildBlockLoopInstruction(
-                                        abrWebElement.getForceTagEnum(),
+                                        abrWebElement.gettagType(),
                                         actionReq,
                                         checkActiveHover.isSelected(),
                                         list.size());
 
+                                instruction.setCoordinates(abrWebElement.getMainCoordinates());
                                 instruction.setiFrameXPath(abrWebElement.getiFrameXPath());
                                 instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);
@@ -2534,6 +2631,13 @@ public class ABRScannedElementPane extends ABRPane {
                                 // Change the Name on the fly
                                 if (!Strings.isNullOrEmpty(finalNameWebElement)) {
                                     instruction.setName(finalNameWebElement);
+
+                                    // Update the action string if it contains "I:"
+                                    String updatedActions = Arrays.stream(instruction.getActions().split("\\s*,\\s*")) // Split by commas
+                                            .map(action -> action.startsWith("I:") ? "I:" + finalNameWebElement : action) // Replace "I:oldValue"
+                                            .collect(Collectors.joining(", ")); // Join back into a single string
+
+                                    instruction.setActions(updatedActions);
                                 }
 
                                 int newId = preFillAddInstruction(
@@ -2546,6 +2650,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         instruction.getInstructionOrderNumber(),
                                         instruction.getExportToABR(),
                                         instruction.getPath(),
+                                        instruction.getCoordinates(),
                                         instruction.getiFrameXPath(),
                                         currentBotJobId,
                                         currentBlockId);
@@ -3780,7 +3885,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                         if (linkedHashMap != null) {
                             Platform.runLater(() -> {
-                                iFrameXPath = (String) resultMap.get("iFrameXPath");
+                                //                                iFrameXPath = (String) resultMap.get("iFrameXPath");
 
                                 Object iframeElementsObject = resultMap.get("allElementInfo");
 
@@ -6212,6 +6317,7 @@ public class ABRScannedElementPane extends ABRPane {
             Integer instructionOrderNumber,
             boolean exportToABR,
             String xPath,
+            String coordinates,
             String iFrameXPath,
             Integer currentBotJobId,
             Integer currentBlockId) {
@@ -6219,6 +6325,7 @@ public class ABRScannedElementPane extends ABRPane {
         BlockLoopInstructionLoadDTO instructionDTO = new BlockLoopInstructionLoadDTO();
 
         instructionDTO.setPath(xPath);
+        instructionDTO.setCoordinates(coordinates);
         instructionDTO.setIFrameXPath(iFrameXPath);
         instructionDTO.setName(name);
 

@@ -1,5 +1,6 @@
 package com.allinweb.ch.persistence;
 
+import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import java.util.List;
 import org.openqa.selenium.WebElement;
@@ -8,6 +9,8 @@ public class SearchReturn {
     String currentXPath;
     String iFrameXPath;
     List<String> iFrameElements;
+    String mainXPath;
+    String mainCoordinates;
     String absolutXPath;
     String customXPath;
     String xPathWorkedFirst;
@@ -18,8 +21,41 @@ public class SearchReturn {
     String attributeValue;
     String originalTagName;
     String definedName;
-    WebElementTagNameEnum forceTypeEnum;
+    WebElementTagNameEnum tagType;
+    WebElementIcon iconType;
     WebElement element;
+
+    public String getMainCoordinates() {
+        return mainCoordinates;
+    }
+
+    public void setMainCoordinates(String mainCoordinates) {
+        this.mainCoordinates = mainCoordinates;
+    }
+
+    public String getMainXPath() {
+        return mainXPath;
+    }
+
+    public void setMainXPath(String mainXPath) {
+        this.mainXPath = mainXPath;
+    }
+
+    public WebElementIcon getIconType() {
+        return iconType;
+    }
+
+    public void setIconType(WebElementIcon iconType) {
+        this.iconType = iconType;
+    }
+
+    public WebElementTagNameEnum getTagType() {
+        return tagType;
+    }
+
+    public void setTagType(WebElementTagNameEnum tagType) {
+        this.tagType = tagType;
+    }
 
     public String getiFrameXPath() {
         return iFrameXPath;
@@ -123,14 +159,6 @@ public class SearchReturn {
 
     public void setAttributeValue(String attributeValue) {
         this.attributeValue = attributeValue;
-    }
-
-    public WebElementTagNameEnum getForceTypeEnum() {
-        return forceTypeEnum;
-    }
-
-    public void setForceTypeEnum(WebElementTagNameEnum forceTypeEnum) {
-        this.forceTypeEnum = forceTypeEnum;
     }
 
     public WebElement getElement() {

@@ -883,7 +883,7 @@ public class PerformDataBase {
                 + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
                 + " b.description AS block_description, b.type_id, "
                 + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
-                + " bli.actions, bli.name AS instruction_name, bli.path, bli.iframe_xpath, "
+                + " bli.actions, bli.name AS instruction_name, bli.path, bli.coordinates, bli.iframe_xpath, "
                 + " bli.description AS instruction_description, "
                 + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
@@ -952,6 +952,7 @@ public class PerformDataBase {
                     instruction.setActions(rs.getString("actions"));
                     instruction.setName(rs.getString("instruction_name"));
                     instruction.setPath(rs.getString("path"));
+                    instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
                     instruction.setDescription(rs.getString("instruction_description"));
                     instruction.setOptional(rs.getBoolean("optional"));
@@ -992,7 +993,8 @@ public class PerformDataBase {
     //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
     //                + " b.description AS block_description, b.type_id, "
     //                + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
-    //                + " bli.actions, bli.name AS instruction_name, bli.path, bli.iframe_xpath, bli.description AS
+    //                + " bli.actions, bli.name AS instruction_name, bli.path, bli.coordinates, bli.iframe_xpath,
+    // bli.description AS
     // instruction_description, "
     //                + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
     //                + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
@@ -1059,6 +1061,7 @@ public class PerformDataBase {
     //                    instruction.setActions(rs.getString("actions"));
     //                    instruction.setName(rs.getString("instruction_name"));
     //                    instruction.setPath(rs.getString("path"));
+    //                    instruction.setCoordinates(rs.getString("coordinates"));
     //                    instruction.setIFrameXPath(rs.getString("iframe_xpath"));
     //                    instruction.setDescription(rs.getString("instruction_description"));
     //                    instruction.setOptional(rs.getBoolean("optional"));
@@ -1368,6 +1371,7 @@ public class PerformDataBase {
 
                 instruction.setActions(rs.getString("actions"));
                 instruction.setPath(rs.getString("path"));
+                instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
                 instruction.setDescription(rs.getString("description"));
                 instruction.setOptional(rs.getBoolean("optional"));
@@ -1827,6 +1831,7 @@ public class PerformDataBase {
             };
 
             // Add non-boolean fields
+            addColumnValue.accept("coordinates", instructionDTO.getCoordinates());
             addColumnValue.accept("iframe_xpath", instructionDTO.getIFrameXPath());
             addColumnValue.accept("path", instructionDTO.getPath());
             addColumnValue.accept("action_custom_max_wait_sec", instructionDTO.getActionCustomMaxWaitSec());
@@ -2496,7 +2501,7 @@ public class PerformDataBase {
                 "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, bli.codified, bli.default_value, \n"
                         + " bli.description, bli.export_to_abr, bli.instruction_order_number, bli.name, bli.on_hold_seconds, "
                         + " bli.operation, bli.optional, \n"
-                        + " bli.parent_id, bli.path, bli.iframe_xpath, bli.variable_id, bli.block_id, bli.bot_job_id, b.block_order_number \n"
+                        + " bli.parent_id, bli.path, bli.coordinates, bli.iframe_xpath, bli.variable_id, bli.block_id, bli.bot_job_id, b.block_order_number \n"
                         + " FROM block_loop_instruction bli \n"
                         + " JOIN block b ON bli.block_id = b.id \n"
                         + " WHERE bli.bot_job_id = ?"
@@ -2524,6 +2529,7 @@ public class PerformDataBase {
                 instructionDTO.setOptional(rs.getBoolean("optional"));
                 instructionDTO.setParentId(rs.getInt("parent_id"));
                 instructionDTO.setPath(rs.getString("path"));
+                instructionDTO.setCoordinates(rs.getString("coordinates"));
                 instructionDTO.setIFrameXPath(rs.getString("iframe_xpath"));
                 instructionDTO.setVariableId(rs.getInt("variable_id"));
                 instructionDTO.setBlockId(rs.getInt("block_id"));
@@ -2795,7 +2801,7 @@ public class PerformDataBase {
             throws SQLException {
         String blockLoopInstructionInsertQuery =
                 "INSERT INTO block_loop_instruction (id, action_custom_max_wait_sec, actions, active, block_marked, codified, "
-                        + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, parent_id, path, iframe_xpath, variable_id, block_id, bot_job_id) "
+                        + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, parent_id, path, coordinates, iframe_xpath, variable_id, block_id, bot_job_id) "
                         + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (PreparedStatement blockLoopStmt = conn.prepareStatement(blockLoopInstructionInsertQuery)) {
@@ -2851,20 +2857,26 @@ public class PerformDataBase {
                     blockLoopStmt.setNull(16, Types.VARCHAR);
                 }
 
-                if (!Strings.isNullOrEmpty(instruction.getIFrameXPath())) {
-                    blockLoopStmt.setString(17, instruction.getIFrameXPath());
+                if (!Strings.isNullOrEmpty(instruction.getCoordinates())) {
+                    blockLoopStmt.setString(17, instruction.getCoordinates());
                 } else {
                     blockLoopStmt.setNull(17, Types.VARCHAR);
+                }
+
+                if (!Strings.isNullOrEmpty(instruction.getIFrameXPath())) {
+                    blockLoopStmt.setString(18, instruction.getIFrameXPath());
+                } else {
+                    blockLoopStmt.setNull(18, Types.VARCHAR);
                 }
 
                 if (instruction.getVariableId() != null && instruction.getVariableId() > 0) {
                     blockLoopStmt.setInt(18, newVariableId != null ? newVariableId : instruction.getVariableId());
                 } else {
-                    blockLoopStmt.setNull(18, java.sql.Types.INTEGER);
+                    blockLoopStmt.setNull(19, java.sql.Types.INTEGER);
                 }
 
-                blockLoopStmt.setInt(19, instruction.getBlockId());
-                blockLoopStmt.setInt(20, instruction.getBotJobId());
+                blockLoopStmt.setInt(20, instruction.getBlockId());
+                blockLoopStmt.setInt(21, instruction.getBotJobId());
 
                 blockLoopStmt.addBatch(); // Add to batch
             }
