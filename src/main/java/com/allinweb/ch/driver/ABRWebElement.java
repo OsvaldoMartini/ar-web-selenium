@@ -379,8 +379,28 @@ public class ABRWebElement {
         innerHTMLValue = innerHTMLValue.replaceAll("  ", "");
         innerHTMLValue = innerHTMLValue.replaceAll("\n", "");
 
+        if (Strings.isNullOrEmpty(searchReturn.getAttributeValue())) {
+            if (!Strings.isNullOrEmpty(textLabel)) {
+                searchReturn.setAttributeValue(textLabel);
+            } else if (!Strings.isNullOrEmpty(valueAttributeValue)) {
+                searchReturn.setAttributeValue(valueAttributeValue);
+            } else if (!Strings.isNullOrEmpty(testIdAttributeValue)) {
+                searchReturn.setAttributeValue(testIdAttributeValue);
+            } else if (!Strings.isNullOrEmpty(nameAttributeValue)) {
+                searchReturn.setAttributeValue(nameAttributeValue);
+            } else if (!Strings.isNullOrEmpty(ariaLabelValue)) {
+                searchReturn.setAttributeValue(ariaLabelValue);
+            } else if (!Strings.isNullOrEmpty(formControlNameAttributeValue)) {
+                searchReturn.setAttributeValue(innerHTMLValue);
+            } else if (!Strings.isNullOrEmpty(innerHTMLValue)) {
+                searchReturn.setAttributeValue(textLabel);
+            } else {
+                searchReturn.setAttributeValue(searchReturn.getDefinedName());
+            }
+        }
+
         if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
-            nameLabel.setText(searchReturn.getDefinedName());
+            nameLabel.setText(searchReturn.getAttributeValue());
             nameField.setText(searchReturn.getDefinedName());
         } else if (isOption && hasValue) {
             nameLabel.setText(valueAttributeValue);
