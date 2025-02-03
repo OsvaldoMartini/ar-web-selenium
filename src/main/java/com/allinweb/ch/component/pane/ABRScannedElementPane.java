@@ -4214,10 +4214,13 @@ public class ABRScannedElementPane extends ABRPane {
                                     System.out.println("The iframeElements data is not a List or an array.");
                                 }
 
+                                
                                 if (iFrameElements != null && iFrameElements.length > 0) {
-
+                                    
                                     // Extract elements from input lines
+                                    elementsFound.clear();
                                     elementsFound = performAction.extractElementData(iFrameElements);
+                                    iFrameElements = null;
 
                                     //                                    StringBuilder sb = new StringBuilder();
                                     //                                    sb.append("iFrame:
