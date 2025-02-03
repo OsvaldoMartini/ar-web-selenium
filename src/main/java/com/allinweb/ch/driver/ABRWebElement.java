@@ -332,17 +332,29 @@ public class ABRWebElement {
             throw ex;
         }
 
-        String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
-        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
-        String formControlNameAttributeValue =
-                element.getAttribute(WebElementAttributeEnum.FORM_CONTROL_NAME.getValue());
-        String testIdAttributeValue = element.getAttribute(WebElementAttributeEnum.TEST_ID.getValue());
-        String idAttributeValue = element.getAttribute(WebElementAttributeEnum.ID.getValue());
-        String nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
-        String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
-        String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
+        String ariaLabelValue = null;
+        String innerHTMLValue = null;
+        String formControlNameAttributeValue = null;
+        String testIdAttributeValue = null;
+        String idAttributeValue = null;
+        String nameAttributeValue = null;
+        String valueAttributeValue = null;
+        String valueHRefFile = null;
+        try {
 
-        String textLabel = element.getText();
+            ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
+            innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
+            formControlNameAttributeValue = element.getAttribute(WebElementAttributeEnum.FORM_CONTROL_NAME.getValue());
+            testIdAttributeValue = element.getAttribute(WebElementAttributeEnum.TEST_ID.getValue());
+            idAttributeValue = element.getAttribute(WebElementAttributeEnum.ID.getValue());
+            nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
+            valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
+            valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
+        } catch (Exception ignore) {
+
+        }
+
+        String textLabel = searchReturn.getAttributeValue();
 
         if (Strings.isNullOrEmpty(textLabel)) {
             textLabel = extractAllText(element, tagNameDefined);
@@ -376,8 +388,10 @@ public class ABRWebElement {
             textElement.setValue(true);
         }
 
-        innerHTMLValue = innerHTMLValue.replaceAll("  ", "");
-        innerHTMLValue = innerHTMLValue.replaceAll("\n", "");
+        if (innerHTMLValue != null) {
+            innerHTMLValue = innerHTMLValue.replaceAll("  ", "");
+            innerHTMLValue = innerHTMLValue.replaceAll("\n", "");
+        }
 
         if (Strings.isNullOrEmpty(searchReturn.getAttributeValue())) {
             if (!Strings.isNullOrEmpty(textLabel)) {
@@ -466,12 +480,24 @@ public class ABRWebElement {
         // Identify if the element is an INPUT, BUTTON, or LABEL
         nameFieldTitle = nameField.getText();
 
-        boolean isElementHidden = element.getAttribute("type") != null
-                && element.getAttribute("type").equalsIgnoreCase("hidden");
+        boolean isElementHidden = false;
+        try {
+            isElementHidden = element.getAttribute("type") != null
+                    && element.getAttribute("type").equalsIgnoreCase("hidden");
+        } catch (Exception ignored) {
+        }
 
-        boolean isInput = this.tagNameDefined.equalsIgnoreCase("INPUT") && element.getAttribute("type") != null;
-        boolean isButton = this.tagNameDefined.equalsIgnoreCase("BUTTON");
-        boolean isLabel = this.tagNameDefined.equalsIgnoreCase("LABEL") && !Strings.isNullOrEmpty(element.getText());
+        boolean isInput = false;
+        boolean isButton = false;
+        boolean isLabel = false;
+
+        try {
+            isInput = this.tagNameDefined.equalsIgnoreCase("INPUT") && element.getAttribute("type") != null;
+            isButton = this.tagNameDefined.equalsIgnoreCase("BUTTON");
+            isLabel = this.tagNameDefined.equalsIgnoreCase("LABEL") && !Strings.isNullOrEmpty(element.getText());
+        } catch (Exception ignore) {
+
+        }
 
         hiddenElement.setValue(false);
         outputElement.setValue(false);

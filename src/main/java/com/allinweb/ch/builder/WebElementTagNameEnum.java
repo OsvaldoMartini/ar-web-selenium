@@ -12,6 +12,7 @@ public enum WebElementTagNameEnum {
     TEXT_AREA("textarea"),
     DIV("div"),
     IMAGE("image"),
+    HEADER("H"),
     PARAGRAPH("p"),
     ANCHOR("a"),
     SELECT("select"),

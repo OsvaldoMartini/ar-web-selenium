@@ -36,8 +36,6 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javafx.application.Platform;
@@ -2784,34 +2782,65 @@ public class PerformActions {
     public List<ElementDTO> extractElementData(String[] iFrameElements) {
         List<ElementDTO> elements = new ArrayList<>();
 
-        // Pattern to match the necessary parts in the input line
-        String regex =
-                "(clicked-tagName|tagName-found|clicked-iFrame|iFrame-Child):([^;]*);xpath:([^;]*);text:([^;]*);attribId:([^;]*);attribName:([^;]*);coords:([^;]*);absoluteXPath:([^;]*);customXPath:([^;]*);";
-        Pattern pattern = Pattern.compile(regex);
-
-        // Iterate through the input lines and match the pattern
         for (String line : iFrameElements) {
-            Matcher matcher = pattern.matcher(line);
-            if (matcher.find()) {
-                // Extract matched groups
-                String typeElement = matcher.group(1).equals("clicked-iFrame") ? "iFrame" : "iFrameChild";
-                String xPath = matcher.group(3).trim();
-                String text = matcher.group(4).trim();
-                String attribId = matcher.group(5).trim();
-                String attribName = matcher.group(6).trim();
-                String coords = matcher.group(7).trim();
-                String absoluteXPath = matcher.group(8).trim();
-                String customXPath = matcher.group(9).trim();
+            String typeElement = "";
+            String tagName = "";
+            String xPath = "";
+            String text = "";
+            String attribId = "";
+            String attribName = "";
+            String coords = "";
+            String absoluteXPath = "";
+            String customXPath = "";
 
-                // Extract tagName from text
-                String tagName = text.isEmpty() ? "" : "iframe"; // Assuming "iframe" tag for simplicity
+            // Split into key-value pairs based on ";"
+            String[] parts = line.split(";");
+            for (String part : parts) {
+                int colonIndex = part.indexOf(":");
+                if (colonIndex == -1) continue; // Skip invalid parts
 
-                // Create the ElementDTO and add to the list
+                String key = part.substring(0, colonIndex).trim();
+                String value = part.substring(colonIndex + 1).trim();
+
+                // Map key-value pairs to variables
+                switch (key) {
+                    case "tagName-found":
+                    case "clicked-tagName":
+                    case "clicked-iFrame":
+                    case "iFrame-Child":
+                        typeElement = key;
+                        tagName = value;
+                        break;
+                    case "xpath":
+                        xPath = value;
+                        break;
+                    case "text":
+                        text = value;
+                        break;
+                    case "attribId":
+                        attribId = value;
+                        break;
+                    case "attribName":
+                        attribName = value;
+                        break;
+                    case "coords":
+                        coords = value;
+                        break;
+                    case "absoluteXPath":
+                        absoluteXPath = value;
+                        break;
+                    case "customXPath":
+                        customXPath = value;
+                        break;
+                }
+            }
+
+            // Only add valid elements
+            if (!typeElement.isEmpty() && !tagName.isEmpty()) {
                 elements.add(new ElementDTO(
                         typeElement, tagName, xPath, text, attribId, attribName, coords, absoluteXPath, customXPath));
             }
         }
-
         return elements;
     }
 }
