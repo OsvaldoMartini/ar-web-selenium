@@ -1,5 +1,7 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.builder.WebElementIcon;
+import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
@@ -7,6 +9,7 @@ import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
+import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.ABRConstants;
 import com.allinweb.ch.util.ABRLogger;
@@ -741,7 +744,7 @@ public class PerformActions {
                 System.out.println("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
             } catch (Exception e) {
                 System.out.println("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
-                performMessage.generalErrorIFrame(currentInstruction.getIFrameXPath());
+                performMessage.generalErrorIFrame(currentInstruction.getName());
                 return null;
             }
         }
@@ -1126,7 +1129,7 @@ public class PerformActions {
                     .severe(String.format(
                             "Could Not Input Value to \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
 
-            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
+            //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
             return false;
         }
 
@@ -2842,5 +2845,62 @@ public class PerformActions {
             }
         }
         return elements;
+    }
+
+    public SearchReturn defineSearchReturn(ElementDTO elementFound, WebElement element, SearchReturn searchReturn) {
+        if (searchReturn == null || searchReturn.getElement() == null) {
+
+            if (elementFound.getAbsoluteXPath() == null) {
+                elementFound.setAbsoluteXPath(elementFound.getXPath());
+            }
+
+            if (elementFound.getCustomXPath() == null) {
+                elementFound.setCustomXPath(elementFound.getXPath());
+            }
+
+            searchReturn.setElement(element);
+            searchReturn.setiFrameXPath(null);
+            searchReturn.setDefinedName(elementFound.getTagName());
+            searchReturn.setOriginalTagName(elementFound.getTagName());
+            searchReturn.setxPathWorkedFirst(ABRConstants.ABSOLUT_XPATH);
+
+            if (Strings.isNullOrEmpty(elementFound.getAbsoluteXPath())) {
+                searchReturn.setAbsolutXPath(elementFound.getXPath());
+            } else {
+                searchReturn.setAbsolutXPath(elementFound.getAbsoluteXPath());
+            }
+
+            if (Strings.isNullOrEmpty(elementFound.getCustomXPath())) {
+                searchReturn.setAbsolutXPath(elementFound.getXPath());
+            } else {
+                searchReturn.setAbsolutXPath(elementFound.getCustomXPath());
+            }
+
+            searchReturn.setAttributeValue(elementFound.getText());
+            searchReturn.setCoords(elementFound.getCoords());
+
+            // Here I am forcing as Button "CLICKABLE" or "INPUTABLE"
+
+            if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+                searchReturn.setTagType(WebElementTagNameEnum.BUTTON);
+                searchReturn.setIconType(WebElementIcon.CLICK);
+            } else if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
+                searchReturn.setTagType(WebElementTagNameEnum.INPUT);
+                searchReturn.setIconType(WebElementIcon.INSERT);
+            } else if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())) {
+                searchReturn.setTagType(WebElementTagNameEnum.OUTPUT);
+                searchReturn.setIconType(WebElementIcon.OUTPUT);
+            } else {
+                searchReturn.setTagType(WebElementTagNameEnum.ALL);
+                searchReturn.setIconType(WebElementIcon.TEXT);
+            }
+        }
+        return searchReturn;
     }
 }

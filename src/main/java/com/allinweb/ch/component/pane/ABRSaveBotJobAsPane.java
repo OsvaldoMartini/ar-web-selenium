@@ -196,18 +196,8 @@ public class ABRSaveBotJobAsPane extends ABRPane {
                 } else {
                     String[] lines = errorMessage.getErrorMessage().split("\n");
 
-                    String errorType = "";
-                    String errorDetail = "";
-
-                    for (String line : lines) {
-                        if (line.contains("ERROR:")) {
-                            errorType =
-                                    line.substring(line.indexOf("ERROR:") + 6).trim();
-                        } else if (line.startsWith("  Position:")) {
-                            errorDetail = line.substring(line.indexOf("Position:") + 10)
-                                    .trim();
-                        }
-                    }
+                    String errorType = "Database error";
+                    String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
 
                     String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
                     showAlertTimer(

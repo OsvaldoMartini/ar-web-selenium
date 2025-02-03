@@ -158,7 +158,12 @@ public class ABRWebElement {
         WebElement element = entry.getValue();
         this.mainXPath = entry.getKey();
         this.attributeValue = element.getAttribute(attributeName);
-        this.tagNameDefined = searchReturn.getOriginalTagName();
+        if (searchReturn == null) {
+            this.tagNameDefined = attributeValue;
+            ;
+        } else {
+            this.tagNameDefined = searchReturn.getOriginalTagName();
+        }
         if (typeElement != null) {
             tagType = typeElement;
         }
@@ -167,7 +172,11 @@ public class ABRWebElement {
 
     public ABRWebElement(WebElement element, String priority) {
         updatePriorities(priority, null);
-        this.tagNameDefined = searchReturn.getOriginalTagName();
+        if (searchReturn == null) {
+            this.tagNameDefined = element.getTagName();
+        } else {
+            this.tagNameDefined = searchReturn.getOriginalTagName();
+        }
         initFromWebElement(element);
     }
 
@@ -352,6 +361,15 @@ public class ABRWebElement {
             valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
         } catch (Exception ignore) {
 
+        }
+
+        if (searchReturn == null) {
+            searchReturn = new SearchReturn();
+            if (nameAttributeValue != null) {
+                searchReturn.setAttributeValue(nameAttributeValue);
+            } else {
+                searchReturn.setAttributeValue(tagNameDefined);
+            }
         }
 
         String textLabel = searchReturn.getAttributeValue();
