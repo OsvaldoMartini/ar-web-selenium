@@ -1003,10 +1003,10 @@ public class ABRScannedElementPane extends ABRPane {
                 }
             } else {
                 performMessage.errorMessage(
-                        "Not Web Element to be Added!",
+                        "Not Web Element to be Detected!",
+                        "Release -> Checkbox -> \"IDENTIFY\"",
+                        "Refresh the Page -> <CTRL + F5>",
                         "Checkbox -> \"IDENTIFY\" - Hover Web Elements",
-                        "Scanner -> Web Elements",
-                        null,
                         null,
                         0);
             }
@@ -2457,7 +2457,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             Pair<String, String> fieldData = new Pair<>("Test", testActionsField.getText());
 
-                            String mainCoordenates = coordsTextField.getText().trim();
+                            String mainCoordenates = abrWebElement.getMainCoordinates();
                             String savedCoordenates =
                                     abrWebElement.getSavedReferences().get("coordinates");
                             if (Strings.isNullOrEmpty(mainCoordenates)) {
