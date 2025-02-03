@@ -10,6 +10,7 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.component.scene.ABRNewHomeBankingScene;
@@ -196,6 +197,7 @@ public class ABRScannedElementPane extends ABRPane {
     private String iFrameXPath;
     private String[] iFrameElements;
     private String iFrameCoords;
+    private List<ElementDTO> elementsFound = new ArrayList<>();
 
     List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
     List<Integer> executedSuccess = new ArrayList<>();
@@ -982,12 +984,12 @@ public class ABRScannedElementPane extends ABRPane {
                     handleHoverCheckClick();
                 }
                 insertNewElement();
-            } else if (!Strings.isNullOrEmpty(iFrameXPath)) {
+            } else if (elementsFound.size() > 0) {
                 if (checkActiveHover.isSelected()) {
                     checkActiveHover.setSelected(false);
                     handleHoverCheckClick();
                 }
-                insertNewElement(iFrameXPath, iFrameElements);
+                insertNewElement(elementsFound);
             } else {
                 performMessage.errorMessage(
                         "Not Web Element to be Added!",
@@ -1096,9 +1098,11 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private void insertNewElement(String iFrameXPathToGo, String[] iFrameElements) {
+    private void insertNewElement(List<ElementDTO> elementsFound) {
 
-        if (iFrameElements != null) {
+        String iFrameXPathToGo = "";
+
+        if (elementsFound.size() > 0) {
             try {
                 // Locate and switch to the iframe first
                 WebElement iframe = abrWebDriver.getDriver().findElement(By.xpath(iFrameXPathToGo));
@@ -1448,7 +1452,8 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void handleHoverCheckClick() {
         if (checkActiveHover.isSelected()) {
-            Platform.runLater(() -> periodicThread(abrWebDriver.getDriver(), abrWebDriver.getDriver().getCurrentUrl()));
+            Platform.runLater(() -> periodicThread(
+                    abrWebDriver.getDriver(), abrWebDriver.getDriver().getCurrentUrl()));
             //            injectJavaScript(abrWebDriver.getDriver());
             //            injectJumpTab(abrWebDriver.getDriver());
         } else {
@@ -3552,436 +3557,622 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void periodicThread(WebDriver driver, String currentUrl) {
         // JavaScript code to inject
-        String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n" +
-                "  var tooltip = document.createElement(\"div\");\n" +
-                "  tooltip.id = \"Martini-Is-Awesome\";\n" +
-                "  tooltip.style.position = \"absolute\";\n" +
-                "  tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\"; // Slightly opaque light orange\n" +
-                "  tooltip.style.border = \"1px solid #ccc\";\n" +
-                "  tooltip.style.padding = \"10px\";\n" +
-                "  tooltip.style.borderRadius = \"5px\";\n" +
-                "  tooltip.style.boxShadow = \"0 2px 4px rgba(0, 0, 0, 0.2)\";\n" +
-                "  tooltip.style.fontFamily = \"Arial, sans-serif\";\n" +
-                "  tooltip.style.fontSize = \"14px\";\n" +
-                "  tooltip.style.color = \"#333\";\n" +
-                "  tooltip.style.zIndex = \"10000\"; // Higher z-index\n" +
-                "  tooltip.style.display = \"none\";\n" +
-                "  document.body.appendChild(tooltip);\n" +
-                "\n" +
-                "  var elementInfoMap = new Map();\n" +
-                "  var allElementInfo = [];\n" +
-                "\n" +
-                "  function getMartiniAbsoluteXPath(element) {\n" +
-                "    if (element === document.body) {\n" +
-                "      return \"/html/\" + element.tagName.toLowerCase();\n" +
-                "    }\n" +
-                "    var ix = 0;\n" +
-                "    var siblings = element.parentNode.childNodes;\n" +
-                "    for (var i = 0; i < siblings.length; i++) {\n" +
-                "      var sibling = siblings[i];\n" +
-                "      if (sibling === element) {\n" +
-                "        return (\n" +
-                "          getMartiniAbsoluteXPath(element.parentNode) +\n" +
-                "          \"/\" +\n" +
-                "          element.tagName.toLowerCase() +\n" +
-                "          \"[\" +\n" +
-                "          (ix + 1) +\n" +
-                "          \"]\"\n" +
-                "        );\n" +
-                "      }\n" +
-                "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n" +
-                "        ix++;\n" +
-                "      }\n" +
-                "    }\n" +
-                "    return \"\";\n" +
-                "  }\n" +
-                "  function getMartiniXPath(element) {\n" +
-                "    if (element === document.body) {\n" +
-                "      return \"/html/body\";\n" +
-                "    }\n" +
-                "    var ix = 0;\n" +
-                "    var siblings = element.parentNode ? element.parentNode.childNodes : [];\n" +
-                "    for (var i = 0; i < siblings.length; i++) {\n" +
-                "      var sibling = siblings[i];\n" +
-                "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n" +
-                "        if (sibling === element) {\n" +
-                "          return (\n" +
-                "            getMartiniXPath(element.parentNode) +\n" +
-                "            \"/\" +\n" +
-                "            element.tagName.toLowerCase() +\n" +
-                "            \"[\" +\n" +
-                "            (ix + 1) +\n" +
-                "            \"]\"\n" +
-                "          );\n" +
-                "        }\n" +
-                "        ix++;\n" +
-                "      }\n" +
-                "    }\n" +
-                "    return \"\";\n" +
-                "  }\n" +
-                "  function getMartiniCustomXPath(element) {\n" +
-                "    if (element === document.body) {\n" +
-                "      return \"/html/\" + element.tagName.toLowerCase();\n" +
-                "    }\n" +
-                "\n" +
-                "    // Ensure className is a string; otherwise, set it as an empty string\n" +
-                "    var className = (\n" +
-                "      typeof element.className === \"string\" ? element.className : \"\"\n" +
-                "    )\n" +
-                "      .split(\" \")\n" +
-                "      .filter(function (cls) {\n" +
-                "        return !/\\d/.test(cls);\n" +
-                "      })\n" +
-                "      .join(\".\");\n" +
-                "\n" +
-                "    var tagName = element.tagName.toLowerCase();\n" +
-                "    var ix = 0;\n" +
-                "    var siblings = element.parentNode.childNodes;\n" +
-                "\n" +
-                "    for (var i = 0; i < siblings.length; i++) {\n" +
-                "      var sibling = siblings[i];\n" +
-                "\n" +
-                "      if (sibling === element) {\n" +
-                "        var path = getMartiniCustomXPath(element.parentNode) + \"/\" + tagName;\n" +
-                "\n" +
-                "        if (className) {\n" +
-                "          path += '[contains(@class, \"' + className + '\")]';\n" +
-                "        } else {\n" +
-                "          path += \"[\" + (ix + 1) + \"]\";\n" +
-                "        }\n" +
-                "        return path;\n" +
-                "      }\n" +
-                "\n" +
-                "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n" +
-                "        ix++;\n" +
-                "      }\n" +
-                "    }\n" +
-                "\n" +
-                "    return \"\";\n" +
-                "  }\n" +
-                "\n" +
-                "  var lastHoveredIsIframe = null; // Keep track of the last hovered element type\n" +
-                "\n" +
-                "  let lastHoveredElement = null; // Keep track of the previously hovered element\n" +
-                "  // Declare global variables to store iframe details\n" +
-                "  var iframeDocument = null;\n" +
-                "  var iframeElementsCount = 0;\n" +
-                "\n" +
-                "  function showMartiniTooltip(event) {\n" +
-                "    var elementBelowTooltip = document.elementFromPoint(\n" +
-                "      event.clientX,\n" +
-                "      event.clientY\n" +
-                "    );\n" +
-                "\n" +
-                "    // Do nothing if the hovered element is the tooltip itself or an excluded tag (html, body, main)\n" +
-                "    if (\n" +
-                "      !elementBelowTooltip ||\n" +
-                "      elementBelowTooltip === tooltip ||\n" +
-                "      [\"html\", \"body\", \"main\"].includes(\n" +
-                "        elementBelowTooltip.tagName.toLowerCase()\n" +
-                "      )\n" +
-                "    ) {\n" +
-                "      return;\n" +
-                "    }\n" +
-                "\n" +
-                "    var isIframe = elementBelowTooltip.tagName.toLowerCase() === \"iframe\";\n" +
-                "\n" +
-                "    // Reset only if switching between iframe and non-iframe elements\n" +
-                "    if (lastHoveredIsIframe !== isIframe) {\n" +
-                "      console.clear();\n" +
-                "      elementInfoMap.clear();\n" +
-                "      allElementInfo = [];\n" +
-                "    }\n" +
-                "\n" +
-                "    lastHoveredIsIframe = isIframe; // Update last hovered element type\n" +
-                "\n" +
-                "    // Get the tag name of the element\n" +
-                "    var tagNameTemp = elementBelowTooltip.tagName.toLowerCase();\n" +
-                "\n" +
-                "    // Get the text content of the element (if it has text)\n" +
-                "    var someText = elementBelowTooltip.textContent.trim();\n" +
-                "    if (someText === \"\") {\n" +
-                "      someText = \"No text content\";\n" +
-                "    }\n" +
-                "\n" +
-                "    // If it's an iframe, get the number of elements inside the iframe\n" +
-                "    var iframeDetails = \"\";\n" +
-                "    if (isIframe) {\n" +
-                "      iframeDocument =\n" +
-                "        elementBelowTooltip.contentDocument ||\n" +
-                "        elementBelowTooltip.contentWindow.document;\n" +
-                "      iframeElementsCount = iframeDocument\n" +
-                "        ? iframeDocument.body.getElementsByTagName(\"*\").length\n" +
-                "        : 0;\n" +
-                "      iframeDetails = `Elements inside iframe: ${iframeElementsCount}`;\n" +
-                "    }\n" +
-                "\n" +
-                "    // Store tagName and other details in the Map\n" +
-                "    elementInfoMap.set(tagNameTemp, `${someText}; ${iframeDetails}`);\n" +
-                "\n" +
-                "    // Format the tooltip content to make it more readable\n" +
-                "    var tooltipContent = \"\";\n" +
-                "    tooltipContent += isIframe ? \"[Iframe] <br>\" : \"\";\n" +
-                "    tooltipContent += `Tag Name: ${tagNameTemp}<br>`;\n" +
-                "    tooltipContent += isIframe ? `- ${iframeDetails}<br>` : \"\";\n" +
-                "    tooltipContent += someText ? `- Text: ${someText}<br>` : \"No Text<br>\";\n" +
-                "\n" +
-                "    // Set the tooltip content with line breaks\n" +
-                "    tooltip.innerHTML = tooltipContent;\n" +
-                "\n" +
-                "    // Position the tooltip near the mouse cursor\n" +
-                "    var tooltipWidth = tooltip.offsetWidth;\n" +
-                "    var tooltipHeight = tooltip.offsetHeight;\n" +
-                "    var left = event.pageX - tooltipWidth / 2;\n" +
-                "    var top = event.pageY - tooltipHeight / 2;\n" +
-                "\n" +
-                "    tooltip.style.left = left + \"px\";\n" +
-                "    tooltip.style.top = top + \"px\";\n" +
-                "    tooltip.style.display = \"block\";\n" +
-                "\n" +
-                "    // Highlight the hovered element\n" +
-                "    if (lastHoveredElement !== elementBelowTooltip) {\n" +
-                "      // Remove highlight from the previous element if any\n" +
-                "      if (lastHoveredElement) {\n" +
-                "        lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n" +
-                "      }\n" +
-                "      // Add a border to highlight the current element\n" +
-                "      elementBelowTooltip.style.outline = \"3px solid red\"; // Highlight the element\n" +
-                "\n" +
-                "      lastHoveredElement = elementBelowTooltip; // Update the last hovered element\n" +
-                "    }\n" +
-                "\n" +
-                "    console.log(\"Element Info:\", elementInfoMap);\n" +
-                "  }\n" +
-                "\n" +
-                "  function hideMartiniTooltip() {\n" +
-                "    tooltip.style.display = \"none\";\n" +
-                "  }\n" +
-                "\n" +
-                "  function handleMartiniClick(event) {\n" +
-                "    event.preventDefault();\n" +
-                "    event.stopPropagation();\n" +
-                "    tooltip.style.display = \"none\";\n" +
-                "\n" +
-                "    // Determine the element below the tooltip (mouse position)\n" +
-                "    var elementBelowTooltip = document.elementFromPoint(\n" +
-                "      event.clientX,\n" +
-                "      event.clientY\n" +
-                "    );\n" +
-                "\n" +
-                "    // Hide the tooltip\n" +
-                "    tooltip.style.display = \"none\";\n" +
-                "\n" +
-                "    // If the element below the tooltip is an iframe\n" +
-                "    if (\n" +
-                "      elementBelowTooltip &&\n" +
-                "      elementBelowTooltip.tagName.toLowerCase() === \"iframe\"\n" +
-                "    ) {\n" +
-                "      // Get the document inside the iframe\n" +
-                "      var iframeDocument =\n" +
-                "        elementBelowTooltip.contentDocument ||\n" +
-                "        elementBelowTooltip.contentWindow.document;\n" +
-                "\n" +
-                "      // If the iframe document is valid\n" +
-                "      if (iframeDocument) {\n" +
-                "        // Format the iframe details\n" +
-                "        var iframeDetails = `Elements inside iframe: ${\n" +
-                "          iframeDocument.body.getElementsByTagName(\"*\").length\n" +
-                "        }`;\n" +
-                "\n" +
-                "        // Display the tooltip with iframe details\n" +
-                "        tooltip.innerHTML = `[Iframe] <br> ${iframeDetails}`;\n" +
-                "\n" +
-                "        // Position the tooltip near the mouse cursor\n" +
-                "        var tooltipWidth = tooltip.offsetWidth;\n" +
-                "        var tooltipHeight = tooltip.offsetHeight;\n" +
-                "        var left = event.pageX - tooltipWidth / 2;\n" +
-                "        var top = event.pageY - tooltipHeight / 2;\n" +
-                "\n" +
-                "        tooltip.style.left = left + \"px\";\n" +
-                "        tooltip.style.top = top + \"px\";\n" +
-                "        tooltip.style.display = \"block\";\n" +
-                "\n" +
-                "        // Initialize an array to store the iframe element information\n" +
-                "        allElementInfo = [];\n" +
-                "\n" +
-                "        // Get the XPath of the clicked iframe\n" +
-                "        var iframeXPath = getMartiniXPath(elementBelowTooltip);\n" +
-                "        allElementInfo.push(`clicked-iFrame:${iframeXPath};`);\n" +
-                "\n" +
-                "        // Push additional element info (excluding \"Coord\" if necessary)\n" +
-                "        limitMapCharacters(elementInfoMap, \"clicked-Coord\");\n" +
-                "\n" +
-                "        // Get all elements inside the iframe and log their details\n" +
-                "        var iframeElements = iframeDocument.querySelectorAll(\"*\");\n" +
-                "        iframeElements.forEach(function (elementInsideIframe) {\n" +
-                "          var iframeElementXPath = getMartiniXPath(elementInsideIframe);\n" +
-                "          var someText = getSomeText(\n" +
-                "            elementInsideIframe.tagName.toLowerCase(),\n" +
-                "            elementInsideIframe\n" +
-                "          );\n" +
-                "\n" +
-                "          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${iframeElementXPath};text:${someText}`;\n" +
-                "          allElementInfo.push(elementInfoString);\n" +
-                "        });\n" +
-                "\n" +
-                "        // Log the list of iframe elements\n" +
-                "        console.log(\"List of iframe elements:\", allElementInfo);\n" +
-                "        window.allElementInfo = allElementInfo;\n" +
-                "      } else {\n" +
-                "        tooltip.innerHTML = \"No iframe document found.\";\n" +
-                "\n" +
-                "        // Position the tooltip near the mouse cursor\n" +
-                "        var tooltipWidth = tooltip.offsetWidth;\n" +
-                "        var tooltipHeight = tooltip.offsetHeight;\n" +
-                "        var left = event.pageX - tooltipWidth / 2;\n" +
-                "        var top = event.pageY - tooltipHeight / 2;\n" +
-                "\n" +
-                "        tooltip.style.left = left + \"px\";\n" +
-                "        tooltip.style.top = top + \"px\";\n" +
-                "        tooltip.style.display = \"block\";\n" +
-                "      }\n" +
-                "    } else {\n" +
-                "      // If the clicked element is not an iframe, gather its regular information\n" +
-                "      var tagName = elementBelowTooltip.tagName.toLowerCase();\n" +
-                "\n" +
-                "      // Avoid main, body, and html tags\n" +
-                "      if ([\"html\", \"body\", \"main\"].includes(tagName)) {\n" +
-                "        return; // Don't proceed if it's one of these elements\n" +
-                "      }\n" +
-                "\n" +
-                "      var xpath = getMartiniXPath(elementBelowTooltip);\n" +
-                "      var absoluteXPath = getMartiniAbsoluteXPath(elementBelowTooltip);\n" +
-                "      var customXPath = getMartiniCustomXPath(elementBelowTooltip);\n" +
-                "\n" +
-                "      var attribId = elementBelowTooltip.id || \"\";\n" +
-                "      var attribName = elementBelowTooltip.name || \"\";\n" +
-                "      var coords = elementBelowTooltip.getBoundingClientRect();\n" +
-                "      coords = `${coords.left},${coords.top}`;\n" +
-                "\n" +
-                "      var someText = elementBelowTooltip.textContent.trim() || \"\";\n" +
-                "      if (\n" +
-                "        elementBelowTooltip.tagName.toLowerCase() === \"input\" ||\n" +
-                "        elementBelowTooltip.tagName.toLowerCase() === \"textarea\"\n" +
-                "      ) {\n" +
-                "        someText = elementBelowTooltip.value || \"\";\n" +
-                "      }\n" +
-                "\n" +
-                "      // Format and push regular element information to the array\n" +
-                "      limitMapCharacters(elementInfoMap, \"Coord\");\n" +
-                "\n" +
-                "      var elementInfoTags = `clicked-tagName:${tagName};xpath:${xpath};text:${someText}`;\n" +
-                "      allElementInfo.push(elementInfoTags);\n" +
-                "\n" +
-                "      var elementInfoExtra1 = `clicked-attribId:${attribId};attribName:${attribName};coords:${coords}`;\n" +
-                "      allElementInfo.push(elementInfoExtra1);\n" +
-                "\n" +
-                "      var elementInfoExtra2 = `clicked-absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n" +
-                "      allElementInfo.push(elementInfoExtra2);\n" +
-                "\n" +
-                "      console.log(\"List of elements:\", allElementInfo);\n" +
-                "      window.allElementInfo = allElementInfo;\n" +
-                "\n" +
-                "      // Show the tooltip with the element details\n" +
-                "      tooltip.innerHTML = `${tagName} <br> ${someText}`;\n" +
-                "      var tooltipWidth = tooltip.offsetWidth;\n" +
-                "      var tooltipHeight = tooltip.offsetHeight;\n" +
-                "      var left = event.pageX - tooltipWidth / 2;\n" +
-                "      var top = event.pageY - tooltipHeight / 2;\n" +
-                "\n" +
-                "      tooltip.style.left = left + \"px\";\n" +
-                "      tooltip.style.top = top + \"px\";\n" +
-                "      tooltip.style.display = \"block\";\n" +
-                "    }\n" +
-                "  }\n" +
-                "\n" +
-                "  function limitMapCharacters(elementInfoMap, coordText) {\n" +
-                "    elementInfoMap.forEach((value, key) => {\n" +
-                "      let modifiedValue = value;\n" +
-                "\n" +
-                "      // Check if the key is \"html\" or value length is greater than 400\n" +
-                "      if (key === \"html\" || value.length > 400) {\n" +
-                "        // Truncate the value to 150 characters and add \"...\"\n" +
-                "        if (value.length > 150) {\n" +
-                "          modifiedValue = value.substring(0, 150) + \"...\";\n" +
-                "        }\n" +
-                "\n" +
-                "        // If the length exceeds 400 characters, break the value into multiple lines\n" +
-                "        if (value.length > 400) {\n" +
-                "          const firstPart = value.substring(0, 150);\n" +
-                "          const secondPart = value.substring(150);\n" +
-                "          modifiedValue = `${firstPart}<br>...${secondPart}`;\n" +
-                "        }\n" +
-                "      }\n" +
-                "\n" +
-                "      // Push the formatted value and key to the array\n" +
-                "      allElementInfo.push(`${coordText}:${key};${modifiedValue};`);\n" +
-                "    });\n" +
-                "  }\n" +
-                "\n" +
-                "  function getSomeText(tagName, elementInsideIframe) {\n" +
-                "    var someText = \"\";\n" +
-                "    // Check for input, textarea, select, or button elements\n" +
-                "    if (\n" +
-                "      tagName === \"input\" ||\n" +
-                "      tagName === \"textarea\" ||\n" +
-                "      tagName === \"select\" ||\n" +
-                "      tagName === \"button\"\n" +
-                "    ) {\n" +
-                "      // If the element is an input or textarea, get its value\n" +
-                "      someText =\n" +
-                "        (elementInsideIframe.value && elementInsideIframe.value.trim()) ||\n" +
-                "        (elementInsideIframe.placeholder &&\n" +
-                "          elementInsideIframe.placeholder.trim()) ||\n" +
-                "        \"\";\n" +
-                "    } else if (tagName === \"option\") {\n" +
-                "      // Handle <option> elements specifically\n" +
-                "      someText =\n" +
-                "        (elementInsideIframe.textContent &&\n" +
-                "          elementInsideIframe.textContent.trim()) ||\n" +
-                "        \"\";\n" +
-                "    } else if (\n" +
-                "      tagName === \"html\" ||\n" +
-                "      tagName === \"body\" ||\n" +
-                "      tagName === \"script\"\n" +
-                "    ) {\n" +
-                "      // Handle <option> elements specifically\n" +
-                "      someText = \"\";\n" +
-                "    } else {\n" +
-                "      // For other elements, get textContent or innerText as a fallback for better compatibility\n" +
-                "      someText =\n" +
-                "        (elementInsideIframe.textContent &&\n" +
-                "          elementInsideIframe.textContent.trim()) ||\n" +
-                "        (elementInsideIframe.innerText &&\n" +
-                "          elementInsideIframe.innerText.trim()) ||\n" +
-                "        \"\";\n" +
-                "    }\n" +
-                "    return someText;\n" +
-                "  }\n" +
-                "\n" +
-                "  function cleanOldValues() {\n" +
-                "    window.allElementInfo = [];\n" +
-                "  }\n" +
-                "\n" +
-                "  cleanOldValues();\n" +
-                "\n" +
-                "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n" +
-                "  //                document.addEventListener('mouseout', hideMartiniTooltip);\n" +
-                "  document.addEventListener(\"click\", handleMartiniClick);\n" +
-                "  window.removeClickListener = function () {\n" +
-                "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n" +
-                "    //                    document.removeEventListener('mouseout', hideMartiniTooltip);\n" +
-                "    document.removeEventListener(\"click\", handleMartiniClick);\n" +
-                "  };\n" +
-                "\n" +
-                "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n" +
-                "\n" +
-                "  window.addEventListener(\"message\", function (event) {\n" +
-                "    if (event.origin !== trustedOriginURL) return; // check the origin\n" +
-                "    console.log(event.data);\n" +
-                "  });\n" +
-                "  // })(arguments[0], arguments[1]);\n" +
-                "})(\"http://localhost:3000/\", \"http://localhost:3000/\");\n";
+        String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n"
+                + "  var tooltip = document.createElement(\"div\");\n"
+                + "  tooltip.id = \"Martini-Is-Awesome\";\n"
+                + "  tooltip.style.position = \"absolute\";\n"
+                + "  tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\"; // Slightly opaque light orange\n"
+                + "  tooltip.style.border = \"1px solid #ccc\";\n"
+                + "  tooltip.style.padding = \"10px\";\n"
+                + "  tooltip.style.borderRadius = \"5px\";\n"
+                + "  tooltip.style.boxShadow = \"0 2px 4px rgba(0, 0, 0, 0.2)\";\n"
+                + "  tooltip.style.fontFamily = \"Arial, sans-serif\";\n"
+                + "  tooltip.style.fontSize = \"14px\";\n"
+                + "  tooltip.style.color = \"#333\";\n"
+                + "  tooltip.style.zIndex = \"10000\"; // Higher z-index\n"
+                + "  tooltip.style.display = \"none\";\n"
+                + "  document.body.appendChild(tooltip);\n"
+                + "\n"
+                + "  var elementInfoMap = new Map();\n"
+                + "  var allElementInfo = [];\n"
+                + "\n"
+                + "  function getMartiniAbsoluteXPath(element) {\n"
+                + "    if (element === document.body) {\n"
+                + "      return \"/html/\" + element.tagName.toLowerCase();\n"
+                + "    }\n"
+                + "    var ix = 0;\n"
+                + "    var siblings = element.parentNode.childNodes;\n"
+                + "    for (var i = 0; i < siblings.length; i++) {\n"
+                + "      var sibling = siblings[i];\n"
+                + "      if (sibling === element) {\n"
+                + "        return (\n"
+                + "          getMartiniAbsoluteXPath(element.parentNode) +\n"
+                + "          \"/\" +\n"
+                + "          element.tagName.toLowerCase() +\n"
+                + "          \"[\" +\n"
+                + "          (ix + 1) +\n"
+                + "          \"]\"\n"
+                + "        );\n"
+                + "      }\n"
+                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "        ix++;\n"
+                + "      }\n"
+                + "    }\n"
+                + "    return \"\";\n"
+                + "  }\n"
+                + "  function getMartiniXPath(element) {\n"
+                + "    if (element === document.body) {\n"
+                + "      return \"/html/body\";\n"
+                + "    }\n"
+                + "    var ix = 0;\n"
+                + "    var siblings = element.parentNode ? element.parentNode.childNodes : [];\n"
+                + "    for (var i = 0; i < siblings.length; i++) {\n"
+                + "      var sibling = siblings[i];\n"
+                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "        if (sibling === element) {\n"
+                + "          return (\n"
+                + "            getMartiniXPath(element.parentNode) +\n"
+                + "            \"/\" +\n"
+                + "            element.tagName.toLowerCase() +\n"
+                + "            \"[\" +\n"
+                + "            (ix + 1) +\n"
+                + "            \"]\"\n"
+                + "          );\n"
+                + "        }\n"
+                + "        ix++;\n"
+                + "      }\n"
+                + "    }\n"
+                + "    return \"\";\n"
+                + "  }\n"
+                + "  function getMartiniCustomXPath(element) {\n"
+                + "    if (element === document.body) {\n"
+                + "      return \"/html/\" + element.tagName.toLowerCase();\n"
+                + "    }\n"
+                + "\n"
+                + "    // Ensure className is a string; otherwise, set it as an empty string\n"
+                + "    var className = (\n"
+                + "      typeof element.className === \"string\" ? element.className : \"\"\n"
+                + "    )\n"
+                + "      .split(\" \")\n"
+                + "      .filter(function (cls) {\n"
+                + "        return !/\\d/.test(cls);\n"
+                + "      })\n"
+                + "      .join(\".\");\n"
+                + "\n"
+                + "    var tagName = element.tagName.toLowerCase();\n"
+                + "    var ix = 0;\n"
+                + "    var siblings = element.parentNode.childNodes;\n"
+                + "\n"
+                + "    for (var i = 0; i < siblings.length; i++) {\n"
+                + "      var sibling = siblings[i];\n"
+                + "\n"
+                + "      if (sibling === element) {\n"
+                + "        var path = getMartiniCustomXPath(element.parentNode) + \"/\" + tagName;\n"
+                + "\n"
+                + "        if (className) {\n"
+                + "          path += '[contains(@class, \"' + className + '\")]';\n"
+                + "        } else {\n"
+                + "          path += \"[\" + (ix + 1) + \"]\";\n"
+                + "        }\n"
+                + "        return path;\n"
+                + "      }\n"
+                + "\n"
+                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "        ix++;\n"
+                + "      }\n"
+                + "    }\n"
+                + "\n"
+                + "    return \"\";\n"
+                + "  }\n"
+                + "\n"
+                + "  var lastHoveredIsIframe = null; // Keep track of the last hovered element type\n"
+                + "\n"
+                + "  let lastHoveredElement = null; // Keep track of the previously hovered element\n"
+                + "  // Declare global variables to store iframe details\n"
+                + "  var iframeDocument = null;\n"
+                + "  var iframeElementsCount = 0;\n"
+                + "\n"
+                + "  function showMartiniTooltip(event) {\n"
+                + "    var elementBelowTooltip = document.elementFromPoint(\n"
+                + "      event.clientX,\n"
+                + "      event.clientY\n"
+                + "    );\n"
+                + "\n"
+                + "    // Do nothing if the hovered element is the tooltip itself or an excluded tag (html, body, main)\n"
+                + "    if (\n"
+                + "      !elementBelowTooltip ||\n"
+                + "      elementBelowTooltip === tooltip ||\n"
+                + "      [\"html\", \"body\", \"main\"].includes(\n"
+                + "        elementBelowTooltip.tagName.toLowerCase()\n"
+                + "      )\n"
+                + "    ) {\n"
+                + "      return;\n"
+                + "    }\n"
+                + "\n"
+                + "    var isIframe = elementBelowTooltip.tagName.toLowerCase() === \"iframe\";\n"
+                + "\n"
+                + "    // Reset only if switching between iframe and non-iframe elements\n"
+                + "    if (lastHoveredIsIframe !== isIframe) {\n"
+                + "      console.clear();\n"
+                + "      elementInfoMap.clear();\n"
+                + "      allElementInfo = [];\n"
+                + "    }\n"
+                + "\n"
+                + "    lastHoveredIsIframe = isIframe; // Update last hovered element type\n"
+                + "\n"
+                + "    // Get the tag name of the element\n"
+                + "    var tagNameTemp = elementBelowTooltip.tagName.toLowerCase();\n"
+                + "\n"
+                + "    // // Get the text content of the element (if it has text)\n"
+                + "    // var someText = elementBelowTooltip.textContent.trim();\n"
+                + "    // if (someText === \"\") {\n"
+                + "    //   someText = \"No text content\";\n"
+                + "    // }\n"
+                + "\n"
+                + "    var someText = getSomeText(\n"
+                + "      elementBelowTooltip.tagName.toLowerCase(),\n"
+                + "      elementBelowTooltip\n"
+                + "    );\n"
+                + "\n"
+                + "    // If it's an iframe, get the number of elements inside the iframe\n"
+                + "    var iframeDetails = \"\";\n"
+                + "    if (isIframe) {\n"
+                + "      iframeDocument =\n"
+                + "        elementBelowTooltip.contentDocument ||\n"
+                + "        elementBelowTooltip.contentWindow.document;\n"
+                + "      iframeElementsCount = iframeDocument\n"
+                + "        ? iframeDocument.body.getElementsByTagName(\"*\").length\n"
+                + "        : 0;\n"
+                + "      iframeDetails = `Elements inside iframe: ${iframeElementsCount}`;\n"
+                + "    }\n"
+                + "\n"
+                + "    var elementXPath = getMartiniXPath(elementBelowTooltip);\n"
+                + "\n"
+                + "    // Store tagName and other details in the Map\n"
+                + "    if (iframeDetails && iframeDetails.length > 0) {\n"
+                + "      elementInfoMap.set(\n"
+                + "        tagNameTemp,\n"
+                + "        `xpath:${elementXPath};text:${someText};${iframeDetails};`\n"
+                + "      );\n"
+                + "    } else {\n"
+                + "      const {\n"
+                + "        xpath,\n"
+                + "        absoluteXPath,\n"
+                + "        customXPath,\n"
+                + "        attribId,\n"
+                + "        attribName,\n"
+                + "        coords,\n"
+                + "        someText,\n"
+                + "      } = getElementIdentity(elementBelowTooltip);\n"
+                + "\n"
+                + "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n"
+                + "\n"
+                + "      elementInfoMap.set(tagNameTemp, elementInfoString);\n"
+                + "    }\n"
+                + "\n"
+                + "    // Parse the someText using the semicolon delimiter\n"
+                + "    var parsedText = someText.split(\";\");\n"
+                + "\n"
+                + "    // Format the tooltip content to make it more readable\n"
+                + "    var tooltipContent = \"\";\n"
+                + "    tooltipContent += isIframe ? \"[Iframe] <br>\" : \"\";\n"
+                + "    tooltipContent += `Tag Name: ${tagNameTemp}<br>`;\n"
+                + "    tooltipContent += isIframe ? `- ${iframeDetails}<br>` : \"\";\n"
+                + "\n"
+                + "    // Replace new lines with <br> before adding each item from parsedText\n"
+                + "    tooltipContent += someText\n"
+                + "      ? parsedText.map((item) => `- ${item}<br>`).join(\"\")\n"
+                + "      : \"No Text<br>\";\n"
+                + "\n"
+                + "    // Set the tooltip content with line breaks\n"
+                + "    tooltip.innerHTML = tagNameTemp;\n"
+                + "\n"
+                + "    // Position the tooltip near the mouse cursor\n"
+                + "    var tooltipWidth = tooltip.offsetWidth;\n"
+                + "    var tooltipHeight = tooltip.offsetHeight;\n"
+                + "    var left = event.pageX - tooltipWidth / 2;\n"
+                + "    var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "    tooltip.style.left = left + \"px\";\n"
+                + "    tooltip.style.top = top + \"px\";\n"
+                + "    tooltip.style.display = \"block\";\n"
+                + "\n"
+                + "    // Highlight the hovered element\n"
+                + "    if (lastHoveredElement !== elementBelowTooltip) {\n"
+                + "      // Remove highlight from the previous element if any\n"
+                + "      if (lastHoveredElement) {\n"
+                + "        lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
+                + "      }\n"
+                + "      // Add a border to highlight the current element\n"
+                + "      elementBelowTooltip.style.outline = \"3px solid red\"; // Highlight the element\n"
+                + "\n"
+                + "      lastHoveredElement = elementBelowTooltip; // Update the last hovered element\n"
+                + "    }\n"
+                + "\n"
+                + "    console.log(\"Element Info:\", elementInfoMap);\n"
+                + "  }\n"
+                + "\n"
+                + "  function hideMartiniTooltip() {\n"
+                + "    tooltip.style.display = \"none\";\n"
+                + "  }\n"
+                + "\n"
+                + "  function handleMartiniClick(event) {\n"
+                + "    event.preventDefault();\n"
+                + "    event.stopPropagation();\n"
+                + "    tooltip.style.display = \"none\";\n"
+                + "\n"
+                + "    // Determine the element below the tooltip (mouse position)\n"
+                + "    var elementBelowTooltip = document.elementFromPoint(\n"
+                + "      event.clientX,\n"
+                + "      event.clientY\n"
+                + "    );\n"
+                + "\n"
+                + "    // Hide the tooltip\n"
+                + "    tooltip.style.display = \"none\";\n"
+                + "\n"
+                + "    // If the element below the tooltip is an iframe\n"
+                + "    if (\n"
+                + "      elementBelowTooltip &&\n"
+                + "      elementBelowTooltip.tagName.toLowerCase() === \"iframe\"\n"
+                + "    ) {\n"
+                + "      // Get the document inside the iframe\n"
+                + "      var iframeDocument =\n"
+                + "        elementBelowTooltip.contentDocument ||\n"
+                + "        elementBelowTooltip.contentWindow.document;\n"
+                + "\n"
+                + "      // If the iframe document is valid\n"
+                + "      if (iframeDocument) {\n"
+                + "        // Format the iframe details\n"
+                + "        var iframeDetails = `Elements inside iframe: ${\n"
+                + "          iframeDocument.body.getElementsByTagName(\"*\").length\n"
+                + "        }`;\n"
+                + "\n"
+                + "        // Display the tooltip with iframe details\n"
+                + "        tooltip.innerHTML = `[Iframe] <br> ${iframeDetails}`;\n"
+                + "\n"
+                + "        // Position the tooltip near the mouse cursor\n"
+                + "        var tooltipWidth = tooltip.offsetWidth;\n"
+                + "        var tooltipHeight = tooltip.offsetHeight;\n"
+                + "        var left = event.pageX - tooltipWidth / 2;\n"
+                + "        var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "        tooltip.style.left = left + \"px\";\n"
+                + "        tooltip.style.top = top + \"px\";\n"
+                + "        tooltip.style.display = \"block\";\n"
+                + "\n"
+                + "        // Initialize an array to store the iframe element information\n"
+                + "        allElementInfo = [];\n"
+                + "\n"
+                + "        const {\n"
+                + "          xpath,\n"
+                + "          absoluteXPath,\n"
+                + "          customXPath,\n"
+                + "          attribId,\n"
+                + "          attribName,\n"
+                + "          coords,\n"
+                + "          someText,\n"
+                + "        } = getElementIdentity(elementBelowTooltip);\n"
+                + "\n"
+                + "        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n"
+                + "\n"
+                + "        allElementInfo.push(`clicked-iFrame:${elementInfoString};`);\n"
+                + "\n"
+                + "        // limitMapCharacters(elementInfoMap, \"clicked-tagName\");\n"
+                + "\n"
+                + "        // Get all elements inside the iframe and log their details\n"
+                + "        var iframeElements = iframeDocument.querySelectorAll(\"*\");\n"
+                + "        iframeElements.forEach(function (elementInsideIframe) {\n"
+                + "          const {\n"
+                + "            xpath,\n"
+                + "            absoluteXPath,\n"
+                + "            customXPath,\n"
+                + "            attribId,\n"
+                + "            attribName,\n"
+                + "            coords,\n"
+                + "            someText,\n"
+                + "          } = getElementIdentity(elementInsideIframe);\n"
+                + "\n"
+                + "          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n"
+                + "\n"
+                + "          allElementInfo.push(elementInfoString);\n"
+                + "        });\n"
+                + "\n"
+                + "        // Log the list of iframe elements\n"
+                + "        console.log(\"List of iframe elements:\", allElementInfo);\n"
+                + "        window.allElementInfo = allElementInfo;\n"
+                + "      } else {\n"
+                + "        tooltip.innerHTML = \"No iframe document found.\";\n"
+                + "\n"
+                + "        // Position the tooltip near the mouse cursor\n"
+                + "        var tooltipWidth = tooltip.offsetWidth;\n"
+                + "        var tooltipHeight = tooltip.offsetHeight;\n"
+                + "        var left = event.pageX - tooltipWidth / 2;\n"
+                + "        var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "        tooltip.style.left = left + \"px\";\n"
+                + "        tooltip.style.top = top + \"px\";\n"
+                + "        tooltip.style.display = \"block\";\n"
+                + "      }\n"
+                + "    } else {\n"
+                + "      // If the clicked element is not an iframe, gather its regular information\n"
+                + "      var tagName = elementBelowTooltip.tagName.toLowerCase();\n"
+                + "\n"
+                + "      // Avoid main, body, and html tags\n"
+                + "      if ([\"html\", \"body\", \"main\"].includes(tagName)) {\n"
+                + "        return; // Don't proceed if it's one of these elements\n"
+                + "      }\n"
+                + "\n"
+                + "      // Format and push regular element information to the array\n"
+                + "      limitMapCharacters(elementInfoMap, \"tagName-found\");\n"
+                + "\n"
+                + "      const {\n"
+                + "        xpath,\n"
+                + "        absoluteXPath,\n"
+                + "        customXPath,\n"
+                + "        attribId,\n"
+                + "        attribName,\n"
+                + "        coords,\n"
+                + "        someText,\n"
+                + "      } = getElementIdentity(elementBelowTooltip);\n"
+                + "\n"
+                + "      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n"
+                + "\n"
+                + "      allElementInfo.push(elementInfoString);\n"
+                + "\n"
+                + "      console.log(\"List of elements:\", allElementInfo);\n"
+                + "      window.allElementInfo = allElementInfo;\n"
+                + "\n"
+                + "      // Show the tooltip with the element details\n"
+                + "      // tooltip.innerHTML = `${tagName} <br> ${someText}`;\n"
+                + "      tooltip.innerHTML = `${tagName} <br> ${someText}`;\n"
+                + "      var tooltipWidth = tooltip.offsetWidth;\n"
+                + "      var tooltipHeight = tooltip.offsetHeight;\n"
+                + "      var left = event.pageX - tooltipWidth / 2;\n"
+                + "      var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "      tooltip.style.left = left + \"px\";\n"
+                + "      tooltip.style.top = top + \"px\";\n"
+                + "      tooltip.style.display = \"block\";\n"
+                + "    }\n"
+                + "  }\n"
+                + "\n"
+                + "  function getElementIdentity(element) {\n"
+                + "    var xpath = getMartiniXPath(element);\n"
+                + "    var absoluteXPath = null;\n"
+                + "    try {\n"
+                + "      console.log(\"element\", element);\n"
+                + "      absoluteXPath = getMartiniAbsoluteXPath(element);\n"
+                + "    } catch (error) {}\n"
+                + "    var customXPath = null;\n"
+                + "    try {\n"
+                + "      customXPath = getMartiniCustomXPath(element);\n"
+                + "    } catch (error) {}\n"
+                + "\n"
+                + "    var attribId = element.id || \"\";\n"
+                + "    var attribName = element.name || \"\";\n"
+                + "    var coords = element.getBoundingClientRect();\n"
+                + "    coords = `${coords.left},${coords.top}`;\n"
+                + "\n"
+                + "    var someText = element.textContent.trim() || \"\";\n"
+                + "    if (\n"
+                + "      element.tagName.toLowerCase() === \"input\" ||\n"
+                + "      element.tagName.toLowerCase() === \"textarea\"\n"
+                + "    ) {\n"
+                + "      someText = element.value || \"\";\n"
+                + "    }\n"
+                + "\n"
+                + "    var someText = getSomeText(element.tagName.toLowerCase(), element);\n"
+                + "\n"
+                + "    return {\n"
+                + "      xpath,\n"
+                + "      absoluteXPath,\n"
+                + "      customXPath,\n"
+                + "      attribId,\n"
+                + "      attribName,\n"
+                + "      coords,\n"
+                + "      someText,\n"
+                + "    };\n"
+                + "  }\n"
+                + "\n"
+                + "  function limitMapCharacters(elementInfoMap, coordText) {\n"
+                + "    elementInfoMap.forEach((value, key) => {\n"
+                + "      let modifiedValue = value;\n"
+                + "\n"
+                + "      // Check if the key is \"html\" or value length is greater than 400\n"
+                + "      if (key === \"html\" || value.length > 400) {\n"
+                + "        // Truncate the value to 150 characters and add \"...\"\n"
+                + "        if (value.length > 150) {\n"
+                + "          modifiedValue = value.substring(0, 150) + \"...\";\n"
+                + "        }\n"
+                + "\n"
+                + "        // If the length exceeds 400 characters, break the value into multiple lines\n"
+                + "        if (value.length > 400) {\n"
+                + "          const firstPart = value.substring(0, 150);\n"
+                + "          const secondPart = value.substring(150);\n"
+                + "          modifiedValue = `${firstPart}<br>...${secondPart}`;\n"
+                + "        }\n"
+                + "      }\n"
+                + "\n"
+                + "      // Push the formatted value and key to the array\n"
+                + "      allElementInfo.push(`${coordText}:${modifiedValue}`);\n"
+                + "    });\n"
+                + "  }\n"
+                + "\n"
+                + "  function getSomeText(tagName, element) {\n"
+                + "    let someText = \"\";\n"
+                + "\n"
+                + "    if ([\"input\", \"textarea\", \"select\", \"button\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    } else if ([\"option\", \"label\", \"a\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    } else if (![\"html\", \"body\", \"script\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    }\n"
+                + "\n"
+                + "    someText = someText\n"
+                + "      .split(\";\")\n"
+                + "      .map((text) => text.trim())\n"
+                + "      .filter(Boolean)\n"
+                + "      .join(\";\"); // Clean up sequential text\n"
+                + "\n"
+                + "    return someText;\n"
+                + "  }\n"
+                + "\n"
+                + "  function extractTextFromHTML(element) {\n"
+                + "    const result = {\n"
+                + "      text: new Set(), // Using Set to avoid duplicate text\n"
+                + "      labels: new Set(), // Using Set to avoid duplicate labels\n"
+                + "      titles: new Set(), // Using Set to avoid duplicate titles\n"
+                + "    };\n"
+                + "\n"
+                + "    // Extract text content directly from the element (in case it has no children)\n"
+                + "    if (element.textContent) {\n"
+                + "      let elementText = element.textContent.trim();\n"
+                + "      if (elementText) {\n"
+                + "        result.text.add(elementText); // Using .add() instead of .push() for Set\n"
+                + "      }\n"
+                + "    }\n"
+                + "\n"
+                + "    // Extract label text from input placeholders and other form-related data\n"
+                + "    element.querySelectorAll(\"label\").forEach((label) => {\n"
+                + "      if (label.textContent) {\n"
+                + "        let labelText = label.textContent.trim();\n"
+                + "        if (labelText) {\n"
+                + "          result.labels.add(labelText); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "\n"
+                + "      // Handle associated input fields (if the label has a 'for' attribute)\n"
+                + "      let forAttribute = label.getAttribute(\"for\");\n"
+                + "      if (forAttribute) {\n"
+                + "        let associatedInput = element.querySelector(`#${forAttribute}`);\n"
+                + "        if (associatedInput) {\n"
+                + "          // Check if it's an input field or textarea and extract value or placeholder\n"
+                + "          let inputValue = associatedInput.value?.trim();\n"
+                + "          let inputPlaceholder = associatedInput.placeholder?.trim();\n"
+                + "          if (inputValue) {\n"
+                + "            result.text.add(inputValue); // Using .add() for Set to ensure uniqueness\n"
+                + "          } else if (inputPlaceholder) {\n"
+                + "            result.text.add(inputPlaceholder); // Fallback to placeholder\n"
+                + "          }\n"
+                + "        }\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract text from common block and inline elements\n"
+                + "    const textExtractors = [\n"
+                + "      \"p\",\n"
+                + "      \"h1\",\n"
+                + "      \"h2\",\n"
+                + "      \"h3\",\n"
+                + "      \"h4\",\n"
+                + "      \"h5\",\n"
+                + "      \"h6\",\n"
+                + "      \"li\",\n"
+                + "      \"span\",\n"
+                + "      \"div\",\n"
+                + "      \"strong\",\n"
+                + "      \"em\",\n"
+                + "      \"b\",\n"
+                + "      \"i\",\n"
+                + "      \"blockquote\",\n"
+                + "    ];\n"
+                + "\n"
+                + "    textExtractors.forEach((tagName) => {\n"
+                + "      element.querySelectorAll(tagName).forEach((childElement) => {\n"
+                + "        if (childElement.textContent) {\n"
+                + "          let elemText = childElement.textContent.trim();\n"
+                + "          if (elemText) {\n"
+                + "            result.text.add(elemText); // Using .add() for Set to ensure uniqueness\n"
+                + "          }\n"
+                + "        }\n"
+                + "      });\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract text from <a> tags (links)\n"
+                + "    element.querySelectorAll(\"a\").forEach((link) => {\n"
+                + "      if (link.textContent) {\n"
+                + "        let linkText = link.textContent.trim();\n"
+                + "        if (linkText) {\n"
+                + "          result.text.add(linkText); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract iframe titles and nested content\n"
+                + "    element.querySelectorAll(\"iframe\").forEach((iframe) => {\n"
+                + "      if (iframe.getAttribute(\"title\")) {\n"
+                + "        let title = iframe.getAttribute(\"title\")?.trim();\n"
+                + "        if (title) {\n"
+                + "          result.titles.add(title); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "\n"
+                + "      try {\n"
+                + "        let iframeDoc =\n"
+                + "          iframe.contentDocument ||\n"
+                + "          new DOMParser().parseFromString(iframe.srcdoc || \"\", \"text/html\");\n"
+                + "        let iframeContent = extractTextFromHTML(iframeDoc); // Here we assume iframeDoc is an element.\n"
+                + "        iframeContent.titles.forEach((title) => result.titles.add(title));\n"
+                + "        iframeContent.text.forEach((text) => result.text.add(text));\n"
+                + "        iframeContent.labels.forEach((label) => result.labels.add(label));\n"
+                + "      } catch (e) {\n"
+                + "        console.warn(\"Could not access iframe content\", e);\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Convert Sets to arrays before returning to maintain previous structure\n"
+                + "    return {\n"
+                + "      text: Array.from(result.text),\n"
+                + "      labels: Array.from(result.labels),\n"
+                + "      titles: Array.from(result.titles),\n"
+                + "    };\n"
+                + "  }\n"
+                + "\n"
+                + "  function cleanOldValues() {\n"
+                + "    window.allElementInfo = [];\n"
+                + "  }\n"
+                + "\n"
+                + "  cleanOldValues();\n"
+                + "\n"
+                + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
+                + "  //                document.addEventListener('mouseout', hideMartiniTooltip);\n"
+                + "  document.addEventListener(\"click\", handleMartiniClick);\n"
+                + "  window.removeClickListener = function () {\n"
+                + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
+                + "    //                    document.removeEventListener('mouseout', hideMartiniTooltip);\n"
+                + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
+                + "  };\n"
+                + "\n"
+                + "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n"
+                + "\n"
+                + "  window.addEventListener(\"message\", function (event) {\n"
+                + "    if (event.origin !== trustedOriginURL) return; // check the origin\n"
+                + "    console.log(event.data);\n"
+                + "  });\n"
+                + "})(arguments[0], arguments[1]);\n"
+                + "// })(\"http://localhost:3000/\", \"http://localhost:3000/\");\n";
 
         try {
             jsExecutor.executeScript(jsCode, currentUrl);
@@ -4023,19 +4214,27 @@ public class ABRScannedElementPane extends ABRPane {
                                     System.out.println("The iframeElements data is not a List or an array.");
                                 }
 
-                                if (!Strings.isNullOrEmpty(iFrameXPath)) {
-                                    StringBuilder sb = new StringBuilder();
-                                    sb.append("iFrame: ").append(iFrameXPath).append("\n");
+                                if (iFrameElements != null && iFrameElements.length > 0) {
 
-                                    if (iFrameElements != null && iFrameElements.length > 0) {
-                                        sb.append("iFrame Elements: ").append("\n");
-                                        // Print each element in iFrameElements
-                                        for (String element : iFrameElements) {
-                                            sb.append(element).append("\n");
-                                        }
-                                    }
+                                    // Extract elements from input lines
+                                    elementsFound = performAction.extractElementData(iFrameElements);
 
-                                    countdownTextField.setText(sb.toString());
+                                    //                                    StringBuilder sb = new StringBuilder();
+                                    //                                    sb.append("iFrame:
+                                    // ").append(iFrameXPath).append("\n");
+                                    //
+                                    //                                    if (iFrameElements != null &&
+                                    // iFrameElements.length > 0) {
+                                    //                                        sb.append("iFrame Elements:
+                                    // ").append("\n");
+                                    //                                        // Print each element in iFrameElements
+                                    //                                        for (String element : iFrameElements) {
+                                    //                                            sb.append(element).append("\n");
+                                    //                                        }
+                                    //                                    }
+
+                                    //                                    countdownTextField.setText(elements);
+
                                     checkClickElement.setSelected(false);
                                     checkInputText.setSelected(false);
                                     checkOutputText.setSelected(false);

@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
+import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.driver.ABRWebDriver;
@@ -35,6 +36,8 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javafx.application.Platform;
@@ -2738,7 +2741,12 @@ public class PerformActions {
     }
 
     public static String insertValueIFrameElement(
-            WebDriver driver, String iframeXPath, String inputXPath, String inputValue, String targetOriginURL, String trustedOriginURL) {
+            WebDriver driver,
+            String iframeXPath,
+            String inputXPath,
+            String inputValue,
+            String targetOriginURL,
+            String trustedOriginURL) {
 
         JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
 
@@ -2763,15 +2771,47 @@ public class PerformActions {
                 + "    }"
                 + "    return logs.join('\\n');"
                 + "} )(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);"
-
                 + " // Listen for messages from the trusted origin (this needs to be in the global scope)"
                 + "window.addEventListener('message', function (event) {"
                 + "    if (event.origin !== trustedOriginURL) return;" // Validate message source
                 + "    console.log('Received message:', event.data);"
                 + "});";
 
-        return (String) jsExecutor.executeScript(script, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
+        return (String) jsExecutor.executeScript(
+                script, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
     }
 
+    public List<ElementDTO> extractElementData(String[] iFrameElements) {
+        List<ElementDTO> elements = new ArrayList<>();
 
+        // Pattern to match the necessary parts in the input line
+        String regex =
+                "(clicked-tagName|tagName-found|clicked-iFrame|iFrame-Child):([^;]*);xpath:([^;]*);text:([^;]*);attribId:([^;]*);attribName:([^;]*);coords:([^;]*);absoluteXPath:([^;]*);customXPath:([^;]*);";
+        Pattern pattern = Pattern.compile(regex);
+
+        // Iterate through the input lines and match the pattern
+        for (String line : iFrameElements) {
+            Matcher matcher = pattern.matcher(line);
+            if (matcher.find()) {
+                // Extract matched groups
+                String typeElement = matcher.group(1).equals("clicked-iFrame") ? "iFrame" : "iFrameChild";
+                String xPath = matcher.group(3).trim();
+                String text = matcher.group(4).trim();
+                String attribId = matcher.group(5).trim();
+                String attribName = matcher.group(6).trim();
+                String coords = matcher.group(7).trim();
+                String absoluteXPath = matcher.group(8).trim();
+                String customXPath = matcher.group(9).trim();
+
+                // Extract tagName from text
+                String tagName = text.isEmpty() ? "" : "iframe"; // Assuming "iframe" tag for simplicity
+
+                // Create the ElementDTO and add to the list
+                elements.add(new ElementDTO(
+                        typeElement, tagName, xPath, text, attribId, attribName, coords, absoluteXPath, customXPath));
+            }
+        }
+
+        return elements;
+    }
 }
