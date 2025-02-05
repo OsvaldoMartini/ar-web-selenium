@@ -196,6 +196,7 @@ public class ABRScannedElementPane extends ABRPane {
 
     private String iFrameXPath;
     private String[] iFrameElements;
+    private static String[] lstAllPaths;
     private String iFrameCoords;
     private List<ElementDTO> elementsFound = new ArrayList<>();
 
@@ -3741,7 +3742,8 @@ public class ABRScannedElementPane extends ABRPane {
                 + "  var tooltip = document.createElement(\"div\");\n"
                 + "  tooltip.id = \"Martini-Is-Awesome\";\n"
                 + "  tooltip.style.position = \"absolute\";\n"
-                + "  tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\"; // Slightly opaque light orange\n"
+                + "  // tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\"; // Slightly opaque light orange\n"
+                + "  tooltip.style.backgroundColor = \"rgba(0, 0, 0, 0)\"; // Full transparency\n"
                 + "  tooltip.style.border = \"1px solid #ccc\";\n"
                 + "  tooltip.style.padding = \"10px\";\n"
                 + "  tooltip.style.borderRadius = \"5px\";\n"
@@ -4116,6 +4118,15 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    }\n"
                 + "\n"
                 + "    window.removeClickListener();\n"
+                + "\n"
+                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
+                + "    setTimeout(() => {\n"
+                + "      if (tooltip) {\n"
+                + "        tooltip.remove(); // Completely remove the tooltip from the DOM\n"
+                + "        tooltip = null; // Clear the reference to free memory\n"
+                + "        console.log(\"Tooltip completely removed.\");\n"
+                + "      }\n"
+                + "    }, 5000);\n"
                 + "  }\n"
                 + "\n"
                 + "  function getElementIdentity(element) {\n"
@@ -4344,6 +4355,15 @@ public class ABRScannedElementPane extends ABRPane {
                 + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
                 + "    //                    document.removeEventListener('mouseout', hideMartiniTooltip);\n"
                 + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
+                + "\n"
+                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
+                + "    setTimeout(() => {\n"
+                + "      if (tooltip) {\n"
+                + "        tooltip.remove(); // Completely remove the tooltip from the DOM\n"
+                + "        tooltip = null; // Clear the reference to free memory\n"
+                + "        console.log(\"Tooltip completely removed.\");\n"
+                + "      }\n"
+                + "    }, 5000);\n"
                 + "  };\n"
                 + "\n"
                 + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
@@ -6571,17 +6591,108 @@ public class ABRScannedElementPane extends ABRPane {
      * @return a map where keys are XPaths of elements and values are WebElements
      */
     private static Map<String, WebElement> findElementsOutputCriteria(WebDriver driver) {
-        jsExecutor = (JavascriptExecutor) driver;
 
-        List<WebElement> elements = driver.findElements(By.xpath("//label[@for]"));
-        Set<WebElement> uniqueElements = new HashSet<>(elements);
+        String allWithText = "// Global array to store XPaths of elements with text\n" + "let elementsWithText = [];\n"
+                + "\n"
+                + "(function() {\n"
+                + "    function getXPath(element) {\n"
+                + "        if (element.id) {\n"
+                + "            return `//*[@id='${element.id}']`;\n"
+                + "        }\n"
+                + "        if (element === document.body) {\n"
+                + "            return '/html/body';\n"
+                + "        }\n"
+                + "        let index = 1;\n"
+                + "        let siblings = element.parentNode ? element.parentNode.children : [];\n"
+                + "        for (let i = 0; i < siblings.length; i++) {\n"
+                + "            if (siblings[i] === element) {\n"
+                + "                return getXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + `[${index}]`;\n"
+                + "            }\n"
+                + "            if (siblings[i].tagName === element.tagName) {\n"
+                + "                index++;\n"
+                + "            }\n"
+                + "        }\n"
+                + "        return '';\n"
+                + "    }\n"
+                + "\n"
+                + "    function collectElementsWithText() {\n"
+                + "        let elements = document.querySelectorAll('*');\n"
+                + "\n"
+                + "        elements.forEach(element => {\n"
+                + "            let text = element.textContent.trim();\n"
+                + "            if (text.length > 0 && element.offsetWidth > 0 && element.offsetHeight > 0) {\n"
+                + "                let xpath = getXPath(element);\n"
+                + "                if (xpath) {\n"
+                + "                    elementsWithText.push(xpath);\n"
+                + "                }\n"
+                + "            }\n"
+                + "        });\n"
+                + "        window.allWithText = elementsWithText;\n"
+                + "    }\n"
+                + "\n"
+                + "    window.allWithText = [];\n"
+                + "    collectElementsWithText();\n"
+                + "})();\n";
 
-        elements = driver.findElements(By.xpath("//label[not(@for)]"));
-        uniqueElements.addAll(elements);
+        List<WebElement> elements = new ArrayList<>();
+        Map<String, WebElement> elementMap = new HashMap<>();
 
-        elements = driver.findElements(By.xpath("//label[normalize-space(text()) != '']"));
-        uniqueElements.addAll(elements);
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript(allWithText);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
 
+        try {
+            Thread.sleep(2);
+        } catch (InterruptedException e) {
+        }
+
+        String[] listXPaths = new String[0];
+
+        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
+                jsExecutor.executeScript("var obj = { allWithText: window.allWithText }; return obj;");
+
+        // Convert the LinkedHashMap to a Java Map (if necessary)
+        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
+
+        if (linkedHashMap != null) {
+            //            Platform.runLater(() -> {
+            //                                iFrameXPath = (String) resultMap.get("iFrameXPath");
+
+            Object iframeElementsObject = resultMap.get("allWithText");
+
+            if (iframeElementsObject instanceof List<?>) {
+                // Convert List to String[]
+                List<?> iframeElementsList = (List<?>) iframeElementsObject;
+                lstAllPaths = iframeElementsList.toArray(new String[0]);
+            } else if (iframeElementsObject instanceof Object[]) {
+                // If it's an array, check if it's an array of Strings
+                lstAllPaths = Arrays.copyOf(
+                        (Object[]) iframeElementsObject, ((Object[]) iframeElementsObject).length, String[].class);
+            } else {
+                System.out.println("The iframeElements data is not a List or an array.");
+            }
+
+            for (String xPath : lstAllPaths) {
+                WebElement element = driver.findElement(By.xpath(xPath));
+                if (element != null) {
+                    elementMap.put(xPath, element);
+                }
+            }
+            //            });
+        }
+
+        //        List<WebElement> elements = driver.findElements(By.xpath("//label[@for]"));
+        //        Set<WebElement> uniqueElements = new HashSet<>(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//label[not(@for)]"));
+        //        uniqueElements.addAll(elements);
+        //
+        //        elements = driver.findElements(By.xpath("//label[normalize-space(text()) != '']"));
+        //        uniqueElements.addAll(elements);
+        //
         //        elements = driver.findElements(By.xpath("//div[normalize-space(text()) != '']"));
         //        uniqueElements.addAll(elements);
         //
@@ -6603,11 +6714,11 @@ public class ABRScannedElementPane extends ABRPane {
         //        elements = driver.findElements(By.xpath("//label[@title != '' or @aria-label != '']"));
         //        uniqueElements.addAll(elements);
 
-        Map<String, WebElement> elementMap = new HashMap<>();
-        for (WebElement element : uniqueElements) {
-            String xpath = getElementXPath(driver, element);
-            elementMap.put(xpath, element);
-        }
+        //        Map<String, WebElement> elementMap = new HashMap<>();
+        //        for (WebElement element : elements) {
+        //            String xpath = getElementXPath(driver, element);
+        //            elementMap.put(xpath, element);
+        //        }
         return elementMap;
     }
 

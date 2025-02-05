@@ -3,11 +3,9 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.scene.ABRAlertScene;
 import com.allinweb.ch.control.ABRComponentBuilder;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.util.*;
@@ -17,16 +15,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
-import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.collections.ObservableList;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -94,13 +89,6 @@ public class ABRWebElement {
 
     private TextField nameField;
     private String iFrame;
-
-    private Button blockButton;
-    private Button moveUpButton;
-    private Button moveDownButton;
-    private Button moreOptionsButton;
-    private Button saveButton;
-    private Button deleteButton;
 
     private ImageView hiddenImage;
     private ImageView outputImage;
@@ -478,6 +466,9 @@ public class ABRWebElement {
                 || this.tagNameDefined.equalsIgnoreCase("output")) {
             nameLabel.setText(textLabel);
             nameField.setText(this.tagNameDefined);
+        } else if (!Strings.isNullOrEmpty(element.getText())) {
+            nameLabel.setText(element.getText());
+            nameField.setText(this.tagNameDefined);
         } else {
             nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
@@ -679,9 +670,6 @@ public class ABRWebElement {
         checkImage = componentBuilder.buildImageView(ABRConstants.ICON_CHECK, ABRConstants.SPACE_M);
         holdImage = componentBuilder.buildImageView(ABRConstants.ICON_WAIT, ABRConstants.SPACE_M);
 
-        saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
-        saveButton.setMaxHeight(ABRConstants.SPACE_L);
-
         nameField = new TextField();
         nameField.setMaxHeight(ABRConstants.SPACE_L);
 
@@ -690,7 +678,7 @@ public class ABRWebElement {
 
         StackPane nameGroup = new StackPane(nameLabel, nameField);
 
-        HBox nameFieldsGroup = new HBox(nameGroup, saveButton);
+        HBox nameFieldsGroup = new HBox(nameGroup);
         StackPane actionGroup = new StackPane(
                 hiddenImage,
                 outputImage,
@@ -710,19 +698,6 @@ public class ABRWebElement {
     }
 
     private void initActionPanel() {
-        moreOptionsButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_EDIT, ABRConstants.SPACE_M, Insets.EMPTY);
-        blockButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_BLOCK, ABRConstants.SPACE_M, Insets.EMPTY);
-        moveUpButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_UP, ABRConstants.SPACE_M, Insets.EMPTY);
-        moveDownButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_DOWN, ABRConstants.SPACE_M, Insets.EMPTY);
-        deleteButton = componentBuilder.buildButton(
-                "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
-
-        blockButton.setPrefWidth(ABRConstants.SPACE_L);
-
         spaceLabel = new Label("                  ");
 
         // Create description label
@@ -762,46 +737,16 @@ public class ABRWebElement {
                 operationLabel2.setStyle("-fx-font-weight: bold;");
 
                 if (isCheckValidator) {
-                    actionPanel
-                            .getChildren()
-                            .addAll(
-                                    operationLabel1,
-                                    operationLabel2,
-                                    operationLabel3,
-                                    spaceLabel,
-                                    blockButton,
-                                    moveUpButton,
-                                    moveDownButton,
-                                    //                                    moreOptionsButton,
-                                    deleteButton);
+                    actionPanel.getChildren().addAll(operationLabel1, operationLabel2, operationLabel3, spaceLabel);
                 } else {
-                    actionPanel
-                            .getChildren()
-                            .addAll(
-                                    operationLabel1,
-                                    operationLabel2,
-                                    spaceLabel,
-                                    blockButton,
-                                    moveUpButton,
-                                    moveDownButton,
-                                    //                                    moreOptionsButton,
-                                    deleteButton);
+                    actionPanel.getChildren().addAll(operationLabel1, operationLabel2, spaceLabel);
                 }
 
             } else {
                 operationLabel1 = new Label(operationsElement[0].get());
                 operationLabel1.setTextFill(Color.BLUE);
 
-                actionPanel
-                        .getChildren()
-                        .addAll(
-                                operationLabel1,
-                                spaceLabel,
-                                blockButton,
-                                moveUpButton,
-                                moveDownButton,
-                                //                                moreOptionsButton,
-                                deleteButton);
+                actionPanel.getChildren().addAll(operationLabel1, spaceLabel);
 
                 // Optionally, you can set additional styles or properties
                 operationLabel1.setStyle("-fx-font-size: 14px;");
@@ -809,15 +754,15 @@ public class ABRWebElement {
             }
 
         } else {
-            blockButton.setPrefWidth(ABRConstants.SPACE_L);
-            actionPanel
-                    .getChildren()
-                    .addAll(
-                            blockButton,
-                            moveUpButton,
-                            moveDownButton,
-                            //                            moreOptionsButton,
-                            deleteButton);
+            //            blockButton.setPrefWidth(ABRConstants.SPACE_L);
+            //            actionPanel
+            //                    .getChildren()
+            //                    .addAll(
+            //                            blockButton,
+            //                            moveUpButton,
+            //                            moveDownButton,
+            //                            //                            moreOptionsButton,
+            //                            deleteButton);
         }
 
         actionPanel.setSpacing(ABRConstants.SPACE_XS);
@@ -847,160 +792,7 @@ public class ABRWebElement {
 
         nameLabel.visibleProperty().bind(editingElement.not());
         nameField.visibleProperty().bind(editingElement);
-        saveButton.visibleProperty().bind(editingElement);
-        moveUpButton.visibleProperty().bind(toBeAddedElement.not());
-        blockButton.visibleProperty().bind(toBeAddedElement.not());
-        moveDownButton.visibleProperty().bind(toBeAddedElement.not());
-        deleteButton.visibleProperty().bind(toBeAddedElement.not());
 
-        moreOptionsButton.setOnAction(e -> editingElement.setValue(!editingElement.getValue()));
-        this.blockButton.setOnAction((e) -> {
-            BlockLoopInstructionDTO item = (BlockLoopInstructionDTO)
-                    ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, this.instructionId);
-            ObservableList<BlockLoopInstructionDTO> list = ABRSharedResources.getInstance()
-                    .getEntityList(
-                            BlockLoopInstructionDTO.class,
-                            Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
-                            (instruction) -> {
-                                return instruction.getBlock().getId()
-                                        == item.getBlock().getId();
-                            });
-            System.out.println(list.size() + "Size");
-            int index = list.indexOf(item);
-            System.out.println(index + "indexof");
-            List<BlockLoopInstructionDTO> items = list.subList(index, list.size());
-            BlockDTO previousBlock = item.getBlock();
-            BlockDTO defaultBlock = new BlockDTO();
-            defaultBlock.setBotJob(item.getBlock().getBotJobDTO());
-            defaultBlock.setBlockLoopInstructionDTOS(items);
-            ABRSharedResources.getInstance().addEntity(defaultBlock, BlockDTO.class, () -> {
-                System.out.println("added : " + defaultBlock.getId());
-                defaultBlock.setBlockOrderNumber(defaultBlock.getId() - 1);
-                ABRSharedResources.getInstance().updateEntity(defaultBlock, BlockDTO.class, () -> {
-                    ABRSharedResources.getInstance().refreshEntity(defaultBlock, BlockDTO.class, () -> {
-                        ABRSharedResources.getInstance().refreshEntity(previousBlock, BlockDTO.class);
-                    });
-                });
-            });
-        });
-        moveUpButton.setOnAction(e -> switchInstruction(-1));
-
-        moveDownButton.setOnAction(e -> switchInstruction(1));
-        saveButton.setOnAction(e -> {
-            editingElement.setValue(false);
-            nameLabel.setText(nameField.getText());
-            ABRLogger.getInstance(ABRWebElement.class).info("saving instruction with id: " + instructionId);
-            if (instructionId != null && instructionId != 0) {
-                BlockLoopInstructionDTO instruction =
-                        ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
-                instruction.setName(nameLabel.getText());
-                String action = instruction.getActions();
-                if (action.contains(ABRConstants.INSERT)) {
-                    instruction.setActions(action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[0]
-                            + ABRConstants.ACTION_SPECIFICATIONS_SPLITTER
-                            + nameLabel.getText());
-                }
-                ABRSharedResources.getInstance().updateEntity(instruction, BlockLoopInstructionDTO.class);
-            }
-        });
-        deleteButton.setOnAction(e -> {
-            String msgDelete = instrOperation != null ? " -> " + instrOperation : "";
-            boolean delete = showConfirmationDialog(instrName, msgDelete);
-
-            if (delete) {
-                BlockLoopInstructionDTO instruction =
-                        ABRSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
-                int instructionIndex = instruction.getInstructionOrderNumber();
-                try {
-                    if (existVariables(instructionId)) {
-                        new ABRAlertScene(
-                                Alert.AlertType.INFORMATION,
-                                "Not possible delete \"" + instrName + "\"" + instrOperation != null
-                                        ? instrOperation
-                                        : "",
-                                "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
-                                ButtonType.OK);
-                        delete = false;
-                    }
-                    if (delete) {
-                        deleteInstrReference(instructionId);
-                        deleteBlockInstruction(instructionId);
-                        forceDeleteOrphan();
-                        forceDeleteFatherNoChild(instructionId);
-                        Platform.runLater(() -> {
-                            new ABRAlertScene(
-                                    Alert.AlertType.INFORMATION,
-                                    "Successful deletion \"" + instrName + "\"" + msgDelete,
-                                    "The element has been deleted successfully",
-                                    ButtonType.OK);
-                        });
-                    }
-                } catch (SQLException ex) {
-                    ABRLogger.getInstance(Thread.class)
-                            .finer("An exception has occurred deleting Instruction id: " + instructionId + " -> Cause: "
-                                    + ex.getMessage());
-                    Platform.runLater(() -> {
-                        new ABRAlertScene(
-                                Alert.AlertType.INFORMATION,
-                                "Not possible delete \"" + instrName + "\"" + instrOperation != null
-                                        ? instrOperation
-                                        : "",
-                                "\nThe element cannot be deleted!\nRemove all VARIABLES relations first!",
-                                ButtonType.OK);
-                    });
-                    // Force exit
-                    delete = false;
-                }
-                BlockDTO block = instruction.getBlock();
-
-                if (delete) {
-                    try {
-                        instruction
-                                .getInstructionReferenceDTOList()
-                                .forEach(ref -> ref.setBlockLoopInstructionDTO(null));
-                    } catch (Exception ef) {
-                        ABRLogger.getInstance(Thread.class)
-                                .severe("getInstructionReferenceDTOList -> Cause: " + ef.getMessage());
-                    }
-                    //                    try {
-                    //                        ABRSharedResources.getInstance()
-                    //                                .removeEntity(
-                    //                                        instruction,
-                    //                                        BlockLoopInstructionDTO.class,
-                    //                                        () -> {
-                    //                                            Queue<BlockLoopInstructionDTO> instructionQueue =
-                    //                                                    block.getBlockLoopInstructions().stream()
-                    //                                                            .filter(i ->
-                    //                                                                    i.getInstructionOrderNumber()
-                    // > instructionIndex)
-                    //
-                    // .collect(Collectors.toCollection(LinkedBlockingQueue::new));
-                    //                                            instructionQueue.forEach(instr ->
-                    // instr.setInstructionOrderNumber(
-                    //                                                    instr.getInstructionOrderNumber() - 1));
-                    //                                        },
-                    //                                        ex -> {
-                    //                                            Platform.runLater(() -> {
-                    //                                                new ABRAlertScene(
-                    //                                                        Alert.AlertType.INFORMATION,
-                    //                                                        "Not possible delete \"" + instrName +
-                    // "\"" + instrOperation
-                    //                                                                        != null
-                    //                                                                ? instrOperation
-                    //                                                                : "",
-                    //                                                        "\nThe element cannot be deleted!\nRemove
-                    // all VARIABLES relations first!",
-                    //                                                        ButtonType.OK);
-                    //                                            });
-                    //                                        });
-                    //                    } catch (Exception ex) {
-                    //                        ABRLogger.getInstance(Thread.class)
-                    //                                .finer("Error deleting for: " + instructionId + " -> Cause: " +
-                    // ex.getMessage());
-                    //                    }
-                }
-            }
-        });
         EventHandler<MouseEvent> mouseEventEventHandler = mouseEvent -> {
             editingElement.setValue(false);
         };
@@ -1118,12 +910,6 @@ public class ABRWebElement {
                 graphicRepresentation.removeEventHandler(eventType, handler);
             }
         }
-    }
-
-    public void setCallbackOnMouseClick(ABRCallback callback) {
-        moveUpButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
-        moveDownButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
-        deleteButton.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> callback.execute());
     }
 
     public String getTagNameDefined() {
