@@ -158,9 +158,9 @@ public class ABRWebElement {
         WebElement element = entry.getValue();
         this.mainXPath = entry.getKey();
         this.attributeValue = element.getAttribute(attributeName);
-        if (searchReturn == null) {
-            this.tagNameDefined = attributeValue;
-            ;
+        if (searchReturn == null || this.attributeValue == null) {
+            this.tagNameDefined = attributeName;
+
         } else {
             this.tagNameDefined = searchReturn.getOriginalTagName();
         }
