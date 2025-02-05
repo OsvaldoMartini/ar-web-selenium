@@ -744,7 +744,7 @@ public class PerformActions {
                 System.out.println("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
             } catch (Exception e) {
                 System.out.println("iFrame Not Found with XPath: " + currentInstruction.getIFrameXPath());
-                performMessage.generalErrorIFrame(currentInstruction.getName());
+                //                performMessage.generalErrorIFrame(currentInstruction.getName());
                 return null;
             }
         }
@@ -810,26 +810,10 @@ public class PerformActions {
                 for (By criteria : criterias) {
                     List<WebElement> foundElementList = abrWebDriver.getDriver().findElements(criteria);
 
-                    // Check if the element is inside an iframe
-                    //                    if (instructionPath.contains("iframe")) {
-                    //                        try {
-                    //                            // Switch to iframe using XPath
-                    //
-                    //                            iframeElement = iframeInputLocator.findInputInsideIframe(criteria);
-                    //
-                    //                        } catch (Exception e) {
-                    //                            ABRLogger.getInstance(PerformActions.class)
-                    //                                    .fine(String.format(
-                    //                                            "Could not switch to iframe for XPath: %s, Cause: %s",
-                    //                                            instructionPath, e.getMessage()));
-                    //                            continue;
-                    //                        }
-                    //                    }
-
                     if (foundElementList != null && foundElementList.size() > 0 && iframeElement == null) {
                         // Wait for element visibility and process
                         try {
-                            waitForAction.until(ExpectedConditions.visibilityOfElementLocated(criteria));
+                            waitForAction.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(criteria));
                         } catch (Exception e) {
                             ABRLogger.getInstance(PerformActions.class)
                                     .fine(String.format(

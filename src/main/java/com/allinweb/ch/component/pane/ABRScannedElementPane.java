@@ -161,7 +161,6 @@ public class ABRScannedElementPane extends ABRPane {
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
-    private CheckBox checkFrameText;
 
     private Label defineNameLabel;
     private Label attribIdTextFieldLabel;
@@ -173,6 +172,8 @@ public class ABRScannedElementPane extends ABRPane {
     private Label coordsTextFieldLabel;
 
     private Text currentURL;
+    private Text iFrameText;
+
     private TextField defineNameField;
     private TextField testActionsField;
     private TextArea countdownTextField;
@@ -356,7 +357,8 @@ public class ABRScannedElementPane extends ABRPane {
         checkClickElement = new CheckBox("For Click");
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
-        checkFrameText = new CheckBox("iFrame Detected");
+        iFrameText = new Text("");
+        iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
         webElementObservableList1 = FXCollections.observableArrayList();
 
@@ -388,10 +390,10 @@ public class ABRScannedElementPane extends ABRPane {
                 "Resume", ABRConstants.SPACE_ZERO, "/play.png", ABRConstants.SPACE_M, new Insets(5.0D));
 
         countdownTextField = new TextArea("10");
-        countdownTextField.setStyle("-fx-font-size: 14px; -fx-text-fill: blue;");
+        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         countdownTextField.setEditable(false);
 
-        checkActiveHover = new CheckBox("Identify");
+        checkActiveHover = new CheckBox("PICK ELEMENT");
 
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
 
@@ -540,7 +542,7 @@ public class ABRScannedElementPane extends ABRPane {
             boxCoordenates.getChildren().addAll(checkClickElement);
 
             VBox vBoxCheckBox = new VBox();
-            vBoxCheckBox.getChildren().addAll(boxCoordenates, checkInputText, checkOutputText, checkFrameText);
+            vBoxCheckBox.getChildren().addAll(boxCoordenates, checkInputText, checkOutputText, iFrameText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
             //        gridPaneTop.add(vBox, 9, 0);
 
@@ -945,7 +947,6 @@ public class ABRScannedElementPane extends ABRPane {
             if (checkClickElement.isSelected()) {
                 checkInputText.setSelected(false);
                 checkOutputText.setSelected(false);
-                checkFrameText.setSelected(false);
             }
         });
 
@@ -953,7 +954,6 @@ public class ABRScannedElementPane extends ABRPane {
             if (checkInputText.isSelected()) {
                 checkClickElement.setSelected(false);
                 checkOutputText.setSelected(false);
-                checkFrameText.setSelected(false);
             }
         });
 
@@ -961,15 +961,6 @@ public class ABRScannedElementPane extends ABRPane {
             if (checkOutputText.isSelected()) {
                 checkClickElement.setSelected(false);
                 checkInputText.setSelected(false);
-                checkFrameText.setSelected(false);
-            }
-        });
-
-        checkFrameText.setOnAction(event -> {
-            if (checkFrameText.isSelected()) {
-                checkClickElement.setSelected(false);
-                checkInputText.setSelected(false);
-                checkOutputText.setSelected(false);
             }
         });
 
@@ -1006,9 +997,9 @@ public class ABRScannedElementPane extends ABRPane {
             } else {
                 performMessage.errorMessage(
                         "Not Web Element to be Detected!",
-                        "Release -> Checkbox -> \"IDENTIFY\"",
+                        "Release -> Checkbox -> \"PICK ELEMENT\"",
                         "Refresh the Page -> <CTRL + F5>",
-                        "Checkbox -> \"IDENTIFY\" - Hover Web Elements",
+                        "Checkbox -> \"PICK ELEMENT\" - Hover Web Elements",
                         null,
                         0);
             }
@@ -1149,7 +1140,7 @@ public class ABRScannedElementPane extends ABRPane {
             }
 
             // Loop through and find elements
-            addProgressBar(elementsFound.size());
+            //            addProgressBar(elementsFound.size());
 
             for (ElementDTO elementChild : elementsFound) { // Start from index 1
 
@@ -1213,6 +1204,7 @@ public class ABRScannedElementPane extends ABRPane {
                     }
 
                     ABRWebElement abrWebElement = new ABRWebElement(this.searchReturn, botJob.getId());
+
                     if (abrWebElement != null && abrWebElement.getElement() != null) {
                         webElementObservableList3.add(abrWebElement);
                         Platform.runLater(() -> {
@@ -1229,7 +1221,18 @@ public class ABRScannedElementPane extends ABRPane {
             }
 
             Platform.runLater(() -> {
+                //                addProgressBar(elementsFound.size());
+
                 if (bottomPane.getChildren().size() > 0) {
+
+                    try {
+                        Thread.sleep(5000); // Sleep for 5 seconds (5000 milliseconds)
+                        bottomPane.getChildren().clear();
+
+                    } catch (InterruptedException e) {
+
+                    }
+
                     for (int x = 0; x < bottomPane.getChildren().size(); x++) {
                         bottomPane
                                 .getChildren()
@@ -1237,6 +1240,8 @@ public class ABRScannedElementPane extends ABRPane {
                                         .getChildren()
                                         .get(bottomPane.getChildren().size() - 1));
                     }
+
+                    bottomPane.requestLayout();
                 }
             });
 
@@ -1338,6 +1343,19 @@ public class ABRScannedElementPane extends ABRPane {
                             null,
                             null,
                             0);
+                    ABRConstants.DialogModal respModal = performMessage.showCustomModalDialog(
+                            "Error selecting Web Element",
+                            "Element not found Tag Name:",
+                            " OK!",
+                            null,
+                            null,
+                            true,
+                            "stop all",
+                            0);
+
+                    if (respModal.equals(ABRConstants.DialogModal.STOP)) {
+                        return;
+                    }
                 }
             }
 
@@ -1439,7 +1457,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                 boolean finalTagClickable = tagClickable;
                 Platform.runLater(() -> {
-                    if (!checkFrameText.isSelected()) {
+                    if (!iFrameText.getText().contains("iFrame")) {
                         if (finalTagClickable || clickable) {
                             checkClickElement.setSelected(true);
                             checkOutputText.setSelected(false);
@@ -1579,6 +1597,10 @@ public class ABRScannedElementPane extends ABRPane {
         //        checkClickElement.setDisable(checkActiveHover.isSelected());
         //        checkInputText.setDisable(checkActiveHover.isSelected());
         //        addButtonNewElement.setDisable(checkActiveHover.isSelected());
+        revertStateButons();
+    }
+
+    private void revertStateButons() {
         Platform.runLater(() -> {
             checkTestAction.setDisable(checkActiveHover.isSelected());
             launchBotJobButton.setDisable(checkActiveHover.isSelected());
@@ -2540,6 +2562,9 @@ public class ABRScannedElementPane extends ABRPane {
                                 performAction.moveAndClickAtCoordinates(coordinates[0], abrWebDriver.getDriver());
                             }
 
+                            StringBuilder actionsTested = new StringBuilder();
+                            actionsTested.append("Actions Tested:" + System.lineSeparator());
+
                             String result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.SELECT,
@@ -2547,6 +2572,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.CLICK,
@@ -2554,6 +2581,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.GET_VALUE,
@@ -2561,6 +2590,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.CLEAR,
@@ -2568,6 +2599,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+
+                            actionsTested.append(result + System.lineSeparator());
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.INSERT,
@@ -2575,6 +2608,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.GET_VALUE,
@@ -2582,6 +2617,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.FOCUS,
@@ -2589,6 +2626,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.TAB,
@@ -2603,6 +2642,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.COORD_CLICK,
@@ -2610,6 +2651,8 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
                             result = performAction.sequenceOfCommands(
                                     abrWebElement.getElement(),
                                     ABRConstants.COORD_INSERT,
@@ -2617,6 +2660,11 @@ public class ABRScannedElementPane extends ABRPane {
                                     fieldData,
                                     abrWebDriver.getDriver());
                             System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+
+                            Platform.runLater(() -> {
+                                countdownTextField.setText(actionsTested.toString());
+                            });
                         }
                         //                                abrWebElement.getElement().click();
                     } catch (Exception e) {
@@ -4066,6 +4114,8 @@ public class ABRScannedElementPane extends ABRPane {
                 + "      tooltip.style.top = top + \"px\";\n"
                 + "      tooltip.style.display = \"block\";\n"
                 + "    }\n"
+                + "\n"
+                + "    window.removeClickListener();\n"
                 + "  }\n"
                 + "\n"
                 + "  function getElementIdentity(element) {\n"
@@ -4290,6 +4340,12 @@ public class ABRScannedElementPane extends ABRPane {
                 + "\n"
                 + "  cleanOldValues();\n"
                 + "\n"
+                + "  window.removeClickListener = function () {\n"
+                + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
+                + "    //                    document.removeEventListener('mouseout', hideMartiniTooltip);\n"
+                + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
+                + "  };\n"
+                + "\n"
                 + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
                 + "  //                document.addEventListener('mouseout', hideMartiniTooltip);\n"
                 + "  document.addEventListener(\"click\", handleMartiniClick);\n"
@@ -4373,26 +4429,28 @@ public class ABRScannedElementPane extends ABRPane {
                                     //                                    countdownTextField.setText(elements);
 
                                     Optional<ElementDTO> iframeElement = elementsFound.stream()
-                                            .filter(element ->
-                                                    "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
-                                            //                                ||
-                                            // "clicked".equalsIgnoreCase(element.getTypeElement())
-                                            //                                ||
-                                            // "tagName-found".equalsIgnoreCase(element.getTypeElement()))
+                                            .filter(element -> "clicked-iFrame"
+                                                            .equalsIgnoreCase(element.getTypeElement())
+                                                    || "clicked-element".equalsIgnoreCase(element.getTypeElement()))
                                             .findFirst(); // Get the first matching ElementDTO
 
                                     checkClickElement.setSelected(false);
                                     checkInputText.setSelected(false);
                                     checkOutputText.setSelected(false);
                                     if (iframeElement.isPresent()) {
-                                        checkFrameText.setSelected(true);
+                                        if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
+                                            iFrameText.setText("iFrame Detected");
+                                        }
+                                        checkActiveHover.setSelected(false);
+                                        revertStateButons();
                                     } else {
-                                        checkFrameText.setSelected(false);
+                                        iFrameText.setText("");
+                                        checkActiveHover.setSelected(false);
+                                        revertStateButons();
                                         checkClickElement.setSelected(true);
                                     }
                                 } else {
-
-                                    checkFrameText.setSelected(false);
+                                    iFrameText.setText("");
                                     countdownTextField.setText("");
                                 }
 
