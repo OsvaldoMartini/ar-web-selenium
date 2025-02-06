@@ -154,10 +154,12 @@ public class ABRScannedElementPane extends ABRPane {
     private Button rightButton;
     private Button cleanListButton;
 
+    private CheckBox checkPickElement;
+    private CheckBox checkCloneElement;
+
     private CheckBox checkTestAction;
     private CheckBox checkJavaScript;
     private CheckBox checkCoordinates;
-    private CheckBox checkActiveHover;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
@@ -394,7 +396,8 @@ public class ABRScannedElementPane extends ABRPane {
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         countdownTextField.setEditable(false);
 
-        checkActiveHover = new CheckBox("PICK ELEMENT");
+        checkPickElement = new CheckBox("PICK");
+        checkCloneElement = new CheckBox("CLONE");
 
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
 
@@ -524,7 +527,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
-            //        gridPaneTop.add(checkActiveHover, 6, 0);
+            //        gridPaneTop.add(checkPickElement, 6, 0);
             //        gridPaneTop.add(addButtonNewElement, 7, 0);
             //        gridPaneTop.add(currentXPathTextField, 8, 0);
 
@@ -593,13 +596,17 @@ public class ABRScannedElementPane extends ABRPane {
             //            boxActions.getChildren().addAll(checkTestAction, checkJavaScript, testActionsField);
             boxActions.getChildren().addAll(checkTestAction, testActionsField);
 
+            
+            HBox hBoxPickClone = new HBox();
+            hBoxPickClone.getChildren().addAll(checkPickElement, createSpacerHoriz(), checkCloneElement);
+            
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
             textFieldVBox.setSpacing(6); // Adjust spacing between TextFields
             textFieldVBox
                     .getChildren()
                     .addAll(
-                            checkActiveHover,
+                            hBoxPickClone,
                             defineNameLabel,
                             boxName,
                             //                            attribIdTextFieldLabel,
@@ -939,10 +946,15 @@ public class ABRScannedElementPane extends ABRPane {
             // loadBotJob(botJob);
             recallJob();
         });
-        checkActiveHover.setOnMouseClicked(e -> {
+        checkPickElement.setOnMouseClicked(e -> {
             checkTestAction.setSelected(false);
 
-            handleHoverCheckClick();
+            handlePickElementClick();
+        });
+        checkCloneElement.setOnMouseClicked(e -> {
+            checkTestAction.setSelected(false);
+
+            handleCloneElementClick();
         });
         checkClickElement.setOnAction(event -> {
             if (checkClickElement.isSelected()) {
@@ -978,15 +990,15 @@ public class ABRScannedElementPane extends ABRPane {
                         .findFirst(); // Get the first matching ElementDTO
 
                 if (searchReturn.getElement() != null && iframeElement.isEmpty()) {
-                    if (checkActiveHover.isSelected()) {
-                        checkActiveHover.setSelected(false);
-                        handleHoverCheckClick();
+                    if (checkPickElement.isSelected()) {
+                        checkPickElement.setSelected(false);
+                        handlePickElementClick();
                     }
                     insertNewElement();
                 } else if (elementsFound.size() > 0) {
-                    if (checkActiveHover.isSelected()) {
-                        checkActiveHover.setSelected(false);
-                        handleHoverCheckClick();
+                    if (checkPickElement.isSelected()) {
+                        checkPickElement.setSelected(false);
+                        handlePickElementClick();
                     }
                     if (iframeElement.isPresent()) {
                         insertNewElement(iframeElement.get(), elementsFound);
@@ -1586,29 +1598,43 @@ public class ABRScannedElementPane extends ABRPane {
         manageUIScanIdsFirst();
     }
 
-    private void handleHoverCheckClick() {
-        if (checkActiveHover.isSelected()) {
-            Platform.runLater(() -> periodicThread(
+    private void handlePickElementClick() {
+        if (checkPickElement.isSelected()) {
+            Platform.runLater(() -> periodicPickThread(
                     abrWebDriver.getDriver(), abrWebDriver.getDriver().getCurrentUrl()));
             //            injectJavaScript(abrWebDriver.getDriver());
             //            injectJumpTab(abrWebDriver.getDriver());
         } else {
             Platform.runLater(() -> revertInjectedChanges(abrWebDriver.getDriver()));
         }
-        //        checkClickElement.setDisable(checkActiveHover.isSelected());
-        //        checkInputText.setDisable(checkActiveHover.isSelected());
-        //        addButtonNewElement.setDisable(checkActiveHover.isSelected());
+        //        checkClickElement.setDisable(checkPickElement.isSelected());
+        //        checkInputText.setDisable(checkPickElement.isSelected());
+        //        addButtonNewElement.setDisable(checkPickElement.isSelected());
+        revertStateButons();
+    }
+
+    private void handleCloneElementClick() {
+        if (checkCloneElement.isSelected()) {
+            Platform.runLater(() -> periodicCloneThread(abrWebDriver.getDriver()));
+            //            injectJavaScript(abrWebDriver.getDriver());
+            //            injectJumpTab(abrWebDriver.getDriver());
+        } else {
+            Platform.runLater(() -> revertInjectedChanges(abrWebDriver.getDriver()));
+        }
+        //        checkClickElement.setDisable(checkPickElement.isSelected());
+        //        checkInputText.setDisable(checkPickElement.isSelected());
+        //        addButtonNewElement.setDisable(checkPickElement.isSelected());
         revertStateButons();
     }
 
     private void revertStateButons() {
         Platform.runLater(() -> {
-            checkTestAction.setDisable(checkActiveHover.isSelected());
-            launchBotJobButton.setDisable(checkActiveHover.isSelected());
-            recallJobButton.setDisable(checkActiveHover.isSelected());
-            periodicActivated = checkActiveHover.isSelected();
+            checkTestAction.setDisable(checkPickElement.isSelected());
+            launchBotJobButton.setDisable(checkPickElement.isSelected());
+            recallJobButton.setDisable(checkPickElement.isSelected());
+            periodicActivated = checkPickElement.isSelected();
 
-            if (!checkActiveHover.isSelected()) {
+            if (!checkPickElement.isSelected()) {
                 defineNameField.clear();
             }
         });
@@ -2820,7 +2846,7 @@ public class ABRScannedElementPane extends ABRPane {
                                 BlockLoopInstructionDTO instruction = abrWebElement.buildBlockLoopInstruction(
                                         abrWebElement.gettagType(),
                                         actionReq,
-                                        checkActiveHover.isSelected(),
+                                        checkPickElement.isSelected(),
                                         list.size());
 
                                 instruction.setCoordinates(abrWebElement.getMainCoordinates());
@@ -3736,7 +3762,188 @@ public class ABRScannedElementPane extends ABRPane {
         }
     }
 
-    private void periodicThread(WebDriver driver, String currentUrl) {
+    private void periodicCloneThread(WebDriver driver) {
+        // JavaScript code to inject
+        String jsCode = "(function() {"
+                + "    var tooltip = document.createElement('div');"
+                + "    tooltip.id = 'Martini-Is-Awesome';"
+                + "    tooltip.style.position = 'absolute';"
+                + "    tooltip.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';" // Slightly opaque light orange
+                + "    tooltip.style.border = '1px solid #ccc';"
+                + "    tooltip.style.padding = '10px';"
+                + "    tooltip.style.borderRadius = '5px';"
+                + "    tooltip.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';"
+                + "    tooltip.style.fontFamily = 'Arial, sans-serif';"
+                + "    tooltip.style.fontSize = '14px';"
+                + "    tooltip.style.color = '#333';"
+                + "    tooltip.style.zIndex = '10000';" // Higher z-index
+                + "    tooltip.style.display = 'none';"
+                + "    document.body.appendChild(tooltip);"
+                + "    function getMartiniAbsoluteXPath(element) {"
+                + "        if (element === document.body) {"
+                + "            return '/html/' + element.tagName.toLowerCase();"
+                + "        }"
+                + "        var ix = 0;"
+                + "        var siblings = element.parentNode.childNodes;"
+                + "        for (var i = 0; i < siblings.length; i++) {"
+                + "            var sibling = siblings[i];"
+                + "            if (sibling === element) {"
+                + "                return getMartiniAbsoluteXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';"
+                + "            }"
+                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
+                + "                ix++;"
+                + "            }"
+                + "        }"
+                + "        return '';"
+                + "    }"
+                + "    function getMartiniXPath(element) {"
+                + "        if (element === document.body) {"
+                + "            return '/html/body';"
+                + "        }"
+                + "        var ix = 0;"
+                + "        var siblings = element.parentNode ? element.parentNode.childNodes : [];"
+                + "        for (var i = 0; i < siblings.length; i++) {"
+                + "            var sibling = siblings[i];"
+                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
+                + "                if (sibling === element) {"
+                + "                    return getMartiniXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';"
+                + "                }"
+                + "                ix++;"
+                + "            }"
+                + "        }"
+                + "        return '';"
+                + "    }"
+                + "    function getMartiniCustomXPath(element) {"
+                + "        if (element === document.body) {"
+                + "            return '/html/' + element.tagName.toLowerCase();"
+                + "        }"
+                + "        var className = element.className.split(' ').filter(function(cls) { return !/\\d/.test(cls); }).join('.');"
+                + "        var tagName = element.tagName.toLowerCase();"
+                + "        var ix = 0;"
+                + "        var siblings = element.parentNode.childNodes;"
+                + "        for (var i = 0; i < siblings.length; i++) {"
+                + "            var sibling = siblings[i];"
+                + "            if (sibling === element) {"
+                + "                var path = getMartiniCustomXPath(element.parentNode) + '/' + tagName;"
+                + "                if (className) {"
+                + "                    path += '[contains(@class, \"' + className + '\")]';"
+                + "                } else {"
+                + "                    path += '[' + (ix + 1) + ']';"
+                + "                }"
+                + "                return path;"
+                + "            }"
+                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
+                + "                ix++;"
+                + "            }"
+                + "        }"
+                + "        return '';"
+                + "    }"
+                + "    function showMartiniTooltip(event) {"
+                + "        var elementBelowTooltip = document.elementFromPoint(event.clientX, event.clientY);"
+                + "        window.tagNameTemp = elementBelowTooltip.tagName.toLowerCase();"
+                + "        window.coordsTemp = elementBelowTooltip.getBoundingClientRect();"
+                + "        window.coordsTemp = window.coordsTemp.left + ',' + window.coordsTemp.top;"
+                + "        tooltip.textContent = window.tagNameTemp + '-Coordinates:(' + window.coordsTemp + ')';"
+                + "        var tooltipWidth = tooltip.offsetWidth;"
+                + "        var tooltipHeight = tooltip.offsetHeight;"
+                + "        var left = event.pageX - tooltipWidth / 2;"
+                + "        var top = event.pageY - tooltipHeight / 2;"
+                + "        "
+                + "        tooltip.style.left = left + 'px';"
+                + "        tooltip.style.top = top + 'px';"
+                + "        tooltip.style.display = 'block';"
+                + "    }"
+                + "    function hideMartiniTooltip() {"
+                + "        tooltip.style.display = 'none';"
+                + "    }"
+                + "    function handleMartiniClick(event) {"
+                + "          event.preventDefault(); "
+                + "          event.stopPropagation(); "
+                + "          tooltip.style.display = 'none';"
+                + "          var elementBelowTooltip = document.elementFromPoint(event.clientX, event.clientY);"
+                + "          tooltip.style.display = 'block';"
+                + "          console.log(elementBelowTooltip);"
+                + "          var xpath = getMartiniXPath(elementBelowTooltip);"
+                + "          var absoluteXPath = getMartiniAbsoluteXPath(elementBelowTooltip);"
+                + "          var customXPath = getMartiniCustomXPath(elementBelowTooltip);"
+                + "          window.currentXPath = xpath;"
+                + "          window.currentAbsoluteXPath = absoluteXPath;"
+                + "          window.customXPath = customXPath;"
+                + "          window.attribId = elementBelowTooltip.id || '';"
+                + "          window.attribName = elementBelowTooltip.name || '';"
+                + "          window.tagName = elementBelowTooltip.tagName.toLowerCase();"
+                + "          window.coords = elementBelowTooltip.getBoundingClientRect();"
+                + "          window.coords = window.coords.left + ',' + window.coords.top;"
+                + "    }"
+                + "    window.currentXPath = '';"
+                + "    window.currentAbsoluteXPath = '';"
+                + "    window.customXPath = '';"
+                + "    window.attribId = '';"
+                + "    window.attribName = '';"
+                + "    window.tagName = '';"
+                + "    window.coords = '';"
+                + "    window.tagNameTemp = '';"
+                + "    window.coordsTemp = '';"
+                + "    document.addEventListener('mouseover', showMartiniTooltip);"
+                //                + "    document.addEventListener('mouseout', hideMartiniTooltip);"
+                + "    document.addEventListener('click', handleMartiniClick);"
+                + "    window.removeClickListener = function() {"
+                + "        document.removeEventListener('mouseover', showMartiniTooltip);"
+                //                + "        document.removeEventListener('mouseout', hideMartiniTooltip);"
+                + "        document.removeEventListener('click', handleMartiniClick);"
+                + "    };"
+                + "})();";
+
+        // Inject the JavaScript into the webpage
+        jsExecutor = (JavascriptExecutor) driver;
+        jsExecutor.executeScript(jsCode);
+
+        // Start a thread to periodically check the XPath value and update the TextField
+        new Thread(() -> {
+                    while (periodicActivated) {
+                        //                        String currentXPath = (String) jsExecutor.executeScript("return
+                        // window.currentXPath;");
+
+                        // Execute JavaScript to construct and return a custom object
+                        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
+                                jsExecutor.executeScript(
+                                        "var obj = { attribId: window.attribId, attribName: window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords }; return obj;");
+
+                        // Convert the LinkedHashMap to a Java Map (if necessary)
+                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
+
+                        if (linkedHashMap != null) {
+                            Platform.runLater(() -> {
+                                attribIdTextField.setText((String) resultMap.get("attribId"));
+                                attribNameTextField.setText((String) resultMap.get("attribName"));
+                                currentXPathTextField.setText((String) resultMap.get("currentXPath"));
+                                absolutXPathTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
+                                customXPathTextField.setText((String) resultMap.get("customXPath"));
+                                originalTagNameField.setText((String) resultMap.get("tagName"));
+                                coordsTextField.setText((String) resultMap.get("coords"));
+                                if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
+                                        && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
+                                    extractValidateDynamic();
+                                }
+
+                                if (Strings.isNullOrEmpty(attribNameTextField.getText())) {
+                                    attribNameTextField.setText(originalTagNameField.getText());
+                                }
+                            });
+                        }
+                        try {
+                            Thread.sleep(500); // Check every 500 milliseconds
+                        } catch (InterruptedException e) {
+                            ABRLogger.getInstance(ABRScannedElementPane.class)
+                                    .fine(String.format(
+                                            "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
+                        }
+                    }
+                })
+                .start();
+    }
+
+    private void periodicPickThread(WebDriver driver, String currentUrl) {
         // JavaScript code to inject
         String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n"
                 + "  var tooltip = document.createElement(\"div\");\n"
@@ -4461,11 +4668,11 @@ public class ABRScannedElementPane extends ABRPane {
                                         if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
                                             iFrameText.setText("iFrame Detected");
                                         }
-                                        checkActiveHover.setSelected(false);
+                                        checkPickElement.setSelected(false);
                                         revertStateButons();
                                     } else {
                                         iFrameText.setText("");
-                                        checkActiveHover.setSelected(false);
+                                        checkPickElement.setSelected(false);
                                         revertStateButons();
                                         checkClickElement.setSelected(true);
                                     }
