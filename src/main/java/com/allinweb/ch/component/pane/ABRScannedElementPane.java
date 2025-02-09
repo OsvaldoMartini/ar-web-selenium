@@ -596,10 +596,9 @@ public class ABRScannedElementPane extends ABRPane {
             //            boxActions.getChildren().addAll(checkTestAction, checkJavaScript, testActionsField);
             boxActions.getChildren().addAll(checkTestAction, testActionsField);
 
-            
             HBox hBoxPickClone = new HBox();
             hBoxPickClone.getChildren().addAll(checkPickElement, createSpacerHoriz(), checkCloneElement);
-            
+
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
             textFieldVBox.setSpacing(6); // Adjust spacing between TextFields
@@ -683,12 +682,14 @@ public class ABRScannedElementPane extends ABRPane {
             stackLabelInput.getChildren().add(labelInput);
             stackLabelInput.setAlignment(Pos.CENTER);
             VBox elements1VBox = new VBox(stackLabelInput, scannedElements1);
+            HBox.setHgrow(elements1VBox, Priority.ALWAYS);
 
             Label labelOutput = new Label("Output Fields Results");
             StackPane stackLabelOutput = new StackPane();
             stackLabelOutput.getChildren().add(labelOutput);
             stackLabelOutput.setAlignment(Pos.CENTER);
             VBox elements2VBox = new VBox(stackLabelOutput, scannedElements2);
+            HBox.setHgrow(elements2VBox, Priority.ALWAYS);
 
             Label labelOthers = new Label("Other Elements Results (Config)");
             StackPane stackLabelOthers = new StackPane();
@@ -699,6 +700,7 @@ public class ABRScannedElementPane extends ABRPane {
 
             stackLabelOthers.setAlignment(Pos.CENTER);
             VBox elements3VBox = new VBox(stackLabelOthers, scannedElements3);
+            HBox.setHgrow(elements3VBox, Priority.ALWAYS);
 
             //            Label labelNew = new Label("New");
             //            StackPane stackLabelNew = new StackPane();
@@ -714,6 +716,7 @@ public class ABRScannedElementPane extends ABRPane {
             //                    .addAll(elements1VBox, elements2VBox, elements3VBox, elements4VBox, textFieldVBox);
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
+            HBox.setHgrow(boxListViews, Priority.ALWAYS);
 
             HBox blockAndUrl = new HBox();
             blockAndUrl.setSpacing(0); // No spacing, use margins instead
@@ -980,41 +983,49 @@ public class ABRScannedElementPane extends ABRPane {
         scanIFrameButton.setOnAction(e -> manageUIScanIFrames("Scan iFrames and Nested Web Elements"));
 
         addButtonNewElement.setOnAction(e -> {
-            if (elementsFound.size() > 0) {
-                webElementObservableList3.clear();
-
-                Optional<ElementDTO> iframeElement = elementsFound.stream()
-                        .filter(element -> "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
-                        //                                || "clicked".equalsIgnoreCase(element.getTypeElement())
-                        //                                || "tagName-found".equalsIgnoreCase(element.getTypeElement()))
-                        .findFirst(); // Get the first matching ElementDTO
-
-                if (searchReturn.getElement() != null && iframeElement.isEmpty()) {
-                    if (checkPickElement.isSelected()) {
-                        checkPickElement.setSelected(false);
-                        handlePickElementClick();
-                    }
+            if (checkCloneElement.isSelected()) {
+                if (searchReturn.getElement() != null) {
                     insertNewElement();
-                } else if (elementsFound.size() > 0) {
-                    if (checkPickElement.isSelected()) {
-                        checkPickElement.setSelected(false);
-                        handlePickElementClick();
-                    }
-                    if (iframeElement.isPresent()) {
-                        insertNewElement(iframeElement.get(), elementsFound);
-                    } else {
-                        insertNewElement(elementsFound);
-                    }
-                    searchReturn.setElement(null);
                 }
             } else {
-                performMessage.errorMessage(
-                        "Not Web Element to be Detected!",
-                        "Release -> Checkbox -> \"PICK ELEMENT\"",
-                        "Refresh the Page -> <CTRL + F5>",
-                        "Checkbox -> \"PICK ELEMENT\" - Hover Web Elements",
-                        null,
-                        0);
+
+                if (elementsFound.size() > 0) {
+                    webElementObservableList3.clear();
+
+                    Optional<ElementDTO> iframeElement = elementsFound.stream()
+                            .filter(element -> "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
+                            //                                || "clicked".equalsIgnoreCase(element.getTypeElement())
+                            //                                ||
+                            // "tagName-found".equalsIgnoreCase(element.getTypeElement()))
+                            .findFirst(); // Get the first matching ElementDTO
+
+                    if (searchReturn.getElement() != null && iframeElement.isEmpty()) {
+                        if (checkPickElement.isSelected()) {
+                            checkPickElement.setSelected(false);
+                            handlePickElementClick();
+                        }
+                        insertNewElement();
+                    } else if (elementsFound.size() > 0) {
+                        if (checkPickElement.isSelected()) {
+                            checkPickElement.setSelected(false);
+                            handlePickElementClick();
+                        }
+                        if (iframeElement.isPresent()) {
+                            insertNewElement(iframeElement.get(), elementsFound);
+                        } else {
+                            insertNewElement(elementsFound);
+                        }
+                        searchReturn.setElement(null);
+                    }
+                } else {
+                    performMessage.errorMessage(
+                            "Not Web Element to be Detected!",
+                            "Release -> Checkbox -> \"PICK ELEMENT\"",
+                            "Refresh the Page -> <CTRL + F5>",
+                            "Checkbox -> \"PICK ELEMENT\" - Hover Web Elements",
+                            null,
+                            0);
+                }
             }
         });
 

@@ -411,11 +411,6 @@ public class ABRViewBotJobPane extends ABRPane {
         VBox.setVgrow(this.componentBox, Priority.ALWAYS);
         HBox.setHgrow(this.componentBox, Priority.ALWAYS);
 
-        AnchorPane.setTopAnchor(this.botJobContainer, ABRConstants.SPACE_M);
-        AnchorPane.setBottomAnchor(this.botJobContainer, ABRConstants.SPACE_M);
-        AnchorPane.setLeftAnchor(this.botJobContainer, ABRConstants.SPACE_M);
-        AnchorPane.setRightAnchor(this.botJobContainer, ABRConstants.SPACE_M);
-
         this.botJobContainer =
                 new VBox(new Node[] {leftGridPane, botJobNameGroup, botJobDescriptionGroup, componentBox});
         // Main container that holds everything
