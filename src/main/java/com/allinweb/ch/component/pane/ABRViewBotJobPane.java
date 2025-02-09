@@ -125,7 +125,6 @@ public class ABRViewBotJobPane extends ABRPane {
     Button saveBotJobButton;
     //    Button saveAsBotJobButton;
     Button printBotJobButton;
-    Button copyBotJobButton;
     Button openExcelFileButton;
     Button generateExcelButton;
     Button openExcelFilterPanelButton;
@@ -136,8 +135,7 @@ public class ABRViewBotJobPane extends ABRPane {
     private TextField botJobName;
     private TextField botJobDescription;
     VBox botJobContainer;
-    Button componentButton;
-    VBox componentContainer;
+
     ListView<SavedBlocksDTO> componentList;
 
     private static final int SECONDS = 3; // Total seconds for the countdown
@@ -147,6 +145,12 @@ public class ABRViewBotJobPane extends ABRPane {
     private Alert alertToShow;
     private Server jettyServer;
     private ServerContainer wsContainer;
+    private HBox componentBox;
+
+    Button componentButton;
+    private VBox componentContainer;
+    boolean isComponentBoxVisible;
+
     private WebView webView = new WebView();
     private WebEngine webEngine;
     private ABRScene abrScene;
@@ -245,8 +249,6 @@ public class ABRViewBotJobPane extends ABRPane {
         // Insets(5.0D));
         this.printBotJobButton = builder.buildButton(
                 "Print", ABRConstants.SPACE_ZERO, ABRConstants.ICON_PRINT, ABRConstants.SPACE_M, new Insets(5.0D));
-        this.copyBotJobButton = builder.buildButton(
-                "Copy", ABRConstants.SPACE_ZERO, ABRConstants.ICON_COPY, ABRConstants.SPACE_M, new Insets(5.0D));
         this.openExcelFileButton = builder.buildButton(
                 "Excel File", ABRConstants.SPACE_ZERO, ABRConstants.ICON_EXCEL, ABRConstants.SPACE_M, new Insets(5.0D));
         this.generateExcelButton = builder.buildButton(
@@ -388,10 +390,37 @@ public class ABRViewBotJobPane extends ABRPane {
         //        this.uiBlockList.setPrefHeight(900.0D);
         //        this.uiBlockList.setBorder(null);
 
-        HBox compBox = new HBox(new Node[] {this.webView, this.componentContainer});
+        componentBox = new HBox(new Node[] {this.webView});
+
+        // Make webView expand both horizontally and vertically
         HBox.setHgrow(this.webView, Priority.ALWAYS);
-        HBox.setHgrow(this.componentContainer, Priority.ALWAYS);
-        this.botJobContainer = new VBox(new Node[] {leftGridPane, botJobNameGroup, botJobDescriptionGroup, compBox});
+        VBox.setVgrow(this.webView, Priority.ALWAYS); // Ensures vertical growth
+
+        // Prevent componentContainer from growing too much
+        HBox.setHgrow(this.componentContainer, Priority.NEVER);
+
+        // Create botJobContainer AFTER defining compBox
+        this.botJobContainer =
+                new VBox(new Node[] {leftGridPane, botJobNameGroup, botJobDescriptionGroup, componentBox});
+
+        // Allow botJobContainer to grow vertically as well
+        // Ensure botJobContainer and webView grow properly
+        VBox.setVgrow(this.botJobContainer, Priority.ALWAYS);
+        VBox.setVgrow(this.webView, Priority.ALWAYS);
+
+        VBox.setVgrow(this.componentBox, Priority.ALWAYS);
+        HBox.setHgrow(this.componentBox, Priority.ALWAYS);
+
+        AnchorPane.setTopAnchor(this.botJobContainer, ABRConstants.SPACE_M);
+        AnchorPane.setBottomAnchor(this.botJobContainer, ABRConstants.SPACE_M);
+        AnchorPane.setLeftAnchor(this.botJobContainer, ABRConstants.SPACE_M);
+        AnchorPane.setRightAnchor(this.botJobContainer, ABRConstants.SPACE_M);
+
+        this.botJobContainer =
+                new VBox(new Node[] {leftGridPane, botJobNameGroup, botJobDescriptionGroup, componentBox});
+        // Main container that holds everything
+        //        this.botJobContainer = new VBox(leftGridPane, botJobNameGroup, botJobDescriptionGroup, compBox);
+
         AnchorPane.setTopAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setBottomAnchor(this.botJobContainer, ABRConstants.SPACE_M);
         AnchorPane.setLeftAnchor(this.botJobContainer, ABRConstants.SPACE_M);
@@ -793,13 +822,25 @@ public class ABRViewBotJobPane extends ABRPane {
             }
         });
         this.componentButton.setOnMouseClicked((e) -> {
-            if (this.componentContainer.isVisible()) {
-                this.componentContainer.setVisible(false);
-                this.componentContainer.setManaged(false);
+            if (isComponentBoxVisible) {
+                componentBox.getChildren().clear();
+
+                componentBox.getChildren().add(this.webView);
+                componentBox.requestLayout();
+                componentContainer.requestLayout();
+                //                this.componentContainer.setManaged(false);
+
             } else {
-                this.componentContainer.setVisible(true);
-                this.componentContainer.setManaged(true);
+
+                componentBox.getChildren().clear();
+                componentBox.getChildren().addAll(this.webView, this.componentContainer);
+
+                componentBox.requestLayout();
+                componentContainer.requestLayout();
+                //                this.componentContainer.setVisible(true);
+                //                this.componentContainer.setManaged(true);
             }
+            isComponentBoxVisible = !isComponentBoxVisible;
         });
     }
 
@@ -950,6 +991,7 @@ public class ABRViewBotJobPane extends ABRPane {
         componentTitleLabel.setPadding(new Insets(5.0D));
         componentTitleLabel.setFont(
                 Font.font((String) null, FontWeight.BOLD, FontPosture.REGULAR, ABRConstants.SPACE_SM + 4.0D));
+
         Label searchLabel = new Label("Find");
         searchLabel.setPadding(new Insets(5.0D));
         searchLabel.setFont(
@@ -978,11 +1020,11 @@ public class ABRViewBotJobPane extends ABRPane {
         searchPaneBox.setSpacing(ABRConstants.SPACE_XXS);
         HBox.setHgrow(searchTextField, Priority.ALWAYS);
 
-        this.componentContainer = new VBox(new Node[] {componentTitleLabel, searchPaneBox, componentList});
+        this.componentContainer = new VBox(new Node[] {searchPaneBox, componentList});
         this.componentContainer.setSpacing(ABRConstants.SPACE_XS);
-        this.componentContainer.setMaxWidth(200.0D);
-        this.componentContainer.setVisible(false);
-        this.componentContainer.setManaged(false);
+
+        //        this.componentContainer.setMaxWidth(800.0D);
+        isComponentBoxVisible = false;
     }
 
     public BotJobLoadDTO getBotJobDTO() {
