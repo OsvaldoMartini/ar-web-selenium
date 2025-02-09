@@ -597,7 +597,14 @@ public class ABRScannedElementPane extends ABRPane {
             boxActions.getChildren().addAll(checkTestAction, testActionsField);
 
             HBox hBoxPickClone = new HBox();
-            hBoxPickClone.getChildren().addAll(checkPickElement, createSpacerHoriz(), checkCloneElement);
+            hBoxPickClone
+                    .getChildren()
+                    .addAll(
+                            createSpacerHoriz(),
+                            checkPickElement,
+                            createSpacerHoriz(),
+                            checkCloneElement,
+                            createSpacerHoriz());
 
             // Create the VBox for TextFields
             VBox textFieldVBox = new VBox();
@@ -874,7 +881,7 @@ public class ABRScannedElementPane extends ABRPane {
     private Node createSpacerHoriz() {
         // Create a Region as a spacer
         Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS); // Make spacer expand vertically
+        HBox.setHgrow(spacer, Priority.ALWAYS); // Make spacer expand vertically
         return spacer;
     }
 
@@ -3902,6 +3909,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        document.removeEventListener('mouseover', showMartiniTooltip);"
                 //                + "        document.removeEventListener('mouseout', hideMartiniTooltip);"
                 + "        document.removeEventListener('click', handleMartiniClick);"
+                + "    console.log(\"removeClickListener\");"
                 + "    };"
                 + "})();";
 
@@ -4572,6 +4580,7 @@ public class ABRScannedElementPane extends ABRPane {
                 + "  window.removeClickListener = function () {\n"
                 + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
                 + "    //                    document.removeEventListener('mouseout', hideMartiniTooltip);\n"
+                + "    console.log(\"removeClickListener\");"
                 + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
                 + "\n"
                 + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
