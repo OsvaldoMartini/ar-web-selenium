@@ -27,7 +27,6 @@ import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import java.awt.*;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -48,7 +47,6 @@ import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javax.swing.*;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
@@ -2977,7 +2975,7 @@ public class PerformDataBase {
         }
     }
 
-    public static List<BlockLoopInstructionDTO> filterInstructions(List<BlockLoopInstructionDTO> instructionList) {
+    public static List<InstructionDTO> filterInstructions(List<InstructionDTO> instructionList) {
         return instructionList.stream()
                 .filter(instruction -> !ABRConstants.EXTRACT_FIELD.equals(instruction.getActions())
                         && !ABRConstants.SET_VALUE.equals(instruction.getActions())

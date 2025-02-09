@@ -202,8 +202,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                             return;
                         }
 
-                        this.blockLoadDTO =
-                                performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
+                        this.blockLoadDTO = performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(
+                                savedBlocksDTO, blockLoadDTO.getBotJobId());
                         this.blockLoadDTO.setTypeId(1);
                         this.blockLoadDTO.setActive(savedBlocksDTO.getActive());
                         this.blockLoadDTO.setWait(savedBlocksDTO.getWait());

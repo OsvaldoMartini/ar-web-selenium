@@ -416,55 +416,58 @@ public class ABRWebElement {
         }
 
         if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
-            nameLabel.setText(searchReturn.getAttributeValue());
-            nameField.setText(searchReturn.getDefinedName());
+            nameLabel.setText(searchReturn.getDefinedName().trim());
+            nameField.setText(searchReturn.getDefinedName().trim());
+        } else if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getAttributeValue())) {
+            nameLabel.setText(searchReturn.getAttributeValue().trim());
+            nameField.setText(searchReturn.getAttributeValue().trim());
         } else if (isOption && hasValue) {
-            nameLabel.setText(valueAttributeValue);
-            nameField.setText(valueAttributeValue);
+            nameLabel.setText(valueAttributeValue.trim());
+            nameField.setText(valueAttributeValue.trim());
         } else if (hasFormControlName) {
-            nameLabel.setText(formControlNameAttributeValue);
-            nameField.setText(formControlNameAttributeValue);
+            nameLabel.setText(formControlNameAttributeValue.trim());
+            nameField.setText(formControlNameAttributeValue.trim());
         } else if (hasTestId) {
-            nameLabel.setText(testIdAttributeValue);
-            nameField.setText(testIdAttributeValue);
+            nameLabel.setText(testIdAttributeValue.trim());
+            nameField.setText(testIdAttributeValue.trim());
         } else if (hasName) {
-            nameLabel.setText(nameAttributeValue);
-            nameField.setText(nameAttributeValue);
+            nameLabel.setText(nameAttributeValue.trim());
+            nameField.setText(nameAttributeValue.trim());
         } else if (hasAriaLabel) {
-            nameLabel.setText(ariaLabelValue);
-            nameField.setText(ariaLabelValue);
+            nameLabel.setText(ariaLabelValue.trim());
+            nameField.setText(ariaLabelValue.trim());
         } else if (isAnchor && hasInnerHTML && !hasInnerHTMLTag) {
-            nameLabel.setText(innerHTMLValue);
-            nameField.setText(innerHTMLValue);
+            nameLabel.setText(innerHTMLValue.trim());
+            nameField.setText(innerHTMLValue.trim());
         } else if (hasId) {
-            nameLabel.setText(idAttributeValue);
-            nameField.setText(idAttributeValue);
+            nameLabel.setText(idAttributeValue.trim());
+            nameField.setText(idAttributeValue.trim());
         } else if (hasHRefFile) {
-            nameLabel.setText(valueHRefFile + " File");
-            nameField.setText(valueHRefFile + " File");
+            nameLabel.setText(valueHRefFile + " File".trim());
+            nameField.setText(valueHRefFile + " File".trim());
         } else if (hasParagraph) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
+            nameLabel.setText(textLabel.trim());
+            nameField.setText(this.tagNameDefined.trim());
         } else if (hasButton) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
+            nameLabel.setText(textLabel.trim());
+            nameField.setText(this.tagNameDefined.trim());
         } else if (hasSpan) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
+            nameLabel.setText(textLabel.trim());
+            nameField.setText(this.tagNameDefined.trim());
         } else if (hasDiv) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
+            nameLabel.setText(textLabel.trim());
+            nameField.setText(this.tagNameDefined.trim());
         } else if (hasLabel) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
+            nameLabel.setText(textLabel.trim());
+            nameField.setText(this.tagNameDefined.trim());
         } else if (this.tagNameDefined.equalsIgnoreCase("input")
                 || this.tagNameDefined.equalsIgnoreCase("button")
                 || this.tagNameDefined.equalsIgnoreCase("output")) {
-            nameLabel.setText(textLabel);
-            nameField.setText(this.tagNameDefined);
+            nameLabel.setText(textLabel.trim());
+            nameField.setText(this.tagNameDefined.trim());
         } else if (!Strings.isNullOrEmpty(element.getText())) {
-            nameLabel.setText(element.getText());
-            nameField.setText(this.tagNameDefined);
+            nameLabel.setText(element.getText().trim());
+            nameField.setText(this.tagNameDefined.trim());
         } else {
             nameLabel.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ABRConstants.DEFAULT_VALUE_NO_IDENTIFICATION);

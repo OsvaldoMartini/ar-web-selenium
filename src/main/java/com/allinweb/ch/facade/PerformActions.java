@@ -2855,9 +2855,9 @@ public class PerformActions {
             }
 
             if (Strings.isNullOrEmpty(elementFound.getCustomXPath())) {
-                searchReturn.setAbsolutXPath(elementFound.getXPath());
+                searchReturn.setCustomXPath(elementFound.getXPath());
             } else {
-                searchReturn.setAbsolutXPath(elementFound.getCustomXPath());
+                searchReturn.setCustomXPath(elementFound.getCustomXPath());
             }
 
             searchReturn.setAttributeValue(elementFound.getText());

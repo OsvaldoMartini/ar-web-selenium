@@ -1,5 +1,6 @@
 package com.allinweb.ch.persistence;
 
+import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.core.ABRSharedResources;
 import java.util.*;
 import javax.persistence.*;
@@ -69,7 +70,7 @@ public class SavedInstructionReferenceDTO extends BaseDTO {
     }
 
     public static List<SavedInstructionReferenceDTO> createSavedReferencesFromInstructionForSavedInstruction(
-            BlockLoopInstructionDTO instructionDTO, SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO) {
+            InstructionDTO instructionDTO, SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO) {
         List<InstructionReferenceDTO> referenceList = ABRSharedResources.getInstance()
                 .getEntityList(
                         InstructionReferenceDTO.class,

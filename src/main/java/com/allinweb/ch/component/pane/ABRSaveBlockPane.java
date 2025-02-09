@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.DetailsDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.pane.base.ABRPane;
 import com.allinweb.ch.control.ABRComponentBuilder;
@@ -38,7 +39,7 @@ public class ABRSaveBlockPane extends ABRPane {
     private final ABRComponentBuilder builder = new ABRComponentBuilder();
     private SavedBlocksDTO savedBlocksDTO;
     private BlockDTO blockDTO;
-    private BotJobDTO botJobDTO;
+    private DetailsDTO detailsDTO;
 
     private List<BlockLoadDTO> savedBlockLoadList = new ArrayList<>();
     private List<SavedBlockLoopInstructionDTO> originalLoopInstruction;
@@ -68,10 +69,10 @@ public class ABRSaveBlockPane extends ABRPane {
 
     private AnchorPane mainPane;
 
-    public ABRSaveBlockPane(SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO, BotJobDTO botJobDTO) {
+    public ABRSaveBlockPane(SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
         this.savedBlocksDTO = savedBlocksDTO;
         this.blockDTO = blockDTO;
-        this.botJobDTO = botJobDTO;
+        this.detailsDTO = detailsDTO;
     }
 
     @Override
@@ -151,12 +152,13 @@ public class ABRSaveBlockPane extends ABRPane {
 
                     savedBlocksDTO.setName(nameTextField.getText());
                     savedBlocksDTO.setDescription(descriptionTextField.getText());
-                    savedBlocksDTO.setBotJob(this.botJobDTO);
+                    //                    savedBlocksDTO.setBotJob(this.botJobDTO);
 
-                    loadSavedBlocksForBotJob(this.botJobDTO.getId());
+                    this.savedBlockLoadList =
+                            loadSavedBlocksForBotJob(detailsDTO.getNewBlock().getBotJobId());
 
                     originalLoopInstruction = performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
-                            this.blockDTO, savedBlocksDTO);
+                            detailsDTO, savedBlocksDTO);
 
                     // Debugging: Ensure originalLoopInstruction has the right data
                     ABRLogger.getInstance(ABRSaveBlockPane.class)
@@ -180,15 +182,16 @@ public class ABRSaveBlockPane extends ABRPane {
                             .fine("Saving Component Block: " + savedBlocksDTO.getName());
 
                     // Here Always Creating a New Component Block
-                    BlockLoadDTO blockDTO =
-                            performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(savedBlocksDTO, this.botJobDTO);
+                    BlockLoadDTO blockDTO = performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(
+                            savedBlocksDTO, detailsDTO.getNewBlock().getBotJobId());
                     blockDTO.setTypeId(1);
-                    blockDTO.setBotJobId(botJobDTO.getId());
+                    blockDTO.setBotJobId(detailsDTO.getNewBlock().getBotJobId());
                     blockDTO.setName(savedBlocksDTO.getName());
                     blockDTO.setDescription(savedBlocksDTO.getDescription());
                     blockDTO.setExportFile(savedBlocksDTO.getExportFile());
+                    blockDTO.setActive(savedBlocksDTO.getActive());
 
-                    int savedCurrentBotJobId = blockDTO.getBotJobId();
+                    int savedCurrentBotJobId = detailsDTO.getNewBlock().getBotJobId();
                     int savedCurrentBlockId = createSavedBlock(blockDTO);
 
                     if (savedCurrentBlockId > 0) {
@@ -197,7 +200,8 @@ public class ABRSaveBlockPane extends ABRPane {
                         ABRLogger.getInstance(Thread.class)
                                 .info(String.format(
                                         "Created a new Block id %d for bot job Id %d",
-                                        savedCurrentBlockId, this.botJobDTO.getId()));
+                                        savedCurrentBlockId,
+                                        detailsDTO.getNewBlock().getBotJobId()));
                     } else {
                         performAction.showAlert(
                                 Alert.AlertType.ERROR,
@@ -208,9 +212,10 @@ public class ABRSaveBlockPane extends ABRPane {
                         ABRLogger.getInstance(Thread.class)
                                 .severe(String.format(
                                         "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
-                                        this.botJobDTO.getId()));
-                        warningMSG(
-                                String.format("Error Creating a new Block for bot job Id %d!", this.botJobDTO.getId()));
+                                        detailsDTO.getNewBlock().getBotJobId()));
+                        warningMSG(String.format(
+                                "Error Creating a new Block for bot job Id %d!",
+                                detailsDTO.getNewBlock().getBotJobId()));
 
                         return;
                     }
@@ -558,7 +563,7 @@ public class ABRSaveBlockPane extends ABRPane {
     private int createSavedBlock(BlockLoadDTO blockDTO) {
         // Generate a Unique-ID for the block
         Integer nextId = loadNextIdSavedBlockData() + 1;
-        Integer nextBlockOrder = loadNextSavedBlockOrderNumber(blockDTO.getId()) + 1;
+        Integer nextBlockOrder = loadNextSavedBlockOrderNumber(blockDTO.getBotJobId()) + 1;
 
         // Build the SQL insert query
         String insertSQL =

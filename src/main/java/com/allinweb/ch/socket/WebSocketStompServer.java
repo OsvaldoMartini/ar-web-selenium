@@ -315,8 +315,8 @@ public class WebSocketStompServer {
         //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
 
         Platform.runLater(() -> {
-            ABRSaveBlockScene newSaveBlockScene = new ABRSaveBlockScene(
-                    savedBlocksDTO, blockDTO, blockSplitDTO.getDetails().getNewBlock());
+            ABRSaveBlockScene newSaveBlockScene =
+                    new ABRSaveBlockScene(savedBlocksDTO, blockDTO, blockSplitDTO.getDetails());
             newSaveBlockScene.showModal();
         });
     }

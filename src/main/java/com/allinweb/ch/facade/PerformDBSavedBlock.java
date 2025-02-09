@@ -3,12 +3,11 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
+import com.allinweb.ch.component.model.DetailsDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.persistence.SavedInstructionReferenceDTO;
@@ -193,54 +192,59 @@ public class PerformDBSavedBlock {
 
     // Creating COMPONENT SAVED INSTRUCTIONS FOR BLOCK INSTRUCTIONS
     public static List<SavedBlockLoopInstructionDTO> createSavedBlockLoopInstructionsFromBlocksDTO(
-            BlockDTO blockDTO, SavedBlocksDTO savedBlocksDTO) {
+            DetailsDTO detailsDTO, SavedBlocksDTO savedBlocksDTO) {
         SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO;
         List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionDTOs = new ArrayList<>();
 
-        List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
-                .getEntityList(
-                        BlockLoopInstructionDTO.class,
-                        instruction -> instruction.getBlock().getId().equals(blockDTO.getId()));
+        //        List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
+        //                .getEntityList(
+        //                        BlockLoopInstructionDTO.class,
+        //                        instruction -> instruction.getBlock().getId().equals(blockDTO.getId()));
+        if (detailsDTO != null && detailsDTO.getNewBlock() != null) {
 
-        List<BlockLoopInstructionDTO> instructionFiltered = performDataBase.filterInstructions(instructionList);
+            List<InstructionDTO> instructionList = performDataBase.getInstructionsByBlockId(
+                    detailsDTO.getNewBlock().getBotJobId(), detailsDTO.getNewBlock().getBlockId());
 
-        for (BlockLoopInstructionDTO blockLoopInstructionDTO : instructionFiltered) {
-            savedBlockLoopInstructionDTO = new SavedBlockLoopInstructionDTO();
+            List<InstructionDTO> instructionFiltered = performDataBase.filterInstructions(instructionList);
 
-            savedBlockLoopInstructionDTO.setActionCustomMaxWaitSec(blockLoopInstructionDTO.getActionCustomMaxWaitSec());
-            savedBlockLoopInstructionDTO.setActions(blockLoopInstructionDTO.getActions());
-            savedBlockLoopInstructionDTO.setBlock(savedBlocksDTO);
+            for (InstructionDTO instructionDTO : instructionFiltered) {
+                savedBlockLoopInstructionDTO = new SavedBlockLoopInstructionDTO();
 
-            savedBlockLoopInstructionDTO.setDefaultValue(blockLoopInstructionDTO.getDefaultValue());
-            savedBlockLoopInstructionDTO.setDescription(blockLoopInstructionDTO.getDescription());
-            savedBlockLoopInstructionDTO.setCodified(blockLoopInstructionDTO.getCodified());
-            savedBlockLoopInstructionDTO.setExportToABR(blockLoopInstructionDTO.getExportToABR());
-            savedBlockLoopInstructionDTO.setActive(blockLoopInstructionDTO.getActive());
-            savedBlockLoopInstructionDTO.setInstructionOrderNumber(blockLoopInstructionDTO.getInstructionOrderNumber());
-            savedBlockLoopInstructionDTO.setName(blockLoopInstructionDTO.getName());
-            savedBlockLoopInstructionDTO.setOnHoldSeconds(blockLoopInstructionDTO.getOnHoldSeconds());
-            savedBlockLoopInstructionDTO.setOptional(blockLoopInstructionDTO.getOptional());
-            savedBlockLoopInstructionDTO.setPath(blockLoopInstructionDTO.getPath());
+                savedBlockLoopInstructionDTO.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
+                savedBlockLoopInstructionDTO.setActions(instructionDTO.getActions());
+                savedBlockLoopInstructionDTO.setBlock(savedBlocksDTO);
 
-            List<SavedInstructionReferenceDTO> referenceDTOList = new ArrayList<>(
-                    SavedInstructionReferenceDTO.createSavedReferencesFromInstructionForSavedInstruction(
-                            blockLoopInstructionDTO, savedBlockLoopInstructionDTO));
-            savedBlockLoopInstructionDTO.setSavedInstructionReferenceDTOList(referenceDTOList);
+                savedBlockLoopInstructionDTO.setDefaultValue(instructionDTO.getDefaultValue());
+                savedBlockLoopInstructionDTO.setDescription(instructionDTO.getDescription());
+                savedBlockLoopInstructionDTO.setCodified(instructionDTO.getCodified());
+                savedBlockLoopInstructionDTO.setExportToABR(instructionDTO.getExportToABR());
+                savedBlockLoopInstructionDTO.setActive(instructionDTO.getInstructionActive());
+                savedBlockLoopInstructionDTO.setInstructionOrderNumber(instructionDTO.getInstructionOrderNumber());
+                savedBlockLoopInstructionDTO.setName(instructionDTO.getInstructionName());
+                savedBlockLoopInstructionDTO.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
+                savedBlockLoopInstructionDTO.setOptional(instructionDTO.getOptional());
+                savedBlockLoopInstructionDTO.setPath(instructionDTO.getPath());
 
-            savedBlockLoopInstructionDTOs.add(savedBlockLoopInstructionDTO);
+                List<SavedInstructionReferenceDTO> referenceDTOList = new ArrayList<>(
+                        SavedInstructionReferenceDTO.createSavedReferencesFromInstructionForSavedInstruction(
+                                instructionDTO, savedBlockLoopInstructionDTO));
+                savedBlockLoopInstructionDTO.setSavedInstructionReferenceDTOList(referenceDTOList);
+
+                savedBlockLoopInstructionDTOs.add(savedBlockLoopInstructionDTO);
+            }
         }
-
         return savedBlockLoopInstructionDTOs;
     }
 
     // Creating BLOCKS DTO FROM SAVED BLOCKS
-    public static BlockLoadDTO createBlocksDTOFromSavedBlocksDTO(SavedBlocksDTO savedBlocksDTO, BotJobDTO botJobDTO) {
+    public static BlockLoadDTO createBlocksDTOFromSavedBlocksDTO(SavedBlocksDTO savedBlocksDTO, Integer botJobId) {
         BlockLoadDTO blocksDTO = new BlockLoadDTO();
         blocksDTO.setName(savedBlocksDTO.getName());
-        blocksDTO.setBotJobId(botJobDTO.getId());
+        blocksDTO.setBotJobId(botJobId);
         blocksDTO.setDescription(savedBlocksDTO.getDescription());
         blocksDTO.setTypeId(savedBlocksDTO.getTypeId());
         blocksDTO.setExportFile(savedBlocksDTO.getExportFile());
+        blocksDTO.setActive(savedBlocksDTO.getActive());
         return blocksDTO;
     }
 

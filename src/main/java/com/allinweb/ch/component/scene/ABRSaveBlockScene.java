@@ -1,12 +1,10 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.model.BlockDetailsDTO;
+import com.allinweb.ch.component.model.DetailsDTO;
 import com.allinweb.ch.component.pane.ABRSaveBlockPane;
 import com.allinweb.ch.component.pane.base.IABRPane;
 import com.allinweb.ch.component.scene.base.ABRScene;
-import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -19,14 +17,12 @@ public class ABRSaveBlockScene extends ABRScene {
 
     private SavedBlocksDTO savedBlocksDTO;
     private BlockDTO blockDTO;
-    private BlockDetailsDTO blockDetailsDTO;
-    private BotJobDTO botJobDTO;
+    private DetailsDTO detailsDTO;
 
-    public ABRSaveBlockScene(SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO, BlockDetailsDTO blockDetailsDTO) {
+    public ABRSaveBlockScene(SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
         this.savedBlocksDTO = savedBlocksDTO;
         this.blockDTO = blockDTO;
-
-        this.botJobDTO = ABRSharedResources.getInstance().getEntityById(BotJobDTO.class, blockDetailsDTO.getBotJobId());
+        this.detailsDTO = detailsDTO;
         TITLE = "Save Block - " + savedBlocksDTO.getName();
     }
 
@@ -44,7 +40,7 @@ public class ABRSaveBlockScene extends ABRScene {
 
     @Override
     public IABRPane buildPane() {
-        return new ABRSaveBlockPane(savedBlocksDTO, blockDTO, botJobDTO);
+        return new ABRSaveBlockPane(savedBlocksDTO, blockDTO, detailsDTO);
     }
 
     @Override

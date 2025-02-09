@@ -2742,6 +2742,7 @@ public class ABRScannedElementPane extends ABRPane {
 
                             Platform.runLater(() -> {
                                 countdownTextField.setText(actionsTested.toString());
+                                countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
                             });
                         }
                         //                                abrWebElement.getElement().click();
@@ -4240,6 +4241,7 @@ public class ABRScannedElementPane extends ABRPane {
                                         sb.append("Text: " + someText).append("\n");
 
                                         countdownTextField.setText(sb.toString());
+                                        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
                                         checkTestAction.setSelected(false);
                                     }
                                 }
@@ -5022,6 +5024,7 @@ public class ABRScannedElementPane extends ABRPane {
                                                 .append("\n");
                                     }
                                     countdownTextField.setText(sb.toString());
+                                    countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
                                 }
 
                                 attribIdTextField.setText((String) resultMap.get("attribId"));
@@ -6878,7 +6881,7 @@ public class ABRScannedElementPane extends ABRPane {
                     Alert.AlertType.INFORMATION, "Success", "Execution Finished", null, combinedTextContainer);
 
         } else {
-            countdownTextField.setStyle("-fx-font-size: 16px; -fx-text-fill: red;");
+            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
             countdownTextField.setText(resultActions);
 
             baseLogString = blocksLoaded.get(0).getName()
@@ -6930,7 +6933,7 @@ public class ABRScannedElementPane extends ABRPane {
         coordsTextField.setText("");
         customXPathTextField.setText("");
         countdownTextField.setText("10");
-        countdownTextField.setStyle("-fx-font-size: 18px; -fx-text-fill: blue;");
+        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
     }
 
     private void fillUpCurretLocators(BlockLoopInstructionLoadDTO currentInstruction) {
