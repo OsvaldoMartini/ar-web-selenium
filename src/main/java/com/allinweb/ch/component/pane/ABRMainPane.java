@@ -165,11 +165,12 @@ public class ABRMainPane extends ABRPane {
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ABRCellFactory<>(BotJobListCell.class)::call);
 
-        viewBotJobListView.setMaxSize(800D, 580D);
+        //        viewBotJobListView.setMaxSize(800D, 580D);
 
         panelPane = new VBox(buttonPane, header, viewBotJobListView);
         VBox.setMargin(viewBotJobListView, new Insets(0, 10D, 10D, 10D));
         VBox.setVgrow(viewBotJobListView, Priority.ALWAYS);
+        HBox.setHgrow(viewBotJobListView, Priority.ALWAYS);
 
         AnchorPane.setTopAnchor(panelPane, ABRConstants.SPACE_ZERO);
         AnchorPane.setBottomAnchor(panelPane, ABRConstants.SPACE_ZERO);

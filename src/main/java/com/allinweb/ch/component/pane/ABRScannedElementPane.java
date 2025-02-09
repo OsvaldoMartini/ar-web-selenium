@@ -4689,7 +4689,16 @@ public class ABRScannedElementPane extends ABRPane {
                                     }
                                 } else {
                                     iFrameText.setText("");
-                                    countdownTextField.setText("");
+                                }
+
+                                if (elementsFound.size() > 0) {
+                                    StringBuilder sb = new StringBuilder();
+
+                                    for (ElementDTO picked : elementsFound) {
+                                        sb.append(picked.getTagName() + " " + picked.getText())
+                                                .append("\n");
+                                    }
+                                    countdownTextField.setText(sb.toString());
                                 }
 
                                 attribIdTextField.setText((String) resultMap.get("attribId"));
