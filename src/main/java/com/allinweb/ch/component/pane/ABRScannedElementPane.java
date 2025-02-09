@@ -187,7 +187,8 @@ public class ABRScannedElementPane extends ABRPane {
     private TextField originalTagNameField;
     private TextField coordsTextField;
     private String xpathTextPrevious = "";
-    private Boolean periodicActivated = false;
+    private Boolean periodicPickActivated = false;
+    private Boolean periodicCloneActivated = false;
 
     private Boolean idAttributeFirst = false;
     private Boolean nameAttributeFirst = false;
@@ -396,8 +397,8 @@ public class ABRScannedElementPane extends ABRPane {
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         countdownTextField.setEditable(false);
 
+        checkCloneElement = new CheckBox("FORCE CLONE");
         checkPickElement = new CheckBox("PICK");
-        checkCloneElement = new CheckBox("CLONE");
 
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
 
@@ -601,9 +602,9 @@ public class ABRScannedElementPane extends ABRPane {
                     .getChildren()
                     .addAll(
                             createSpacerHoriz(),
-                            checkPickElement,
-                            createSpacerHoriz(),
                             checkCloneElement,
+                            createSpacerHoriz(),
+                            checkPickElement,
                             createSpacerHoriz());
 
             // Create the VBox for TextFields
@@ -957,12 +958,24 @@ public class ABRScannedElementPane extends ABRPane {
             recallJob();
         });
         checkPickElement.setOnMouseClicked(e -> {
+            checkTestAction.setDisable(checkCloneElement.isSelected());
             checkTestAction.setSelected(false);
+
+            checkCloneElement.setDisable(checkPickElement.isSelected());
+            checkCloneElement.setSelected(false);
+
+            periodicPickActivated = checkPickElement.isSelected();
 
             handlePickElementClick();
         });
         checkCloneElement.setOnMouseClicked(e -> {
+            checkTestAction.setDisable(checkCloneElement.isSelected());
             checkTestAction.setSelected(false);
+
+            checkPickElement.setDisable(checkCloneElement.isSelected());
+            checkPickElement.setSelected(false);
+
+            periodicCloneActivated = checkCloneElement.isSelected();
 
             handleCloneElementClick();
         });
@@ -1006,15 +1019,8 @@ public class ABRScannedElementPane extends ABRPane {
                             // "tagName-found".equalsIgnoreCase(element.getTypeElement()))
                             .findFirst(); // Get the first matching ElementDTO
 
-                    if (searchReturn.getElement() != null && iframeElement.isEmpty()) {
+                    if (elementsFound.size() > 0) {
                         if (checkPickElement.isSelected()) {
-                            checkPickElement.setSelected(false);
-                            handlePickElementClick();
-                        }
-                        insertNewElement();
-                    } else if (elementsFound.size() > 0) {
-                        if (checkPickElement.isSelected()) {
-                            checkPickElement.setSelected(false);
                             handlePickElementClick();
                         }
                         if (iframeElement.isPresent()) {
@@ -1107,6 +1113,16 @@ public class ABRScannedElementPane extends ABRPane {
         }
 
         if (searchReturn != null) {
+
+            if (checkCloneElement.isSelected()) {
+                if (checkInputText.isSelected()) {
+                    searchReturn.setTagType(WebElementTagNameEnum.INPUT);
+                } else if (checkClickElement.isSelected()) {
+                    searchReturn.setTagType(WebElementTagNameEnum.BUTTON);
+                } else if (checkOutputText.isSelected()) {
+                    searchReturn.setTagType(WebElementTagNameEnum.OUTPUT);
+                }
+            }
 
             searchReturn.setDefinedName(defineNameField.getText().trim());
 
@@ -1617,42 +1633,59 @@ public class ABRScannedElementPane extends ABRPane {
     }
 
     private void handlePickElementClick() {
+        revertCloneInjections(abrWebDriver.getDriver());
+        revertPickInjections(abrWebDriver.getDriver());
+
         if (checkPickElement.isSelected()) {
+
             Platform.runLater(() -> periodicPickThread(
                     abrWebDriver.getDriver(), abrWebDriver.getDriver().getCurrentUrl()));
             //            injectJavaScript(abrWebDriver.getDriver());
             //            injectJumpTab(abrWebDriver.getDriver());
-        } else {
-            Platform.runLater(() -> revertInjectedChanges(abrWebDriver.getDriver()));
         }
-        //        checkClickElement.setDisable(checkPickElement.isSelected());
-        //        checkInputText.setDisable(checkPickElement.isSelected());
-        //        addButtonNewElement.setDisable(checkPickElement.isSelected());
-        revertStateButons();
+
+        revertPickButtons();
     }
 
     private void handleCloneElementClick() {
+        revertCloneInjections(abrWebDriver.getDriver());
+        revertPickInjections(abrWebDriver.getDriver());
+
         if (checkCloneElement.isSelected()) {
             Platform.runLater(() -> periodicCloneThread(abrWebDriver.getDriver()));
             //            injectJavaScript(abrWebDriver.getDriver());
             //            injectJumpTab(abrWebDriver.getDriver());
-        } else {
-            Platform.runLater(() -> revertInjectedChanges(abrWebDriver.getDriver()));
         }
-        //        checkClickElement.setDisable(checkPickElement.isSelected());
-        //        checkInputText.setDisable(checkPickElement.isSelected());
-        //        addButtonNewElement.setDisable(checkPickElement.isSelected());
-        revertStateButons();
+        revertCloneButtons();
     }
 
-    private void revertStateButons() {
+    private void revertPickButtons() {
         Platform.runLater(() -> {
             checkTestAction.setDisable(checkPickElement.isSelected());
             launchBotJobButton.setDisable(checkPickElement.isSelected());
             recallJobButton.setDisable(checkPickElement.isSelected());
-            periodicActivated = checkPickElement.isSelected();
+
+            checkCloneElement.setDisable(checkPickElement.isSelected());
+
+            periodicPickActivated = checkPickElement.isSelected();
 
             if (!checkPickElement.isSelected()) {
+                defineNameField.clear();
+            }
+        });
+    }
+
+    private void revertCloneButtons() {
+        Platform.runLater(() -> {
+            checkTestAction.setDisable(checkCloneElement.isSelected());
+            launchBotJobButton.setDisable(checkCloneElement.isSelected());
+            recallJobButton.setDisable(checkCloneElement.isSelected());
+
+            checkPickElement.setDisable(checkPickElement.isSelected());
+
+            periodicCloneActivated = checkCloneElement.isSelected();
+
+            if (!checkCloneElement.isSelected()) {
                 defineNameField.clear();
             }
         });
@@ -3782,136 +3815,380 @@ public class ABRScannedElementPane extends ABRPane {
 
     private void periodicCloneThread(WebDriver driver) {
         // JavaScript code to inject
-        String jsCode = "(function() {"
-                + "    var tooltip = document.createElement('div');"
-                + "    tooltip.id = 'Martini-Is-Awesome';"
-                + "    tooltip.style.position = 'absolute';"
-                + "    tooltip.style.backgroundColor = 'rgba(255, 165, 0, 0.5)';" // Slightly opaque light orange
-                + "    tooltip.style.border = '1px solid #ccc';"
-                + "    tooltip.style.padding = '10px';"
-                + "    tooltip.style.borderRadius = '5px';"
-                + "    tooltip.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.2)';"
-                + "    tooltip.style.fontFamily = 'Arial, sans-serif';"
-                + "    tooltip.style.fontSize = '14px';"
-                + "    tooltip.style.color = '#333';"
-                + "    tooltip.style.zIndex = '10000';" // Higher z-index
-                + "    tooltip.style.display = 'none';"
-                + "    document.body.appendChild(tooltip);"
-                + "    function getMartiniAbsoluteXPath(element) {"
-                + "        if (element === document.body) {"
-                + "            return '/html/' + element.tagName.toLowerCase();"
-                + "        }"
-                + "        var ix = 0;"
-                + "        var siblings = element.parentNode.childNodes;"
-                + "        for (var i = 0; i < siblings.length; i++) {"
-                + "            var sibling = siblings[i];"
-                + "            if (sibling === element) {"
-                + "                return getMartiniAbsoluteXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';"
-                + "            }"
-                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
-                + "                ix++;"
-                + "            }"
-                + "        }"
-                + "        return '';"
-                + "    }"
-                + "    function getMartiniXPath(element) {"
-                + "        if (element === document.body) {"
-                + "            return '/html/body';"
-                + "        }"
-                + "        var ix = 0;"
-                + "        var siblings = element.parentNode ? element.parentNode.childNodes : [];"
-                + "        for (var i = 0; i < siblings.length; i++) {"
-                + "            var sibling = siblings[i];"
-                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
-                + "                if (sibling === element) {"
-                + "                    return getMartiniXPath(element.parentNode) + '/' + element.tagName.toLowerCase() + '[' + (ix + 1) + ']';"
-                + "                }"
-                + "                ix++;"
-                + "            }"
-                + "        }"
-                + "        return '';"
-                + "    }"
-                + "    function getMartiniCustomXPath(element) {"
-                + "        if (element === document.body) {"
-                + "            return '/html/' + element.tagName.toLowerCase();"
-                + "        }"
-                + "        var className = element.className.split(' ').filter(function(cls) { return !/\\d/.test(cls); }).join('.');"
-                + "        var tagName = element.tagName.toLowerCase();"
-                + "        var ix = 0;"
-                + "        var siblings = element.parentNode.childNodes;"
-                + "        for (var i = 0; i < siblings.length; i++) {"
-                + "            var sibling = siblings[i];"
-                + "            if (sibling === element) {"
-                + "                var path = getMartiniCustomXPath(element.parentNode) + '/' + tagName;"
-                + "                if (className) {"
-                + "                    path += '[contains(@class, \"' + className + '\")]';"
-                + "                } else {"
-                + "                    path += '[' + (ix + 1) + ']';"
-                + "                }"
-                + "                return path;"
-                + "            }"
-                + "            if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {"
-                + "                ix++;"
-                + "            }"
-                + "        }"
-                + "        return '';"
-                + "    }"
-                + "    function showMartiniTooltip(event) {"
-                + "        var elementBelowTooltip = document.elementFromPoint(event.clientX, event.clientY);"
-                + "        window.tagNameTemp = elementBelowTooltip.tagName.toLowerCase();"
-                + "        window.coordsTemp = elementBelowTooltip.getBoundingClientRect();"
-                + "        window.coordsTemp = window.coordsTemp.left + ',' + window.coordsTemp.top;"
-                + "        tooltip.textContent = window.tagNameTemp + '-Coordinates:(' + window.coordsTemp + ')';"
-                + "        var tooltipWidth = tooltip.offsetWidth;"
-                + "        var tooltipHeight = tooltip.offsetHeight;"
-                + "        var left = event.pageX - tooltipWidth / 2;"
-                + "        var top = event.pageY - tooltipHeight / 2;"
-                + "        "
-                + "        tooltip.style.left = left + 'px';"
-                + "        tooltip.style.top = top + 'px';"
-                + "        tooltip.style.display = 'block';"
-                + "    }"
-                + "    function hideMartiniTooltip() {"
-                + "        tooltip.style.display = 'none';"
-                + "    }"
-                + "    function handleMartiniClick(event) {"
-                + "          event.preventDefault(); "
-                + "          event.stopPropagation(); "
-                + "          tooltip.style.display = 'none';"
-                + "          var elementBelowTooltip = document.elementFromPoint(event.clientX, event.clientY);"
-                + "          tooltip.style.display = 'block';"
-                + "          console.log(elementBelowTooltip);"
-                + "          var xpath = getMartiniXPath(elementBelowTooltip);"
-                + "          var absoluteXPath = getMartiniAbsoluteXPath(elementBelowTooltip);"
-                + "          var customXPath = getMartiniCustomXPath(elementBelowTooltip);"
-                + "          window.currentXPath = xpath;"
-                + "          window.currentAbsoluteXPath = absoluteXPath;"
-                + "          window.customXPath = customXPath;"
-                + "          window.attribId = elementBelowTooltip.id || '';"
-                + "          window.attribName = elementBelowTooltip.name || '';"
-                + "          window.tagName = elementBelowTooltip.tagName.toLowerCase();"
-                + "          window.coords = elementBelowTooltip.getBoundingClientRect();"
-                + "          window.coords = window.coords.left + ',' + window.coords.top;"
-                + "    }"
-                + "    window.currentXPath = '';"
-                + "    window.currentAbsoluteXPath = '';"
-                + "    window.customXPath = '';"
-                + "    window.attribId = '';"
-                + "    window.attribName = '';"
-                + "    window.tagName = '';"
-                + "    window.coords = '';"
-                + "    window.tagNameTemp = '';"
-                + "    window.coordsTemp = '';"
-                + "    document.addEventListener('mouseover', showMartiniTooltip);"
-                //                + "    document.addEventListener('mouseout', hideMartiniTooltip);"
-                + "    document.addEventListener('click', handleMartiniClick);"
-                + "    window.removeClickListener = function() {"
-                + "        document.removeEventListener('mouseover', showMartiniTooltip);"
-                //                + "        document.removeEventListener('mouseout', hideMartiniTooltip);"
-                + "        document.removeEventListener('click', handleMartiniClick);"
-                + "    console.log(\"removeClickListener\");"
-                + "    };"
-                + "})();";
+        String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n"
+                + "  var tooltip = document.createElement(\"div\");\n"
+                + "  tooltip.id = \"Martini-Is-Awesome\";\n"
+                + "  tooltip.style.position = \"absolute\";\n"
+                + "  tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\";\n"
+                + "  tooltip.style.border = \"1px solid #ccc\";\n"
+                + "  tooltip.style.padding = \"10px\";\n"
+                + "  tooltip.style.borderRadius = \"5px\";\n"
+                + "  tooltip.style.boxShadow = \"0 2px 4px rgba(0, 0, 0, 0.2)\";\n"
+                + "  tooltip.style.fontFamily = \"Arial, sans-serif\";\n"
+                + "  tooltip.style.fontSize = \"14px\";\n"
+                + "  tooltip.style.color = \"#333\";\n"
+                + "  tooltip.style.zIndex = \"10000\";\n"
+                + "  tooltip.style.display = \"none\";\n"
+                + "  document.body.appendChild(tooltip);\n"
+                + "  function getMartiniAbsoluteXPath(element) {\n"
+                + "    if (element === document.body) {\n"
+                + "      return \"/html/\" + element.tagName.toLowerCase();\n"
+                + "    }\n"
+                + "    var ix = 0;\n"
+                + "    var siblings = element.parentNode.childNodes;\n"
+                + "    for (var i = 0; i < siblings.length; i++) {\n"
+                + "      var sibling = siblings[i];\n"
+                + "      if (sibling === element) {\n"
+                + "        return (\n"
+                + "          getMartiniAbsoluteXPath(element.parentNode) +\n"
+                + "          \"/\" +\n"
+                + "          element.tagName.toLowerCase() +\n"
+                + "          \"[\" +\n"
+                + "          (ix + 1) +\n"
+                + "          \"]\"\n"
+                + "        );\n"
+                + "      }\n"
+                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "        ix++;\n"
+                + "      }\n"
+                + "    }\n"
+                + "    return \"\";\n"
+                + "  }\n"
+                + "  function getMartiniXPath(element) {\n"
+                + "    if (element === document.body) {\n"
+                + "      return \"/html/body\";\n"
+                + "    }\n"
+                + "    var ix = 0;\n"
+                + "    var siblings = element.parentNode ? element.parentNode.childNodes : [];\n"
+                + "    for (var i = 0; i < siblings.length; i++) {\n"
+                + "      var sibling = siblings[i];\n"
+                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "        if (sibling === element) {\n"
+                + "          return (\n"
+                + "            getMartiniXPath(element.parentNode) +\n"
+                + "            \"/\" +\n"
+                + "            element.tagName.toLowerCase() +\n"
+                + "            \"[\" +\n"
+                + "            (ix + 1) +\n"
+                + "            \"]\"\n"
+                + "          );\n"
+                + "        }\n"
+                + "        ix++;\n"
+                + "      }\n"
+                + "    }\n"
+                + "    return \"\";\n"
+                + "  }\n"
+                + "  function getMartiniCustomXPath(element) {\n"
+                + "    if (element === document.body) {\n"
+                + "      return \"/html/\" + element.tagName.toLowerCase();\n"
+                + "    }\n"
+                + "    var className = element.className\n"
+                + "      .split(\" \")\n"
+                + "      .filter(function (cls) {\n"
+                + "        return !/\\d/.test(cls);\n"
+                + "      })\n"
+                + "      .join(\".\");\n"
+                + "    var tagName = element.tagName.toLowerCase();\n"
+                + "    var ix = 0;\n"
+                + "    var siblings = element.parentNode.childNodes;\n"
+                + "    for (var i = 0; i < siblings.length; i++) {\n"
+                + "      var sibling = siblings[i];\n"
+                + "      if (sibling === element) {\n"
+                + "        var path = getMartiniCustomXPath(element.parentNode) + \"/\" + tagName;\n"
+                + "        if (className) {\n"
+                + "          path += '[contains(@class, \"' + className + '\")]';\n"
+                + "        } else {\n"
+                + "          path += \"[\" + (ix + 1) + \"]\";\n"
+                + "        }\n"
+                + "        return path;\n"
+                + "      }\n"
+                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "        ix++;\n"
+                + "      }\n"
+                + "    }\n"
+                + "    return \"\";\n"
+                + "  }\n"
+                + "  function showMartiniTooltip(event) {\n"
+                + "    // Ensure the element exists and is valid\n"
+                + "    var elementBelowTooltip = document.elementFromPoint(\n"
+                + "      event.clientX,\n"
+                + "      event.clientY\n"
+                + "    );\n"
+                + "\n"
+                + "    // Check if the element exists and is a valid DOM element\n"
+                + "    if (elementBelowTooltip && elementBelowTooltip.tagName) {\n"
+                + "      window.tagNameTemp = elementBelowTooltip.tagName.toLowerCase();\n"
+                + "\n"
+                + "      // Ensure getBoundingClientRect() is called on a valid element\n"
+                + "      try {\n"
+                + "        window.coordsTemp = elementBelowTooltip.getBoundingClientRect();\n"
+                + "        window.coordsTemp =\n"
+                + "          window.coordsTemp.left + \",\" + window.coordsTemp.top;\n"
+                + "      } catch (e) {\n"
+                + "        console.error(\"Error getting bounding rectangle:\", e);\n"
+                + "        window.coordsTemp = \"Invalid Coordinates\";\n"
+                + "      }\n"
+                + "\n"
+                + "      tooltip.textContent =\n"
+                + "        window.tagNameTemp + \"-Coordinates:(\" + window.coordsTemp + \")\";\n"
+                + "\n"
+                + "      // Calculate tooltip dimensions and position\n"
+                + "      var tooltipWidth = tooltip.offsetWidth;\n"
+                + "      var tooltipHeight = tooltip.offsetHeight;\n"
+                + "      var left = event.pageX - tooltipWidth / 2;\n"
+                + "      var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "      // Set tooltip position\n"
+                + "      tooltip.style.left = left + \"px\";\n"
+                + "      tooltip.style.top = top + \"px\";\n"
+                + "      tooltip.style.display = \"block\";\n"
+                + "    } else {\n"
+                + "      tooltip.style.display = \"none\"; // Hide tooltip if no valid element is found\n"
+                + "    }\n"
+                + "  }\n"
+                + "\n"
+                + "  function getSomeText(tagName, element) {\n"
+                + "    let someText = \"\";\n"
+                + "\n"
+                + "    if ([\"input\", \"textarea\", \"select\", \"button\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    } else if ([\"option\", \"label\", \"a\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    } else if (![\"html\", \"body\", \"script\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    }\n"
+                + "\n"
+                + "    someText = someText\n"
+                + "      .split(\";\")\n"
+                + "      .map((text) => text.trim())\n"
+                + "      .filter(Boolean)\n"
+                + "      .join(\";\"); // Clean up sequential text\n"
+                + "\n"
+                + "    return someText;\n"
+                + "  }\n"
+                + "\n"
+                + "  function extractTextFromHTML(element) {\n"
+                + "    const result = {\n"
+                + "      text: new Set(), // Using Set to avoid duplicate text\n"
+                + "      labels: new Set(), // Using Set to avoid duplicate labels\n"
+                + "      titles: new Set(), // Using Set to avoid duplicate titles\n"
+                + "    };\n"
+                + "\n"
+                + "    // Extract text content directly from the element (in case it has no children)\n"
+                + "    if (element.textContent) {\n"
+                + "      let elementText = element.textContent.trim();\n"
+                + "      if (elementText) {\n"
+                + "        result.text.add(elementText); // Using .add() instead of .push() for Set\n"
+                + "      }\n"
+                + "    }\n"
+                + "\n"
+                + "    // Extract label text from input placeholders and other form-related data\n"
+                + "    element.querySelectorAll(\"label\").forEach((label) => {\n"
+                + "      if (label.textContent) {\n"
+                + "        let labelText = label.textContent.trim();\n"
+                + "        if (labelText) {\n"
+                + "          result.labels.add(labelText); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "\n"
+                + "      // Handle associated input fields (if the label has a 'for' attribute)\n"
+                + "      let forAttribute = label.getAttribute(\"for\");\n"
+                + "      if (forAttribute) {\n"
+                + "        let associatedInput = element.querySelector(`#${forAttribute}`);\n"
+                + "        if (associatedInput) {\n"
+                + "          // Check if it's an input field or textarea and extract value or placeholder\n"
+                + "          let inputValue = associatedInput.value?.trim();\n"
+                + "          let inputPlaceholder = associatedInput.placeholder?.trim();\n"
+                + "          if (inputValue) {\n"
+                + "            result.text.add(inputValue); // Using .add() for Set to ensure uniqueness\n"
+                + "          } else if (inputPlaceholder) {\n"
+                + "            result.text.add(inputPlaceholder); // Fallback to placeholder\n"
+                + "          }\n"
+                + "        }\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract text from common block and inline elements\n"
+                + "    const textExtractors = [\n"
+                + "      \"p\",\n"
+                + "      \"h1\",\n"
+                + "      \"h2\",\n"
+                + "      \"h3\",\n"
+                + "      \"h4\",\n"
+                + "      \"h5\",\n"
+                + "      \"h6\",\n"
+                + "      \"li\",\n"
+                + "      \"span\",\n"
+                + "      \"div\",\n"
+                + "      \"strong\",\n"
+                + "      \"em\",\n"
+                + "      \"b\",\n"
+                + "      \"i\",\n"
+                + "      \"blockquote\",\n"
+                + "    ];\n"
+                + "\n"
+                + "    textExtractors.forEach((tagName) => {\n"
+                + "      element.querySelectorAll(tagName).forEach((childElement) => {\n"
+                + "        if (childElement.textContent) {\n"
+                + "          let elemText = childElement.textContent.trim();\n"
+                + "          if (elemText) {\n"
+                + "            result.text.add(elemText); // Using .add() for Set to ensure uniqueness\n"
+                + "          }\n"
+                + "        }\n"
+                + "      });\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract text from <a> tags (links)\n"
+                + "    element.querySelectorAll(\"a\").forEach((link) => {\n"
+                + "      if (link.textContent) {\n"
+                + "        let linkText = link.textContent.trim();\n"
+                + "        if (linkText) {\n"
+                + "          result.text.add(linkText); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract iframe titles and nested content\n"
+                + "    element.querySelectorAll(\"iframe\").forEach((iframe) => {\n"
+                + "      if (iframe.getAttribute(\"title\")) {\n"
+                + "        let title = iframe.getAttribute(\"title\")?.trim();\n"
+                + "        if (title) {\n"
+                + "          result.titles.add(title); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "\n"
+                + "      try {\n"
+                + "        let iframeDoc =\n"
+                + "          iframe.contentDocument ||\n"
+                + "          new DOMParser().parseFromString(iframe.srcdoc || \"\", \"text/html\");\n"
+                + "        let iframeContent = extractTextFromHTML(iframeDoc); // Here we assume iframeDoc is an element.\n"
+                + "        iframeContent.titles.forEach((title) => result.titles.add(title));\n"
+                + "        iframeContent.text.forEach((text) => result.text.add(text));\n"
+                + "        iframeContent.labels.forEach((label) => result.labels.add(label));\n"
+                + "      } catch (e) {\n"
+                + "        console.warn(\"Could not access iframe content\", e);\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Convert Sets to arrays before returning to maintain previous structure\n"
+                + "    return {\n"
+                + "      text: Array.from(result.text),\n"
+                + "      labels: Array.from(result.labels),\n"
+                + "      titles: Array.from(result.titles),\n"
+                + "    };\n"
+                + "  }\n"
+                + "\n"
+                + "  function hideMartiniTooltip() {\n"
+                + "    tooltip.style.display = \"none\";\n"
+                + "  }\n"
+                + "  function handleMartiniClick(event) {\n"
+                + "    event.preventDefault();\n"
+                + "    event.stopPropagation();\n"
+                + "    tooltip.style.display = \"none\";\n"
+                + "    var elementBelowTooltip = document.elementFromPoint(\n"
+                + "      event.clientX,\n"
+                + "      event.clientY\n"
+                + "    );\n"
+                + "    tooltip.style.display = \"block\";\n"
+                + "    console.log(elementBelowTooltip);\n"
+                + "    var xpath = getMartiniXPath(elementBelowTooltip);\n"
+                + "    var absoluteXPath = getMartiniAbsoluteXPath(elementBelowTooltip);\n"
+                + "    var customXPath = getMartiniCustomXPath(elementBelowTooltip);\n"
+                + "\n"
+                + "    var someText = getSomeText(\n"
+                + "      elementBelowTooltip.tagName.toLowerCase(),\n"
+                + "      elementBelowTooltip\n"
+                + "    );\n"
+                + "\n"
+                + "    window.currentXPath = xpath;\n"
+                + "    window.currentAbsoluteXPath = absoluteXPath;\n"
+                + "    window.customXPath = customXPath;\n"
+                + "    window.attribId = elementBelowTooltip.id || \"\";\n"
+                + "    window.attribName = elementBelowTooltip.name || \"\";\n"
+                + "    window.tagName = elementBelowTooltip.tagName.toLowerCase();\n"
+                + "    window.coords = elementBelowTooltip.getBoundingClientRect();\n"
+                + "    window.coords = window.coords.left + \",\" + window.coords.top;\n"
+                + "    window.someText = someText;\n"
+                + "\n"
+                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
+                + "    setTimeout(() => {\n"
+                + "      elementBelowTooltip = null;\n"
+                + "      window.currentXPath = \"\";\n"
+                + "      window.currentAbsoluteXPath = \"\";\n"
+                + "      window.customXPath = \"\";\n"
+                + "      window.attribId = \"\";\n"
+                + "      window.attribName = \"\";\n"
+                + "      window.tagName = \"\";\n"
+                + "      window.coords = \"\";\n"
+                + "      window.coords = \"\";\n"
+                + "      window.someText = \"\";\n"
+                + "      console.log(\"elementBelowTooltip\", elementBelowTooltip);\n"
+                + "      // revertCloneInjections();\n"
+                + "    }, 2000);\n"
+                + "  }\n"
+                + "  window.currentXPath = \"\";\n"
+                + "  window.currentAbsoluteXPath = \"\";\n"
+                + "  window.customXPath = \"\";\n"
+                + "  window.attribId = \"\";\n"
+                + "  window.attribName = \"\";\n"
+                + "  window.tagName = \"\";\n"
+                + "  window.coords = \"\";\n"
+                + "  window.tagNameTemp = \"\";\n"
+                + "  window.coordsTemp = \"\";\n"
+                + "  window.someText = \"\";\n"
+                + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
+                + "  document.addEventListener(\"click\", handleMartiniClick);\n"
+                + "\n"
+                + "  window.revertCloneInjections = function () {\n"
+                //                + "    alert(\"revertCloneInjections\");\n"
+                + "\n"
+                + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
+                + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
+                + "    console.log(\"revertCloneInjections\");\n"
+                + "\n"
+                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
+                + "    setTimeout(() => {\n"
+                + "      removeElements();\n"
+                + "    }, 1000);\n"
+                + "  };\n"
+                + "\n"
+                + "  function removeElements() {\n"
+                + "    if (tooltip) {\n"
+                + "      tooltip.remove(); // Completely remove the tooltip from the DOM\n"
+                + "      tooltip = null; // Clear the reference to free memory\n"
+                + "      console.log(\"Tooltip completely removed.\");\n"
+                + "    }\n"
+                + "  }\n"
+                + "\n"
+                + "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n"
+                + "\n"
+                + "  window.addEventListener(\"message\", function (event) {\n"
+                + "    if (event.origin !== trustedOriginURL) return; // check the origin\n"
+                + "    console.log(event.data);\n"
+                + "  });\n"
+                + "})(arguments[0], arguments[1]);\n"
+                + "// })(\"http://localhost:3000/\", \"http://localhost:3000/\");\n";
 
         // Inject the JavaScript into the webpage
         jsExecutor = (JavascriptExecutor) driver;
@@ -3919,39 +4196,57 @@ public class ABRScannedElementPane extends ABRPane {
 
         // Start a thread to periodically check the XPath value and update the TextField
         new Thread(() -> {
-                    while (periodicActivated) {
+                    while (periodicCloneActivated) {
                         //                        String currentXPath = (String) jsExecutor.executeScript("return
                         // window.currentXPath;");
 
                         // Execute JavaScript to construct and return a custom object
                         LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
                                 jsExecutor.executeScript(
-                                        "var obj = { attribId: window.attribId, attribName: window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords }; return obj;");
+                                        "var obj = { attribId: window.attribId, attribName: window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath, currentAbsoluteXPath: window.currentAbsoluteXPath, tagName: window.tagName, coords: window.coords, someText: window.someText }; return obj;");
 
                         // Convert the LinkedHashMap to a Java Map (if necessary)
                         Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
 
                         if (linkedHashMap != null) {
                             Platform.runLater(() -> {
-                                attribIdTextField.setText((String) resultMap.get("attribId"));
-                                attribNameTextField.setText((String) resultMap.get("attribName"));
-                                currentXPathTextField.setText((String) resultMap.get("currentXPath"));
-                                absolutXPathTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
-                                customXPathTextField.setText((String) resultMap.get("customXPath"));
-                                originalTagNameField.setText((String) resultMap.get("tagName"));
-                                coordsTextField.setText((String) resultMap.get("coords"));
-                                if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
-                                        && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
-                                    extractValidateDynamic();
-                                }
+                                String tagName = (String) resultMap.get("tagName");
+                                String someText = (String) resultMap.get("someText");
 
-                                if (Strings.isNullOrEmpty(attribNameTextField.getText())) {
-                                    attribNameTextField.setText(originalTagNameField.getText());
+                                if (!Strings.isNullOrEmpty(tagName)) {
+                                    originalTagNameField.setText(tagName);
+                                    attribIdTextField.setText((String) resultMap.get("attribId"));
+                                    attribNameTextField.setText((String) resultMap.get("attribName"));
+                                    currentXPathTextField.setText((String) resultMap.get("currentXPath"));
+                                    absolutXPathTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
+                                    customXPathTextField.setText((String) resultMap.get("customXPath"));
+                                    coordsTextField.setText((String) resultMap.get("coords"));
+
+                                    if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
+                                            && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
+                                        extractValidateDynamic();
+
+                                        StringBuilder sb = new StringBuilder();
+
+                                        sb.append("Type: " + tagName).append("\n");
+                                        sb.append("Id: " + attribIdTextField.getText())
+                                                .append("\n");
+                                        sb.append("Name: " + attribNameTextField.getText())
+                                                .append("\n");
+                                        sb.append("Coords: " + coordsTextField.getText())
+                                                .append("\n");
+                                        sb.append("xPath: " + currentXPathTextField.getText())
+                                                .append("\n");
+                                        sb.append("Text: " + someText).append("\n");
+
+                                        countdownTextField.setText(sb.toString());
+                                        checkTestAction.setSelected(false);
+                                    }
                                 }
                             });
                         }
                         try {
-                            Thread.sleep(500); // Check every 500 milliseconds
+                            Thread.sleep(300); // Check every 300 milliseconds
                         } catch (InterruptedException e) {
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .fine(String.format(
@@ -4343,8 +4638,9 @@ public class ABRScannedElementPane extends ABRPane {
                 + "      tooltip.style.display = \"block\";\n"
                 + "    }\n"
                 + "\n"
-                + "    window.removeClickListener();\n"
+                + "    window.revertPickInjections();\n"
                 + "\n"
+                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
                 + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
                 + "    setTimeout(() => {\n"
                 + "      if (tooltip) {\n"
@@ -4352,7 +4648,19 @@ public class ABRScannedElementPane extends ABRPane {
                 + "        tooltip = null; // Clear the reference to free memory\n"
                 + "        console.log(\"Tooltip completely removed.\");\n"
                 + "      }\n"
-                + "    }, 5000);\n"
+                + "\n"
+                + "      if (lastHoveredElement || elementBelowTooltip) {\n"
+                + "        // Remove highlight from the previous element if any\n"
+                + "        if (lastHoveredElement) {\n"
+                + "          lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
+                + "        }\n"
+                + "\n"
+                + "        // Remove highlight from the previous element if any\n"
+                + "        if (elementBelowTooltip) {\n"
+                + "          elementBelowTooltip.style.outline = \"\"; // Remove the previous highlight\n"
+                + "        }\n"
+                + "      }\n"
+                + "    }, 3000);\n"
                 + "  }\n"
                 + "\n"
                 + "  function getElementIdentity(element) {\n"
@@ -4577,30 +4885,35 @@ public class ABRScannedElementPane extends ABRPane {
                 + "\n"
                 + "  cleanOldValues();\n"
                 + "\n"
-                + "  window.removeClickListener = function () {\n"
+                + "  window.revertPickInjections = function () {\n"
+                //                + "    alert(\"revertPickInjections\");\n"
+                + "\n"
                 + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
-                + "    //                    document.removeEventListener('mouseout', hideMartiniTooltip);\n"
-                + "    console.log(\"removeClickListener\");"
                 + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
+                + "    console.log(\"revertPickInjections\");\n"
                 + "\n"
                 + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
                 + "    setTimeout(() => {\n"
-                + "      if (tooltip) {\n"
-                + "        tooltip.remove(); // Completely remove the tooltip from the DOM\n"
-                + "        tooltip = null; // Clear the reference to free memory\n"
-                + "        console.log(\"Tooltip completely removed.\");\n"
-                + "      }\n"
-                + "    }, 5000);\n"
+                + "      removeElements();\n"
+                + "    }, 1000);\n"
                 + "  };\n"
+                + "\n"
+                + "  function removeElements() {\n"
+                + "    // Remove highlight from the previous element if any\n"
+                + "    if (lastHoveredElement) {\n"
+                + "      lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
+                + "    }\n"
+                + "\n"
+                + "    if (tooltip) {\n"
+                + "      tooltip.remove(); // Completely remove the tooltip from the DOM\n"
+                + "      tooltip = null; // Clear the reference to free memory\n"
+                + "      console.log(\"Tooltip completely removed.\");\n"
+                + "    }\n"
+                + "  }\n"
                 + "\n"
                 + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
                 + "  //                document.addEventListener('mouseout', hideMartiniTooltip);\n"
                 + "  document.addEventListener(\"click\", handleMartiniClick);\n"
-                + "  window.removeClickListener = function () {\n"
-                + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
-                + "    //                    document.removeEventListener('mouseout', hideMartiniTooltip);\n"
-                + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
-                + "  };\n"
                 + "\n"
                 + "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n"
                 + "\n"
@@ -4620,7 +4933,7 @@ public class ABRScannedElementPane extends ABRPane {
 
         // Start a thread to periodically check the XPath value and update the TextField
         new Thread(() -> {
-                    while (periodicActivated) {
+                    while (periodicPickActivated) {
                         //                        String currentXPath = (String) jsExecutor.executeScript("return
                         // window.currentXPath;");
 
@@ -4689,12 +5002,13 @@ public class ABRScannedElementPane extends ABRPane {
                                             iFrameText.setText("iFrame Detected");
                                         }
                                         checkPickElement.setSelected(false);
-                                        revertStateButons();
+                                        checkTestAction.setSelected(false);
+                                        revertPickButtons();
                                     } else {
                                         iFrameText.setText("");
                                         checkPickElement.setSelected(false);
-                                        revertStateButons();
-                                        checkClickElement.setSelected(true);
+                                        checkTestAction.setSelected(false);
+                                        revertPickButtons();
                                     }
                                 } else {
                                     iFrameText.setText("");
@@ -4731,7 +5045,7 @@ public class ABRScannedElementPane extends ABRPane {
                             });
                         }
                         try {
-                            Thread.sleep(300); // Check every 500 milliseconds
+                            Thread.sleep(300); // Check every 300 milliseconds
                         } catch (InterruptedException e) {
                             ABRLogger.getInstance(ABRScannedElementPane.class)
                                     .fine(String.format(
@@ -4754,21 +5068,35 @@ public class ABRScannedElementPane extends ABRPane {
         return sb.toString();
     }
 
-    private void revertInjectedChanges(WebDriver driver) {
-        jsExecutor = (JavascriptExecutor) driver;
+    private void revertCloneInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            // Remove the injected element
+            jsExecutor.executeScript("window.revertCloneInjections();");
+            jsExecutor.executeScript(
+                    "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
 
-        // Remove the injected element
-        jsExecutor.executeScript(
-                "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
+            // Reset the background color
+            //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
+        } catch (Exception ignore) {
+        }
+    }
 
-        jsExecutor.executeScript("window.removeClickListener();");
+    private void revertPickInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            // Remove the injected element
+            jsExecutor.executeScript("window.revertPickInjections();");
+            jsExecutor.executeScript(
+                    "let elem = document.getElementById('Martini-Is-Awesome'); if (elem) { elem.remove(); }");
 
-        // Reset the background color
-        //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
+            // Reset the background color
+            //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
+        } catch (Exception ignore) {
+        }
     }
 
     public void injectJumpTab(WebDriver driver) {
-
         ((JavascriptExecutor) driver)
                 .executeScript("var inputs = document.getElementsByTagName('input');"
                         + "for (var i = 0; i < inputs.length; i++) {"

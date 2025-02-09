@@ -4,16 +4,12 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.control.ABRComponentBuilder;
-import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.*;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -1199,78 +1195,5 @@ public class ABRWebElement {
 
         Optional<ButtonType> result = alert.showAndWait();
         return result.isPresent() && result.get() == ButtonType.OK;
-    }
-
-    private void deleteBlockInstruction(int instructionId) throws SQLException {
-        String deleteBlockInstruction = "delete FROM block_loop_instruction " + " where id = " + instructionId;
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
-            if (rowsAffected > 0) {
-                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
-            } else {
-                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
-            }
-        }
-    }
-
-    private void deleteInstrReference(int instructionId) throws SQLException {
-        String deleteSQL =
-                "delete FROM instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
-            } else {
-                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
-            }
-        }
-    }
-
-    private boolean existVariables(int instructionId) throws SQLException {
-        String query = "select id FROM variable " + " where block_loop_instruction_id =  " + instructionId;
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-            while (rs.next()) {
-                return true;
-            }
-
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return false;
-    }
-
-    private void forceDeleteOrphan() throws SQLException {
-        String deleteSQL = "delete FROM instruction_reference " + " where block_loop_instruction_id is null ";
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
-            } else {
-                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
-            }
-        }
-    }
-
-    private void forceDeleteFatherNoChild(int instructionId) throws SQLException {
-        String deleteSQL = "DELETE FROM block_loop_instruction " + "WHERE id IN ( "
-                + "    SELECT bli.id "
-                + "    FROM block_loop_instruction bli "
-                + "    LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
-                + "    WHERE irl.id IS NULL "
-                + "    AND bli.name NOT IN ('Check', 'GetValue', 'SetValue')"
-                + ") ";
-
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(deleteSQL);
-            if (rowsAffected > 0) {
-                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
-            } else {
-                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
-            }
-        }
     }
 }

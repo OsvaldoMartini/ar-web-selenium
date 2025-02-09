@@ -14,6 +14,7 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
+import com.allinweb.ch.core.ABRSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -3044,5 +3045,76 @@ public class PerformDataBase {
         });
 
         return blockLoopInstructions;
+    }
+
+    private void deleteBlockInstruction(int instructionId) throws SQLException {
+        String deleteBlockInstruction = "delete FROM block_loop_instruction " + " where id = " + instructionId;
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+            } else {
+                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+            }
+        }
+    }
+
+    private void deleteInstrReference(int instructionId) throws SQLException {
+        String deleteSQL =
+                "delete FROM instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+            } else {
+                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+            }
+        }
+    }
+
+    private boolean existVariables(int instructionId) throws SQLException {
+        String query = "select id FROM variable " + " where block_loop_instruction_id =  " + instructionId;
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+            while (rs.next()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void forceDeleteOrphan(int instructionId) throws SQLException {
+        String deleteSQL = "delete FROM instruction_reference " + " where block_loop_instruction_id is null ";
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+            } else {
+                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+            }
+        }
+    }
+
+    private void forceDeleteFatherNoChild(int instructionId) throws SQLException {
+        String deleteSQL = "DELETE FROM block_loop_instruction " + "WHERE id IN ( "
+                + "    SELECT bli.id "
+                + "    FROM block_loop_instruction bli "
+                + "    LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
+                + "    WHERE irl.id IS NULL "
+                + "    AND bli.name NOT IN ('Check', 'GetValue', 'SetValue')"
+                + ") ";
+
+        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+            } else {
+                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+            }
+        }
     }
 }
