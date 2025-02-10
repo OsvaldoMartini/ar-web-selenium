@@ -1,6 +1,6 @@
 package com.allinweb.ch.tests;
 
-import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ARConstants;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -26,9 +26,9 @@ public class ComboBoxImageExample extends Application {
     public void start(Stage primaryStage) {
         // Initialize items with images and text
         items = FXCollections.observableArrayList(
-                new ComboBoxItem("instruction", new Image(ABRConstants.ICON_BLANK)),
-                new ComboBoxItem("setValue", new Image(ABRConstants.ICON_SET_VALUE_BTN)),
-                new ComboBoxItem("getValue", new Image(ABRConstants.ICON_GET_VALUE_BTN)));
+                new ComboBoxItem("instruction", new Image(ARConstants.ICON_BLANK)),
+                new ComboBoxItem("setValue", new Image(ARConstants.ICON_SET_VALUE_BTN)),
+                new ComboBoxItem("getValue", new Image(ARConstants.ICON_GET_VALUE_BTN)));
 
         // Create ComboBox
         comboBox = new ComboBox<>(items);
@@ -105,9 +105,9 @@ public class ComboBoxImageExample extends Application {
 
         // Add new items with images and text
         items.addAll(
-                new ComboBoxItem("setValue", createImage(ABRConstants.ICON_SET_VALUE_BTN)),
-                new ComboBoxItem("getValue", createImage(ABRConstants.ICON_GET_VALUE_BTN)),
-                new ComboBoxItem("NDA", createImage(ABRConstants.ICON_BLANK)));
+                new ComboBoxItem("setValue", createImage(ARConstants.ICON_SET_VALUE_BTN)),
+                new ComboBoxItem("getValue", createImage(ARConstants.ICON_GET_VALUE_BTN)),
+                new ComboBoxItem("NDA", createImage(ARConstants.ICON_BLANK)));
 
         // Optionally set a default value after reload
         if (!items.isEmpty()) {

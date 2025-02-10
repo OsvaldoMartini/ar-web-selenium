@@ -27,5 +27,5 @@ public class InstructionDTO {
     private Integer actionCustomMaxWaitSec;
     private Integer onHoldSeconds;
     private Boolean codified;
-    private Boolean exportToABR;
+    private Boolean exportToAR;
 }

@@ -1,6 +1,6 @@
 package com.allinweb.ch.tests;
 
-import com.allinweb.ch.util.ABRPropertyEnum;
+import com.allinweb.ch.util.ARPropertyEnum;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -27,10 +27,10 @@ public class GridPaneExampleLOG extends Application {
         primaryStage.setTitle("GridPane Example");
 
         pathLogLabel = new Label("Log Path:");
-        pathLog = createPathTextField(ABRPropertyEnum.FOLDER_PATH_LOG);
+        pathLog = createPathTextField(ARPropertyEnum.FOLDER_PATH_LOG);
         pathLogButton = createPathButton();
         sizeLogLabel = new Label("Size Log");
-        sizeLog = createPathTextField(ABRPropertyEnum.FOLDER_PATH_LOG);
+        sizeLog = createPathTextField(ARPropertyEnum.FOLDER_PATH_LOG);
 
         GridPane gridPane = new GridPane();
         gridPane.setVgap(10);
@@ -64,7 +64,7 @@ public class GridPaneExampleLOG extends Application {
         primaryStage.show();
     }
 
-    private TextField createPathTextField(ABRPropertyEnum property) {
+    private TextField createPathTextField(ARPropertyEnum property) {
         TextField textField = new TextField();
         // Mock implementation to set text for pathLog and sizeLog
         textField.setText("Path or Size");

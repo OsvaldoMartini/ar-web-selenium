@@ -4,8 +4,8 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
-import com.allinweb.ch.component.scene.ABRAlertScene;
-import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.component.scene.ARAlertScene;
+import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
@@ -59,7 +59,7 @@ public class ExcelUtils {
         this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
         this.extractedData = extractedData;
 
-        File excelFolder = new File(ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL));
+        File excelFolder = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL));
         if (!excelFolder.exists()) {
             excelFolder.mkdirs();
         }
@@ -70,7 +70,7 @@ public class ExcelUtils {
             try {
                 Desktop.getDesktop().open(file);
             } catch (IOException e) {
-                new ABRAlertScene(
+                new ARAlertScene(
                         Alert.AlertType.ERROR,
                         "Couldn't open the file",
                         "The file could not be opened. Reason: " + e,
@@ -81,8 +81,8 @@ public class ExcelUtils {
     }
 
     private void generateUnfilteredCSVFile(BotJobDTO botJob) {
-        String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJob.getName() + ABRConstants.FILE_FORMAT_CSV;
+        String fileName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL) + "/"
+                + botJob.getName() + ARConstants.FILE_FORMAT_CSV;
 
         BufferedWriter bufferedWriter = null;
         File file = new File(fileName);
@@ -98,22 +98,22 @@ public class ExcelUtils {
                 bufferedWriter.write(firstRow);
                 bufferedWriter.newLine();
 
-                List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
+                List<BlockLoopInstructionDTO> instructionList = ARSharedResources.getInstance()
                         .getEntityList(
                                 BlockLoopInstructionDTO.class,
                                 Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
                                 (instruction) -> instruction.getBlock().getId() == block.getId()
-                                        && instruction.getActions().contains(ABRConstants.INSERT));
+                                        && instruction.getActions().contains(ARConstants.INSERT));
 
                 Integer last = instructionList.size();
                 for (BlockLoopInstructionDTO instruction : instructionList) {
                     String action = instruction.getActions();
-                    boolean hasReference = action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                     if (hasReference) {
-                        String reference = action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
+                        String reference = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
                         if (!fieldAddedSet.contains(reference)) {
                             fieldAddedSet.add(reference);
-                            bufferedWriter.write(action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
+                            bufferedWriter.write(action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
                             last--;
                             if (last > 0) {
                                 bufferedWriter.write(",");
@@ -141,7 +141,7 @@ public class ExcelUtils {
         try {
             Desktop.getDesktop().open(file);
         } catch (IOException e) {
-            new ABRAlertScene(
+            new ARAlertScene(
                     Alert.AlertType.ERROR,
                     "Couldn't open the file",
                     "The file could not be opened. Reason: " + e,
@@ -151,8 +151,8 @@ public class ExcelUtils {
 
     private File generateUnfilteredExcelFile(
             BotJobLoadDTO botJobLoad, List<String> allActions, ExtractedData extractedData) {
-        String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJobLoad.getName() + ABRConstants.FILE_FORMAT_EXCEL;
+        String fileName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL) + "/"
+                + botJobLoad.getName() + ARConstants.FILE_FORMAT_EXCEL;
 
         File file = new File(fileName);
         try {
@@ -183,20 +183,20 @@ public class ExcelUtils {
                 // Filter the list based on the block ID and action condition
                 List<InstructionDTO> filteredInstructions = instructionDTO.stream()
                         .filter(instruction -> instruction.getBlockId() == block.getId()
-                                && instruction.getActions().contains(ABRConstants.INSERT + ":"))
+                                && instruction.getActions().contains(ARConstants.INSERT + ":"))
                         .sorted(Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber))
                         .collect(Collectors.toList());
 
                 for (InstructionDTO instruction : filteredInstructions) {
                     String action = instruction.getActions();
-                    boolean hasReference = action.contains(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER);
+                    boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                     if (hasReference) {
-                        String reference = action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
+                        String reference = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
                         if (!fieldAddedSet.contains(reference)) {
                             fieldAddedSet.add(reference);
                             Cell instructionFieldCell = instructionFieldRow.createCell(currentIndex, CellType.STRING);
                             instructionFieldCell.setCellValue(
-                                    action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
+                                    action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
 
                             int DYNAMIC_ROW = SECOND_ROW + 1;
 
@@ -259,8 +259,8 @@ public class ExcelUtils {
     }
 
     private void generateFilteredExcelFile(BotJobLoadDTO botJobLoadDTO, ExtractedData extractedData) {
-        String fileName = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJobLoadDTO.getName() + ABRConstants.DEFAULT_FILENAME_FOR_ABR + ABRConstants.FILE_FORMAT_EXCEL;
+        String fileName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL) + "/"
+                + botJobLoadDTO.getName() + ARConstants.DEFAULT_FILENAME_FOR_AR + ARConstants.FILE_FORMAT_EXCEL;
 
         File file = new File(fileName);
         try {
@@ -279,10 +279,10 @@ public class ExcelUtils {
                     })
                     .get()
                     .stream()
-                    .filter(BlockLoopInstructionLoadDTO::getExportToABR)
+                    .filter(BlockLoopInstructionLoadDTO::getExportToAR)
                     .map(BlockLoopInstructionLoadDTO::getActions)
-                    .filter(action -> action.contains(ABRConstants.INSERT))
-                    .map(action -> action.split(ABRConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
+                    .filter(action -> action.contains(ARConstants.INSERT))
+                    .map(action -> action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
                     .collect(Collectors.toSet());
         }
 
@@ -303,7 +303,7 @@ public class ExcelUtils {
             workbook.write(fileOutputStream);
             fileOutputStream.close();
         } catch (IOException e) {
-            new ABRAlertScene(
+            new ARAlertScene(
                     Alert.AlertType.ERROR,
                     "Excel file generation failed",
                     "There was a problem with the excel file generation. Reason: " + e,
@@ -313,8 +313,8 @@ public class ExcelUtils {
 
     public static ExtractedData isFileExists(String botJobName, List<String> allActions) {
 
-        String excelFolderPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_EXCEL);
-        String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ABRConstants.FILE_FORMAT_EXCEL);
+        String excelFolderPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+        String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ARConstants.FILE_FORMAT_EXCEL);
 
         //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
 

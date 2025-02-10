@@ -2,9 +2,9 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRPropertyEnum;
-import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
@@ -128,7 +128,7 @@ public class PerformMessage {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public static ABRConstants.DialogModal showCustomModalDialog(
+    public static ARConstants.DialogModal showCustomModalDialog(
             String title,
             String message,
             String message2,
@@ -195,7 +195,7 @@ public class PerformMessage {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ABRConstants.DialogModal[] status = {ABRConstants.DialogModal.NONE};
+        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
 
         if (!Strings.isNullOrEmpty(secondButton)) {
 
@@ -250,7 +250,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.OK;
+                    status[0] = ARConstants.DialogModal.OK;
                 }
             });
 
@@ -260,7 +260,7 @@ public class PerformMessage {
                 public void actionPerformed(ActionEvent e) {
                     System.out.println("Stop button clicked!");
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.STOP;
+                    status[0] = ARConstants.DialogModal.STOP;
                 }
             });
 
@@ -292,7 +292,7 @@ public class PerformMessage {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.OK;
+                    status[0] = ARConstants.DialogModal.OK;
                 }
             });
 
@@ -388,8 +388,8 @@ public class PerformMessage {
     }
 
     public void outputJson(List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
-        // Get the directory path from ABRPropertyManager
-        String jsonPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+        // Get the directory path from ARPropertyManager
+        String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
 
         List<BlockLoopInstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
@@ -424,8 +424,8 @@ public class PerformMessage {
             updatedInstruction.setActionCustomMaxWaitSec(instruction.getActionCustomMaxWaitSec());
             updatedInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());
             updatedInstruction.setCodified(instruction.getCodified());
-            updatedInstruction.setExportToABR(instruction.getExportToABR());
-            updatedInstruction.setExportToABR(instruction.getExportToABR());
+            updatedInstruction.setExportToAR(instruction.getExportToAR());
+            updatedInstruction.setExportToAR(instruction.getExportToAR());
             updatedInstruction.setExecuted(instruction.getExecuted());
             updatedInstruction.setPriority(instruction.getPriority());
             updatedInstruction.setOperation(instruction.getOperation());

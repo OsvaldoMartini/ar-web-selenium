@@ -1,10 +1,10 @@
 package com.allinweb.ch.persistence;
 
-import com.allinweb.ch.driver.ABRWebDriver;
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRLogger;
-import com.allinweb.ch.util.ABRPropertyEnum;
-import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import java.io.File;
 import java.util.List;
 import javax.persistence.criteria.CriteriaBuilder;
@@ -32,10 +32,10 @@ public class Repository {
 
     private void openSession() {
         if (sessionFactory == null) {
-            String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+            String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
             File dbFolder = new File(dbPath);
             dbFolder.mkdirs();
-            String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
             sessionFactory = new Configuration()
                     .configure()
                     .setProperty("hibernate.connection.url", dbUrl)
@@ -71,7 +71,7 @@ public class Repository {
             //            session.remove(obj);
             transaction.commit();
         } catch (Exception e) {
-            ABRLogger.getInstance(ABRWebDriver.class).severe("Error Repository Remove -> Cause: " + e.getMessage());
+            ARLogger.getInstance(ARWebDriver.class).severe("Error Repository Remove -> Cause: " + e.getMessage());
         }
     }
 

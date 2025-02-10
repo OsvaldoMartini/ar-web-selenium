@@ -25,7 +25,7 @@ I can have Many Jobs to One Page (One Priority)
  
 
 Name doesn't have integrety Names can be duplicate as per environment
-We could define the Job Id to be distinct inside of ABR Web
+We could define the Job Id to be distinct inside of AR Web
 We don't control the names of the pages
 I am suggesting  using the JOB ID when we create a Job
 Because we can have 1 to Many (1 Page to Many Jobs)

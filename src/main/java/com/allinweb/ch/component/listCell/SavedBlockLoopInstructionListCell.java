@@ -1,10 +1,10 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.control.ABRComponentBuilder;
-import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
-import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ARConstants;
 import java.util.List;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -19,7 +19,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 
 public class SavedBlockLoopInstructionListCell extends ListCell<SavedBlockLoopInstructionDTO> {
-    private final ABRComponentBuilder builder = new ABRComponentBuilder();
+    private final ARComponentBuilder builder = new ARComponentBuilder();
 
     @Override
     protected void updateItem(SavedBlockLoopInstructionDTO item, boolean empty) {
@@ -33,32 +33,32 @@ public class SavedBlockLoopInstructionListCell extends ListCell<SavedBlockLoopIn
             HBox elementPanel;
             HBox actionPanel;
 
-            clickImage = builder.buildImageView(ABRConstants.ICON_CLICK, ABRConstants.SPACE_M);
-            insertImage = builder.buildImageView(ABRConstants.ICON_INSERT, ABRConstants.SPACE_M);
+            clickImage = builder.buildImageView(ARConstants.ICON_CLICK, ARConstants.SPACE_M);
+            insertImage = builder.buildImageView(ARConstants.ICON_INSERT, ARConstants.SPACE_M);
 
             nameLabel = new Label(item.getName());
-            nameLabel.setMaxHeight(ABRConstants.SPACE_L);
+            nameLabel.setMaxHeight(ARConstants.SPACE_L);
 
             StackPane actionGroup = new StackPane(clickImage, insertImage);
             elementPanel = new HBox(actionGroup, nameLabel);
-            elementPanel.setSpacing(ABRConstants.SPACE_XS);
+            elementPanel.setSpacing(ARConstants.SPACE_XS);
 
-            AnchorPane.setLeftAnchor(elementPanel, ABRConstants.SPACE_XS);
-            AnchorPane.setTopAnchor(elementPanel, ABRConstants.SPACE_XS);
-            AnchorPane.setBottomAnchor(elementPanel, ABRConstants.SPACE_XS);
+            AnchorPane.setLeftAnchor(elementPanel, ARConstants.SPACE_XS);
+            AnchorPane.setTopAnchor(elementPanel, ARConstants.SPACE_XS);
+            AnchorPane.setBottomAnchor(elementPanel, ARConstants.SPACE_XS);
 
             Button moveUpButton = builder.buildButton(
-                    "", ABRConstants.SPACE_L, ABRConstants.ICON_UP, ABRConstants.SPACE_M, Insets.EMPTY);
+                    "", ARConstants.SPACE_L, ARConstants.ICON_UP, ARConstants.SPACE_M, Insets.EMPTY);
             Button moveDownButton = builder.buildButton(
-                    "", ABRConstants.SPACE_L, ABRConstants.ICON_DOWN, ABRConstants.SPACE_M, Insets.EMPTY);
+                    "", ARConstants.SPACE_L, ARConstants.ICON_DOWN, ARConstants.SPACE_M, Insets.EMPTY);
 
             actionPanel = new HBox(moveUpButton, moveDownButton);
-            actionPanel.setSpacing(ABRConstants.SPACE_XS);
+            actionPanel.setSpacing(ARConstants.SPACE_XS);
             actionPanel.setAlignment(Pos.CENTER_RIGHT);
 
-            AnchorPane.setTopAnchor(actionPanel, ABRConstants.SPACE_XS);
-            AnchorPane.setBottomAnchor(actionPanel, ABRConstants.SPACE_XS);
-            AnchorPane.setRightAnchor(actionPanel, ABRConstants.SPACE_XS);
+            AnchorPane.setTopAnchor(actionPanel, ARConstants.SPACE_XS);
+            AnchorPane.setBottomAnchor(actionPanel, ARConstants.SPACE_XS);
+            AnchorPane.setRightAnchor(actionPanel, ARConstants.SPACE_XS);
 
             moveUpButton.setOnAction(e -> switchInstruction(-1, item));
 
@@ -77,10 +77,10 @@ public class SavedBlockLoopInstructionListCell extends ListCell<SavedBlockLoopIn
 
     private void switchInstruction(int directionQuantity, SavedBlockLoopInstructionDTO instruction) {
         SavedBlockLoopInstructionDTO currentInstruction =
-                ABRSharedResources.getInstance().getEntityById(SavedBlockLoopInstructionDTO.class, instruction.getId());
+                ARSharedResources.getInstance().getEntityById(SavedBlockLoopInstructionDTO.class, instruction.getId());
         int order = currentInstruction.getInstructionOrderNumber();
 
-        SavedBlocksDTO block = ABRSharedResources.getInstance()
+        SavedBlocksDTO block = ARSharedResources.getInstance()
                 .getEntityById(
                         SavedBlocksDTO.class, currentInstruction.getBlock().getId());
         List<SavedBlockLoopInstructionDTO> instructionList = block.getSavedBlockLoopInstructions();
@@ -90,9 +90,9 @@ public class SavedBlockLoopInstructionListCell extends ListCell<SavedBlockLoopIn
                 .orElseThrow();
         currentInstruction.setInstructionOrderNumber(order + directionQuantity);
         instructionToChange.setInstructionOrderNumber(order);
-        ABRSharedResources.getInstance()
+        ARSharedResources.getInstance()
                 .updateEntity(
-                        currentInstruction, SavedBlockLoopInstructionDTO.class, () -> ABRSharedResources.getInstance()
+                        currentInstruction, SavedBlockLoopInstructionDTO.class, () -> ARSharedResources.getInstance()
                                 .updateEntity(instructionToChange, SavedBlockLoopInstructionDTO.class));
     }
 }

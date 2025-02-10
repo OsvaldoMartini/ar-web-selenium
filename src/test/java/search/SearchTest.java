@@ -148,7 +148,7 @@ public class SearchTest {
         //        List<WebElement> scannedElementList = new ArrayList<>();
         LinkedHashSet<WebElement> scannedElementList = new LinkedHashSet<WebElement>();
         for (WebElementTagNameEnum tag : clickableTags) {
-            List<WebElement> elementList = scanABRElementsByCriteria(driver, By.tagName(tag.getValue()));
+            List<WebElement> elementList = scanARElementsByCriteria(driver, By.tagName(tag.getValue()));
             System.out.println(String.format("FOUND FOR %d  %s", elementList.size(), By.tagName(tag.getValue())));
             scannedElementList.addAll(elementList);
             //            for (WebElement element : elementList) {
@@ -163,16 +163,16 @@ public class SearchTest {
             // *[@id="firstname-172fd9c0-9f9e-42c2-b0b0-84f5a439b8e5"]
             //            /html/body/main/section[2]/div/div[1]/form/div[1]/div/input
             // *[@id="firstname-172fd9c0-9f9e-42c2-b0b0-84f5a439b8e5"]
-            //            Task<Void> task = scanABRElementsAsync(By.tagName(tag.getValue()),
-            // ABRWebElement::isNotClickable,
+            //            Task<Void> task = scanARElementsAsync(By.tagName(tag.getValue()),
+            // ARWebElement::isNotClickable,
             //                    webElementObservableList, progressBar);
             //
             //            listInputs.add(task);
 
         }
 
-        //        Supplier<Stream<ABRWebElement>> stream =
-        //                () -> scannedElementList.stream().distinct().map(ABRWebElement::new);
+        //        Supplier<Stream<ARWebElement>> stream =
+        //                () -> scannedElementList.stream().distinct().map(ARWebElement::new);
     }
 
     @Test
@@ -451,7 +451,7 @@ public class SearchTest {
         }
     }
 
-    private List<WebElement> scanABRElementsByCriteria(WebDriver driver, By criteria) {
+    private List<WebElement> scanARElementsByCriteria(WebDriver driver, By criteria) {
         try {
             return driver.findElements(criteria);
         } catch (Exception e) {

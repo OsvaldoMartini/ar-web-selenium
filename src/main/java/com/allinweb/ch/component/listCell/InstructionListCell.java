@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.driver.ABRWebElement;
+import com.allinweb.ch.driver.ARWebElement;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import javafx.application.Platform;
 import javafx.scene.Node;
@@ -12,7 +12,7 @@ public class InstructionListCell extends ListCell<BlockLoopInstructionDTO> {
         super.updateItem(item, empty);
         Node graphic = null;
         if (!empty && item != null && item.getBlock() != null) {
-            graphic = (new ABRWebElement(item)).getGraphicRepresentation();
+            graphic = (new ARWebElement(item)).getGraphicRepresentation();
             if (getScene() != null) {
                 graphic.setUserData(getScene().getRoot().getUserData());
             }

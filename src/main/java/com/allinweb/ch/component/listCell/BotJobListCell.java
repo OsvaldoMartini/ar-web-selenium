@@ -1,12 +1,12 @@
 package com.allinweb.ch.component.listCell;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.scene.ABRViewBotJobScene;
-import com.allinweb.ch.control.ABRComponentBuilder;
+import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
-import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ARConstants;
 import java.util.*;
 import javafx.application.Platform;
 import javafx.geometry.HPos;
@@ -33,12 +33,12 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         super.updateItem(item, empty);
         Node graphic = null;
         if (!empty && item != null && item.getHomeBankingLoadDTO() != null) {
-            ABRComponentBuilder builder = new ABRComponentBuilder();
+            ARComponentBuilder builder = new ARComponentBuilder();
             Label botJobName = new Label(item.getName());
             Label botJobDescription = new Label(item.getDescription());
             Label homeBankingUrl = new Label(item.getHomeBankingLoadDTO().getName());
             Button deleteBotJobButton = builder.buildButton(
-                    "", ABRConstants.SPACE_L, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
+                    "", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, Insets.EMPTY);
             deleteBotJobButton.setOnMouseClicked(e -> {
                 VBox combinedTextContainer = new VBox();
                 combinedTextContainer.setSpacing(5);
@@ -93,10 +93,10 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             con2.setPercentWidth(25);
             con2.setHalignment(HPos.CENTER);
             uiBotJob.getColumnConstraints().add(con2);
-            AnchorPane.setTopAnchor(uiBotJob, ABRConstants.SPACE_ZERO);
-            AnchorPane.setBottomAnchor(uiBotJob, ABRConstants.SPACE_ZERO);
-            AnchorPane.setLeftAnchor(uiBotJob, ABRConstants.SPACE_ZERO);
-            AnchorPane.setRightAnchor(uiBotJob, ABRConstants.SPACE_ZERO);
+            AnchorPane.setTopAnchor(uiBotJob, ARConstants.SPACE_ZERO);
+            AnchorPane.setBottomAnchor(uiBotJob, ARConstants.SPACE_ZERO);
+            AnchorPane.setLeftAnchor(uiBotJob, ARConstants.SPACE_ZERO);
+            AnchorPane.setRightAnchor(uiBotJob, ARConstants.SPACE_ZERO);
             uiBotJob.add(botJobName, 0, 0);
             uiBotJob.add(botJobDescription, 1, 0);
             uiBotJob.add(homeBankingUrl, 2, 0);
@@ -104,7 +104,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             AnchorPane row = new AnchorPane(uiBotJob);
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    new ABRViewBotJobScene(item).show();
+                    new ARViewBotJobScene(item).show();
                 }
             });
             graphic = row;

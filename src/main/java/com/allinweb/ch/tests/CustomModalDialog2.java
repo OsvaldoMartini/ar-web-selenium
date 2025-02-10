@@ -1,6 +1,6 @@
 package com.allinweb.ch.tests;
 
-import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ARConstants;
 import com.google.common.base.Strings;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -79,7 +79,7 @@ public class CustomModalDialog2 {
         dialog.setVisible(true); // This will block other input until the dialog is closed
     }
 
-    public static ABRConstants.DialogModal showCustomModalDialog(
+    public static ARConstants.DialogModal showCustomModalDialog(
             String title,
             String message,
             String message2,
@@ -143,7 +143,7 @@ public class CustomModalDialog2 {
         messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         panel.add(messageLabel, BorderLayout.CENTER);
 
-        final ABRConstants.DialogModal[] status = {ABRConstants.DialogModal.NONE};
+        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
 
         if (!Strings.isNullOrEmpty(secondButton)) {
 
@@ -198,7 +198,7 @@ public class CustomModalDialog2 {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.OK;
+                    status[0] = ARConstants.DialogModal.OK;
                 }
             });
 
@@ -208,7 +208,7 @@ public class CustomModalDialog2 {
                 public void actionPerformed(ActionEvent e) {
                     System.out.println("Stop button clicked!");
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.STOP;
+                    status[0] = ARConstants.DialogModal.STOP;
                 }
             });
 
@@ -240,7 +240,7 @@ public class CustomModalDialog2 {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     dialog.dispose();
-                    status[0] = ABRConstants.DialogModal.OK;
+                    status[0] = ARConstants.DialogModal.OK;
                 }
             });
 
@@ -282,7 +282,7 @@ public class CustomModalDialog2 {
         //                true,
         //                null);
 
-        ABRConstants.DialogModal status = showCustomModalDialog(
+        ARConstants.DialogModal status = showCustomModalDialog(
                 "Test Title Fifth",
                 "This is the first message",
                 "This is the second message",

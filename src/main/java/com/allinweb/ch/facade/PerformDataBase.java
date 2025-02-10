@@ -14,15 +14,15 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
-import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.InstructionReferenceDTO;
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRLogger;
-import com.allinweb.ch.util.ABRPropertyEnum;
-import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
@@ -63,7 +63,7 @@ public class PerformDataBase {
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
-    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String DB_NAME = "ar_web"; // your database name
     private static final String USERNAME = "postgres"; // your database username
     private static final String PASSWORD = "martini"; // your database password
 
@@ -116,8 +116,8 @@ public class PerformDataBase {
     }
 
     public static void changeDbConnection() {
-        String priorityPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_PRIORITY);
-        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+        String priorityPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
+        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         closeConnection();
 
@@ -130,7 +130,7 @@ public class PerformDataBase {
         if (priorityPath != null) {
 
             //            if (priorityPath != null && !priorityPath.isBlank()) {
-            //                abrPriorities.loadPriorities();
+            //                arPriorities.loadPriorities();
             //            }
 
             if (POSTGRES_DB) {
@@ -147,11 +147,11 @@ public class PerformDataBase {
                 //                cacheEntitiesFromDB();
             } else {
 
-                String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
+                String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
                 if (!dbPath.isBlank()) {
                     File dbFolder = new File(dbPath);
                     dbFolder.mkdirs();
-                    String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                    String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                     sessionFactory = new Configuration()
                             .configure()
                             .setProperty("hibernate.connection.url", dbUrl)
@@ -164,7 +164,7 @@ public class PerformDataBase {
     }
 
     public static Connection getConnection() {
-        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
@@ -175,8 +175,8 @@ public class PerformDataBase {
         try {
             if (conn == null || conn.isClosed()) {
                 if (!POSTGRES_DB) {
-                    String dbPath = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.FOLDER_PATH_DB);
-                    String dbUrl = CONNECTION_TYPE + dbPath + ABRConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                    String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+                    String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                     conn = DriverManager.getConnection(dbUrl);
                 } else {
                     String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
@@ -184,7 +184,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + e.getMessage());
         }
 
         return conn;
@@ -212,12 +212,12 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "Delete Variables for instruction ID %d has been successfully deleted from botJobId %d:",
                                 instructionId, bot_job_id));
             } else {
-                /*ABRLogger.getInstance(PerformDataBase.class)
+                /*ARLogger.getInstance(PerformDataBase.class)
                        .warning(String.format(
                                "No matching record found for instruction ID %d in botJobId %d:",
                                instructionId, bot_job_id));
@@ -227,7 +227,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting  Variable ID %d from botJobId ID %d. Error: %s: ",
                             instructionId, bot_job_id, e.getMessage()));
@@ -245,12 +245,12 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "Delete References for Instruction ID %d has been successfully deleted from botJobId %d.",
                                 instructionId, botJobId));
             } else {
-                //                ABRLogger.getInstance(PerformDataBase.class)
+                //                ARLogger.getInstance(PerformDataBase.class)
                 //                        .warning(String.format(
                 //                                "No matching record found for instruction ID %d in block %d.",
                 //                                instructionId, botJobId));
@@ -258,7 +258,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting instruction ID %d from botJobId ID %d. Error: %s",
                             instructionId, botJobId, e.getMessage()));
@@ -293,12 +293,12 @@ public class PerformDataBase {
 
             // Execute the update statement and check if any rows were affected
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "The instruction with ID %d has been successfully deleted from block %d.",
                                 deleteInstructionDTO.getInstructionId(), deleteInstructionDTO.getBlockId()));
             } else {
-                //                ABRLogger.getInstance(PerformDataBase.class)
+                //                ARLogger.getInstance(PerformDataBase.class)
                 //                        .warning(String.format(
                 //                                "No matching record found for instruction ID %d in block %d.",
                 // instructionId, blockId));
@@ -306,7 +306,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting instruction ID %d from block ID %d. Error: %s",
                             deleteInstructionDTO.getInstructionId(),
@@ -331,13 +331,13 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "The %d Nulls Blocks successfully deleted from botJobId %d.", rowsAffected, botJobId));
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting Null Blocks with BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
@@ -361,12 +361,12 @@ public class PerformDataBase {
                 int rowsAffected = stmt.executeUpdate(updateSQL);
 
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .info(String.format(
                                     "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
                                     blockOrderDetailDTO.getBlockId(), newOrderNumber));
                 } else {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "UpdateBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
                                     blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
@@ -376,7 +376,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
         }
     }
@@ -410,7 +410,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error selecting blocks for botJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
@@ -430,17 +430,17 @@ public class PerformDataBase {
             int rowsAffected = stmt.executeUpdate(updateSQL);
 
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format("Block Name updated blockId: %s, name: %s", blockId, blockName));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "UpdateBlockOrderName - No matching record found to update botJobId: %d blockId: %d",
                                 botJobId, blockId));
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
         }
     }
@@ -457,10 +457,10 @@ public class PerformDataBase {
             int rowsAffected = stmt.executeUpdate(updateSQL);
 
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format("Block Export File updated blockId: %s, name: %s", blockId, expoprtFile));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "updateBlockExportFile - No matching record found to update botJobId: %d blockId: %d",
                                 botJobId, blockId));
@@ -471,32 +471,32 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updateBlockExportFile. Error: %s", e.getMessage()));
         }
         return false;
     }
 
     // Handle BLOCK_UPDATE message
-    public boolean updateExportABR(BlockLoopInstructionLoadDTO instruction) {
+    public boolean updateExportAR(BlockLoopInstructionLoadDTO instruction) {
         try (Statement stmt = getConnection().createStatement()) {
 
             // Update each export_to_abr
-            String updateSQL = "UPDATE block_loop_instruction SET export_to_abr = " + instruction.getExportToABR()
+            String updateSQL = "UPDATE block_loop_instruction SET export_to_abr = " + instruction.getExportToAR()
                     + " WHERE id = " + instruction.getBlockId()
                     + " and bot_job_id = " + instruction.getBotJobId();
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
 
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
-                                "Instruction updated blockId: %s, Export to ABR: %s",
-                                instruction.getBlockId(), instruction.getExportToABR()));
+                                "Instruction updated blockId: %s, Export to AR: %s",
+                                instruction.getBlockId(), instruction.getExportToAR()));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
-                                "updateExportABR - No matching record found to update botJobId: %d blockId: %d",
+                                "updateExportAR - No matching record found to update botJobId: %d blockId: %d",
                                 instruction.getBotJobId(), instruction.getBlockId()));
 
                 return false;
@@ -505,7 +505,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updateBlockExportFile. Error: %s", e.getMessage()));
         }
         return false;
@@ -545,7 +545,7 @@ public class PerformDataBase {
             }
 
         } catch (Exception e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("createNewBlock - \nError: %s", e.getMessage()));
         }
 
@@ -579,11 +579,11 @@ public class PerformDataBase {
                         + botJobId + ")"; // bot_job_id, assuming BotJobDTO has an ID
         try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .info(String.format("Block data saved successfully.\n BlockId: %d", nextId));
             return nextId;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("saveBlock - \nError: %s", e.getMessage()));
             return -1;
         }
@@ -605,11 +605,11 @@ public class PerformDataBase {
                 + createdBotJob.getHomeBankingId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
         try (Statement stmt = getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .info(String.format("BotJob data saved successfully.\n BotJobId: %d", nextId));
             return nextId;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("createNewBotJob - \nError: %s", e.getMessage()));
             return -1;
         }
@@ -630,7 +630,7 @@ public class PerformDataBase {
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
                 } else {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "updateInstructionsSplitter - No matching record found to update blockId: ",
                                     originalBlockId));
@@ -638,7 +638,7 @@ public class PerformDataBase {
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This '%s' \n cannot be updated.\nError: %s", originalBlockId, e.getMessage()));
         }
@@ -658,12 +658,12 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "RowsUpdateName - InstructionId: %s now have name: %s",
                                     instruction.getInstructionId(), instruction.getInstructionName()));
                 } else {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
                                     instruction.getInstructionId(), instruction.getInstructionName()));
@@ -671,7 +671,7 @@ public class PerformDataBase {
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
         }
         return false;
@@ -689,12 +689,12 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "UpdateMoveRowsOrder - InstructionId: %s now have order number: %d",
                                     instruction.getInstructionId(), instruction.getInstructionOrderNumber()));
                 } else {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "UpdateMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: %d",
                                     instruction.getBlockId(), instruction.getInstructionId()));
@@ -703,7 +703,7 @@ public class PerformDataBase {
 
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This Order Number for Instructions\n cannot be updated.\nError: %s", e.getMessage()));
         }
@@ -723,20 +723,20 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "RollBackBlocks - InstructionId %d for blockId: %d updated successfully",
                                     instruction.getInstructionId(), rollBackBlocksDTO.getBlockId()));
 
                 } else {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "RollBackBlocks - No matching record found to update InstructionId %d for blockId: %d",
                                     instruction.getInstructionId(), rollBackBlocksDTO.getBlockId()));
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This BlockId '%d' \n cannot be updated.\nError: %s",
                             rollBackBlocksDTO.getBlockId(), e.getMessage()));
@@ -756,18 +756,18 @@ public class PerformDataBase {
 
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "rollBackBlocksOrder - Block Order Reset for blockId: %d - Name: %s",
                                 rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "RollBackBlocks - No matching record found to update for blockId: %d - Name: %s",
                                 rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName()));
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "This BlockId '%d' - Name: %s \n cannot be updated.\nError: %s",
                             rollBackBlocksDTO.getBlockId(), rollBackBlocksDTO.getBlockName(), e.getMessage()));
@@ -796,7 +796,7 @@ public class PerformDataBase {
 
         } catch (SQLException e) {
             // Log the error if any SQL exception occurs
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error fetching block loop instruction IDs with null block_id for botJobId %d. Error: %s",
                             botJobId, e.getMessage()));
@@ -815,11 +815,11 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "The Block id %d has been successfully deleted from botJobId %d.", blockId, botJobId));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "No matching record found for blockId ID %d in botJobId %d.", blockId, botJobId));
             }
@@ -827,7 +827,7 @@ public class PerformDataBase {
             return true;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting BotJobId ID %d from block ID %d. Error: %s",
                             botJobId, blockId, e.getMessage()));
@@ -844,7 +844,7 @@ public class PerformDataBase {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class).severe("loadNextIdBotJobData  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdBotJobData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -858,7 +858,7 @@ public class PerformDataBase {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -872,7 +872,7 @@ public class PerformDataBase {
                 return rs.getInt("quantity");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return -1;
     }
@@ -960,7 +960,7 @@ public class PerformDataBase {
                     instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
                     instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                     instruction.setCodified(rs.getBoolean("codified"));
-                    instruction.setExportToABR(rs.getBoolean("export_to_abr"));
+                    instruction.setExportToAR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setInstructionActive(rs.getBoolean("instruction_active"));
@@ -979,7 +979,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
+            ARLogger.getInstance(Thread.class)
                     .severe(String.format(
                             "Error loadBotJobWithBlock for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
@@ -1069,7 +1069,7 @@ public class PerformDataBase {
     //                    instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
     //                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
     //                    instruction.setCodified(rs.getBoolean("codified"));
-    //                    instruction.setExportToABR(rs.getBoolean("export_to_abr"));
+    //                    instruction.setExportToAR(rs.getBoolean("export_to_abr"));
     //                     instruction.setInstructionActive(rs.getBoolean("active"));
     //                    instruction.setOperation(rs.getString("operation"));
     //                    instruction.setParentId(rs.getInt("parent_id"));
@@ -1088,7 +1088,7 @@ public class PerformDataBase {
     //                }
     //            }
     //        } catch (SQLException e) {
-    //            ABRLogger.getInstance(PerformDataBase.class).severe("loadBlockAll Error: " + e.getMessage());
+    //            ARLogger.getInstance(PerformDataBase.class).severe("loadBlockAll Error: " + e.getMessage());
     //        }
     //
     //        return botJobLoadList;
@@ -1145,7 +1145,7 @@ public class PerformDataBase {
     //                            instruction.setVariableId(variableId);
     //                            instruction.setParentId(parentId);
     //                            instruction.setCodified(false);
-    //                            instruction.setExportToABR(true);
+    //                            instruction.setExportToAR(true);
     //                            if (rowMoveDTO != null
     //                                    && rowMoveDTO.getUpdatedRows().size() > 0) {
     //                                instruction.setInstructionOrderNumber(
@@ -1155,17 +1155,17 @@ public class PerformDataBase {
     //                            }
     //                            instruction.setOptional(false);
     //                            if (name.equalsIgnoreCase("setValue")) {
-    //                                instruction.setActions(ABRConstants.SET_VALUE);
+    //                                instruction.setActions(ARConstants.SET_VALUE);
     //                            } else if (name.equalsIgnoreCase("getValue")) {
-    //                                instruction.setActions(ABRConstants.GET_VALUE);
+    //                                instruction.setActions(ARConstants.GET_VALUE);
     //                            } else if (name.equalsIgnoreCase("check")) {
-    //                                instruction.setActions(ABRConstants.CHECK_VALUE);
+    //                                instruction.setActions(ARConstants.CHECK_VALUE);
     //                            } else if (name.equalsIgnoreCase("ExcelWrite")) {
-    //                                instruction.setActions(ABRConstants.EXTRACT_FIELD);
+    //                                instruction.setActions(ARConstants.EXTRACT_FIELD);
     //                            } else if (name.equalsIgnoreCase("GoTo")) {
-    //                                instruction.setActions(ABRConstants.GOTO);
+    //                                instruction.setActions(ARConstants.GOTO);
     //                            } else if (name.equalsIgnoreCase("IF")) {
-    //                                instruction.setActions(ABRConstants.IF);
+    //                                instruction.setActions(ARConstants.IF);
     //                            }
     //                            instruction.setActionCustomMaxWaitSec(30);
     //                            instruction.setOnHoldSeconds(1);
@@ -1174,7 +1174,7 @@ public class PerformDataBase {
     //                            } else {
     //                                instruction.setBlock(botJob.getBlocks().get(0));
     //                            }
-    //                            instruction.setExportToABR(false);
+    //                            instruction.setExportToAR(false);
     //
     //                            // Wrap the persistence in a try-catch block
     //                            try {
@@ -1186,7 +1186,7 @@ public class PerformDataBase {
     //
     //                            // Move the UI update to the JavaFX Application Thread
     //                            Platform.runLater(() -> {
-    //                                new ABRAlertScene(
+    //                                new ARAlertScene(
     //                                        Alert.AlertType.INFORMATION,
     //                                        "Instruction Added",
     //                                        "Instruction " + instruction.getName() + " has been added successfully",
@@ -1224,7 +1224,7 @@ public class PerformDataBase {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    //                    ABRLogger.getInstance(PerformDataBase.class)
+                    //                    ARLogger.getInstance(PerformDataBase.class)
                     //                            .info(String.format(
                     //                                    "preInsertStep - InstructionId: %s in BlockId: %s now has
                     // order number: %d",
@@ -1232,7 +1232,7 @@ public class PerformDataBase {
                     //                                    instruction.getBlockId(),
                     //                                    instruction.getInstructionOrderNumber() + 1));
                 } else {
-                    ABRLogger.getInstance(PerformDataBase.class)
+                    ARLogger.getInstance(PerformDataBase.class)
                             .warning(String.format(
                                     "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
                                     instruction.getBlockId(), instruction.getInstructionId()));
@@ -1241,7 +1241,7 @@ public class PerformDataBase {
 
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
         }
         return false;
@@ -1272,15 +1272,15 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             rowsAffected += stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format("The Bot Job  id %d has been successfully deleted!", botJobId));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format("No matching record found for botJobId %d.", botJobId));
             }
             return rowsAffected;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error deleting BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
             return -1;
         }
@@ -1296,15 +1296,15 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(updateSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format("The Bot Job  id %d has been successfully updated!", botJobId));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format("No matching record found for botJobId %d.", botJobId));
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updating BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
         }
         return false;
@@ -1333,11 +1333,11 @@ public class PerformDataBase {
                 blockLoadDTO.setBlockOrderNumber(rs.getInt("wait"));
             }
 
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .info(String.format("Fetched Block \"%s\"", blockLoadDTO.getName()));
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error fetching Block ID %d with BotJob Id %d. Error: %s: ",
                             blockId, botJobId, e.getMessage()));
@@ -1377,18 +1377,18 @@ public class PerformDataBase {
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
                 instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                 instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
+                instruction.setExportToAR(rs.getBoolean("export_to_abr"));
                 instruction.setInstructionActive(rs.getBoolean("active"));
 
                 // Add the instruction to the list
                 instructions.add(instruction);
             }
 
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
         }
@@ -1445,8 +1445,7 @@ public class PerformDataBase {
                 this.botJobLoadList.add(botJobDTO);
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
-                    .severe(String.format("Error loadAllBotJobs\nError: %s", e.getMessage()));
+            ARLogger.getInstance(Thread.class).severe(String.format("Error loadAllBotJobs\nError: %s", e.getMessage()));
         }
 
         return this.botJobLoadList;
@@ -1505,7 +1504,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
+            ARLogger.getInstance(Thread.class)
                     .severe(String.format(
                             "Error loadJustJobBlocks for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
@@ -1533,7 +1532,7 @@ public class PerformDataBase {
                 }
 
             } catch (SQLException e) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format("Error loading actions for blocks. Error: %s", e.getMessage()));
             }
         }
@@ -1565,19 +1564,19 @@ public class PerformDataBase {
                 rowsAffected = stmt.executeUpdate(updateSQL);
             }
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "RowsUpdateName - InstructionId: %s now have name: %s",
                                 instruction.getInstructionId(), instruction.getInstructionName()));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
                                 instruction.getInstructionId(), instruction.getInstructionName()));
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
         }
         return false;
@@ -1593,14 +1592,14 @@ public class PerformDataBase {
                     + " block_id = " + blockId + " AND bot_job_id = " + botJobId);
 
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format("Instruction Status Updated - rowsAffected: %s ", rowsAffected));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class).warning("No Instruction Status were Updated!");
+                ARLogger.getInstance(PerformDataBase.class).warning("No Instruction Status were Updated!");
             }
             return true;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
         }
         return false;
@@ -1618,19 +1617,19 @@ public class PerformDataBase {
             int rowsAffected = stmt.executeUpdate(updateSQL);
 
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "Block Status updated blockId: %s, name: %s, Active: %s",
                                 blockId, blockName, blockActive));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "updateBlockStatus - No matching record found to update botJobId: %d blockId: %d",
                                 botJobId, blockId));
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updateBlockStatus. Error: %s", e.getMessage()));
         }
     }
@@ -1664,7 +1663,7 @@ public class PerformDataBase {
             return botJobLoadDTO;
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
+            ARLogger.getInstance(Thread.class)
                     .severe(String.format("Error loadBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
 
@@ -1795,7 +1794,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(Thread.class)
+            ARLogger.getInstance(Thread.class)
                     .severe(String.format(
                             "Error loadBlocksForBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
@@ -1865,10 +1864,10 @@ public class PerformDataBase {
                 }
             }
 
-            if (instructionDTO.getExportToABR() != null) {
+            if (instructionDTO.getExportToAR() != null) {
                 if (isPostgres) {
-                    addColumnValue.accept("export_to_abr", instructionDTO.getExportToABR());
-                } else if (instructionDTO.getExportToABR()) {
+                    addColumnValue.accept("export_to_abr", instructionDTO.getExportToAR());
+                } else if (instructionDTO.getExportToAR()) {
                     addColumnValue.accept("export_to_abr", 1);
                 }
             }
@@ -1934,7 +1933,7 @@ public class PerformDataBase {
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 instructionDTO.getId(),
@@ -1944,7 +1943,7 @@ public class PerformDataBase {
                 return nextId;
 
             } else {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                                 instructionDTO.getId(),
@@ -1955,7 +1954,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .warning(String.format(
                             "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                             instructionDTO.getId(),
@@ -1975,8 +1974,7 @@ public class PerformDataBase {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
-                    .severe("loadNextIdInstructionData  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdInstructionData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -1996,7 +1994,7 @@ public class PerformDataBase {
 
             if (!orderNumberExists) {
                 // If the target order number doesn't exist, return false without shifting
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
                                 "preInsertStep - Target order number %d does not exist in the row list.",
                                 targetOrderNumber));
@@ -2022,7 +2020,7 @@ public class PerformDataBase {
 
                         int rowsAffected = stmt.executeUpdate(updateSQL);
                         if (rowsAffected > 0) {
-                            //                            ABRLogger.getInstance(PerformDataBase.class)
+                            //                            ARLogger.getInstance(PerformDataBase.class)
                             //                                    .info(String.format(
                             //                                            "preInsertStep - InstructionId: %s in BlockId:
                             // %s now has order number: %d",
@@ -2030,7 +2028,7 @@ public class PerformDataBase {
                             //                                            instruction.getBlockId(),
                             //                                            instruction.getInstructionOrderNumber() + 1));
                         } else {
-                            ABRLogger.getInstance(PerformDataBase.class)
+                            ARLogger.getInstance(PerformDataBase.class)
                                     .warning(String.format(
                                             "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
                                             instruction.getBlockId(), instruction.getInstructionId()));
@@ -2039,7 +2037,7 @@ public class PerformDataBase {
                 }
                 return true;
             } catch (SQLException e) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
             }
         }
@@ -2102,7 +2100,7 @@ public class PerformDataBase {
         instruction.setName(name);
 
         instruction.setCodified(false);
-        instruction.setExportToABR(false);
+        instruction.setExportToAR(false);
         instruction.setInstructionActive(true);
         if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
             if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
@@ -2125,16 +2123,16 @@ public class PerformDataBase {
 
         Integer nextId = loadNextIdInstructionData() + 1;
 
-        if (actions.equalsIgnoreCase(ABRConstants.IF)) {
+        if (actions.equalsIgnoreCase(ARConstants.IF)) {
             instruction.setId(nextId);
             instruction.setParentId(nextId);
-        } else if (actions.equalsIgnoreCase(ABRConstants.ELSE)) {
+        } else if (actions.equalsIgnoreCase(ARConstants.ELSE)) {
             instruction.setId(nextId);
             instruction.setParentId(parentId);
-        } else if (actions.equalsIgnoreCase(ABRConstants.ENDIF)) {
+        } else if (actions.equalsIgnoreCase(ARConstants.ENDIF)) {
             instruction.setId(nextId);
             instruction.setParentId(parentId);
-        } else if (actions.equalsIgnoreCase(ABRConstants.ELSEIF)) {
+        } else if (actions.equalsIgnoreCase(ARConstants.ELSEIF)) {
             instruction.setId(nextId);
             instruction.setParentId(parentId);
         } else {
@@ -2176,7 +2174,7 @@ public class PerformDataBase {
                 instruction.setBlockId(newBlockId);
             }
         }
-        instruction.setExportToABR(false);
+        instruction.setExportToAR(false);
         instruction.setInstructionActive(true);
         // Wrap the persistence in a try-catch block
         int response;
@@ -2197,13 +2195,13 @@ public class PerformDataBase {
                 if (isShowAlert) {
                     if (finalResponse > -1) {
 
-                        ABRLogger.getInstance(PerformDataBase.class)
+                        ARLogger.getInstance(PerformDataBase.class)
                                 .info(String.format(
                                         "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
                                         instruction.getName()));
                     } else {
 
-                        ABRLogger.getInstance(PerformDataBase.class)
+                        ARLogger.getInstance(PerformDataBase.class)
                                 .severe(String.format(
                                         "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
                                         instruction.getName()));
@@ -2216,7 +2214,7 @@ public class PerformDataBase {
             }
 
         } catch (Exception e) {
-            ABRLogger.getInstance(PerformDataBase.class).severe("Cannot Insert Instruction\nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("Cannot Insert Instruction\nError: " + e.getMessage());
         }
 
         return -1;
@@ -2251,7 +2249,7 @@ public class PerformDataBase {
             }
 
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error selecting home banking record with ID %d. Error: %s",
                             homeBankingId, e.getMessage()));
@@ -2278,7 +2276,7 @@ public class PerformDataBase {
                 variablesList.add(new VariableUserDTO(id, type, name, value, botJobId, -1, usedVars));
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class).severe("loadJobVariables  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadJobVariables  \nError: " + e.getMessage());
         }
 
         return variablesList;
@@ -2312,15 +2310,15 @@ public class PerformDataBase {
 
                 // Filter out "SET", "GET", "CK", adn "H"
                 if (actions != null
-                        && !actions.equalsIgnoreCase(ABRConstants.SET_VALUE)
-                        && !actions.equalsIgnoreCase(ABRConstants.GET_VALUE)
-                        && !actions.equalsIgnoreCase(ABRConstants.CHECK_VALUE)
-                        && !actions.equalsIgnoreCase(ABRConstants.HOLD)) {
+                        && !actions.equalsIgnoreCase(ARConstants.SET_VALUE)
+                        && !actions.equalsIgnoreCase(ARConstants.GET_VALUE)
+                        && !actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
+                        && !actions.equalsIgnoreCase(ARConstants.HOLD)) {
                     webPageItems.add(new ComboBoxVars("(" + id + ")" + name, name, id, blockId));
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "loadWebPageFields - Error selecting Web Page Fields. Error: %s", e.getMessage()));
         }
@@ -2400,14 +2398,14 @@ public class PerformDataBase {
             }
 
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDataBase.class)
+                ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format("Migration DB Scripts - RowsUpdated - %s", rowsAffected));
             } else {
-                ABRLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
+                ARLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
             }
             return rowsAffected;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class).warning("Migration DB Scripts - Error: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).warning("Migration DB Scripts - Error: " + e.getMessage());
         }
         return -1;
     }
@@ -2520,7 +2518,7 @@ public class PerformDataBase {
                 instructionDTO.setCodified(rs.getBoolean("codified"));
                 instructionDTO.setDefaultValue(rs.getString("default_value"));
                 instructionDTO.setDescription(rs.getString("description"));
-                instructionDTO.setExportToABR(rs.getBoolean("export_to_abr"));
+                instructionDTO.setExportToAR(rs.getBoolean("export_to_abr"));
                 instructionDTO.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instructionDTO.setInstructionName(rs.getString("name"));
                 instructionDTO.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
@@ -2809,7 +2807,7 @@ public class PerformDataBase {
                 // GOTO Action Gets the Block Order Number Kept on parentId
                 Integer newParentId = null;
 
-                if (instruction.getActions().equals(ABRConstants.GOTO)) {
+                if (instruction.getActions().equals(ARConstants.GOTO)) {
                     newParentId = blocksOlderAndNewId.get(instruction.getParentId());
                 } else {
                     newParentId = parentOlderAndNewId.get(instruction.getParentId());
@@ -2831,7 +2829,7 @@ public class PerformDataBase {
                 }
 
                 blockLoopStmt.setString(8, instruction.getDescription());
-                blockLoopStmt.setBoolean(9, instruction.getExportToABR());
+                blockLoopStmt.setBoolean(9, instruction.getExportToAR());
                 blockLoopStmt.setInt(10, instruction.getInstructionOrderNumber());
                 blockLoopStmt.setString(11, instruction.getInstructionName());
                 blockLoopStmt.setInt(12, instruction.getOnHoldSeconds());
@@ -2977,14 +2975,14 @@ public class PerformDataBase {
 
     public static List<InstructionDTO> filterInstructions(List<InstructionDTO> instructionList) {
         return instructionList.stream()
-                .filter(instruction -> !ABRConstants.EXTRACT_FIELD.equals(instruction.getActions())
-                        && !ABRConstants.SET_VALUE.equals(instruction.getActions())
-                        && !ABRConstants.GET_VALUE.equals(instruction.getActions())
-                        && !ABRConstants.CHECK_VALUE.equals(instruction.getActions())
-                        && !ABRConstants.GOTO.equals(instruction.getActions())
-                        && !ABRConstants.IF.equals(instruction.getActions())
-                        && !ABRConstants.ELSE.equals(instruction.getActions())
-                        && !ABRConstants.ENDIF.equals(instruction.getActions()))
+                .filter(instruction -> !ARConstants.EXTRACT_FIELD.equals(instruction.getActions())
+                        && !ARConstants.SET_VALUE.equals(instruction.getActions())
+                        && !ARConstants.GET_VALUE.equals(instruction.getActions())
+                        && !ARConstants.CHECK_VALUE.equals(instruction.getActions())
+                        && !ARConstants.GOTO.equals(instruction.getActions())
+                        && !ARConstants.IF.equals(instruction.getActions())
+                        && !ARConstants.ELSE.equals(instruction.getActions())
+                        && !ARConstants.ENDIF.equals(instruction.getActions()))
                 .collect(Collectors.toList());
     }
 
@@ -3048,12 +3046,12 @@ public class PerformDataBase {
     private void deleteBlockInstruction(int instructionId) throws SQLException {
         String deleteBlockInstruction = "delete FROM block_loop_instruction " + " where id = " + instructionId;
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+                ARLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
             } else {
-                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+                ARLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
             }
         }
     }
@@ -3062,19 +3060,19 @@ public class PerformDataBase {
         String deleteSQL =
                 "delete FROM instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+                ARLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
             } else {
-                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+                ARLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
             }
         }
     }
 
     private boolean existVariables(int instructionId) throws SQLException {
         String query = "select id FROM variable " + " where block_loop_instruction_id =  " + instructionId;
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
                 return true;
@@ -3087,12 +3085,12 @@ public class PerformDataBase {
     private void forceDeleteOrphan(int instructionId) throws SQLException {
         String deleteSQL = "delete FROM instruction_reference " + " where block_loop_instruction_id is null ";
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+                ARLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
             } else {
-                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+                ARLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
             }
         }
     }
@@ -3106,12 +3104,12 @@ public class PerformDataBase {
                 + "    AND bli.name NOT IN ('Check', 'GetValue', 'SetValue')"
                 + ") ";
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+                ARLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
             } else {
-                ABRLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+                ARLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
             }
         }
     }

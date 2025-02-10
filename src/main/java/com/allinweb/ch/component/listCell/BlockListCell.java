@@ -1,16 +1,16 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.component.scene.ABRMoveBlockScene;
-import com.allinweb.ch.component.scene.ABRSaveBlockScene;
-import com.allinweb.ch.control.ABRComponentBuilder;
-import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.component.scene.ARMoveBlockScene;
+import com.allinweb.ch.component.scene.ARSaveBlockScene;
+import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRLogger;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -39,7 +39,7 @@ import javafx.scene.paint.Color;
 
 public class BlockListCell extends ListCell<BlockDTO> {
 
-    private final ABRComponentBuilder componentBuilder = new ABRComponentBuilder();
+    private final ARComponentBuilder componentBuilder = new ARComponentBuilder();
 
     private static final PerformActions performAction;
     private static final PerformDBSavedBlock performDBSavedBlock;
@@ -58,7 +58,7 @@ public class BlockListCell extends ListCell<BlockDTO> {
             try {
 
                 BooleanProperty editingElement = new SimpleBooleanProperty(false);
-                Button saveButton = componentBuilder.buildButton("  Save  ", ABRConstants.SPACE_M, Insets.EMPTY);
+                Button saveButton = componentBuilder.buildButton("  Save  ", ARConstants.SPACE_M, Insets.EMPTY);
 
                 saveButton.setAlignment(Pos.CENTER_LEFT);
                 TextField nameField = new TextField(item.getName());
@@ -73,18 +73,18 @@ public class BlockListCell extends ListCell<BlockDTO> {
                 StackPane.setAlignment(nameLabel, Pos.CENTER_LEFT);
                 StackPane.setMargin(nameLabel, new Insets(0.0D, 5.0D, 0.0D, 5.0D));
                 HBox nameFieldsGroup = new HBox(new Node[] {nameGroup, saveButton});
-                HBox.setMargin(saveButton, new Insets(ABRConstants.SPACE_XXS));
-                nameFieldsGroup.setSpacing(ABRConstants.SPACE_XXS);
+                HBox.setMargin(saveButton, new Insets(ARConstants.SPACE_XXS));
+                nameFieldsGroup.setSpacing(ARConstants.SPACE_XXS);
                 Button moveBlockButton = this.componentBuilder.buildButton(
-                        "", ABRConstants.SPACE_ZERO, ABRConstants.ICON_MOVE, ABRConstants.SPACE_M, Insets.EMPTY);
+                        "", ARConstants.SPACE_ZERO, ARConstants.ICON_MOVE, ARConstants.SPACE_M, Insets.EMPTY);
                 Button deleteBlockButton = this.componentBuilder.buildButton(
-                        "", ABRConstants.SPACE_ZERO, ABRConstants.ICON_BIN, ABRConstants.SPACE_M, Insets.EMPTY);
+                        "", ARConstants.SPACE_ZERO, ARConstants.ICON_BIN, ARConstants.SPACE_M, Insets.EMPTY);
                 Button saveBlockButton = this.componentBuilder.buildButton(
-                        "", ABRConstants.SPACE_ZERO, ABRConstants.ICON_SAVE, ABRConstants.SPACE_M, Insets.EMPTY);
+                        "", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, Insets.EMPTY);
                 Button editBlockButton = this.componentBuilder.buildButton(
-                        "", ABRConstants.SPACE_ZERO, ABRConstants.ICON_EDIT, ABRConstants.SPACE_M, Insets.EMPTY);
+                        "", ARConstants.SPACE_ZERO, ARConstants.ICON_EDIT, ARConstants.SPACE_M, Insets.EMPTY);
                 Button removeBlockButton = this.componentBuilder.buildButton(
-                        "", ABRConstants.SPACE_ZERO, ABRConstants.ICON_CROSS, ABRConstants.SPACE_M, Insets.EMPTY);
+                        "", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, Insets.EMPTY);
 
                 HBox actionPanel;
                 if (item.getId() != getListView().getItems().get(0).getId()) {
@@ -99,27 +99,27 @@ public class BlockListCell extends ListCell<BlockDTO> {
                     actionPanel = new HBox(new Node[] {
                         moveBlockButton, deleteBlockButton, saveBlockButton, editBlockButton, removeBlockButton
                     });
-                    AnchorPane.setRightAnchor(actionPanel, ABRConstants.SPACE_M);
+                    AnchorPane.setRightAnchor(actionPanel, ARConstants.SPACE_M);
                 } else {
                     nameLabel.setText("#" + item.getName());
                     actionPanel = new HBox(new Node[] {saveBlockButton});
-                    AnchorPane.setRightAnchor(actionPanel, ABRConstants.SPACE_M + 100.0D);
+                    AnchorPane.setRightAnchor(actionPanel, ARConstants.SPACE_M + 100.0D);
                 }
 
-                actionPanel.setSpacing(ABRConstants.SPACE_XS);
-                AnchorPane.setTopAnchor(actionPanel, ABRConstants.SPACE_XXS);
-                AnchorPane.setBottomAnchor(actionPanel, ABRConstants.SPACE_XXS);
+                actionPanel.setSpacing(ARConstants.SPACE_XS);
+                AnchorPane.setTopAnchor(actionPanel, ARConstants.SPACE_XXS);
+                AnchorPane.setBottomAnchor(actionPanel, ARConstants.SPACE_XXS);
                 AnchorPane graphicRepresentation = new AnchorPane(new Node[] {nameFieldsGroup, actionPanel});
                 graphicRepresentation.setBackground(Background.fill(Color.ROYALBLUE));
-                ObservableList<BlockLoopInstructionDTO> instructionObservableList = ABRSharedResources.getInstance()
+                ObservableList<BlockLoopInstructionDTO> instructionObservableList = ARSharedResources.getInstance()
                         .getEntityList(
                                 BlockLoopInstructionDTO.class,
                                 Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
                                 instruction -> instruction.getBlock().getId() == item.getId());
                 ListView<BlockLoopInstructionDTO> instructionList = new ListView<>(instructionObservableList);
-                instructionList.setFixedCellSize(ABRConstants.SPACE_L);
+                instructionList.setFixedCellSize(ARConstants.SPACE_L);
 
-                instructionList.setCellFactory(new ABRCellFactory<>(InstructionListCell.class)::call);
+                instructionList.setCellFactory(new ARCellFactory<>(InstructionListCell.class)::call);
                 instructionList.setBackground((Background) null);
                 instructionList.setBorder((Border) null);
                 instructionList.setMaxHeight(Double.MAX_VALUE);
@@ -133,37 +133,37 @@ public class BlockListCell extends ListCell<BlockDTO> {
                 int size = item.getBlockLoopInstructionDTOS().size();
 
                 setMaxHeight(Double.MAX_VALUE);
-                this.setPrefHeight(ABRConstants.SPACE_L * (double) size + 35.0D);
+                this.setPrefHeight(ARConstants.SPACE_L * (double) size + 35.0D);
                 deleteBlockButton.setOnAction((e) -> {
-                    ABRSharedResources.getInstance().removeEntity(item, BlockDTO.class);
+                    ARSharedResources.getInstance().removeEntity(item, BlockDTO.class);
                 });
                 editBlockButton.setOnAction((e) -> {
                     editingElement.setValue(!editingElement.getValue());
                 });
                 moveBlockButton.setOnAction((e) -> {
-                    (new ABRMoveBlockScene(item)).show();
+                    (new ARMoveBlockScene(item)).show();
                 });
                 saveButton.setOnAction((e) -> {
                     editingElement.setValue(false);
                     nameLabel.setText(nameField.getText());
-                    ABRLogger.getInstance(BlockListCell.class).info("saving block with id: " + item.getId());
+                    ARLogger.getInstance(BlockListCell.class).info("saving block with id: " + item.getId());
                     if (item != null && item.getId() != 0) {
                         item.setName(nameLabel.getText());
-                        ABRSharedResources.getInstance().updateEntity(item, BlockDTO.class);
+                        ARSharedResources.getInstance().updateEntity(item, BlockDTO.class);
                         getListView().refresh();
                     }
                 });
                 saveBlockButton.setOnAction((e) -> {
                     SavedBlocksDTO savedBlocksDTO = performDBSavedBlock.createSavedBlocksDTOFromBlocksDTO(item);
-                    //                    (new ABRSaveBlockScene(savedBlocksDTO, item)).show();
+                    //                    (new ARSaveBlockScene(savedBlocksDTO, item)).show();
                     // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                     Platform.runLater(() -> {
-                        ABRSaveBlockScene newSaveBlockScene = new ABRSaveBlockScene(savedBlocksDTO, item, null);
+                        ARSaveBlockScene newSaveBlockScene = new ARSaveBlockScene(savedBlocksDTO, item, null);
                         newSaveBlockScene.showModal();
                     });
                 });
                 removeBlockButton.setOnAction((e) -> {
-                    FilteredList<BlockDTO> list = ABRSharedResources.getInstance()
+                    FilteredList<BlockDTO> list = ARSharedResources.getInstance()
                             .getEntityList(BlockDTO.class)
                             .filtered((blockx) -> {
                                 return blockx.getBotJobDTO().getId()
@@ -180,10 +180,10 @@ public class BlockListCell extends ListCell<BlockDTO> {
                             blockLoopInstructions.addAll(block.getBlockLoopInstructionDTOS());
                             blockLoopInstructions.addAll(item.getBlockLoopInstructionDTOS());
                             block.setBlockLoopInstructionDTOS(blockLoopInstructions);
-                            ABRSharedResources.getInstance().updateEntity(block, BlockDTO.class, () -> {
-                                ABRSharedResources.getInstance().refreshEntity(item, BlockDTO.class, () -> {
-                                    ABRSharedResources.getInstance().removeEntity(item, BlockDTO.class, () -> {
-                                        ABRSharedResources.getInstance().refreshEntity(block, BlockDTO.class);
+                            ARSharedResources.getInstance().updateEntity(block, BlockDTO.class, () -> {
+                                ARSharedResources.getInstance().refreshEntity(item, BlockDTO.class, () -> {
+                                    ARSharedResources.getInstance().removeEntity(item, BlockDTO.class, () -> {
+                                        ARSharedResources.getInstance().refreshEntity(block, BlockDTO.class);
                                     });
                                 });
                             });

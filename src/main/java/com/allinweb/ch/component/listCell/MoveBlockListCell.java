@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.listCell;
 
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ARConstants;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -33,16 +33,16 @@ public class MoveBlockListCell extends ListCell<BlockDTO> {
 
             AnchorPane pane = new AnchorPane(blockNameLabel);
 
-            AnchorPane.setLeftAnchor(blockNameLabel, ABRConstants.SPACE_XS);
-            AnchorPane.setTopAnchor(blockNameLabel, ABRConstants.SPACE_XS);
-            AnchorPane.setBottomAnchor(blockNameLabel, ABRConstants.SPACE_XS);
+            AnchorPane.setLeftAnchor(blockNameLabel, ARConstants.SPACE_XS);
+            AnchorPane.setTopAnchor(blockNameLabel, ARConstants.SPACE_XS);
+            AnchorPane.setBottomAnchor(blockNameLabel, ARConstants.SPACE_XS);
 
-            AnchorPane.setLeftAnchor(pane, ABRConstants.SPACE_M);
-            AnchorPane.setTopAnchor(pane, ABRConstants.SPACE_M);
-            AnchorPane.setBottomAnchor(pane, ABRConstants.SPACE_M);
+            AnchorPane.setLeftAnchor(pane, ARConstants.SPACE_M);
+            AnchorPane.setTopAnchor(pane, ARConstants.SPACE_M);
+            AnchorPane.setBottomAnchor(pane, ARConstants.SPACE_M);
 
             setBorder(Border.stroke(Color.LIGHTGRAY));
-            setPrefHeight(ABRConstants.SPACE_L);
+            setPrefHeight(ARConstants.SPACE_L);
             // VBox.setMargin(this, new Insets(5));
 
             graphic = pane;

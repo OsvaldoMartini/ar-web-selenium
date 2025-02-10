@@ -27,7 +27,7 @@ public class BlockLoopInstructionLoadDTO {
     private Integer actionCustomMaxWaitSec;
     private Integer onHoldSeconds;
     private Boolean codified;
-    private Boolean exportToABR;
+    private Boolean exportToAR;
     private Boolean executed;
     private String priority;
     private String operation;

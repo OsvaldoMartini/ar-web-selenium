@@ -1,8 +1,8 @@
-# ABR Web Scanner
+# AR Web Scanner
 
 This project aims to deliver a product that can register actions
 performed on webpages. After registering such actions they can be
-executed by the ABR Web Engine.
+executed by the AR Web Engine.
 
 ### Summary
 
@@ -26,8 +26,8 @@ executed by the ABR Web Engine.
 * Create HBA database
 * Verify configurations in the hibernate.cfg.xml file
 * Verify configurations in configuration.properties file
-* Build the last version of ABR Web Engine _(optional)_
-* Move the ABR Web Engine artifact "Engine.jar" in the root folder of the project
+* Build the last version of AR Web Engine _(optional)_
+* Move the AR Web Engine artifact "Engine.jar" in the root folder of the project
 * Run the command _**mvn javafx:run**_
 
 ### Build Project
@@ -53,7 +53,7 @@ The project tries to make modular components. This is because there
 is a possibility in the future to split the application in multiple
 applications with different responsibility.
 This is because for example: the data fetching from the database is
-copied both on the ABR Web Scan and the ABR Web Engine having class 
+copied both on the AR Web Scan and the AR Web Engine having class 
 duplicated. This causes the problem of having to update classes 
 modifications on both projects simultaneously.
 To avoid this behaviour we could extract the communication layer into a
@@ -108,9 +108,9 @@ transferred to each class with its correct naming convention.
 
 #### UI Structure
 
-The application begins in the ABRControlPanel class.
+The application begins in the ARControlPanel class.
 This class is used just as an entrypoint for the entire application
-as it creates an ABRMainScene instance and shows it to the user.
+as it creates an ARMainScene instance and shows it to the user.
 
 The UI components are divided into Panes and Scenes.
 Scenes work as the outer layer of a window (width, height, etc..)
@@ -119,13 +119,13 @@ the user sees.
 
 Scene class example:
 ```java
-public class ABRMainScene extends ABRScene {
+public class ARMainScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 30D;
     private static final Double SCENE_WIDTH = 300D;
-    private static final String TITLE = "ABR Web Scanner";
+    private static final String TITLE = "AR Web Scanner";
 
-    public ABRMainScene() {
+    public ARMainScene() {
         super();
     }
     ...
@@ -134,9 +134,9 @@ public class ABRMainScene extends ABRScene {
 
 Pane class example:
 ```java
-public class ABRMainPane extends ABRPane {
+public class ARMainPane extends ARPane {
 
-    private static final ABRComponentBuilder builder = new ABRComponentBuilder();
+    private static final ARComponentBuilder builder = new ARComponentBuilder();
 
     //UI components
     Button newBotJobButton;
@@ -150,9 +150,9 @@ public class ABRMainPane extends ABRPane {
     ...
 ```
 
-All the Panes and Scenes should extend the ABRPane base class as it helps
+All the Panes and Scenes should extend the ARPane base class as it helps
 the development by doing some standard work that should be done on
-every Pane/Scene. More explanation can be found on the ABRPane base class.
+every Pane/Scene. More explanation can be found on the ARPane base class.
 
 ### Contacts
 

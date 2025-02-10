@@ -10,18 +10,18 @@ import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.pane.ABRScannedElementPane;
-import com.allinweb.ch.component.scene.ABRExcelFileScene;
-import com.allinweb.ch.component.scene.ABRNewCommandScene;
-import com.allinweb.ch.component.scene.ABRSaveBlockScene;
-import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.component.pane.ARScannedElementPane;
+import com.allinweb.ch.component.scene.ARExcelFileScene;
+import com.allinweb.ch.component.scene.ARNewCommandScene;
+import com.allinweb.ch.component.scene.ARSaveBlockScene;
+import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRLogger;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -93,17 +93,17 @@ public class WebSocketStompServer {
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(body, BlockSplitDTO.class);
                 splitBlocks(blockSplitDTO);
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_MOVE":
                 BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
                 moveBlock(blockMoveDTO);
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "ROW_UPDATE":
                 RowMoveDTO rowUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
                 rowUpdate(rowUpdateDTO);
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
@@ -115,7 +115,7 @@ public class WebSocketStompServer {
                             performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
                 }
                 sendMessageToAll("ROW_MOVE");
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "INSERT_BEFORE":
             case "INSERT_AFTER":
@@ -125,12 +125,12 @@ public class WebSocketStompServer {
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
                 injectStepAfterOrBefore(insertBeforeDTO, session);
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_EXCEL_FILE":
                 BlockDetailsDTO blockExcelDTO = gson.fromJson(body, BlockDetailsDTO.class);
                 excelFileBlock(blockExcelDTO);
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_ORDER":
                 BlockOrderDTO blockReorder = gson.fromJson(body, BlockOrderDTO.class);
@@ -142,14 +142,14 @@ public class WebSocketStompServer {
                     performDataBase.deleteNullBlocks(
                             blockReorder.getUpdatedBlocks().get(0).getBotJobId());
 
-                    ABRSharedResources.getInstance().changeDbConnection();
+                    ARSharedResources.getInstance().changeDbConnection();
                 }
                 break;
             case "INSTRUCTION_STATUS":
                 InstructionDTO instructionDTO = gson.fromJson(body, InstructionDTO.class);
                 performDataBase.updateInstructionStatus(instructionDTO);
 
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_STATUS":
                 RowMoveDTO blockStateDTO = gson.fromJson(body, RowMoveDTO.class);
@@ -163,14 +163,14 @@ public class WebSocketStompServer {
                 performDataBase.updateInstructionStatusByBlock(
                         blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
 
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
 
                 break;
             case "BLOCK_UPDATE":
                 RowMoveDTO blockUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
                 performDataBase.updateBlockName(
                         blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
 
                 break;
             case "DELETE_INSTRUCTION":
@@ -180,19 +180,19 @@ public class WebSocketStompServer {
                 List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
                         deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
                 performDataBase.reorderInstructions(rowList);
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "DELETE_BLOCK":
                 DeleteBlockDTO deleteBlockDTO = gson.fromJson(body, DeleteBlockDTO.class);
                 performDataBase.deleteBlock(deleteBlockDTO);
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 sendMessageToAll("deleteBlock");
                 break;
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
                 performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
                 performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                ABRSharedResources.getInstance().changeDbConnection();
+                ARSharedResources.getInstance().changeDbConnection();
                 break;
 
             default:
@@ -206,10 +206,10 @@ public class WebSocketStompServer {
         // Check if the session is already in the sessions set before adding it
         if (!sessions.contains(session)) {
             sessions.add(session);
-            ABRLogger.getInstance(WebSocketStompServer.class)
+            ARLogger.getInstance(WebSocketStompServer.class)
                     .info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
         } else {
-            ABRLogger.getInstance(WebSocketStompServer.class)
+            ARLogger.getInstance(WebSocketStompServer.class)
                     .info(String.format("Reusing existing Socket Connection - Session Id: %s", session.getId()));
         }
     }
@@ -230,10 +230,10 @@ public class WebSocketStompServer {
             // Send a ping to keep the connection alive
             session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
         } catch (IOException e) {
-            ABRLogger.getInstance(WebSocketStompServer.class)
+            ARLogger.getInstance(WebSocketStompServer.class)
                     .warning(String.format("onMessage - IO Error: %s", e.getMessage()));
         } catch (Exception e) {
-            ABRLogger.getInstance(WebSocketStompServer.class)
+            ARLogger.getInstance(WebSocketStompServer.class)
                     .warning(String.format("onMessage - Error: %s", e.getMessage()));
         }
     }
@@ -252,10 +252,10 @@ public class WebSocketStompServer {
                                 + message.length() + "\n\n" + message
                                 + "\u0000"; // Message body followed by null character
                         session.getBasicRemote().sendText(stompMessage);
-                        ABRLogger.getInstance(WebSocketStompServer.class)
+                        ARLogger.getInstance(WebSocketStompServer.class)
                                 .info(String.format("Sent message to session %s: %s", session.getId(), message));
                     } catch (IOException e) {
-                        ABRLogger.getInstance(WebSocketStompServer.class)
+                        ARLogger.getInstance(WebSocketStompServer.class)
                                 .warning(String.format("sendMessageToAll - IO Error: %s", e.getMessage()));
                     }
                 }
@@ -265,14 +265,14 @@ public class WebSocketStompServer {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        ABRLogger.getInstance(WebSocketStompServer.class)
+        ARLogger.getInstance(WebSocketStompServer.class)
                 .warning(String.format("WebSocket error: %s", throwable.getMessage()));
         try {
             if (session.isOpen()) {
                 session.close();
             }
         } catch (IOException e) {
-            ABRLogger.getInstance(WebSocketStompServer.class)
+            ARLogger.getInstance(WebSocketStompServer.class)
                     .warning(String.format("onError - IO Error: %s", e.getMessage()));
         }
     }
@@ -280,14 +280,14 @@ public class WebSocketStompServer {
     @OnClose
     public void onClose(Session session) {
         sessions.remove(session);
-        ABRLogger.getInstance(WebSocketStompServer.class)
+        ARLogger.getInstance(WebSocketStompServer.class)
                 .info(String.format("Client disconnected: %s", session.getId()));
     }
 
     private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
         Platform.runLater(() -> {
-            ABRExcelFileScene excelFileScene = new ABRExcelFileScene(blockExcelDTO);
+            ARExcelFileScene excelFileScene = new ARExcelFileScene(blockExcelDTO);
             excelFileScene.showModal();
         });
     }
@@ -315,8 +315,8 @@ public class WebSocketStompServer {
         //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
 
         Platform.runLater(() -> {
-            ABRSaveBlockScene newSaveBlockScene =
-                    new ABRSaveBlockScene(savedBlocksDTO, blockDTO, blockSplitDTO.getDetails());
+            ARSaveBlockScene newSaveBlockScene =
+                    new ARSaveBlockScene(savedBlocksDTO, blockDTO, blockSplitDTO.getDetails());
             newSaveBlockScene.showModal();
         });
     }
@@ -374,8 +374,8 @@ public class WebSocketStompServer {
 
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
-                    ABRNewCommandScene newCommandScene =
-                            new ABRNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
+                    ARNewCommandScene newCommandScene =
+                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
                     newCommandScene.showModal();
                 });
             } else {
@@ -389,8 +389,8 @@ public class WebSocketStompServer {
                         int newRowId = performDataBase.preFillInstruction(
                                 "ELSEIF",
                                 "ELSEIF",
-                                ABRConstants.ELSEIF,
-                                ABRConstants.ELSEIF,
+                                ARConstants.ELSEIF,
+                                ARConstants.ELSEIF,
                                 1,
                                 null,
                                 null,
@@ -401,10 +401,10 @@ public class WebSocketStompServer {
 
                     } catch (Exception e) {
 
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                        ARLogger.getInstance(ARScannedElementPane.class)
                                 .severe(String.format(
                                         "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                                        ABRConstants.ELSEIF, e.getMessage()));
+                                        ARConstants.ELSEIF, e.getMessage()));
                     }
                 }
             }

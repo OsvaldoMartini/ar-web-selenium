@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.listCell;
 
 import com.allinweb.ch.persistence.HomeBankingDTO;
-import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ARConstants;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -22,7 +22,7 @@ public class HomeBankingListCell extends ListCell<HomeBankingDTO> {
             pane.setVgap(10); // Add vertical spacing between rows (not used much with one row)
             pane.setHgap(10); // Add horizontal spacing between columns (adjust as needed)
             pane.prefTileWidthProperty()
-                    .bind(pane.widthProperty().divide(2).subtract(ABRConstants.SPACE_SM)); // Adjust width
+                    .bind(pane.widthProperty().divide(2).subtract(ARConstants.SPACE_SM)); // Adjust width
 
             graphic = pane;
         }

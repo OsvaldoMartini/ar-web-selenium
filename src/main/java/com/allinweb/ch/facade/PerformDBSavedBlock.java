@@ -6,12 +6,12 @@ import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.DetailsDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
 import com.allinweb.ch.persistence.SavedInstructionReferenceDTO;
-import com.allinweb.ch.util.ABRLogger;
+import com.allinweb.ch.util.ARLogger;
 import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -80,7 +80,7 @@ public class PerformDBSavedBlock {
             instruction.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
             instruction.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
             instruction.setCodified(instructionDTO.getCodified());
-            instruction.setExportToABR(instructionDTO.getExportToABR());
+            instruction.setExportToAR(instructionDTO.getExportToAR());
             instruction.setActive(instructionDTO.getInstructionActive());
 
             savedBlockLoopInstructions.add(instruction);
@@ -138,7 +138,7 @@ public class PerformDBSavedBlock {
                     //                    + ", '" + savedInstructionDTO.getDefaultValue() + "'"
                     + ", '" + savedInstructionDTO.getDescription() + "'"
                     + ", " + savedInstructionDTO.getCodified()
-                    + ", " + savedInstructionDTO.getExportToABR()
+                    + ", " + savedInstructionDTO.getExportToAR()
                     + ", " + savedInstructionDTO.getInstructionOrderNumber()
                     + ", '" + savedInstructionDTO.getName() + "'"
                     + ", " + savedInstructionDTO.getOnHoldSeconds()
@@ -154,7 +154,7 @@ public class PerformDBSavedBlock {
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
-                ABRLogger.getInstance(PerformDBSavedBlock.class)
+                ARLogger.getInstance(PerformDBSavedBlock.class)
                         .info(String.format(
                                 "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
                                 savedInstructionDTO.getId(),
@@ -163,7 +163,7 @@ public class PerformDBSavedBlock {
                                 savedInstructionDTO.getOperation()));
                 return nextId;
             } else {
-                ABRLogger.getInstance(PerformDBSavedBlock.class)
+                ARLogger.getInstance(PerformDBSavedBlock.class)
                         .warning(String.format(
                                 "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
                                 savedInstructionDTO.getId(),
@@ -184,7 +184,7 @@ public class PerformDBSavedBlock {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDBSavedBlock.class)
+            ARLogger.getInstance(PerformDBSavedBlock.class)
                     .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
@@ -196,7 +196,7 @@ public class PerformDBSavedBlock {
         SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO;
         List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionDTOs = new ArrayList<>();
 
-        //        List<BlockLoopInstructionDTO> instructionList = ABRSharedResources.getInstance()
+        //        List<BlockLoopInstructionDTO> instructionList = ARSharedResources.getInstance()
         //                .getEntityList(
         //                        BlockLoopInstructionDTO.class,
         //                        instruction -> instruction.getBlock().getId().equals(blockDTO.getId()));
@@ -218,7 +218,7 @@ public class PerformDBSavedBlock {
                 savedBlockLoopInstructionDTO.setDefaultValue(instructionDTO.getDefaultValue());
                 savedBlockLoopInstructionDTO.setDescription(instructionDTO.getDescription());
                 savedBlockLoopInstructionDTO.setCodified(instructionDTO.getCodified());
-                savedBlockLoopInstructionDTO.setExportToABR(instructionDTO.getExportToABR());
+                savedBlockLoopInstructionDTO.setExportToAR(instructionDTO.getExportToAR());
                 savedBlockLoopInstructionDTO.setActive(instructionDTO.getInstructionActive());
                 savedBlockLoopInstructionDTO.setInstructionOrderNumber(instructionDTO.getInstructionOrderNumber());
                 savedBlockLoopInstructionDTO.setName(instructionDTO.getInstructionName());
@@ -255,7 +255,7 @@ public class PerformDBSavedBlock {
 
         BlockLoopInstructionLoadDTO blockLoopInstructionDTO;
 
-        //        List<BlockLoopInstructionLoadDTO> savedInstructions = ABRSharedResources.getInstance()
+        //        List<BlockLoopInstructionLoadDTO> savedInstructions = ARSharedResources.getInstance()
         //                .getEntityList(
         //                        SavedBlockLoopInstructionDTO.class,
         //                        saved -> saved.getBlock().getId().equals(savedBlocksDTO.getId()));
@@ -274,7 +274,7 @@ public class PerformDBSavedBlock {
         //            blockLoopInstructionDTO.setDefaultValue(savedBlockLoopInstructionDTO.getDefaultValue());
         //            blockLoopInstructionDTO.setDescription(savedBlockLoopInstructionDTO.getDescription());
         //            blockLoopInstructionDTO.setCodified(savedBlockLoopInstructionDTO.getCodified());
-        //            blockLoopInstructionDTO.setExportToABR(savedBlockLoopInstructionDTO.getExportToABR());
+        //            blockLoopInstructionDTO.setExportToAR(savedBlockLoopInstructionDTO.getExportToAR());
         //            blockLoopInstructionDTO.setInstructionActive(savedBlockLoopInstructionDTO.getInstructionActive());
         //
         // blockLoopInstructionDTO.setInstructionOrderNumber(savedBlockLoopInstructionDTO.getInstructionOrderNumber());
@@ -313,12 +313,12 @@ public class PerformDBSavedBlock {
                         + blockDTO.getActive() + ", " // active
                         + ")";
 
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
-            ABRLogger.getInstance(PerformActions.class).info("Block data saved successfully id: " + nextId);
+            ARLogger.getInstance(PerformActions.class).info("Block data saved successfully id: " + nextId);
             return nextId;
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformActions.class).severe("saveBlock  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformActions.class).severe("saveBlock  \nError: " + e.getMessage());
             return -1;
         }
     }
@@ -326,13 +326,13 @@ public class PerformDBSavedBlock {
     private Integer loadNextSavedBlockOrderNumber(int botJobId) {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks where bot_job_id = " + botJobId;
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformActions.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformActions.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -340,13 +340,13 @@ public class PerformDBSavedBlock {
     private Integer loadNextIdSavedBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks";
-        try (Statement stmt = ABRSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformActions.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformActions.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -393,7 +393,7 @@ public class PerformDBSavedBlock {
                     instruction.setPath(blockLoopRs.getString("path"));
                     instruction.setOptional(blockLoopRs.getBoolean("optional"));
                     instruction.setCodified(blockLoopRs.getBoolean("codified"));
-                    instruction.setExportToABR(blockLoopRs.getBoolean("export_to_abr"));
+                    instruction.setExportToAR(blockLoopRs.getBoolean("export_to_abr"));
                     instruction.setActionCustomMaxWaitSec(blockLoopRs.getInt("action_custom_max_wait_sec"));
                     instruction.setOnHoldSeconds(blockLoopRs.getInt("on_hold_seconds"));
                     instruction.setBlockId(blockLoopRs.getInt("block_id"));
@@ -426,7 +426,7 @@ public class PerformDBSavedBlock {
                 }
             }
         } catch (SQLException e) {
-            ABRLogger.getInstance(PerformDataBase.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error fetching instructions for Block ID %d. Error: %s", blockId, e.getMessage()));
         }

@@ -10,16 +10,16 @@ import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.pane.ABRScannedElementPane;
-import com.allinweb.ch.component.scene.ABRExcelFileScene;
-import com.allinweb.ch.component.scene.ABRNewCommandScene;
-import com.allinweb.ch.component.scene.ABRSaveBlockScene;
+import com.allinweb.ch.component.pane.ARScannedElementPane;
+import com.allinweb.ch.component.scene.ARExcelFileScene;
+import com.allinweb.ch.component.scene.ARNewCommandScene;
+import com.allinweb.ch.component.scene.ARSaveBlockScene;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.SavedBlocksDTO;
-import com.allinweb.ch.util.ABRConstants;
-import com.allinweb.ch.util.ABRLogger;
+import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -356,8 +356,8 @@ public class SimpleWebSocketServer {
 
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
-                    ABRNewCommandScene newCommandScene =
-                            new ABRNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
+                    ARNewCommandScene newCommandScene =
+                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
                     newCommandScene.show();
                 });
             } else {
@@ -371,8 +371,8 @@ public class SimpleWebSocketServer {
                         int newRowId = performDataBase.preFillInstruction(
                                 "ELSEIF",
                                 "ELSEIF",
-                                ABRConstants.ELSEIF,
-                                ABRConstants.ELSEIF,
+                                ARConstants.ELSEIF,
+                                ARConstants.ELSEIF,
                                 1,
                                 null,
                                 null,
@@ -383,10 +383,10 @@ public class SimpleWebSocketServer {
 
                     } catch (Exception e) {
 
-                        ABRLogger.getInstance(ABRScannedElementPane.class)
+                        ARLogger.getInstance(ARScannedElementPane.class)
                                 .severe(String.format(
                                         "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                                        ABRConstants.ELSEIF, e.getMessage()));
+                                        ARConstants.ELSEIF, e.getMessage()));
                     }
                 }
             }
@@ -396,7 +396,7 @@ public class SimpleWebSocketServer {
     private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
         Platform.runLater(() -> {
-            ABRExcelFileScene excelFileScene = new ABRExcelFileScene(blockExcelDTO);
+            ARExcelFileScene excelFileScene = new ARExcelFileScene(blockExcelDTO);
             excelFileScene.showModal();
         });
     }
@@ -410,8 +410,8 @@ public class SimpleWebSocketServer {
         //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
 
         Platform.runLater(() -> {
-            ABRSaveBlockScene newSaveBlockScene =
-                    new ABRSaveBlockScene(savedBlocksDTO, blockDTO, blockSplitDTO.getDetails());
+            ARSaveBlockScene newSaveBlockScene =
+                    new ARSaveBlockScene(savedBlocksDTO, blockDTO, blockSplitDTO.getDetails());
             newSaveBlockScene.showModal();
         });
     }

@@ -68,7 +68,7 @@ public class InstructionReferenceDTO extends BaseDTO {
     //    public static List<InstructionReferenceDTO> createReferencesFromSavedInstructionForInstruction(
     //            SavedBlockLoopInstructionDTO savedInstructionDTO, BlockLoopInstructionLoadDTO blockLoopInstructionDTO)
     // {
-    //        List<SavedInstructionReferenceDTO> referenceList = ABRSharedResources.getInstance()
+    //        List<SavedInstructionReferenceDTO> referenceList = ARSharedResources.getInstance()
     //                .getEntityList(
     //                        SavedInstructionReferenceDTO.class,
     //                        savedReference ->

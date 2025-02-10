@@ -2,7 +2,7 @@ package com.allinweb.ch.tests;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ARConstants;
 import java.util.Collections;
 import java.util.List;
 import org.openqa.selenium.By;
@@ -19,7 +19,7 @@ public class SearcPossibleText {
         //        WebDriver driver = new ChromeDriver(options);
         //        driver.get("https://www.example.com");
         ChromeOptions options = new ChromeOptions();
-        options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
+        options.setBinary(ARConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
         options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
         options.setBinary("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe");
 

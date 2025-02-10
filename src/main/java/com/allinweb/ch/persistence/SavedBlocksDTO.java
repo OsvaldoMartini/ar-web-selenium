@@ -1,6 +1,6 @@
 package com.allinweb.ch.persistence;
 
-import com.allinweb.ch.core.ABRSharedResources;
+import com.allinweb.ch.core.ARSharedResources;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.*;
@@ -118,7 +118,7 @@ public class SavedBlocksDTO extends BaseDTO {
     }
 
     public List<SavedBlockLoopInstructionDTO> getSavedBlockLoopInstructions() {
-        return ABRSharedResources.getInstance()
+        return ARSharedResources.getInstance()
                 .getEntityList(
                         SavedBlockLoopInstructionDTO.class,
                         instruction -> instruction.getBlock().getId() == this.getId());

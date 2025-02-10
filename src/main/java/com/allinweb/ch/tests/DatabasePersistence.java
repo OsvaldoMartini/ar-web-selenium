@@ -2,8 +2,8 @@ package com.allinweb.ch.tests;
 
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.persistence.JobUserDTO;
-import com.allinweb.ch.util.ABRPropertyEnum;
-import com.allinweb.ch.util.ABRPropertyManager;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.*;
@@ -25,15 +25,15 @@ import javafx.stage.Stage;
 public class DatabasePersistence extends Application {
 
     private static final String FILE_NAME =
-            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\user_data.mdb";
+            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ARWeb\\user_data.mdb";
     private static final String FILE_NAME2 =
-            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\database.mdb";
+            "D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ARWeb\\database.mdb";
     private static final String DB_URL_1 =
-            "jdbc:ucanaccess:////D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\user_data.mdb";
+            "jdbc:ucanaccess:////D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ARWeb\\user_data.mdb";
     //    private static final String DB_URL_BANKING =
-    // "jdbc:ucanaccess://D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\database.mdb;memory=false;newDatabaseVersion=V2010";
+    // "jdbc:ucanaccess://D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ARWeb\\database.mdb;memory=false;newDatabaseVersion=V2010";
     private static final String DB_URL_2 =
-            "jdbc:ucanaccess://D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ABRWeb\\database.mdb";
+            "jdbc:ucanaccess://D:\\Projects\\abr-web-selenium\\abr-web-selenium-files\\ARWeb\\database.mdb";
     private Connection conn = null;
     private ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList();
     private ObservableList<JobUserDTO> jobUserList = FXCollections.observableArrayList();
@@ -44,14 +44,14 @@ public class DatabasePersistence extends Application {
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
-    private static final String DB_NAME = "abr_web"; // your database name
+    private static final String DB_NAME = "ar_web"; // your database name
     private static final String USERNAME = "postgres"; // your database username
     private static final String PASSWORD = "martini"; // your database password
 
     @Override
     public void start(Stage primaryStage) {
         // Initialize database IF IS ACCESS TO BE USED
-        String dataBaseType = ABRPropertyManager.getInstance().getProperty(ABRPropertyEnum.DATABASE_TYPE);
+        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;

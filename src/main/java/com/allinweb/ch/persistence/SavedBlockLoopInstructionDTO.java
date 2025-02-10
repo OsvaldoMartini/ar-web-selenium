@@ -51,7 +51,7 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
     private Boolean codified;
 
     @Column(name = "export_to_abr")
-    private Boolean exportToABR;
+    private Boolean exportToAR;
 
     @Column(name = "active")
     private Boolean active;
@@ -197,12 +197,12 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
         this.codified = codified;
     }
 
-    public Boolean getExportToABR() {
-        return exportToABR;
+    public Boolean getExportToAR() {
+        return exportToAR;
     }
 
-    public void setExportToABR(Boolean exportToABR) {
-        this.exportToABR = exportToABR;
+    public void setExportToAR(Boolean exportToAR) {
+        this.exportToAR = exportToAR;
     }
 
     public Boolean getBlockMarked() {

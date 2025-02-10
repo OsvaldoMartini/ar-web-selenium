@@ -1,6 +1,6 @@
 package com.allinweb.ch.tests;
 
-import com.allinweb.ch.util.ABRConstants;
+import com.allinweb.ch.util.ARConstants;
 import java.util.Collections;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -26,7 +26,7 @@ public class TooltipInjector extends Application {
     public void start(Stage primaryStage) {
         // Set up the WebDriver
         ChromeOptions options = new ChromeOptions();
-        options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
+        options.setBinary(ARConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
         options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
         options.setBinary("C:/Program Files (x86)/Google/Chrome/Application/chrome.exe");
         options.setExperimentalOption("useAutomationExtension", false);

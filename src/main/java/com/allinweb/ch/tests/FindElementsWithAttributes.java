@@ -20,7 +20,7 @@ public class FindElementsWithAttributes {
 
     public static void main(String[] args) {
 
-        String logFolder = "D:\\Projects\\AllinWeb\\ABRWeb\\Logs";
+        String logFolder = "D:\\Projects\\AllinWeb\\ARWeb\\Logs";
         String webDriverPath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
         // Set the path to the ChromeDriver executable
         ChromeOptions options = new ChromeOptions();
@@ -28,7 +28,7 @@ public class FindElementsWithAttributes {
         System.setProperty("webdriver.chrome.verboseLogging", "true");
         System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
 
-        //                        options.setBinary(ABRConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
+        //                        options.setBinary(ARConstants.CURRENT_PATH + "\\chrome\\chrome.exe");
         options.setBinary(webDriverPath);
         //                                                options.setBinary("C:/Program
         // Files/Google/Chrome/Application/chrome.exe");

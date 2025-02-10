@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.example</groupId>
-    <artifactId>ABR_Web_Scanner</artifactId>
+    <artifactId>AR_Web_Scanner</artifactId>
     <version>RELEASE-001</version>
 
     <properties>
@@ -150,7 +150,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>com.allinweb.ch.control.ABRControlPanel</mainClass>
+                    <mainClass>com.allinweb.ch.control.ARControlPanel</mainClass>
                 </configuration>
             </plugin>
             <plugin>
@@ -166,7 +166,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.allinweb.ch.control.ABRControlPanel</mainClass>
+                                    <mainClass>com.allinweb.ch.control.ARControlPanel</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
@@ -187,7 +187,7 @@
                     <execution>
                         <id>debug</id>
                         <configuration>
-                            <mainClass>com.allinweb.ch.control.ABRControlPanel</mainClass>
+                            <mainClass>com.allinweb.ch.control.ARControlPanel</mainClass>
                             <options>
                                 <option>-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:8000</option>
                             </options>
