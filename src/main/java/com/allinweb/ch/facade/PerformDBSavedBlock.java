@@ -203,7 +203,8 @@ public class PerformDBSavedBlock {
         if (detailsDTO != null && detailsDTO.getNewBlock() != null) {
 
             List<InstructionDTO> instructionList = performDataBase.getInstructionsByBlockId(
-                    detailsDTO.getNewBlock().getBotJobId(), detailsDTO.getNewBlock().getBlockId());
+                    detailsDTO.getNewBlock().getBotJobId(),
+                    detailsDTO.getNewBlock().getBlockId());
 
             List<InstructionDTO> instructionFiltered = performDataBase.filterInstructions(instructionList);
 
