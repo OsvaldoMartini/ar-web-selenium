@@ -44,7 +44,7 @@ public class DatabasePersistence extends Application {
     private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
     private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
     private static final String DB_PORT = "5432"; // default PostgreSQL port
-    private static final String DB_NAME = "ar_web"; // your database name
+    private static final String DB_NAME = "abr_web"; // your database name
     private static final String USERNAME = "postgres"; // your database username
     private static final String PASSWORD = "martini"; // your database password
 
