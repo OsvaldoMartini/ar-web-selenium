@@ -8,7 +8,7 @@ import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
@@ -154,11 +154,11 @@ public class BlockListCell extends ListCell<BlockDTO> {
                     }
                 });
                 saveBlockButton.setOnAction((e) -> {
-                    SavedBlocksDTO savedBlocksDTO = performDBSavedBlock.createSavedBlocksDTOFromBlocksDTO(item);
+                    ComponentBlockDTO componentBlockDTO = performDBSavedBlock.createSavedBlocksDTOFromBlocksDTO(item);
                     //                    (new ARSaveBlockScene(savedBlocksDTO, item)).show();
                     // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                     Platform.runLater(() -> {
-                        ARSaveBlockScene newSaveBlockScene = new ARSaveBlockScene(savedBlocksDTO, item, null);
+                        ARSaveBlockScene newSaveBlockScene = new ARSaveBlockScene(componentBlockDTO, item, null);
                         newSaveBlockScene.showModal();
                     });
                 });

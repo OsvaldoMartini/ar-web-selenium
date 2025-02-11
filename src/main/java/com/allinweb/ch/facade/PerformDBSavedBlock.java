@@ -8,11 +8,10 @@ import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.SavedBlocksDTO;
-import com.allinweb.ch.persistence.SavedInstructionReferenceDTO;
+import com.allinweb.ch.persistence.ComponentBlockDTO;
+import com.allinweb.ch.persistence.ComponentInstructionDTO;
+import com.allinweb.ch.persistence.ComponentReferenceDTO;
 import com.allinweb.ch.util.ARLogger;
-import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -21,7 +20,6 @@ import java.sql.Statement;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import javax.swing.*;
 
 public class PerformDBSavedBlock {
 
@@ -50,28 +48,27 @@ public class PerformDBSavedBlock {
     }
 
     // Creating SAVED BLOCKS FORM BLOCKS DTO
-    public static SavedBlocksDTO createSavedBlocksDTOFromBlocksDTO(BlockDTO blockDTO) {
-        SavedBlocksDTO savedBlocksDTO = new SavedBlocksDTO();
-        savedBlocksDTO.setName(blockDTO.getName());
-        savedBlocksDTO.setDescription(blockDTO.getDescription());
-        savedBlocksDTO.setTypeId(blockDTO.getTypeId());
+    public static ComponentBlockDTO createSavedBlocksDTOFromBlocksDTO(BlockDTO blockDTO) {
+        ComponentBlockDTO componentBlockDTO = new ComponentBlockDTO();
+        componentBlockDTO.setName(blockDTO.getName());
+        componentBlockDTO.setDescription(blockDTO.getDescription());
+        componentBlockDTO.setTypeId(blockDTO.getTypeId());
 
-        return savedBlocksDTO;
+        return componentBlockDTO;
     }
 
-    public SavedBlocksDTO createSavedBlockDTO(BlockSplitDTO blockSplitDTO) {
+    public ComponentBlockDTO createSavedBlockDTO(BlockSplitDTO blockSplitDTO) {
 
         List<InstructionDTO> instructions = performDataBase.getInstructionsByBlockId(
                 blockSplitDTO.getDetails().getNewBlock().getBotJobId(),
                 blockSplitDTO.getDetails().getNewBlock().getBlockId());
 
-        List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructions = new ArrayList<>();
+        List<ComponentInstructionDTO> savedBlockLoopInstructions = new ArrayList<>();
 
         for (InstructionDTO instructionDTO : instructions) {
             // Create mock SavedBlockLoopInstructionDTO entries
-            SavedBlockLoopInstructionDTO instruction = new SavedBlockLoopInstructionDTO();
-
-            instruction.setInstructionOrderNumber(1);
+            ComponentInstructionDTO instruction = new ComponentInstructionDTO();
+            instruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber());
             instruction.setActions(instructionDTO.getActions());
             instruction.setName(instructionDTO.getInstructionName());
             instruction.setPath(instructionDTO.getPath());
@@ -87,7 +84,8 @@ public class PerformDBSavedBlock {
         }
 
         // Assign mock instructions to mock blocks
-        SavedBlocksDTO savedBlock = new SavedBlocksDTO();
+        ComponentBlockDTO savedBlock = new ComponentBlockDTO();
+        savedBlock.setHomeBankingId(blockSplitDTO.getDetails().getNewBlock().getHomeBankingId());
         savedBlock.setName("Comp-" + blockSplitDTO.getDetails().getNewBlock().getBlockName());
         savedBlock.setDescription("Component for: ...");
         savedBlock.setTypeId(1);
@@ -98,7 +96,7 @@ public class PerformDBSavedBlock {
     }
 
     public int insertSavedInstruction(
-            SavedBlockLoopInstructionDTO savedInstructionDTO, int savedCurrentBotJobId, int savedCurrentBlockId)
+            ComponentInstructionDTO savedInstructionDTO, int savedCurrentBotJobId, int savedCurrentBlockId)
             throws SQLException {
         // Generate a Unique-ID for the block
 
@@ -111,7 +109,7 @@ public class PerformDBSavedBlock {
 
             // Build the SQL insert query
 
-            String insertSQL = "INSERT INTO saved_block_loop_instruction(\n" + "id, "
+            String insertSQL = "INSERT INTO component_instruction(\n" + "id, "
                     + "action_custom_max_wait_sec, "
                     + "actions, "
                     + "block_marked, "
@@ -127,7 +125,7 @@ public class PerformDBSavedBlock {
                     + "parent_id, "
                     + "path, "
                     + "variable_id, "
-                    + "saved_block_id, "
+                    + "component_block_id, "
                     + "bot_job_id, "
                     + "active)\n"
                     + "VALUES ("
@@ -177,7 +175,7 @@ public class PerformDBSavedBlock {
 
     private Integer loadNextIdSavedInstructionData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_block_loop_instruction";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_instruction";
         try (Statement stmt = performDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -191,10 +189,10 @@ public class PerformDBSavedBlock {
     }
 
     // Creating COMPONENT SAVED INSTRUCTIONS FOR BLOCK INSTRUCTIONS
-    public static List<SavedBlockLoopInstructionDTO> createSavedBlockLoopInstructionsFromBlocksDTO(
-            DetailsDTO detailsDTO, SavedBlocksDTO savedBlocksDTO) {
-        SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO;
-        List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionDTOs = new ArrayList<>();
+    public static List<ComponentInstructionDTO> createSavedBlockLoopInstructionsFromBlocksDTO(
+            DetailsDTO detailsDTO, ComponentBlockDTO componentBlockDTO) {
+        ComponentInstructionDTO componentInstructionDTO;
+        List<ComponentInstructionDTO> componentInstructionDTOS = new ArrayList<>();
 
         //        List<BlockLoopInstructionDTO> instructionList = ARSharedResources.getInstance()
         //                .getEntityList(
@@ -209,49 +207,53 @@ public class PerformDBSavedBlock {
             List<InstructionDTO> instructionFiltered = performDataBase.filterInstructions(instructionList);
 
             for (InstructionDTO instructionDTO : instructionFiltered) {
-                savedBlockLoopInstructionDTO = new SavedBlockLoopInstructionDTO();
+                componentInstructionDTO = new ComponentInstructionDTO();
 
-                savedBlockLoopInstructionDTO.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
-                savedBlockLoopInstructionDTO.setActions(instructionDTO.getActions());
-                savedBlockLoopInstructionDTO.setBlock(savedBlocksDTO);
+                componentInstructionDTO.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
+                componentInstructionDTO.setActions(instructionDTO.getActions());
+                componentInstructionDTO.setBlock(componentBlockDTO);
 
-                savedBlockLoopInstructionDTO.setDefaultValue(instructionDTO.getDefaultValue());
-                savedBlockLoopInstructionDTO.setDescription(instructionDTO.getDescription());
-                savedBlockLoopInstructionDTO.setCodified(instructionDTO.getCodified());
-                savedBlockLoopInstructionDTO.setExportToAR(instructionDTO.getExportToAR());
-                savedBlockLoopInstructionDTO.setActive(instructionDTO.getInstructionActive());
-                savedBlockLoopInstructionDTO.setInstructionOrderNumber(instructionDTO.getInstructionOrderNumber());
-                savedBlockLoopInstructionDTO.setName(instructionDTO.getInstructionName());
-                savedBlockLoopInstructionDTO.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
-                savedBlockLoopInstructionDTO.setOptional(instructionDTO.getOptional());
-                savedBlockLoopInstructionDTO.setPath(instructionDTO.getPath());
+                componentInstructionDTO.setDefaultValue(instructionDTO.getDefaultValue());
+                componentInstructionDTO.setDescription(instructionDTO.getDescription());
+                componentInstructionDTO.setCodified(instructionDTO.getCodified());
+                componentInstructionDTO.setExportToAR(instructionDTO.getExportToAR());
+                componentInstructionDTO.setActive(instructionDTO.getInstructionActive());
+                componentInstructionDTO.setInstructionOrderNumber(instructionDTO.getInstructionOrderNumber());
+                componentInstructionDTO.setName(instructionDTO.getInstructionName());
+                componentInstructionDTO.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
+                componentInstructionDTO.setOptional(instructionDTO.getOptional());
+                componentInstructionDTO.setPath(instructionDTO.getPath());
 
-                List<SavedInstructionReferenceDTO> referenceDTOList = new ArrayList<>(
-                        SavedInstructionReferenceDTO.createSavedReferencesFromInstructionForSavedInstruction(
-                                instructionDTO, savedBlockLoopInstructionDTO));
-                savedBlockLoopInstructionDTO.setSavedInstructionReferenceDTOList(referenceDTOList);
+                List<ComponentReferenceDTO> referenceDTOList =
+                        new ArrayList<>(ComponentReferenceDTO.createSavedReferencesFromInstructionForSavedInstruction(
+                                instructionDTO, componentInstructionDTO));
+                componentInstructionDTO.setSavedInstructionReferenceDTOList(referenceDTOList);
 
-                savedBlockLoopInstructionDTOs.add(savedBlockLoopInstructionDTO);
+                componentInstructionDTOS.add(componentInstructionDTO);
             }
         }
-        return savedBlockLoopInstructionDTOs;
+        return componentInstructionDTOS;
     }
 
     // Creating BLOCKS DTO FROM SAVED BLOCKS
-    public static BlockLoadDTO createBlocksDTOFromSavedBlocksDTO(SavedBlocksDTO savedBlocksDTO, Integer botJobId) {
-        BlockLoadDTO blocksDTO = new BlockLoadDTO();
-        blocksDTO.setName(savedBlocksDTO.getName());
-        blocksDTO.setBotJobId(botJobId);
-        blocksDTO.setDescription(savedBlocksDTO.getDescription());
-        blocksDTO.setTypeId(savedBlocksDTO.getTypeId());
-        blocksDTO.setExportFile(savedBlocksDTO.getExportFile());
-        blocksDTO.setActive(savedBlocksDTO.getActive());
-        return blocksDTO;
+    public static BlockLoadDTO createBlocksDTOFromSavedBlocksDTO(
+            ComponentBlockDTO componentBlockDTO, Integer botJobId) {
+        BlockLoadDTO blockDTO = new BlockLoadDTO();
+
+        blockDTO.setTypeId(1);
+        blockDTO.setHomeBankingId(componentBlockDTO.getHomeBankingId());
+        blockDTO.setBotJobId(botJobId);
+        blockDTO.setName(componentBlockDTO.getName());
+        blockDTO.setDescription(componentBlockDTO.getDescription());
+        blockDTO.setExportFile(componentBlockDTO.getExportFile());
+        blockDTO.setActive(componentBlockDTO.getActive());
+
+        return blockDTO;
     }
 
     // Creating BLOCK INSTRUCTIONS FROM COMPONENT SAVED INSTRUCTIONS
     public static List<BlockLoopInstructionLoadDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
-            SavedBlocksDTO savedBlocksDTO) {
+            ComponentBlockDTO componentBlockDTO) {
 
         BlockLoopInstructionLoadDTO blockLoopInstructionDTO;
 
@@ -261,7 +263,7 @@ public class PerformDBSavedBlock {
         //                        saved -> saved.getBlock().getId().equals(savedBlocksDTO.getId()));
 
         List<BlockLoopInstructionLoadDTO> savedInstructions =
-                getSavedInstructionsByBlockId(savedBlocksDTO.getBotJobDTO().getId(), savedBlocksDTO.getId());
+                getSavedInstructionsByBlockId(componentBlockDTO.getBotJobDTO().getId(), componentBlockDTO.getId());
 
         //        for (BlockLoopInstructionLoadDTO savedBlockLoopInstructionDTO : savedInstructions) {
         //            blockLoopInstructionDTO = new BlockLoopInstructionLoadDTO();
@@ -303,7 +305,7 @@ public class PerformDBSavedBlock {
 
         // Build the SQL insert query
         String insertSQL =
-                "INSERT INTO saved_blocks(id, block_order_number, description, name, type_id, bot_job_id, active) VALUES ("
+                "INSERT INTO component_block(id, block_order_number, description, name, type_id, bot_job_id, active) VALUES ("
                         + nextId + ", "
                         + nextBlockOrder + ", " // block_order_number
                         + "'" + blockDTO.getDescription() + "', " // description
@@ -325,7 +327,7 @@ public class PerformDBSavedBlock {
 
     private Integer loadNextSavedBlockOrderNumber(int botJobId) {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks where bot_job_id = " + botJobId;
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block where bot_job_id = " + botJobId;
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -339,7 +341,7 @@ public class PerformDBSavedBlock {
 
     private Integer loadNextIdSavedBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {

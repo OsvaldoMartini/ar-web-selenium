@@ -46,7 +46,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
 
-public class ComponentListCell extends ListCell<SavedBlocksDTO> {
+public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
     private static final PerformDataBase performDataBase;
     private static final PerformDBSavedBlock performDBSavedBlock;
@@ -68,16 +68,16 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
     private List<BlockLoopInstructionLoadDTO> originalLoopInstruction;
     private List<InstructionReferenceLoadDTO> originalReferences;
 
-    protected void updateItem(SavedBlocksDTO savedBlocksDTO, boolean empty) {
-        super.updateItem(savedBlocksDTO, empty);
+    protected void updateItem(ComponentBlockDTO componentBlockDTO, boolean empty) {
+        super.updateItem(componentBlockDTO, empty);
         // System.out.println(savedBlocksDTO.getName());
         Node graphic = null;
-        if (!empty && savedBlocksDTO != null) {
-            Label nameLabel = new Label(savedBlocksDTO.getName());
+        if (!empty && componentBlockDTO != null) {
+            Label nameLabel = new Label(componentBlockDTO.getName());
             nameLabel.setFont(Font.font(null, FontWeight.BOLD, FontPosture.REGULAR, ARConstants.SPACE_SM + 2));
             nameLabel.setWrapText(true);
 
-            Label nameLabel1 = new Label(savedBlocksDTO.getDescription());
+            Label nameLabel1 = new Label(componentBlockDTO.getDescription());
             nameLabel1.setPrefWidth(150);
             nameLabel1.setWrapText(true);
 
@@ -134,11 +134,11 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                     Color.LIGHTGREY, BorderStrokeStyle.SOLID, CornerRadii.EMPTY, new BorderWidths(1))));
 
             detailButton.setOnAction(e -> {
-                new ARComponentDetailsScene(savedBlocksDTO).show();
+                new ARComponentDetailsScene(componentBlockDTO).show();
             });
 
             deleteButton.setOnAction(e -> {
-                ARSharedResources.getInstance().removeEntity(savedBlocksDTO, SavedBlocksDTO.class);
+                ARSharedResources.getInstance().removeEntity(componentBlockDTO, ComponentBlockDTO.class);
                 getListView().refresh();
             });
 
@@ -159,10 +159,10 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
 
                     try {
                         this.blockLoadList = performDataBase.loadBlocksByBotJobId(
-                                savedBlocksDTO.getBotJobDTO().getId());
+                                componentBlockDTO.getBotJobDTO().getId());
 
                         BotJobLoadDTO botJobLoadDTO = performDataBase.loadBotJobById(
-                                savedBlocksDTO.getBotJobDTO().getId());
+                                componentBlockDTO.getBotJobDTO().getId());
 
                         if (botJobLoadDTO == null) {
                             performAction.showAlert(
@@ -171,12 +171,12 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                     "Verify the Bot Job Name if have any: ",
                                     String.format(
                                             "Check if you already have a Bot Job \"%\" Created!",
-                                            savedBlocksDTO.getBotJobDTO().getName()));
+                                            componentBlockDTO.getBotJobDTO().getName()));
 
                             ARLogger.getInstance(Thread.class)
                                     .severe(String.format(
                                             "Check if you already have a Bot Job \"%\" Created!",
-                                            savedBlocksDTO.getBotJobDTO().getName()));
+                                            componentBlockDTO.getBotJobDTO().getName()));
                             return;
                         }
 
@@ -186,29 +186,29 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                         this.botJobDTO = ARSharedResources.getInstance()
                                 .getEntityById(
                                         BotJobDTO.class,
-                                        savedBlocksDTO.getBotJobDTO().getId());
+                                        componentBlockDTO.getBotJobDTO().getId());
                         if (this.botJobDTO == null) {
                             ARLogger.getInstance(ARScannedElementPane.class)
                                     .severe("I was not able to load the BotJod id: "
-                                            + savedBlocksDTO.getBotJobDTO().getId());
+                                            + componentBlockDTO.getBotJobDTO().getId());
 
                             performAction.showAlert(
                                     Alert.AlertType.ERROR,
                                     "Error Loading BotJob",
                                     "Bot Job Loading Error",
                                     "I was not able to load the BotJod id: "
-                                            + savedBlocksDTO.getBotJobDTO().getId());
+                                            + componentBlockDTO.getBotJobDTO().getId());
 
                             return;
                         }
 
                         this.blockLoadDTO = performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(
-                                savedBlocksDTO, blockLoadDTO.getBotJobId());
+                                componentBlockDTO, blockLoadDTO.getBotJobId());
                         this.blockLoadDTO.setTypeId(1);
-                        this.blockLoadDTO.setActive(savedBlocksDTO.getActive());
-                        this.blockLoadDTO.setWait(savedBlocksDTO.getWait());
-                        this.blockLoadDTO.setName(savedBlocksDTO.getName());
-                        this.blockLoadDTO.setDescription(savedBlocksDTO.getDescription());
+                        this.blockLoadDTO.setActive(componentBlockDTO.getActive());
+                        this.blockLoadDTO.setWait(componentBlockDTO.getWait());
+                        this.blockLoadDTO.setName(componentBlockDTO.getName());
+                        this.blockLoadDTO.setDescription(componentBlockDTO.getDescription());
 
                         BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
                         newBlockDetails.setBlockName("Default Block");
@@ -217,8 +217,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                         ? this.blockLoadDTO.getDescription()
                                         : "Default Block description");
                         newBlockDetails.setTypeId(1);
-                        newBlockDetails.setActive(savedBlocksDTO.getActive());
-                        newBlockDetails.setWait(savedBlocksDTO.getWait());
+                        newBlockDetails.setActive(componentBlockDTO.getActive());
+                        newBlockDetails.setWait(componentBlockDTO.getWait());
 
                         newBlockDetails.setBotJobId(this.blockLoadDTO.getId());
 
@@ -232,8 +232,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                             ARLogger.getInstance(Thread.class)
                                     .info(String.format(
                                             "Component %s has been Added to the BotJob %S",
-                                            savedBlocksDTO.getName(),
-                                            savedBlocksDTO.getBotJobDTO().getName()));
+                                            componentBlockDTO.getName(),
+                                            componentBlockDTO.getBotJobDTO().getName()));
                         } else {
                             performAction.showAlert(
                                     Alert.AlertType.ERROR,
@@ -241,21 +241,21 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                     "Not Possible to user the component",
                                     String.format(
                                             "Error Trying to Insert Component %S to BotJob %d\n!",
-                                            savedBlocksDTO.getName(),
-                                            savedBlocksDTO.getBotJobDTO().getName()));
+                                            componentBlockDTO.getName(),
+                                            componentBlockDTO.getBotJobDTO().getName()));
 
                             ARLogger.getInstance(Thread.class)
                                     .severe(String.format(
                                             "Error Trying to Insert Component %S to BotJob %d\n!",
-                                            savedBlocksDTO.getName(),
-                                            savedBlocksDTO.getBotJobDTO().getName()));
+                                            componentBlockDTO.getName(),
+                                            componentBlockDTO.getBotJobDTO().getName()));
                             return;
                         }
 
                         if (this.botJobDTO != null) {
 
-                            originalLoopInstruction =
-                                    performDBSavedBlock.createBlockLoopInstructionsFromSavedBlocksDTO(savedBlocksDTO);
+                            originalLoopInstruction = performDBSavedBlock.createBlockLoopInstructionsFromSavedBlocksDTO(
+                                    componentBlockDTO);
 
                             // Debugging: Ensure originalLoopInstruction has the right data
                             ARLogger.getInstance(ComponentListCell.class)
@@ -408,8 +408,8 @@ public class ComponentListCell extends ListCell<SavedBlocksDTO> {
                                 "Unable to Utilize the Component",
                                 String.format(
                                         "Error: Unable to Utilize the Component Name : %s\nBotJob Name: %s\nPlease try again!",
-                                        savedBlocksDTO.getName(),
-                                        savedBlocksDTO.getBotJobDTO().getName()));
+                                        componentBlockDTO.getName(),
+                                        componentBlockDTO.getBotJobDTO().getName()));
                         ARLogger.getInstance(Task.class)
                                 .severe("Error: Unable to save the block. Please try again.\nError: "
                                         + ex.getMessage());

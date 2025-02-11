@@ -9,10 +9,10 @@ import javax.persistence.*;
  *                                           X -> name of field
  */
 @Entity
-@Table(name = "saved_block_loop_instruction")
+@Table(name = "component_instruction")
 // @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockLoopInstructionSeq", allocationSize =
 // 1)
-public class SavedBlockLoopInstructionDTO extends BaseDTO {
+public class ComponentInstructionDTO extends BaseDTO {
 
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
@@ -57,8 +57,8 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
     private Boolean active;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "saved_block_id")
-    private SavedBlocksDTO savedBlocksDTO;
+    @JoinColumn(name = "component_block_id")
+    private ComponentBlockDTO componentBlockDTO;
 
     @Transient
     private Boolean executed;
@@ -85,20 +85,20 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
     }
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "saved_block_loop_instruction_id")
-    private List<SavedInstructionReferenceDTO> savedInstructionReferenceDTOList;
+    @JoinColumn(name = "component_instruction_id")
+    private List<ComponentReferenceDTO> componentReferenceDTOList;
 
-    public SavedBlockLoopInstructionDTO() {
+    public ComponentInstructionDTO() {
         super();
     }
 
-    public SavedBlockLoopInstructionDTO(int id) {
+    public ComponentInstructionDTO(int id) {
         super(id);
     }
 
-    public SavedBlockLoopInstructionDTO(SavedBlocksDTO savedBlocksDTO) {
+    public ComponentInstructionDTO(ComponentBlockDTO componentBlockDTO) {
         super();
-        this.savedBlocksDTO = savedBlocksDTO;
+        this.componentBlockDTO = componentBlockDTO;
     }
 
     public int getInstructionOrderNumber() {
@@ -165,12 +165,12 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
         this.operation = operation;
     }
 
-    public SavedBlocksDTO getBlock() {
-        return savedBlocksDTO;
+    public ComponentBlockDTO getBlock() {
+        return componentBlockDTO;
     }
 
-    public void setBlock(SavedBlocksDTO savedBlocksDTO) {
-        this.savedBlocksDTO = savedBlocksDTO;
+    public void setBlock(ComponentBlockDTO componentBlockDTO) {
+        this.componentBlockDTO = componentBlockDTO;
     }
 
     public Integer getActionCustomMaxWaitSec() {
@@ -221,13 +221,12 @@ public class SavedBlockLoopInstructionDTO extends BaseDTO {
         this.active = active;
     }
 
-    public List<SavedInstructionReferenceDTO> getSavedInstructionReferenceDTOList() {
-        return savedInstructionReferenceDTOList;
+    public List<ComponentReferenceDTO> getSavedInstructionReferenceDTOList() {
+        return componentReferenceDTOList;
     }
 
-    public void setSavedInstructionReferenceDTOList(
-            List<SavedInstructionReferenceDTO> savedInstructionReferenceDTOList) {
-        this.savedInstructionReferenceDTOList = savedInstructionReferenceDTOList;
+    public void setSavedInstructionReferenceDTOList(List<ComponentReferenceDTO> componentReferenceDTOList) {
+        this.componentReferenceDTOList = componentReferenceDTOList;
     }
 
     public String getPriority() {

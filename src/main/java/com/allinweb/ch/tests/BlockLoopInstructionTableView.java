@@ -552,6 +552,7 @@ public class BlockLoopInstructionTableView extends Application {
         return FXCollections.observableArrayList(
                 // Block 1 (Default Block)
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         1,
@@ -571,6 +572,7 @@ public class BlockLoopInstructionTableView extends Application {
 
                 // Block 2
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         2,
@@ -588,6 +590,7 @@ public class BlockLoopInstructionTableView extends Application {
                         "firstName:Osvaldo",
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         3,
@@ -605,6 +608,7 @@ public class BlockLoopInstructionTableView extends Application {
                         "firstName:Osvaldo",
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         4,
@@ -622,6 +626,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         5,
@@ -641,6 +646,7 @@ public class BlockLoopInstructionTableView extends Application {
 
                 // Block 3
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         6,
@@ -658,6 +664,7 @@ public class BlockLoopInstructionTableView extends Application {
                         "firstName:Osvaldo",
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         7,
@@ -677,6 +684,7 @@ public class BlockLoopInstructionTableView extends Application {
 
                 // Block 4
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         8,
@@ -694,6 +702,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         9,
@@ -711,6 +720,7 @@ public class BlockLoopInstructionTableView extends Application {
                         "firstName:Osvaldo",
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         10,
@@ -728,6 +738,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         11,
@@ -745,6 +756,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         12,
@@ -764,6 +776,7 @@ public class BlockLoopInstructionTableView extends Application {
 
                 // Block 5
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         13,
@@ -781,6 +794,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         14,
@@ -798,6 +812,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         15,
@@ -815,6 +830,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         16,
@@ -832,6 +848,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         17,
@@ -851,6 +868,7 @@ public class BlockLoopInstructionTableView extends Application {
 
                 // Block 6
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         18,
@@ -868,6 +886,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         19,
@@ -885,6 +904,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         20,
@@ -902,6 +922,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         21,
@@ -919,6 +940,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         22,
@@ -938,6 +960,7 @@ public class BlockLoopInstructionTableView extends Application {
 
                 // Block 7
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         23,
@@ -955,6 +978,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         24,
@@ -972,6 +996,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         25,
@@ -989,6 +1014,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         26,
@@ -1006,6 +1032,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         27,
@@ -1025,6 +1052,7 @@ public class BlockLoopInstructionTableView extends Application {
 
                 // Block 8
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         28,
@@ -1042,6 +1070,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         29,
@@ -1059,6 +1088,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         30,
@@ -1076,6 +1106,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         31,
@@ -1093,6 +1124,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null,
                         null),
                 new BlockLoopInstructionLoadDTO(
+                        1,
                         11,
                         "JobName",
                         32,

@@ -76,9 +76,9 @@ public class ARSharedResources {
         entityMap.put(BotJobDTO.class, FXCollections.observableArrayList());
         entityMap.put(BlockDTO.class, FXCollections.observableArrayList());
         entityMap.put(BlockLoopInstructionDTO.class, FXCollections.observableArrayList());
-        this.entityMap.put(SavedBlocksDTO.class, FXCollections.observableArrayList());
-        this.entityMap.put(SavedBlockLoopInstructionDTO.class, FXCollections.observableArrayList());
-        this.entityMap.put(SavedInstructionReferenceDTO.class, FXCollections.observableArrayList());
+        this.entityMap.put(ComponentBlockDTO.class, FXCollections.observableArrayList());
+        this.entityMap.put(ComponentInstructionDTO.class, FXCollections.observableArrayList());
+        this.entityMap.put(ComponentReferenceDTO.class, FXCollections.observableArrayList());
         entityMap.put(InstructionReferenceDTO.class, FXCollections.observableArrayList());
         changeDbConnection();
     }
@@ -330,20 +330,19 @@ public class ARSharedResources {
         getEntityList(BotJobDTO.class).clear();
         getEntityList(BlockDTO.class).clear();
         getEntityList(BlockLoopInstructionDTO.class).clear();
-        this.getEntityList(SavedBlocksDTO.class).clear();
-        this.getEntityList(SavedBlockLoopInstructionDTO.class).clear();
-        this.getEntityList(SavedInstructionReferenceDTO.class).clear();
+        this.getEntityList(ComponentBlockDTO.class).clear();
+        this.getEntityList(ComponentInstructionDTO.class).clear();
+        this.getEntityList(ComponentReferenceDTO.class).clear();
         getEntityList(InstructionReferenceDTO.class).clear();
         this.repository = new Repository(session);
         getEntityList(HomeBankingDTO.class).addAll(repository.findAllEntities(HomeBankingDTO.class));
         getEntityList(BotJobDTO.class).addAll(repository.findAllEntities(BotJobDTO.class));
         getEntityList(BlockDTO.class).addAll(repository.findAllEntities(BlockDTO.class));
         getEntityList(BlockLoopInstructionDTO.class).addAll(repository.findAllEntities(BlockLoopInstructionDTO.class));
-        this.getEntityList(SavedBlocksDTO.class).addAll(repository.findAllEntities(SavedBlocksDTO.class));
-        this.getEntityList(SavedBlockLoopInstructionDTO.class)
-                .addAll(repository.findAllEntities(SavedBlockLoopInstructionDTO.class));
-        this.getEntityList(SavedInstructionReferenceDTO.class)
-                .addAll(repository.findAllEntities(SavedInstructionReferenceDTO.class));
+        this.getEntityList(ComponentBlockDTO.class).addAll(repository.findAllEntities(ComponentBlockDTO.class));
+        this.getEntityList(ComponentInstructionDTO.class)
+                .addAll(repository.findAllEntities(ComponentInstructionDTO.class));
+        this.getEntityList(ComponentReferenceDTO.class).addAll(repository.findAllEntities(ComponentReferenceDTO.class));
         getEntityList(InstructionReferenceDTO.class).addAll(repository.findAllEntities(InstructionReferenceDTO.class));
         try {
 
@@ -351,11 +350,11 @@ public class ARSharedResources {
 
             cleanList(BlockDTO.class, (block) -> block.getBotJobDTO() == null);
             cleanList(BlockLoopInstructionDTO.class, (instruction) -> instruction.getBlock() == null);
-            cleanList(SavedBlockLoopInstructionDTO.class, (instruction) -> {
+            cleanList(ComponentInstructionDTO.class, (instruction) -> {
                 return instruction.getBlock() == null;
             });
             cleanList(InstructionReferenceDTO.class, (ref) -> ref.getBlockLoopInstructionDTO() == null);
-            cleanList(SavedInstructionReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionDTO() == null);
+            cleanList(ComponentReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionDTO() == null);
         } catch (Exception e) {
             ARLogger.getInstance(ARWebDriver.class)
                     .severe("Many Entities Still Open In Threads\n" + "Wait to get to finish.\nError: "

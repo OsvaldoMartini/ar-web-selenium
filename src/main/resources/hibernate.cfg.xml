@@ -21,8 +21,8 @@
         <mapping class="com.allinweb.ch.persistence.BlockLoopInstructionDTO"/>
         <mapping class="com.allinweb.ch.persistence.ComplexInstructionDTO"/>
         <mapping class="com.allinweb.ch.persistence.InstructionReferenceDTO"/>
-        <mapping class="com.allinweb.ch.persistence.SavedBlocksDTO"/>
-        <mapping class="com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO"/>
-        <mapping class="com.allinweb.ch.persistence.SavedInstructionReferenceDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ComponentBlockDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ComponentInstructionDTO"/>
+        <mapping class="com.allinweb.ch.persistence.ComponentReferenceDTO"/>
     </session-factory>
 </hibernate-configuration>

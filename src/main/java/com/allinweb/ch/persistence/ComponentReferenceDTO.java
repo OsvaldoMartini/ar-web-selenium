@@ -6,10 +6,10 @@ import java.util.*;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "saved_instruction_reference")
+@Table(name = "component_reference")
 // @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedInstructionReferenceSeq", allocationSize =
 // 1)
-public class SavedInstructionReferenceDTO extends BaseDTO {
+public class ComponentReferenceDTO extends BaseDTO {
 
     @Column(name = "reference_type")
     private String referenceType;
@@ -30,19 +30,19 @@ public class SavedInstructionReferenceDTO extends BaseDTO {
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "saved_block_loop_instruction_id")
-    private SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO;
+    @JoinColumn(name = "component_instruction_id")
+    private ComponentInstructionDTO componentInstructionDTO;
 
-    public SavedInstructionReferenceDTO() {
+    public ComponentReferenceDTO() {
         super();
     }
 
-    public SavedInstructionReferenceDTO(int id) {
+    public ComponentReferenceDTO(int id) {
         super(id);
     }
 
-    public SavedInstructionReferenceDTO(SavedBlockLoopInstructionDTO instruction) {
-        savedBlockLoopInstructionDTO = instruction;
+    public ComponentReferenceDTO(ComponentInstructionDTO instruction) {
+        componentInstructionDTO = instruction;
     }
 
     public String getReferenceType() {
@@ -61,29 +61,29 @@ public class SavedInstructionReferenceDTO extends BaseDTO {
         this.value = value;
     }
 
-    public SavedBlockLoopInstructionDTO getSavedBlockLoopInstructionDTO() {
-        return savedBlockLoopInstructionDTO;
+    public ComponentInstructionDTO getSavedBlockLoopInstructionDTO() {
+        return componentInstructionDTO;
     }
 
-    public void setSavedBlockLoopInstructionDTO(SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO) {
-        this.savedBlockLoopInstructionDTO = savedBlockLoopInstructionDTO;
+    public void setSavedBlockLoopInstructionDTO(ComponentInstructionDTO componentInstructionDTO) {
+        this.componentInstructionDTO = componentInstructionDTO;
     }
 
-    public static List<SavedInstructionReferenceDTO> createSavedReferencesFromInstructionForSavedInstruction(
-            InstructionDTO instructionDTO, SavedBlockLoopInstructionDTO savedBlockLoopInstructionDTO) {
+    public static List<ComponentReferenceDTO> createSavedReferencesFromInstructionForSavedInstruction(
+            InstructionDTO instructionDTO, ComponentInstructionDTO componentInstructionDTO) {
         List<InstructionReferenceDTO> referenceList = ARSharedResources.getInstance()
                 .getEntityList(
                         InstructionReferenceDTO.class,
                         reference -> reference.getBlockLoopInstructionDTO().getId() == instructionDTO.getId());
-        List<SavedInstructionReferenceDTO> list = new ArrayList<>();
+        List<ComponentReferenceDTO> list = new ArrayList<>();
         referenceList.forEach(
-                reference -> list.add(copyFromReferenceForSavedInstruction(reference, savedBlockLoopInstructionDTO)));
+                reference -> list.add(copyFromReferenceForSavedInstruction(reference, componentInstructionDTO)));
         return list;
     }
 
-    private static SavedInstructionReferenceDTO copyFromReferenceForSavedInstruction(
-            InstructionReferenceDTO reference, SavedBlockLoopInstructionDTO savedInstruction) {
-        SavedInstructionReferenceDTO saved = new SavedInstructionReferenceDTO();
+    private static ComponentReferenceDTO copyFromReferenceForSavedInstruction(
+            InstructionReferenceDTO reference, ComponentInstructionDTO savedInstruction) {
+        ComponentReferenceDTO saved = new ComponentReferenceDTO();
         saved.setValue(reference.getValue());
         saved.setReferenceType(reference.getReferenceType());
         saved.setSavedBlockLoopInstructionDTO(savedInstruction);

@@ -17,7 +17,7 @@ import com.allinweb.ch.component.scene.ARSaveBlockScene;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -403,7 +403,7 @@ public class SimpleWebSocketServer {
 
     private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        SavedBlocksDTO savedBlocksDTO = performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
+        ComponentBlockDTO componentBlockDTO = performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
 
         BlockDTO blockDTO = new BlockDTO();
         blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());
@@ -411,7 +411,7 @@ public class SimpleWebSocketServer {
 
         Platform.runLater(() -> {
             ARSaveBlockScene newSaveBlockScene =
-                    new ARSaveBlockScene(savedBlocksDTO, blockDTO, blockSplitDTO.getDetails());
+                    new ARSaveBlockScene(componentBlockDTO, blockDTO, blockSplitDTO.getDetails());
             newSaveBlockScene.showModal();
         });
     }

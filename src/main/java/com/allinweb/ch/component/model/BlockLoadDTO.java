@@ -5,6 +5,7 @@ import lombok.Data;
 
 @Data
 public class BlockLoadDTO {
+    private Integer homeBankingId;
     private Integer id;
     private Integer blockOrderNumber;
     private String name;

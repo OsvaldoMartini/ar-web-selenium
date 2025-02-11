@@ -642,9 +642,9 @@ public class ARConfigurationPane extends ARPane {
             stmt.executeUpdate("DELETE FROM block;");
             stmt.executeUpdate("DELETE FROM bot_job;");
 
-            stmt.executeUpdate("DELETE FROM saved_instruction_reference;");
-            stmt.executeUpdate("DELETE FROM saved_block_loop_instruction;");
-            stmt.executeUpdate("DELETE FROM saved_blocks;");
+            stmt.executeUpdate("DELETE FROM component_reference;");
+            stmt.executeUpdate("DELETE FROM component_instruction;");
+            stmt.executeUpdate("DELETE FROM component_block;");
 
             // Drop sequences if they exist
             if (!dataBaseType.equalsIgnoreCase("ACCESS")) {

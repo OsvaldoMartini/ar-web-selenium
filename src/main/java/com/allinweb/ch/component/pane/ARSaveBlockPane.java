@@ -37,13 +37,13 @@ import javafx.stage.Stage;
 public class ARSaveBlockPane extends ARPane {
 
     private final ARComponentBuilder builder = new ARComponentBuilder();
-    private SavedBlocksDTO savedBlocksDTO;
+    private ComponentBlockDTO componentBlockDTO;
     private BlockDTO blockDTO;
     private DetailsDTO detailsDTO;
 
     private List<BlockLoadDTO> savedBlockLoadList = new ArrayList<>();
-    private List<SavedBlockLoopInstructionDTO> originalLoopInstruction;
-    private List<SavedInstructionReferenceDTO> originalReferences;
+    private List<ComponentInstructionDTO> originalLoopInstruction;
+    private List<ComponentReferenceDTO> originalReferences;
 
     private static final PerformMessage performMessage;
     private static final PerformActions performAction;
@@ -69,8 +69,8 @@ public class ARSaveBlockPane extends ARPane {
 
     private AnchorPane mainPane;
 
-    public ARSaveBlockPane(SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
-        this.savedBlocksDTO = savedBlocksDTO;
+    public ARSaveBlockPane(ComponentBlockDTO componentBlockDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
+        this.componentBlockDTO = componentBlockDTO;
         this.blockDTO = blockDTO;
         this.detailsDTO = detailsDTO;
     }
@@ -91,13 +91,13 @@ public class ARSaveBlockPane extends ARPane {
 
         Label nameLabel = new Label("Name :         ");
 
-        nameTextField = new TextField(savedBlocksDTO.getName());
+        nameTextField = new TextField(componentBlockDTO.getName());
         HBox nameHBox = new HBox(nameLabel, nameTextField);
         HBox.setHgrow(nameTextField, Priority.ALWAYS);
         HBox.setMargin(nameLabel, new Insets(ARConstants.SPACE_XS));
 
         Label descriptionLabel = new Label("Description : ");
-        descriptionTextField = new TextArea(savedBlocksDTO.getDescription());
+        descriptionTextField = new TextArea(componentBlockDTO.getDescription());
 
         regularText = new Text("Excluded Special Operations: ");
         variableText1 = new Text("Set Value" + " / " + "Get Value");
@@ -150,15 +150,15 @@ public class ARSaveBlockPane extends ARPane {
                     // Ensure UI update happens on the JavaFX Application Thread
                     warningMSG("");
 
-                    savedBlocksDTO.setName(nameTextField.getText());
-                    savedBlocksDTO.setDescription(descriptionTextField.getText());
+                    componentBlockDTO.setName(nameTextField.getText());
+                    componentBlockDTO.setDescription(descriptionTextField.getText());
                     //                    savedBlocksDTO.setBotJob(this.botJobDTO);
 
                     this.savedBlockLoadList =
                             loadSavedBlocksForBotJob(detailsDTO.getNewBlock().getBotJobId());
 
                     originalLoopInstruction = performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
-                            detailsDTO, savedBlocksDTO);
+                            detailsDTO, componentBlockDTO);
 
                     // Debugging: Ensure originalLoopInstruction has the right data
                     ARLogger.getInstance(ARSaveBlockPane.class)
@@ -179,23 +179,17 @@ public class ARSaveBlockPane extends ARPane {
 
                     // Debugging: Print statements to track data
                     ARLogger.getInstance(ARSaveBlockPane.class)
-                            .fine("Saving Component Block: " + savedBlocksDTO.getName());
+                            .fine("Saving Component Block: " + componentBlockDTO.getName());
 
                     // Here Always Creating a New Component Block
                     BlockLoadDTO blockDTO = performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(
-                            savedBlocksDTO, detailsDTO.getNewBlock().getBotJobId());
-                    blockDTO.setTypeId(1);
-                    blockDTO.setBotJobId(detailsDTO.getNewBlock().getBotJobId());
-                    blockDTO.setName(savedBlocksDTO.getName());
-                    blockDTO.setDescription(savedBlocksDTO.getDescription());
-                    blockDTO.setExportFile(savedBlocksDTO.getExportFile());
-                    blockDTO.setActive(savedBlocksDTO.getActive());
+                            componentBlockDTO, detailsDTO.getNewBlock().getBotJobId());
 
                     int savedCurrentBotJobId = detailsDTO.getNewBlock().getBotJobId();
                     int savedCurrentBlockId = createSavedBlock(blockDTO);
 
                     if (savedCurrentBlockId > 0) {
-                        ARSharedResources.getInstance().cacheEntitiesFromDB();
+                        //                        ARSharedResources.getInstance().cacheEntitiesFromDB();
 
                         ARLogger.getInstance(Thread.class)
                                 .info(String.format(
@@ -222,7 +216,7 @@ public class ARSaveBlockPane extends ARPane {
 
                     boolean savedInstStatus = false;
                     for (int j = 0; j < originalLoopInstruction.size(); j++) {
-                        SavedBlockLoopInstructionDTO task = originalLoopInstruction.get(j);
+                        ComponentInstructionDTO task = originalLoopInstruction.get(j);
                         int newId = preFillSavedInstruction(
                                 task.getName(),
                                 task.getDescription(),
@@ -278,10 +272,9 @@ public class ARSaveBlockPane extends ARPane {
                                     .fine("originalReferences Size: " + originalReferences.size());
 
                             boolean success = false;
-                            for (SavedInstructionReferenceDTO reference : originalReferences) {
+                            for (ComponentReferenceDTO reference : originalReferences) {
 
-                                SavedBlockLoopInstructionDTO instructionDTO =
-                                        reference.getSavedBlockLoopInstructionDTO();
+                                ComponentInstructionDTO instructionDTO = reference.getSavedBlockLoopInstructionDTO();
                                 if (instructionDTO == null) {
                                     ARLogger.getInstance(ARViewBotJobPane.class)
                                             .warning("SavedBlockLoopInstructionDTO is null for reference: "
@@ -408,7 +401,7 @@ public class ARSaveBlockPane extends ARPane {
             Integer savedCurrentBotJobId,
             Integer savedCurrentBlockId) {
 
-        SavedBlockLoopInstructionDTO savedInstruction = new SavedBlockLoopInstructionDTO();
+        ComponentInstructionDTO savedInstruction = new ComponentInstructionDTO();
 
         savedInstruction.setName(name);
         savedInstruction.setActive(true);
@@ -450,7 +443,7 @@ public class ARSaveBlockPane extends ARPane {
         return newId;
     }
 
-    private boolean insertComponentReferences(SavedInstructionReferenceDTO referenceDTO, int instructionId) {
+    private boolean insertComponentReferences(ComponentReferenceDTO referenceDTO, int instructionId) {
 
         // Generate a Unique-ID for the block
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
@@ -461,7 +454,7 @@ public class ARSaveBlockPane extends ARPane {
 
             // Build the SQL insert query
             String insertSQL =
-                    "INSERT INTO saved_instruction_reference(id, reference_type, value, saved_block_loop_instruction_id) VALUES ("
+                    "INSERT INTO component_reference(id, reference_type, value, component_instruction_id) VALUES ("
                             + nextId + ", "
                             + "'" + referenceDTO.getReferenceType() + "', "
                             + "'" + referenceDTO.getValue() + "', " // name
@@ -490,7 +483,7 @@ public class ARSaveBlockPane extends ARPane {
 
     private Integer loadNextIdBReferenceData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_instruction_reference";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_reference";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -511,7 +504,7 @@ public class ARSaveBlockPane extends ARPane {
 
     public List<BlockLoadDTO> loadSavedBlocksForBotJob(int botJobId) {
         // SQL query to get the blocks for a specific bot job
-        String query = "SELECT " + "b.id AS block_id, "
+        String query = "SELECT bj.home_banking_id, b.id AS block_id, "
                 + "b.block_order_number, "
                 + "b.name AS block_name, "
                 + "b.description AS block_description, "
@@ -519,7 +512,7 @@ public class ARSaveBlockPane extends ARPane {
                 + "bj.id AS bot_job_id, "
                 + "bj.name AS bot_job_name "
                 + "FROM bot_job bj "
-                + "JOIN saved_blocks b ON b.bot_job_id = bj.id "
+                + "JOIN component_block b ON b.bot_job_id = bj.id "
                 + "WHERE bj.id = "
                 + botJobId + " ";
 
@@ -538,6 +531,7 @@ public class ARSaveBlockPane extends ARPane {
 
                 if (blockDTO == null) {
                     blockDTO = new BlockLoadDTO();
+                    blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
                     blockDTO.setId(blockId);
                     blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
                     blockDTO.setName(rs.getString("block_name"));
@@ -566,7 +560,7 @@ public class ARSaveBlockPane extends ARPane {
 
         // Build the SQL insert query
         String insertSQL =
-                "INSERT INTO saved_blocks(id, block_order_number, description, name, type_id, bot_job_id, active) VALUES ("
+                "INSERT INTO component_block(id, block_order_number, description, name, type_id, bot_job_id, active) VALUES ("
                         + nextId + ", "
                         + nextBlockOrder + ", " // block_order_number
                         + "'" + blockDTO.getDescription() + "', " // description
@@ -588,7 +582,7 @@ public class ARSaveBlockPane extends ARPane {
 
     private Integer loadNextIdSavedBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -602,7 +596,7 @@ public class ARSaveBlockPane extends ARPane {
 
     private Integer loadNextSavedBlockOrderNumber(int botJobId) {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM saved_blocks where bot_job_id = " + botJobId;
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block where bot_job_id = " + botJobId;
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -619,7 +613,7 @@ public class ARSaveBlockPane extends ARPane {
         List<InstructionDTO> instructions = new ArrayList<>();
 
         // Build the SQL query statement
-        String querySQL = "SELECT * FROM saved_block_loop_instruction WHERE block_id = " + blockId
+        String querySQL = "SELECT * FROM component_instruction WHERE block_id = " + blockId
                 + " order by instruction_order_number ASC";
 
         // Execute the query and process the result set

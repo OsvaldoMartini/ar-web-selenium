@@ -2,8 +2,8 @@ package com.allinweb.ch.component.listCell;
 
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
-import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.persistence.ComponentBlockDTO;
+import com.allinweb.ch.persistence.ComponentInstructionDTO;
 import com.allinweb.ch.util.ARConstants;
 import java.util.List;
 import javafx.application.Platform;
@@ -18,11 +18,11 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 
-public class SavedBlockLoopInstructionListCell extends ListCell<SavedBlockLoopInstructionDTO> {
+public class SavedBlockLoopInstructionListCell extends ListCell<ComponentInstructionDTO> {
     private final ARComponentBuilder builder = new ARComponentBuilder();
 
     @Override
-    protected void updateItem(SavedBlockLoopInstructionDTO item, boolean empty) {
+    protected void updateItem(ComponentInstructionDTO item, boolean empty) {
         super.updateItem(item, empty);
         Node graphic = null;
 
@@ -75,24 +75,23 @@ public class SavedBlockLoopInstructionListCell extends ListCell<SavedBlockLoopIn
         });
     }
 
-    private void switchInstruction(int directionQuantity, SavedBlockLoopInstructionDTO instruction) {
-        SavedBlockLoopInstructionDTO currentInstruction =
-                ARSharedResources.getInstance().getEntityById(SavedBlockLoopInstructionDTO.class, instruction.getId());
+    private void switchInstruction(int directionQuantity, ComponentInstructionDTO instruction) {
+        ComponentInstructionDTO currentInstruction =
+                ARSharedResources.getInstance().getEntityById(ComponentInstructionDTO.class, instruction.getId());
         int order = currentInstruction.getInstructionOrderNumber();
 
-        SavedBlocksDTO block = ARSharedResources.getInstance()
+        ComponentBlockDTO block = ARSharedResources.getInstance()
                 .getEntityById(
-                        SavedBlocksDTO.class, currentInstruction.getBlock().getId());
-        List<SavedBlockLoopInstructionDTO> instructionList = block.getSavedBlockLoopInstructions();
-        SavedBlockLoopInstructionDTO instructionToChange = instructionList.stream()
+                        ComponentBlockDTO.class, currentInstruction.getBlock().getId());
+        List<ComponentInstructionDTO> instructionList = block.getSavedBlockLoopInstructions();
+        ComponentInstructionDTO instructionToChange = instructionList.stream()
                 .filter(i -> i.getInstructionOrderNumber() == order + directionQuantity)
                 .findFirst()
                 .orElseThrow();
         currentInstruction.setInstructionOrderNumber(order + directionQuantity);
         instructionToChange.setInstructionOrderNumber(order);
         ARSharedResources.getInstance()
-                .updateEntity(
-                        currentInstruction, SavedBlockLoopInstructionDTO.class, () -> ARSharedResources.getInstance()
-                                .updateEntity(instructionToChange, SavedBlockLoopInstructionDTO.class));
+                .updateEntity(currentInstruction, ComponentInstructionDTO.class, () -> ARSharedResources.getInstance()
+                        .updateEntity(instructionToChange, ComponentInstructionDTO.class));
     }
 }

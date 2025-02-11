@@ -556,7 +556,7 @@ public class PerformDataBase {
         // Generate a Unique-ID for the block
         Integer nextId = loadNextIdBlockData() + 1;
         Integer nextBlockOrder = -1;
-        if (blockDTO.isForceOrder()) {
+        if (blockDTO.getForceOrder()) {
             nextBlockOrder = blockDTO.getBlockOrderNumber();
         } else {
             nextBlockOrder = loadNextBlockOrderNumber(blockDTO.getBotJobId()) + 1;
@@ -878,7 +878,7 @@ public class PerformDataBase {
     }
 
     public List<BotJobLoadDTO> loadBotJobComplete(int botJobId) {
-        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
+        String query = "SELECT bj.home_banking_id, bj.id AS bot_job_id, bj.name AS bot_job_name, "
                 + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
                 + " b.description AS block_description, b.type_id, "
                 + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
@@ -914,6 +914,7 @@ public class PerformDataBase {
                 if (botJobDTO == null) {
                     botJobDTO = new BotJobLoadDTO();
                     botJobDTO.setId(botJobId);
+                    botJobDTO.setHomeBankingId(rs.getInt("home_banking_id"));
                     botJobDTO.setName(rs.getString("bot_job_name"));
                     botJobDTO.setBlockLoadDTOList(new ArrayList<>());
                     botJobMap.put(botJobId, botJobDTO);
@@ -1252,11 +1253,9 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
 
             // Saved Blocks
-            int rowsAffected =
-                    stmt.executeUpdate("DELETE FROM saved_instruction_reference where bot_job_id = " + botJobId);
-            rowsAffected +=
-                    stmt.executeUpdate("DELETE FROM saved_block_loop_instruction where bot_job_id = " + botJobId);
-            rowsAffected += stmt.executeUpdate("DELETE FROM saved_blocks where bot_job_id = " + botJobId);
+            int rowsAffected = stmt.executeUpdate("DELETE FROM component_reference where bot_job_id = " + botJobId);
+            rowsAffected += stmt.executeUpdate("DELETE FROM component_instruction where bot_job_id = " + botJobId);
+            rowsAffected += stmt.executeUpdate("DELETE FROM component_block where bot_job_id = " + botJobId);
 
             rowsAffected += stmt.executeUpdate("DELETE FROM variable where bot_job_id = " + botJobId);
 
@@ -2995,22 +2994,23 @@ public class PerformDataBase {
 
         List<BlockLoopInstructionLoadDTO> blockLoopInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
                 .flatMap(itemBlock -> itemBlock.getBlockLoopInstructionLoadDTOS().stream()
-                        .map(blockLoopInstLoad -> new BlockLoopInstructionLoadDTO(
+                        .map(loopInstLoad -> new BlockLoopInstructionLoadDTO(
+                                botJobLoadList.get(0).getHomeBankingId(), // homBankingId
                                 itemBlock.getBotJobId(), // botJobId
                                 itemBlock.getBotJobName(), // botJob Name
-                                blockLoopInstLoad.getId(), // Instruction Id
-                                blockLoopInstLoad.getInstructionOrderNumber(), // Instruction Order
-                                blockLoopInstLoad.getName(), // Instruction Name
-                                blockLoopInstLoad.getDescription(), // Instruction Description
+                                loopInstLoad.getId(), // Instruction Id
+                                loopInstLoad.getInstructionOrderNumber(), // Instruction Order
+                                loopInstLoad.getName(), // Instruction Name
+                                loopInstLoad.getDescription(), // Instruction Description
                                 itemBlock.getId(), // block ID
                                 itemBlock.getBlockOrderNumber(), // block Order
                                 itemBlock.getName(), // block Name
                                 itemBlock.getActive(),
-                                blockLoopInstLoad.getInstructionActive(),
+                                loopInstLoad.getInstructionActive(),
                                 itemBlock.getWait(),
-                                blockLoopInstLoad.getActions(),
-                                blockLoopInstLoad.getParentId(),
-                                blockLoopInstLoad.getOperation(),
+                                loopInstLoad.getActions(),
+                                loopInstLoad.getParentId(),
+                                loopInstLoad.getOperation(),
                                 itemBlock.getExportFile())))
                 .collect(Collectors.toList());
 

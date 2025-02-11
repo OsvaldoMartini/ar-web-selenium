@@ -3,7 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARComponentDetailsPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.persistence.ComponentBlockDTO;
 
 public class ARComponentDetailsScene extends ARScene {
 
@@ -11,16 +11,16 @@ public class ARComponentDetailsScene extends ARScene {
     private static final Double SCENE_WIDTH = 650D;
     private static String TITLE = "";
 
-    private SavedBlocksDTO savedBlocksDTO;
+    private ComponentBlockDTO componentBlockDTO;
 
-    public ARComponentDetailsScene(SavedBlocksDTO savedBlocksDTO) {
-        this.savedBlocksDTO = savedBlocksDTO;
-        TITLE = "Details - " + savedBlocksDTO.getName();
+    public ARComponentDetailsScene(ComponentBlockDTO componentBlockDTO) {
+        this.componentBlockDTO = componentBlockDTO;
+        TITLE = "Details - " + componentBlockDTO.getName();
     }
 
     @Override
     public IARPane buildPane() {
-        return new ARComponentDetailsPane(savedBlocksDTO);
+        return new ARComponentDetailsPane(componentBlockDTO);
     }
 
     @Override

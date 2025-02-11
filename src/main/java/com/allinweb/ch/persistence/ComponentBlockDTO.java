@@ -6,9 +6,12 @@ import java.util.List;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "saved_blocks")
+@Table(name = "component_block")
 // @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockSeq", allocationSize = 1)
-public class SavedBlocksDTO extends BaseDTO {
+public class ComponentBlockDTO extends BaseDTO {
+
+    @Column(name = "home_banking_id")
+    private Integer homeBankingId;
 
     @Column(name = "block_order_number")
     private int blockOrderNumber;
@@ -37,14 +40,22 @@ public class SavedBlocksDTO extends BaseDTO {
 
     @OneToMany(cascade = CascadeType.ALL)
     @OrderBy("instruction_order_number ASC")
-    @JoinColumn(name = "saved_block_id")
-    private List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionDTO = new ArrayList<>();
+    @JoinColumn(name = "component_block_id")
+    private List<ComponentInstructionDTO> componentInstructionDTO = new ArrayList<>();
 
-    public SavedBlocksDTO() {
+    public Integer getHomeBankingId() {
+        return homeBankingId;
+    }
+
+    public void setHomeBankingId(Integer homeBankingId) {
+        this.homeBankingId = homeBankingId;
+    }
+
+    public ComponentBlockDTO() {
         super();
     }
 
-    public SavedBlocksDTO(BotJobDTO botJobDTO) {
+    public ComponentBlockDTO(BotJobDTO botJobDTO) {
         super();
         this.botJobDTO = botJobDTO;
     }
@@ -57,7 +68,7 @@ public class SavedBlocksDTO extends BaseDTO {
         this.botJobDTO = botJobDTO;
     }
 
-    public SavedBlocksDTO(int id) {
+    public ComponentBlockDTO(int id) {
         super(id);
     }
 
@@ -117,14 +128,14 @@ public class SavedBlocksDTO extends BaseDTO {
         this.wait = wait;
     }
 
-    public List<SavedBlockLoopInstructionDTO> getSavedBlockLoopInstructions() {
+    public List<ComponentInstructionDTO> getSavedBlockLoopInstructions() {
         return ARSharedResources.getInstance()
                 .getEntityList(
-                        SavedBlockLoopInstructionDTO.class,
+                        ComponentInstructionDTO.class,
                         instruction -> instruction.getBlock().getId() == this.getId());
     }
 
-    public void setSavedBlockLoopInstructions(List<SavedBlockLoopInstructionDTO> savedBlockLoopInstructionDTO) {
-        this.savedBlockLoopInstructionDTO = savedBlockLoopInstructionDTO;
+    public void setSavedBlockLoopInstructions(List<ComponentInstructionDTO> componentInstructionDTO) {
+        this.componentInstructionDTO = componentInstructionDTO;
     }
 }

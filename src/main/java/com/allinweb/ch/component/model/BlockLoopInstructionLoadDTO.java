@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BlockLoopInstructionLoadDTO {
+    private Integer homeBankingId;
     private Integer id;
     private Integer botJobId;
     private String botJobName;
@@ -49,6 +50,7 @@ public class BlockLoopInstructionLoadDTO {
 
     // Custom constructor
     public BlockLoopInstructionLoadDTO(
+            Integer homeBankingId,
             Integer botJobId,
             String botJobName,
             Integer id,
@@ -65,6 +67,7 @@ public class BlockLoopInstructionLoadDTO {
             Integer parentId,
             String operation,
             String exportFile) {
+        this.homeBankingId = homeBankingId;
         this.botJobId = botJobId;
         this.botJobName = botJobName;
         this.id = id;

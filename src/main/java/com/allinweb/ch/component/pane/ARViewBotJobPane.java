@@ -19,8 +19,8 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.persistence.ComponentBlockDTO;
+import com.allinweb.ch.persistence.ComponentInstructionDTO;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -136,7 +136,7 @@ public class ARViewBotJobPane extends ARPane {
     private TextField botJobDescription;
     VBox botJobContainer;
 
-    ListView<SavedBlocksDTO> componentList;
+    ListView<ComponentBlockDTO> componentList;
 
     private static final int SECONDS = 3; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;
@@ -971,9 +971,9 @@ public class ARViewBotJobPane extends ARPane {
                 ARConstants.SPACE_L + 10.0D,
                 Insets.EMPTY,
                 Background.fill(Color.TRANSPARENT));
-        ObservableList<SavedBlocksDTO> savedBlocksDTO =
-                ARSharedResources.getInstance().getEntityList(SavedBlocksDTO.class);
-        this.componentList = new ListView<SavedBlocksDTO>(savedBlocksDTO);
+        ObservableList<ComponentBlockDTO> componentBlockDTO =
+                ARSharedResources.getInstance().getEntityList(ComponentBlockDTO.class);
+        this.componentList = new ListView<ComponentBlockDTO>(componentBlockDTO);
 
         componentList.setCellFactory(new ARCellFactory<>(ComponentListCell.class)::call);
         this.componentList.setMaxHeight(Double.MAX_VALUE);
@@ -994,17 +994,18 @@ public class ARViewBotJobPane extends ARPane {
         TextField searchTextField = new TextField();
 
         searchTextField.textProperty().addListener((observable, oldValue, newValue) -> {
-            ObservableList<SavedBlocksDTO> savedBlocksDTOs;
+            ObservableList<ComponentBlockDTO> componentBlockDTOS;
             if (!newValue.equals("")) {
                 System.out.println(newValue + " Text");
-                savedBlocksDTOs = ARSharedResources.getInstance().getEntityList(SavedBlocksDTO.class, (savedBlock) -> {
-                    return savedBlock.getName().toLowerCase().contains(newValue.toLowerCase());
-                });
+                componentBlockDTOS = ARSharedResources.getInstance()
+                        .getEntityList(ComponentBlockDTO.class, (savedBlock) -> {
+                            return savedBlock.getName().toLowerCase().contains(newValue.toLowerCase());
+                        });
             } else {
-                savedBlocksDTOs = ARSharedResources.getInstance().getEntityList(SavedBlocksDTO.class);
+                componentBlockDTOS = ARSharedResources.getInstance().getEntityList(ComponentBlockDTO.class);
             }
 
-            this.componentList.setItems(savedBlocksDTOs);
+            this.componentList.setItems(componentBlockDTOS);
             this.componentList.refresh();
         });
 
@@ -1194,10 +1195,10 @@ public class ARViewBotJobPane extends ARPane {
 
     private void createMockSavedBlocksDTOs() {
         // Create mock data for SavedBlocksDTO
-        ObservableList<SavedBlocksDTO> savedBlocksDTOs = FXCollections.observableArrayList();
+        ObservableList<ComponentBlockDTO> componentBlockDTOS = FXCollections.observableArrayList();
 
         // Create mock SavedBlockLoopInstructionDTO entries
-        SavedBlockLoopInstructionDTO instruction1 = new SavedBlockLoopInstructionDTO();
+        ComponentInstructionDTO instruction1 = new ComponentInstructionDTO();
         instruction1.setInstructionOrderNumber(1);
         instruction1.setActions("Action 1");
         instruction1.setName("Instruction 1");
@@ -1211,7 +1212,7 @@ public class ARViewBotJobPane extends ARPane {
         instruction1.setExportToAR(true);
         instruction1.setActive(true);
 
-        SavedBlockLoopInstructionDTO instruction2 = new SavedBlockLoopInstructionDTO();
+        ComponentInstructionDTO instruction2 = new ComponentInstructionDTO();
         instruction2.setInstructionOrderNumber(2);
         instruction2.setActions("Action 2");
         instruction2.setName("Instruction 2");
@@ -1226,7 +1227,7 @@ public class ARViewBotJobPane extends ARPane {
         instruction1.setActive(true);
 
         // Assign mock instructions to mock blocks
-        SavedBlocksDTO block1 = new SavedBlocksDTO();
+        ComponentBlockDTO block1 = new ComponentBlockDTO();
         block1.setName("Block One");
         block1.setDescription("Description for Block One");
         block1.setTypeId(1);
@@ -1234,7 +1235,7 @@ public class ARViewBotJobPane extends ARPane {
         block1.setWait(3);
         block1.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction1))); // Assign instruction1 to block1
 
-        SavedBlocksDTO block2 = new SavedBlocksDTO();
+        ComponentBlockDTO block2 = new ComponentBlockDTO();
         block2.setName("Block Two");
         block2.setDescription("Description for Block Two");
         block2.setTypeId(2);
@@ -1242,7 +1243,7 @@ public class ARViewBotJobPane extends ARPane {
         block2.setWait(3);
         block2.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction2))); // Assign instruction2 to block2
 
-        SavedBlocksDTO block3 = new SavedBlocksDTO();
+        ComponentBlockDTO block3 = new ComponentBlockDTO();
         block3.setName("Another Block");
         block3.setDescription("Description for Another Block");
         block3.setTypeId(3);
@@ -1250,15 +1251,15 @@ public class ARViewBotJobPane extends ARPane {
         block3.setWait(3);
         block3.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
 
-        SavedBlocksDTO block4 = new SavedBlocksDTO();
+        ComponentBlockDTO block4 = new ComponentBlockDTO();
         block4.setName("Sample Block");
         block4.setDescription("Description for Sample Block");
         block4.setTypeId(4);
         block4.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
 
         // Add mock blocks to the ObservableList
-        savedBlocksDTOs.addAll(block1, block2, block3, block4);
+        componentBlockDTOS.addAll(block1, block2, block3, block4);
 
-        this.componentList.setItems(savedBlocksDTOs);
+        this.componentList.setItems(componentBlockDTOS);
     }
 }

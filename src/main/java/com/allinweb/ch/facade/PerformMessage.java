@@ -398,6 +398,7 @@ public class PerformMessage {
             BlockLoopInstructionLoadDTO updatedInstruction = new BlockLoopInstructionLoadDTO();
 
             // Copy original fields and add 1000 where necessary
+            updatedInstruction.setHomeBankingId(instruction.getHomeBankingId() + 1000);
             updatedInstruction.setId(instruction.getId() + 1000);
             updatedInstruction.setBotJobId(instruction.getBotJobId() + 1000);
             updatedInstruction.setBlockId(instruction.getBlockId() + 1000);

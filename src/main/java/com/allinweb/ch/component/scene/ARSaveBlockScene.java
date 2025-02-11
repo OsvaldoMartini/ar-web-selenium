@@ -5,7 +5,7 @@ import com.allinweb.ch.component.pane.ARSaveBlockPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.persistence.ComponentBlockDTO;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -15,15 +15,15 @@ public class ARSaveBlockScene extends ARScene {
     private static final Double SCENE_WIDTH = 600D;
     private static String TITLE = "Move Block";
 
-    private SavedBlocksDTO savedBlocksDTO;
+    private ComponentBlockDTO componentBlockDTO;
     private BlockDTO blockDTO;
     private DetailsDTO detailsDTO;
 
-    public ARSaveBlockScene(SavedBlocksDTO savedBlocksDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
-        this.savedBlocksDTO = savedBlocksDTO;
+    public ARSaveBlockScene(ComponentBlockDTO componentBlockDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
+        this.componentBlockDTO = componentBlockDTO;
         this.blockDTO = blockDTO;
         this.detailsDTO = detailsDTO;
-        TITLE = "Save Block - " + savedBlocksDTO.getName();
+        TITLE = "Save Block - " + componentBlockDTO.getName();
     }
 
     public void showModal() {
@@ -40,7 +40,7 @@ public class ARSaveBlockScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARSaveBlockPane(savedBlocksDTO, blockDTO, detailsDTO);
+        return new ARSaveBlockPane(componentBlockDTO, blockDTO, detailsDTO);
     }
 
     @Override

@@ -5,8 +5,8 @@ import com.allinweb.ch.component.listCell.SavedBlockLoopInstructionListCell;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
-import com.allinweb.ch.persistence.SavedBlockLoopInstructionDTO;
-import com.allinweb.ch.persistence.SavedBlocksDTO;
+import com.allinweb.ch.persistence.ComponentBlockDTO;
+import com.allinweb.ch.persistence.ComponentInstructionDTO;
 import com.allinweb.ch.util.ARConstants;
 import java.util.Comparator;
 import javafx.application.Platform;
@@ -30,15 +30,15 @@ import javafx.stage.Stage;
 public class ARComponentDetailsPane extends ARPane {
 
     private final ARComponentBuilder builder = new ARComponentBuilder();
-    private SavedBlocksDTO savedBlocksDTO;
+    private ComponentBlockDTO componentBlockDTO;
 
     private Button saveBlockButton;
     Button closeButton;
 
     private AnchorPane mainPane;
 
-    public ARComponentDetailsPane(SavedBlocksDTO savedBlocksDTO) {
-        this.savedBlocksDTO = savedBlocksDTO;
+    public ARComponentDetailsPane(ComponentBlockDTO componentBlockDTO) {
+        this.componentBlockDTO = componentBlockDTO;
     }
 
     @Override
@@ -57,14 +57,14 @@ public class ARComponentDetailsPane extends ARPane {
 
         Label nameLabel = new Label("Name :         ");
 
-        TextField nameTextField = new TextField(savedBlocksDTO.getName());
+        TextField nameTextField = new TextField(componentBlockDTO.getName());
         nameTextField.setMaxWidth(Double.MAX_VALUE);
 
         VBox nameVBox = new VBox(nameLabel, nameTextField);
         nameVBox.setSpacing(ARConstants.SPACE_XS);
 
         Label descriptionLabel = new Label("Description : ");
-        TextArea descriptionTextField = new TextArea(savedBlocksDTO.getDescription());
+        TextArea descriptionTextField = new TextArea(componentBlockDTO.getDescription());
 
         descriptionTextField.setMaxWidth(Double.MAX_VALUE);
 
@@ -78,13 +78,13 @@ public class ARComponentDetailsPane extends ARPane {
         descriptionTextField.setPrefHeight(100);
         VBox.setVgrow(descriptionTextField, Priority.ALWAYS);
 
-        ObservableList<SavedBlockLoopInstructionDTO> instructionObservableList = ARSharedResources.getInstance()
+        ObservableList<ComponentInstructionDTO> instructionObservableList = ARSharedResources.getInstance()
                 .getEntityList(
-                        SavedBlockLoopInstructionDTO.class,
-                        Comparator.comparingInt(SavedBlockLoopInstructionDTO::getInstructionOrderNumber),
-                        (instruction) -> instruction.getBlock().getId() == savedBlocksDTO.getId());
+                        ComponentInstructionDTO.class,
+                        Comparator.comparingInt(ComponentInstructionDTO::getInstructionOrderNumber),
+                        (instruction) -> instruction.getBlock().getId() == componentBlockDTO.getId());
 
-        ListView<SavedBlockLoopInstructionDTO> instructionList = new ListView<>(instructionObservableList);
+        ListView<ComponentInstructionDTO> instructionList = new ListView<>(instructionObservableList);
         instructionList.setFixedCellSize(ARConstants.SPACE_L);
         instructionList.setCellFactory(new ARCellFactory<>(SavedBlockLoopInstructionListCell.class)::call);
         instructionList.setBackground(null);
@@ -112,10 +112,10 @@ public class ARComponentDetailsPane extends ARPane {
 
         saveBlockButton.setOnAction(e -> {
             if (nameTextField.getText() != "" && descriptionTextField.getText() != "") {
-                savedBlocksDTO.setName(nameTextField.getText());
-                savedBlocksDTO.setDescription(descriptionTextField.getText());
+                componentBlockDTO.setName(nameTextField.getText());
+                componentBlockDTO.setDescription(descriptionTextField.getText());
 
-                ARSharedResources.getInstance().updateEntity(savedBlocksDTO, SavedBlocksDTO.class, () -> {
+                ARSharedResources.getInstance().updateEntity(componentBlockDTO, ComponentBlockDTO.class, () -> {
                     Close();
                 });
             }
