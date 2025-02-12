@@ -91,7 +91,7 @@ public class ComponentInstructionDTO extends BaseDTO {
     }
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "component_instruction_id")
+    @JoinColumn(name = "instruction_id")
     private List<ComponentReferenceDTO> componentReferenceDTOList;
 
     public ComponentInstructionDTO() {

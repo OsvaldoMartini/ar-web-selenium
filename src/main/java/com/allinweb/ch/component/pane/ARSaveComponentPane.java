@@ -233,7 +233,7 @@ public class ARSaveComponentPane extends ARPane {
                             "component_reference", // 4
                             "variable", // 5
                             "component_variable", // 6
-                            "complex", // 7
+                            "complex_instruction", // 7
                             "component_complex" // 8
                         };
                         // Now you can proceed with duplicating the related tables
@@ -573,12 +573,11 @@ public class ARSaveComponentPane extends ARPane {
             Integer nextId = loadNextIdBReferenceData() + 1;
 
             // Build the SQL insert query
-            String insertSQL =
-                    "INSERT INTO component_reference(id, reference_type, value, component_instruction_id) VALUES ("
-                            + nextId + ", "
-                            + "'" + referenceDTO.getReferenceType() + "', "
-                            + "'" + referenceDTO.getValue() + "', " // name
-                            + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
+            String insertSQL = "INSERT INTO component_reference(id, reference_type, value, instruction_id) VALUES ("
+                    + nextId + ", "
+                    + "'" + referenceDTO.getReferenceType() + "', "
+                    + "'" + referenceDTO.getValue() + "', " // name
+                    + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {

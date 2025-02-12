@@ -30,7 +30,7 @@ public class ComponentReferenceDTO extends BaseDTO {
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "component_instruction_id")
+    @JoinColumn(name = "instruction_id")
     private ComponentInstructionDTO componentInstructionDTO;
 
     public ComponentReferenceDTO() {

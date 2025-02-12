@@ -3453,9 +3453,9 @@ public class PerformDataBase {
 
             refStmt.executeBatch(); // Execute the batch insert
             return null;
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return new ErrorMessage("Error Duplicating References", "Block Insertion Failure", e.getMessage());
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+            return new ErrorMessage("Error Duplicating References", "Block Insertion Failure", error.getMessage());
         }
     }
 
