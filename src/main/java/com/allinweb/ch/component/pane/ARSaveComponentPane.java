@@ -267,8 +267,8 @@ public class ARSaveComponentPane extends ARPane {
                         Stage stage =
                                 (Stage) ((Button) e.getSource()).getScene().getWindow();
                         stage.close();
-                    } catch (SQLException ex) {
-                        System.out.println(ex.getMessage());
+                    } catch (SQLException error) {
+                        System.out.println(error.getMessage());
                     }
 
                     //

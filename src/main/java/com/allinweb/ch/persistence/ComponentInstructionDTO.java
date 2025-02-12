@@ -29,6 +29,9 @@ public class ComponentInstructionDTO extends BaseDTO {
     @Column(name = "coordinates", length = 100)
     private String coordinates;
 
+    @Column(name = "iframe_xpath", length = 10000)
+    private String iFrameXPath;
+
     @Column(name = "description")
     private String description;
 
@@ -150,6 +153,14 @@ public class ComponentInstructionDTO extends BaseDTO {
 
     public void setCoordinates(String coordinates) {
         this.coordinates = coordinates;
+    }
+
+    public String getiFrameXPath() {
+        return iFrameXPath;
+    }
+
+    public void setiFrameXPath(String iFrameXPath) {
+        this.iFrameXPath = iFrameXPath;
     }
 
     public String getDescription() {
