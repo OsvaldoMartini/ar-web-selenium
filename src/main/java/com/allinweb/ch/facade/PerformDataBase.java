@@ -1379,7 +1379,7 @@ public class PerformDataBase {
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
                 instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                 instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToAR(rs.getBoolean("export_to_abr"));
+                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                 instruction.setInstructionActive(rs.getBoolean("active"));
 
                 // Add the instruction to the list
@@ -2624,7 +2624,7 @@ public class PerformDataBase {
                 instructionDTO.setCodified(rs.getBoolean("codified"));
                 instructionDTO.setDefaultValue(rs.getString("default_value"));
                 instructionDTO.setDescription(rs.getString("description"));
-                instructionDTO.setExportToAR(rs.getBoolean("export_to_abr"));
+                instructionDTO.setExportToABR(rs.getBoolean("export_to_abr"));
                 instructionDTO.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instructionDTO.setInstructionName(rs.getString("name"));
                 instructionDTO.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
@@ -3093,7 +3093,7 @@ public class PerformDataBase {
                 }
 
                 blockLoopStmt.setString(8, instruction.getDescription());
-                blockLoopStmt.setBoolean(9, instruction.getExportToAR());
+                blockLoopStmt.setBoolean(9, instruction.getExportToABR());
                 blockLoopStmt.setInt(10, instruction.getInstructionOrderNumber());
                 blockLoopStmt.setString(11, instruction.getInstructionName());
                 blockLoopStmt.setInt(12, instruction.getOnHoldSeconds());

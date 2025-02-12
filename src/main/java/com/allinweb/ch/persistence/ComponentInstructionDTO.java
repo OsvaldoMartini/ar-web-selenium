@@ -17,13 +17,13 @@ public class ComponentInstructionDTO extends BaseDTO {
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
 
-    @Column(name = "actions", length = 1000)
+    @Column(name = "actions", length = 10000)
     private String actions;
 
     @Column(name = "name")
     private String name;
 
-    @Column(name = "path", length = 1000)
+    @Column(name = "path", length = 10000)
     private String path;
 
     @Column(name = "description")

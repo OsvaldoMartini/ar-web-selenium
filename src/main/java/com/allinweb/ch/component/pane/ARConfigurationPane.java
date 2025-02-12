@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -462,7 +463,7 @@ public class ARConfigurationPane extends ARPane {
             }
 
             if (instList != null && instList.size() > 0) {
-                migrationDBLabel.setText("Already Migrated");
+                migrationDBLabel.setVisible(false);
                 migrationDBButton.setVisible(false);
             }
         } catch (SQLException ignore) {
@@ -544,6 +545,11 @@ public class ARConfigurationPane extends ARPane {
                             databaseChoiceBox.getValue(),
                             null,
                             null);
+
+                    Platform.runLater(() -> {
+                        migrationDBLabel.setVisible(false);
+                        migrationDBButton.setVisible(false);
+                    });
 
                 } else {
                     String errorType = "Database error";

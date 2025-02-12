@@ -10,7 +10,7 @@ public class ReferenceDTO extends BaseDTO {
     @Column(name = "reference_type")
     private String referenceType;
 
-    @Column(name = "value", length = 1000)
+    @Column(name = "value", length = 10000)
     private String value;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false) // Ensures the foreign key is not null

@@ -77,7 +77,7 @@ public class PerformDBSavedBlock {
             instruction.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
             instruction.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
             instruction.setCodified(instructionDTO.getCodified());
-            instruction.setExportToAR(instructionDTO.getExportToAR());
+            instruction.setExportToAR(instructionDTO.getExportToABR());
             instruction.setActive(instructionDTO.getInstructionActive());
 
             savedBlockLoopInstructions.add(instruction);
@@ -216,7 +216,7 @@ public class PerformDBSavedBlock {
                 componentInstructionDTO.setDefaultValue(instructionDTO.getDefaultValue());
                 componentInstructionDTO.setDescription(instructionDTO.getDescription());
                 componentInstructionDTO.setCodified(instructionDTO.getCodified());
-                componentInstructionDTO.setExportToAR(instructionDTO.getExportToAR());
+                componentInstructionDTO.setExportToAR(instructionDTO.getExportToABR());
                 componentInstructionDTO.setActive(instructionDTO.getInstructionActive());
                 componentInstructionDTO.setInstructionOrderNumber(instructionDTO.getInstructionOrderNumber());
                 componentInstructionDTO.setName(instructionDTO.getInstructionName());

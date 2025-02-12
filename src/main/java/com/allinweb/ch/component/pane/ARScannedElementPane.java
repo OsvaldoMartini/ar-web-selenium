@@ -2935,7 +2935,7 @@ public class ARScannedElementPane extends ARPane {
                                         instruction.getOnHoldSeconds(),
                                         instruction.getVariableId(),
                                         instruction.getInstructionOrderNumber(),
-                                        instruction.getExportToAR(),
+                                        instruction.getExportToABR(),
                                         instruction.getPath(),
                                         instruction.getCoordinates(),
                                         instruction.getiFrameXPath(),

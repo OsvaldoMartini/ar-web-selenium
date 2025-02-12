@@ -780,7 +780,7 @@ public class ARWebElementNew {
         }
         loop.setActions(action);
         loop.setName(nameLabel.getText());
-        loop.setExportToAR(true);
+        loop.setExportToABR(true);
         return loop;
     }
 

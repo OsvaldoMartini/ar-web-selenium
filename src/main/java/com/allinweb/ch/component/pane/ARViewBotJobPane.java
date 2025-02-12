@@ -1135,7 +1135,7 @@ public class ARViewBotJobPane extends ARPane {
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
                 instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                 instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToAR(rs.getBoolean("export_to_abr"));
+                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                 instruction.setInstructionActive(rs.getBoolean("active"));
 
                 // Add the instruction to the list

@@ -16,19 +16,19 @@ public class InstructionDTO extends BaseDTO {
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
 
-    @Column(name = "actions", length = 1000)
+    @Column(name = "actions", length = 10000)
     private String actions;
 
     @Column(name = "name")
     private String name;
 
-    @Column(name = "path", length = 1000)
+    @Column(name = "path", length = 10000)
     private String path;
 
     @Column(name = "coordinates", length = 100)
     private String coordinates;
 
-    @Column(name = "iframe_xpath", length = 1000)
+    @Column(name = "iframe_xpath", length = 10000)
     private String iFrameXPath;
 
     @Column(name = "description")
@@ -56,7 +56,7 @@ public class InstructionDTO extends BaseDTO {
     private Boolean codified;
 
     @Column(name = "export_to_abr")
-    private Boolean exportToAR;
+    private Boolean exportToABR;
 
     @Column(name = "active")
     private Boolean active;
@@ -231,12 +231,12 @@ public class InstructionDTO extends BaseDTO {
         this.codified = codified;
     }
 
-    public Boolean getExportToAR() {
-        return exportToAR;
+    public Boolean getExportToABR() {
+        return exportToABR;
     }
 
-    public void setExportToAR(Boolean exportToAR) {
-        this.exportToAR = exportToAR;
+    public void setExportToABR(Boolean exportToABR) {
+        this.exportToABR = exportToABR;
     }
 
     public Boolean getActive() {
