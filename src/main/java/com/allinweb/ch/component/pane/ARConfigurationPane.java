@@ -458,7 +458,7 @@ public class ARConfigurationPane extends ARPane {
             List<com.allinweb.ch.component.model.InstructionDTO> instList = null;
             for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
                 instList = performDataBase.instructionsToDuplicate(
-                        conn, botJobLoadDTO.getId(), "instruction"); // instruction
+                        conn, botJobLoadDTO.getId(), -1, "instruction"); // instruction
                 break;
             }
 

@@ -4,6 +4,8 @@ import com.allinweb.ch.component.model.BankingDTO;
 import com.allinweb.ch.component.model.JobDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.core.ARSharedResources;
+import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.persistence.HomeBankingDTO;
@@ -16,6 +18,7 @@ import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -34,6 +37,14 @@ public class ARNewHomeBankingPane extends ARPane {
 
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+
+    private static final PerformMessage performMessage;
+    private static final PerformDataBase performDataBase;
+    // Static block to initialize
+    static {
+        performMessage = PerformMessage.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+    }
 
     // Postgres
     private static boolean POSTGRES_DB = false;
@@ -473,8 +484,39 @@ public class ARNewHomeBankingPane extends ARPane {
                 String optionsConfig = rs.getString("optionsConfig");
                 String username = rs.getString("username");
                 String password = rs.getString("password");
+
+                // Create StringBuilder and split using "£"
+                StringBuilder prioritySb = new StringBuilder();
+                StringBuilder searchConfigSb = new StringBuilder();
+                StringBuilder optionsConfigSb = new StringBuilder();
+
+                for (String part : priority.split("£")) {
+                    prioritySb.append(part).append("\n"); // Replacing "£" back with newline
+                }
+
+                for (String part : searchConfig.split("£")) {
+                    searchConfigSb.append(part).append("\n");
+                }
+
+                for (String part : optionsConfig.split("£")) {
+                    optionsConfigSb.append(part).append("\n");
+                }
+
+                // Remove the last extra newline if needed
+                if (prioritySb.length() > 0) prioritySb.setLength(prioritySb.length() - 1);
+                if (searchConfigSb.length() > 0) searchConfigSb.setLength(searchConfigSb.length() - 1);
+                if (optionsConfigSb.length() > 0) optionsConfigSb.setLength(optionsConfigSb.length() - 1);
+
                 databaseList.add(new DatabaseUserDTO(
-                        id, jobs, name, url, priority, searchConfig, optionsConfig, username, password));
+                        id,
+                        jobs,
+                        name,
+                        url,
+                        prioritySb.toString(),
+                        searchConfigSb.toString(),
+                        optionsConfigSb.toString(),
+                        username,
+                        password));
             }
         } catch (SQLException e) {
             System.out.println(e.getMessage());
@@ -525,47 +567,56 @@ public class ARNewHomeBankingPane extends ARPane {
     }
 
     private void updateUserData(String id, DatabaseUserDTO user) {
-        try {
+
+        try (Connection conn = performDataBase.getConnection()) {
+
             int userId = Integer.parseInt(id);
 
-            String priority = Strings.isNullOrEmpty(user.getPriority()) ? "" : user.getPriority();
-            String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getSearchConfig();
-            String optionsConfig = Strings.isNullOrEmpty(user.getOptionsConfig()) ? "" : user.getOptionsConfig();
-            String updateSQL = "UPDATE home_banking SET Name = '" + user.getName() + "', "
-                    + " Url = '" + user.getUrl() + "', "
-                    + " Priority = '" + priority + "', "
-                    + " search_config = '" + searchConfig + "', "
-                    + " options_config = '" + optionsConfig + "' "
-                    + " WHERE ID = " + userId;
-            try (Statement stmt =
-                    ARSharedResources.getInstance().getConnection().createStatement()) {
-                int rowsAffected = stmt.executeUpdate(updateSQL);
+            // Replace newlines with "£" and handle null values
+            String priority = Strings.isNullOrEmpty(user.getPriority())
+                    ? ""
+                    : user.getPriority().replace("\n", "£");
+            String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig())
+                    ? ""
+                    : user.getSearchConfig().replace("\n", "£");
+            String optionsConfig = Strings.isNullOrEmpty(user.getOptionsConfig())
+                    ? ""
+                    : user.getOptionsConfig().replace("\n", "£");
+
+            // Use placeholders (?) to prevent SQL injection
+            String updateSQL =
+                    "UPDATE home_banking SET Name = ?, Url = ?, Priority = ?, search_config = ?, options_config = ? WHERE ID = ?";
+
+            try (PreparedStatement stmt = conn.prepareStatement(updateSQL)) {
+
+                // Set parameters in the prepared statement
+                stmt.setString(1, user.getName());
+                stmt.setString(2, user.getUrl());
+                stmt.setString(3, priority);
+                stmt.setString(4, searchConfig);
+                stmt.setString(5, optionsConfig);
+                stmt.setInt(6, userId);
+
+                int rowsAffected = stmt.executeUpdate();
+
                 if (rowsAffected > 0) {
-                    showAlert(Alert.AlertType.INFORMATION, "Success", "Updated", "Data updated successfully.");
+                    //                    showAlert(Alert.AlertType.INFORMATION, "Success", "Updated", "Data updated
+                    // successfully.");
                 } else {
-                    showAlert(
-                            Alert.AlertType.ERROR,
+                    performMessage.errorMessage(
                             "Error",
                             "Id Not Found",
-                            String.format("No matching record found to update Id: ", user));
+                            String.format("No matching record found to update Id: %d", userId),
+                            null,
+                            null,
+                            0);
                 }
-            } catch (SQLException e) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
-                        "MAX CHARACTERS LIMIT FOR ACCESS",
-                        String.format(
-                                "This '%s' \n cannot be updated with same name.\nError: %s",
-                                searchConfig, e.getMessage()));
-                return;
             }
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid ID format.");
-            showAlert(
-                    Alert.AlertType.ERROR,
-                    "Error",
-                    "ID Invalid",
-                    String.format("Invalid ID format : Id %s.\nError: %s", id, e.getMessage()));
+        } catch (SQLException ex) {
+            System.out.println(ex.getMessage());
+
+            performMessage.errorMessage("Error", "MAX CHARACTERS LIMIT FOR ACCESS", null, null, null, 0);
+            //            showAlert(Alert.AlertType.ERROR, "Error", "MAX CHARACTERS LIMIT FOR ACCESS", null);
         }
     }
 

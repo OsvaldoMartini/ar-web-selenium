@@ -26,6 +26,9 @@ public class ComponentInstructionDTO extends BaseDTO {
     @Column(name = "path", length = 10000)
     private String path;
 
+    @Column(name = "coordinates", length = 100)
+    private String coordinates;
+
     @Column(name = "description")
     private String description;
 
@@ -139,6 +142,14 @@ public class ComponentInstructionDTO extends BaseDTO {
 
     public void setPath(String path) {
         this.path = path;
+    }
+
+    public String getCoordinates() {
+        return coordinates;
+    }
+
+    public void setCoordinates(String coordinates) {
+        this.coordinates = coordinates;
     }
 
     public String getDescription() {

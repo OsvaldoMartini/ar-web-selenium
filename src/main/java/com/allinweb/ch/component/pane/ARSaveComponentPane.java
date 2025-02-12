@@ -19,9 +19,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javafx.animation.KeyFrame;
@@ -197,8 +195,8 @@ public class ARSaveComponentPane extends ARPane {
                     componentBlockDTO.setDescription(
                             descriptionTextField.getText().trim());
 
-                    this.savedBlockLoadList =
-                            loadSavedBlocksForBotJob(detailsDTO.getNewBlock().getBotJobId());
+                    this.savedBlockLoadList = performDataBase.loadSavedBlocksForBotJob(
+                            detailsDTO.getNewBlock().getHomeBankingId());
 
                     //                    originalLoopInstruction =
                     // performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
@@ -227,23 +225,20 @@ public class ARSaveComponentPane extends ARPane {
                             .fine("Saving New Component Block: " + componentBlockDTO.getName());
 
                     try (Connection conn = performDataBase.getConnection()) {
-                        int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
-
-                        // String[] arrayTables = {"block", "instruction", "reference", "complex_instruction",
-                        // "variable"};
                         String[] arrayTables = {
-                            "component_block",
-                            "component_instruction",
-                            "component_reference",
-                            "component_complex",
-                            "component_variable"
+                            "component_block", // 0
+                            "instruction", // 1
+                            "component_instruction", // 2
+                            "reference", // 3
+                            "component_reference", // 4
+                            "variable", // 5
+                            "component_variable", // 6
+                            "complex", // 7
+                            "component_complex" // 8
                         };
                         // Now you can proceed with duplicating the related tables
-                        ErrorMessage errorMessage = performDataBase.duplicateRelatedTables(
-                                conn,
-                                detailsDTO.getNewBlock().getBotJobId(),
-                                detailsDTO.getNewBlock().getBotJobId(),
-                                arrayTables);
+                        ErrorMessage errorMessage =
+                                performDataBase.saveNewComponent(conn, componentBlockDTO, detailsDTO, arrayTables);
 
                         if (errorMessage == null) {
                             showAlertTimer(
@@ -251,8 +246,7 @@ public class ARSaveComponentPane extends ARPane {
                                     "Success",
                                     "New Component Creation",
                                     "The Block Component job has been successfully created!",
-                                    String.format(
-                                            "Component (ID: %d) Name '%s' ", newBotJobId, componentBlockDTO.getName()),
+                                    String.format("Component Name '%s' ", componentBlockDTO.getName()),
                                     componentBlockDTO.getDescription(),
                                     null);
 
@@ -626,57 +620,6 @@ public class ARSaveComponentPane extends ARPane {
             Stage stage = (Stage) mainPane.getScene().getWindow();
             stage.close();
         });
-    }
-
-    public List<BlockLoadDTO> loadSavedBlocksForBotJob(int botJobId) {
-        // SQL query to get the blocks for a specific bot job
-        String query = "SELECT bj.home_banking_id, b.id AS block_id, "
-                + "b.block_order_number, "
-                + "b.name AS block_name, "
-                + "b.description AS block_description, "
-                + "b.type_id, "
-                + "bj.id AS bot_job_id, "
-                + "bj.name AS bot_job_name "
-                + "FROM bot_job bj "
-                + "JOIN component_block b ON b.bot_job_id = bj.id "
-                + "WHERE bj.id = "
-                + botJobId + " ";
-
-        // Initialize the necessary data structures
-        savedBlockLoadList.clear();
-        Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
-
-        // Use Statement to execute the query
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(query)) {
-
-            while (rs.next()) {
-                // Load the Block information
-                int blockId = rs.getInt("block_id");
-                BlockLoadDTO blockDTO = blockMap.get(blockId);
-
-                if (blockDTO == null) {
-                    blockDTO = new BlockLoadDTO();
-                    blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
-                    blockDTO.setId(blockId);
-                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
-                    blockDTO.setName(rs.getString("block_name"));
-                    blockDTO.setDescription(rs.getString("block_description"));
-                    blockDTO.setTypeId(rs.getInt("type_id"));
-                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
-                    blockDTO.setBotJobName(rs.getString("bot_job_name"));
-
-                    blockMap.put(blockId, blockDTO);
-                    savedBlockLoadList.add(blockDTO);
-                }
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(Thread.class)
-                    .severe(String.format(
-                            "Error loadSavedBlocksForBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
-        }
-
-        return savedBlockLoadList;
     }
 
     private int createSavedBlock(BlockLoadDTO blockDTO) {
