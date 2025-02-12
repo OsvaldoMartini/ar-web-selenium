@@ -116,11 +116,11 @@ public class ARWebDriver {
                         //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                         if (!(new File(webDriverPath)).exists()) {
                             ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
-                            new ARAlertScene(
-                                    Alert.AlertType.WARNING,
-                                    "Missing file excel",
-                                    "Please generate and compile the data of the file excel first before launching the bot job",
-                                    new ButtonType[] {ButtonType.OK});
+//                            new ARAlertScene(
+//                                    Alert.AlertType.WARNING,
+//                                    "Missing file excel",
+//                                    "Please generate and compile the data of the file excel first before launching the bot job",
+//                                    new ButtonType[] {ButtonType.OK});
                         }
                         // Set path to Edge WebDriver executable
                         System.setProperty("webdriver.edge.driver", webDriverPath);

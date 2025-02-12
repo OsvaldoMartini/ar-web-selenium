@@ -318,7 +318,7 @@ public class ARScannedElementPane extends ARPane {
                 componentBuilder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
 
         scanIFrameButton = componentBuilder.buildButton(
-                "Scan iFrames", ARConstants.SPACE_L, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5));
+                "iFrames", ARConstants.SPACE_L, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5));
         addButtonNewElement = componentBuilder.buildButton(
                 "Add", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
 

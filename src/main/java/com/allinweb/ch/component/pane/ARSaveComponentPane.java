@@ -34,7 +34,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
-public class ARSaveBlockPane extends ARPane {
+public class ARSaveComponentPane extends ARPane {
 
     private final ARComponentBuilder builder = new ARComponentBuilder();
     private ComponentBlockDTO componentBlockDTO;
@@ -64,12 +64,12 @@ public class ARSaveBlockPane extends ARPane {
 
     Label warningLabel;
 
-    private Button saveBlockButton;
+    private Button saveNewComponentButton;
     Button closeButton;
 
     private AnchorPane mainPane;
 
-    public ARSaveBlockPane(ComponentBlockDTO componentBlockDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
+    public ARSaveComponentPane(ComponentBlockDTO componentBlockDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
         this.componentBlockDTO = componentBlockDTO;
         this.blockDTO = blockDTO;
         this.detailsDTO = detailsDTO;
@@ -82,10 +82,10 @@ public class ARSaveBlockPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        saveBlockButton = builder.buildButton(" Save Block ", ARConstants.SPACE_L);
+        saveNewComponentButton = builder.buildButton("Save New Component", ARConstants.SPACE_L);
         closeButton = builder.buildButton(" Close ", ARConstants.SPACE_L);
 
-        HBox actionPanel = new HBox(saveBlockButton, closeButton);
+        HBox actionPanel = new HBox(saveNewComponentButton, closeButton);
         actionPanel.setSpacing(ARConstants.SPACE_SM);
         actionPanel.setAlignment(Pos.CENTER);
 
@@ -139,7 +139,7 @@ public class ARSaveBlockPane extends ARPane {
     @Override
     public void initUIBehaviour() {
 
-        saveBlockButton.setOnMouseClicked(e -> {
+        saveNewComponentButton.setOnMouseClicked(e -> {
             //            ARSharedResources.getInstance().cacheEntitiesFromDB();
 
             if (nameTextField.getText() != null
@@ -161,7 +161,7 @@ public class ARSaveBlockPane extends ARPane {
                             detailsDTO, componentBlockDTO);
 
                     // Debugging: Ensure originalLoopInstruction has the right data
-                    ARLogger.getInstance(ARSaveBlockPane.class)
+                    ARLogger.getInstance(ARSaveComponentPane.class)
                             .fine("originalLoopInstruction Size: " + originalLoopInstruction.size());
 
                     boolean existName = savedBlockLoadList.stream().anyMatch(block -> block.getName()
@@ -178,9 +178,20 @@ public class ARSaveBlockPane extends ARPane {
                     }
 
                     // Debugging: Print statements to track data
-                    ARLogger.getInstance(ARSaveBlockPane.class)
-                            .fine("Saving Component Block: " + componentBlockDTO.getName());
+                    ARLogger.getInstance(ARSaveComponentPane.class)
+                            .fine("Saving Component Block: " + componentBlockDTO.getName().trim());
 
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
                     // Here Always Creating a New Component Block
                     BlockLoadDTO blockDTO = performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(
                             componentBlockDTO, detailsDTO.getNewBlock().getBotJobId());
@@ -268,7 +279,7 @@ public class ARSaveBlockPane extends ARPane {
                         });
 
                         if (savedInstStatus && originalReferences.size() > 0) {
-                            ARLogger.getInstance(ARSaveBlockPane.class)
+                            ARLogger.getInstance(ARSaveComponentPane.class)
                                     .fine("originalReferences Size: " + originalReferences.size());
 
                             boolean success = false;

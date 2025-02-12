@@ -13,7 +13,7 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
-import com.allinweb.ch.component.scene.ARSaveBlockScene;
+import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
@@ -410,8 +410,8 @@ public class SimpleWebSocketServer {
         //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
 
         Platform.runLater(() -> {
-            ARSaveBlockScene newSaveBlockScene =
-                    new ARSaveBlockScene(componentBlockDTO, blockDTO, blockSplitDTO.getDetails());
+            ARSaveComponentScene newSaveBlockScene =
+                    new ARSaveComponentScene(componentBlockDTO, blockDTO, blockSplitDTO.getDetails());
             newSaveBlockScene.showModal();
         });
     }

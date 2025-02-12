@@ -5,7 +5,7 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.component.pane.ARSaveBlockPane;
+import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.scene.*;
@@ -301,7 +301,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                 });
 
                                 if (savedInstStatus && originalReferences.size() > 0) {
-                                    ARLogger.getInstance(ARSaveBlockPane.class)
+                                    ARLogger.getInstance(ARSaveComponentPane.class)
                                             .fine("originalReferences Size: " + originalReferences.size());
 
                                     boolean success = false;

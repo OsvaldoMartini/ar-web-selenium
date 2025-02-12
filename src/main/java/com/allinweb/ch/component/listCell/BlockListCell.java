@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.listCell;
 
 import com.allinweb.ch.component.scene.ARMoveBlockScene;
-import com.allinweb.ch.component.scene.ARSaveBlockScene;
+import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformActions;
@@ -158,7 +158,7 @@ public class BlockListCell extends ListCell<BlockDTO> {
                     //                    (new ARSaveBlockScene(savedBlocksDTO, item)).show();
                     // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                     Platform.runLater(() -> {
-                        ARSaveBlockScene newSaveBlockScene = new ARSaveBlockScene(componentBlockDTO, item, null);
+                        ARSaveComponentScene newSaveBlockScene = new ARSaveComponentScene(componentBlockDTO, item, null);
                         newSaveBlockScene.showModal();
                     });
                 });

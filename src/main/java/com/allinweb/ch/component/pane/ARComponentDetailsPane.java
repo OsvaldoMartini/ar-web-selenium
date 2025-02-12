@@ -48,7 +48,7 @@ public class ARComponentDetailsPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        saveBlockButton = builder.buildButton(" Save Block ", ARConstants.SPACE_L);
+        saveBlockButton = builder.buildButton(" Save Component ", ARConstants.SPACE_L);
         closeButton = builder.buildButton(" Close ", ARConstants.SPACE_L);
 
         HBox actionPanel = new HBox(saveBlockButton, closeButton);

@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.model.DetailsDTO;
-import com.allinweb.ch.component.pane.ARSaveBlockPane;
+import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.persistence.BlockDTO;
@@ -10,7 +10,7 @@ import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-public class ARSaveBlockScene extends ARScene {
+public class ARSaveComponentScene extends ARScene {
     private static final Double SCENE_HEIGHT = 250D;
     private static final Double SCENE_WIDTH = 600D;
     private static String TITLE = "Move Block";
@@ -19,7 +19,7 @@ public class ARSaveBlockScene extends ARScene {
     private BlockDTO blockDTO;
     private DetailsDTO detailsDTO;
 
-    public ARSaveBlockScene(ComponentBlockDTO componentBlockDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
+    public ARSaveComponentScene(ComponentBlockDTO componentBlockDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
         this.componentBlockDTO = componentBlockDTO;
         this.blockDTO = blockDTO;
         this.detailsDTO = detailsDTO;
@@ -40,7 +40,7 @@ public class ARSaveBlockScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARSaveBlockPane(componentBlockDTO, blockDTO, detailsDTO);
+        return new ARSaveComponentPane(componentBlockDTO, blockDTO, detailsDTO);
     }
 
     @Override
