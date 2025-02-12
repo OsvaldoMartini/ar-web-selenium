@@ -1,11 +1,17 @@
 package com.allinweb.ch.persistence;
 
-import javax.persistence.*;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 
 @Entity
-@Table(name = "complex_instruction")
+@Table(name = "component_complex")
 // @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "complexInstructionSeq", allocationSize = 1)
-public class ComplexInstructionDTO extends BaseDTO {
+public class ComponentComplexDTO extends BaseDTO {
 
     @ManyToOne
     @JoinColumn(name = "instruction_id")
@@ -32,7 +38,7 @@ public class ComplexInstructionDTO extends BaseDTO {
         this.botJobDTO = botJobDTO;
     }
 
-    public ComplexInstructionDTO() {
+    public ComponentComplexDTO() {
         super();
     }
 

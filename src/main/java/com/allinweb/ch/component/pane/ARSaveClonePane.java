@@ -40,7 +40,7 @@ import javafx.stage.Stage;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-public class ARSaveBotJobAsPane extends ARPane {
+public class ARSaveClonePane extends ARPane {
 
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
@@ -71,7 +71,7 @@ public class ARSaveBotJobAsPane extends ARPane {
 
     private Pane mainPane;
 
-    public ARSaveBotJobAsPane(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
+    public ARSaveClonePane(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
         this.selecBotJobDTO = selecBotJobDTO;
         this.botJobList = botJobList;
     }
@@ -180,8 +180,9 @@ public class ARSaveBotJobAsPane extends ARPane {
             try (Connection conn = performDataBase.getConnection()) {
                 int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
 
+                String[] arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
                 ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
-                        conn, selecBotJobDTO.getId(), newBotJobId, newBotJobName, newDescription);
+                        conn, selecBotJobDTO.getId(), newBotJobId, newBotJobName, newDescription, arrayTables);
 
                 if (errorMessage == null) {
                     showAlertTimer(

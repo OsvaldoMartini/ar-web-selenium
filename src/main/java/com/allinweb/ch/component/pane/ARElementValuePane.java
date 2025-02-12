@@ -456,9 +456,9 @@ public class ARElementValuePane extends ARPane {
         variablesList.clear();
         String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
                 + " FROM variable vars "
-                + " left join block_loop_instruction blk on blk.variable_id = vars.id "
+                + " left join instruction blk on blk.variable_id = vars.id "
                 + " where vars.bot_job_id = " + rowMoveDTO.getBotJobId()
-                + " and  block_loop_instruction_id = " + instructionId
+                + " and  instruction_id = " + instructionId
                 + " group by vars.id, vars.type, vars.Name, vars.value ";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
@@ -502,14 +502,13 @@ public class ARElementValuePane extends ARPane {
         //        AlterSeq(hashCode);
         //        Integer hashCode = generateID();
 
-        String insertSQL =
-                "INSERT INTO variable (ID, type, Name, Value, bot_job_id, block_loop_instruction_id) VALUES ( "
-                        + hashCode + ","
-                        + "'" + user.getType() + "', "
-                        + "'" + user.getName() + "', "
-                        + "'" + user.getValue() + "', "
-                        + "'" + user.getBotJobId() + "', "
-                        + "'" + user.getInstructionId() + "')";
+        String insertSQL = "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id) VALUES ( "
+                + hashCode + ","
+                + "'" + user.getType() + "', "
+                + "'" + user.getName() + "', "
+                + "'" + user.getValue() + "', "
+                + "'" + user.getBotJobId() + "', "
+                + "'" + user.getInstructionId() + "')";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");

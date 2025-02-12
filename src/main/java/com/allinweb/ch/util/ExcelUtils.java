@@ -3,7 +3,6 @@ package com.allinweb.ch.util;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -98,15 +97,15 @@ public class ExcelUtils {
                 bufferedWriter.write(firstRow);
                 bufferedWriter.newLine();
 
-                List<BlockLoopInstructionDTO> instructionList = ARSharedResources.getInstance()
+                List<InstructionDTO> instructionList = ARSharedResources.getInstance()
                         .getEntityList(
-                                BlockLoopInstructionDTO.class,
-                                Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
+                                InstructionDTO.class,
+                                Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber),
                                 (instruction) -> instruction.getBlock().getId() == block.getId()
                                         && instruction.getActions().contains(ARConstants.INSERT));
 
                 Integer last = instructionList.size();
-                for (BlockLoopInstructionDTO instruction : instructionList) {
+                for (InstructionDTO instruction : instructionList) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                     if (hasReference) {
@@ -177,17 +176,18 @@ public class ExcelUtils {
                 Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
                 blockNameCell.setCellValue("#" + block.getName());
 
-                List<InstructionDTO> instructionDTO =
+                List<com.allinweb.ch.component.model.InstructionDTO> instructionDTO =
                         performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId());
 
                 // Filter the list based on the block ID and action condition
-                List<InstructionDTO> filteredInstructions = instructionDTO.stream()
+                List<com.allinweb.ch.component.model.InstructionDTO> filteredInstructions = instructionDTO.stream()
                         .filter(instruction -> instruction.getBlockId() == block.getId()
                                 && instruction.getActions().contains(ARConstants.INSERT + ":"))
-                        .sorted(Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber))
+                        .sorted(Comparator.comparingInt(
+                                com.allinweb.ch.component.model.InstructionDTO::getInstructionOrderNumber))
                         .collect(Collectors.toList());
 
-                for (InstructionDTO instruction : filteredInstructions) {
+                for (com.allinweb.ch.component.model.InstructionDTO instruction : filteredInstructions) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                     if (hasReference) {

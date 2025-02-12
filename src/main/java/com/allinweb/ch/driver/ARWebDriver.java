@@ -2,7 +2,6 @@ package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
-import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -15,8 +14,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import javax.swing.*;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
@@ -116,11 +113,12 @@ public class ARWebDriver {
                         //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                         if (!(new File(webDriverPath)).exists()) {
                             ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
-//                            new ARAlertScene(
-//                                    Alert.AlertType.WARNING,
-//                                    "Missing file excel",
-//                                    "Please generate and compile the data of the file excel first before launching the bot job",
-//                                    new ButtonType[] {ButtonType.OK});
+                            //                            new ARAlertScene(
+                            //                                    Alert.AlertType.WARNING,
+                            //                                    "Missing file excel",
+                            //                                    "Please generate and compile the data of the file
+                            // excel first before launching the bot job",
+                            //                                    new ButtonType[] {ButtonType.OK});
                         }
                         // Set path to Edge WebDriver executable
                         System.setProperty("webdriver.edge.driver", webDriverPath);

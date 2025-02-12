@@ -3,9 +3,9 @@ package com.allinweb.ch.persistence;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "variable")
+@Table(name = "component_variable")
 // @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "variableSeq", allocationSize = 1)
-public class VariableDTO extends BaseDTO {
+public class ComponentVariableDTO extends BaseDTO {
     @Column(name = "type")
     private String type;
 
@@ -39,15 +39,15 @@ public class VariableDTO extends BaseDTO {
         this.botJobDTO = botJobDTO;
     }
 
-    public VariableDTO() {
+    public ComponentVariableDTO() {
         super();
     }
 
-    public VariableDTO(int id) {
+    public ComponentVariableDTO(int id) {
         super(id);
     }
 
-    public VariableDTO(BotJobDTO botJobDTO) {
+    public ComponentVariableDTO(BotJobDTO botJobDTO) {
         super();
         this.botJobDTO = botJobDTO;
     }

@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.HomeBankingListCell;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
@@ -15,24 +16,39 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.File;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 public class ARConfigurationPane extends ARPane {
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
+
+    private static final int SECONDS = 3; // Total seconds for the countdown
+    private int remainingSeconds = SECONDS;
+    private Timeline timeline;
+    private ExecutorService executorService;
+    private Alert alertToShow;
 
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final PerformMessage performMessage;
@@ -120,6 +136,33 @@ public class ARConfigurationPane extends ARPane {
 
     @Override
     public void initUIComponents() {
+        //  Alert Timer Components
+        // Create a label to display the countdown
+        Label countdownLabel = new Label(String.valueOf(remainingSeconds));
+        countdownLabel.setStyle("-fx-font-size: 24px;");
+        countdownLabel.setVisible(false);
+        // Create a stack pane to hold the label
+        StackPane stackPane = new StackPane(countdownLabel);
+        stackPane.setPadding(new Insets(20));
+
+        // Create a dialog for the alert
+        alertToShow = new Alert(Alert.AlertType.INFORMATION);
+        alertToShow.setTitle("Title");
+        alertToShow.setHeaderText("Header Message");
+        alertToShow.setContentText("Main Message");
+        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        // Set the content of the alert
+        alertToShow.getDialogPane().setContent(stackPane);
+        // Create a timeline to update the countdown
+        timeline = new Timeline(new KeyFrame(javafx.util.Duration.seconds(1), event -> {
+            remainingSeconds--;
+            countdownLabel.setText(String.valueOf(remainingSeconds));
+            if (remainingSeconds <= 0) {
+                timeline.stop(); // Stop the timeline when countdown finishes
+                alertToShow.close(); // Close the alert dialog
+            }
+        }));
+
         title = new Label("Configuration");
         title.setMaxHeight(ARConstants.SPACE_L);
         title.setBackground(new Background(
@@ -317,8 +360,8 @@ public class ARConfigurationPane extends ARPane {
         migrationDBButton = builder.buildButton("Migrate");
         migrationDBButton.setMaxHeight(ARConstants.SPACE_XXS);
 
-        migrationDBLabel.setVisible(false);
-        migrationDBButton.setVisible(false);
+        migrationDBLabel.setVisible(true);
+        migrationDBButton.setVisible(true);
 
         reloadDBButton = builder.buildButton("Reload Configs");
         reloadDBButton.setMaxHeight(ARConstants.SPACE_L);
@@ -407,6 +450,25 @@ public class ARConfigurationPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
+
+        try (Connection conn = performDataBase.getConnection()) {
+            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
+
+            List<com.allinweb.ch.component.model.InstructionDTO> instList = null;
+            for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
+                instList = performDataBase.instructionsToDuplicate(
+                        conn, botJobLoadDTO.getId(), "instruction"); // instruction
+                break;
+            }
+
+            if (instList != null && instList.size() > 0) {
+                migrationDBLabel.setText("Already Migrated");
+                migrationDBButton.setVisible(false);
+            }
+        } catch (SQLException ignore) {
+            System.out.println("Check if It Was Migrated! - Not Migrate Columns found!");
+        }
+
         //        homeBankingGroup
         //                .maxHeightProperty()
         //                .bind(mainPane.heightProperty()
@@ -445,9 +507,8 @@ public class ARConfigurationPane extends ARPane {
         String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         Label newInstruction =
-                new Label("DB MIGRATION\nDatabase Selected: \"" + dataBaseType + "\" \nRelease : \"v2.1f Beta Test\"");
+                new Label("DB MIGRATION\nDatabase Selected: \"" + dataBaseType + "\" \nRelease : \"v2.6f Beta Test\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
-        ;
 
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, null, ButtonType.YES, ButtonType.NO);
         alert.setHeaderText("Are you sure you want to EXECUTE MIGRATION DB (\"" + dataBaseType + "\")?");
@@ -456,26 +517,74 @@ public class ARConfigurationPane extends ARPane {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.YES) {
 
-            int rowsAffected = performDataBase.migrationScripts();
-            if (rowsAffected < 0) {
-                performMessage.errorMessage(
-                        "Migration DB Scripts error",
-                        "Cannot perform  Migration for the Database",
-                        databaseChoiceBox.getValue(),
-                        null,
-                        null,
-                        0);
-            } else {
-                performMessage.showCustomModalDialog(
-                        "Migration DB Scripts Success!",
-                        String.format("Perform Migration on %s records", rowsAffected),
-                        "Database",
-                        databaseChoiceBox.getValue(),
-                        null,
-                        false,
-                        null,
-                        0);
+            try (Connection conn = performDataBase.getConnection()) {
+                List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
+
+                String[] tablesMigration = {
+                    "block", "block_loop_instruction", "instruction", "instruction_reference", "reference", "variable"
+                };
+                ErrorMessage errorMessage = null;
+                for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
+                    // tablesMigration = {"block", "block_loop_instruction", "instruction", "instruction_reference",
+                    // "reference"};
+                    errorMessage = performDataBase.migration2_6f(
+                            conn, botJobLoadDTO.getId(), botJobLoadDTO.getId(), tablesMigration);
+
+                    if (errorMessage != null) {
+                        break;
+                    }
+                }
+
+                if (errorMessage == null) {
+                    showAlertTimer(
+                            Alert.AlertType.INFORMATION,
+                            "Migration DB Scripts Success!",
+                            "The Block Component job has been successfully created!",
+                            "Database",
+                            databaseChoiceBox.getValue(),
+                            null,
+                            null);
+
+                } else {
+                    String errorType = "Database error";
+                    String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
+
+                    String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
+
+                    showAlertTimer(
+                            Alert.AlertType.ERROR,
+                            errorMessage.getErrorTitle(),
+                            errorMessage.getErrorHeader(),
+                            detailedMessage,
+                            "Migration DB Scripts error",
+                            databaseChoiceBox.getValue(),
+                            null);
+                }
+
+            } catch (SQLException ex) {
+                System.out.println(ex.getMessage());
             }
+
+            //            int rowsAffected = performDataBase.migrationScriptsv2_6f();
+            //            if (rowsAffected < 0) {
+            //                performMessage.errorMessage(
+            //                        "Migration DB Scripts error",
+            //                        "Cannot perform  Migration for the Database",
+            //                        databaseChoiceBox.getValue(),
+            //                        null,
+            //                        null,
+            //                        0);
+            //            } else {
+            //                performMessage.showCustomModalDialog(
+            //                        "Migration DB Scripts Success!",
+            //                        String.format("Perform Migration on %s records", rowsAffected),
+            //                        "Database",
+            //                        databaseChoiceBox.getValue(),
+            //                        null,
+            //                        false,
+            //                        null,
+            //                        0);
+            //            }
         }
     }
 
@@ -637,8 +746,8 @@ public class ARConfigurationPane extends ARPane {
             // Execute each statement individually
             stmt.executeUpdate("DELETE FROM job_run_report;");
             stmt.executeUpdate("DELETE FROM variable;");
-            stmt.executeUpdate("DELETE FROM instruction_reference;");
-            stmt.executeUpdate("DELETE FROM block_loop_instruction;");
+            stmt.executeUpdate("DELETE FROM reference;");
+            stmt.executeUpdate("DELETE FROM instruction;");
             stmt.executeUpdate("DELETE FROM block;");
             stmt.executeUpdate("DELETE FROM bot_job;");
 
@@ -729,5 +838,79 @@ public class ARConfigurationPane extends ARPane {
         chooser.setInitialDirectory(startingDirectory);
         File chosenPath = chooser.showOpenDialog(new Stage());
         return chosenPath.getAbsolutePath();
+    }
+
+    private void showAlertTimer(
+            Alert.AlertType alertType,
+            String title,
+            String header,
+            String msg1,
+            String msg2,
+            String msg3,
+            String msg4) {
+        executorService = Executors.newSingleThreadExecutor();
+        alertToShow.setAlertType(alertType);
+        alertToShow.setTitle(title);
+        alertToShow.setHeaderText(header);
+        //        alertToShow.setContentText(content);
+
+        // Remove the border of the DialogPane
+        alertToShow.getDialogPane().setStyle("-fx-border-color: transparent; -fx-border-width: 0;");
+
+        // Create VBox to hold multiple Text elements
+        VBox allMsgVer = new VBox();
+        allMsgVer.setSpacing(10); // Add some spacing between texts
+        allMsgVer.setPadding(new Insets(20));
+
+        Text variableText1Styled = new Text(msg1);
+        Text variableText2Styled = new Text(msg2);
+        Text variableText3Styled = new Text(msg3);
+        Text variableText4Styled = new Text(msg4);
+
+        // Set styles based on alert type
+        if (alertType.equals(Alert.AlertType.ERROR)) {
+            // Change the font color of the title to red
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+        } else {
+            // Change the font color of the title to red
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+        }
+
+        // Add Text elements to VBox
+        if (msg1 != null && msg2 == null && msg3 == null && msg4 == null) {
+            allMsgVer.getChildren().addAll(variableText1Styled);
+        } else if (msg1 != null && msg2 != null && msg3 == null && msg4 == null) {
+            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled);
+        } else if (msg1 != null && msg2 != null && msg3 != null && msg4 == null) {
+            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
+        } else {
+            allMsgVer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
+        }
+
+        // Create a StackPane to hold the VBox
+        StackPane stackPane = new StackPane(allMsgVer);
+        stackPane.setPadding(new Insets(20));
+
+        // Set StackPane content to alert dialog pane
+        alertToShow.getDialogPane().setContent(stackPane);
+
+        executorService.execute(() -> {
+            timeline.setCycleCount(SECONDS); // Run for seconds
+            timeline.play(); // Start the timeline
+
+            // Show the alert on the JavaFX Application Thread
+            javafx.application.Platform.runLater(() -> alertToShow.showAndWait());
+        });
+
+        if (executorService != null) {
+            remainingSeconds = SECONDS;
+            executorService.shutdown();
+        }
     }
 }

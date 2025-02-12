@@ -5,7 +5,7 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
+import com.allinweb.ch.persistence.InstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
@@ -164,13 +164,13 @@ public class ARWebElement {
         initFromWebElement(element);
     }
 
-    public ARWebElement(BlockLoopInstructionDTO instruction) {
+    public ARWebElement(InstructionDTO instruction) {
         botJobId = instruction.getBlock().getBotJobDTO().getId();
         updatePriorities(null, instruction);
         initFromBlockLoopInstruction(instruction);
     }
 
-    private void updatePriorities(String priority, BlockLoopInstructionDTO instruction) {
+    private void updatePriorities(String priority, InstructionDTO instruction) {
         botJobId = instruction.getBlock().getBotJobDTO().getId();
         if (arPriorities.getJobId() == null) {
             arPriorities.setJobId(botJobId);
@@ -589,7 +589,7 @@ public class ARWebElement {
         return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
     }
 
-    private void initFromBlockLoopInstruction(BlockLoopInstructionDTO instruction) {
+    private void initFromBlockLoopInstruction(InstructionDTO instruction) {
 
         // Split the description string
         if (instruction.getOperation() != null) {
@@ -825,9 +825,9 @@ public class ARWebElement {
         //        }
     }
 
-    public BlockLoopInstructionDTO buildBlockLoopInstruction(
+    public InstructionDTO buildBlockLoopInstruction(
             WebElementTagNameEnum forceTag, String actionReq, boolean identityHover, Integer orderNumber) {
-        BlockLoopInstructionDTO loop = new BlockLoopInstructionDTO();
+        InstructionDTO loop = new InstructionDTO();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
         loop.setCodified(false);

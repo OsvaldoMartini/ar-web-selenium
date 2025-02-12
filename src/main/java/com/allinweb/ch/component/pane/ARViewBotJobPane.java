@@ -901,14 +901,17 @@ public class ARViewBotJobPane extends ARPane {
 
                 for (String line : lines) {
                     // Exclude unnecessary lines
-                    if (line.contains("Host info") || line.contains("Build info") ||
-                            line.contains("System info") || line.contains("Command")) {
+                    if (line.contains("Host info")
+                            || line.contains("Build info")
+                            || line.contains("System info")
+                            || line.contains("Command")) {
                         continue;
                     }
 
-                    String message = line.contains("Message: ") ?
-                            line.substring(line.indexOf("Message: ") + "Message: ".length()).trim() :
-                            line.trim();
+                    String message = line.contains("Message: ")
+                            ? line.substring(line.indexOf("Message: ") + "Message: ".length())
+                                    .trim()
+                            : line.trim();
 
                     if (!message.isEmpty()) {
                         if (msg1 == null) {
@@ -1106,8 +1109,8 @@ public class ARViewBotJobPane extends ARPane {
         List<InstructionDTO> instructions = new ArrayList<>();
 
         // Build the SQL query statement
-        String querySQL = "SELECT * FROM block_loop_instruction WHERE block_id = " + blockId
-                + " order by instruction_order_number ASC";
+        String querySQL =
+                "SELECT * FROM instruction WHERE block_id = " + blockId + " order by instruction_order_number ASC";
 
         // Execute the query and process the result set
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
@@ -1165,7 +1168,7 @@ public class ARViewBotJobPane extends ARPane {
             // Loop through each instruction in the rowList
             for (InstructionDTO instruction : rowList) {
                 // Increment the instructionOrderNumber by 1 for each instruction
-                String updateSQL = "UPDATE block_loop_instruction SET  "
+                String updateSQL = "UPDATE instruction SET  "
                         + " instruction_order_number = " + instruction.getInstructionOrderNumber()
                         + " WHERE id = " + instruction.getInstructionId()
                         + " AND block_id = " + instruction.getBlockId();

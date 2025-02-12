@@ -6,7 +6,7 @@ import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
+import com.allinweb.ch.persistence.InstructionDTO;
 import com.allinweb.ch.persistence.SearchReturn;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
@@ -162,7 +162,7 @@ public class ARWebElementNew {
         initFromWebElement(element);
     }
 
-    private void updatePriorities(String priority, BlockLoopInstructionDTO instruction) {
+    private void updatePriorities(String priority, InstructionDTO instruction) {
         botJobId = instruction.getBlock().getBotJobDTO().getId();
         if (arPriorities.getJobId() == null) {
             arPriorities.setJobId(botJobId);
@@ -541,12 +541,12 @@ public class ARWebElementNew {
 
         moreOptionsButton.setOnAction(e -> editingElement.setValue(!editingElement.getValue()));
         this.blockButton.setOnAction((e) -> {
-            BlockLoopInstructionDTO item = (BlockLoopInstructionDTO)
-                    ARSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, this.instructionId);
-            ObservableList<BlockLoopInstructionDTO> list = ARSharedResources.getInstance()
+            InstructionDTO item = (InstructionDTO)
+                    ARSharedResources.getInstance().getEntityById(InstructionDTO.class, this.instructionId);
+            ObservableList<InstructionDTO> list = ARSharedResources.getInstance()
                     .getEntityList(
-                            BlockLoopInstructionDTO.class,
-                            Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
+                            InstructionDTO.class,
+                            Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber),
                             (instruction) -> {
                                 return instruction.getBlock().getId()
                                         == item.getBlock().getId();
@@ -554,7 +554,7 @@ public class ARWebElementNew {
             System.out.println(list.size() + "Size");
             int index = list.indexOf(item);
             System.out.println(index + "indexof");
-            List<BlockLoopInstructionDTO> items = list.subList(index, list.size());
+            List<InstructionDTO> items = list.subList(index, list.size());
             BlockDTO previousBlock = item.getBlock();
             BlockDTO defaultBlock = new BlockDTO();
             defaultBlock.setBotJob(item.getBlock().getBotJobDTO());
@@ -577,8 +577,8 @@ public class ARWebElementNew {
             nameLabel.setText(nameField.getText());
             ARLogger.getInstance(ARWebElement.class).info("saving instruction with id: " + instructionId);
             if (instructionId != null && instructionId != 0) {
-                BlockLoopInstructionDTO instruction =
-                        ARSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
+                InstructionDTO instruction =
+                        ARSharedResources.getInstance().getEntityById(InstructionDTO.class, instructionId);
                 instruction.setName(nameLabel.getText());
                 String action = instruction.getActions();
                 if (action.contains(ARConstants.INSERT)) {
@@ -586,7 +586,7 @@ public class ARWebElementNew {
                             + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
                             + nameLabel.getText());
                 }
-                ARSharedResources.getInstance().updateEntity(instruction, BlockLoopInstructionDTO.class);
+                ARSharedResources.getInstance().updateEntity(instruction, InstructionDTO.class);
             }
         });
         deleteButton.setOnAction(e -> {
@@ -594,8 +594,8 @@ public class ARWebElementNew {
             boolean delete = showConfirmationDialog(instrName, msgDelete);
 
             if (delete) {
-                BlockLoopInstructionDTO instruction =
-                        ARSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class, instructionId);
+                InstructionDTO instruction =
+                        ARSharedResources.getInstance().getEntityById(InstructionDTO.class, instructionId);
                 int instructionIndex = instruction.getInstructionOrderNumber();
                 try {
                     if (existVariables(instructionId)) {
@@ -720,9 +720,9 @@ public class ARWebElementNew {
         //        }
     }
 
-    public BlockLoopInstructionDTO buildBlockLoopInstruction(
+    public InstructionDTO buildBlockLoopInstruction(
             WebElementTagNameEnum forceTag, String actionReq, boolean identityHover, Integer orderNumber) {
-        BlockLoopInstructionDTO loop = new BlockLoopInstructionDTO();
+        InstructionDTO loop = new InstructionDTO();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
         loop.setCodified(false);
@@ -1030,7 +1030,7 @@ public class ARWebElementNew {
     }
 
     private void deleteBlockInstruction(int instructionId) throws SQLException {
-        String deleteBlockInstruction = "delete FROM block_loop_instruction " + " where id = " + instructionId;
+        String deleteBlockInstruction = "delete FROM instruction " + " where id = " + instructionId;
 
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
@@ -1043,8 +1043,7 @@ public class ARWebElementNew {
     }
 
     private void deleteInstrReference(int instructionId) throws SQLException {
-        String deleteSQL =
-                "delete FROM instruction_reference " + " where block_loop_instruction_id =  " + instructionId;
+        String deleteSQL = "delete FROM reference " + " where instruction_id =  " + instructionId;
 
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -1057,7 +1056,7 @@ public class ARWebElementNew {
     }
 
     private boolean existVariables(int instructionId) throws SQLException {
-        String query = "select id FROM variable " + " where block_loop_instruction_id =  " + instructionId;
+        String query = "select id FROM variable " + " where instruction_id =  " + instructionId;
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
             while (rs.next()) {
@@ -1071,7 +1070,7 @@ public class ARWebElementNew {
     }
 
     private void forceDeleteOrphan() throws SQLException {
-        String deleteSQL = "delete FROM instruction_reference " + " where block_loop_instruction_id is null ";
+        String deleteSQL = "delete FROM reference " + " where instruction_id is null ";
 
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -1084,10 +1083,10 @@ public class ARWebElementNew {
     }
 
     private void forceDeleteFatherNoChild(int instructionId) throws SQLException {
-        String deleteSQL = "DELETE FROM block_loop_instruction " + "WHERE id IN ( "
+        String deleteSQL = "DELETE FROM instruction " + "WHERE id IN ( "
                 + "    SELECT bli.id "
-                + "    FROM block_loop_instruction bli "
-                + "    LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
+                + "    FROM instruction bli "
+                + "    LEFT JOIN reference irl ON irl.instruction_id = bli.id "
                 + "    WHERE irl.id IS NULL "
                 + "    AND bli.name NOT IN ('Check', 'GetValue', 'SetValue')"
                 + ") ";

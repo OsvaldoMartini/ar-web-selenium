@@ -357,30 +357,30 @@ public class PerformDBSavedBlock {
         // List to store the fetched instructions
         List<BlockLoopInstructionLoadDTO> instructions = new ArrayList<>();
 
-        // SQL query to fetch block_loop_instruction
+        // SQL query to fetch instruction
         String blockLoopQuery =
                 """
         SELECT id, action_custom_max_wait_sec, actions, active, block_marked, codified,
                default_val, description, export_to_abr, instruction_order_number, name,
                on_hold_seconds, operation, optional, parent_id, path, variable_id, block_id, bot_job_id
-        FROM block_loop_instruction
+        FROM instruction
         WHERE block_id = ?
         ORDER BY instruction_order_number ASC
     """;
 
-        // SQL query to fetch instruction_reference for a specific block_loop_instruction
+        // SQL query to fetch reference for a specific instruction
         String instructionReferenceQuery =
                 """
-        SELECT id, reference_type, value, block_loop_instruction_id, bot_job_id
-        FROM instruction_reference
-        WHERE block_loop_instruction_id = ?
+        SELECT id, reference_type, value, instruction_id, bot_job_id
+        FROM reference
+        WHERE instruction_id = ?
     """;
 
         try (Connection connection = performDataBase.getConnection();
                 PreparedStatement blockLoopStmt = connection.prepareStatement(blockLoopQuery);
                 PreparedStatement instructionRefStmt = connection.prepareStatement(instructionReferenceQuery)) {
 
-            // Set parameters and execute the block_loop_instruction query
+            // Set parameters and execute the instruction query
             blockLoopStmt.setInt(1, blockId);
             try (ResultSet blockLoopRs = blockLoopStmt.executeQuery()) {
                 while (blockLoopRs.next()) {
@@ -415,7 +415,7 @@ public class PerformDBSavedBlock {
                             reference.setId(instructionRefRs.getInt("id"));
                             reference.setReferenceType(instructionRefRs.getString("reference_type"));
                             reference.setValue(instructionRefRs.getString("value"));
-                            reference.setBlockLoopInstructionId(instructionRefRs.getInt("block_loop_instruction_id"));
+                            reference.setBlockLoopInstructionId(instructionRefRs.getInt("instruction_id"));
                             reference.setBotJobId(instructionRefRs.getInt("bot_job_id"));
                             references.add(reference);
                         }

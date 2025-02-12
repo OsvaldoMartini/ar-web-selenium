@@ -101,18 +101,18 @@ public class ARViewBotJobScene extends ARScene {
     //        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
     //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
     //                + " b.description AS block_description, b.type_id, "
-    //                + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
+    //                + " bli.id AS instruction_id, bli.instruction_order_number, "
     //                + " bli.actions, bli.name AS instruction_name, bli.path, bli.description AS
     // instruction_description, "
     //                + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
-    //                + " bli.on_hold_seconds, bli.codified, bli.export_to_ar, "
+    //                + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
     //                + " irl.reference_type, irl.value, "
     //                + "  bli.operation, bli.parent_id, "
     //                + "  b.export_file "
     //                + " FROM bot_job bj "
     //                + " LEFT JOIN block b ON b.bot_job_id = bj.id "
-    //                + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
-    //                + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
+    //                + " JOIN instruction bli ON bli.block_id = b.id "
+    //                + " LEFT JOIN reference irl ON irl.instruction_id = bli.id "
     //                + " where bot_job_id = " + botJobId
     //                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
     //
@@ -157,7 +157,7 @@ public class ARViewBotJobScene extends ARScene {
     //                    blockMap.put(blockId, blockDTO);
     //                }
     //
-    //                int instructionId = rs.getInt("block_loop_instruction_id");
+    //                int instructionId = rs.getInt("instruction_id");
     //                BlockLoopInstructionLoadDTO instruction = instructionMap.get(instructionId);
     //
     //                if (instruction == null) {
@@ -174,7 +174,7 @@ public class ARViewBotJobScene extends ARScene {
     //                    instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
     //                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
     //                    instruction.setCodified(rs.getBoolean("codified"));
-    //                    instruction.setExportToAR(rs.getBoolean("export_to_ar"));
+    //                    instruction.setExportToAR(rs.getBoolean("export_to_abr"));
     //                    instruction.setOperation(rs.getString("operation"));
     //                    instruction.setParentId(rs.getInt("parent_id"));
     //
@@ -202,18 +202,18 @@ public class ARViewBotJobScene extends ARScene {
     //        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
     //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
     //                + " b.description AS block_description, b.type_id, "
-    //                + " bli.id AS block_loop_instruction_id, bli.instruction_order_number, "
+    //                + " bli.id AS instruction_id, bli.instruction_order_number, "
     //                + " bli.actions, bli.name AS instruction_name, bli.path, bli.description AS
     // instruction_description, "
     //                + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
-    //                + " bli.on_hold_seconds, bli.codified, bli.export_to_ar, "
+    //                + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
     //                + " irl.reference_type, irl.value, "
     //                + "  bli.operation, bli.parent_id, "
     //                + "  b.export_file "
     //                + " FROM bot_job bj "
     //                + " LEFT JOIN block b ON b.bot_job_id = bj.id "
-    //                + " JOIN block_loop_instruction bli ON bli.block_id = b.id "
-    //                + " LEFT JOIN instruction_reference irl ON irl.block_loop_instruction_id = bli.id "
+    //                + " JOIN instruction bli ON bli.block_id = b.id "
+    //                + " LEFT JOIN reference irl ON irl.instruction_id = bli.id "
     //                + " where bot_job_id = " + botJobId
     //                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
     //
@@ -258,7 +258,7 @@ public class ARViewBotJobScene extends ARScene {
     //                    blockMap.put(blockId, blockDTO);
     //                }
     //
-    //                int instructionId = rs.getInt("block_loop_instruction_id");
+    //                int instructionId = rs.getInt("instruction_id");
     //                BlockLoopInstructionLoadDTO instruction = instructionMap.get(instructionId);
     //
     //                if (instruction == null) {
@@ -275,7 +275,7 @@ public class ARViewBotJobScene extends ARScene {
     //                    instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
     //                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
     //                    instruction.setCodified(rs.getBoolean("codified"));
-    //                    instruction.setExportToAR(rs.getBoolean("export_to_ar"));
+    //                    instruction.setExportToAR(rs.getBoolean("export_to_abr"));
     //                    instruction.setOperation(rs.getString("operation"));
     //                    instruction.setParentId(rs.getInt("parent_id"));
     //

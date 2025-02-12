@@ -444,7 +444,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
     private Integer loadNextIdInstructionData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block_loop_instruction";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
@@ -556,7 +556,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
             // Build the SQL insert query
 
-            String insertSQL = "INSERT INTO block_loop_instruction(\n" + "id, "
+            String insertSQL = "INSERT INTO instruction(\n" + "id, "
                     + "action_custom_max_wait_sec, "
                     + "actions, "
                     + "block_marked, "
@@ -634,12 +634,11 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
             Integer nextId = loadNextIdBReferenceData() + 1;
 
             // Build the SQL insert query
-            String insertSQL =
-                    "INSERT INTO instruction_reference(id, reference_type, value, block_loop_instruction_id) VALUES ("
-                            + nextId + ", "
-                            + "'" + referenceDTO.getReferenceType() + "', "
-                            + "'" + referenceDTO.getValue() + "', " // name
-                            + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
+            String insertSQL = "INSERT INTO reference(id, reference_type, value, instruction_id) VALUES ("
+                    + nextId + ", "
+                    + "'" + referenceDTO.getReferenceType() + "', "
+                    + "'" + referenceDTO.getValue() + "', " // name
+                    + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
@@ -664,7 +663,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
     private Integer loadNextIdBReferenceData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction_reference";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM reference";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {

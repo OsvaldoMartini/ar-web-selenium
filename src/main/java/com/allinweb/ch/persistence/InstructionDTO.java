@@ -9,9 +9,9 @@ import javax.persistence.*;
  *                                           X -> name of field
  */
 @Entity
-@Table(name = "block_loop_instruction")
+@Table(name = "instruction")
 // @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "blockLoopInstructionSeq", allocationSize = 1)
-public class BlockLoopInstructionDTO extends BaseDTO {
+public class InstructionDTO extends BaseDTO {
 
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
@@ -55,7 +55,7 @@ public class BlockLoopInstructionDTO extends BaseDTO {
     @Column(name = "codified")
     private Boolean codified;
 
-    @Column(name = "export_to_ar")
+    @Column(name = "export_to_abr")
     private Boolean exportToAR;
 
     @Column(name = "active")
@@ -91,22 +91,22 @@ public class BlockLoopInstructionDTO extends BaseDTO {
 
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderNumber ASC")
-    @JoinColumn(name = "block_loop_instruction_id")
+    @JoinColumn(name = "instruction_id")
     private List<ComplexInstructionDTO> complexInstructionDTOList;
 
     @OneToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "block_loop_instruction_id")
-    private List<InstructionReferenceDTO> instructionReferenceDTOList;
+    @JoinColumn(name = "instruction_id")
+    private List<ReferenceDTO> referenceDTOList;
 
-    public BlockLoopInstructionDTO() {
+    public InstructionDTO() {
         super();
     }
 
-    public BlockLoopInstructionDTO(int id) {
+    public InstructionDTO(int id) {
         super(id);
     }
 
-    public BlockLoopInstructionDTO(BlockDTO blockDTO) {
+    public InstructionDTO(BlockDTO blockDTO) {
         super();
         this.blockDTO = blockDTO;
     }
@@ -255,12 +255,12 @@ public class BlockLoopInstructionDTO extends BaseDTO {
         this.complexInstructionDTOList = complexInstructionDTOList;
     }
 
-    public List<InstructionReferenceDTO> getInstructionReferenceDTOList() {
-        return instructionReferenceDTOList;
+    public List<ReferenceDTO> getInstructionReferenceDTOList() {
+        return referenceDTOList;
     }
 
-    public void setInstructionReferenceDTOList(List<InstructionReferenceDTO> instructionReferenceDTOList) {
-        this.instructionReferenceDTOList = instructionReferenceDTOList;
+    public void setInstructionReferenceDTOList(List<ReferenceDTO> referenceDTOList) {
+        this.referenceDTOList = referenceDTOList;
     }
 
     public String getPriority() {

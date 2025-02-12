@@ -71,9 +71,9 @@ public class ComponentReferenceDTO extends BaseDTO {
 
     public static List<ComponentReferenceDTO> createSavedReferencesFromInstructionForSavedInstruction(
             InstructionDTO instructionDTO, ComponentInstructionDTO componentInstructionDTO) {
-        List<InstructionReferenceDTO> referenceList = ARSharedResources.getInstance()
+        List<ReferenceDTO> referenceList = ARSharedResources.getInstance()
                 .getEntityList(
-                        InstructionReferenceDTO.class,
+                        ReferenceDTO.class,
                         reference -> reference.getBlockLoopInstructionDTO().getId() == instructionDTO.getId());
         List<ComponentReferenceDTO> list = new ArrayList<>();
         referenceList.forEach(
@@ -82,7 +82,7 @@ public class ComponentReferenceDTO extends BaseDTO {
     }
 
     private static ComponentReferenceDTO copyFromReferenceForSavedInstruction(
-            InstructionReferenceDTO reference, ComponentInstructionDTO savedInstruction) {
+            ReferenceDTO reference, ComponentInstructionDTO savedInstruction) {
         ComponentReferenceDTO saved = new ComponentReferenceDTO();
         saved.setValue(reference.getValue());
         saved.setReferenceType(reference.getReferenceType());

@@ -578,7 +578,7 @@ public class ARScannedElementPane extends ARPane {
             hBoxLaunchButon.setSpacing(10); // Optional: adjust spacing between buttons
 
             // Add buttons to the HBox
-            hBoxLaunchButon.getChildren().addAll(launchBotJobButton, recallJobButton);
+            hBoxLaunchButon.getChildren().addAll(launchBotJobButton);
 
             HBox boxName = new HBox();
             boxName.getChildren().addAll(defineNameField, addButtonNewElement);
@@ -2880,9 +2880,9 @@ public class ARScannedElementPane extends ARPane {
 
                                 ARLogger.getInstance(Task.class)
                                         .fine("THREAD: fetching instruction list from database");
-                                ObservableList<BlockLoopInstructionDTO> list = ARSharedResources.getInstance()
+                                ObservableList<InstructionDTO> list = ARSharedResources.getInstance()
                                         .getEntityList(
-                                                BlockLoopInstructionDTO.class,
+                                                InstructionDTO.class,
                                                 (instr) -> instr.getBlock().getId() == currentBlockId);
                                 ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
 
@@ -2891,7 +2891,7 @@ public class ARScannedElementPane extends ARPane {
                                         : checkInputText.isSelected()
                                                 ? "INPUT"
                                                 : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
-                                BlockLoopInstructionDTO instruction = arWebElement.buildBlockLoopInstruction(
+                                InstructionDTO instruction = arWebElement.buildBlockLoopInstruction(
                                         arWebElement.gettagType(),
                                         actionReq,
                                         checkPickElement.isSelected(),
@@ -5203,15 +5203,15 @@ public class ARScannedElementPane extends ARPane {
                 " SELECT bot.ID botId, bot.Name botName, blk.ID blockId, blk.Name blockName, blk.block_order_number, "
                         + " blockInstr.id blockInstrId, blockInstr.instruction_order_number instructionOrderNumber, blockInstr.actions, "
                         + " instr.id instId, instr.reference_type, instr.value"
-                        + " FROM instruction_reference instr "
-                        + " join block_loop_instruction blockInstr on blockInstr.id = instr.block_loop_instruction_id"
+                        + " FROM reference instr "
+                        + " join instruction blockInstr on blockInstr.id = instr.instruction_id"
                         + " join bot_job bot on bot.id = " + botJob.getId()
                         + " join block blk on blk.bot_job_id = bot.id "
                         + " order by blockInstr.id, blockInstr.instruction_order_number, instr.id";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
 
-            List<InstructionReferenceDTO> instructions = new ArrayList<>();
+            List<ReferenceDTO> instructions = new ArrayList<>();
 
             while (rs.next()) {
                 String botId = rs.getString("botId");
@@ -5232,9 +5232,9 @@ public class ARScannedElementPane extends ARPane {
                     for (BlockDTO block : botJob.getBlocks()) {
                         if (block.getId() == Integer.parseInt(blockId)) {
                             boolean exist = false;
-                            for (BlockLoopInstructionDTO blockInstruction : block.getBlockLoopInstructionDTOS()) {
+                            for (InstructionDTO blockInstruction : block.getBlockLoopInstructionDTOS()) {
                                 if (blockInstruction.getId() == Integer.parseInt(blockInstrId)) {
-                                    for (InstructionReferenceDTO instructionReference :
+                                    for (ReferenceDTO instructionReference :
                                             blockInstruction.getInstructionReferenceDTOList()) {
                                         if (instructionReference.getId() == Integer.parseInt(instId)
                                                 && instructionReference
@@ -5248,7 +5248,7 @@ public class ARScannedElementPane extends ARPane {
                                         }
                                     }
                                     if (!exist) {
-                                        InstructionReferenceDTO inst = new InstructionReferenceDTO();
+                                        ReferenceDTO inst = new ReferenceDTO();
                                         inst.setId(Integer.parseInt(instId));
                                         inst.setReferenceType(referenceType);
                                         inst.setValue(value);
@@ -6998,7 +6998,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void executeAlert(BlockLoopInstructionDTO instruction) {
+    private void executeAlert(InstructionDTO instruction) {
         // Execute the countdown in a separate thread
         if (instruction != null) {
             Integer instructionSeconds = instruction.getOnHoldSeconds();
@@ -7441,7 +7441,7 @@ public class ARScannedElementPane extends ARPane {
 
                 // Build the SQL insert query
                 String insertSQL =
-                        "INSERT INTO instruction_reference(id, reference_type, value, block_loop_instruction_id, bot_job_id) VALUES ("
+                        "INSERT INTO reference(id, reference_type, value, instruction_id, bot_job_id) VALUES ("
                                 + nextId + ", "
                                 + "'" + reference.getReferenceType() + "', "
                                 + "'" + reference.getValue() + "', " // name
@@ -7471,7 +7471,7 @@ public class ARScannedElementPane extends ARPane {
 
     private Integer loadNextIdBReferenceData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction_reference";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM reference";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {

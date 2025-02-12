@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.pane.ARSaveBotJobAsPane;
+import com.allinweb.ch.component.pane.ARSaveClonePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import java.util.List;
@@ -9,7 +9,7 @@ import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
-public class ARSaveBotJobAsScene extends ARScene {
+public class ARSaveCloneScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 300D;
@@ -18,14 +18,14 @@ public class ARSaveBotJobAsScene extends ARScene {
     private BotJobLoadDTO selecBotJobDTO;
     private List<BotJobLoadDTO> botJobList;
 
-    public ARSaveBotJobAsScene(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
+    public ARSaveCloneScene(BotJobLoadDTO selecBotJobDTO, List<BotJobLoadDTO> botJobList) {
         this.selecBotJobDTO = selecBotJobDTO;
         this.botJobList = botJobList;
     }
 
     @Override
     public IARPane buildPane() {
-        return new ARSaveBotJobAsPane(selecBotJobDTO, botJobList);
+        return new ARSaveClonePane(selecBotJobDTO, botJobList);
     }
 
     @Override

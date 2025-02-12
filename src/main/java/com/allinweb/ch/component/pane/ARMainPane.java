@@ -8,7 +8,7 @@ import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARInfoScene;
 import com.allinweb.ch.component.scene.ARNewBotJobScene;
-import com.allinweb.ch.component.scene.ARSaveBotJobAsScene;
+import com.allinweb.ch.component.scene.ARSaveCloneScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
@@ -34,7 +34,6 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
-import javax.swing.*;
 
 public class ARMainPane extends ARPane {
 
@@ -178,7 +177,7 @@ public class ARMainPane extends ARPane {
         cloneBotJobButton.setOnMouseClicked(e -> {
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
-                new ARSaveBotJobAsScene(selecBotJobDTO, performDataBase.loadAllBotJobs()).showModal();
+                new ARSaveCloneScene(selecBotJobDTO, performDataBase.loadAllBotJobs()).showModal();
                 ObservableList<BotJobLoadDTO> botJobList =
                         FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
                 viewBotJobListView.setItems(botJobList);

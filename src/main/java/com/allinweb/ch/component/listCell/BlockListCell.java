@@ -7,8 +7,8 @@ import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BlockLoopInstructionDTO;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
+import com.allinweb.ch.persistence.InstructionDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
@@ -111,12 +111,12 @@ public class BlockListCell extends ListCell<BlockDTO> {
                 AnchorPane.setBottomAnchor(actionPanel, ARConstants.SPACE_XXS);
                 AnchorPane graphicRepresentation = new AnchorPane(new Node[] {nameFieldsGroup, actionPanel});
                 graphicRepresentation.setBackground(Background.fill(Color.ROYALBLUE));
-                ObservableList<BlockLoopInstructionDTO> instructionObservableList = ARSharedResources.getInstance()
+                ObservableList<InstructionDTO> instructionObservableList = ARSharedResources.getInstance()
                         .getEntityList(
-                                BlockLoopInstructionDTO.class,
-                                Comparator.comparingInt(BlockLoopInstructionDTO::getInstructionOrderNumber),
+                                InstructionDTO.class,
+                                Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber),
                                 instruction -> instruction.getBlock().getId() == item.getId());
-                ListView<BlockLoopInstructionDTO> instructionList = new ListView<>(instructionObservableList);
+                ListView<InstructionDTO> instructionList = new ListView<>(instructionObservableList);
                 instructionList.setFixedCellSize(ARConstants.SPACE_L);
 
                 instructionList.setCellFactory(new ARCellFactory<>(InstructionListCell.class)::call);
@@ -158,7 +158,8 @@ public class BlockListCell extends ListCell<BlockDTO> {
                     //                    (new ARSaveBlockScene(savedBlocksDTO, item)).show();
                     // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                     Platform.runLater(() -> {
-                        ARSaveComponentScene newSaveBlockScene = new ARSaveComponentScene(componentBlockDTO, item, null);
+                        ARSaveComponentScene newSaveBlockScene =
+                                new ARSaveComponentScene(componentBlockDTO, item, null);
                         newSaveBlockScene.showModal();
                     });
                 });
@@ -175,8 +176,7 @@ public class BlockListCell extends ListCell<BlockDTO> {
                         BlockDTO block = (BlockDTO)
                                 Collections.max(list, Comparator.comparingInt(BlockDTO::getBlockOrderNumber));
                         if (block != null) {
-                            List<BlockLoopInstructionDTO> blockLoopInstructions =
-                                    new ArrayList<BlockLoopInstructionDTO>();
+                            List<InstructionDTO> blockLoopInstructions = new ArrayList<InstructionDTO>();
                             blockLoopInstructions.addAll(block.getBlockLoopInstructionDTOS());
                             blockLoopInstructions.addAll(item.getBlockLoopInstructionDTOS());
                             block.setBlockLoopInstructionDTOS(blockLoopInstructions);
