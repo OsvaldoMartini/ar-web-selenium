@@ -139,7 +139,7 @@ public class ARWebElementNew {
         this.tagType = searchReturn.getTagType();
         this.attributeValue = searchReturn.getAttributeValue();
         this.tagNameDefined = searchReturn.getOriginalTagName();
-        this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getiFrameXPath()) ? searchReturn.getiFrameXPath() : null;
+        this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getIFrameXPath()) ? searchReturn.getIFrameXPath() : null;
 
         //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
         initFromWebElement(searchReturn.getElement());
@@ -187,7 +187,7 @@ public class ARWebElementNew {
         initUI();
         try {
             if (searchReturn != null
-                    && searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
+                    && searchReturn.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
                 savedReferences.put(
                         "absolutXPath",
                         searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -197,7 +197,7 @@ public class ARWebElementNew {
                 savedReferences.put(
                         "customXPath",
                         searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-            } else if (searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
+            } else if (searchReturn.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
                 savedReferences.put(
                         "currentXPath",
                         searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -815,11 +815,11 @@ public class ARWebElementNew {
         this.tagNameDefined = tagNameDefined;
     }
 
-    public String getiFrameXPath() {
+    public String getIFrameXPath() {
         return iFrameXPath;
     }
 
-    public void setiFrameXPath(String iFrameXPath) {
+    public void setIFrameXPath(String iFrameXPath) {
         this.iFrameXPath = iFrameXPath;
     }
 

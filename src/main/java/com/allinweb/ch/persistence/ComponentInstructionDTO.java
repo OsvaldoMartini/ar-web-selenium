@@ -155,11 +155,11 @@ public class ComponentInstructionDTO extends BaseDTO {
         this.coordinates = coordinates;
     }
 
-    public String getiFrameXPath() {
+    public String getIFrameXPath() {
         return iFrameXPath;
     }
 
-    public void setiFrameXPath(String iFrameXPath) {
+    public void setIFrameXPath(String iFrameXPath) {
         this.iFrameXPath = iFrameXPath;
     }
 

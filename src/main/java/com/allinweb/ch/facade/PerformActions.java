@@ -2790,8 +2790,8 @@ public class PerformActions {
 
                 // Map key-value pairs to variables
                 switch (key) {
+                    case "clicked":
                     case "tagName-found":
-                    case "clicked-tagName":
                     case "clicked-iFrame":
                     case "iFrame-Child":
                         typeElement = key;
@@ -2842,10 +2842,10 @@ public class PerformActions {
             }
 
             searchReturn.setElement(element);
-            searchReturn.setiFrameXPath(null);
+            searchReturn.setIFrameXPath(null);
             searchReturn.setDefinedName(elementFound.getTagName());
             searchReturn.setOriginalTagName(elementFound.getTagName());
-            searchReturn.setxPathWorkedFirst(ARConstants.ABSOLUT_XPATH);
+            searchReturn.setXPathWorkedFirst(ARConstants.ABSOLUT_XPATH);
 
             if (Strings.isNullOrEmpty(elementFound.getAbsoluteXPath())) {
                 searchReturn.setAbsolutXPath(elementFound.getXPath());

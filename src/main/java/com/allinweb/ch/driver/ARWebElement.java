@@ -130,7 +130,7 @@ public class ARWebElement {
         this.tagNameDefined = searchReturn.getOriginalTagName();
         this.mainXPath = searchReturn.getMainXPath();
         this.mainCoordinates = searchReturn.getMainCoordinates();
-        this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getiFrameXPath()) ? searchReturn.getiFrameXPath() : null;
+        this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getIFrameXPath()) ? searchReturn.getIFrameXPath() : null;
 
         //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
         initFromWebElement(searchReturn.getElement());
@@ -263,7 +263,7 @@ public class ARWebElement {
                 // Most Important to find any kind of element
 
                 if (searchReturn != null
-                        && searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
+                        && searchReturn.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
                     savedReferences.put(
                             "absolutXPath",
                             searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -273,7 +273,7 @@ public class ARWebElement {
                     savedReferences.put(
                             "customXPath",
                             searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (searchReturn.getxPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
+                } else if (searchReturn.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
                     savedReferences.put(
                             "currentXPath",
                             searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
@@ -415,7 +415,23 @@ public class ARWebElement {
             }
         }
 
-        if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
+        if (searchReturn.getTagType().equals(WebElementTagNameEnum.OUTPUT)
+                && searchReturn != null
+                && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
+            if (!Strings.isNullOrEmpty(innerHTMLValue) && innerHTMLValue.equalsIgnoreCase(searchReturn.getSomeText())) {
+                nameLabel.setText(searchReturn.getDefinedName().trim() + "-(" + innerHTMLValue.trim() + ")");
+            } else if (!Strings.isNullOrEmpty(searchReturn.getSomeText())) {
+                nameLabel.setText(searchReturn.getDefinedName().trim() + "-("
+                        + searchReturn.getSomeText().trim() + ")");
+            } else if (!Strings.isNullOrEmpty(searchReturn.getAttributeValue())) {
+                nameLabel.setText(searchReturn.getDefinedName().trim() + "-("
+                        + searchReturn.getAttributeValue().trim() + ")");
+                nameLabel.setText(searchReturn.getSomeText());
+            } else {
+                nameLabel.setText(searchReturn.getDefinedName().trim());
+            }
+            nameField.setText(searchReturn.getDefinedName().trim());
+        } else if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
             nameLabel.setText(searchReturn.getDefinedName().trim());
             nameField.setText(searchReturn.getDefinedName().trim());
         } else if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getAttributeValue())) {
@@ -914,11 +930,11 @@ public class ARWebElement {
         this.tagNameDefined = tagNameDefined;
     }
 
-    public String getiFrameXPath() {
+    public String getIFrameXPath() {
         return iFrameXPath;
     }
 
-    public void setiFrameXPath(String iFrameXPath) {
+    public void setIFrameXPath(String iFrameXPath) {
         this.iFrameXPath = iFrameXPath;
     }
 
