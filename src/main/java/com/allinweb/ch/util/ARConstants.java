@@ -153,6 +153,7 @@ public class ARConstants {
     public static final String COORD_CLICK = "COORD_CLICK";
     public static final String COORD_INSERT = "COORD_INSERT";
     public static final String VISUALIZE = "V";
+    public static final String GET_ELEMENT = "G";
     public static final String OUTPUT = "O";
     public static final String HIDDEN = "hidden";
     public static final String OTHER = "W";
@@ -196,6 +197,9 @@ public class ARConstants {
     // actions specifications and various
     public static final String ABSOLUT_XPATH = "ABSOLUT_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
     public static final String REGULAR_XPATH = "REGULAR_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+    public static final String ATTRIBUTE_ID = "ATTRIBUTE_ID";
+    public static final String ATTRIBUTE_NAME = "ATTRIBUTE_NAME";
+    public static final String SEARCH_COORD = "SEARCH_COORD";
 
     // FILE FORMATS
     public static final String FILE_FORMAT_EXCEL = ".xlsx";

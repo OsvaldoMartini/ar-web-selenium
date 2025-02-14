@@ -7,7 +7,7 @@ import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.InstructionDTO;
-import com.allinweb.ch.persistence.SearchReturn;
+import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.sql.ResultSet;
@@ -63,7 +63,7 @@ public class ARWebElementNew {
     private String elementId;
     private WebElement element;
 
-    private SearchReturn searchReturn;
+    private TargetElement targetElement;
     private String mainXPath;
     private String mainCoordinates;
     private String nameFieldTitle;
@@ -133,16 +133,17 @@ public class ARWebElementNew {
         initFromWebElement(element);
     }
 
-    public ARWebElementNew(SearchReturn searchReturn, int jobId) {
+    public ARWebElementNew(TargetElement targetElement, int jobId) {
         arPriorities.setJobId(jobId);
-        this.searchReturn = searchReturn;
-        this.tagType = searchReturn.getTagType();
-        this.attributeValue = searchReturn.getAttributeValue();
-        this.tagNameDefined = searchReturn.getOriginalTagName();
-        this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getIFrameXPath()) ? searchReturn.getIFrameXPath() : null;
+        this.targetElement = targetElement;
+        this.tagType = targetElement.getTagType();
+        this.attributeValue = targetElement.getAttributeValue();
+        this.tagNameDefined = targetElement.getOriginalTagName();
+        this.iFrameXPath =
+                !Strings.isNullOrEmpty(targetElement.getIFrameXPath()) ? targetElement.getIFrameXPath() : null;
 
         //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
-        initFromWebElement(searchReturn.getElement());
+        initFromWebElement(targetElement.getElement());
     }
 
     public ARWebElementNew(
@@ -186,27 +187,27 @@ public class ARWebElementNew {
     private void initFromWebElement(WebElement element) {
         initUI();
         try {
-            if (searchReturn != null
-                    && searchReturn.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
+            if (targetElement != null
+                    && targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
                 savedReferences.put(
                         "absolutXPath",
-                        searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
+                        targetElement.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
                 savedReferences.put(
                         "currentXPath",
-                        searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
+                        targetElement.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
                 savedReferences.put(
                         "customXPath",
-                        searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-            } else if (searchReturn.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
+                        targetElement.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+            } else if (targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
                 savedReferences.put(
                         "currentXPath",
-                        searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
+                        targetElement.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
                 savedReferences.put(
                         "absolutXPath",
-                        searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
+                        targetElement.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
                 savedReferences.put(
                         "customXPath",
-                        searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+                        targetElement.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
             }
             try {
                 Rectangle coordinates = element.getRect();
@@ -216,8 +217,8 @@ public class ARWebElementNew {
                                 + (coordinates.getY() + (coordinates.getHeight() / 2)));
             } catch (Exception coords) {
                 // Split the string into X and Y values
-                if (Strings.isNullOrEmpty(searchReturn.getCoords())) {
-                    String[] parts = searchReturn.getCoords().split(",");
+                if (Strings.isNullOrEmpty(targetElement.getCoords())) {
+                    String[] parts = targetElement.getCoords().split(",");
                     int x = Integer.parseInt(parts[0]);
                     int y = Integer.parseInt(parts[1]);
 
@@ -241,9 +242,9 @@ public class ARWebElementNew {
             throw ex;
         }
 
-        if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
-            nameLabel.setText(searchReturn.getDefinedName());
-            nameField.setText(searchReturn.getDefinedName());
+        if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getDefinedName())) {
+            nameLabel.setText(targetElement.getDefinedName());
+            nameField.setText(targetElement.getDefinedName());
         } else {
             nameLabel.setText(ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             nameField.setText(ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);

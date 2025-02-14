@@ -1,12 +1,10 @@
 package com.allinweb.ch.driver;
 
-import com.allinweb.ch.builder.WebElementAttributeEnum;
-import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.InstructionDTO;
-import com.allinweb.ch.persistence.SearchReturn;
+import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
 import com.google.common.base.Strings;
@@ -52,23 +50,11 @@ public class ARWebElement {
 
     private Integer instructionId;
     private Integer botJobId;
-    private String instrName;
-    private String instrOperation;
 
     private String elementId;
     private WebElement element;
 
-    private SearchReturn searchReturn;
-    private String mainXPath;
-    private String mainCoordinates;
-    private String nameFieldTitle;
-    private String iFrameXPath;
-    private String tagNameDefined;
-
-    private String attributeValue;
-    private WebElementTagNameEnum tagType;
-
-    private String innerHTML;
+    private TargetElement targetElement;
 
     private Map<String, String> savedReferences = new HashMap<>();
 
@@ -78,13 +64,13 @@ public class ARWebElement {
     private HBox actionPanel;
 
     private Label nameLabel;
+    private TextField nameField;
     private Label operationLabel1;
     private Label operationLabel2;
     private Label operationLabel3;
     private Label spaceLabel;
 
-    private TextField nameField;
-    private String iFrame;
+    private String nameFieldTitle;
 
     private ImageView hiddenImage;
     private ImageView outputImage;
@@ -108,60 +94,32 @@ public class ARWebElement {
         performMessage = PerformMessage.getInstance();
     }
 
-    public ARWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch, String iFrameXPath) {
-        arPriorities.setJobId(jobId);
-        this.tagType = typeSearch;
-        this.iFrameXPath = iFrameXPath;
-        initFromWebElement(element);
+    public String getNameFieldTitle() {
+        return nameFieldTitle;
     }
 
-    public ARWebElement(WebElement element, int jobId, WebElementTagNameEnum typeSearch) {
-        this.tagNameDefined = element.getTagName();
-        arPriorities.setJobId(jobId);
-        this.tagType = typeSearch;
-        initFromWebElement(element);
+    public void setNameFieldTitle(String nameFieldTitle) {
+        this.nameFieldTitle = nameFieldTitle;
     }
 
-    public ARWebElement(SearchReturn searchReturn, int jobId) {
-        arPriorities.setJobId(jobId);
-        this.searchReturn = searchReturn;
-        this.tagType = searchReturn.getTagType();
-        this.attributeValue = searchReturn.getAttributeValue();
-        this.tagNameDefined = searchReturn.getOriginalTagName();
-        this.mainXPath = searchReturn.getMainXPath();
-        this.mainCoordinates = searchReturn.getMainCoordinates();
-        this.iFrameXPath = !Strings.isNullOrEmpty(searchReturn.getIFrameXPath()) ? searchReturn.getIFrameXPath() : null;
-
-        //        this.attributeValue = element.getAttribute(searchReturn.getAttributeType());
-        initFromWebElement(searchReturn.getElement());
+    public TargetElement getTargetElement() {
+        return targetElement;
     }
 
-    public ARWebElement(
-            Map.Entry<String, WebElement> entry, String attributeName, int jobId, WebElementTagNameEnum typeElement) {
-        arPriorities.setJobId(jobId);
-        WebElement element = entry.getValue();
-        this.mainXPath = entry.getKey();
-        this.attributeValue = element.getAttribute(attributeName);
-        if (searchReturn == null || this.attributeValue == null) {
-            this.tagNameDefined = attributeName;
+    public void setTargetElement(TargetElement targetElement) {
+        this.targetElement = targetElement;
+    }
 
-        } else {
-            this.tagNameDefined = searchReturn.getOriginalTagName();
-        }
-        if (typeElement != null) {
-            tagType = typeElement;
-        }
-        initFromWebElement(element);
+    public ARWebElement(TargetElement targetElement, int jobId) {
+        arPriorities.setJobId(jobId);
+        this.targetElement = targetElement;
+        initFromWebElement(targetElement.getElement());
     }
 
     public ARWebElement(WebElement element, String priority) {
         updatePriorities(priority, null);
-        if (searchReturn == null) {
-            this.tagNameDefined = element.getTagName();
-        } else {
-            this.tagNameDefined = searchReturn.getOriginalTagName();
-        }
-        initFromWebElement(element);
+        this.targetElement = targetElement;
+        initFromWebElement(targetElement.getElement());
     }
 
     public ARWebElement(InstructionDTO instruction) {
@@ -195,56 +153,40 @@ public class ARWebElement {
         initUI();
 
         try {
-
-            if (this.tagNameDefined == null) {
-
-                performMessage.couldNotFindElement("No TagName");
-                //                new ARAlertScene(
-                //                        Alert.AlertType.ERROR,
-                //                        "Not possible to identity the Tag Name",
-                //                        "Try to Re Scanner or Re Select the Element!",
-                //                        ButtonType.OK);
-
-                return;
-            }
-        } catch (Exception e) {
-            performMessage.couldNotFindElement("No TagName");
-            //            new ARAlertScene(
-            //                    Alert.AlertType.ERROR,
-            //                    "Not possible to identity the Tag Name",
-            //                    "Try to Re Scanner or Re Select the Element!",
-            //                    ButtonType.OK);
-
-            return;
-        }
-
-        boolean isAnchor = this.tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
-        boolean isOption = this.tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
-
-        try {
             if (arPriorities.getAllPriorityList().size() == 0) {
                 arPriorities.loadPriorities();
                 ARLogger.getInstance(Thread.class).finer("Reloaded arPriorities.loadPriorities()");
             }
 
-            if (searchReturn == null && arPriorities.getJobId() != null) {
+            if (targetElement.getMainXPath() == null && arPriorities.getJobId() != null) {
                 for (Priority priority : arPriorities.getAllPriorityList()) {
                     try {
                         switch (priority.getPriorityType()) {
                             case attribute -> {
-                                String attributeValue =
-                                        element.getAttribute(priority.getName().get(0));
-                                if (attributeValue != null && !attributeValue.isBlank()) {
-                                    savedReferences.put(priority.getName().get(0), attributeValue);
+                                if (Strings.isNullOrEmpty(targetElement.getAttribName())) {
+                                    String attributeValue = element.getAttribute(
+                                            priority.getName().get(0));
+                                    if (attributeValue != null && !attributeValue.isBlank()) {
+                                        savedReferences.put(priority.getName().get(0), attributeValue);
+                                        targetElement.setAttribName(
+                                                priority.getName().get(0));
+                                        targetElement.setAttributeValue(attributeValue);
+                                    }
+
+                                } else {
+                                    String attributeValue = element.getAttribute(targetElement.getAttribName());
+                                    if (attributeValue != null && !attributeValue.isBlank()) {
+                                        savedReferences.put(priority.getName().get(0), attributeValue);
+                                        targetElement.setAttributeValue(attributeValue);
+                                    }
                                 }
                             }
                             case xpath, ByXPath -> {
-                                if (Strings.isNullOrEmpty(mainXPath)) {
-                                    mainXPath = ARWebUtil.extractWebElementXPath(element);
-                                    savedReferences.put(priority.getName().get(0), mainXPath);
+                                if (Strings.isNullOrEmpty(targetElement.getMainXPath())) {
+                                    targetElement.setMainXPath(ARWebUtil.extractWebElementXPath(element));
+                                    savedReferences.put(priority.getName().get(0), targetElement.getMainXPath());
                                 } else {
-
-                                    savedReferences.put(priority.getName().get(0), mainXPath);
+                                    savedReferences.put(priority.getName().get(0), targetElement.getMainXPath());
                                 }
                             }
 
@@ -253,6 +195,13 @@ public class ARWebElement {
                                 String coordTemp = (coord.getX() + (coord.getWidth() / 2)) + ","
                                         + (coord.getY() + (coord.getHeight() / 2));
                                 savedReferences.put(priority.getName().get(0), coordTemp);
+
+                                if (Strings.isNullOrEmpty(targetElement.getMainCoordinates())) {
+                                    targetElement.setMainCoordinates(coordTemp);
+                                }
+                                if (Strings.isNullOrEmpty(targetElement.getCoords())) {
+                                    targetElement.setCoords(coordTemp);
+                                }
                             }
                         }
                     } catch (EnumConstantNotPresentException ex) {
@@ -262,31 +211,31 @@ public class ARWebElement {
             } else {
                 // Most Important to find any kind of element
 
-                if (searchReturn != null
-                        && searchReturn.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
+                if (targetElement != null
+                        && targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
                     savedReferences.put(
                             "absolutXPath",
-                            searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
+                            targetElement.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
                     savedReferences.put(
                             "currentXPath",
-                            searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
+                            targetElement.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
                     savedReferences.put(
                             "customXPath",
-                            searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (searchReturn.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
+                            targetElement.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+                } else if (targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
                     savedReferences.put(
                             "currentXPath",
-                            searchReturn.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
+                            targetElement.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
                     savedReferences.put(
                             "absolutXPath",
-                            searchReturn.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
+                            targetElement.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
                     savedReferences.put(
                             "customXPath",
-                            searchReturn.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (searchReturn != null && !Strings.isNullOrEmpty(mainXPath)) {
-                    savedReferences.put("xpath", searchReturn.getCurrentXPath());
-                } else if (!Strings.isNullOrEmpty(attributeValue)) {
-                    savedReferences.put("attribute", attributeValue);
+                            targetElement.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+                } else if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getMainXPath())) {
+                    savedReferences.put("xpath", targetElement.getCurrentXPath());
+                } else if (!Strings.isNullOrEmpty(targetElement.getAttributeValue())) {
+                    savedReferences.put("attribute", targetElement.getAttributeValue());
                 } else { // In case of Dynamic Creation
                     savedReferences.put("xpath", ARWebUtil.extractWebElementXPath(element));
                 }
@@ -299,8 +248,8 @@ public class ARWebElement {
                                     + (coordinates.getY() + (coordinates.getHeight() / 2)));
                 } catch (Exception coords) {
                     // Split the string into X and Y values
-                    if (Strings.isNullOrEmpty(searchReturn.getCoords())) {
-                        String[] parts = searchReturn.getCoords().split(",");
+                    if (Strings.isNullOrEmpty(targetElement.getCoords())) {
+                        String[] parts = targetElement.getCoords().split(",");
                         int x = Integer.parseInt(parts[0]);
                         int y = Integer.parseInt(parts[1]);
 
@@ -325,204 +274,6 @@ public class ARWebElement {
             throw ex;
         }
 
-        String ariaLabelValue = null;
-        String innerHTMLValue = null;
-        String formControlNameAttributeValue = null;
-        String testIdAttributeValue = null;
-        String idAttributeValue = null;
-        String nameAttributeValue = null;
-        String valueAttributeValue = null;
-        String valueHRefFile = null;
-        try {
-
-            ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
-            innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
-            formControlNameAttributeValue = element.getAttribute(WebElementAttributeEnum.FORM_CONTROL_NAME.getValue());
-            testIdAttributeValue = element.getAttribute(WebElementAttributeEnum.TEST_ID.getValue());
-            idAttributeValue = element.getAttribute(WebElementAttributeEnum.ID.getValue());
-            nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
-            valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
-            valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
-        } catch (Exception ignore) {
-
-        }
-
-        if (searchReturn == null) {
-            searchReturn = new SearchReturn();
-            if (nameAttributeValue != null) {
-                searchReturn.setAttributeValue(nameAttributeValue);
-            } else {
-                searchReturn.setAttributeValue(tagNameDefined);
-            }
-        }
-
-        String textLabel = searchReturn.getAttributeValue();
-
-        if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = extractAllText(element, tagNameDefined);
-        }
-
-        if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = getTextRecursively(element, tagNameDefined);
-        }
-
-        if (Strings.isNullOrEmpty(textLabel)) {
-            textLabel = getTextRecursivelyByParent(element, tagNameDefined);
-        }
-
-        boolean hasButton = this.tagNameDefined.equalsIgnoreCase("button") && isClickable() && !textLabel.isBlank();
-        boolean hasAriaLabel = ariaLabelValue != null && !ariaLabelValue.isBlank();
-        boolean hasInnerHTML = innerHTMLValue != null && !innerHTMLValue.isBlank() && !hasButton;
-        boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
-        boolean hasFormControlName =
-                formControlNameAttributeValue != null && !formControlNameAttributeValue.isBlank() && !hasButton;
-        boolean hasTestId = testIdAttributeValue != null && !testIdAttributeValue.isBlank() && !hasButton;
-        boolean hasName = nameAttributeValue != null && !nameAttributeValue.isBlank() && !hasButton;
-        boolean hasId = idAttributeValue != null && !idAttributeValue.isBlank() && !hasButton;
-        boolean hasValue = valueAttributeValue != null && !valueAttributeValue.isBlank();
-        boolean hasHRefFile = valueHRefFile != null && !valueHRefFile.isBlank();
-        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("p");
-        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("span");
-        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("div");
-        boolean hasLabel = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("label");
-
-        if ((hasSpan || hasDiv || hasLabel) && !outputElement.getValue()) {
-            textElement.setValue(true);
-        }
-
-        if (innerHTMLValue != null) {
-            innerHTMLValue = innerHTMLValue.replaceAll("  ", "");
-            innerHTMLValue = innerHTMLValue.replaceAll("\n", "");
-        }
-
-        if (Strings.isNullOrEmpty(searchReturn.getAttributeValue())) {
-            if (!Strings.isNullOrEmpty(textLabel)) {
-                searchReturn.setAttributeValue(textLabel);
-            } else if (!Strings.isNullOrEmpty(valueAttributeValue)) {
-                searchReturn.setAttributeValue(valueAttributeValue);
-            } else if (!Strings.isNullOrEmpty(testIdAttributeValue)) {
-                searchReturn.setAttributeValue(testIdAttributeValue);
-            } else if (!Strings.isNullOrEmpty(nameAttributeValue)) {
-                searchReturn.setAttributeValue(nameAttributeValue);
-            } else if (!Strings.isNullOrEmpty(ariaLabelValue)) {
-                searchReturn.setAttributeValue(ariaLabelValue);
-            } else if (!Strings.isNullOrEmpty(formControlNameAttributeValue)) {
-                searchReturn.setAttributeValue(innerHTMLValue);
-            } else if (!Strings.isNullOrEmpty(innerHTMLValue)) {
-                searchReturn.setAttributeValue(textLabel);
-            } else {
-                searchReturn.setAttributeValue(searchReturn.getDefinedName());
-            }
-        }
-
-        if (searchReturn.getTagType().equals(WebElementTagNameEnum.OUTPUT)
-                && searchReturn != null
-                && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
-            if (!Strings.isNullOrEmpty(innerHTMLValue) && innerHTMLValue.equalsIgnoreCase(searchReturn.getSomeText())) {
-                nameLabel.setText(searchReturn.getDefinedName().trim() + "-(" + innerHTMLValue.trim() + ")");
-            } else if (!Strings.isNullOrEmpty(searchReturn.getSomeText())) {
-                nameLabel.setText(searchReturn.getDefinedName().trim() + "-("
-                        + searchReturn.getSomeText().trim() + ")");
-            } else if (!Strings.isNullOrEmpty(searchReturn.getAttributeValue())) {
-                nameLabel.setText(searchReturn.getDefinedName().trim() + "-("
-                        + searchReturn.getAttributeValue().trim() + ")");
-                nameLabel.setText(searchReturn.getSomeText());
-            } else {
-                nameLabel.setText(searchReturn.getDefinedName().trim());
-            }
-            nameField.setText(searchReturn.getDefinedName().trim());
-        } else if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getDefinedName())) {
-            nameLabel.setText(searchReturn.getDefinedName().trim());
-            nameField.setText(searchReturn.getDefinedName().trim());
-        } else if (searchReturn != null && !Strings.isNullOrEmpty(searchReturn.getAttributeValue())) {
-            nameLabel.setText(searchReturn.getAttributeValue().trim());
-            nameField.setText(searchReturn.getAttributeValue().trim());
-        } else if (isOption && hasValue) {
-            nameLabel.setText(valueAttributeValue.trim());
-            nameField.setText(valueAttributeValue.trim());
-        } else if (hasFormControlName) {
-            nameLabel.setText(formControlNameAttributeValue.trim());
-            nameField.setText(formControlNameAttributeValue.trim());
-        } else if (hasTestId) {
-            nameLabel.setText(testIdAttributeValue.trim());
-            nameField.setText(testIdAttributeValue.trim());
-        } else if (hasName) {
-            nameLabel.setText(nameAttributeValue.trim());
-            nameField.setText(nameAttributeValue.trim());
-        } else if (hasAriaLabel) {
-            nameLabel.setText(ariaLabelValue.trim());
-            nameField.setText(ariaLabelValue.trim());
-        } else if (isAnchor && hasInnerHTML && !hasInnerHTMLTag) {
-            nameLabel.setText(innerHTMLValue.trim());
-            nameField.setText(innerHTMLValue.trim());
-        } else if (hasId) {
-            nameLabel.setText(idAttributeValue.trim());
-            nameField.setText(idAttributeValue.trim());
-        } else if (hasHRefFile) {
-            nameLabel.setText(valueHRefFile + " File".trim());
-            nameField.setText(valueHRefFile + " File".trim());
-        } else if (hasParagraph) {
-            nameLabel.setText(textLabel.trim());
-            nameField.setText(this.tagNameDefined.trim());
-        } else if (hasButton) {
-            nameLabel.setText(textLabel.trim());
-            nameField.setText(this.tagNameDefined.trim());
-        } else if (hasSpan) {
-            nameLabel.setText(textLabel.trim());
-            nameField.setText(this.tagNameDefined.trim());
-        } else if (hasDiv) {
-            nameLabel.setText(textLabel.trim());
-            nameField.setText(this.tagNameDefined.trim());
-        } else if (hasLabel) {
-            nameLabel.setText(textLabel.trim());
-            nameField.setText(this.tagNameDefined.trim());
-        } else if (this.tagNameDefined.equalsIgnoreCase("input")
-                || this.tagNameDefined.equalsIgnoreCase("button")
-                || this.tagNameDefined.equalsIgnoreCase("output")) {
-            nameLabel.setText(textLabel.trim());
-            nameField.setText(this.tagNameDefined.trim());
-        } else if (!Strings.isNullOrEmpty(element.getText())) {
-            nameLabel.setText(element.getText().trim());
-            nameField.setText(this.tagNameDefined.trim());
-        } else {
-            nameLabel.setText(ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
-            nameField.setText(ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
-        }
-        try {
-
-            String extRef = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_EXT_REFERENCE);
-            if (extRef != null) {
-                String extRefSub = extRef.substring(extRef.indexOf("'") + 1, extRef.length() - 1);
-                // isIdElement.setValue(hasTestId &&
-                // testIdAttributeValue.equalsIgnoreCase("web-banking-payment-core.payment-details.external-reference"));
-                isIdElement.setValue(hasTestId && testIdAttributeValue.equalsIgnoreCase(extRefSub));
-            }
-        } catch (Exception ex) {
-            throw ex;
-        }
-
-        // Identify if the element is an INPUT, BUTTON, or LABEL
-        nameFieldTitle = nameField.getText();
-
-        boolean isElementHidden = false;
-        try {
-            isElementHidden = element.getAttribute("type") != null
-                    && element.getAttribute("type").equalsIgnoreCase("hidden");
-        } catch (Exception ignored) {
-        }
-
-        boolean isInput = false;
-        boolean isButton = false;
-        boolean isLabel = false;
-
-        try {
-            isInput = this.tagNameDefined.equalsIgnoreCase("INPUT") && element.getAttribute("type") != null;
-            isButton = this.tagNameDefined.equalsIgnoreCase("BUTTON");
-            isLabel = this.tagNameDefined.equalsIgnoreCase("LABEL") && !Strings.isNullOrEmpty(element.getText());
-        } catch (Exception ignore) {
-
-        }
-
         hiddenElement.setValue(false);
         outputElement.setValue(false);
         insertElement.setValue(false);
@@ -530,23 +281,21 @@ public class ARWebElement {
         textElement.setValue(false);
 
         // Now proceed with the rest of your code
-        if (!isElementHidden) {
-            hiddenElement.setValue(false);
-
-            if (tagType != null) {
-                if (tagType.equals(WebElementTagNameEnum.BUTTON)) {
+        if (!targetElement.getIsElementHidden()) {
+            if (targetElement.getTagType() != null) {
+                if (targetElement.getTagType().equals(WebElementTagNameEnum.BUTTON)) {
                     // Handle the button case (if BUTTON is forced)
                     clickElement.setValue(true);
-                } else if (tagType.getValue().equalsIgnoreCase(ARConstants.SET_VALUE)) {
+                } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.SET_VALUE)) {
                     // Handle the SET_VALUE case
                     setValueElem.setValue(true);
-                } else if (tagType.getValue().equalsIgnoreCase(ARConstants.GET_VALUE)) {
+                } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.GET_VALUE)) {
                     // Handle the GET_VALUE case
                     getValueElem.setValue(true);
-                } else if (tagType.getValue().equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
+                } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
                     // Handle the CHECK_VALUE case
                     checkValueElem.setValue(true);
-                } else if (tagType.getValue().equalsIgnoreCase(ARConstants.OUTPUT)) {
+                } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.OUTPUT)) {
                     // Handle the OUTPUT case
                     outputElement.setValue(true);
                 } else {
@@ -555,28 +304,17 @@ public class ARWebElement {
                     clickElement.setValue(false);
                     textElement.setValue(false);
 
-                    tagType = WebElementTagNameEnum.INPUT;
+                    targetElement.setTagType(WebElementTagNameEnum.INPUT);
                     insertElement.setValue(true);
                 }
             } else {
-                // Default behavior based on element type
-                if (isInput) {
-                    insertElement.setValue(true); // Element is INPUT
-                    tagType = WebElementTagNameEnum.INPUT;
-                } else if (isButton) {
-                    clickElement.setValue(true); // Element is BUTTON
-                    tagType = WebElementTagNameEnum.BUTTON;
-                } else if (isLabel) {
-                    tagType = WebElementTagNameEnum.OUTPUT;
-                    outputElement.setValue(true); // Element is LABEL (just text)
-                } else {
-                    // Handle other types of elements as needed
-                    outputElement.setValue(false);
-                    clickElement.setValue(true);
-                    textElement.setValue(false);
-                    insertElement.setValue(false);
-                    tagType = WebElementTagNameEnum.BUTTON;
-                }
+
+                // Handle other types of elements as needed
+                outputElement.setValue(false);
+                clickElement.setValue(true);
+                textElement.setValue(false);
+                insertElement.setValue(false);
+                targetElement.setTagType(WebElementTagNameEnum.BUTTON);
             }
         } else {
             outputElement.setValue(false);
@@ -584,25 +322,18 @@ public class ARWebElement {
             textElement.setValue(false);
             insertElement.setValue(false);
             hiddenElement.setValue(true);
-            tagType = WebElementTagNameEnum.HIDDEN;
+            targetElement.setTagType(WebElementTagNameEnum.HIDDEN);
         }
 
-        // this is goign to be done before and match the case
-        //        xPath = ARWebUtil.extractWebElementXPath(element);
+        nameLabel.setText(targetElement.getNameLabel());
+        nameField.setText(targetElement.getNameField());
+
+        nameFieldTitle = targetElement.getNameField();
+
         elementId = ((RemoteWebElement) element).getId();
+
         this.element = element;
         toBeAddedElement.setValue(true);
-    }
-
-    private boolean isClickable(WebElement element, String tagNameDefined) {
-        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
-        boolean isClickableTag =
-                clickableTags.stream().anyMatch(t -> t.getValue().equalsIgnoreCase(tagNameDefined));
-        List<WebElementAttributeTypeValueEnum> clickableValues = WebElementAttributeTypeValueEnum.getClickableValues();
-        boolean isClickableValue = clickableValues.stream().anyMatch(v -> v.getValue()
-                .equalsIgnoreCase(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
-        boolean isInputTag = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue());
-        return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
     }
 
     private void initFromBlockLoopInstruction(InstructionDTO instruction) {
@@ -624,13 +355,11 @@ public class ARWebElement {
         isCheckValidator = actionReference[0].equalsIgnoreCase(ARConstants.CHECK_VALUE);
 
         instructionId = instruction.getId();
-        instrName = instruction.getName();
-        instrOperation = instruction.getOperation();
         initUI();
 
         nameLabel.setText(instruction.getName());
         nameField.setText(instruction.getName());
-        mainXPath = instruction.getPath();
+
         if (actionReference.length > 1) {
             nameLabel.setText(actionReference[1]);
             nameField.setText(actionReference[1]);
@@ -850,7 +579,7 @@ public class ARWebElement {
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
         loop.setActive(true);
-        loop.setPath(mainXPath);
+        loop.setPath(targetElement.getMainXPath());
         String action;
         // TODO: Make a better thing than this
         if (isIdElement.get()) {
@@ -874,19 +603,19 @@ public class ARWebElement {
                                                                 + nameLabel.getText();
             } else {
 
-                if (tagType != null) {
-                    if (tagType.equals(WebElementTagNameEnum.INPUT)) {
+                if (targetElement.getTagType() != null) {
+                    if (targetElement.getTagType().equals(WebElementTagNameEnum.INPUT)) {
                         action = ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
-                    } else if (tagType.equals(WebElementTagNameEnum.HIDDEN)) {
+                    } else if (targetElement.getTagType().equals(WebElementTagNameEnum.HIDDEN)) {
                         action = ARConstants.INSERT
                                 + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
                                 + nameLabel.getText()
                                 + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
                                 + ARConstants.HIDDEN;
-                    } else if (tagType.equals(WebElementTagNameEnum.BUTTON)) {
+                    } else if (targetElement.getTagType().equals(WebElementTagNameEnum.BUTTON)) {
                         action = ARConstants.CLICK;
 
-                    } else if (tagType.getValue().equalsIgnoreCase(ARConstants.OUTPUT)) {
+                    } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.OUTPUT)) {
                         // Handle the OUTPUT case
                         action = ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
                     } else {
@@ -920,46 +649,6 @@ public class ARWebElement {
                 graphicRepresentation.removeEventHandler(eventType, handler);
             }
         }
-    }
-
-    public String getTagNameDefined() {
-        return tagNameDefined;
-    }
-
-    public void setTagNameDefined(String tagNameDefined) {
-        this.tagNameDefined = tagNameDefined;
-    }
-
-    public String getIFrameXPath() {
-        return iFrameXPath;
-    }
-
-    public void setIFrameXPath(String iFrameXPath) {
-        this.iFrameXPath = iFrameXPath;
-    }
-
-    public String getMainXPath() {
-        return mainXPath;
-    }
-
-    public void setMainXPath(String mainXPath) {
-        this.mainXPath = mainXPath;
-    }
-
-    public String getMainCoordinates() {
-        return mainCoordinates;
-    }
-
-    public void setMainCoordinates(String mainCoordinates) {
-        this.mainCoordinates = mainCoordinates;
-    }
-
-    public String getNameFieldTitle() {
-        return nameFieldTitle;
-    }
-
-    public void setNameFieldTitle(String nameFieldTitle) {
-        this.nameFieldTitle = nameFieldTitle;
     }
 
     public Node getGraphicRepresentation() {
@@ -1004,119 +693,6 @@ public class ARWebElement {
 
     public void setSavedReferences(Map<String, String> savedReferences) {
         this.savedReferences = savedReferences;
-    }
-
-    public WebElementTagNameEnum gettagType() {
-        return tagType;
-    }
-
-    public void settagType(WebElementTagNameEnum tagType) {
-        this.tagType = tagType;
-    }
-
-    /**
-     * Extracts the file extension from the given string, considering it may be a path.
-     *
-     * @param input The string from which to extract the file extension.
-     * @return The file extension if present and the string is identified as a file, otherwise an empty string.
-     */
-    public static String extractFileExtension(String input) {
-        if (input == null || input.isEmpty()) {
-            return "";
-        }
-
-        // Find the last slash in the string
-        int lastIndexOfSlash = input.lastIndexOf('/');
-
-        // Get the substring after the last slash
-        String lastSegment = lastIndexOfSlash == -1 ? input : input.substring(lastIndexOfSlash + 1);
-
-        // If the last segment contains a period, it is considered a file
-        int lastIndexOfDot = lastSegment.lastIndexOf('.');
-        if (lastIndexOfDot == -1 || lastIndexOfDot == lastSegment.length() - 1) {
-            return "";
-        }
-
-        // Extract the substring after the last period
-        return lastSegment.substring(lastIndexOfDot + 1);
-    }
-
-    // CHATGPT   I want select the correct type of element following these conditions
-    // TODO MORE INTELLIGENT  LOGIC
-    public void selectElementType(WebElement element) {
-        // Check element tag names
-        boolean isAnchor = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
-        boolean isOption = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
-
-        // Extract various attributes
-        String ariaLabelValue = element.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
-        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
-        String formControlNameAttributeValue =
-                element.getAttribute(WebElementAttributeEnum.FORM_CONTROL_NAME.getValue());
-        String testIdAttributeValue = element.getAttribute(WebElementAttributeEnum.TEST_ID.getValue());
-        String idAttributeValue = element.getAttribute(WebElementAttributeEnum.ID.getValue());
-        String nameAttributeValue = element.getAttribute(WebElementAttributeEnum.NAME.getValue());
-        String valueAttributeValue = element.getAttribute(WebElementAttributeEnum.VALUE.getValue());
-        String valueHRefFile = extractFileExtension(element.getAttribute(WebElementAttributeEnum.HREF.getValue()));
-        String tagname = tagNameDefined;
-        String textLabel = element.getText();
-
-        // Determine boolean conditions
-        boolean hasButton = this.tagNameDefined.equalsIgnoreCase("button")
-                && isClickable(element, tagNameDefined)
-                && !textLabel.isBlank();
-        boolean hasAriaLabel = isValidString(ariaLabelValue);
-        boolean hasInnerHTML = isValidString(innerHTMLValue) && !hasButton;
-        boolean hasInnerHTMLTag = hasInnerHTML && (innerHTMLValue.contains("<") || innerHTMLValue.contains(">"));
-        boolean hasFormControlName = isValidString(formControlNameAttributeValue);
-        boolean hasTestId = isValidString(testIdAttributeValue);
-        boolean hasName = isValidString(nameAttributeValue);
-        boolean hasId = isValidString(idAttributeValue) && !hasButton;
-        boolean hasValue = isValidString(valueAttributeValue);
-        boolean hasHRefFile = isValidString(valueHRefFile);
-        boolean hasParagraph = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("p");
-        boolean hasSpan = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("span");
-        boolean hasDiv = !Strings.isNullOrEmpty(textLabel) && this.tagNameDefined.equalsIgnoreCase("div");
-
-        // Set nameLabel and nameField based on conditions
-        if (isOption && hasValue) {
-            setElementText(valueAttributeValue, valueAttributeValue);
-        } else if (hasFormControlName) {
-            setElementText(formControlNameAttributeValue, formControlNameAttributeValue);
-        } else if (hasTestId) {
-            setElementText(testIdAttributeValue, testIdAttributeValue);
-        } else if (hasName) {
-            setElementText(nameAttributeValue, nameAttributeValue);
-        } else if (hasAriaLabel) {
-            setElementText(ariaLabelValue, ariaLabelValue);
-        } else if (isAnchor && hasInnerHTML && !hasInnerHTMLTag) {
-            setElementText(innerHTMLValue, innerHTMLValue);
-        } else if (hasId) {
-            setElementText(idAttributeValue, idAttributeValue);
-        } else if (hasHRefFile) {
-            setElementText(valueHRefFile + " File", valueHRefFile + " File");
-        } else if (hasParagraph) {
-            setElementText(textLabel, tagname);
-        } else if (hasButton) {
-            setElementText(textLabel, tagname);
-        } else if (hasSpan) {
-            setElementText(textLabel, tagname);
-        } else if (hasDiv) {
-            setElementText(textLabel, tagname);
-        } else {
-            setElementText(ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION, ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
-        }
-    }
-
-    // Utility methods for better readability and reusability
-
-    private boolean isValidString(String value) {
-        return value != null && !value.isBlank();
-    }
-
-    private void setElementText(String nameLabelText, String nameFieldText) {
-        nameLabel.setText(nameLabelText);
-        nameField.setText(nameFieldText);
     }
 
     // Recursive method to find text or placeholder text
