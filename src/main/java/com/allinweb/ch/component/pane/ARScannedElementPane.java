@@ -1272,33 +1272,32 @@ public class ARScannedElementPane extends ARPane {
             }
 
             Platform.runLater(() -> {
-                //                addProgressBar(elementsFound.size());
-
-                if (bottomPane.getChildren().size() > 0) {
-
-                    try {
-                        Thread.sleep(5000); // Sleep for 5 seconds (5000 milliseconds)
-                        bottomPane.getChildren().clear();
-
-                    } catch (InterruptedException e) {
-
-                    }
-
-                    for (int x = 0; x < bottomPane.getChildren().size(); x++) {
-                        bottomPane
-                                .getChildren()
-                                .remove(bottomPane
-                                        .getChildren()
-                                        .get(bottomPane.getChildren().size() - 1));
-                    }
-
-                    bottomPane.requestLayout();
+                try {
+                    Thread.sleep(2000);
+                    bottomPane.getChildren().clear();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
+
+                scannedElements1.requestLayout();
+                scannedElements1.refresh();
+                scannedElements2.requestLayout();
+                scannedElements2.refresh();
+                bottomPane.requestLayout();
             });
 
         } catch (Exception e) {
             browserNotAttached();
         } finally {
+
+            Platform.runLater(() -> {
+                scannedElements1.requestLayout();
+                scannedElements1.refresh();
+                scannedElements2.requestLayout();
+                scannedElements2.refresh();
+                bottomPane.requestLayout();
+            });
+
             // Close the browser
             arWebDriver.getDriver().switchTo().defaultContent();
         }
@@ -2079,6 +2078,10 @@ public class ARScannedElementPane extends ARPane {
                                         ARWebElement arWebElement = new ARWebElement(targetElement, botJob.getId());
                                         if (arWebElement != null) {
                                             listARElements.add(arWebElement);
+                                            Platform.runLater(() -> {
+                                                scannedElements1.requestLayout();
+                                                scannedElements1.refresh();
+                                            });
                                         }
                                     }
                                     targetElement.reset();
@@ -2144,14 +2147,6 @@ public class ARScannedElementPane extends ARPane {
                             }
                         }
                     }
-                    //                    Platform.runLater(() -> {
-                    //                        if (bottomPane.getChildren().size() > 0) {
-                    //                            Node node = bottomPane
-                    //                                    .getChildren()
-                    //                                    .get(bottomPane.getChildren().size() - 1);
-                    //                            bottomPane.getChildren().remove(node);
-                    //                        }
-                    //                    });
                 },
                 executorService);
 
@@ -2163,10 +2158,6 @@ public class ARScannedElementPane extends ARPane {
         future.handle((result, ex) -> {
             if (ex != null) {
                 Platform.runLater(() -> {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .fine("Removing ProgressBar due to exception. Sizes: " + "listARElements="
-                                    + listARElementsSize.get() + ", scannedElementList="
-                                    + scannedElementListSize.get());
                     if (bottomPane.getChildren().size() > 0) {
                         int elementsToRemove = Math.min(
                                 listARElementsSize.get() + scannedElementListSize.get(),
@@ -2179,14 +2170,20 @@ public class ARScannedElementPane extends ARPane {
                                             .getChildren()
                                             .get(bottomPane.getChildren().size() - 1));
                         }
+
+                        for (int x = 0; x < bottomPane.getChildren().size(); x++) {
+                            bottomPane
+                                    .getChildren()
+                                    .remove(bottomPane
+                                            .getChildren()
+                                            .get(bottomPane.getChildren().size() - 1));
+                        }
                     }
                 });
             } else {
                 Platform.runLater(() -> {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .fine("Future handle completed successfully. Sizes: " + "listARElements="
-                                    + listARElementsSize.get() + ", scannedElementList="
-                                    + scannedElementListSize.get());
+                    scannedElements1.requestLayout();
+                    scannedElements1.refresh();
                 });
             }
             return result;
@@ -2211,6 +2208,14 @@ public class ARScannedElementPane extends ARPane {
                             listARElementsSize.get() + scannedElementListSize.get(),
                             bottomPane.getChildren().size());
                     for (int x = 0; x < elementsToRemove; x++) {
+                        bottomPane
+                                .getChildren()
+                                .remove(bottomPane
+                                        .getChildren()
+                                        .get(bottomPane.getChildren().size() - 1));
+                    }
+
+                    for (int x = 0; x < bottomPane.getChildren().size(); x++) {
                         bottomPane
                                 .getChildren()
                                 .remove(bottomPane
@@ -7205,12 +7210,21 @@ public class ARScannedElementPane extends ARPane {
                             // Sleep for 3 seconds
                             Thread.sleep(3000);
 
-                            // Remove elements on the JavaFX Application Thread
                             Platform.runLater(() -> {
-                                if (bottomPane.getChildren().size() > 0) {
+                                try {
+                                    Thread.sleep(2000);
                                     bottomPane.getChildren().clear();
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
                                 }
+
+                                scannedElements1.requestLayout();
+                                scannedElements1.refresh();
+                                scannedElements2.requestLayout();
+                                scannedElements2.refresh();
+                                bottomPane.requestLayout();
                             });
+
                         } catch (InterruptedException e) {
                             System.out.println(e.getMessage()); // Handle interruption
                         }
