@@ -2865,6 +2865,7 @@ public class PerformActions {
                         allAttributes,
                         customXPath,
                         null,
+                        null,
                         null));
             }
         }
@@ -2921,7 +2922,7 @@ public class PerformActions {
     public TargetElement defineTargetNameTitles(TargetElement target) {
 
         try {
-            String tagNameDefined = target.getDefinedName();
+            String tagNameDefined = target.getDefinedName() != null ? target.getDefinedName() : target.getOriginalTagName();
             WebElement targetElem = target.getElement();
 
             // Check element tag names
@@ -2939,7 +2940,7 @@ public class PerformActions {
             String valueAttributeValue = targetElem.getAttribute(WebElementAttributeEnum.VALUE.getValue());
             String valueHRefFile =
                     extractFileExtension(targetElem.getAttribute(WebElementAttributeEnum.HREF.getValue()));
-            String tagname = tagNameDefined;
+
             String textLabel = targetElem.getText();
 
             // Determine boolean conditions
@@ -2991,13 +2992,13 @@ public class PerformActions {
             } else if (hasHRefFile) {
                 target = setElementText(target, valueHRefFile + " File", valueHRefFile + " File");
             } else if (hasParagraph) {
-                target = setElementText(target, textLabel, tagname);
+                target = setElementText(target, textLabel, tagNameDefined);
             } else if (hasButton) {
-                target = setElementText(target, textLabel, tagname);
+                target = setElementText(target, textLabel, tagNameDefined);
             } else if (hasSpan) {
-                target = setElementText(target, textLabel, tagname);
+                target = setElementText(target, textLabel, tagNameDefined);
             } else if (hasDiv) {
-                target = setElementText(target, textLabel, tagname);
+                target = setElementText(target, textLabel, tagNameDefined);
             } else {
                 target = setElementText(
                         target,

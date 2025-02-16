@@ -1404,11 +1404,12 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                 } catch (Exception e) {
+                    xpathTextPrevious = ""; // Allows clicking in the same element again
                     System.out.println("Element not found for XPath: " + elementDTO.getXPath());
                     ARConstants.DialogModal respModal = performMessage.showCustomModalDialog(
                             "Error selecting Web Element",
                             "Mandatory Value not Defined",
-                            " OK!",
+                            "Not able defining the Name/Label for the New AR Element",
                             null,
                             null,
                             true,
@@ -1431,7 +1432,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private TargetElement extractPickClone(String someText) {
+    private TargetElement extractPickClone(ElementDTO pickTarget) {
 
         xpathTextPrevious = allAttributesTextField.getText();
 
@@ -1440,16 +1441,16 @@ public class ARScannedElementPane extends ARPane {
         }
 
         // Reset Previous Values
-        targetElement.setAttribId(attribIdTextField.getText());
-        targetElement.setAttribName(attribNameTextField.getText());
-        targetElement.setOriginalTagName(originalTagNameField.getText());
-        targetElement.setSomeText(someText);
-        targetElement.setCoords(coordsTextField.getText());
-        targetElement.setCurrentXPath(currentXPathTextField.getText());
+        targetElement.setAttribId(pickTarget.getAttribId());
+        targetElement.setAttribName(pickTarget.getAttribName());
+        targetElement.setOriginalTagName(pickTarget.getTagName());
+        targetElement.setSomeText(pickTarget.getText());
+        targetElement.setCoords(pickTarget.getCoords());
+        targetElement.setCurrentXPath(pickTarget.getXPath());
         targetElement.setIFrameXPath(iFrameXPath);
         //        searchReturn.setiFrameElements(iFrameElements);
-        targetElement.setAllAttributes(allAttributesTextField.getText());
-        targetElement.setCustomXPath(customXPathTextField.getText());
+        targetElement.setAllAttributes(pickTarget.getAllAttributes());
+        targetElement.setCustomXPath(pickTarget.getCustomXPath());
         targetElement.setTagType(WebElementTagNameEnum.ALL);
         targetElement.setIconType(WebElementIcon.TEXT);
         targetElement.setAttributeType("");
@@ -4546,8 +4547,9 @@ public class ARScannedElementPane extends ARPane {
                 + "    // window.revertCloneInjections();\n"
                 + "\n"
                 + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
-                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
-                + "    // setTimeout(() => {\n"
+                + "    setTimeout(() => {\n"
+                + "        window.allElementInfo = [];\n"
+                + "\n"
                 + "    //   if (tooltip) {\n"
                 + "    //     tooltip.remove(); // Completely remove the tooltip from the DOM\n"
                 + "    //     tooltip = null; // Clear the reference to free memory\n"
@@ -4565,7 +4567,7 @@ public class ARScannedElementPane extends ARPane {
                 + "    //       elementBelowTooltip.style.outline = \"\"; // Remove the previous highlight\n"
                 + "    //     }\n"
                 + "    //   }\n"
-                + "    // }, 3000);\n"
+                + "    }, 2000);\n"
                 + "  }\n"
                 + "\n"
                 + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
@@ -4671,17 +4673,21 @@ public class ARScannedElementPane extends ARPane {
                                             StringBuilder sb = new StringBuilder();
 
                                             // CLONE  ONLY ADDS THE CLICKED ONE
+                                            ElementDTO pickTarget = null;
                                             for (ElementDTO picked : elementsFound) {
                                                 // If Have any iFrame-Child Try to get any to show
                                                 if (picked.getTagName().equalsIgnoreCase("input")) {
-                                                    originalTagNameField.setText(picked.getTagName());
-                                                    attribIdTextField.setText(picked.getAttribId());
-                                                    attribNameTextField.setText(picked.getAttribName());
-                                                    currentXPathTextField.setText(picked.getXPath());
-                                                    allAttributesTextField.setText(picked.getAllAttributes());
-                                                    customXPathTextField.setText(picked.getCustomXPath());
-                                                    coordsTextField.setText(picked.getCoords());
+//                                                    originalTagNameField.setText(picked.getTagName());
+//                                                    attribIdTextField.setText(picked.getAttribId());
+//                                                    attribNameTextField.setText(picked.getAttribName());
+//                                                    currentXPathTextField.setText(picked.getXPath());
+//                                                    allAttributesTextField.setText(picked.getAllAttributes());
+//                                                    customXPathTextField.setText(picked.getCustomXPath());
+//                                                    coordsTextField.setText(picked.getCoords());
+
+                                                    pickTarget = new ElementDTO(picked);
                                                     iFrameCoords = "";
+
                                                 }
 
                                                 sb.append(picked.getTagName() + " " + picked.getText())
@@ -4694,8 +4700,12 @@ public class ARScannedElementPane extends ARPane {
                                             if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
                                                     && !xpathTextPrevious.equalsIgnoreCase(
                                                             allAttributesTextField.getText())) {
-                                                extractPickClone(someText);
-                                                insertNewElement(elementsFound);
+                                                
+                                                this.targetElement = extractPickClone(pickTarget);
+                                                
+                                                if (this.targetElement.getNameField() != null && this.targetElement.getNameLabel() != null) {
+                                                    insertNewElement(elementsFound);
+                                                }
                                             }
                                             elementsFound.clear();
                                         }
@@ -4714,19 +4724,25 @@ public class ARScannedElementPane extends ARPane {
                                                     .filter(element -> "clicked".equals(element.getTypeElement()))
                                                     .collect(Collectors.toList());
 
+                                            String someText = "";
                                             // CLONE  ONLY ADDS THE CLICKED ONE
+                                            ElementDTO pickTarget = null;
                                             for (ElementDTO picked : elementsFound) {
                                                 if (!picked.getTypeElement().equalsIgnoreCase("clicked")) {
                                                     continue;
                                                 }
-                                                originalTagNameField.setText(picked.getTagName());
-                                                attribIdTextField.setText(picked.getAttribId());
-                                                attribNameTextField.setText(picked.getAttribName());
-                                                currentXPathTextField.setText(picked.getXPath());
-                                                allAttributesTextField.setText(picked.getAllAttributes());
-                                                customXPathTextField.setText(picked.getCustomXPath());
-                                                coordsTextField.setText(picked.getCoords());
+
+                                                pickTarget = new ElementDTO(picked);
+//                                                  originalTagNameField.setText(picked.getTagName());
+//                                                attribIdTextField.setText(picked.getAttribId());
+//                                                attribNameTextField.setText(picked.getAttribName());
+//                                                currentXPathTextField.setText(picked.getXPath());
+//                                                allAttributesTextField.setText(picked.getAllAttributes());
+//                                                customXPathTextField.setText(picked.getCustomXPath());
+//                                                coordsTextField.setText(picked.getCoords());
                                                 iFrameCoords = "";
+
+                                                someText = picked.getText();
 
                                                 sb.append(picked.getTagName() + " " + picked.getText())
                                                         .append("\n");
@@ -4738,8 +4754,13 @@ public class ARScannedElementPane extends ARPane {
                                             if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
                                                     && !xpathTextPrevious.equalsIgnoreCase(
                                                             allAttributesTextField.getText())) {
-                                                extractPickClone(someText);
-                                                insertNewElement(elementsFound);
+                                                
+                                                this.targetElement = extractPickClone(pickTarget);
+                                                
+                                                if (this.targetElement.getNameField() != null && this.targetElement.getNameLabel() != null) {
+
+                                                    insertNewElement(elementsFound);
+                                                }
                                             }
                                             elementsFound.clear();
                                         }
@@ -5645,18 +5666,20 @@ public class ARScannedElementPane extends ARPane {
                                     StringBuilder sb = new StringBuilder();
 
                                     String someText = "";
+                                    ElementDTO pickTarget = null;
                                     for (ElementDTO picked : elementsFound) {
                                         if (picked.getTypeElement().equalsIgnoreCase("clicked")) {
-                                            originalTagNameField.setText(picked.getTagName());
-                                            attribIdTextField.setText(picked.getAttribId());
-                                            attribNameTextField.setText(picked.getAttribName());
-                                            currentXPathTextField.setText(picked.getXPath());
-                                            allAttributesTextField.setText(picked.getAllAttributes());
-                                            customXPathTextField.setText(picked.getCustomXPath());
-                                            coordsTextField.setText(picked.getCoords());
+//                                            originalTagNameField.setText(picked.getTagName());
+//                                            attribIdTextField.setText(picked.getAttribId());
+//                                            attribNameTextField.setText(picked.getAttribName());
+//                                            currentXPathTextField.setText(picked.getXPath());
+//                                            allAttributesTextField.setText(picked.getAllAttributes());
+//                                            customXPathTextField.setText(picked.getCustomXPath());
+//                                            coordsTextField.setText(picked.getCoords());
                                             iFrameCoords = "";
 
-                                            defineNameField.setText("");
+                                            pickTarget = new ElementDTO(picked);
+
                                             continue; // To avoid the Clicked One
                                         }
 
@@ -5669,8 +5692,12 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
                                             && !xpathTextPrevious.equalsIgnoreCase(allAttributesTextField.getText())) {
-                                        extractPickClone(someText);
-                                        insertNewElement(elementsFound);
+                                        
+                                        this.targetElement = extractPickClone(pickTarget);
+
+                                        if (this.targetElement.getNameField() != null && this.targetElement.getNameLabel() != null) {
+                                            insertNewElement(elementsFound);
+                                        }
                                     }
                                     elementsFound.clear();
                                 }
