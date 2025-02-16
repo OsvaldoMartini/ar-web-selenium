@@ -2807,7 +2807,7 @@ public class PerformActions {
             String attribId = "";
             String attribName = "";
             String coords = "";
-            String absoluteXPath = "";
+            String allAttributes = "";
             String customXPath = "";
 
             // Split into key-value pairs based on ";"
@@ -2843,8 +2843,8 @@ public class PerformActions {
                     case "coords":
                         coords = value;
                         break;
-                    case "absoluteXPath":
-                        absoluteXPath = value;
+                    case "allAttributes":
+                        allAttributes = value;
                         break;
                     case "customXPath":
                         customXPath = value;
@@ -2855,7 +2855,17 @@ public class PerformActions {
             // Only add valid elements
             if (!typeElement.isEmpty() && !tagName.isEmpty()) {
                 elements.add(new ElementDTO(
-                        typeElement, tagName, xPath, text, attribId, attribName, coords, absoluteXPath, customXPath));
+                        typeElement,
+                        tagName,
+                        xPath,
+                        text,
+                        attribId,
+                        attribName,
+                        coords,
+                        allAttributes,
+                        customXPath,
+                        null,
+                        null));
             }
         }
         return elements;
@@ -2863,37 +2873,26 @@ public class PerformActions {
 
     public TargetElement defineSearchReturn(ElementDTO elementFound, WebElement element, TargetElement targetElement) {
         if (targetElement == null || targetElement.getElement() == null) {
-
-            if (elementFound.getAbsoluteXPath() == null) {
-                elementFound.setAbsoluteXPath(elementFound.getXPath());
-            }
-
-            if (elementFound.getCustomXPath() == null) {
-                elementFound.setCustomXPath(elementFound.getXPath());
+            if (targetElement == null) {
+                targetElement = new TargetElement();
             }
 
             targetElement.setElement(element);
-            targetElement.setIFrameXPath(null);
-            targetElement.setDefinedName(elementFound.getTagName());
+            targetElement.setDefinedName(null);
             targetElement.setOriginalTagName(elementFound.getTagName());
-            targetElement.setXPathWorkedFirst(ARConstants.ABSOLUT_XPATH);
-
-            if (Strings.isNullOrEmpty(elementFound.getAbsoluteXPath())) {
-                targetElement.setAbsolutXPath(elementFound.getXPath());
-            } else {
-                targetElement.setAbsolutXPath(elementFound.getAbsoluteXPath());
-            }
-
-            if (Strings.isNullOrEmpty(elementFound.getCustomXPath())) {
-                targetElement.setCustomXPath(elementFound.getXPath());
-            } else {
-                targetElement.setCustomXPath(elementFound.getCustomXPath());
-            }
-
-            targetElement.setAttributeValue(elementFound.getText());
+            targetElement.setMainXPath(elementFound.getXPath());
+            targetElement.setCurrentXPath(elementFound.getXPath());
+            targetElement.setCustomXPath(elementFound.getCustomXPath());
             targetElement.setCoords(elementFound.getCoords());
 
-            // Here I am forcing as Button "CLICKABLE" or "INPUTABLE"
+            targetElement.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+
+            targetElement.setAllAttributes(elementFound.getAllAttributes());
+            targetElement.setAttributeValue(elementFound.getAllAttributes());
+
+            targetElement.setSomeText(elementFound.getText());
+
+            targetElement.setIFrameXPath(elementFound.getIFrameXPath());
 
             if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                     || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
@@ -2926,8 +2925,8 @@ public class PerformActions {
             WebElement targetElem = target.getElement();
 
             // Check element tag names
-            boolean isAnchor = target.getDefinedName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
-            boolean isOption = target.getDefinedName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
+            boolean isAnchor = target.getOriginalTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
+            boolean isOption = target.getOriginalTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
 
             // Extract various attributes
             String ariaLabelValue = targetElem.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
@@ -2944,7 +2943,7 @@ public class PerformActions {
             String textLabel = targetElem.getText();
 
             // Determine boolean conditions
-            boolean hasButton = target.getDefinedName().equalsIgnoreCase("button")
+            boolean hasButton = target.getOriginalTagName().equalsIgnoreCase("button")
                     && isClickable(targetElem, tagNameDefined)
                     && !textLabel.isBlank();
             boolean hasAriaLabel = isValidString(ariaLabelValue);
@@ -2956,12 +2955,12 @@ public class PerformActions {
             boolean hasId = isValidString(idAttributeValue) && !hasButton;
             boolean hasValue = isValidString(valueAttributeValue);
             boolean hasHRefFile = isValidString(valueHRefFile);
-            boolean hasParagraph =
-                    !Strings.isNullOrEmpty(textLabel) && target.getDefinedName().equalsIgnoreCase("p");
-            boolean hasSpan =
-                    !Strings.isNullOrEmpty(textLabel) && target.getDefinedName().equalsIgnoreCase("span");
-            boolean hasDiv =
-                    !Strings.isNullOrEmpty(textLabel) && target.getDefinedName().equalsIgnoreCase("div");
+            boolean hasParagraph = !Strings.isNullOrEmpty(textLabel)
+                    && target.getOriginalTagName().equalsIgnoreCase("p");
+            boolean hasSpan = !Strings.isNullOrEmpty(textLabel)
+                    && target.getOriginalTagName().equalsIgnoreCase("span");
+            boolean hasDiv = !Strings.isNullOrEmpty(textLabel)
+                    && target.getOriginalTagName().equalsIgnoreCase("div");
 
             boolean isElementHidden;
             try {
@@ -3026,7 +3025,7 @@ public class PerformActions {
             System.out.println("Id: " + targetTagType.getAttribId());
             System.out.println("Name: " + targetTagType.getAttribName());
             System.out.println("xPath: " + targetTagType.getCurrentXPath());
-            System.out.println("Absolut xPath: " + targetTagType.getAbsolutXPath());
+            System.out.println("Absolut xPath: " + targetTagType.getAllAttributes());
             System.out.println("Custom xPath: " + targetTagType.getCustomXPath());
             System.out.println("iFrame xPath: " + targetTagType.getIFrameXPath());
 
@@ -3109,5 +3108,39 @@ public class PerformActions {
                 .equalsIgnoreCase(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
         boolean isInputTag = tagNameDefined.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue());
         return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
+    }
+
+    public WebElement findElementByXPaths(List<String> xpaths, WebDriver driver) {
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+
+        for (String xpath : xpaths) {
+            try {
+                Object result = jsExecutor.executeScript("return document.evaluate(\"" + xpath
+                        + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;");
+                if (result instanceof WebElement) {
+                    return (WebElement) result;
+                }
+            } catch (Exception e) {
+                // Log or handle the exception if needed
+                System.err.println("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    public void highlightElement(JavascriptExecutor jsExecutor, WebElement previousElement, WebElement currentElement) {
+        // Reset background color of the previous element
+        try {
+            if (previousElement != null) {
+                jsExecutor.executeScript("arguments[0].style.backgroundColor = '';", previousElement);
+            }
+
+            // Highlight the current element
+            if (currentElement != null) {
+                jsExecutor.executeScript("arguments[0].style.backgroundColor = 'red';", currentElement);
+            }
+        } catch (Exception error) {
+
+        }
     }
 }

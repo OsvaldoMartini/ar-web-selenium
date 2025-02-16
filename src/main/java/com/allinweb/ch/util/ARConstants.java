@@ -195,8 +195,8 @@ public class ARConstants {
     public static final String COMPLEX_INSTRUCTION_SEPARATOR = "\\|\\|";
 
     // actions specifications and various
-    public static final String ABSOLUT_XPATH = "ABSOLUT_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
     public static final String REGULAR_XPATH = "REGULAR_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+    public static final String CUSTOM_XPATH = "CUSTOM_XPATH"; // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
     public static final String ATTRIBUTE_ID = "ATTRIBUTE_ID";
     public static final String ATTRIBUTE_NAME = "ATTRIBUTE_NAME";
     public static final String SEARCH_COORD = "SEARCH_COORD";

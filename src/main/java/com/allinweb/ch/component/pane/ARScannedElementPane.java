@@ -78,7 +78,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.*;
-import org.openqa.selenium.remote.RemoteWebElement;
 import org.openqa.selenium.support.pagefactory.ByChained;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -91,6 +90,8 @@ public class ARScannedElementPane extends ARPane {
     private int currentTabIndex = 0; // Track the currently active tab index
     public ARWebDriver arWebDriver;
     private Set<String> windowHandles;
+    private WebElement previousElement = null;
+    private WebElement currentElement = null;
 
     private ExecutorService executorService;
     private static final int SECONDS = 3; // Total seconds for the countdown
@@ -168,7 +169,7 @@ public class ARScannedElementPane extends ARPane {
     private Label attribIdTextFieldLabel;
     private Label attribNameTextFieldLabel;
     private Label currentXPathLabel;
-    private Label currentAbsoluteXPathLabel;
+    private Label currentAllAttributesLabel;
     private Label customXPathLabel;
     private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
@@ -182,7 +183,7 @@ public class ARScannedElementPane extends ARPane {
     private TextField attribIdTextField;
     private TextField attribNameTextField;
     private TextField currentXPathTextField;
-    private TextField absolutXPathTextField;
+    private TextField allAttributesTextField;
     private TextField customXPathTextField;
     private TextField originalTagNameField;
     private TextField coordsTextField;
@@ -404,7 +405,7 @@ public class ARScannedElementPane extends ARPane {
         attribIdTextFieldLabel = new Label("Attrib Id Found");
         attribNameTextFieldLabel = new Label("Attrib Name Found");
         currentXPathLabel = new Label("XPath");
-        currentAbsoluteXPathLabel = new Label("Absolut XPath");
+        currentAllAttributesLabel = new Label("All Attributes");
         customXPathLabel = new Label("Custom XPath");
         originalTagNameLabel = new Label("Tag Name");
         coordsTextFieldLabel = new Label("Coordinates");
@@ -420,8 +421,8 @@ public class ARScannedElementPane extends ARPane {
         currentXPathTextField.setPromptText("XPath");
         //        iFrameXPathTextField = new TextField();
         //        iFrameXPathTextField.setPromptText("iFrame XPath");
-        absolutXPathTextField = new TextField();
-        absolutXPathTextField.setPromptText("Absolut XPath");
+        allAttributesTextField = new TextField();
+        allAttributesTextField.setPromptText("Absolut XPath");
         customXPathTextField = new TextField();
         customXPathTextField.setPromptText("Custom XPath");
         originalTagNameField = new TextField();
@@ -433,8 +434,8 @@ public class ARScannedElementPane extends ARPane {
         customXPathTextField.setVisible(false);
         originalTagNameLabel.setVisible(false);
         originalTagNameField.setVisible(false);
-        currentAbsoluteXPathLabel.setVisible(false);
-        absolutXPathTextField.setVisible(false);
+        currentAllAttributesLabel.setVisible(false);
+        allAttributesTextField.setVisible(false);
 
         leftButton = componentBuilder.buildButton(
                 "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
@@ -621,8 +622,8 @@ public class ARScannedElementPane extends ARPane {
                             //                            attribNameTextField,
                             //                            currentXPathLabel,
                             //                            currentXPathTextField,
-                            //                            currentAbsoluteXPathLabel,
-                            //                            absolutXPathTextField,
+                            //                            currentAllAttributesLabel,
+                            //                            allAttributesTextField,
                             //                            customXPathLabel,
                             //                            customXPathTextField,
                             //                            originalTagNameLabel,
@@ -643,8 +644,8 @@ public class ARScannedElementPane extends ARPane {
             customXPathTextField.setVisible(false);
             originalTagNameLabel.setVisible(false);
             originalTagNameField.setVisible(false);
-            currentAbsoluteXPathLabel.setVisible(false);
-            absolutXPathTextField.setVisible(false);
+            currentAllAttributesLabel.setVisible(false);
+            allAttributesTextField.setVisible(false);
 
             // Bind button widths to VBox width
             boxActions.maxWidthProperty().bind(textFieldVBox.widthProperty());
@@ -964,6 +965,11 @@ public class ARScannedElementPane extends ARPane {
             checkCloneElement.setDisable(checkPickElement.isSelected());
             checkCloneElement.setSelected(false);
 
+            xpathTextPrevious = "";
+            targetElement = null;
+            elementsFound.clear();
+            webElementObservableList2.clear();
+
             periodicPickActivated = checkPickElement.isSelected();
 
             handlePickElementClick();
@@ -974,6 +980,11 @@ public class ARScannedElementPane extends ARPane {
 
             checkPickElement.setDisable(checkCloneElement.isSelected());
             checkPickElement.setSelected(false);
+
+            xpathTextPrevious = "";
+            targetElement = null;
+            elementsFound.clear();
+            webElementObservableList2.clear();
 
             periodicCloneActivated = checkCloneElement.isSelected();
 
@@ -1171,9 +1182,9 @@ public class ARScannedElementPane extends ARPane {
                 this.targetElement.setIFrameXPath(iframeElement.getXPath());
                 this.targetElement.setDefinedName("iFrame-button");
                 this.targetElement.setOriginalTagName("iFrame");
-                this.targetElement.setXPathWorkedFirst(ARConstants.ABSOLUT_XPATH);
-                this.targetElement.setAbsolutXPath(iframeElement.getXPath());
+                this.targetElement.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
                 this.targetElement.setCurrentXPath(iframeElement.getXPath());
+                this.targetElement.setAllAttributes(iframeElement.getAllAttributes());
                 this.targetElement.setAttributeValue("iFrame");
                 this.targetElement.setTagType(WebElementTagNameEnum.BUTTON);
                 this.targetElement.setIconType(WebElementIcon.CLICK);
@@ -1211,22 +1222,15 @@ public class ARScannedElementPane extends ARPane {
                     WebElement element = arWebDriver.getDriver().findElement(By.xpath(elementChild.getXPath()));
                     //                                elements.add(element);
 
-                    if (Strings.isNullOrEmpty(elementChild.getAbsoluteXPath())) {
-                        elementChild.setAbsoluteXPath(elementChild.getXPath());
-                    }
-
-                    if (Strings.isNullOrEmpty(elementChild.getCustomXPath())) {
-                        elementChild.setCustomXPath(elementChild.getXPath());
-                    }
-
                     this.targetElement.setElement(element);
                     this.targetElement.setIFrameXPath(iframeElement.getXPath());
                     this.targetElement.setMainXPath(elementChild.getXPath());
                     this.targetElement.setDefinedName(elementChild.getTagName());
                     this.targetElement.setOriginalTagName(elementChild.getTagName());
-                    this.targetElement.setXPathWorkedFirst(ARConstants.ABSOLUT_XPATH);
-                    this.targetElement.setAbsolutXPath(elementChild.getAbsoluteXPath());
-                    this.targetElement.setCurrentXPath(elementChild.getCustomXPath());
+                    this.targetElement.setAllAttributes(elementChild.getAllAttributes());
+                    this.targetElement.setCurrentXPath(elementChild.getXPath());
+                    this.targetElement.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+                    this.targetElement.setCustomXPath(elementChild.getCustomXPath());
                     this.targetElement.setAttributeValue(elementChild.getText());
                     this.targetElement.setCoords(elementChild.getCoords());
 
@@ -1370,33 +1374,34 @@ public class ARScannedElementPane extends ARPane {
                     WebElement element = arWebDriver.getDriver().findElement(By.xpath(elementFound.getXPath()));
                     //                                elements.add(element);
 
-                    this.targetElement = performAction.defineSearchReturn(elementFound, element, this.targetElement);
+                    if (element != null) {
+                        // I Need to create a new targetElement
+                        TargetElement targetLocal = performAction.defineSearchReturn(elementFound, element, null);
+                        targetLocal = performAction.defineTargetNameTitles(targetLocal);
 
-                    ARWebElement arWebElement = new ARWebElement(this.targetElement, botJob.getId());
+                        // First  Search for xPath
+                        //                        TargetElement targetValidated =
+                        // checkValidateSearchPriorities(targetLocal);
 
-                    this.targetElement.setElement(null);
+                        ARWebElement arWebElement = new ARWebElement(targetLocal, botJob.getId());
+                        targetLocal.setElement(null);
 
-                    if (arWebElement != null && arWebElement.getElement() != null) {
-                        webElementObservableList2.add(arWebElement);
-                        Platform.runLater(() -> {
-                            scannedElements2.refresh();
-                        });
+                        if (arWebElement != null && arWebElement.getElement() != null) {
+                            webElementObservableList2.add(arWebElement);
+                            Platform.runLater(() -> {
+                                scannedElements2.refresh();
+                            });
+                        }
+
+                        System.out.println(
+                                "Found element: " + element.getTagName() + " with XPath: " + elementFound.getXPath());
                     }
 
-                    System.out.println(
-                            "Found element: " + element.getTagName() + " with XPath: " + elementFound.getXPath());
                 } catch (Exception e) {
                     System.out.println("Element not found for XPath: " + elementFound.getXPath());
-                    performMessage.errorMessage(
-                            "Error selecting Web Element",
-                            "Element not found Tag Name:",
-                            elementFound.getTagName(),
-                            null,
-                            null,
-                            0);
                     ARConstants.DialogModal respModal = performMessage.showCustomModalDialog(
                             "Error selecting Web Element",
-                            "Element not found Tag Name:",
+                            "Mandatory Value not Defined",
                             " OK!",
                             null,
                             null,
@@ -1422,7 +1427,11 @@ public class ARScannedElementPane extends ARPane {
 
     private TargetElement extractPickClone(String someText) {
 
-        xpathTextPrevious = absolutXPathTextField.getText();
+        xpathTextPrevious = allAttributesTextField.getText();
+
+        if (targetElement == null) {
+            targetElement = new TargetElement();
+        }
 
         // Reset Previous Values
         targetElement.setAttribId(attribIdTextField.getText());
@@ -1433,7 +1442,7 @@ public class ARScannedElementPane extends ARPane {
         targetElement.setCurrentXPath(currentXPathTextField.getText());
         targetElement.setIFrameXPath(iFrameXPath);
         //        searchReturn.setiFrameElements(iFrameElements);
-        targetElement.setAbsolutXPath(absolutXPathTextField.getText());
+        targetElement.setAllAttributes(allAttributesTextField.getText());
         targetElement.setCustomXPath(customXPathTextField.getText());
         targetElement.setTagType(WebElementTagNameEnum.ALL);
         targetElement.setIconType(WebElementIcon.TEXT);
@@ -1458,21 +1467,21 @@ public class ARScannedElementPane extends ARPane {
             return null;
         }
 
-        targetElement = performAction.defineTagType(targetElement);
+        //        targetElement = performAction.defineTagType(targetElement);
 
-        defineIsClickabe(targetElement);
+        defineCheckBoxesClickabe(targetElement);
 
         return targetElement;
     }
 
-    private void defineIsClickabe(TargetElement targetClickable) {
+    private void defineCheckBoxesClickabe(TargetElement targetClickable) {
         boolean clickable = isClickable(targetClickable.getElement());
 
         boolean tagClickable = false;
         // Define regex to extract specific tags (e.g., a, button)
         String regex = "/([^/\\[]+)";
         Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(targetClickable.getAbsolutXPath());
+        Matcher matcher = pattern.matcher(targetClickable.getAllAttributes());
 
         // Iterate through all matches and check for target tags
         while (matcher.find()) {
@@ -1513,6 +1522,7 @@ public class ARScannedElementPane extends ARPane {
     //    private TargetElement defineTargetTagType(TargetElement target) {
     //    targetElement = performAction.defineTargetNameTitles(targetElement);
     //    targetElement performAction.defineTagType(TargetElement targetTagType) {
+    //    defineTagTypeAdvanced
 
     // iFrames
     private TargetElement defineTagTypeAdvanced(
@@ -1628,10 +1638,10 @@ public class ARScannedElementPane extends ARPane {
             targetIFrames.setIFrameXPath(iFrameXPathScan);
             targetIFrames.setDefinedName(tagName);
             targetIFrames.setOriginalTagName(tagName);
-            targetIFrames.setXPathWorkedFirst(ARConstants.ABSOLUT_XPATH);
+            targetIFrames.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
 
             targetIFrames.setMainXPath(xPathElementChild);
-            targetIFrames.setAbsolutXPath(xPathElementChild);
+            targetIFrames.setAllAttributes(xPathElementChild); // TO DO
             targetIFrames.setCurrentXPath(xPathElementChild);
             targetIFrames.setAttributeValue(retrievedValue);
 
@@ -1686,16 +1696,16 @@ public class ARScannedElementPane extends ARPane {
                 }
             } else if (elementValid == null) {
                 try {
-                    elementValid = arWebDriver.getDriver().findElement(By.xpath(target.getAbsolutXPath()));
+                    elementValid = arWebDriver.getDriver().findElement(By.xpath(target.getCustomXPath()));
                     if (elementValid != null && elementValid.getTagName() != null) {
                         target.setElement(elementValid);
                         target.setXPathWorkedFirst(
-                                ARConstants.ABSOLUT_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
+                                ARConstants.CUSTOM_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
                     ARLogger.getInstance(ARScannedElementPane.class)
                             .warning(String.format(
-                                    "Cannot locate a Web Element with Absolut XPath\n%s", target.getAbsolutXPath()));
+                                    "Cannot locate a Web Element with Absolut XPath\n%s", target.getAllAttributes()));
                 }
             } else {
                 if (elementValid == null) {
@@ -1765,7 +1775,7 @@ public class ARScannedElementPane extends ARPane {
     //    Maybe Pre Test the Action
     //
     //    String isCurrentXPathOK;
-    //    String isAbsolutXPathOK;
+    //    String isAllAttributesOK;
     //    String isCustomXPathOK;
     //    String isCoordsOK;
     //    TO MAKE  PRE TEST    private WebElement checkBestAction() {
@@ -2480,22 +2490,17 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void addBehaviourToAbrWebElement(ARWebElement arWebElement) {
+    private void addBehaviourToAbrWebElement(ARWebElement arWebHover) {
         EventHandler<MouseEvent> mouseEnteredHandler = mouseEvent -> {
             Task<Void> handleEvent = new Task<>() {
                 @Override
                 protected Void call() {
-                    List<WebElement> elementList = arWebDriver
-                            .getDriver()
-                            .findElements(
-                                    By.xpath(arWebElement.getTargetElement().getMainXPath()));
-                    for (WebElement element : elementList) {
-                        if (((RemoteWebElement) element).getId().equalsIgnoreCase(arWebElement.getElementId())) {
-                            arWebDriver.highlightElement(element);
-                        } else {
-                            arWebDriver.dehighlightElement(element);
-                        }
+                    WebElement currentElement = arWebHover.getElement();
+                    if (currentElement != null) {
+                        performAction.highlightElement(jsExecutor, previousElement, currentElement);
+                        previousElement = currentElement; // Store the new previous element
                     }
+
                     return null;
                 }
             };
@@ -2503,23 +2508,12 @@ public class ARScannedElementPane extends ARPane {
         };
 
         EventHandler<MouseEvent> mouseExitedHandler = mouseEvent -> {
-            Task<Void> handleEvent = new Task<Void>() {
+            Task<Void> handleEvent = new Task<>() {
                 @Override
-                protected Void call() throws Exception {
-                    //                    WebElement element =
-                    // arWebDriver.getDriver().findElement(By.xpath(arWebElement.getXPath()));
-                    //                    if (element != null){
-                    //                        arWebDriver.dehighlightElement(arWebElement.getElement());
-                    //                    }
-
-                    List<WebElement> elementList = arWebDriver
-                            .getDriver()
-                            .findElements(
-                                    (By.xpath(arWebElement.getTargetElement().getMainXPath())));
-                    for (WebElement element : elementList) {
-                        if (((RemoteWebElement) element).getId().equalsIgnoreCase(arWebElement.getElementId())) {
-                            arWebDriver.dehighlightElement(element);
-                        }
+                protected Void call() {
+                    if (previousElement != null) {
+                        performAction.highlightElement(jsExecutor, previousElement, null);
+                        previousElement = null; // Reset previous
                     }
                     return null;
                 }
@@ -2533,11 +2527,11 @@ public class ARScannedElementPane extends ARPane {
 
                 arWebDriver.getDriver().switchTo().defaultContent();
 
-                if (arWebElement.getSavedReferences().size() == 0) {
+                if (arWebHover.getSavedReferences().size() == 0) {
 
                     Text variableText1Styled = new Text(String.format(
                             "The Instruction \"%s\" don't have any locators!",
-                            arWebElement.getElement().getText()));
+                            arWebHover.getElement().getText()));
 
                     variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
@@ -2564,33 +2558,32 @@ public class ARScannedElementPane extends ARPane {
                 if (!checkTestAction.isSelected()) {
                     try {
 
-                        if (arWebElement.getTargetElement().getMainXPath() == null) {
-                            arWebElement
+                        if (arWebHover.getTargetElement().getMainXPath() == null) {
+                            arWebHover
                                     .getTargetElement()
                                     .setMainXPath(
-                                            arWebElement.getSavedReferences().get("absolutXPath"));
+                                            arWebHover.getSavedReferences().get("allAttributes"));
                         }
-                        if (arWebElement.getTargetElement().getMainCoordinates() == null) {
-                            arWebElement
+                        if (arWebHover.getTargetElement().getMainCoordinates() == null) {
+                            arWebHover
                                     .getTargetElement()
                                     .setMainCoordinates(
-                                            arWebElement.getSavedReferences().get("coordinates"));
+                                            arWebHover.getSavedReferences().get("coordinates"));
                         }
 
-                        if (!Strings.isNullOrEmpty(
-                                arWebElement.getTargetElement().getIFrameXPath())) {
+                        if (!Strings.isNullOrEmpty(arWebHover.getTargetElement().getIFrameXPath())) {
                             try {
                                 WebElement iFrame = arWebDriver
                                         .getDriver()
                                         .findElement(By.xpath(
-                                                arWebElement.getTargetElement().getIFrameXPath()));
+                                                arWebHover.getTargetElement().getIFrameXPath()));
                                 arWebDriver.getDriver().switchTo().frame(iFrame);
                             } catch (Exception e) {
                                 performMessage.errorMessage(
                                         "iFrame Element not Located",
                                         "Cannot able to find the iFrame",
                                         "iFrame xPath",
-                                        arWebElement.getTargetElement().getMainXPath(),
+                                        arWebHover.getTargetElement().getMainXPath(),
                                         null,
                                         0);
                                 return;
@@ -2603,8 +2596,8 @@ public class ARScannedElementPane extends ARPane {
                             elementFinder = arWebDriver
                                     .getDriver()
                                     .findElement(By.xpath(
-                                            arWebElement.getTargetElement().getMainXPath()));
-                            arWebElement.setElement(elementFinder);
+                                            arWebHover.getTargetElement().getMainXPath()));
+                            arWebHover.setElement(elementFinder);
                         } catch (Exception e) {
                             System.out.println(e.getMessage());
                         }
@@ -2614,13 +2607,13 @@ public class ARScannedElementPane extends ARPane {
                             Pair<String, String> filedData = new Pair("martini", "Martini");
                             try {
                                 performAction.executeActionsAtCoordinates(
-                                        arWebElement.getSavedReferences().get("coordinates"),
+                                        arWebHover.getSavedReferences().get("coordinates"),
                                         filedData,
                                         ARConstants.CLICK);
 
                                 // It Means Did Not Failed to Coordinates
                                 // I am Setting here to avoid the Not Found Message
-                                elementFinder = arWebElement.getElement();
+                                elementFinder = arWebHover.getElement();
                             } catch (Exception e) {
                                 System.out.println(e.getMessage());
                             }
@@ -2631,9 +2624,9 @@ public class ARScannedElementPane extends ARPane {
                         //                    }
 
                         if (elementFinder != null
-                                && arWebElement.getElement() != null
-                                && arWebElement.getElement().getTagName() != null) {
-                            elemTagName = arWebElement.getElement().getTagName();
+                                && arWebHover.getElement() != null
+                                && arWebHover.getElement().getTagName() != null) {
+                            elemTagName = arWebHover.getElement().getTagName();
                         }
                     } catch (Exception ex) {
                         performMessage.couldNotFindElement(elemTagName);
@@ -2643,16 +2636,16 @@ public class ARScannedElementPane extends ARPane {
 
                 if (checkTestAction.isSelected()) {
                     try {
-                        if (arWebElement.getElement() != null) {
+                        if (arWebHover.getElement() != null) {
 
-                            if (arWebElement.getTargetElement().getIFrameXPath() != null) {
+                            if (arWebHover.getTargetElement().getIFrameXPath() != null) {
 
                                 arWebDriver.getDriver().switchTo().defaultContent();
 
                                 try {
                                     WebElement iFrame = arWebDriver
                                             .getDriver()
-                                            .findElement(By.xpath(arWebElement
+                                            .findElement(By.xpath(arWebHover
                                                     .getTargetElement()
                                                     .getIFrameXPath()));
                                     if (iFrame != null) {
@@ -2661,7 +2654,7 @@ public class ARScannedElementPane extends ARPane {
 
                                         WebElement elementClicked = arWebDriver
                                                 .getDriver()
-                                                .findElement(By.xpath(arWebElement
+                                                .findElement(By.xpath(arWebHover
                                                         .getTargetElement()
                                                         .getMainXPath()));
                                     }
@@ -2677,7 +2670,7 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             }
 
-                            arWebDriver.dehighlightElement(arWebElement.getElement());
+                            arWebDriver.dehighlightElement(arWebHover.getElement());
 
                             //                            WebElement elementXPath =
                             //
@@ -2689,12 +2682,11 @@ public class ARScannedElementPane extends ARPane {
                             Pair<String, String> fieldData = new Pair<>("Test", testActionsField.getText());
 
                             String mainCoordenates =
-                                    arWebElement.getTargetElement().getMainCoordinates();
+                                    arWebHover.getTargetElement().getMainCoordinates();
                             String savedCoordenates =
-                                    arWebElement.getSavedReferences().get("coordinates");
+                                    arWebHover.getSavedReferences().get("coordinates");
                             if (Strings.isNullOrEmpty(mainCoordenates)) {
-                                mainCoordenates =
-                                        arWebElement.getTargetElement().getMainCoordinates();
+                                mainCoordenates = arWebHover.getTargetElement().getMainCoordinates();
                             }
 
                             if (Strings.isNullOrEmpty(savedCoordenates)) {
@@ -2725,7 +2717,7 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append("Actions Tested:" + System.lineSeparator());
 
                             String result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.SELECT,
                                     coordinates,
                                     fieldData,
@@ -2734,7 +2726,7 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append(result + System.lineSeparator());
 
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.CLICK,
                                     coordinates,
                                     fieldData,
@@ -2743,7 +2735,7 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append(result + System.lineSeparator());
 
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.GET_VALUE,
                                     coordinates,
                                     fieldData,
@@ -2752,7 +2744,7 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append(result + System.lineSeparator());
 
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.CLEAR,
                                     coordinates,
                                     fieldData,
@@ -2761,7 +2753,7 @@ public class ARScannedElementPane extends ARPane {
 
                             actionsTested.append(result + System.lineSeparator());
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.INSERT,
                                     coordinates,
                                     fieldData,
@@ -2770,7 +2762,7 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append(result + System.lineSeparator());
 
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.GET_VALUE,
                                     coordinates,
                                     fieldData,
@@ -2779,7 +2771,7 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append(result + System.lineSeparator());
 
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.FOCUS,
                                     coordinates,
                                     fieldData,
@@ -2788,14 +2780,14 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append(result + System.lineSeparator());
 
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.TAB,
                                     coordinates,
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.COORD_VISUALIZA,
                                     coordinates,
                                     fieldData,
@@ -2804,7 +2796,7 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append(result + System.lineSeparator());
 
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.COORD_CLICK,
                                     coordinates,
                                     fieldData,
@@ -2813,7 +2805,7 @@ public class ARScannedElementPane extends ARPane {
                             actionsTested.append(result + System.lineSeparator());
 
                             result = performAction.sequenceOfCommands(
-                                    arWebElement.getElement(),
+                                    arWebHover.getElement(),
                                     ARConstants.COORD_INSERT,
                                     coordinates,
                                     fieldData,
@@ -2834,7 +2826,7 @@ public class ARScannedElementPane extends ARPane {
                 } else {
                     ARLogger.getInstance(ARScannedElementPane.class)
                             .info("Double clicked the element: "
-                                    + arWebElement.getTargetElement().getMainXPath());
+                                    + arWebHover.getTargetElement().getMainXPath());
 
                     currentBlockId = comboBoxBlocks.getValue().getExtraId();
                     String blockName = comboBoxBlocks.getValue().getText();
@@ -2869,7 +2861,7 @@ public class ARScannedElementPane extends ARPane {
 
                     String nameWebElement = defineNameField.getText().trim();
                     if (Strings.isNullOrEmpty(nameWebElement)) {
-                        nameWebElement = arWebElement.getNameFieldTitle().trim();
+                        nameWebElement = arWebHover.getNameFieldTitle().trim();
                     }
 
                     Text variableText2Styled = new Text(nameWebElement);
@@ -2977,16 +2969,16 @@ public class ARScannedElementPane extends ARPane {
                                         : checkInputText.isSelected()
                                                 ? "INPUT"
                                                 : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
-                                InstructionDTO instruction = arWebElement.buildBlockLoopInstruction(
-                                        arWebElement.getTargetElement().getTagType(),
+                                InstructionDTO instruction = arWebHover.buildBlockLoopInstruction(
+                                        arWebHover.getTargetElement().getTagType(),
                                         actionReq,
                                         checkPickElement.isSelected(),
                                         list.size());
 
                                 instruction.setCoordinates(
-                                        arWebElement.getTargetElement().getMainCoordinates());
+                                        arWebHover.getTargetElement().getMainCoordinates());
                                 instruction.setIFrameXPath(
-                                        arWebElement.getTargetElement().getIFrameXPath());
+                                        arWebHover.getTargetElement().getIFrameXPath());
                                 instruction.setBlock(blockJob);
                                 instruction.setInstructionOrderNumber(list.size() + 1);
 
@@ -3054,14 +3046,14 @@ public class ARScannedElementPane extends ARPane {
 
                                 instruction.setId(newId);
 
-                                arWebElement.setInstructionId(instruction.getId());
+                                arWebHover.setInstructionId(instruction.getId());
                                 List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
                                 for (String key :
-                                        arWebElement.getSavedReferences().keySet()) {
+                                        arWebHover.getSavedReferences().keySet()) {
                                     InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
                                     reference.setReferenceType(key);
                                     reference.setValue(
-                                            arWebElement.getSavedReferences().get(key));
+                                            arWebHover.getSavedReferences().get(key));
 
                                     reference.setBotJobId(currentBotJobId);
 
@@ -3157,9 +3149,9 @@ public class ARScannedElementPane extends ARPane {
                 }
             }
         };
-        arWebElement.addEventHandler(MouseEvent.MOUSE_ENTERED, mouseEnteredHandler);
-        arWebElement.addEventHandler(MouseEvent.MOUSE_EXITED, mouseExitedHandler);
-        arWebElement.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickedHandler);
+        arWebHover.addEventHandler(MouseEvent.MOUSE_ENTERED, mouseEnteredHandler);
+        arWebHover.addEventHandler(MouseEvent.MOUSE_EXITED, mouseExitedHandler);
+        arWebHover.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickedHandler);
     }
 
     private Set<WebElement> managePrioritiesCriteria() {
@@ -4306,7 +4298,7 @@ public class ARScannedElementPane extends ARPane {
                                     attribIdTextField.setText((String) resultMap.get("attribId"));
                                     attribNameTextField.setText((String) resultMap.get("attribName"));
                                     currentXPathTextField.setText((String) resultMap.get("currentXPath"));
-                                    absolutXPathTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
+                                    allAttributesTextField.setText((String) resultMap.get("currentAbsoluteXPath"));
                                     customXPathTextField.setText((String) resultMap.get("customXPath"));
                                     coordsTextField.setText((String) resultMap.get("coords"));
 
@@ -4319,8 +4311,8 @@ public class ARScannedElementPane extends ARPane {
                                         Platform.runLater(() -> defineNameField.setText(finalTagName));
                                     }
 
-                                    if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
-                                            && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
+                                    if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
+                                            && !xpathTextPrevious.equalsIgnoreCase(allAttributesTextField.getText())) {
                                         extractPickClone(someText);
 
                                         StringBuilder sb = new StringBuilder();
@@ -4389,29 +4381,60 @@ public class ARScannedElementPane extends ARPane {
                 + "  var elementInfoMap = new Map();\n"
                 + "  var allElementInfo = [];\n"
                 + "\n"
-                + "  function getMartiniAbsoluteXPath(element) {\n"
+                + "  function getElementLocators(element) {\n"
+                + "    const locators = [];\n"
+                + "\n"
                 + "    if (element === document.body) {\n"
-                + "      return \"/html/\" + element.tagName.toLowerCase();\n"
+                + "      locators.push(\"/html/\" + element.tagName.toLowerCase());\n"
+                + "      return locators;\n"
                 + "    }\n"
-                + "    var ix = 0;\n"
-                + "    var siblings = element.parentNode.childNodes;\n"
-                + "    for (var i = 0; i < siblings.length; i++) {\n"
-                + "      var sibling = siblings[i];\n"
-                + "      if (sibling === element) {\n"
-                + "        return (\n"
-                + "          getMartiniAbsoluteXPath(element.parentNode) +\n"
-                + "          \"/\" +\n"
-                + "          element.tagName.toLowerCase() +\n"
-                + "          \"[\" +\n"
-                + "          (ix + 1) +\n"
-                + "          \"]\"\n"
-                + "        );\n"
+                + "\n"
+                + "    const tagName = element.tagName.toLowerCase();\n"
+                + "    const id = element.id ? `#${element.id}` : \"\";\n"
+                + "    const className = (\n"
+                + "      typeof element.className === \"string\" ? element.className : \"\"\n"
+                + "    )\n"
+                + "      .split(\" \")\n"
+                + "      .filter((cls) => !/\\d/.test(cls))\n"
+                + "      .join(\".\");\n"
+                + "\n"
+                + "    if (id) {\n"
+                + "      locators.push(id);\n"
+                + "    }\n"
+                + "\n"
+                + "    if (className) {\n"
+                + "      locators.push(`//${tagName}[contains(@class, '${className}')]`);\n"
+                + "    }\n"
+                + "\n"
+                + "    // Check for other attributes (e.g., 'data-*' attributes)\n"
+                + "    const attributes = Array.from(element.attributes);\n"
+                + "    attributes.forEach((attr) => {\n"
+                + "      if (attr.name !== \"class\" && attr.name !== \"id\") {\n"
+                + "        // Exclude class and id\n"
+                + "        locators.push(`${tagName}[@${attr.name}=\"${attr.value}\"]`);\n"
                 + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    let ix = 0;\n"
+                + "    const siblings = element.parentNode.childNodes;\n"
+                + "\n"
+                + "    for (let i = 0; i < siblings.length; i++) {\n"
+                + "      const sibling = siblings[i];\n"
+                + "\n"
+                + "      if (sibling === element) {\n"
+                + "        const parentLocators = getElementLocators(element.parentNode);\n"
+                + "        parentLocators.forEach((parentPath) => {\n"
+                + "          locators.push(`${parentPath}/${tagName}[${ix + 1}]`);\n"
+                + "        });\n"
+                + "        break;\n"
+                + "      }\n"
+                + "\n"
                 + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
                 + "        ix++;\n"
                 + "      }\n"
                 + "    }\n"
-                + "    return \"\";\n"
+                + "\n"
+                + "    return locators;\n"
                 + "  }\n"
                 + "  function getMartiniXPath(element) {\n"
                 + "    if (element === document.body) {\n"
@@ -4544,13 +4567,13 @@ public class ARScannedElementPane extends ARPane {
                 + "    // Store tagName and other details in the Map\n"
                 + "    if (iframeDetails && iframeDetails.length > 0) {\n"
                 + "      elementInfoMap.set(\n"
-                + "        tagNameTemp,\n"
+                + "        elementXPath,\n"
                 + "        `xpath:${elementXPath};text:${someText};${iframeDetails};`\n"
                 + "      );\n"
                 + "    } else {\n"
                 + "      const {\n"
                 + "        xpath,\n"
-                + "        absoluteXPath,\n"
+                + "        allAttributes,\n"
                 + "        customXPath,\n"
                 + "        attribId,\n"
                 + "        attribName,\n"
@@ -4558,9 +4581,9 @@ public class ARScannedElementPane extends ARPane {
                 + "        someText,\n"
                 + "      } = getElementIdentity(elementBelowTooltip);\n"
                 + "\n"
-                + "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n"
+                + "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
                 + "\n"
-                + "      elementInfoMap.set(tagNameTemp, elementInfoString);\n"
+                + "      elementInfoMap.set(xpath, elementInfoString);\n"
                 + "    }\n"
                 + "\n"
                 + "    // Parse the someText using the semicolon delimiter\n"
@@ -4658,7 +4681,7 @@ public class ARScannedElementPane extends ARPane {
                 + "\n"
                 + "        const {\n"
                 + "          xpath,\n"
-                + "          absoluteXPath,\n"
+                + "          allAttributes,\n"
                 + "          customXPath,\n"
                 + "          attribId,\n"
                 + "          attribName,\n"
@@ -4666,7 +4689,7 @@ public class ARScannedElementPane extends ARPane {
                 + "          someText,\n"
                 + "        } = getElementIdentity(elementBelowTooltip);\n"
                 + "\n"
-                + "        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n"
+                + "        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
                 + "\n"
                 + "        allElementInfo.push(`clicked-iFrame:${elementInfoString};`);\n"
                 + "\n"
@@ -4677,7 +4700,7 @@ public class ARScannedElementPane extends ARPane {
                 + "        iframeElements.forEach(function (elementInsideIframe) {\n"
                 + "          const {\n"
                 + "            xpath,\n"
-                + "            absoluteXPath,\n"
+                + "            allAttributes,\n"
                 + "            customXPath,\n"
                 + "            attribId,\n"
                 + "            attribName,\n"
@@ -4685,7 +4708,7 @@ public class ARScannedElementPane extends ARPane {
                 + "            someText,\n"
                 + "          } = getElementIdentity(elementInsideIframe);\n"
                 + "\n"
-                + "          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n"
+                + "          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
                 + "\n"
                 + "          allElementInfo.push(elementInfoString);\n"
                 + "        });\n"
@@ -4720,7 +4743,7 @@ public class ARScannedElementPane extends ARPane {
                 + "\n"
                 + "      const {\n"
                 + "        xpath,\n"
-                + "        absoluteXPath,\n"
+                + "        allAttributes,\n"
                 + "        customXPath,\n"
                 + "        attribId,\n"
                 + "        attribName,\n"
@@ -4728,7 +4751,7 @@ public class ARScannedElementPane extends ARPane {
                 + "        someText,\n"
                 + "      } = getElementIdentity(elementBelowTooltip);\n"
                 + "\n"
-                + "      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;\n"
+                + "      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
                 + "\n"
                 + "      allElementInfo.push(elementInfoString);\n"
                 + "\n"
@@ -4773,16 +4796,26 @@ public class ARScannedElementPane extends ARPane {
                 + "    }, 3000);\n"
                 + "  }\n"
                 + "\n"
+                + "  function getElementAttributes(element) {\n"
+                + "    const attributes = [];\n"
+                + "\n"
+                + "    for (const attr of element.attributes) {\n"
+                + "      attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
+                + "    }\n"
+                + "\n"
+                + "    return attributes;\n"
+                + "  }\n"
+                + "\n"
                 + "  function getElementIdentity(element) {\n"
                 + "    var xpath = getMartiniXPath(element);\n"
-                + "    var absoluteXPath = \"\";\n"
+                + "    var allAttributes = \"\";\n"
                 + "    try {\n"
                 + "      // console.log(\"element\", element);\n"
-                + "      absoluteXPath = getMartiniAbsoluteXPath(element);\n"
+                + "      allAttributes = getElementAttributes(element);\n"
                 + "    } catch (error) {}\n"
                 + "    var customXPath = \"\";\n"
                 + "    try {\n"
-                + "      customXPath = getMartiniCustomXPath(element);\n"
+                + "      customXPath = getElementLocators(element);\n"
                 + "    } catch (error) {}\n"
                 + "\n"
                 + "    var attribId = element.id || \"\";\n"
@@ -4802,7 +4835,7 @@ public class ARScannedElementPane extends ARPane {
                 + "\n"
                 + "    return {\n"
                 + "      xpath,\n"
-                + "      absoluteXPath,\n"
+                + "      allAttributes,\n"
                 + "      customXPath,\n"
                 + "      attribId,\n"
                 + "      attribName,\n"
@@ -4996,7 +5029,7 @@ public class ARScannedElementPane extends ARPane {
                 + "  cleanOldValues();\n"
                 + "\n"
                 + "  window.revertPickInjections = function () {\n"
-                //                + "    alert(\"revertPickInjections\");\n"
+                + "    // alert(\"revertPickInjections\");\n"
                 + "\n"
                 + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
                 + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
@@ -5119,7 +5152,7 @@ public class ARScannedElementPane extends ARPane {
                                             attribIdTextField.setText(picked.getAttribId());
                                             attribNameTextField.setText(picked.getAttribName());
                                             currentXPathTextField.setText(picked.getXPath());
-                                            absolutXPathTextField.setText(picked.getAbsoluteXPath());
+                                            allAttributesTextField.setText(picked.getAllAttributes());
                                             customXPathTextField.setText(picked.getCustomXPath());
                                             coordsTextField.setText(picked.getCoords());
                                             iFrameCoords = "";
@@ -5148,8 +5181,8 @@ public class ARScannedElementPane extends ARPane {
                                     countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
                                     // Direct Insert to the Factory of Elements
 
-                                    if (!Strings.isNullOrEmpty(absolutXPathTextField.getText())
-                                            && !xpathTextPrevious.equalsIgnoreCase(absolutXPathTextField.getText())) {
+                                    if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
+                                            && !xpathTextPrevious.equalsIgnoreCase(allAttributesTextField.getText())) {
                                         extractPickClone(someText);
                                         insertNewElement(elementsFound);
                                     }
@@ -7032,7 +7065,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void clearFields() {
-        absolutXPathTextField.setText("");
+        allAttributesTextField.setText("");
         currentXPathTextField.setText("");
         iFrameXPath = "";
         iFrameElements = null;
@@ -7045,8 +7078,8 @@ public class ARScannedElementPane extends ARPane {
     private void fillUpCurretLocators(BlockLoopInstructionLoadDTO currentInstruction) {
         for (InstructionReferenceLoadDTO reference : currentInstruction.getInstructionReferenceLoadDTOList()) {
             switch (reference.getReferenceType()) {
-                case "absolutXPath":
-                    absolutXPathTextField.setText(reference.getValue());
+                case "allAttributes":
+                    allAttributesTextField.setText(reference.getValue());
                     break;
                 case "currentXPath":
                     currentXPathTextField.setText(reference.getValue());

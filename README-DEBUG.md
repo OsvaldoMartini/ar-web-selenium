@@ -25,7 +25,7 @@ Example:
  
         // PRIORITY FOR ENGINE FIND ELEMENT
         #numero priorità, categoria, identificativo
-        1,xpath,absolutXPath
+        1,xpath,allAttributes
         2,xpath,currentXPath
         3,coordinates,coordinates
         4,attribute,test-id

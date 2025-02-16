@@ -212,26 +212,26 @@ public class ARWebElement {
                 // Most Important to find any kind of element
 
                 if (targetElement != null
-                        && targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.ABSOLUT_XPATH)) {
-                    savedReferences.put(
-                            "absolutXPath",
-                            targetElement.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 1
+                        && targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
                     savedReferences.put(
                             "currentXPath",
                             targetElement.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
                     savedReferences.put(
                             "customXPath",
                             targetElement.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                } else if (targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
+                    savedReferences.put(
+                            "allAttributes",
+                            targetElement.getAllAttributes()); // Creates Seq to Fin element Via Instructions - 1
+                } else if (targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.CUSTOM_XPATH)) {
                     savedReferences.put(
                             "currentXPath",
                             targetElement.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
                     savedReferences.put(
-                            "absolutXPath",
-                            targetElement.getAbsolutXPath()); // Creates Seq to Fin element Via Instructions - 2
-                    savedReferences.put(
                             "customXPath",
                             targetElement.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
+                    savedReferences.put(
+                            "allAttributes",
+                            targetElement.getAllAttributes()); // Creates Seq to Fin element Via Instructions - 2
                 } else if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getMainXPath())) {
                     savedReferences.put("xpath", targetElement.getCurrentXPath());
                 } else if (!Strings.isNullOrEmpty(targetElement.getAttributeValue())) {

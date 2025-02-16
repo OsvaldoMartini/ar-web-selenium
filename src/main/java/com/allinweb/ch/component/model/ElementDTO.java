@@ -13,6 +13,8 @@ public class ElementDTO {
     private String attribId;
     private String attribName;
     private String coords;
-    private String absoluteXPath;
+    private String allAttributes;
     private String customXPath;
+    private String iFrameXPath;
+    private String attributeValue;
 }
