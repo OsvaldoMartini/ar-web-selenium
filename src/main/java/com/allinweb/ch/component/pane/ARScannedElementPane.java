@@ -3974,630 +3974,632 @@ public class ARScannedElementPane extends ARPane {
 
     private void periodicCloneThread(WebDriver driver) {
         // JavaScript code to inject
-        String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n" +
-                "  var tooltip = document.createElement(\"div\");\n" +
-                "  tooltip.id = \"Martini-Is-Awesome\";\n" +
-                "  tooltip.style.position = \"absolute\";\n" +
-                "  tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\";\n" +
-                "  tooltip.style.border = \"1px solid #ccc\";\n" +
-                "  tooltip.style.padding = \"10px\";\n" +
-                "  tooltip.style.borderRadius = \"5px\";\n" +
-                "  tooltip.style.boxShadow = \"0 2px 4px rgba(0, 0, 0, 0.2)\";\n" +
-                "  tooltip.style.fontFamily = \"Arial, sans-serif\";\n" +
-                "  tooltip.style.fontSize = \"14px\";\n" +
-                "  tooltip.style.color = \"#333\";\n" +
-                "  tooltip.style.zIndex = \"10000\";\n" +
-                "  tooltip.style.display = \"none\";\n" +
-                "  document.body.appendChild(tooltip);\n" +
-                "\n" +
-                "  var elementInfoMap = new Map();\n" +
-                "  var allElementInfo = [];\n" +
-                "\n" +
-                "  function getElementIdentity(element) {\n" +
-                "    var xpath = getMartiniXPath(element);\n" +
-                "    var allAttributes = \"\";\n" +
-                "    try {\n" +
-                "      // console.log(\"element\", element);\n" +
-                "      allAttributes = getElementAttributes(element);\n" +
-                "    } catch (error) {}\n" +
-                "    var customXPath = \"\";\n" +
-                "    try {\n" +
-                "      customXPath = getElementLocators(element);\n" +
-                "    } catch (error) {}\n" +
-                "\n" +
-                "    var attribId = element.id || \"\";\n" +
-                "    var attribName = element.name || \"\";\n" +
-                "    var coords = element.getBoundingClientRect();\n" +
-                "    coords = `${coords.left},${coords.top}`;\n" +
-                "\n" +
-                "    var someText = element.textContent.trim() || \"\";\n" +
-                "    if (\n" +
-                "      element.tagName.toLowerCase() === \"input\" ||\n" +
-                "      element.tagName.toLowerCase() === \"textarea\"\n" +
-                "    ) {\n" +
-                "      someText = element.value || \"\";\n" +
-                "    }\n" +
-                "\n" +
-                "    var someText = getSomeText(element.tagName.toLowerCase(), element);\n" +
-                "\n" +
-                "    return {\n" +
-                "      xpath,\n" +
-                "      allAttributes,\n" +
-                "      customXPath,\n" +
-                "      attribId,\n" +
-                "      attribName,\n" +
-                "      coords,\n" +
-                "      someText,\n" +
-                "    };\n" +
-                "  }\n" +
-                "  function getElementAttributes(element) {\n" +
-                "    const attributes = [];\n" +
-                "\n" +
-                "    for (const attr of element.attributes) {\n" +
-                "      attributes.push(`${attr.name}=\"${attr.value}\"`);\n" +
-                "    }\n" +
-                "\n" +
-                "    return attributes;\n" +
-                "  }\n" +
-                "  function getMartiniXPath(element) {\n" +
-                "    if (element === document.body) {\n" +
-                "      return \"/html/body\";\n" +
-                "    }\n" +
-                "    var ix = 0;\n" +
-                "    var siblings = element.parentNode ? element.parentNode.childNodes : [];\n" +
-                "    for (var i = 0; i < siblings.length; i++) {\n" +
-                "      var sibling = siblings[i];\n" +
-                "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n" +
-                "        if (sibling === element) {\n" +
-                "          return (\n" +
-                "            getMartiniXPath(element.parentNode) +\n" +
-                "            \"/\" +\n" +
-                "            element.tagName.toLowerCase() +\n" +
-                "            \"[\" +\n" +
-                "            (ix + 1) +\n" +
-                "            \"]\"\n" +
-                "          );\n" +
-                "        }\n" +
-                "        ix++;\n" +
-                "      }\n" +
-                "    }\n" +
-                "    return \"\";\n" +
-                "  }\n" +
-                "  function getMartiniCustomXPath(element) {\n" +
-                "    if (element === document.body) {\n" +
-                "      return \"/html/\" + element.tagName.toLowerCase();\n" +
-                "    }\n" +
-                "    var className = element.className\n" +
-                "      .split(\" \")\n" +
-                "      .filter(function (cls) {\n" +
-                "        return !/\\d/.test(cls);\n" +
-                "      })\n" +
-                "      .join(\".\");\n" +
-                "    var tagName = element.tagName.toLowerCase();\n" +
-                "    var ix = 0;\n" +
-                "    var siblings = element.parentNode.childNodes;\n" +
-                "    for (var i = 0; i < siblings.length; i++) {\n" +
-                "      var sibling = siblings[i];\n" +
-                "      if (sibling === element) {\n" +
-                "        var path = getMartiniCustomXPath(element.parentNode) + \"/\" + tagName;\n" +
-                "        if (className) {\n" +
-                "          path += '[contains(@class, \"' + className + '\")]';\n" +
-                "        } else {\n" +
-                "          path += \"[\" + (ix + 1) + \"]\";\n" +
-                "        }\n" +
-                "        return path;\n" +
-                "      }\n" +
-                "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n" +
-                "        ix++;\n" +
-                "      }\n" +
-                "    }\n" +
-                "    return \"\";\n" +
-                "  }\n" +
-                "\n" +
-                "  var lastHoveredIsIframe = null; // Keep track of the last hovered element type\n" +
-                "\n" +
-                "  let lastHoveredElement = null; // Keep track of the previously hovered element\n" +
-                "  // Declare global variables to store iframe details\n" +
-                "  var iframeDocument = null;\n" +
-                "  var iframeElementsCount = 0;\n" +
-                "\n" +
-                "  function showMartiniTooltip(event) {\n" +
-                "    var elementBelowTooltip = document.elementFromPoint(\n" +
-                "      event.clientX,\n" +
-                "      event.clientY\n" +
-                "    );\n" +
-                "\n" +
-                "    // Do nothing if the hovered element is the tooltip itself or an excluded tag (html, body, main)\n" +
-                "    if (\n" +
-                "      !elementBelowTooltip ||\n" +
-                "      elementBelowTooltip === tooltip ||\n" +
-                "      [\"html\", \"body\", \"main\"].includes(\n" +
-                "        elementBelowTooltip.tagName.toLowerCase()\n" +
-                "      )\n" +
-                "    ) {\n" +
-                "      return;\n" +
-                "    }\n" +
-                "\n" +
-                "    var isIframe = elementBelowTooltip.tagName.toLowerCase() === \"iframe\";\n" +
-                "\n" +
-                "    // Reset only if switching between iframe and non-iframe elements\n" +
-                "    if (lastHoveredIsIframe !== isIframe) {\n" +
-                "      console.clear();\n" +
-                "      elementInfoMap.clear();\n" +
-                "      allElementInfo = [];\n" +
-                "    }\n" +
-                "\n" +
-                "    lastHoveredIsIframe = isIframe; // Update last hovered element type\n" +
-                "\n" +
-                "    // Get the tag name of the element\n" +
-                "    var tagNameTemp = elementBelowTooltip.tagName.toLowerCase();\n" +
-                "\n" +
-                "    // // Get the text content of the element (if it has text)\n" +
-                "    // var someText = elementBelowTooltip.textContent.trim();\n" +
-                "    // if (someText === \"\") {\n" +
-                "    //   someText = \"No text content\";\n" +
-                "    // }\n" +
-                "\n" +
-                "    var someText = getSomeText(\n" +
-                "      elementBelowTooltip.tagName.toLowerCase(),\n" +
-                "      elementBelowTooltip\n" +
-                "    );\n" +
-                "\n" +
-                "    // If it's an iframe, get the number of elements inside the iframe\n" +
-                "    var iframeDetails = \"\";\n" +
-                "    if (isIframe) {\n" +
-                "      iframeDocument =\n" +
-                "        elementBelowTooltip.contentDocument ||\n" +
-                "        elementBelowTooltip.contentWindow.document;\n" +
-                "      iframeElementsCount = iframeDocument\n" +
-                "        ? iframeDocument.body.getElementsByTagName(\"*\").length\n" +
-                "        : 0;\n" +
-                "      iframeDetails = `Elements inside iframe: ${iframeElementsCount}`;\n" +
-                "    }\n" +
-                "\n" +
-                "    var elementXPath = getMartiniXPath(elementBelowTooltip);\n" +
-                "\n" +
-                "    // Store tagName and other details in the Map\n" +
-                "    if (iframeDetails && iframeDetails.length > 0) {\n" +
-                "      elementInfoMap.set(\n" +
-                "        elementXPath,\n" +
-                "        `xpath:${elementXPath};text:${someText};${iframeDetails};`\n" +
-                "      );\n" +
-                "    } else {\n" +
-                "      const {\n" +
-                "        xpath,\n" +
-                "        allAttributes,\n" +
-                "        customXPath,\n" +
-                "        attribId,\n" +
-                "        attribName,\n" +
-                "        coords,\n" +
-                "        someText,\n" +
-                "      } = getElementIdentity(elementBelowTooltip);\n" +
-                "\n" +
-                "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n" +
-                "\n" +
-                "      elementInfoMap.set(xpath, elementInfoString);\n" +
-                "    }\n" +
-                "\n" +
-                "    // Parse the someText using the semicolon delimiter\n" +
-                "    var parsedText = someText.split(\";\");\n" +
-                "\n" +
-                "    // Format the tooltip content to make it more readable\n" +
-                "    var tooltipContent = \"\";\n" +
-                "    tooltipContent += isIframe ? \"[Iframe] <br>\" : \"\";\n" +
-                "    tooltipContent += `Tag Name: ${tagNameTemp}<br>`;\n" +
-                "    tooltipContent += isIframe ? `- ${iframeDetails}<br>` : \"\";\n" +
-                "\n" +
-                "    // Replace new lines with <br> before adding each item from parsedText\n" +
-                "    tooltipContent += someText\n" +
-                "      ? parsedText.map((item) => `- ${item}<br>`).join(\"\")\n" +
-                "      : \"No Text<br>\";\n" +
-                "\n" +
-                "    // Set the tooltip content with line breaks\n" +
-                "    tooltip.innerHTML = tagNameTemp;\n" +
-                "\n" +
-                "    // Position the tooltip near the mouse cursor\n" +
-                "    var tooltipWidth = tooltip.offsetWidth;\n" +
-                "    var tooltipHeight = tooltip.offsetHeight;\n" +
-                "    var left = event.pageX - tooltipWidth / 2;\n" +
-                "    var top = event.pageY - tooltipHeight / 2;\n" +
-                "\n" +
-                "    tooltip.style.left = left + \"px\";\n" +
-                "    tooltip.style.top = top + \"px\";\n" +
-                "    tooltip.style.display = \"block\";\n" +
-                "\n" +
-                "    // Highlight the hovered element\n" +
-                "    if (lastHoveredElement !== elementBelowTooltip) {\n" +
-                "      // Remove highlight from the previous element if any\n" +
-                "      if (lastHoveredElement) {\n" +
-                "        lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n" +
-                "      }\n" +
-                "      // Add a border to highlight the current element\n" +
-                "      elementBelowTooltip.style.outline = \"3px solid red\"; // Highlight the element\n" +
-                "\n" +
-                "      lastHoveredElement = elementBelowTooltip; // Update the last hovered element\n" +
-                "    }\n" +
-                "\n" +
-                "    // console.log(\"Element Info:\", elementInfoMap);\n" +
-                "  }\n" +
-                "\n" +
-                "  function limitMapCharacters(elementInfoMap, coordText) {\n" +
-                "    elementInfoMap.forEach((value, key) => {\n" +
-                "      let modifiedValue = value;\n" +
-                "\n" +
-                "      // TO DO  REDUCE ONLY THE TEXT FIELD\n" +
-                "\n" +
-                "      // // Check if the key is \"html\" or value length is greater than 400\n" +
-                "      // if (key === \"html\" || value.length > 400) {\n" +
-                "      //   // Truncate the value to 150 characters and add \"...\"\n" +
-                "      //   if (value.length > 150) {\n" +
-                "      //     modifiedValue = value.substring(0, 150) + \"...\";\n" +
-                "      //   }\n" +
-                "\n" +
-                "      //   // If the length exceeds 400 characters, break the value into multiple lines\n" +
-                "      //   if (value.length > 400) {\n" +
-                "      //     const firstPart = value.substring(0, 150);\n" +
-                "      //     const secondPart = value.substring(150);\n" +
-                "      //     modifiedValue = `${firstPart}<br>...${secondPart}`;\n" +
-                "      //   }\n" +
-                "      // }\n" +
-                "\n" +
-                "      // Push the formatted value and key to the array\n" +
-                "      allElementInfo.push(`${coordText}:${modifiedValue}`);\n" +
-                "    });\n" +
-                "  }\n" +
-                "\n" +
-                "  function getSomeText(tagName, element) {\n" +
-                "    let someText = \"\";\n" +
-                "\n" +
-                "    if ([\"input\", \"textarea\", \"select\", \"button\"].includes(tagName)) {\n" +
-                "      const extractedText = extractTextFromHTML(element || \"\");\n" +
-                "      someText = [\n" +
-                "        ...extractedText.titles,\n" +
-                "        ...extractedText.text,\n" +
-                "        ...extractedText.labels,\n" +
-                "      ]\n" +
-                "        .join(\"; \")\n" +
-                "        .trim();\n" +
-                "    } else if ([\"option\", \"label\", \"a\"].includes(tagName)) {\n" +
-                "      const extractedText = extractTextFromHTML(element || \"\");\n" +
-                "      someText = [\n" +
-                "        ...extractedText.titles,\n" +
-                "        ...extractedText.text,\n" +
-                "        ...extractedText.labels,\n" +
-                "      ]\n" +
-                "        .join(\"; \")\n" +
-                "        .trim();\n" +
-                "    } else if (![\"html\", \"body\", \"script\"].includes(tagName)) {\n" +
-                "      const extractedText = extractTextFromHTML(element || \"\");\n" +
-                "      someText = [\n" +
-                "        ...extractedText.titles,\n" +
-                "        ...extractedText.text,\n" +
-                "        ...extractedText.labels,\n" +
-                "      ]\n" +
-                "        .join(\"; \")\n" +
-                "        .trim();\n" +
-                "    }\n" +
-                "\n" +
-                "    someText = someText\n" +
-                "      .split(\";\")\n" +
-                "      .map((text) => text.trim())\n" +
-                "      .filter(Boolean)\n" +
-                "      .join(\";\"); // Clean up sequential text\n" +
-                "\n" +
-                "    return someText;\n" +
-                "  }\n" +
-                "\n" +
-                "  function extractTextFromHTML(element) {\n" +
-                "    const result = {\n" +
-                "      text: new Set(), // Using Set to avoid duplicate text\n" +
-                "      labels: new Set(), // Using Set to avoid duplicate labels\n" +
-                "      titles: new Set(), // Using Set to avoid duplicate titles\n" +
-                "    };\n" +
-                "\n" +
-                "    // Extract text content directly from the element (in case it has no children)\n" +
-                "    if (element.textContent) {\n" +
-                "      let elementText = element.textContent.trim();\n" +
-                "      if (elementText) {\n" +
-                "        result.text.add(elementText); // Using .add() instead of .push() for Set\n" +
-                "      }\n" +
-                "    }\n" +
-                "\n" +
-                "    // Extract label text from input placeholders and other form-related data\n" +
-                "    element.querySelectorAll(\"label\").forEach((label) => {\n" +
-                "      if (label.textContent) {\n" +
-                "        let labelText = label.textContent.trim();\n" +
-                "        if (labelText) {\n" +
-                "          result.labels.add(labelText); // Using .add() for Set to ensure uniqueness\n" +
-                "        }\n" +
-                "      }\n" +
-                "\n" +
-                "      // Handle associated input fields (if the label has a 'for' attribute)\n" +
-                "      let forAttribute = label.getAttribute(\"for\");\n" +
-                "      if (forAttribute) {\n" +
-                "        let associatedInput = element.querySelector(`#${forAttribute}`);\n" +
-                "        if (associatedInput) {\n" +
-                "          // Check if it's an input field or textarea and extract value or placeholder\n" +
-                "          let inputValue = associatedInput.value?.trim();\n" +
-                "          let inputPlaceholder = associatedInput.placeholder?.trim();\n" +
-                "          if (inputValue) {\n" +
-                "            result.text.add(inputValue); // Using .add() for Set to ensure uniqueness\n" +
-                "          } else if (inputPlaceholder) {\n" +
-                "            result.text.add(inputPlaceholder); // Fallback to placeholder\n" +
-                "          }\n" +
-                "        }\n" +
-                "      }\n" +
-                "    });\n" +
-                "\n" +
-                "    // Extract text from common block and inline elements\n" +
-                "    const textExtractors = [\n" +
-                "      \"p\",\n" +
-                "      \"h1\",\n" +
-                "      \"h2\",\n" +
-                "      \"h3\",\n" +
-                "      \"h4\",\n" +
-                "      \"h5\",\n" +
-                "      \"h6\",\n" +
-                "      \"li\",\n" +
-                "      \"span\",\n" +
-                "      \"div\",\n" +
-                "      \"strong\",\n" +
-                "      \"em\",\n" +
-                "      \"b\",\n" +
-                "      \"i\",\n" +
-                "      \"blockquote\",\n" +
-                "    ];\n" +
-                "\n" +
-                "    textExtractors.forEach((tagName) => {\n" +
-                "      element.querySelectorAll(tagName).forEach((childElement) => {\n" +
-                "        if (childElement.textContent) {\n" +
-                "          let elemText = childElement.textContent.trim();\n" +
-                "          if (elemText) {\n" +
-                "            result.text.add(elemText); // Using .add() for Set to ensure uniqueness\n" +
-                "          }\n" +
-                "        }\n" +
-                "      });\n" +
-                "    });\n" +
-                "\n" +
-                "    // Extract text from <a> tags (links)\n" +
-                "    element.querySelectorAll(\"a\").forEach((link) => {\n" +
-                "      if (link.textContent) {\n" +
-                "        let linkText = link.textContent.trim();\n" +
-                "        if (linkText) {\n" +
-                "          result.text.add(linkText); // Using .add() for Set to ensure uniqueness\n" +
-                "        }\n" +
-                "      }\n" +
-                "    });\n" +
-                "\n" +
-                "    // Extract iframe titles and nested content\n" +
-                "    element.querySelectorAll(\"iframe\").forEach((iframe) => {\n" +
-                "      if (iframe.getAttribute(\"title\")) {\n" +
-                "        let title = iframe.getAttribute(\"title\")?.trim();\n" +
-                "        if (title) {\n" +
-                "          result.titles.add(title); // Using .add() for Set to ensure uniqueness\n" +
-                "        }\n" +
-                "      }\n" +
-                "\n" +
-                "      try {\n" +
-                "        let iframeDoc =\n" +
-                "          iframe.contentDocument ||\n" +
-                "          new DOMParser().parseFromString(iframe.srcdoc || \"\", \"text/html\");\n" +
-                "        let iframeContent = extractTextFromHTML(iframeDoc); // Here we assume iframeDoc is an element.\n" +
-                "        iframeContent.titles.forEach((title) => result.titles.add(title));\n" +
-                "        iframeContent.text.forEach((text) => result.text.add(text));\n" +
-                "        iframeContent.labels.forEach((label) => result.labels.add(label));\n" +
-                "      } catch (e) {\n" +
-                "        console.warn(\"Could not access iframe content\", e);\n" +
-                "      }\n" +
-                "    });\n" +
-                "\n" +
-                "    // Convert Sets to arrays before returning to maintain previous structure\n" +
-                "    return {\n" +
-                "      text: Array.from(result.text),\n" +
-                "      labels: Array.from(result.labels),\n" +
-                "      titles: Array.from(result.titles),\n" +
-                "    };\n" +
-                "  }\n" +
-                "\n" +
-                "  function hideMartiniTooltip() {\n" +
-                "    tooltip.style.display = \"none\";\n" +
-                "  }\n" +
-                "  function handleMartiniClick(event) {\n" +
-                "    event.preventDefault();\n" +
-                "    event.stopPropagation();\n" +
-                "    tooltip.style.display = \"none\";\n" +
-                "\n" +
-                "    // Determine the element below the tooltip (mouse position)\n" +
-                "    var elementBelowTooltip = document.elementFromPoint(\n" +
-                "      event.clientX,\n" +
-                "      event.clientY\n" +
-                "    );\n" +
-                "\n" +
-                "    // Hide the tooltip\n" +
-                "    tooltip.style.display = \"none\";\n" +
-                "\n" +
-                "    // If the element below the tooltip is an iframe\n" +
-                "    if (\n" +
-                "      elementBelowTooltip &&\n" +
-                "      elementBelowTooltip.tagName.toLowerCase() === \"iframe\"\n" +
-                "    ) {\n" +
-                "      // Get the document inside the iframe\n" +
-                "      var iframeDocument =\n" +
-                "        elementBelowTooltip.contentDocument ||\n" +
-                "        elementBelowTooltip.contentWindow.document;\n" +
-                "\n" +
-                "      // If the iframe document is valid\n" +
-                "      if (iframeDocument) {\n" +
-                "        // Format the iframe details\n" +
-                "        var iframeDetails = `Elements inside iframe: ${\n" +
-                "          iframeDocument.body.getElementsByTagName(\"*\").length\n" +
-                "        }`;\n" +
-                "\n" +
-                "        // Display the tooltip with iframe details\n" +
-                "        tooltip.innerHTML = `[Iframe] <br> ${iframeDetails}`;\n" +
-                "\n" +
-                "        // Position the tooltip near the mouse cursor\n" +
-                "        var tooltipWidth = tooltip.offsetWidth;\n" +
-                "        var tooltipHeight = tooltip.offsetHeight;\n" +
-                "        var left = event.pageX - tooltipWidth / 2;\n" +
-                "        var top = event.pageY - tooltipHeight / 2;\n" +
-                "\n" +
-                "        tooltip.style.left = left + \"px\";\n" +
-                "        tooltip.style.top = top + \"px\";\n" +
-                "        tooltip.style.display = \"block\";\n" +
-                "\n" +
-                "        // Initialize an array to store the iframe element information\n" +
-                "        allElementInfo = [];\n" +
-                "\n" +
-                "        const {\n" +
-                "          xpath,\n" +
-                "          allAttributes,\n" +
-                "          customXPath,\n" +
-                "          attribId,\n" +
-                "          attribName,\n" +
-                "          coords,\n" +
-                "          someText,\n" +
-                "        } = getElementIdentity(elementBelowTooltip);\n" +
-                "\n" +
-                "        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n" +
-                "\n" +
-                "        allElementInfo.push(`clicked-iFrame:${elementInfoString};`);\n" +
-                "\n" +
-                "        // limitMapCharacters(elementInfoMap, \"clicked-tagName\");\n" +
-                "\n" +
-                "        // Get all elements inside the iframe and log their details\n" +
-                "        var iframeElements = iframeDocument.querySelectorAll(\"*\");\n" +
-                "        iframeElements.forEach(function (elementInsideIframe) {\n" +
-                "          const {\n" +
-                "            xpath,\n" +
-                "            allAttributes,\n" +
-                "            customXPath,\n" +
-                "            attribId,\n" +
-                "            attribName,\n" +
-                "            coords,\n" +
-                "            someText,\n" +
-                "          } = getElementIdentity(elementInsideIframe);\n" +
-                "\n" +
-                "          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n" +
-                "\n" +
-                "          allElementInfo.push(elementInfoString);\n" +
-                "        });\n" +
-                "\n" +
-                "        // Log the list of iframe elements\n" +
-                "        console.log(\"List of iframe elements:\", allElementInfo);\n" +
-                "        window.allElementInfo = allElementInfo;\n" +
-                "      } else {\n" +
-                "        tooltip.innerHTML = \"No iframe document found.\";\n" +
-                "\n" +
-                "        // Position the tooltip near the mouse cursor\n" +
-                "        var tooltipWidth = tooltip.offsetWidth;\n" +
-                "        var tooltipHeight = tooltip.offsetHeight;\n" +
-                "        var left = event.pageX - tooltipWidth / 2;\n" +
-                "        var top = event.pageY - tooltipHeight / 2;\n" +
-                "\n" +
-                "        tooltip.style.left = left + \"px\";\n" +
-                "        tooltip.style.top = top + \"px\";\n" +
-                "        tooltip.style.display = \"block\";\n" +
-                "      }\n" +
-                "    } else {\n" +
-                "      // If the clicked element is not an iframe, gather its regular information\n" +
-                "      var tagName = elementBelowTooltip.tagName.toLowerCase();\n" +
-                "\n" +
-                "      // Avoid main, body, and html tags\n" +
-                "      if ([\"html\", \"body\", \"main\"].includes(tagName)) {\n" +
-                "        return; // Don't proceed if it's one of these elements\n" +
-                "      }\n" +
-                "\n" +
-                "      // Format and push regular element information to the array\n" +
-                "      limitMapCharacters(elementInfoMap, \"tagName-found\");\n" +
-                "\n" +
-                "      const {\n" +
-                "        xpath,\n" +
-                "        allAttributes,\n" +
-                "        customXPath,\n" +
-                "        attribId,\n" +
-                "        attribName,\n" +
-                "        coords,\n" +
-                "        someText,\n" +
-                "      } = getElementIdentity(elementBelowTooltip);\n" +
-                "\n" +
-                "      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n" +
-                "\n" +
-                "      allElementInfo.push(elementInfoString);\n" +
-                "\n" +
-                "      console.log(\"List of elements:\", allElementInfo);\n" +
-                "      window.allElementInfo = allElementInfo;\n" +
-                "\n" +
-                "      // Show the tooltip with the element details\n" +
-                "      // tooltip.innerHTML = `${tagName} <br> ${someText}`;\n" +
-                "      tooltip.innerHTML = `${tagName} <br> ${someText}`;\n" +
-                "      var tooltipWidth = tooltip.offsetWidth;\n" +
-                "      var tooltipHeight = tooltip.offsetHeight;\n" +
-                "      var left = event.pageX - tooltipWidth / 2;\n" +
-                "      var top = event.pageY - tooltipHeight / 2;\n" +
-                "\n" +
-                "      tooltip.style.left = left + \"px\";\n" +
-                "      tooltip.style.top = top + \"px\";\n" +
-                "      tooltip.style.display = \"block\";\n" +
-                "    }\n" +
-                "\n" +
-                "    window.revertCloneInjections();\n" +
-                "\n" +
-                "    // Remove the tooltip from the page and delete the reference after 5 seconds\n" +
-                "    // Remove the tooltip from the page and delete the reference after 5 seconds\n" +
-                "    setTimeout(() => {\n" +
-                "      if (tooltip) {\n" +
-                "        tooltip.remove(); // Completely remove the tooltip from the DOM\n" +
-                "        tooltip = null; // Clear the reference to free memory\n" +
-                "        console.log(\"Tooltip completely removed.\");\n" +
-                "      }\n" +
-                "\n" +
-                "      if (lastHoveredElement || elementBelowTooltip) {\n" +
-                "        // Remove highlight from the previous element if any\n" +
-                "        if (lastHoveredElement) {\n" +
-                "          lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n" +
-                "        }\n" +
-                "\n" +
-                "        // Remove highlight from the previous element if any\n" +
-                "        if (elementBelowTooltip) {\n" +
-                "          elementBelowTooltip.style.outline = \"\"; // Remove the previous highlight\n" +
-                "        }\n" +
-                "      }\n" +
-                "    }, 3000);\n" +
-                "  }\n" +
-                "\n" +
-                "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n" +
-                "  document.addEventListener(\"click\", handleMartiniClick);\n" +
-                "\n" +
-                "  window.revertCloneInjections = function () {\n" +
-                "    // alert(\"revertCloneInjections\");\n" +
-                "\n" +
-                "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n" +
-                "    document.removeEventListener(\"click\", handleMartiniClick);\n" +
-                "    console.log(\"revertCloneInjections\");\n" +
-                "\n" +
-                "    // Remove the tooltip from the page and delete the reference after 5 seconds\n" +
-                "    setTimeout(() => {\n" +
-                "      removeElements();\n" +
-                "    }, 1000);\n" +
-                "  };\n" +
-                "\n" +
-                "  function removeElements() {\n" +
-                "    if (tooltip) {\n" +
-                "      tooltip.remove(); // Completely remove the tooltip from the DOM\n" +
-                "      tooltip = null; // Clear the reference to free memory\n" +
-                "      console.log(\"Tooltip completely removed.\");\n" +
-                "    }\n" +
-                "  }\n" +
-                "\n" +
-                "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n" +
-                "\n" +
-                "  window.addEventListener(\"message\", function (event) {\n" +
-                "    if (event.origin !== trustedOriginURL) return; // check the origin\n" +
-                "    console.log(event.data);\n" +
-                "  });\n" +
-                "})(arguments[0], arguments[1]);\n" +
-                "// })(\"http://localhost:3000/\", \"http://localhost:3000/\");\n";
+        String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n"
+                + "  var tooltip = document.createElement(\"div\");\n"
+                + "  tooltip.id = \"Martini-Is-Awesome\";\n"
+                + "  tooltip.style.position = \"absolute\";\n"
+                + "  tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\";\n"
+                + "  tooltip.style.border = \"1px solid #ccc\";\n"
+                + "  tooltip.style.padding = \"10px\";\n"
+                + "  tooltip.style.borderRadius = \"5px\";\n"
+                + "  tooltip.style.boxShadow = \"0 2px 4px rgba(0, 0, 0, 0.2)\";\n"
+                + "  tooltip.style.fontFamily = \"Arial, sans-serif\";\n"
+                + "  tooltip.style.fontSize = \"14px\";\n"
+                + "  tooltip.style.color = \"#333\";\n"
+                + "  tooltip.style.zIndex = \"10000\";\n"
+                + "  tooltip.style.display = \"none\";\n"
+                + "  document.body.appendChild(tooltip);\n"
+                + "\n"
+                + "  var elementInfoMap = new Map();\n"
+                + "  var allElementInfo = [];\n"
+                + "\n"
+                + "  function getElementIdentity(element) {\n"
+                + "    var xpath = getMartiniXPath(element);\n"
+                + "    var allAttributes = \"\";\n"
+                + "    try {\n"
+                + "      // console.log(\"element\", element);\n"
+                + "      allAttributes = getElementAttributes(element);\n"
+                + "    } catch (error) {}\n"
+                + "    var customXPath = \"\";\n"
+                + "    try {\n"
+                + "      customXPath = getElementLocators(element);\n"
+                + "    } catch (error) {}\n"
+                + "\n"
+                + "    var attribId = element.id || \"\";\n"
+                + "    var attribName = element.name || \"\";\n"
+                + "    var coords = element.getBoundingClientRect();\n"
+                + "    coords = `${coords.left},${coords.top}`;\n"
+                + "\n"
+                + "    var someText = element.textContent.trim() || \"\";\n"
+                + "    if (\n"
+                + "      element.tagName.toLowerCase() === \"input\" ||\n"
+                + "      element.tagName.toLowerCase() === \"textarea\"\n"
+                + "    ) {\n"
+                + "      someText = element.value || \"\";\n"
+                + "    }\n"
+                + "\n"
+                + "    var someText = getSomeText(element.tagName.toLowerCase(), element);\n"
+                + "\n"
+                + "    return {\n"
+                + "      xpath,\n"
+                + "      allAttributes,\n"
+                + "      customXPath,\n"
+                + "      attribId,\n"
+                + "      attribName,\n"
+                + "      coords,\n"
+                + "      someText,\n"
+                + "    };\n"
+                + "  }\n"
+                + "  function getElementAttributes(element) {\n"
+                + "    const attributes = [];\n"
+                + "\n"
+                + "    for (const attr of element.attributes) {\n"
+                + "      attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
+                + "    }\n"
+                + "\n"
+                + "    return attributes;\n"
+                + "  }\n"
+                + "  function getMartiniXPath(element) {\n"
+                + "    if (element === document.body) {\n"
+                + "      return \"/html/body\";\n"
+                + "    }\n"
+                + "    var ix = 0;\n"
+                + "    var siblings = element.parentNode ? element.parentNode.childNodes : [];\n"
+                + "    for (var i = 0; i < siblings.length; i++) {\n"
+                + "      var sibling = siblings[i];\n"
+                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "        if (sibling === element) {\n"
+                + "          return (\n"
+                + "            getMartiniXPath(element.parentNode) +\n"
+                + "            \"/\" +\n"
+                + "            element.tagName.toLowerCase() +\n"
+                + "            \"[\" +\n"
+                + "            (ix + 1) +\n"
+                + "            \"]\"\n"
+                + "          );\n"
+                + "        }\n"
+                + "        ix++;\n"
+                + "      }\n"
+                + "    }\n"
+                + "    return \"\";\n"
+                + "  }\n"
+                + "  function getMartiniCustomXPath(element) {\n"
+                + "    if (element === document.body) {\n"
+                + "      return \"/html/\" + element.tagName.toLowerCase();\n"
+                + "    }\n"
+                + "    var className = element.className\n"
+                + "      .split(\" \")\n"
+                + "      .filter(function (cls) {\n"
+                + "        return !/\\d/.test(cls);\n"
+                + "      })\n"
+                + "      .join(\".\");\n"
+                + "    var tagName = element.tagName.toLowerCase();\n"
+                + "    var ix = 0;\n"
+                + "    var siblings = element.parentNode.childNodes;\n"
+                + "    for (var i = 0; i < siblings.length; i++) {\n"
+                + "      var sibling = siblings[i];\n"
+                + "      if (sibling === element) {\n"
+                + "        var path = getMartiniCustomXPath(element.parentNode) + \"/\" + tagName;\n"
+                + "        if (className) {\n"
+                + "          path += '[contains(@class, \"' + className + '\")]';\n"
+                + "        } else {\n"
+                + "          path += \"[\" + (ix + 1) + \"]\";\n"
+                + "        }\n"
+                + "        return path;\n"
+                + "      }\n"
+                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "        ix++;\n"
+                + "      }\n"
+                + "    }\n"
+                + "    return \"\";\n"
+                + "  }\n"
+                + "\n"
+                + "  var lastHoveredIsIframe = null; // Keep track of the last hovered element type\n"
+                + "\n"
+                + "  let lastHoveredElement = null; // Keep track of the previously hovered element\n"
+                + "  // Declare global variables to store iframe details\n"
+                + "  var iframeDocument = null;\n"
+                + "  var iframeElementsCount = 0;\n"
+                + "\n"
+                + "  function showMartiniTooltip(event) {\n"
+                + "    var elementBelowTooltip = document.elementFromPoint(\n"
+                + "      event.clientX,\n"
+                + "      event.clientY\n"
+                + "    );\n"
+                + "\n"
+                + "    // Do nothing if the hovered element is the tooltip itself or an excluded tag (html, body, main)\n"
+                + "    if (\n"
+                + "      !elementBelowTooltip ||\n"
+                + "      elementBelowTooltip === tooltip ||\n"
+                + "      [\"html\", \"body\", \"main\"].includes(\n"
+                + "        elementBelowTooltip.tagName.toLowerCase()\n"
+                + "      )\n"
+                + "    ) {\n"
+                + "      return;\n"
+                + "    }\n"
+                + "\n"
+                + "    var isIframe = elementBelowTooltip.tagName.toLowerCase() === \"iframe\";\n"
+                + "\n"
+                + "    // Reset only if switching between iframe and non-iframe elements\n"
+                + "    if (lastHoveredIsIframe !== isIframe) {\n"
+                + "      console.clear();\n"
+                + "      elementInfoMap.clear();\n"
+                + "      allElementInfo = [];\n"
+                + "    }\n"
+                + "\n"
+                + "    lastHoveredIsIframe = isIframe; // Update last hovered element type\n"
+                + "\n"
+                + "    // Get the tag name of the element\n"
+                + "    var tagNameTemp = elementBelowTooltip.tagName.toLowerCase();\n"
+                + "\n"
+                + "    // // Get the text content of the element (if it has text)\n"
+                + "    // var someText = elementBelowTooltip.textContent.trim();\n"
+                + "    // if (someText === \"\") {\n"
+                + "    //   someText = \"No text content\";\n"
+                + "    // }\n"
+                + "\n"
+                + "    var someText = getSomeText(\n"
+                + "      elementBelowTooltip.tagName.toLowerCase(),\n"
+                + "      elementBelowTooltip\n"
+                + "    );\n"
+                + "\n"
+                + "    // If it's an iframe, get the number of elements inside the iframe\n"
+                + "    var iframeDetails = \"\";\n"
+                + "    if (isIframe) {\n"
+                + "      iframeDocument =\n"
+                + "        elementBelowTooltip.contentDocument ||\n"
+                + "        elementBelowTooltip.contentWindow.document;\n"
+                + "      iframeElementsCount = iframeDocument\n"
+                + "        ? iframeDocument.body.getElementsByTagName(\"*\").length\n"
+                + "        : 0;\n"
+                + "      iframeDetails = `Elements inside iframe: ${iframeElementsCount}`;\n"
+                + "    }\n"
+                + "\n"
+                + "    var elementXPath = getMartiniXPath(elementBelowTooltip);\n"
+                + "\n"
+                + "    // Store tagName and other details in the Map\n"
+                + "    if (iframeDetails && iframeDetails.length > 0) {\n"
+                + "      elementInfoMap.set(\n"
+                + "        elementXPath,\n"
+                + "        `xpath:${elementXPath};text:${someText};${iframeDetails};`\n"
+                + "      );\n"
+                + "    } else {\n"
+                + "      const {\n"
+                + "        xpath,\n"
+                + "        allAttributes,\n"
+                + "        customXPath,\n"
+                + "        attribId,\n"
+                + "        attribName,\n"
+                + "        coords,\n"
+                + "        someText,\n"
+                + "      } = getElementIdentity(elementBelowTooltip);\n"
+                + "\n"
+                + "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
+                + "\n"
+                + "      elementInfoMap.set(xpath, elementInfoString);\n"
+                + "    }\n"
+                + "\n"
+                + "    // Parse the someText using the semicolon delimiter\n"
+                + "    var parsedText = someText.split(\";\");\n"
+                + "\n"
+                + "    // Format the tooltip content to make it more readable\n"
+                + "    var tooltipContent = \"\";\n"
+                + "    tooltipContent += isIframe ? \"[Iframe] <br>\" : \"\";\n"
+                + "    tooltipContent += `Tag Name: ${tagNameTemp}<br>`;\n"
+                + "    tooltipContent += isIframe ? `- ${iframeDetails}<br>` : \"\";\n"
+                + "\n"
+                + "    // Replace new lines with <br> before adding each item from parsedText\n"
+                + "    tooltipContent += someText\n"
+                + "      ? parsedText.map((item) => `- ${item}<br>`).join(\"\")\n"
+                + "      : \"No Text<br>\";\n"
+                + "\n"
+                + "    // Set the tooltip content with line breaks\n"
+                + "    tooltip.innerHTML = tagNameTemp;\n"
+                + "\n"
+                + "    // Position the tooltip near the mouse cursor\n"
+                + "    var tooltipWidth = tooltip.offsetWidth;\n"
+                + "    var tooltipHeight = tooltip.offsetHeight;\n"
+                + "    var left = event.pageX - tooltipWidth / 2;\n"
+                + "    var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "    tooltip.style.left = left + \"px\";\n"
+                + "    tooltip.style.top = top + \"px\";\n"
+                + "    tooltip.style.display = \"block\";\n"
+                + "\n"
+                + "    // Highlight the hovered element\n"
+                + "    if (lastHoveredElement !== elementBelowTooltip) {\n"
+                + "      // Remove highlight from the previous element if any\n"
+                + "      if (lastHoveredElement) {\n"
+                + "        lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
+                + "      }\n"
+                + "      // Add a border to highlight the current element\n"
+                + "      elementBelowTooltip.style.outline = \"3px solid red\"; // Highlight the element\n"
+                + "\n"
+                + "      lastHoveredElement = elementBelowTooltip; // Update the last hovered element\n"
+                + "    }\n"
+                + "\n"
+                + "    // console.log(\"Element Info:\", elementInfoMap);\n"
+                + "  }\n"
+                + "\n"
+                + "  function limitMapCharacters(elementInfoMap, coordText) {\n"
+                + "    elementInfoMap.forEach((value, key) => {\n"
+                + "      let modifiedValue = value;\n"
+                + "\n"
+                + "      // TO DO  REDUCE ONLY THE TEXT FIELD\n"
+                + "\n"
+                + "      // // Check if the key is \"html\" or value length is greater than 400\n"
+                + "      // if (key === \"html\" || value.length > 400) {\n"
+                + "      //   // Truncate the value to 150 characters and add \"...\"\n"
+                + "      //   if (value.length > 150) {\n"
+                + "      //     modifiedValue = value.substring(0, 150) + \"...\";\n"
+                + "      //   }\n"
+                + "\n"
+                + "      //   // If the length exceeds 400 characters, break the value into multiple lines\n"
+                + "      //   if (value.length > 400) {\n"
+                + "      //     const firstPart = value.substring(0, 150);\n"
+                + "      //     const secondPart = value.substring(150);\n"
+                + "      //     modifiedValue = `${firstPart}<br>...${secondPart}`;\n"
+                + "      //   }\n"
+                + "      // }\n"
+                + "\n"
+                + "      // Push the formatted value and key to the array\n"
+                + "      allElementInfo.push(`${coordText}:${modifiedValue}`);\n"
+                + "    });\n"
+                + "  }\n"
+                + "\n"
+                + "  function getSomeText(tagName, element) {\n"
+                + "    let someText = \"\";\n"
+                + "\n"
+                + "    if ([\"input\", \"textarea\", \"select\", \"button\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    } else if ([\"option\", \"label\", \"a\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    } else if (![\"html\", \"body\", \"script\"].includes(tagName)) {\n"
+                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
+                + "      someText = [\n"
+                + "        ...extractedText.titles,\n"
+                + "        ...extractedText.text,\n"
+                + "        ...extractedText.labels,\n"
+                + "      ]\n"
+                + "        .join(\"; \")\n"
+                + "        .trim();\n"
+                + "    }\n"
+                + "\n"
+                + "    someText = someText\n"
+                + "      .split(\";\")\n"
+                + "      .map((text) => text.trim())\n"
+                + "      .filter(Boolean)\n"
+                + "      .join(\";\"); // Clean up sequential text\n"
+                + "\n"
+                + "    return someText;\n"
+                + "  }\n"
+                + "\n"
+                + "  function extractTextFromHTML(element) {\n"
+                + "    const result = {\n"
+                + "      text: new Set(), // Using Set to avoid duplicate text\n"
+                + "      labels: new Set(), // Using Set to avoid duplicate labels\n"
+                + "      titles: new Set(), // Using Set to avoid duplicate titles\n"
+                + "    };\n"
+                + "\n"
+                + "    // Extract text content directly from the element (in case it has no children)\n"
+                + "    if (element.textContent) {\n"
+                + "      let elementText = element.textContent.trim();\n"
+                + "      if (elementText) {\n"
+                + "        result.text.add(elementText); // Using .add() instead of .push() for Set\n"
+                + "      }\n"
+                + "    }\n"
+                + "\n"
+                + "    // Extract label text from input placeholders and other form-related data\n"
+                + "    element.querySelectorAll(\"label\").forEach((label) => {\n"
+                + "      if (label.textContent) {\n"
+                + "        let labelText = label.textContent.trim();\n"
+                + "        if (labelText) {\n"
+                + "          result.labels.add(labelText); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "\n"
+                + "      // Handle associated input fields (if the label has a 'for' attribute)\n"
+                + "      let forAttribute = label.getAttribute(\"for\");\n"
+                + "      if (forAttribute) {\n"
+                + "        let associatedInput = element.querySelector(`#${forAttribute}`);\n"
+                + "        if (associatedInput) {\n"
+                + "          // Check if it's an input field or textarea and extract value or placeholder\n"
+                + "          let inputValue = associatedInput.value?.trim();\n"
+                + "          let inputPlaceholder = associatedInput.placeholder?.trim();\n"
+                + "          if (inputValue) {\n"
+                + "            result.text.add(inputValue); // Using .add() for Set to ensure uniqueness\n"
+                + "          } else if (inputPlaceholder) {\n"
+                + "            result.text.add(inputPlaceholder); // Fallback to placeholder\n"
+                + "          }\n"
+                + "        }\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract text from common block and inline elements\n"
+                + "    const textExtractors = [\n"
+                + "      \"p\",\n"
+                + "      \"h1\",\n"
+                + "      \"h2\",\n"
+                + "      \"h3\",\n"
+                + "      \"h4\",\n"
+                + "      \"h5\",\n"
+                + "      \"h6\",\n"
+                + "      \"li\",\n"
+                + "      \"span\",\n"
+                + "      \"div\",\n"
+                + "      \"strong\",\n"
+                + "      \"em\",\n"
+                + "      \"b\",\n"
+                + "      \"i\",\n"
+                + "      \"blockquote\",\n"
+                + "    ];\n"
+                + "\n"
+                + "    textExtractors.forEach((tagName) => {\n"
+                + "      element.querySelectorAll(tagName).forEach((childElement) => {\n"
+                + "        if (childElement.textContent) {\n"
+                + "          let elemText = childElement.textContent.trim();\n"
+                + "          if (elemText) {\n"
+                + "            result.text.add(elemText); // Using .add() for Set to ensure uniqueness\n"
+                + "          }\n"
+                + "        }\n"
+                + "      });\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract text from <a> tags (links)\n"
+                + "    element.querySelectorAll(\"a\").forEach((link) => {\n"
+                + "      if (link.textContent) {\n"
+                + "        let linkText = link.textContent.trim();\n"
+                + "        if (linkText) {\n"
+                + "          result.text.add(linkText); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Extract iframe titles and nested content\n"
+                + "    element.querySelectorAll(\"iframe\").forEach((iframe) => {\n"
+                + "      if (iframe.getAttribute(\"title\")) {\n"
+                + "        let title = iframe.getAttribute(\"title\")?.trim();\n"
+                + "        if (title) {\n"
+                + "          result.titles.add(title); // Using .add() for Set to ensure uniqueness\n"
+                + "        }\n"
+                + "      }\n"
+                + "\n"
+                + "      try {\n"
+                + "        let iframeDoc =\n"
+                + "          iframe.contentDocument ||\n"
+                + "          new DOMParser().parseFromString(iframe.srcdoc || \"\", \"text/html\");\n"
+                + "        let iframeContent = extractTextFromHTML(iframeDoc); // Here we assume iframeDoc is an element.\n"
+                + "        iframeContent.titles.forEach((title) => result.titles.add(title));\n"
+                + "        iframeContent.text.forEach((text) => result.text.add(text));\n"
+                + "        iframeContent.labels.forEach((label) => result.labels.add(label));\n"
+                + "      } catch (e) {\n"
+                + "        console.warn(\"Could not access iframe content\", e);\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Convert Sets to arrays before returning to maintain previous structure\n"
+                + "    return {\n"
+                + "      text: Array.from(result.text),\n"
+                + "      labels: Array.from(result.labels),\n"
+                + "      titles: Array.from(result.titles),\n"
+                + "    };\n"
+                + "  }\n"
+                + "\n"
+                + "  function hideMartiniTooltip() {\n"
+                + "    tooltip.style.display = \"none\";\n"
+                + "  }\n"
+                + "  function handleMartiniClick(event) {\n"
+                + "    event.preventDefault();\n"
+                + "    event.stopPropagation();\n"
+                + "    tooltip.style.display = \"none\";\n"
+                + "\n"
+                + "    // Determine the element below the tooltip (mouse position)\n"
+                + "    var elementBelowTooltip = document.elementFromPoint(\n"
+                + "      event.clientX,\n"
+                + "      event.clientY\n"
+                + "    );\n"
+                + "\n"
+                + "    // Hide the tooltip\n"
+                + "    tooltip.style.display = \"none\";\n"
+                + "\n"
+                + "    // If the element below the tooltip is an iframe\n"
+                + "    if (\n"
+                + "      elementBelowTooltip &&\n"
+                + "      elementBelowTooltip.tagName.toLowerCase() === \"iframe\"\n"
+                + "    ) {\n"
+                + "      // Get the document inside the iframe\n"
+                + "      var iframeDocument =\n"
+                + "        elementBelowTooltip.contentDocument ||\n"
+                + "        elementBelowTooltip.contentWindow.document;\n"
+                + "\n"
+                + "      // If the iframe document is valid\n"
+                + "      if (iframeDocument) {\n"
+                + "        // Format the iframe details\n"
+                + "        var iframeDetails = `Elements inside iframe: ${\n"
+                + "          iframeDocument.body.getElementsByTagName(\"*\").length\n"
+                + "        }`;\n"
+                + "\n"
+                + "        // Display the tooltip with iframe details\n"
+                + "        tooltip.innerHTML = `[Iframe] <br> ${iframeDetails}`;\n"
+                + "\n"
+                + "        // Position the tooltip near the mouse cursor\n"
+                + "        var tooltipWidth = tooltip.offsetWidth;\n"
+                + "        var tooltipHeight = tooltip.offsetHeight;\n"
+                + "        var left = event.pageX - tooltipWidth / 2;\n"
+                + "        var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "        tooltip.style.left = left + \"px\";\n"
+                + "        tooltip.style.top = top + \"px\";\n"
+                + "        tooltip.style.display = \"block\";\n"
+                + "\n"
+                + "        // Initialize an array to store the iframe element information\n"
+                + "        allElementInfo = [];\n"
+                + "\n"
+                + "        const {\n"
+                + "          xpath,\n"
+                + "          allAttributes,\n"
+                + "          customXPath,\n"
+                + "          attribId,\n"
+                + "          attribName,\n"
+                + "          coords,\n"
+                + "          someText,\n"
+                + "        } = getElementIdentity(elementBelowTooltip);\n"
+                + "\n"
+                + "        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
+                + "\n"
+                + "        allElementInfo.push(`clicked-iFrame:${elementInfoString};`);\n"
+                + "\n"
+                + "        // limitMapCharacters(elementInfoMap, \"clicked-tagName\");\n"
+                + "\n"
+                + "        // Get all elements inside the iframe and log their details\n"
+                + "        var iframeElements = iframeDocument.querySelectorAll(\"*\");\n"
+                + "        iframeElements.forEach(function (elementInsideIframe) {\n"
+                + "          const {\n"
+                + "            xpath,\n"
+                + "            allAttributes,\n"
+                + "            customXPath,\n"
+                + "            attribId,\n"
+                + "            attribName,\n"
+                + "            coords,\n"
+                + "            someText,\n"
+                + "          } = getElementIdentity(elementInsideIframe);\n"
+                + "\n"
+                + "          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
+                + "\n"
+                + "          allElementInfo.push(elementInfoString);\n"
+                + "        });\n"
+                + "\n"
+                + "        // Log the list of iframe elements\n"
+                + "        console.log(\"List of iframe elements:\", allElementInfo);\n"
+                + "        window.allElementInfo = allElementInfo;\n"
+                + "      } else {\n"
+                + "        tooltip.innerHTML = \"No iframe document found.\";\n"
+                + "\n"
+                + "        // Position the tooltip near the mouse cursor\n"
+                + "        var tooltipWidth = tooltip.offsetWidth;\n"
+                + "        var tooltipHeight = tooltip.offsetHeight;\n"
+                + "        var left = event.pageX - tooltipWidth / 2;\n"
+                + "        var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "        tooltip.style.left = left + \"px\";\n"
+                + "        tooltip.style.top = top + \"px\";\n"
+                + "        tooltip.style.display = \"block\";\n"
+                + "      }\n"
+                + "    } else {\n"
+                + "      // If the clicked element is not an iframe, gather its regular information\n"
+                + "      var tagName = elementBelowTooltip.tagName.toLowerCase();\n"
+                + "\n"
+                + "      // Avoid main, body, and html tags\n"
+                + "      if ([\"html\", \"body\", \"main\"].includes(tagName)) {\n"
+                + "        return; // Don't proceed if it's one of these elements\n"
+                + "      }\n"
+                + "\n"
+                + "      // Format and push regular element information to the array\n"
+                + "      // limitMapCharacters(elementInfoMap, \"tagName-found\");\n"
+                + "\n"
+                + "      const {\n"
+                + "        xpath,\n"
+                + "        allAttributes,\n"
+                + "        customXPath,\n"
+                + "        attribId,\n"
+                + "        attribName,\n"
+                + "        coords,\n"
+                + "        someText,\n"
+                + "      } = getElementIdentity(elementBelowTooltip);\n"
+                + "\n"
+                + "      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
+                + "\n"
+                + "      allElementInfo.push(elementInfoString);\n"
+                + "\n"
+                + "      console.log(\"List of elements:\", allElementInfo);\n"
+                + "      window.allElementInfo = allElementInfo;\n"
+                + "\n"
+                + "      allElementInfo = [];\n"
+                + "\n"
+                + "      // Show the tooltip with the element details\n"
+                + "      // tooltip.innerHTML = `${tagName} <br> ${someText}`;\n"
+                + "      tooltip.innerHTML = `${tagName} <br> ${someText}`;\n"
+                + "      var tooltipWidth = tooltip.offsetWidth;\n"
+                + "      var tooltipHeight = tooltip.offsetHeight;\n"
+                + "      var left = event.pageX - tooltipWidth / 2;\n"
+                + "      var top = event.pageY - tooltipHeight / 2;\n"
+                + "\n"
+                + "      tooltip.style.left = left + \"px\";\n"
+                + "      tooltip.style.top = top + \"px\";\n"
+                + "      tooltip.style.display = \"block\";\n"
+                + "    }\n"
+                + "\n"
+                + "    // window.revertCloneInjections();\n"
+                + "\n"
+                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
+                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
+                + "    // setTimeout(() => {\n"
+                + "    //   if (tooltip) {\n"
+                + "    //     tooltip.remove(); // Completely remove the tooltip from the DOM\n"
+                + "    //     tooltip = null; // Clear the reference to free memory\n"
+                + "    //     console.log(\"Tooltip completely removed.\");\n"
+                + "    //   }\n"
+                + "\n"
+                + "    //   if (lastHoveredElement || elementBelowTooltip) {\n"
+                + "    //     // Remove highlight from the previous element if any\n"
+                + "    //     if (lastHoveredElement) {\n"
+                + "    //       lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
+                + "    //     }\n"
+                + "\n"
+                + "    //     // Remove highlight from the previous element if any\n"
+                + "    //     if (elementBelowTooltip) {\n"
+                + "    //       elementBelowTooltip.style.outline = \"\"; // Remove the previous highlight\n"
+                + "    //     }\n"
+                + "    //   }\n"
+                + "    // }, 3000);\n"
+                + "  }\n"
+                + "\n"
+                + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
+                + "  document.addEventListener(\"click\", handleMartiniClick);\n"
+                + "\n"
+                + "  window.revertCloneInjections = function () {\n"
+                + "    // alert(\"revertCloneInjections\");\n"
+                + "\n"
+                + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
+                + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
+                + "    console.log(\"revertCloneInjections\");\n"
+                + "\n"
+                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
+                + "    setTimeout(() => {\n"
+                + "      removeElements();\n"
+                + "    }, 1000);\n"
+                + "  };\n"
+                + "\n"
+                + "  function removeElements() {\n"
+                + "    if (tooltip) {\n"
+                + "      tooltip.remove(); // Completely remove the tooltip from the DOM\n"
+                + "      tooltip = null; // Clear the reference to free memory\n"
+                + "      console.log(\"Tooltip completely removed.\");\n"
+                + "    }\n"
+                + "  }\n"
+                + "\n"
+                + "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n"
+                + "\n"
+                + "  window.addEventListener(\"message\", function (event) {\n"
+                + "    if (event.origin !== trustedOriginURL) return; // check the origin\n"
+                + "    console.log(event.data);\n"
+                + "  });\n"
+                + "})(arguments[0], arguments[1]);\n"
+                + "// })(\"http://localhost:3000/\", \"http://localhost:3000/\");\n";
 
         // Inject the JavaScript into the webpage
         jsExecutor = (JavascriptExecutor) driver;
@@ -4646,9 +4648,11 @@ public class ARScannedElementPane extends ARPane {
                                     iFrameElements = null;
 
                                     Optional<ElementDTO> iframeElement = elementsFound.stream()
-                                            .filter(element -> "clicked-iFrame"
-                                                    .equalsIgnoreCase(element.getTypeElement())
-//                                                    || "clicked-element".equalsIgnoreCase(element.getTypeElement())
+                                            .filter(
+                                                    element ->
+                                                            "clicked-iFrame".equalsIgnoreCase(element.getTypeElement())
+                                                    //                                                    ||
+                                                    // "clicked-element".equalsIgnoreCase(element.getTypeElement())
                                                     )
                                             .findFirst(); // Get the first matching ElementDTO
 
@@ -4659,64 +4663,89 @@ public class ARScannedElementPane extends ARPane {
                                         if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
                                             iFrameText.setText("iFrame Detected");
                                         }
-                                        checkCloneElement.setSelected(false);
+                                        //                                        checkCloneElement.setSelected(false);
                                         checkTestAction.setSelected(false);
-                                        revertCloneButtons();
-                                    } else {
-                                        iFrameText.setText("");
-                                        checkCloneElement.setSelected(false);
-                                        checkTestAction.setSelected(false);
-                                        revertCloneButtons();
-                                    }   
-                                } else {
-                                    iFrameText.setText("");
-                                }
+                                        //                                        revertCloneButtons();
 
-                                if (elementsFound.size() > 0) {
-                                    StringBuilder sb = new StringBuilder();
+                                        if (elementsFound.size() > 0) {
+                                            StringBuilder sb = new StringBuilder();
 
-                                    String someText = "";
-                                    for (ElementDTO picked : elementsFound) {
-                                        if (picked.getTypeElement().equalsIgnoreCase("clicked")) {
-                                            originalTagNameField.setText(picked.getTagName());
-                                            attribIdTextField.setText(picked.getAttribId());
-                                            attribNameTextField.setText(picked.getAttribName());
-                                            currentXPathTextField.setText(picked.getXPath());
-                                            allAttributesTextField.setText(picked.getAllAttributes());
-                                            customXPathTextField.setText(picked.getCustomXPath());
-                                            coordsTextField.setText(picked.getCoords());
-                                            iFrameCoords = "";
+                                            // CLONE  ONLY ADDS THE CLICKED ONE
+                                            for (ElementDTO picked : elementsFound) {
+                                                // If Have any iFrame-Child Try to get any to show
+                                                if (picked.getTagName().equalsIgnoreCase("input")) {
+                                                    originalTagNameField.setText(picked.getTagName());
+                                                    attribIdTextField.setText(picked.getAttribId());
+                                                    attribNameTextField.setText(picked.getAttribName());
+                                                    currentXPathTextField.setText(picked.getXPath());
+                                                    allAttributesTextField.setText(picked.getAllAttributes());
+                                                    customXPathTextField.setText(picked.getCustomXPath());
+                                                    coordsTextField.setText(picked.getCoords());
+                                                    iFrameCoords = "";
+                                                }
 
-                                            defineNameField.setText("");
-                                            if (!Strings.isNullOrEmpty(someText)) {
-                                                String finalSomeText = someText;
-                                                Platform.runLater(
-                                                        () -> defineNameField.setText(truncate(finalSomeText, 50)));
-                                            } else if (!Strings.isNullOrEmpty(picked.getTagName())) {
-                                                Platform.runLater(() -> defineNameField.setText(picked.getTagName()));
+                                                sb.append(picked.getTagName() + " " + picked.getText())
+                                                        .append("\n");
                                             }
+                                            countdownTextField.setText(sb.toString());
+                                            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                                            // Direct Insert to the Factory of Elements
 
-                                            someText = picked.getText();
-
-                                            if (Strings.isNullOrEmpty(attribNameTextField.getText())) {
-                                                attribNameTextField.setText(originalTagNameField.getText());
+                                            if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
+                                                    && !xpathTextPrevious.equalsIgnoreCase(
+                                                            allAttributesTextField.getText())) {
+                                                extractPickClone(someText);
+                                                insertNewElement(elementsFound);
                                             }
-                                            continue; // To avoid the Clicked One
+                                            elementsFound.clear();
                                         }
 
-                                        sb.append(picked.getTagName() + " " + picked.getText())
-                                                .append("\n");
-                                    }
-                                    countdownTextField.setText(sb.toString());
-                                    countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-                                    // Direct Insert to the Factory of Elements
+                                    } else {
+                                        iFrameText.setText("");
+                                        //                                        checkCloneElement.setSelected(false);
+                                        checkTestAction.setSelected(false);
+                                        //                                        revertCloneButtons();
 
-                                    if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
-                                            && !xpathTextPrevious.equalsIgnoreCase(allAttributesTextField.getText())) {
-                                        extractPickClone(someText);
-                                        insertNewElement(elementsFound);
+                                        if (elementsFound.size() > 0) {
+                                            StringBuilder sb = new StringBuilder();
+
+                                            // I WANT JUST ONE
+                                            elementsFound = elementsFound.stream()
+                                                    .filter(element -> "clicked".equals(element.getTypeElement()))
+                                                    .collect(Collectors.toList());
+
+                                            // CLONE  ONLY ADDS THE CLICKED ONE
+                                            for (ElementDTO picked : elementsFound) {
+                                                if (!picked.getTypeElement().equalsIgnoreCase("clicked")) {
+                                                    continue;
+                                                }
+                                                originalTagNameField.setText(picked.getTagName());
+                                                attribIdTextField.setText(picked.getAttribId());
+                                                attribNameTextField.setText(picked.getAttribName());
+                                                currentXPathTextField.setText(picked.getXPath());
+                                                allAttributesTextField.setText(picked.getAllAttributes());
+                                                customXPathTextField.setText(picked.getCustomXPath());
+                                                coordsTextField.setText(picked.getCoords());
+                                                iFrameCoords = "";
+
+                                                sb.append(picked.getTagName() + " " + picked.getText())
+                                                        .append("\n");
+                                            }
+                                            countdownTextField.setText(sb.toString());
+                                            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                                            // Direct Insert to the Factory of Elements
+
+                                            if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
+                                                    && !xpathTextPrevious.equalsIgnoreCase(
+                                                            allAttributesTextField.getText())) {
+                                                extractPickClone(someText);
+                                                insertNewElement(elementsFound);
+                                            }
+                                            elementsFound.clear();
+                                        }
                                     }
-                                    elementsFound.clear();
+                                } else {
+                                    iFrameText.setText("");
                                 }
                             });
                         }
@@ -4728,72 +4757,87 @@ public class ARScannedElementPane extends ARPane {
                                             "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
                         }
                         //   CLONE OPTION OLD VERSION
-                        
-//                        
-//                        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String, Object>)
-//                                jsExecutor.executeScript(
-//                                        "var obj = { attribId: window.attribId, attribName: window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath, allAttributes: window.allAttributes, tagName: window.tagName, coords: window.coords, someText: window.someText }; return obj;");
-//
-//                        // Convert the LinkedHashMap to a Java Map (if necessary)
-//                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
 
-//                        if (linkedHashMap != null) {
-//                            Platform.runLater(() -> {
-//                                String tagName = (String) resultMap.get("tagName");
-//                                String someText = (String) resultMap.get("someText");
-//
-//                                tagName = tagName.trim();
-//                                someText = someText.trim();
-//
-//                                if (!Strings.isNullOrEmpty(tagName)) {
-//                                    originalTagNameField.setText(tagName);
-//                                    attribIdTextField.setText((String) resultMap.get("attribId"));
-//                                    attribNameTextField.setText((String) resultMap.get("attribName"));
-//                                    currentXPathTextField.setText((String) resultMap.get("currentXPath"));
-//                                    allAttributesTextField.setText((String) resultMap.get("allAttributes"));
-//                                    customXPathTextField.setText((String) resultMap.get("customXPath"));
-//                                    coordsTextField.setText((String) resultMap.get("coords"));
-//
-//                                    defineNameField.setText("");
-//                                    if (!Strings.isNullOrEmpty(someText)) {
-//                                        String finalSomeText = someText;
-//                                        Platform.runLater(() -> defineNameField.setText(truncate(finalSomeText, 50)));
-//                                    } else if (!Strings.isNullOrEmpty(tagName)) {
-//                                        String finalTagName = tagName;
-//                                        Platform.runLater(() -> defineNameField.setText(finalTagName));
-//                                    }
-//
-//                                    if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
-//                                            && !xpathTextPrevious.equalsIgnoreCase(allAttributesTextField.getText())) {
-//                                        extractPickClone(someText);
-//
-//                                        StringBuilder sb = new StringBuilder();
-//
-//                                        sb.append("Type: " + tagName).append("\n");
-//                                        sb.append("Id: " + attribIdTextField.getText())
-//                                                .append("\n");
-//                                        sb.append("Name: " + attribNameTextField.getText())
-//                                                .append("\n");
-//                                        sb.append("Coords: " + coordsTextField.getText())
-//                                                .append("\n");
-//                                        sb.append("xPath: " + currentXPathTextField.getText())
-//                                                .append("\n");
-//                                        sb.append("Text: " + someText.trim()).append("\n");
-//
-//                                        countdownTextField.setText(sb.toString());
-//                                        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-//                                        checkTestAction.setSelected(false);
-//                                    }
-//                                }
-//                            });
-//                        }
-//                        try {
-//                            Thread.sleep(300); // Check every 300 milliseconds
-//                        } catch (InterruptedException e) {
-//                            ARLogger.getInstance(ARScannedElementPane.class)
-//                                    .fine(String.format(
-//                                            "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
-//                        }
+                        //
+                        //                        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String,
+                        // Object>)
+                        //                                jsExecutor.executeScript(
+                        //                                        "var obj = { attribId: window.attribId, attribName:
+                        // window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath,
+                        // allAttributes: window.allAttributes, tagName: window.tagName, coords: window.coords,
+                        // someText: window.someText }; return obj;");
+                        //
+                        //                        // Convert the LinkedHashMap to a Java Map (if necessary)
+                        //                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
+
+                        //                        if (linkedHashMap != null) {
+                        //                            Platform.runLater(() -> {
+                        //                                String tagName = (String) resultMap.get("tagName");
+                        //                                String someText = (String) resultMap.get("someText");
+                        //
+                        //                                tagName = tagName.trim();
+                        //                                someText = someText.trim();
+                        //
+                        //                                if (!Strings.isNullOrEmpty(tagName)) {
+                        //                                    originalTagNameField.setText(tagName);
+                        //                                    attribIdTextField.setText((String)
+                        // resultMap.get("attribId"));
+                        //                                    attribNameTextField.setText((String)
+                        // resultMap.get("attribName"));
+                        //                                    currentXPathTextField.setText((String)
+                        // resultMap.get("currentXPath"));
+                        //                                    allAttributesTextField.setText((String)
+                        // resultMap.get("allAttributes"));
+                        //                                    customXPathTextField.setText((String)
+                        // resultMap.get("customXPath"));
+                        //                                    coordsTextField.setText((String) resultMap.get("coords"));
+                        //
+                        //                                    defineNameField.setText("");
+                        //                                    if (!Strings.isNullOrEmpty(someText)) {
+                        //                                        String finalSomeText = someText;
+                        //                                        Platform.runLater(() ->
+                        // defineNameField.setText(truncate(finalSomeText, 50)));
+                        //                                    } else if (!Strings.isNullOrEmpty(tagName)) {
+                        //                                        String finalTagName = tagName;
+                        //                                        Platform.runLater(() ->
+                        // defineNameField.setText(finalTagName));
+                        //                                    }
+                        //
+                        //                                    if
+                        // (!Strings.isNullOrEmpty(allAttributesTextField.getText())
+                        //                                            &&
+                        // !xpathTextPrevious.equalsIgnoreCase(allAttributesTextField.getText())) {
+                        //                                        extractPickClone(someText);
+                        //
+                        //                                        StringBuilder sb = new StringBuilder();
+                        //
+                        //                                        sb.append("Type: " + tagName).append("\n");
+                        //                                        sb.append("Id: " + attribIdTextField.getText())
+                        //                                                .append("\n");
+                        //                                        sb.append("Name: " + attribNameTextField.getText())
+                        //                                                .append("\n");
+                        //                                        sb.append("Coords: " + coordsTextField.getText())
+                        //                                                .append("\n");
+                        //                                        sb.append("xPath: " + currentXPathTextField.getText())
+                        //                                                .append("\n");
+                        //                                        sb.append("Text: " + someText.trim()).append("\n");
+                        //
+                        //                                        countdownTextField.setText(sb.toString());
+                        //                                        countdownTextField.setStyle("-fx-font-size: 12px;
+                        // -fx-text-fill: blue;");
+                        //                                        checkTestAction.setSelected(false);
+                        //                                    }
+                        //                                }
+                        //                            });
+                        //                        }
+                        //                        try {
+                        //                            Thread.sleep(300); // Check every 300 milliseconds
+                        //                        } catch (InterruptedException e) {
+                        //                            ARLogger.getInstance(ARScannedElementPane.class)
+                        //                                    .fine(String.format(
+                        //                                            "Error Attempt to get currentXPath / tagName /
+                        // coords", e.getMessage()));
+                        //                        }
                     }
                 })
                 .start();
@@ -5569,10 +5613,12 @@ public class ARScannedElementPane extends ARPane {
                                     iFrameElements = null;
 
                                     Optional<ElementDTO> iframeElement = elementsFound.stream()
-                                            .filter(element -> "clicked-iFrame"
-                                                            .equalsIgnoreCase(element.getTypeElement())
-//                                                    || "clicked-element".equalsIgnoreCase(element.getTypeElement())
-                                            )
+                                            .filter(
+                                                    element ->
+                                                            "clicked-iFrame".equalsIgnoreCase(element.getTypeElement())
+                                                    //                                                    ||
+                                                    // "clicked-element".equalsIgnoreCase(element.getTypeElement())
+                                                    )
                                             .findFirst(); // Get the first matching ElementDTO
 
                                     checkClickElement.setSelected(false);
@@ -5611,19 +5657,6 @@ public class ARScannedElementPane extends ARPane {
                                             iFrameCoords = "";
 
                                             defineNameField.setText("");
-                                            if (!Strings.isNullOrEmpty(someText)) {
-                                                String finalSomeText = someText;
-                                                Platform.runLater(
-                                                        () -> defineNameField.setText(truncate(finalSomeText, 50)));
-                                            } else if (!Strings.isNullOrEmpty(picked.getTagName())) {
-                                                Platform.runLater(() -> defineNameField.setText(picked.getTagName()));
-                                            }
-
-                                            someText = picked.getText();
-
-                                            if (Strings.isNullOrEmpty(attribNameTextField.getText())) {
-                                                attribNameTextField.setText(originalTagNameField.getText());
-                                            }
                                             continue; // To avoid the Clicked One
                                         }
 
