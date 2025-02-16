@@ -422,7 +422,7 @@ public class ARScannedElementPane extends ARPane {
         //        iFrameXPathTextField = new TextField();
         //        iFrameXPathTextField.setPromptText("iFrame XPath");
         allAttributesTextField = new TextField();
-        allAttributesTextField.setPromptText("Absolut XPath");
+        allAttributesTextField.setPromptText("All Attributes");
         customXPathTextField = new TextField();
         customXPathTextField.setPromptText("Custom XPath");
         originalTagNameField = new TextField();
@@ -1355,50 +1355,56 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void insertNewElement(List<ElementDTO> elementsFound) {
+    private void insertNewElement(List<ElementDTO> elementsDTO) {
 
         try {
             // Loop through and find elements
-            for (ElementDTO elementFound : elementsFound) { // Start from index 1
-
-                if (elementFound.getTagName().equalsIgnoreCase("html")
-                        || elementFound.getTagName().equalsIgnoreCase("script")
-                        || elementFound.getTagName().equalsIgnoreCase("meta")
-                        || elementFound.getTagName().equalsIgnoreCase("head")
-                        || elementFound.getTagName().equalsIgnoreCase("body")
-                        || elementFound.getTypeElement().equalsIgnoreCase("clicked")) {
+            for (ElementDTO elementDTO : elementsDTO) { // Start from index 1
+                WebElement elementSearched = null;
+                if (elementDTO.getTagName().equalsIgnoreCase("html")
+                        || elementDTO.getTagName().equalsIgnoreCase("script")
+                        || elementDTO.getTagName().equalsIgnoreCase("meta")
+                        || elementDTO.getTagName().equalsIgnoreCase("head")
+                        || elementDTO.getTagName().equalsIgnoreCase("body")) {
                     continue;
                 }
 
                 try {
-                    WebElement element = arWebDriver.getDriver().findElement(By.xpath(elementFound.getXPath()));
+                    WebElement elementFound = arWebDriver.getDriver().findElement(By.xpath(elementDTO.getXPath()));
                     //                                elements.add(element);
 
-                    if (element != null) {
+                    if (elementFound != null) {
                         // I Need to create a new targetElement
-                        TargetElement targetLocal = performAction.defineSearchReturn(elementFound, element, null);
+                        TargetElement targetLocal = performAction.defineSearchReturn(elementDTO, elementFound, null);
+
                         targetLocal = performAction.defineTargetNameTitles(targetLocal);
 
                         // First  Search for xPath
                         //                        TargetElement targetValidated =
                         // checkValidateSearchPriorities(targetLocal);
 
-                        ARWebElement arWebElement = new ARWebElement(targetLocal, botJob.getId());
-                        targetLocal.setElement(null);
+                        if (!elementDTO.getTagName().equalsIgnoreCase("clicked")) {
 
-                        if (arWebElement != null && arWebElement.getElement() != null) {
-                            webElementObservableList2.add(arWebElement);
-                            Platform.runLater(() -> {
-                                scannedElements2.refresh();
-                            });
+                            ARWebElement arWebElement = new ARWebElement(targetLocal, botJob.getId());
+                            targetLocal.setElement(null);
+
+                            if (arWebElement != null && arWebElement.getElement() != null) {
+                                webElementObservableList2.add(arWebElement);
+                                Platform.runLater(() -> {
+                                    scannedElements2.refresh();
+                                });
+                            }
+
+                            System.out.println("Found element: " + elementFound.getTagName() + " with XPath: "
+                                    + elementDTO.getXPath());
+
+                        } else {
+                            defineCheckBoxesClickabe(targetElement);
                         }
-
-                        System.out.println(
-                                "Found element: " + element.getTagName() + " with XPath: " + elementFound.getXPath());
                     }
 
                 } catch (Exception e) {
-                    System.out.println("Element not found for XPath: " + elementFound.getXPath());
+                    System.out.println("Element not found for XPath: " + elementDTO.getXPath());
                     ARConstants.DialogModal respModal = performMessage.showCustomModalDialog(
                             "Error selecting Web Element",
                             "Mandatory Value not Defined",
@@ -1415,7 +1421,7 @@ public class ARScannedElementPane extends ARPane {
                 }
             }
 
-            elementsFound.clear();
+            elementsDTO.clear();
 
         } catch (Exception e) {
             //            browserNotAttached();
@@ -2524,9 +2530,6 @@ public class ARScannedElementPane extends ARPane {
         EventHandler<MouseEvent> mouseClickedHandler = mouseEvent -> {
             if (mouseEvent.getClickCount() == 2) {
                 // Double clicked the element
-
-                arWebDriver.getDriver().switchTo().defaultContent();
-
                 if (arWebHover.getSavedReferences().size() == 0) {
 
                     Text variableText1Styled = new Text(String.format(
@@ -3147,6 +3150,85 @@ public class ARScannedElementPane extends ARPane {
                         ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
                     }
                 }
+            } else if (mouseEvent.getClickCount() == 1) {
+
+                for (ARWebElement arWebElement : scannedElements2.getItems()) {
+                    performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
+                }
+
+                StringBuilder sb = new StringBuilder();
+                if (arWebHover.getTargetElement() != null) {
+                    this.targetElement = arWebHover.getTargetElement();
+
+                    defineNameField.setText("");
+                    if (!Strings.isNullOrEmpty(this.targetElement.getAttribId())
+                            || !Strings.isNullOrEmpty(this.targetElement.getAttribName())
+                            || !Strings.isNullOrEmpty(this.targetElement.getSomeText())) {
+                        String finalSomeText = this.targetElement.getOriginalTagName()
+                                + (!Strings.isNullOrEmpty(this.targetElement.getAttribName())
+                                        ? "-" + this.targetElement.getAttribName()
+                                        : !Strings.isNullOrEmpty(this.targetElement.getAttribId())
+                                                ? this.targetElement.getAttribId()
+                                                : !Strings.isNullOrEmpty(this.targetElement.getSomeText())
+                                                        ? "-" + truncate(this.targetElement.getSomeText(), 50)
+                                                        : "");
+                        Platform.runLater(() -> defineNameField.setText(truncate(finalSomeText, 50)));
+
+                    } else if (!Strings.isNullOrEmpty(this.targetElement.getAllAttributes())) {
+                        String nameDefined = "";
+
+                        // Split by comma to get key-value pairs
+                        String[] parts = this.targetElement.getAllAttributes().split(",");
+
+                        String idValue = null;
+                        String nameValue = null;
+                        String typeValue = null;
+
+                        // Loop through each key-value pair
+                        for (String part : parts) {
+                            String[] keyValue = part.split("=");
+
+                            if (keyValue.length == 2) { // Ensure valid key-value pair
+                                String key = keyValue[0].trim();
+                                String value = keyValue[1].trim().replaceAll("\"", ""); // Remove quotes
+
+                                if (key.equals("id")) {
+                                    idValue = value;
+                                } else if (key.equals("name")) {
+                                    nameValue = value;
+                                } else if (key.equals("type")) {
+                                    typeValue = value;
+                                }
+                            }
+                        }
+
+                        // Print based on priority: ID -> Name -> Type
+                        if (idValue != null) {
+                            nameDefined = this.targetElement.getOriginalTagName() + "-" + idValue;
+                        } else if (nameValue != null) {
+                            nameDefined = this.targetElement.getOriginalTagName() + "-" + nameValue;
+                        } else if (typeValue != null) {
+                            nameDefined = this.targetElement.getOriginalTagName() + "-" + typeValue;
+                        } else {
+                            nameDefined = this.targetElement.getOriginalTagName();
+                        }
+                        String finalSomeText = nameDefined;
+                        Platform.runLater(() -> defineNameField.setText(truncate(finalSomeText, 50)));
+
+                    } else if (!Strings.isNullOrEmpty(this.targetElement.getOriginalTagName())) {
+                        Platform.runLater(() -> defineNameField.setText(this.targetElement.getOriginalTagName()));
+                    }
+                }
+
+                sb.append("TagType: " + this.targetElement.getTagType()).append("\n");
+                sb.append("ID: " + this.targetElement.getAttribId()).append("\n");
+                sb.append("Name: " + this.targetElement.getAttribName()).append("\n");
+                sb.append("All Attributes: " + this.targetElement.getAllAttributes())
+                        .append("\n");
+                sb.append("Attrib Value: " + this.targetElement.getAttributeValue())
+                        .append("\n");
+                countdownTextField.setText(sb.toString());
+                countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
             }
         };
         arWebHover.addEventHandler(MouseEvent.MOUSE_ENTERED, mouseEnteredHandler);
