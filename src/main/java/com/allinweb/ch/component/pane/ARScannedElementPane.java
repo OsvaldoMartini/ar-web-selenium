@@ -5764,9 +5764,9 @@ public class ARScannedElementPane extends ARPane {
         ElementDTO pickTarget = null;
         String nameDefined = "";
         for (ElementDTO picked : elementsFound) {
-            if (picked.getTypeElement().equalsIgnoreCase("clicked")) {
-                continue; // To avoid the Clicked Twice
-            }
+//            if (picked.getTypeElement().equalsIgnoreCase("clicked")) {
+//                continue; // To avoid the Clicked Twice
+//            }
 
             pickTarget = new ElementDTO(picked);
 
