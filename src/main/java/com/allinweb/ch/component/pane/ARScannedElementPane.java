@@ -4791,10 +4791,7 @@ public class ARScannedElementPane extends ARPane {
         // Start a thread to periodically check the XPath value and update the TextField
         new Thread(() -> {
                     while (periodicCloneActivated) {
-                        //                        String currentXPath = (String) jsExecutor.executeScript("return
-                        // window.currentXPath;");
 
-                        // Execute JavaScript to construct and return a custom object
                         // Execute JavaScript to construct and return a custom object
                         LinkedHashMap<String, Object> linkedHashMap =
                                 (LinkedHashMap<String, Object>) jsExecutor.executeScript(
@@ -4805,8 +4802,6 @@ public class ARScannedElementPane extends ARPane {
 
                         if (linkedHashMap != null) {
                             Platform.runLater(() -> {
-                                //                                iFrameXPath = (String) resultMap.get("iFrameXPath");
-
                                 Object iframeElementsObject = resultMap.get("allElementInfo");
 
                                 if (iframeElementsObject instanceof List<?>) {
@@ -4831,276 +4826,55 @@ public class ARScannedElementPane extends ARPane {
                                     iFrameElements = null;
 
                                     Optional<ElementDTO> iframeElement = elementsFound.stream()
-                                            .filter(
-                                                    element ->
-                                                            "clicked-iFrame".equalsIgnoreCase(element.getTypeElement())
-                                                    //                                                    ||
-                                                    // "clicked-element".equalsIgnoreCase(element.getTypeElement())
-                                                    )
-                                            .findFirst(); // Get the first matching ElementDTO
+                                            .filter(element ->
+                                                    "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
+                                            .findFirst();
 
-                                    //                                    checkClickElement.setSelected(false);
-                                    //                                    checkInputText.setSelected(false);
-                                    //                                    checkOutputText.setSelected(false);
-                                    checkTestAction.setSelected(false);
                                     if (iframeElement.isPresent()) {
                                         if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
                                             iFrameText.setText("iFrame Detected");
-                                        }
-                                        //                                        checkCloneElement.setSelected(false);
-                                        //                                        revertCloneButtons();
-
-                                        if (elementsFound.size() > 0) {
-                                            StringBuilder sb = new StringBuilder();
-
-                                            // CLONE  ONLY ADDS THE CLICKED ONE
-                                            ElementDTO pickTarget = null;
-                                            String nameDefined = "";
-                                            for (ElementDTO picked : elementsFound) {
-                                                // If Have any iFrame-Child Try to get any to show
-                                                if (picked.getTagName().equalsIgnoreCase("input")) {
-
-                                                    //
-                                                    // sb.append(picked.getTagName() + "-" + picked.getText())
-                                                    //
-                                                    // .append("\n");
-
-                                                    if (!Strings.isNullOrEmpty(pickTarget.getAttribId())
-                                                            || !Strings.isNullOrEmpty(pickTarget.getAttribName())
-                                                            || !Strings.isNullOrEmpty(pickTarget.getText())) {
-                                                        nameDefined = pickTarget.getTagName()
-                                                                + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
-                                                                        ? "-" + pickTarget.getAttribName()
-                                                                        : !Strings.isNullOrEmpty(
-                                                                                        pickTarget.getAttribId())
-                                                                                ? "-" + pickTarget.getAttribId()
-                                                                                : !Strings.isNullOrEmpty(
-                                                                                                pickTarget.getText())
-                                                                                        ? "-"
-                                                                                                + truncate(
-                                                                                                        pickTarget
-                                                                                                                .getText(),
-                                                                                                        50)
-                                                                                        : "");
-
-                                                    } else if (picked.getAllAttributes() != null) {
-
-                                                        // Split by comma to get key-value pairs
-                                                        String[] parts = pickTarget
-                                                                .getAllAttributes()
-                                                                .split(",");
-
-                                                        String idValue = null;
-                                                        String nameValue = null;
-                                                        String typeValue = null;
-
-                                                        // Loop through each key-value pair
-                                                        for (String part : parts) {
-                                                            String[] keyValue = part.split("=");
-
-                                                            if (keyValue.length == 2) { // Ensure valid key-value pair
-                                                                String key = keyValue[0].trim();
-                                                                String value = keyValue[1]
-                                                                        .trim()
-                                                                        .replaceAll("\"", ""); // Remove quotes
-
-                                                                if (key.equals("id")) {
-                                                                    idValue = value;
-                                                                } else if (key.equals("name")) {
-                                                                    nameValue = value;
-                                                                } else if (key.equals("type")) {
-                                                                    typeValue = value;
-                                                                }
-                                                            }
+                                            elementsFound = elementsFound.stream()
+                                                    .map(elementDTO -> {
+                                                        if ("iFrame-Child".equals(elementDTO.getTypeElement())) {
+                                                            elementDTO.setIFrameXPath(iframeElement
+                                                                    .get()
+                                                                    .getXPath());
                                                         }
-
-                                                        // Print based on priority: ID -> Name -> Type
-                                                        if (idValue != null) {
-                                                            nameDefined = pickTarget.getTagName() + "-" + idValue;
-                                                        } else if (nameValue != null) {
-                                                            nameDefined = pickTarget.getTagName() + "-" + nameValue;
-                                                        } else if (typeValue != null) {
-                                                            nameDefined = pickTarget.getTagName() + "-" + typeValue;
-                                                        } else {
-                                                            nameDefined = pickTarget.getTagName();
-                                                        }
-
-                                                        // sb.append("nameDefined: " + nameDefined).append("\n");
-                                                        sb.append("TagType: " + pickTarget.getTagName())
-                                                                .append("\n");
-                                                        sb.append("ID: " + pickTarget.getAttribId())
-                                                                .append("\n");
-                                                        sb.append("Name: " + pickTarget.getAttribName())
-                                                                .append("\n");
-                                                        sb.append("All Attributes: " + pickTarget.getAllAttributes())
-                                                                .append("\n");
-                                                        //
-                                                        // sb.append("Attrib Value: " + pickTarget.getAttributeValue())
-                                                        //
-                                                        //  .append("\n");
-                                                        sb.append("Named: " + nameDefined)
-                                                                .append("\n");
-
-                                                        iFrameCoords = "";
-                                                    }
-                                                } else {
-
-                                                    sb.append(picked.getTagName() + " " + picked.getText())
-                                                            .append("\n");
-
-                                                    pickTarget = new ElementDTO(picked);
-                                                    iFrameCoords = "";
-                                                }
-                                            }
-                                            countdownTextField.setText(sb.toString());
-                                            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-                                            // Direct Insert to the Factory of Elements
-
-                                            if (iframeElement.isPresent()) {
-                                                insertNewElement(iframeElement.get(), elementsFound);
-                                            } else {
-                                                if (!Strings.isNullOrEmpty(pickTarget.getXPath())
-                                                        && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
-
-                                                    TargetElement targetLocal = extractPickClone(pickTarget);
-
-                                                    if (targetLocal.getNameField() != null
-                                                            && targetLocal.getNameLabel() != null) {
-                                                        insertNewElement(elementsFound);
-                                                    }
-                                                }
-                                            }
-
-                                            elementsFound.clear();
+                                                        return elementDTO;
+                                                    })
+                                                    .collect(Collectors.toList());
                                         }
-
                                     } else {
                                         iFrameText.setText("");
-                                        //                                        checkCloneElement.setSelected(false);
-                                        checkTestAction.setSelected(false);
-                                        //                                        revertCloneButtons();
-
-                                        if (elementsFound.size() > 0) {
-                                            StringBuilder sb = new StringBuilder();
-
-                                            // I WANT JUST ONE
-                                            elementsFound = elementsFound.stream()
-                                                    .filter(element -> "clicked".equals(element.getTypeElement()))
-                                                    .collect(Collectors.toList());
-
-                                            // CLONE  ONLY ADDS THE CLICKED ONE
-                                            ElementDTO pickTarget = null;
-                                            String nameDefined = "";
-                                            for (ElementDTO picked : elementsFound) {
-                                                if (!picked.getTypeElement().equalsIgnoreCase("clicked")) {
-                                                    continue;
-                                                }
-
-                                                pickTarget = new ElementDTO(picked);
-
-                                                //
-                                                // sb.append(pickTarget.getTagName() + "-" + pickTarget.getText())
-                                                //                                                        .append("\n");
-
-                                                if (!Strings.isNullOrEmpty(pickTarget.getAttribId())
-                                                        || !Strings.isNullOrEmpty(pickTarget.getAttribName())
-                                                        || !Strings.isNullOrEmpty(pickTarget.getText())) {
-                                                    nameDefined = pickTarget.getTagName()
-                                                            + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
-                                                                    ? "-" + pickTarget.getAttribName()
-                                                                    : !Strings.isNullOrEmpty(pickTarget.getAttribId())
-                                                                            ? "-" + pickTarget.getAttribId()
-                                                                            : !Strings.isNullOrEmpty(
-                                                                                            pickTarget.getText())
-                                                                                    ? "-"
-                                                                                            + truncate(
-                                                                                                    pickTarget
-                                                                                                            .getText(),
-                                                                                                    50)
-                                                                                    : "");
-
-                                                } else if (pickTarget.getAllAttributes() != null) {
-
-                                                    // Split by comma to get key-value pairs
-                                                    String[] parts = pickTarget
-                                                            .getAllAttributes()
-                                                            .split(",");
-
-                                                    String idValue = null;
-                                                    String nameValue = null;
-                                                    String typeValue = null;
-
-                                                    // Loop through each key-value pair
-                                                    for (String part : parts) {
-                                                        String[] keyValue = part.split("=");
-
-                                                        if (keyValue.length == 2) { // Ensure valid key-value pair
-                                                            String key = keyValue[0].trim();
-                                                            String value = keyValue[1]
-                                                                    .trim()
-                                                                    .replaceAll("\"", ""); // Remove quotes
-
-                                                            if (key.equals("id")) {
-                                                                idValue = value;
-                                                            } else if (key.equals("name")) {
-                                                                nameValue = value;
-                                                            } else if (key.equals("type")) {
-                                                                typeValue = value;
-                                                            }
-                                                        }
-                                                    }
-
-                                                    // Print based on priority: ID -> Name -> Type
-                                                    if (idValue != null) {
-                                                        nameDefined = pickTarget.getTagName() + "-" + idValue;
-                                                    } else if (nameValue != null) {
-                                                        nameDefined = pickTarget.getTagName() + "-" + nameValue;
-                                                    } else if (typeValue != null) {
-                                                        nameDefined = pickTarget.getTagName() + "-" + typeValue;
-                                                    } else {
-                                                        nameDefined = pickTarget.getTagName();
-                                                    }
-                                                }
-                                                iFrameCoords = "";
-                                            }
-
-                                            // sb.append("nameDefined: " + nameDefined).append("\n");
-                                            sb.append("TagType: " + pickTarget.getTagName())
-                                                    .append("\n");
-                                            sb.append("ID: " + pickTarget.getAttribId())
-                                                    .append("\n");
-                                            sb.append("Name: " + pickTarget.getAttribName())
-                                                    .append("\n");
-                                            sb.append("All Attributes: " + pickTarget.getAllAttributes())
-                                                    .append("\n");
-                                            //
-                                            // sb.append("Attrib Value: " + pickTarget.getAttributeValue())
-                                            //
-                                            // .append("\n");
-                                            sb.append("Named: " + nameDefined).append("\n");
-
-                                            countdownTextField.setText(sb.toString());
-                                            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-                                            // Direct Insert to the Factory of Elements
-
-                                            if (iframeElement.isPresent()) {
-                                                insertNewElement(iframeElement.get(), elementsFound);
-                                            } else {
-                                                if (!Strings.isNullOrEmpty(pickTarget.getXPath())
-                                                        && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
-
-                                                    TargetElement targetLocal = extractPickClone(pickTarget);
-
-                                                    if (targetLocal.getNameField() != null
-                                                            && targetLocal.getNameLabel() != null) {
-
-                                                        insertNewElement(elementsFound);
-                                                    }
-                                                }
-                                            }
-                                            elementsFound.clear();
-                                        }
                                     }
+
+                                    checkTestAction.setSelected(false);
+                                    //                                    checkCloneElement.setSelected(false);
+                                    //                                    revertCloneButtons();
+
+                                    if (elementsFound.size() > 0) {
+                                        ElementDTO pickTarget = prefillDefinedName(elementsFound);
+
+                                        // Direct Insert to the Factory of Elements
+                                        if (iframeElement.isPresent()) {
+                                            insertNewElement(iframeElement.get(), elementsFound);
+                                        } else {
+
+                                            if (!Strings.isNullOrEmpty(pickTarget.getXPath())
+                                                    && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
+
+                                                TargetElement targetLocal = extractPickClone(pickTarget);
+
+                                                if (targetLocal.getNameField() != null
+                                                        && targetLocal.getNameLabel() != null) {
+                                                    insertNewElement(elementsFound);
+                                                }
+                                            }
+                                        }
+
+                                        elementsFound.clear();
+                                    }
+
                                 } else {
                                     iFrameText.setText("");
                                 }
@@ -5113,88 +4887,6 @@ public class ARScannedElementPane extends ARPane {
                                     .fine(String.format(
                                             "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
                         }
-                        //   CLONE OPTION OLD VERSION
-
-                        //
-                        //                        LinkedHashMap<String, Object> linkedHashMap = (LinkedHashMap<String,
-                        // Object>)
-                        //                                jsExecutor.executeScript(
-                        //                                        "var obj = { attribId: window.attribId, attribName:
-                        // window.attribName, customXPath: window.customXPath, currentXPath: window.currentXPath,
-                        // allAttributes: window.allAttributes, tagName: window.tagName, coords: window.coords,
-                        // someText: window.someText }; return obj;");
-                        //
-                        //                        // Convert the LinkedHashMap to a Java Map (if necessary)
-                        //                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
-
-                        //                        if (linkedHashMap != null) {
-                        //                            Platform.runLater(() -> {
-                        //                                String tagName = (String) resultMap.get("tagName");
-                        //                                String someText = (String) resultMap.get("someText");
-                        //
-                        //                                tagName = tagName.trim();
-                        //                                someText = someText.trim();
-                        //
-                        //                                if (!Strings.isNullOrEmpty(tagName)) {
-                        //                                    originalTagNameField.setText(tagName);
-                        //                                    attribIdTextField.setText((String)
-                        // resultMap.get("attribId"));
-                        //                                    attribNameTextField.setText((String)
-                        // resultMap.get("attribName"));
-                        //                                    currentXPathTextField.setText((String)
-                        // resultMap.get("currentXPath"));
-                        //                                    allAttributesTextField.setText((String)
-                        // resultMap.get("allAttributes"));
-                        //                                    customXPathTextField.setText((String)
-                        // resultMap.get("customXPath"));
-                        //                                    coordsTextField.setText((String) resultMap.get("coords"));
-                        //
-                        //                                    defineNameField.setText("");
-                        //                                    if (!Strings.isNullOrEmpty(someText)) {
-                        //                                        String finalSomeText = someText;
-                        //                                        Platform.runLater(() ->
-                        // defineNameField.setText(truncate(finalSomeText, 50)));
-                        //                                    } else if (!Strings.isNullOrEmpty(tagName)) {
-                        //                                        String finalTagName = tagName;
-                        //                                        Platform.runLater(() ->
-                        // defineNameField.setText(finalTagName));
-                        //                                    }
-                        //
-                        //                                    if
-                        // (!Strings.isNullOrEmpty(allAttributesTextField.getText())
-                        //                                            &&
-                        // !xpathTextPrevious.equalsIgnoreCase(allAttributesTextField.getText())) {
-                        //                                        extractPickClone(someText);
-                        //
-                        //                                        StringBuilder sb = new StringBuilder();
-                        //
-                        //                                        sb.append("Type: " + tagName).append("\n");
-                        //                                        sb.append("Id: " + attribIdTextField.getText())
-                        //                                                .append("\n");
-                        //                                        sb.append("Name: " + attribNameTextField.getText())
-                        //                                                .append("\n");
-                        //                                        sb.append("Coords: " + coordsTextField.getText())
-                        //                                                .append("\n");
-                        //                                        sb.append("xPath: " + currentXPathTextField.getText())
-                        //                                                .append("\n");
-                        //                                        sb.append("Text: " + someText.trim()).append("\n");
-                        //
-                        //                                        countdownTextField.setText(sb.toString());
-                        //                                        countdownTextField.setStyle("-fx-font-size: 12px;
-                        // -fx-text-fill: blue;");
-                        //                                        checkTestAction.setSelected(false);
-                        //                                    }
-                        //                                }
-                        //                            });
-                        //                        }
-                        //                        try {
-                        //                            Thread.sleep(300); // Check every 300 milliseconds
-                        //                        } catch (InterruptedException e) {
-                        //                            ARLogger.getInstance(ARScannedElementPane.class)
-                        //                                    .fine(String.format(
-                        //                                            "Error Attempt to get currentXPath / tagName /
-                        // coords", e.getMessage()));
-                        //                        }
                     }
                 })
                 .start();
@@ -5964,8 +5656,6 @@ public class ARScannedElementPane extends ARPane {
         // Start a thread to periodically check the XPath value and update the TextField
         new Thread(() -> {
                     while (periodicPickActivated) {
-                        //                        String currentXPath = (String) jsExecutor.executeScript("return
-                        // window.currentXPath;");
 
                         // Execute JavaScript to construct and return a custom object
                         LinkedHashMap<String, Object> linkedHashMap =
@@ -5977,8 +5667,6 @@ public class ARScannedElementPane extends ARPane {
 
                         if (linkedHashMap != null) {
                             Platform.runLater(() -> {
-                                //                                iFrameXPath = (String) resultMap.get("iFrameXPath");
-
                                 Object iframeElementsObject = resultMap.get("allElementInfo");
 
                                 if (iframeElementsObject instanceof List<?>) {
@@ -6003,17 +5691,10 @@ public class ARScannedElementPane extends ARPane {
                                     iFrameElements = null;
 
                                     Optional<ElementDTO> iframeElement = elementsFound.stream()
-                                            .filter(
-                                                    element ->
-                                                            "clicked-iFrame".equalsIgnoreCase(element.getTypeElement())
-                                                    //                                                    ||
-                                                    // "clicked-element".equalsIgnoreCase(element.getTypeElement())
-                                                    )
-                                            .findFirst(); // Get the first matching ElementDTO
+                                            .filter(element ->
+                                                    "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
+                                            .findFirst();
 
-                                    //                                    checkClickElement.setSelected(false);
-                                    //                                    checkInputText.setSelected(false);
-                                    //                                    checkOutputText.setSelected(false);
                                     if (iframeElement.isPresent()) {
                                         if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
                                             iFrameText.setText("iFrame Detected");

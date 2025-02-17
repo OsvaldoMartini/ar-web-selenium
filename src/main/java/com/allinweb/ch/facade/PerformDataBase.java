@@ -3748,32 +3748,36 @@ public class PerformDataBase {
             int batchSize = 100; // Define a batch size
             int count = 0;
 
+            Integer currentId = loadNextIdBReferenceData() + 1;
+
             for (InstructionReferenceLoadDTO reference : queue) {
-                Integer nextId = loadNextIdBReferenceData() + 1;
 
                 // Set parameters
-                pstmt.setInt(1, nextId);
+                pstmt.setInt(1, currentId);
                 pstmt.setString(2, reference.getReferenceType());
                 pstmt.setString(3, reference.getValue());
                 pstmt.setInt(4, instructionId);
                 pstmt.setInt(5, reference.getBotJobId());
 
-                // Add to batch
-                pstmt.addBatch();
-                count++;
+                currentId++;
+                pstmt.addBatch(); // Add to batch
 
                 // Execute batch if batch size is reached
-                if (count % batchSize == 0) {
+                if (++count % batchSize == 0) {
                     pstmt.executeBatch();
+                    pstmt.clearBatch(); // Clear executed batch to free memory
                 }
             }
 
             // Execute remaining queries in batch
-            pstmt.executeBatch();
+            if (count % batchSize != 0) {
+                pstmt.executeBatch();
+                pstmt.clearBatch();
+            }
 
             ARLogger.getInstance(ARScannedElementPane.class).info("Batch insert completed successfully.");
-
             return true;
+
         } catch (SQLException e) {
             ARLogger.getInstance(ARScannedElementPane.class)
                     .severe("Cannot Insert References\nError: " + e.getMessage());
