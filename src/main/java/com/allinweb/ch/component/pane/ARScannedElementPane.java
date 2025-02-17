@@ -1197,7 +1197,7 @@ public class ARScannedElementPane extends ARPane {
 
                 //                targetIFrame.setElement(iframe);
                 targetIFrame.setIFrameXPath(iframeElementDTO.getXPath());
-                targetIFrame.setDefinedName("iFrame-button");
+                targetIFrame.setDefinedName("iFrame");
                 targetIFrame.setOriginalTagName("iFrame");
                 //                targetIFrame.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
                 //                targetIFrame.setMainXPath(iframeElement.getXPath());
@@ -3107,7 +3107,7 @@ public class ARScannedElementPane extends ARPane {
                                 try {
 
                                     Platform.runLater(() -> {
-                                        boolean saved = insertReferences(queue, instruction.getId());
+                                        boolean saved = performDataBase.insertReferences(queue, instruction.getId());
                                         if (saved) {
 
                                             Text blockNameLabel = new Text("Block : ");
@@ -8556,60 +8556,6 @@ public class ARScannedElementPane extends ARPane {
             }
         } catch (SQLException e) {
             ARLogger.getInstance(ARScannedElementPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private boolean insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) {
-        // Generate a Unique-ID for the block
-
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
-
-            for (InstructionReferenceLoadDTO reference : queue) {
-
-                Integer nextId = loadNextIdBReferenceData() + 1;
-
-                // Build the SQL insert query
-                String insertSQL =
-                        "INSERT INTO reference(id, reference_type, value, instruction_id, bot_job_id) VALUES ("
-                                + nextId + ", "
-                                + "'" + reference.getReferenceType() + "', "
-                                + "'" + reference.getValue() + "', " // name
-                                + instructionId + ","
-                                + reference.getBotJobId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
-
-                int rowsAffected = stmt.executeUpdate(insertSQL);
-                if (rowsAffected > 0) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .info(String.format(
-                                    "Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
-                                    nextId, reference.getReferenceType(), reference.getValue(), instructionId));
-                } else {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
-                                    nextId, reference.getReferenceType(), reference.getValue(), instructionId));
-                }
-            }
-            return true;
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .severe("Cannot Insert References\nError " + e.getMessage());
-            return false;
-        }
-    }
-
-    private Integer loadNextIdBReferenceData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM reference";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }

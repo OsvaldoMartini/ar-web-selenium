@@ -2901,6 +2901,9 @@ public class PerformActions {
 
             targetDefine.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
 
+            // W3C 6 Headers
+            String[] validHeaders = {"h1", "h2", "h3", "h4", "h5", "h6"};
+
             if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
@@ -2917,7 +2920,9 @@ public class PerformActions {
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.FOR_LABEL.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.STRONG.getValue())
-                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SPAN.getValue())) {
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SPAN.getValue())
+                    || Arrays.asList(validHeaders)
+                            .contains(elemenDTO.getTagName().toLowerCase())) {
                 targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
                 targetDefine.setIconType(WebElementIcon.OUTPUT);
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.IFRAME.getValue())) {

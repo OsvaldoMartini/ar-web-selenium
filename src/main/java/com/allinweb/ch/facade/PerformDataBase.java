@@ -14,6 +14,7 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
+import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -3735,5 +3736,63 @@ public class PerformDataBase {
         }
 
         return savedBlockLoadList;
+    }
+
+    public boolean insertReferences(List<InstructionReferenceLoadDTO> queue, int instructionId) {
+        String insertSQL =
+                "INSERT INTO reference(id, reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+
+            int batchSize = 100; // Define a batch size
+            int count = 0;
+
+            for (InstructionReferenceLoadDTO reference : queue) {
+                Integer nextId = loadNextIdBReferenceData() + 1;
+
+                // Set parameters
+                pstmt.setInt(1, nextId);
+                pstmt.setString(2, reference.getReferenceType());
+                pstmt.setString(3, reference.getValue());
+                pstmt.setInt(4, instructionId);
+                pstmt.setInt(5, reference.getBotJobId());
+
+                // Add to batch
+                pstmt.addBatch();
+                count++;
+
+                // Execute batch if batch size is reached
+                if (count % batchSize == 0) {
+                    pstmt.executeBatch();
+                }
+            }
+
+            // Execute remaining queries in batch
+            pstmt.executeBatch();
+
+            ARLogger.getInstance(ARScannedElementPane.class).info("Batch insert completed successfully.");
+
+            return true;
+        } catch (SQLException e) {
+            ARLogger.getInstance(ARScannedElementPane.class)
+                    .severe("Cannot Insert References\nError: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private Integer loadNextIdBReferenceData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM reference";
+        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            ARLogger.getInstance(ARScannedElementPane.class)
+                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+        }
+        return null;
     }
 }
