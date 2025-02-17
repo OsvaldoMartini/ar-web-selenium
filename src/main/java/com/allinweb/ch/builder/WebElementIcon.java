@@ -10,6 +10,7 @@ public enum WebElementIcon {
     SET_VALUE("SetValue"),
     GET_VALUE("GetValue"),
     CHECK_VALUE("CheckValue"),
+    IFRAME("iframe"),
     NONE("none");
 
     private String value;

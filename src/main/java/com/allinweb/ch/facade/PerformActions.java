@@ -2872,7 +2872,7 @@ public class PerformActions {
         return elements;
     }
 
-    public TargetElement defineSearchReturn(ElementDTO elementFound, WebElement element, TargetElement targetDefine) {
+    public TargetElement defineSearchReturn(ElementDTO elemenDTO, WebElement element, TargetElement targetDefine) {
         if (targetDefine == null || targetDefine.getElement() == null) {
             if (targetDefine == null) {
                 targetDefine = new TargetElement();
@@ -2881,18 +2881,18 @@ public class PerformActions {
             targetDefine.setElement(element);
 
             // Reset Previous Values
-            targetDefine.setAttribId(elementFound.getAttribId());
-            targetDefine.setAttribName(elementFound.getAttribName());
-            targetDefine.setOriginalTagName(elementFound.getTagName());
-            targetDefine.setSomeText(elementFound.getText());
-            targetDefine.setCoords(elementFound.getCoords());
+            targetDefine.setAttribId(elemenDTO.getAttribId());
+            targetDefine.setAttribName(elemenDTO.getAttribName());
+            targetDefine.setOriginalTagName(elemenDTO.getTagName());
+            targetDefine.setSomeText(elemenDTO.getText());
+            targetDefine.setCoords(elemenDTO.getCoords());
 
-            targetDefine.setMainXPath(elementFound.getXPath());
-            targetDefine.setCurrentXPath(elementFound.getXPath());
+            targetDefine.setMainXPath(elemenDTO.getXPath());
+            targetDefine.setCurrentXPath(elemenDTO.getXPath());
 
-            targetDefine.setIFrameXPath(elementFound.getIFrameXPath());
-            targetDefine.setAllAttributes(elementFound.getAllAttributes());
-            targetDefine.setCustomXPath(elementFound.getCustomXPath());
+            targetDefine.setIFrameXPath(elemenDTO.getIFrameXPath());
+            targetDefine.setAllAttributes(elemenDTO.getAllAttributes());
+            targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
 
             targetDefine.setDefinedName(null);
             targetDefine.setAttributeType("");
@@ -2901,25 +2901,28 @@ public class PerformActions {
 
             targetDefine.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
 
-            if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
+            if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.BUTTON);
                 targetDefine.setIconType(WebElementIcon.CLICK);
-            } else if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
+            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.INPUT);
                 targetDefine.setIconType(WebElementIcon.INSERT);
-            } else if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LABEL.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.FOR_LABEL.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.STRONG.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SPAN.getValue())) {
+            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LABEL.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.FOR_LABEL.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.STRONG.getValue())
+                    || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SPAN.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
                 targetDefine.setIconType(WebElementIcon.OUTPUT);
+            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.IFRAME.getValue()) ) {
+                targetDefine.setTagType(WebElementTagNameEnum.IFRAME);
+                targetDefine.setIconType(WebElementIcon.IFRAME);
             } else {
                 targetDefine.setTagType(WebElementTagNameEnum.ALL);
                 targetDefine.setIconType(WebElementIcon.TEXT);
@@ -3029,6 +3032,9 @@ public class PerformActions {
                 target = setElementText(target, textLabel, tagNameDefined);
             } else if (!Strings.isNullOrEmpty(textLabel) && !Strings.isNullOrEmpty(tagNameDefined)) {
                 target = setElementText(target, textLabel, tagNameDefined);
+            } else if (!Strings.isNullOrEmpty(tagNameDefined) && tagNameDefined.equalsIgnoreCase("iFrame")) {
+                target = setElementText(
+                        target, target.getOriginalTagName(), ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             } else {
                 target.setTagType(WebElementTagNameEnum.OUTPUT);
                 target = setElementText(

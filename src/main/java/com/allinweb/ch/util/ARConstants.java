@@ -106,6 +106,8 @@ public class ARConstants {
     public static final String ICON_HIDDEN = "/hidden-black.png";
     public static final String ICON_INSERT = "/input_field.png";
     public static final String ICON_TEXT = "/text.png";
+    public static final String ICON_iFRAME1 = "/iFrame1.png";
+    public static final String ICON_iFRAME2 = "/iFrame2.png";
     public static final String ICON_UP = "/up.png";
     public static final String ICON_DOWN = "/down.png";
     public static final String ICON_CROSS = "/cross.png";
@@ -154,6 +156,7 @@ public class ARConstants {
     public static final String COORD_INSERT = "COORD_INSERT";
     public static final String VISUALIZE = "V";
     public static final String GET_ELEMENT = "G";
+    public static final String IFRAME = "IFRAME";
     public static final String OUTPUT = "O";
     public static final String HIDDEN = "hidden";
     public static final String OTHER = "W";

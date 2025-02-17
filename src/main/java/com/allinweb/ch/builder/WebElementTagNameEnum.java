@@ -23,7 +23,8 @@ public enum WebElementTagNameEnum {
     MAT_EXPANSION_PANEL("mat-expansion-panel"),
     LABEL("label"),
     FOR_LABEL("for"),
-    STRONG("strong");
+    STRONG("strong"),
+    IFRAME("iframe");
 
     private String value;
 

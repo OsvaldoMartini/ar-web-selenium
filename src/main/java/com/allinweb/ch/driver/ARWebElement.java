@@ -34,6 +34,7 @@ public class ARWebElement {
 
     private BooleanProperty hiddenElement = new SimpleBooleanProperty(false);
     private BooleanProperty outputElement = new SimpleBooleanProperty(false);
+    private BooleanProperty iFrameElement = new SimpleBooleanProperty(false);
     private BooleanProperty insertElement = new SimpleBooleanProperty(false);
     private BooleanProperty clickElement = new SimpleBooleanProperty(false);
     private BooleanProperty setValueElem = new SimpleBooleanProperty(false);
@@ -74,6 +75,7 @@ public class ARWebElement {
 
     private ImageView hiddenImage;
     private ImageView outputImage;
+    private ImageView iFrameImage;
     private ImageView clickImage;
     private ImageView insertImage;
     private ImageView textImage;
@@ -276,6 +278,7 @@ public class ARWebElement {
 
         hiddenElement.setValue(false);
         outputElement.setValue(false);
+        iFrameElement.setValue(false);
         insertElement.setValue(false);
         clickElement.setValue(false);
         textElement.setValue(false);
@@ -298,11 +301,15 @@ public class ARWebElement {
                 } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.OUTPUT)) {
                     // Handle the OUTPUT case
                     outputElement.setValue(true);
-                } else {
+                } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.IFRAME)) {
+                // Handle the OUTPUT case
+                iFrameElement.setValue(true);
+            } else {
                     // Handle other cases like INPUT
                     outputElement.setValue(false);
                     clickElement.setValue(false);
                     textElement.setValue(false);
+                    iFrameElement.setValue(false);
 
                     targetElement.setTagType(WebElementTagNameEnum.INPUT);
                     insertElement.setValue(true);
@@ -311,6 +318,7 @@ public class ARWebElement {
 
                 // Handle other types of elements as needed
                 outputElement.setValue(false);
+                iFrameElement.setValue(false);
                 clickElement.setValue(true);
                 textElement.setValue(false);
                 insertElement.setValue(false);
@@ -318,6 +326,7 @@ public class ARWebElement {
             }
         } else {
             outputElement.setValue(false);
+            iFrameElement.setValue(false);
             clickElement.setValue(false);
             textElement.setValue(false);
             insertElement.setValue(false);
@@ -369,6 +378,8 @@ public class ARWebElement {
             hiddenElement.setValue(true);
         } else if (actionReference[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
             outputElement.setValue(true);
+        } else if (actionReference[0].equalsIgnoreCase(ARConstants.IFRAME)) {
+            iFrameElement.setValue(true);
         } else if (actionReference[0].equalsIgnoreCase(ARConstants.CLICK)) {
             clickElement.setValue(true);
         } else if (actionReference[0].equalsIgnoreCase(ARConstants.INSERT)) {
@@ -405,6 +416,7 @@ public class ARWebElement {
     private void initElementPanel() {
         hiddenImage = componentBuilder.buildImageView(ARConstants.ICON_HIDDEN, ARConstants.SPACE_M);
         outputImage = componentBuilder.buildImageView(ARConstants.ICON_OUTPUT, ARConstants.SPACE_M);
+        iFrameImage = componentBuilder.buildImageView(ARConstants.ICON_iFRAME1, ARConstants.SPACE_M);
         clickImage = componentBuilder.buildImageView(ARConstants.ICON_CLICK, ARConstants.SPACE_M);
         insertImage = componentBuilder.buildImageView(ARConstants.ICON_INSERT, ARConstants.SPACE_M);
         textImage = componentBuilder.buildImageView(ARConstants.ICON_TEXT, ARConstants.SPACE_M);
@@ -426,6 +438,7 @@ public class ARWebElement {
         StackPane actionGroup = new StackPane(
                 hiddenImage,
                 outputImage,
+                iFrameImage,
                 clickImage,
                 insertImage,
                 textImage,
@@ -523,6 +536,8 @@ public class ARWebElement {
         insertImage.visibleProperty().bind(insertElement);
 
         outputImage.visibleProperty().bind(outputElement);
+
+        iFrameImage.visibleProperty().bind(iFrameElement);
 
         clickImage.visibleProperty().bind(clickElement);
 
