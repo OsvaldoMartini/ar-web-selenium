@@ -12,8 +12,15 @@ public enum WebElementAttributeEnum {
     TYPE("type"),
     VALUE("value"),
     ARIA_LABEL("aria-label"),
+    LABEL("label"),
+    FOR_LABEL("for"),
     INNER_HTML("innerHTML"),
-    HREF("href");
+    HREF("href"),
+    DATA_TEST_ID("data-testid"), // Assuming 'data-testid' is used for testing IDs
+    CLASS("class"),
+    STYLE("style"),
+    TITLE("title"),
+    DISABLED("disabled");
 
     private String value;
 

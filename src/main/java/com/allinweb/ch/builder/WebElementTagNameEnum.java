@@ -11,6 +11,7 @@ public enum WebElementTagNameEnum {
     HIDDEN("hidden"),
     TEXT_AREA("textarea"),
     DIV("div"),
+    SPAN("span"),
     IMAGE("image"),
     HEADER("H"),
     PARAGRAPH("p"),
@@ -19,7 +20,10 @@ public enum WebElementTagNameEnum {
     OPTION("option"),
     MAT_SELECT("mat-select"),
     MAT_OPTION("mat-option"),
-    MAT_EXPANSION_PANEL("mat-expansion-panel");
+    MAT_EXPANSION_PANEL("mat-expansion-panel"),
+    LABEL("label"),
+    FOR_LABEL("for"),
+    STRONG("strong");
 
     private String value;
 

@@ -3,10 +3,14 @@ package com.allinweb.ch.persistence;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import java.util.List;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.openqa.selenium.WebElement;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class TargetElement {
     String nameLabel;
     String nameField;
@@ -34,6 +38,37 @@ public class TargetElement {
     WebElementIcon iconType;
     WebElement element;
     Boolean isElementHidden;
+    Boolean cloned;
+
+    public TargetElement(TargetElement origin) {
+        this.nameLabel = origin.nameLabel;
+        this.nameField = origin.nameField;
+        this.currentXPath = origin.currentXPath;
+        this.allAttributes = origin.allAttributes;
+        this.customXPath = origin.customXPath;
+        this.coords = origin.coords;
+        this.mainXPath = origin.mainXPath;
+        this.mainCoordinates = origin.mainCoordinates;
+        this.xPathWorkedFirst = origin.xPathWorkedFirst;
+        this.isCurrentXPathOK = origin.isCurrentXPathOK;
+        this.isAllAttributesOK = origin.isAllAttributesOK;
+        this.isCustomXPathOK = origin.isCustomXPathOK;
+        this.isCoordsOK = origin.isCoordsOK;
+        this.iFrameXPath = origin.iFrameXPath;
+        this.iFrameElements = origin.iFrameElements;
+        this.someText = origin.someText;
+        this.attribId = origin.attribId;
+        this.attribName = origin.attribName;
+        this.attributeType = origin.attributeType;
+        this.attributeValue = origin.attributeValue;
+        this.originalTagName = origin.originalTagName;
+        this.definedName = origin.definedName;
+        this.tagType = origin.tagType;
+        this.iconType = origin.iconType;
+        this.element = origin.element;
+        this.isElementHidden = origin.isElementHidden;
+        this.cloned = origin.cloned;
+    }
 
     public void reset() {
         this.nameLabel = null;

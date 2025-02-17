@@ -2872,57 +2872,68 @@ public class PerformActions {
         return elements;
     }
 
-    public TargetElement defineSearchReturn(ElementDTO elementFound, WebElement element, TargetElement targetElement) {
-        if (targetElement == null || targetElement.getElement() == null) {
-            if (targetElement == null) {
-                targetElement = new TargetElement();
+    public TargetElement defineSearchReturn(ElementDTO elementFound, WebElement element, TargetElement targetDefine) {
+        if (targetDefine == null || targetDefine.getElement() == null) {
+            if (targetDefine == null) {
+                targetDefine = new TargetElement();
             }
 
-            targetElement.setElement(element);
-            targetElement.setDefinedName(null);
-            targetElement.setOriginalTagName(elementFound.getTagName());
-            targetElement.setMainXPath(elementFound.getXPath());
-            targetElement.setCurrentXPath(elementFound.getXPath());
-            targetElement.setCustomXPath(elementFound.getCustomXPath());
-            targetElement.setCoords(elementFound.getCoords());
+            targetDefine.setElement(element);
 
-            targetElement.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+            // Reset Previous Values
+            targetDefine.setAttribId(elementFound.getAttribId());
+            targetDefine.setAttribName(elementFound.getAttribName());
+            targetDefine.setOriginalTagName(elementFound.getTagName());
+            targetDefine.setSomeText(elementFound.getText());
+            targetDefine.setCoords(elementFound.getCoords());
 
-            targetElement.setAllAttributes(elementFound.getAllAttributes());
-            targetElement.setAttributeValue(elementFound.getAllAttributes());
+            targetDefine.setMainXPath(elementFound.getXPath());
+            targetDefine.setCurrentXPath(elementFound.getXPath());
 
-            targetElement.setSomeText(elementFound.getText());
+            targetDefine.setIFrameXPath(elementFound.getIFrameXPath());
+            targetDefine.setAllAttributes(elementFound.getAllAttributes());
+            targetDefine.setCustomXPath(elementFound.getCustomXPath());
 
-            targetElement.setIFrameXPath(elementFound.getIFrameXPath());
+            targetDefine.setDefinedName(null);
+            targetDefine.setAttributeType("");
+            targetDefine.setAttributeValue("");
+            targetDefine.setIFrameElements(null);
+
+            targetDefine.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
 
             if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
                     || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
                     || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
                     || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
-                targetElement.setTagType(WebElementTagNameEnum.BUTTON);
-                targetElement.setIconType(WebElementIcon.CLICK);
+                targetDefine.setTagType(WebElementTagNameEnum.BUTTON);
+                targetDefine.setIconType(WebElementIcon.CLICK);
             } else if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
                     || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
-                targetElement.setTagType(WebElementTagNameEnum.INPUT);
-                targetElement.setIconType(WebElementIcon.INSERT);
+                targetDefine.setTagType(WebElementTagNameEnum.INPUT);
+                targetDefine.setIconType(WebElementIcon.INSERT);
             } else if (elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
-                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())) {
-                targetElement.setTagType(WebElementTagNameEnum.OUTPUT);
-                targetElement.setIconType(WebElementIcon.OUTPUT);
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LABEL.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.FOR_LABEL.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.STRONG.getValue())
+                    || elementFound.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SPAN.getValue())) {
+                targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
+                targetDefine.setIconType(WebElementIcon.OUTPUT);
             } else {
-                targetElement.setTagType(WebElementTagNameEnum.ALL);
-                targetElement.setIconType(WebElementIcon.TEXT);
+                targetDefine.setTagType(WebElementTagNameEnum.ALL);
+                targetDefine.setIconType(WebElementIcon.TEXT);
             }
         }
-        return targetElement;
+        return targetDefine;
     }
 
     // TODO MORE INTELLIGENT  LOGIC
     public TargetElement defineTargetNameTitles(TargetElement target) {
 
         try {
-            String tagNameDefined = target.getDefinedName() != null ? target.getDefinedName() : target.getOriginalTagName();
+            String tagNameDefined =
+                    target.getDefinedName() != null ? target.getDefinedName() : target.getOriginalTagName();
             WebElement targetElem = target.getElement();
 
             // Check element tag names
@@ -2930,16 +2941,25 @@ public class PerformActions {
             boolean isOption = target.getOriginalTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
 
             // Extract various attributes
-            String ariaLabelValue = targetElem.getAttribute(WebElementAttributeEnum.ARIA_LABEL.getValue());
-            String innerHTMLValue = targetElem.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
+
+            String labelAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.LABEL);
+            String forLabelAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.FOR_LABEL);
+            String classAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.CLASS);
+            String typeAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.TYPE);
+            String idAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.ID);
+            String titleAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.TITLE);
+            String disabledAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.DISABLED);
+            String styleAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.STYLE);
+            String dataTestIdAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.DATA_TEST_ID);
+
+            String ariaLabelValue = extractAttribute(targetElem, WebElementAttributeEnum.ARIA_LABEL);
+            String innerHTMLValue = extractAttribute(targetElem, WebElementAttributeEnum.INNER_HTML);
             String formControlNameAttributeValue =
-                    targetElem.getAttribute(WebElementAttributeEnum.FORM_CONTROL_NAME.getValue());
-            String testIdAttributeValue = targetElem.getAttribute(WebElementAttributeEnum.TEST_ID.getValue());
-            String idAttributeValue = targetElem.getAttribute(WebElementAttributeEnum.ID.getValue());
-            String nameAttributeValue = targetElem.getAttribute(WebElementAttributeEnum.NAME.getValue());
-            String valueAttributeValue = targetElem.getAttribute(WebElementAttributeEnum.VALUE.getValue());
-            String valueHRefFile =
-                    extractFileExtension(targetElem.getAttribute(WebElementAttributeEnum.HREF.getValue()));
+                    extractAttribute(targetElem, WebElementAttributeEnum.FORM_CONTROL_NAME);
+            String testIdAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.TEST_ID);
+            String nameAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.NAME);
+            String valueAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.VALUE);
+            String valueHRefFile = extractFileExtension(extractAttribute(targetElem, WebElementAttributeEnum.HREF));
 
             String textLabel = targetElem.getText();
 
@@ -2963,10 +2983,14 @@ public class PerformActions {
             boolean hasDiv = !Strings.isNullOrEmpty(textLabel)
                     && target.getOriginalTagName().equalsIgnoreCase("div");
 
+            boolean isLabel = !Strings.isNullOrEmpty(labelAttributeValue);
+            boolean isForLabel = !Strings.isNullOrEmpty(forLabelAttributeValue);
+
             boolean isElementHidden;
             try {
-                isElementHidden = targetElem.getAttribute("type") != null
-                        && targetElem.getAttribute("type").equalsIgnoreCase("hidden");
+                isElementHidden = extractAttribute(targetElem, WebElementAttributeEnum.TYPE) != null
+                        && extractAttribute(targetElem, WebElementAttributeEnum.VALUE)
+                                .equalsIgnoreCase("hidden");
 
             } catch (Exception ignored) {
                 isElementHidden = false;
@@ -2975,7 +2999,11 @@ public class PerformActions {
             target.setIsElementHidden(isElementHidden);
 
             // Set nameLabel and nameField based on conditions
-            if (isOption && hasValue) {
+            if (isLabel) {
+                target = setElementText(target, labelAttributeValue, labelAttributeValue);
+            } else if (isForLabel) {
+                target = setElementText(target, forLabelAttributeValue, forLabelAttributeValue);
+            } else if (isOption && hasValue) {
                 target = setElementText(target, valueAttributeValue, valueAttributeValue);
             } else if (hasFormControlName) {
                 target = setElementText(target, formControlNameAttributeValue, formControlNameAttributeValue);
@@ -2999,11 +3027,12 @@ public class PerformActions {
                 target = setElementText(target, textLabel, tagNameDefined);
             } else if (hasDiv) {
                 target = setElementText(target, textLabel, tagNameDefined);
+            } else if (!Strings.isNullOrEmpty(textLabel) && !Strings.isNullOrEmpty(tagNameDefined)) {
+                target = setElementText(target, textLabel, tagNameDefined);
             } else {
+                target.setTagType(WebElementTagNameEnum.OUTPUT);
                 target = setElementText(
-                        target,
-                        ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION,
-                        ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
+                        target, target.getOriginalTagName(), ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             }
 
         } catch (Exception e) {
@@ -3143,5 +3172,9 @@ public class PerformActions {
         } catch (Exception error) {
 
         }
+    }
+
+    public static String extractAttribute(WebElement element, WebElementAttributeEnum attributeEnum) {
+        return element.getAttribute(attributeEnum.getValue());
     }
 }

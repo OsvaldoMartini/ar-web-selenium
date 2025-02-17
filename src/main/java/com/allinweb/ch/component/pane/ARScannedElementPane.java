@@ -100,7 +100,7 @@ public class ARScannedElementPane extends ARPane {
     private Alert alertToShow;
     public static Repository repository;
 
-    private static TargetElement targetElement = new TargetElement();
+    private static TargetElement targetSelected = new TargetElement();
 
     private static File baseLogFile = null;
     private static SimpleDateFormat dateFormatter;
@@ -966,9 +966,9 @@ public class ARScannedElementPane extends ARPane {
             checkCloneElement.setSelected(false);
 
             xpathTextPrevious = "";
-            targetElement = null;
+            this.targetSelected = null;
             elementsFound.clear();
-            webElementObservableList2.clear();
+            //            webElementObservableList2.clear();
 
             periodicPickActivated = checkPickElement.isSelected();
 
@@ -982,9 +982,9 @@ public class ARScannedElementPane extends ARPane {
             checkPickElement.setSelected(false);
 
             xpathTextPrevious = "";
-            targetElement = null;
+            this.targetSelected = null;
             elementsFound.clear();
-            webElementObservableList2.clear();
+            //            webElementObservableList2.clear();
 
             periodicCloneActivated = checkCloneElement.isSelected();
 
@@ -1014,7 +1014,7 @@ public class ARScannedElementPane extends ARPane {
         scanIFrameButton.setOnAction(e -> manageUIScanIFrames("Scan iFrames and Nested Web Elements"));
 
         addButtonNewElement.setOnAction(e -> {
-            if (elementsFound.size() == 0 && targetElement.getElement() != null) {
+            if (elementsFound.size() == 0 && this.targetSelected.getElement() != null) {
                 insertNewElement();
             } else {
                 if (elementsFound.size() > 0) {
@@ -1034,7 +1034,7 @@ public class ARScannedElementPane extends ARPane {
                     } else {
                         insertNewElement(elementsFound);
                     }
-                    targetElement.setElement(null);
+                    this.targetSelected.setElement(null);
 
                 } else {
                     performMessage.errorMessage(
@@ -1118,24 +1118,34 @@ public class ARScannedElementPane extends ARPane {
             return;
         }
 
-        if (targetElement != null) {
+        if (this.targetSelected != null) {
 
-            if (checkCloneElement.isSelected()) {
-                if (checkInputText.isSelected()) {
-                    targetElement.setTagType(WebElementTagNameEnum.INPUT);
-                } else if (checkClickElement.isSelected()) {
-                    targetElement.setTagType(WebElementTagNameEnum.BUTTON);
-                } else if (checkOutputText.isSelected()) {
-                    targetElement.setTagType(WebElementTagNameEnum.OUTPUT);
-                }
+            TargetElement cloneTarget = new TargetElement(this.targetSelected);
+
+            //            if (checkCloneElement.isSelected()) {
+            cloneTarget.setCloned(true);
+            if (checkInputText.isSelected()) {
+                cloneTarget.setTagType(WebElementTagNameEnum.INPUT);
+                cloneTarget.setIconType(WebElementIcon.INSERT);
+            } else if (checkClickElement.isSelected()) {
+                cloneTarget.setTagType(WebElementTagNameEnum.BUTTON);
+                cloneTarget.setIconType(WebElementIcon.CLICK);
+            } else if (checkOutputText.isSelected()) {
+                cloneTarget.setTagType(WebElementTagNameEnum.OUTPUT);
+                cloneTarget.setIconType(WebElementIcon.OUTPUT);
+            }
+            //            }
+
+            if (defineNameField.getText().trim() != cloneTarget.getDefinedName()) {
+                cloneTarget.setDefinedName(defineNameField.getText().trim());
+                cloneTarget.setNameLabel(defineNameField.getText().trim());
+                cloneTarget.setNameField(defineNameField.getText().trim());
             }
 
-            targetElement.setDefinedName(defineNameField.getText().trim());
-
             try {
-                if (targetElement.getElement() != null) {
+                if (cloneTarget.getElement() != null) {
 
-                    ARWebElement arWebElement = new ARWebElement(this.targetElement, botJob.getId());
+                    ARWebElement arWebElement = new ARWebElement(cloneTarget, botJob.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
                         webElementObservableList2.add(arWebElement);
                         Platform.runLater(() -> {
@@ -1176,29 +1186,30 @@ public class ARScannedElementPane extends ARPane {
             arWebDriver.getDriver().switchTo().frame(iframe);
 
             // Adding the Variants for iFrame
+            TargetElement targetIFrame = new TargetElement();
             try {
 
-                this.targetElement.setElement(iframe);
-                this.targetElement.setIFrameXPath(iframeElement.getXPath());
-                this.targetElement.setDefinedName("iFrame-button");
-                this.targetElement.setOriginalTagName("iFrame");
-                this.targetElement.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
-                this.targetElement.setCurrentXPath(iframeElement.getXPath());
-                this.targetElement.setAllAttributes(iframeElement.getAllAttributes());
-                this.targetElement.setAttributeValue("iFrame");
-                this.targetElement.setTagType(WebElementTagNameEnum.BUTTON);
-                this.targetElement.setIconType(WebElementIcon.CLICK);
-                this.targetElement.setCoords(iframeElement.getCoords());
+                targetIFrame.setElement(iframe);
+                targetIFrame.setIFrameXPath(iframeElement.getXPath());
+                targetIFrame.setDefinedName("iFrame-button");
+                targetIFrame.setOriginalTagName("iFrame");
+                targetIFrame.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+                targetIFrame.setCurrentXPath(iframeElement.getXPath());
+                targetIFrame.setAllAttributes(iframeElement.getAllAttributes());
+                targetIFrame.setAttributeValue("iFrame");
+                targetIFrame.setTagType(WebElementTagNameEnum.BUTTON);
+                targetIFrame.setIconType(WebElementIcon.CLICK);
+                targetIFrame.setCoords(iframeElement.getCoords());
 
-                ARWebElement arWebElement = new ARWebElement(this.targetElement, botJob.getId());
+                ARWebElement arWebElement = new ARWebElement(targetIFrame, botJob.getId());
                 if (arWebElement != null && arWebElement.getElement() != null) {
                     webElementObservableList2.add(arWebElement);
                     Platform.runLater(() -> scannedElements2.refresh());
                 }
 
-                System.out.println("IFrame Element as Button: " + targetElement.getDefinedName());
+                System.out.println("IFrame Element as Button: " + targetIFrame.getDefinedName());
             } catch (Exception e) {
-                System.out.println("IFrame was Not Added as Button" + targetElement.getDefinedName());
+                System.out.println("IFrame was Not Added as Button" + targetIFrame.getDefinedName());
             }
 
             // Loop through and find elements
@@ -1222,17 +1233,17 @@ public class ARScannedElementPane extends ARPane {
                     WebElement element = arWebDriver.getDriver().findElement(By.xpath(elementChild.getXPath()));
                     //                                elements.add(element);
 
-                    this.targetElement.setElement(element);
-                    this.targetElement.setIFrameXPath(iframeElement.getXPath());
-                    this.targetElement.setMainXPath(elementChild.getXPath());
-                    this.targetElement.setDefinedName(elementChild.getTagName());
-                    this.targetElement.setOriginalTagName(elementChild.getTagName());
-                    this.targetElement.setAllAttributes(elementChild.getAllAttributes());
-                    this.targetElement.setCurrentXPath(elementChild.getXPath());
-                    this.targetElement.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
-                    this.targetElement.setCustomXPath(elementChild.getCustomXPath());
-                    this.targetElement.setAttributeValue(elementChild.getText());
-                    this.targetElement.setCoords(elementChild.getCoords());
+                    targetIFrame.setElement(element);
+                    targetIFrame.setIFrameXPath(iframeElement.getXPath());
+                    targetIFrame.setMainXPath(elementChild.getXPath());
+                    targetIFrame.setDefinedName(elementChild.getTagName());
+                    targetIFrame.setOriginalTagName(elementChild.getTagName());
+                    targetIFrame.setAllAttributes(elementChild.getAllAttributes());
+                    targetIFrame.setCurrentXPath(elementChild.getXPath());
+                    targetIFrame.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
+                    targetIFrame.setCustomXPath(elementChild.getCustomXPath());
+                    targetIFrame.setAttributeValue(elementChild.getText());
+                    targetIFrame.setCoords(elementChild.getCoords());
 
                     // Here I am forcing as Button "CLICKABLE" or "INPUTABLE"
 
@@ -1243,22 +1254,22 @@ public class ARScannedElementPane extends ARPane {
                             || elementChild
                                     .getTagName()
                                     .equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
-                        targetElement.setTagType(WebElementTagNameEnum.BUTTON);
-                        targetElement.setIconType(WebElementIcon.CLICK);
+                        targetIFrame.setTagType(WebElementTagNameEnum.BUTTON);
+                        targetIFrame.setIconType(WebElementIcon.CLICK);
                     } else if (elementChild.getTagName().equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
                             || elementChild.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
-                        targetElement.setTagType(WebElementTagNameEnum.INPUT);
-                        targetElement.setIconType(WebElementIcon.INSERT);
+                        targetIFrame.setTagType(WebElementTagNameEnum.INPUT);
+                        targetIFrame.setIconType(WebElementIcon.INSERT);
                     } else if (elementChild.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
                             || elementChild.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())) {
-                        targetElement.setTagType(WebElementTagNameEnum.OUTPUT);
-                        targetElement.setIconType(WebElementIcon.OUTPUT);
+                        targetIFrame.setTagType(WebElementTagNameEnum.OUTPUT);
+                        targetIFrame.setIconType(WebElementIcon.OUTPUT);
                     } else {
-                        targetElement.setTagType(WebElementTagNameEnum.ALL);
-                        targetElement.setIconType(WebElementIcon.TEXT);
+                        targetIFrame.setTagType(WebElementTagNameEnum.ALL);
+                        targetIFrame.setIconType(WebElementIcon.TEXT);
                     }
 
-                    ARWebElement arWebElement = new ARWebElement(this.targetElement, botJob.getId());
+                    ARWebElement arWebElement = new ARWebElement(targetIFrame, botJob.getId());
 
                     if (arWebElement != null && arWebElement.getElement() != null) {
                         webElementObservableList2.add(arWebElement);
@@ -1314,6 +1325,7 @@ public class ARScannedElementPane extends ARPane {
             WebElement iframe = arWebDriver.getDriver().findElement(By.xpath(iFrameXPath));
             arWebDriver.getDriver().switchTo().frame(iframe);
 
+            TargetElement targetFound = new TargetElement();
             // Loop through and find elements
             for (ElementDTO elementFound : elementsFound) { // Start from index 1
 
@@ -1329,9 +1341,9 @@ public class ARScannedElementPane extends ARPane {
                     WebElement element = arWebDriver.getDriver().findElement(By.xpath(elementFound.getXPath()));
                     //                                elements.add(element);
 
-                    this.targetElement = performAction.defineSearchReturn(elementFound, element, this.targetElement);
+                    targetFound = performAction.defineSearchReturn(elementFound, element, targetFound);
 
-                    ARWebElement arWebElement = new ARWebElement(this.targetElement, botJob.getId());
+                    ARWebElement arWebElement = new ARWebElement(targetFound, botJob.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
                         webElementObservableList2.add(arWebElement);
                         Platform.runLater(() -> {
@@ -1399,7 +1411,7 @@ public class ARScannedElementPane extends ARPane {
                                     + elementDTO.getXPath());
 
                         } else {
-                            defineCheckBoxesClickabe(targetElement);
+                            defineCheckBoxesClickabe(targetLocal);
                         }
                     }
 
@@ -1434,37 +1446,21 @@ public class ARScannedElementPane extends ARPane {
 
     private TargetElement extractPickClone(ElementDTO pickTarget) {
 
-        xpathTextPrevious = allAttributesTextField.getText();
+        xpathTextPrevious = pickTarget.getXPath();
 
-        if (targetElement == null) {
-            targetElement = new TargetElement();
-        }
+        WebElement elementFound = arWebDriver.getDriver().findElement(By.xpath(pickTarget.getXPath()));
 
-        // Reset Previous Values
-        targetElement.setAttribId(pickTarget.getAttribId());
-        targetElement.setAttribName(pickTarget.getAttribName());
-        targetElement.setOriginalTagName(pickTarget.getTagName());
-        targetElement.setSomeText(pickTarget.getText());
-        targetElement.setCoords(pickTarget.getCoords());
-        targetElement.setCurrentXPath(pickTarget.getXPath());
-        targetElement.setIFrameXPath(iFrameXPath);
-        //        searchReturn.setiFrameElements(iFrameElements);
-        targetElement.setAllAttributes(pickTarget.getAllAttributes());
-        targetElement.setCustomXPath(pickTarget.getCustomXPath());
-        targetElement.setTagType(WebElementTagNameEnum.ALL);
-        targetElement.setIconType(WebElementIcon.TEXT);
-        targetElement.setAttributeType("");
-        targetElement.setAttributeValue("");
-        targetElement.setElement(null);
+        TargetElement targetLocal = performAction.defineSearchReturn(pickTarget, elementFound, null);
 
-        targetElement = performAction.defineTargetNameTitles(targetElement);
+        targetLocal = performAction.defineTargetNameTitles(targetLocal);
+
         // First  Search for xPath
-        TargetElement targetValidated = checkValidateSearchPriorities(targetElement);
+        TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
 
         if (targetValidated.getElement() == null) {
 
             performMessage.errorMessage(
-                    "I Cannot defene this element",
+                    "I Cannot define this element",
                     "I will use the Locato \"COORDINATES\"",
                     "Try to get it again -> \"PICK ELEMENT\" or \"FORCE CLONE\"",
                     null,
@@ -1476,19 +1472,19 @@ public class ARScannedElementPane extends ARPane {
 
         //        targetElement = performAction.defineTagType(targetElement);
 
-        defineCheckBoxesClickabe(targetElement);
+        defineCheckBoxesClickabe(targetLocal);
 
-        return targetElement;
+        return targetLocal;
     }
 
-    private void defineCheckBoxesClickabe(TargetElement targetClickable) {
-        boolean clickable = isClickable(targetClickable.getElement());
+    private void defineCheckBoxesClickabe(TargetElement targetCheck) {
+        boolean clickable = isClickable(targetCheck.getElement());
 
         boolean tagClickable = false;
         // Define regex to extract specific tags (e.g., a, button)
         String regex = "/([^/\\[]+)";
         Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(targetClickable.getAllAttributes());
+        Matcher matcher = pattern.matcher(targetCheck.getAllAttributes());
 
         // Iterate through all matches and check for target tags
         while (matcher.find()) {
@@ -1500,30 +1496,53 @@ public class ARScannedElementPane extends ARPane {
             }
         }
 
-        Boolean inputContains = targetClickable.getCurrentXPath().toLowerCase().contains("input");
+        Boolean inputContains = targetCheck.getOriginalTagName().toLowerCase().contains("input");
 
-        Boolean selectContains = targetClickable.getCurrentXPath().toLowerCase().contains("select");
+        Boolean selectContains = targetCheck.getOriginalTagName().toLowerCase().contains("select");
 
-        boolean finalTagClickable = tagClickable;
-        Platform.runLater(() -> {
-            if (!iFrameText.getText().contains("iFrame")) {
-                if (finalTagClickable || clickable) {
+        if (targetCheck.getCloned() == null) {
+
+            boolean finalTagClickable = tagClickable;
+            Platform.runLater(() -> {
+                if (!iFrameText.getText().contains("iFrame")) {
+                    if (finalTagClickable || clickable) {
+                        checkClickElement.setSelected(true);
+                        checkOutputText.setSelected(false);
+                        checkInputText.setSelected(false);
+
+                    } else if (inputContains || selectContains) {
+                        checkInputText.setSelected(inputContains || selectContains);
+                        checkClickElement.setSelected(false);
+                        checkOutputText.setSelected(false);
+
+                    } else {
+                        checkClickElement.setSelected(clickable);
+                        checkOutputText.setSelected(!clickable);
+                        checkInputText.setSelected(false);
+                    }
+                }
+            });
+        } else {
+            Platform.runLater(() -> {
+                if (targetCheck.getTagType().equals(WebElementTagNameEnum.BUTTON)) {
                     checkClickElement.setSelected(true);
                     checkOutputText.setSelected(false);
                     checkInputText.setSelected(false);
-
-                } else if (inputContains || selectContains) {
-                    checkInputText.setSelected(inputContains || selectContains);
+                } else if (targetCheck.getTagType().equals(WebElementTagNameEnum.INPUT)) {
                     checkClickElement.setSelected(false);
                     checkOutputText.setSelected(false);
-
+                    checkInputText.setSelected(true);
+                } else if (targetCheck.getTagType().equals(WebElementTagNameEnum.OUTPUT)) {
+                    checkClickElement.setSelected(false);
+                    checkOutputText.setSelected(true);
+                    checkInputText.setSelected(false);
                 } else {
-                    checkClickElement.setSelected(clickable);
-                    checkOutputText.setSelected(!clickable);
+                    checkClickElement.setSelected(false);
+                    checkOutputText.setSelected(false);
                     checkInputText.setSelected(false);
                 }
-            }
-        });
+            });
+        }
     }
 
     //    private TargetElement defineTargetTagType(TargetElement target) {
@@ -1865,7 +1884,7 @@ public class ARScannedElementPane extends ARPane {
             launchBotJobButton.setDisable(checkCloneElement.isSelected());
             recallJobButton.setDisable(checkCloneElement.isSelected());
 
-            checkPickElement.setDisable(checkPickElement.isSelected());
+            checkPickElement.setDisable(checkCloneElement.isSelected());
 
             periodicCloneActivated = checkCloneElement.isSelected();
 
@@ -2863,12 +2882,13 @@ public class ARScannedElementPane extends ARPane {
                     Text variableText1Styled = new Text("Web Element Instruction");
                     variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
-                    String nameWebElement = defineNameField.getText().trim();
-                    if (Strings.isNullOrEmpty(nameWebElement)) {
-                        nameWebElement = arWebHover.getNameFieldTitle().trim();
+                    String nameDefined = defineNameField.getText().trim();
+                    if (this.targetSelected.getDefinedName() != null
+                            && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                        nameDefined = this.targetSelected.getDefinedName();
                     }
 
-                    Text variableText2Styled = new Text(nameWebElement);
+                    Text variableText2Styled = new Text(nameDefined);
                     variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
 
                     VBox combinedTextContainer = new VBox();
@@ -2954,7 +2974,7 @@ public class ARScannedElementPane extends ARPane {
                             });
                         }
 
-                        String finalNameWebElement = nameWebElement;
+                        String finalNameWebElement = nameDefined;
                         Task<Void> handleEvent = new Task<>() {
                             @Override
                             protected Void call() throws Exception {
@@ -3158,28 +3178,35 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 StringBuilder sb = new StringBuilder();
+                String nameDefined = "";
                 if (arWebHover.getTargetElement() != null) {
-                    this.targetElement = arWebHover.getTargetElement();
+                    this.targetSelected = arWebHover.getTargetElement();
+                    this.targetSelected.setElement(arWebHover.getElement()); // RETURN THE ELEMENT FOR OTHER PURPOSE
 
                     defineNameField.setText("");
-                    if (!Strings.isNullOrEmpty(this.targetElement.getAttribId())
-                            || !Strings.isNullOrEmpty(this.targetElement.getAttribName())
-                            || !Strings.isNullOrEmpty(this.targetElement.getSomeText())) {
-                        String finalSomeText = this.targetElement.getOriginalTagName()
-                                + (!Strings.isNullOrEmpty(this.targetElement.getAttribName())
-                                        ? "-" + this.targetElement.getAttribName()
-                                        : !Strings.isNullOrEmpty(this.targetElement.getAttribId())
-                                                ? this.targetElement.getAttribId()
-                                                : !Strings.isNullOrEmpty(this.targetElement.getSomeText())
-                                                        ? "-" + truncate(this.targetElement.getSomeText(), 50)
+                    if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
+                            || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
+                            || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
+                        nameDefined = this.targetSelected.getOriginalTagName()
+                                + (!Strings.isNullOrEmpty(this.targetSelected.getAttribName())
+                                        ? "-" + this.targetSelected.getAttribName()
+                                        : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
+                                                ? "-" + this.targetSelected.getAttribId()
+                                                : !Strings.isNullOrEmpty(this.targetSelected.getSomeText())
+                                                        ? "-" + truncate(this.targetSelected.getSomeText(), 50)
                                                         : "");
-                        Platform.runLater(() -> defineNameField.setText(truncate(finalSomeText, 50)));
+                        if (this.targetSelected.getDefinedName() != null
+                                && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                            nameDefined = this.targetSelected.getDefinedName();
+                        }
 
-                    } else if (!Strings.isNullOrEmpty(this.targetElement.getAllAttributes())) {
-                        String nameDefined = "";
+                        String finalNameDefined = nameDefined;
+                        Platform.runLater(() -> defineNameField.setText(truncate(finalNameDefined, 50)));
+
+                    } else if (!Strings.isNullOrEmpty(this.targetSelected.getAllAttributes())) {
 
                         // Split by comma to get key-value pairs
-                        String[] parts = this.targetElement.getAllAttributes().split(",");
+                        String[] parts = this.targetSelected.getAllAttributes().split(",");
 
                         String idValue = null;
                         String nameValue = null;
@@ -3205,31 +3232,53 @@ public class ARScannedElementPane extends ARPane {
 
                         // Print based on priority: ID -> Name -> Type
                         if (idValue != null) {
-                            nameDefined = this.targetElement.getOriginalTagName() + "-" + idValue;
+                            nameDefined = this.targetSelected.getOriginalTagName() + "-" + idValue;
                         } else if (nameValue != null) {
-                            nameDefined = this.targetElement.getOriginalTagName() + "-" + nameValue;
+                            nameDefined = this.targetSelected.getOriginalTagName() + "-" + nameValue;
                         } else if (typeValue != null) {
-                            nameDefined = this.targetElement.getOriginalTagName() + "-" + typeValue;
+                            nameDefined = this.targetSelected.getOriginalTagName() + "-" + typeValue;
                         } else {
-                            nameDefined = this.targetElement.getOriginalTagName();
+                            nameDefined = this.targetSelected.getOriginalTagName();
                         }
+
+                        if (this.targetSelected.getDefinedName() != null
+                                && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                            nameDefined = this.targetSelected.getDefinedName();
+                        }
+
                         String finalSomeText = nameDefined;
                         Platform.runLater(() -> defineNameField.setText(truncate(finalSomeText, 50)));
 
-                    } else if (!Strings.isNullOrEmpty(this.targetElement.getOriginalTagName())) {
-                        Platform.runLater(() -> defineNameField.setText(this.targetElement.getOriginalTagName()));
+                    } else if (!Strings.isNullOrEmpty(this.targetSelected.getOriginalTagName())) {
+
+                        if (this.targetSelected.getDefinedName() != null
+                                && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                            nameDefined = this.targetSelected.getDefinedName();
+                        } else {
+                            nameDefined = this.targetSelected.getOriginalTagName();
+                        }
+                        String finalSomeText = nameDefined;
+
+                        Platform.runLater(() -> defineNameField.setText(finalSomeText));
                     }
                 }
 
-                sb.append("TagType: " + this.targetElement.getTagType()).append("\n");
-                sb.append("ID: " + this.targetElement.getAttribId()).append("\n");
-                sb.append("Name: " + this.targetElement.getAttribName()).append("\n");
-                sb.append("All Attributes: " + this.targetElement.getAllAttributes())
+                //                sb.append(this.targetElement.getOriginalTagName() + "-" +
+                // this.targetElement.getSomeText())
+                //                        .append("\n");
+
+                sb.append("TagType: " + this.targetSelected.getTagType()).append("\n");
+                sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
+                sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
+                sb.append("All Attributes: " + this.targetSelected.getAllAttributes())
                         .append("\n");
-                sb.append("Attrib Value: " + this.targetElement.getAttributeValue())
-                        .append("\n");
+                //                sb.append("Attrib Value: " + this.targetSelected.getAttributeValue())
+                //                        .append("\n");
+                sb.append("Named: " + nameDefined).append("\n");
                 countdownTextField.setText(sb.toString());
                 countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+
+                defineCheckBoxesClickabe(this.targetSelected);
             }
         };
         arWebHover.addEventHandler(MouseEvent.MOUSE_ENTERED, mouseEnteredHandler);
@@ -4658,15 +4707,15 @@ public class ARScannedElementPane extends ARPane {
                                                     )
                                             .findFirst(); // Get the first matching ElementDTO
 
-                                    checkClickElement.setSelected(false);
-                                    checkInputText.setSelected(false);
-                                    checkOutputText.setSelected(false);
+                                    //                                    checkClickElement.setSelected(false);
+                                    //                                    checkInputText.setSelected(false);
+                                    //                                    checkOutputText.setSelected(false);
+                                    checkTestAction.setSelected(false);
                                     if (iframeElement.isPresent()) {
                                         if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
                                             iFrameText.setText("iFrame Detected");
                                         }
                                         //                                        checkCloneElement.setSelected(false);
-                                        checkTestAction.setSelected(false);
                                         //                                        revertCloneButtons();
 
                                         if (elementsFound.size() > 0) {
@@ -4674,36 +4723,114 @@ public class ARScannedElementPane extends ARPane {
 
                                             // CLONE  ONLY ADDS THE CLICKED ONE
                                             ElementDTO pickTarget = null;
+                                            String nameDefined = "";
                                             for (ElementDTO picked : elementsFound) {
                                                 // If Have any iFrame-Child Try to get any to show
                                                 if (picked.getTagName().equalsIgnoreCase("input")) {
-//                                                    originalTagNameField.setText(picked.getTagName());
-//                                                    attribIdTextField.setText(picked.getAttribId());
-//                                                    attribNameTextField.setText(picked.getAttribName());
-//                                                    currentXPathTextField.setText(picked.getXPath());
-//                                                    allAttributesTextField.setText(picked.getAllAttributes());
-//                                                    customXPathTextField.setText(picked.getCustomXPath());
-//                                                    coordsTextField.setText(picked.getCoords());
+
+                                                    //
+                                                    // sb.append(picked.getTagName() + "-" + picked.getText())
+                                                    //
+                                                    // .append("\n");
+
+                                                    if (!Strings.isNullOrEmpty(pickTarget.getAttribId())
+                                                            || !Strings.isNullOrEmpty(pickTarget.getAttribName())
+                                                            || !Strings.isNullOrEmpty(pickTarget.getText())) {
+                                                        nameDefined = pickTarget.getTagName()
+                                                                + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
+                                                                        ? "-" + pickTarget.getAttribName()
+                                                                        : !Strings.isNullOrEmpty(
+                                                                                        pickTarget.getAttribId())
+                                                                                ? "-" + pickTarget.getAttribId()
+                                                                                : !Strings.isNullOrEmpty(
+                                                                                                pickTarget.getText())
+                                                                                        ? "-"
+                                                                                                + truncate(
+                                                                                                        pickTarget
+                                                                                                                .getText(),
+                                                                                                        50)
+                                                                                        : "");
+
+                                                    } else if (picked.getAllAttributes() != null) {
+
+                                                        // Split by comma to get key-value pairs
+                                                        String[] parts = pickTarget
+                                                                .getAllAttributes()
+                                                                .split(",");
+
+                                                        String idValue = null;
+                                                        String nameValue = null;
+                                                        String typeValue = null;
+
+                                                        // Loop through each key-value pair
+                                                        for (String part : parts) {
+                                                            String[] keyValue = part.split("=");
+
+                                                            if (keyValue.length == 2) { // Ensure valid key-value pair
+                                                                String key = keyValue[0].trim();
+                                                                String value = keyValue[1]
+                                                                        .trim()
+                                                                        .replaceAll("\"", ""); // Remove quotes
+
+                                                                if (key.equals("id")) {
+                                                                    idValue = value;
+                                                                } else if (key.equals("name")) {
+                                                                    nameValue = value;
+                                                                } else if (key.equals("type")) {
+                                                                    typeValue = value;
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // Print based on priority: ID -> Name -> Type
+                                                        if (idValue != null) {
+                                                            nameDefined = pickTarget.getTagName() + "-" + idValue;
+                                                        } else if (nameValue != null) {
+                                                            nameDefined = pickTarget.getTagName() + "-" + nameValue;
+                                                        } else if (typeValue != null) {
+                                                            nameDefined = pickTarget.getTagName() + "-" + typeValue;
+                                                        } else {
+                                                            nameDefined = pickTarget.getTagName();
+                                                        }
+
+                                                        // sb.append("nameDefined: " + nameDefined).append("\n");
+                                                        sb.append("TagType: " + pickTarget.getTagName())
+                                                                .append("\n");
+                                                        sb.append("ID: " + pickTarget.getAttribId())
+                                                                .append("\n");
+                                                        sb.append("Name: " + pickTarget.getAttribName())
+                                                                .append("\n");
+                                                        sb.append("All Attributes: " + pickTarget.getAllAttributes())
+                                                                .append("\n");
+                                                        //
+                                                        // sb.append("Attrib Value: " + pickTarget.getAttributeValue())
+                                                        //
+                                                        //  .append("\n");
+                                                        sb.append("Named: " + nameDefined)
+                                                                .append("\n");
+
+                                                        iFrameCoords = "";
+                                                    }
+                                                } else {
+
+                                                    sb.append(picked.getTagName() + " " + picked.getText())
+                                                            .append("\n");
 
                                                     pickTarget = new ElementDTO(picked);
                                                     iFrameCoords = "";
-
                                                 }
-
-                                                sb.append(picked.getTagName() + " " + picked.getText())
-                                                        .append("\n");
                                             }
                                             countdownTextField.setText(sb.toString());
                                             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
                                             // Direct Insert to the Factory of Elements
 
-                                            if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
-                                                    && !xpathTextPrevious.equalsIgnoreCase(
-                                                            allAttributesTextField.getText())) {
-                                                
-                                                this.targetElement = extractPickClone(pickTarget);
-                                                
-                                                if (this.targetElement.getNameField() != null && this.targetElement.getNameLabel() != null) {
+                                            if (!Strings.isNullOrEmpty(pickTarget.getXPath())
+                                                    && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
+
+                                                TargetElement targetLocal = extractPickClone(pickTarget);
+
+                                                if (targetLocal.getNameField() != null
+                                                        && targetLocal.getNameLabel() != null) {
                                                     insertNewElement(elementsFound);
                                                 }
                                             }
@@ -4724,40 +4851,108 @@ public class ARScannedElementPane extends ARPane {
                                                     .filter(element -> "clicked".equals(element.getTypeElement()))
                                                     .collect(Collectors.toList());
 
-                                            String someText = "";
                                             // CLONE  ONLY ADDS THE CLICKED ONE
                                             ElementDTO pickTarget = null;
+                                            String nameDefined = "";
                                             for (ElementDTO picked : elementsFound) {
                                                 if (!picked.getTypeElement().equalsIgnoreCase("clicked")) {
                                                     continue;
                                                 }
 
                                                 pickTarget = new ElementDTO(picked);
-//                                                  originalTagNameField.setText(picked.getTagName());
-//                                                attribIdTextField.setText(picked.getAttribId());
-//                                                attribNameTextField.setText(picked.getAttribName());
-//                                                currentXPathTextField.setText(picked.getXPath());
-//                                                allAttributesTextField.setText(picked.getAllAttributes());
-//                                                customXPathTextField.setText(picked.getCustomXPath());
-//                                                coordsTextField.setText(picked.getCoords());
+
+                                                //
+                                                // sb.append(pickTarget.getTagName() + "-" + pickTarget.getText())
+                                                //                                                        .append("\n");
+
+                                                if (!Strings.isNullOrEmpty(pickTarget.getAttribId())
+                                                        || !Strings.isNullOrEmpty(pickTarget.getAttribName())
+                                                        || !Strings.isNullOrEmpty(pickTarget.getText())) {
+                                                    nameDefined = pickTarget.getTagName()
+                                                            + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
+                                                                    ? "-" + pickTarget.getAttribName()
+                                                                    : !Strings.isNullOrEmpty(pickTarget.getAttribId())
+                                                                            ? "-" + pickTarget.getAttribId()
+                                                                            : !Strings.isNullOrEmpty(
+                                                                                            pickTarget.getText())
+                                                                                    ? "-"
+                                                                                            + truncate(
+                                                                                                    pickTarget
+                                                                                                            .getText(),
+                                                                                                    50)
+                                                                                    : "");
+
+                                                } else if (pickTarget.getAllAttributes() != null) {
+
+                                                    // Split by comma to get key-value pairs
+                                                    String[] parts = pickTarget
+                                                            .getAllAttributes()
+                                                            .split(",");
+
+                                                    String idValue = null;
+                                                    String nameValue = null;
+                                                    String typeValue = null;
+
+                                                    // Loop through each key-value pair
+                                                    for (String part : parts) {
+                                                        String[] keyValue = part.split("=");
+
+                                                        if (keyValue.length == 2) { // Ensure valid key-value pair
+                                                            String key = keyValue[0].trim();
+                                                            String value = keyValue[1]
+                                                                    .trim()
+                                                                    .replaceAll("\"", ""); // Remove quotes
+
+                                                            if (key.equals("id")) {
+                                                                idValue = value;
+                                                            } else if (key.equals("name")) {
+                                                                nameValue = value;
+                                                            } else if (key.equals("type")) {
+                                                                typeValue = value;
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // Print based on priority: ID -> Name -> Type
+                                                    if (idValue != null) {
+                                                        nameDefined = pickTarget.getTagName() + "-" + idValue;
+                                                    } else if (nameValue != null) {
+                                                        nameDefined = pickTarget.getTagName() + "-" + nameValue;
+                                                    } else if (typeValue != null) {
+                                                        nameDefined = pickTarget.getTagName() + "-" + typeValue;
+                                                    } else {
+                                                        nameDefined = pickTarget.getTagName();
+                                                    }
+                                                }
                                                 iFrameCoords = "";
-
-                                                someText = picked.getText();
-
-                                                sb.append(picked.getTagName() + " " + picked.getText())
-                                                        .append("\n");
                                             }
+
+                                            // sb.append("nameDefined: " + nameDefined).append("\n");
+                                            sb.append("TagType: " + pickTarget.getTagName())
+                                                    .append("\n");
+                                            sb.append("ID: " + pickTarget.getAttribId())
+                                                    .append("\n");
+                                            sb.append("Name: " + pickTarget.getAttribName())
+                                                    .append("\n");
+                                            sb.append("All Attributes: " + pickTarget.getAllAttributes())
+                                                    .append("\n");
+                                            //
+                                            // sb.append("Attrib Value: " + pickTarget.getAttributeValue())
+                                            //
+                                            // .append("\n");
+                                            sb.append("Named: " + nameDefined).append("\n");
+
                                             countdownTextField.setText(sb.toString());
                                             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
                                             // Direct Insert to the Factory of Elements
 
-                                            if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
-                                                    && !xpathTextPrevious.equalsIgnoreCase(
-                                                            allAttributesTextField.getText())) {
-                                                
-                                                this.targetElement = extractPickClone(pickTarget);
-                                                
-                                                if (this.targetElement.getNameField() != null && this.targetElement.getNameLabel() != null) {
+                                            if (!Strings.isNullOrEmpty(pickTarget.getXPath())
+                                                    && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
+
+                                                TargetElement targetLocal = extractPickClone(pickTarget);
+
+                                                if (targetLocal.getNameField() != null
+                                                        && targetLocal.getNameLabel() != null) {
 
                                                     insertNewElement(elementsFound);
                                                 }
@@ -5642,9 +5837,10 @@ public class ARScannedElementPane extends ARPane {
                                                     )
                                             .findFirst(); // Get the first matching ElementDTO
 
-                                    checkClickElement.setSelected(false);
-                                    checkInputText.setSelected(false);
-                                    checkOutputText.setSelected(false);
+                                    //                                    checkClickElement.setSelected(false);
+                                    //                                    checkInputText.setSelected(false);
+                                    //                                    checkOutputText.setSelected(false);
+                                    checkTestAction.setSelected(false);
                                     if (iframeElement.isPresent()) {
                                         if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
                                             iFrameText.setText("iFrame Detected");
@@ -5667,35 +5863,95 @@ public class ARScannedElementPane extends ARPane {
 
                                     String someText = "";
                                     ElementDTO pickTarget = null;
+                                    String nameDefined = "";
                                     for (ElementDTO picked : elementsFound) {
                                         if (picked.getTypeElement().equalsIgnoreCase("clicked")) {
-//                                            originalTagNameField.setText(picked.getTagName());
-//                                            attribIdTextField.setText(picked.getAttribId());
-//                                            attribNameTextField.setText(picked.getAttribName());
-//                                            currentXPathTextField.setText(picked.getXPath());
-//                                            allAttributesTextField.setText(picked.getAllAttributes());
-//                                            customXPathTextField.setText(picked.getCustomXPath());
-//                                            coordsTextField.setText(picked.getCoords());
-                                            iFrameCoords = "";
-
-                                            pickTarget = new ElementDTO(picked);
-
                                             continue; // To avoid the Clicked One
                                         }
 
-                                        sb.append(picked.getTagName() + " " + picked.getText())
-                                                .append("\n");
+                                        pickTarget = new ElementDTO(picked);
+
+                                        if (!Strings.isNullOrEmpty(pickTarget.getAttribId())
+                                                || !Strings.isNullOrEmpty(pickTarget.getAttribName())
+                                                || !Strings.isNullOrEmpty(pickTarget.getText())) {
+                                            nameDefined = pickTarget.getTagName()
+                                                    + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
+                                                            ? "-" + pickTarget.getAttribName()
+                                                            : !Strings.isNullOrEmpty(pickTarget.getAttribId())
+                                                                    ? "-" + pickTarget.getAttribId()
+                                                                    : !Strings.isNullOrEmpty(pickTarget.getText())
+                                                                            ? "-" + truncate(pickTarget.getText(), 50)
+                                                                            : "");
+
+                                        } else if (picked.getAllAttributes() != null) {
+
+                                            // Split by comma to get key-value pairs
+                                            String[] parts = pickTarget
+                                                    .getAllAttributes()
+                                                    .split(",");
+
+                                            String idValue = null;
+                                            String nameValue = null;
+                                            String typeValue = null;
+
+                                            // Loop through each key-value pair
+                                            for (String part : parts) {
+                                                String[] keyValue = part.split("=");
+
+                                                if (keyValue.length == 2) { // Ensure valid key-value pair
+                                                    String key = keyValue[0].trim();
+                                                    String value =
+                                                            keyValue[1].trim().replaceAll("\"", ""); // Remove quotes
+
+                                                    if (key.equals("id")) {
+                                                        idValue = value;
+                                                    } else if (key.equals("name")) {
+                                                        nameValue = value;
+                                                    } else if (key.equals("type")) {
+                                                        typeValue = value;
+                                                    }
+                                                }
+                                            }
+
+                                            // Print based on priority: ID -> Name -> Type
+                                            if (idValue != null) {
+                                                nameDefined = pickTarget.getTagName() + "-" + idValue;
+                                            } else if (nameValue != null) {
+                                                nameDefined = pickTarget.getTagName() + "-" + nameValue;
+                                            } else if (typeValue != null) {
+                                                nameDefined = pickTarget.getTagName() + "-" + typeValue;
+                                            } else {
+                                                nameDefined = pickTarget.getTagName();
+                                            }
+
+                                            // sb.append("nameDefined: " + nameDefined).append("\n");
+                                            sb.append("TagType: " + pickTarget.getTagName())
+                                                    .append("\n");
+                                            sb.append("ID: " + pickTarget.getAttribId())
+                                                    .append("\n");
+                                            sb.append("Name: " + pickTarget.getAttribName())
+                                                    .append("\n");
+                                            sb.append("All Attributes: " + pickTarget.getAllAttributes())
+                                                    .append("\n");
+                                            //
+                                            // sb.append("Attrib Value: " + pickTarget.getAttributeValue())
+                                            //
+                                            //  .append("\n");
+                                            sb.append("Named: " + nameDefined).append("\n");
+
+                                            iFrameCoords = "";
+                                        }
                                     }
                                     countdownTextField.setText(sb.toString());
                                     countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
                                     // Direct Insert to the Factory of Elements
 
-                                    if (!Strings.isNullOrEmpty(allAttributesTextField.getText())
-                                            && !xpathTextPrevious.equalsIgnoreCase(allAttributesTextField.getText())) {
-                                        
-                                        this.targetElement = extractPickClone(pickTarget);
+                                    if (!Strings.isNullOrEmpty(pickTarget.getXPath())
+                                            && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
 
-                                        if (this.targetElement.getNameField() != null && this.targetElement.getNameLabel() != null) {
+                                        TargetElement targetLocal = extractPickClone(pickTarget);
+
+                                        if (targetLocal.getNameField() != null && targetLocal.getNameLabel() != null) {
                                             insertNewElement(elementsFound);
                                         }
                                     }
@@ -7728,10 +7984,16 @@ public class ARScannedElementPane extends ARPane {
                         addProgressBar(1);
                     }
 
-                    targetElement.setElement(entryElem);
+                    ElementDTO elementDTO = new ElementDTO();
 
-                    if (targetElement.getDefinedName() != null) {
-                        ARWebElement arWebElement = new ARWebElement(targetElement, botJob.getId());
+                    TargetElement targetLocal = performAction.defineSearchReturn(elementDTO, entryElem, null);
+
+                    targetLocal = performAction.defineTargetNameTitles(targetLocal);
+
+                    targetLocal.setElement(entryElem);
+
+                    if (targetLocal.getDefinedName() != null) {
+                        ARWebElement arWebElement = new ARWebElement(targetLocal, botJob.getId());
                         if (arWebElement != null) {
                             listARElements.add(arWebElement);
                         }
