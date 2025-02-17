@@ -1206,8 +1206,8 @@ public class ARScannedElementPane extends ARPane {
                 targetIFrame.setAttributeValue("iFrame");
                 targetIFrame.setMainCoordinates(iframeElementDTO.getCoords());
                 targetIFrame.setCoords(iframeElementDTO.getCoords());
-//                targetLocal.setTagType(WebElementTagNameEnum.BUTTON);
-//                targetLocal.setIconType(WebElementIcon.CLICK);
+                //                targetLocal.setTagType(WebElementTagNameEnum.BUTTON);
+                //                targetLocal.setIconType(WebElementIcon.CLICK);
 
                 ARWebElement arWebElement = new ARWebElement(targetIFrame, botJob.getId());
                 if (arWebElement != null && arWebElement.getElement() != null) {
@@ -1492,21 +1492,21 @@ public class ARScannedElementPane extends ARPane {
 
             boolean finalTagClickable = tagClickable;
             Platform.runLater(() -> {
-                    if (finalTagClickable || clickable) {
-                        checkClickElement.setSelected(true);
-                        checkOutputText.setSelected(false);
-                        checkInputText.setSelected(false);
+                if (finalTagClickable || clickable) {
+                    checkClickElement.setSelected(true);
+                    checkOutputText.setSelected(false);
+                    checkInputText.setSelected(false);
 
-                    } else if (inputContains || selectContains) {
-                        checkInputText.setSelected(inputContains || selectContains);
-                        checkClickElement.setSelected(false);
-                        checkOutputText.setSelected(false);
+                } else if (inputContains || selectContains) {
+                    checkInputText.setSelected(inputContains || selectContains);
+                    checkClickElement.setSelected(false);
+                    checkOutputText.setSelected(false);
 
-                    } else {
-                        checkClickElement.setSelected(clickable);
-                        checkOutputText.setSelected(!clickable);
-                        checkInputText.setSelected(false);
-                    }
+                } else {
+                    checkClickElement.setSelected(clickable);
+                    checkOutputText.setSelected(!clickable);
+                    checkInputText.setSelected(false);
+                }
             });
         } else {
             Platform.runLater(() -> {
@@ -2516,24 +2516,26 @@ public class ARScannedElementPane extends ARPane {
                                             arWebHover.getTargetElement().getIFrameXPath()));
                             arWebDriver.getDriver().switchTo().frame(iFrame);
                         } catch (Exception e) {
-//                            ARLogger.getInstance(ARScannedElementPane.class)
-//                                    .info("iFrame Element not Located\niFrameXPath"
-//                                            + arWebHover.getTargetElement().getIFrameXPath()
-//                                            +"iFrameChild: " + arWebHover.getTargetElement().getMainXPath());
-//                            performMessage.errorMessage(
-//                                    "iFrame Element not Located",
-//                                    "Cannot able to find the iFrame",
-//                                    "iFrame Parent or Child",
-//                                    null,
-//                                    null,
-//                                    0);
+                            //                            ARLogger.getInstance(ARScannedElementPane.class)
+                            //                                    .info("iFrame Element not Located\niFrameXPath"
+                            //                                            +
+                            // arWebHover.getTargetElement().getIFrameXPath()
+                            //                                            +"iFrameChild: " +
+                            // arWebHover.getTargetElement().getMainXPath());
+                            //                            performMessage.errorMessage(
+                            //                                    "iFrame Element not Located",
+                            //                                    "Cannot able to find the iFrame",
+                            //                                    "iFrame Parent or Child",
+                            //                                    null,
+                            //                                    null,
+                            //                                    0);
                         }
                     } else {
                         arWebDriver.getDriver().switchTo().defaultContent();
                     }
-                    
+
                     WebElement currentElement = arWebHover.getElement();
-                    
+
                     if (currentElement != null) {
                         performAction.highlightElement(jsExecutor, previousElement, currentElement);
                         previousElement = currentElement; // Store the new previous element
@@ -2617,7 +2619,8 @@ public class ARScannedElementPane extends ARPane {
                                 ARLogger.getInstance(ARScannedElementPane.class)
                                         .info("iFrame Element not Located\niFrameXPath"
                                                 + arWebHover.getTargetElement().getIFrameXPath()
-                            +"iFrameChild: " + arWebHover.getTargetElement().getMainXPath());
+                                                + "iFrameChild: "
+                                                + arWebHover.getTargetElement().getMainXPath());
                                 performMessage.errorMessage(
                                         "iFrame Element not Located",
                                         "Cannot able to find the iFrame",
@@ -3200,27 +3203,29 @@ public class ARScannedElementPane extends ARPane {
                     this.targetSelected.setElement(arWebHover.getElement()); // RETURN THE ELEMENT FOR OTHER PURPOSE
 
                     arWebDriver.getDriver().switchTo().defaultContent();
-                    
+
                     // iFrame
                     if (!Strings.isNullOrEmpty(this.targetSelected.getIFrameXPath())) {
                         try {
-                            WebElement iFrame = arWebDriver.getDriver().findElement(By.xpath(this.targetSelected.getIFrameXPath()));
+                            WebElement iFrame =
+                                    arWebDriver.getDriver().findElement(By.xpath(this.targetSelected.getIFrameXPath()));
                             arWebDriver.getDriver().switchTo().frame(iFrame);
-                        }catch (Exception error) {
+                        } catch (Exception error) {
                             ARLogger.getInstance(ARScannedElementPane.class)
                                     .info("iFrame Element not Located\niFrameXPath"
                                             + arWebHover.getTargetElement().getIFrameXPath()
-                                            +"iFrameChild: " + arWebHover.getTargetElement().getMainXPath());
-//                            performMessage.errorMessage(
-//                                    "iFrame Element not Located",
-//                                    "Cannot able to find the iFrame",
-//                                    "iFrame Parent or Child",
-//                                    null,
-//                                    null,
-//                                    0);
+                                            + "iFrameChild: "
+                                            + arWebHover.getTargetElement().getMainXPath());
+                            //                            performMessage.errorMessage(
+                            //                                    "iFrame Element not Located",
+                            //                                    "Cannot able to find the iFrame",
+                            //                                    "iFrame Parent or Child",
+                            //                                    null,
+                            //                                    null,
+                            //                                    0);
                         }
-                    } 
-                    
+                    }
+
                     defineNameField.setText("");
                     if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
                             || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
@@ -4122,11 +4127,99 @@ public class ARScannedElementPane extends ARPane {
                 + "  function getElementAttributes(element) {\n"
                 + "    const attributes = [];\n"
                 + "\n"
-                + "    for (const attr of element.attributes) {\n"
-                + "      attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
+                + "    try {\n"
+                + "      for (const attr of element.attributes) {\n"
+                + "        attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
+                + "      }\n"
+                + "    } catch (error) {\n"
+                + "      // If accessing attributes directly fails (likely due to cross-origin restrictions)\n"
+                + "      // Attempt to get attributes using JavaScript execution within the iframe's context\n"
+                + "      const iframe = element.ownerDocument.defaultView.frameElement;\n"
+                + "      if (iframe) {\n"
+                + "        const iframeWindow = iframe.contentWindow;\n"
+                + "        iframeWindow.document.addEventListener(\"DOMContentLoaded\", () => {\n"
+                + "          const iframeElement = iframeWindow.document.querySelector(\n"
+                + "            `#${element.id}`\n"
+                + "          ); // Adjust selector as needed\n"
+                + "          if (iframeElement) {\n"
+                + "            for (const attr of iframeElement.attributes) {\n"
+                + "              attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
+                + "            }\n"
+                + "          }\n"
+                + "        });\n"
+                + "      }\n"
                 + "    }\n"
                 + "\n"
                 + "    return attributes;\n"
+                + "  }\n"
+                + "  function getElementLocators(element) {\n"
+                + "    const locators = [];\n"
+                + "\n"
+                + "    if (element === document.body) {\n"
+                + "      locators.push(\"/html/\" + element.tagName.toLowerCase());\n"
+                + "      return locators;\n"
+                + "    }\n"
+                + "\n"
+                + "    const tagName = element.tagName.toLowerCase();\n"
+                + "    const id = element.id ? `#${element.id}` : \"\";\n"
+                + "    const className = (\n"
+                + "      typeof element.className === \"string\" ? element.className : \"\"\n"
+                + "    )\n"
+                + "      .split(\" \")\n"
+                + "      .filter((cls) => !/\\d/.test(cls))\n"
+                + "      .join(\".\");\n"
+                + "\n"
+                + "    if (id) {\n"
+                + "      locators.push(id);\n"
+                + "    }\n"
+                + "\n"
+                + "    if (className) {\n"
+                + "      locators.push(`//${tagName}[contains(@class, '${className}')]`);\n"
+                + "    }\n"
+                + "\n"
+                + "    // Check for other attributes (e.g., 'data-*' attributes)\n"
+                + "    const attributes = Array.from(element.attributes);\n"
+                + "    attributes.forEach((attr) => {\n"
+                + "      if (attr.name !== \"class\" && attr.name !== \"id\") {\n"
+                + "        // Exclude class and id\n"
+                + "        locators.push(`${tagName}[@${attr.name}=\"${attr.value}\"]`);\n"
+                + "      }\n"
+                + "    });\n"
+                + "\n"
+                + "    // Handle iframe elements\n"
+                + "    if (element.ownerDocument !== document) {\n"
+                + "      try {\n"
+                + "        const iframe = element.ownerDocument.defaultView.frameElement;\n"
+                + "        const iframeLocators = getElementLocators(iframe);\n"
+                + "        iframeLocators.forEach((iframePath) => {\n"
+                + "          locators.push(`${iframePath}//${tagName}`);\n"
+                + "        });\n"
+                + "      } catch (error) {\n"
+                + "        console.error(\"Error getting locators for iframe element:\", error);\n"
+                + "      }\n"
+                + "    } else {\n"
+                + "      // Handle regular elements\n"
+                + "      let ix = 0;\n"
+                + "      const siblings = element.parentNode.childNodes;\n"
+                + "\n"
+                + "      for (let i = 0; i < siblings.length; i++) {\n"
+                + "        const sibling = siblings[i];\n"
+                + "\n"
+                + "        if (sibling === element) {\n"
+                + "          const parentLocators = getElementLocators(element.parentNode);\n"
+                + "          parentLocators.forEach((parentPath) => {\n"
+                + "            locators.push(`${parentPath}/${tagName}[${ix + 1}]`);\n"
+                + "          });\n"
+                + "          break;\n"
+                + "        }\n"
+                + "\n"
+                + "        if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "          ix++;\n"
+                + "        }\n"
+                + "      }\n"
+                + "    }\n"
+                + "\n"
+                + "    return locators;\n"
                 + "  }\n"
                 + "  function getMartiniXPath(element) {\n"
                 + "    if (element === document.body) {\n"
@@ -4636,25 +4729,25 @@ public class ARScannedElementPane extends ARPane {
                 + "\n"
                 + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
                 + "    setTimeout(() => {\n"
-                + "        window.allElementInfo = [];\n"
+                + "      window.allElementInfo = [];\n"
                 + "\n"
-                + "    //   if (tooltip) {\n"
-                + "    //     tooltip.remove(); // Completely remove the tooltip from the DOM\n"
-                + "    //     tooltip = null; // Clear the reference to free memory\n"
-                + "    //     console.log(\"Tooltip completely removed.\");\n"
-                + "    //   }\n"
+                + "      // if (tooltip) {\n"
+                + "      //   tooltip.remove(); // Completely remove the tooltip from the DOM\n"
+                + "      //   tooltip = null; // Clear the reference to free memory\n"
+                + "      //   console.log(\"Tooltip completely removed.\");\n"
+                + "      // }\n"
                 + "\n"
-                + "    //   if (lastHoveredElement || elementBelowTooltip) {\n"
-                + "    //     // Remove highlight from the previous element if any\n"
-                + "    //     if (lastHoveredElement) {\n"
-                + "    //       lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
-                + "    //     }\n"
+                + "      // if (lastHoveredElement || elementBelowTooltip) {\n"
+                + "      //   // Remove highlight from the previous element if any\n"
+                + "      //   if (lastHoveredElement) {\n"
+                + "      //     lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
+                + "      //   }\n"
                 + "\n"
-                + "    //     // Remove highlight from the previous element if any\n"
-                + "    //     if (elementBelowTooltip) {\n"
-                + "    //       elementBelowTooltip.style.outline = \"\"; // Remove the previous highlight\n"
-                + "    //     }\n"
-                + "    //   }\n"
+                + "      //   // Remove highlight from the previous element if any\n"
+                + "      //   if (elementBelowTooltip) {\n"
+                + "      //     elementBelowTooltip.style.outline = \"\"; // Remove the previous highlight\n"
+                + "      //   }\n"
+                + "      // }\n"
                 + "    }, 2000);\n"
                 + "  }\n"
                 + "\n"
@@ -5175,22 +5268,36 @@ public class ARScannedElementPane extends ARPane {
                 + "      }\n"
                 + "    });\n"
                 + "\n"
-                + "    let ix = 0;\n"
-                + "    const siblings = element.parentNode.childNodes;\n"
-                + "\n"
-                + "    for (let i = 0; i < siblings.length; i++) {\n"
-                + "      const sibling = siblings[i];\n"
-                + "\n"
-                + "      if (sibling === element) {\n"
-                + "        const parentLocators = getElementLocators(element.parentNode);\n"
-                + "        parentLocators.forEach((parentPath) => {\n"
-                + "          locators.push(`${parentPath}/${tagName}[${ix + 1}]`);\n"
+                + "    // Handle iframe elements\n"
+                + "    if (element.ownerDocument !== document) {\n"
+                + "      try {\n"
+                + "        const iframe = element.ownerDocument.defaultView.frameElement;\n"
+                + "        const iframeLocators = getElementLocators(iframe);\n"
+                + "        iframeLocators.forEach((iframePath) => {\n"
+                + "          locators.push(`${iframePath}//${tagName}`);\n"
                 + "        });\n"
-                + "        break;\n"
+                + "      } catch (error) {\n"
+                + "        console.error(\"Error getting locators for iframe element:\", error);\n"
                 + "      }\n"
+                + "    } else {\n"
+                + "      // Handle regular elements\n"
+                + "      let ix = 0;\n"
+                + "      const siblings = element.parentNode.childNodes;\n"
                 + "\n"
-                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "        ix++;\n"
+                + "      for (let i = 0; i < siblings.length; i++) {\n"
+                + "        const sibling = siblings[i];\n"
+                + "\n"
+                + "        if (sibling === element) {\n"
+                + "          const parentLocators = getElementLocators(element.parentNode);\n"
+                + "          parentLocators.forEach((parentPath) => {\n"
+                + "            locators.push(`${parentPath}/${tagName}[${ix + 1}]`);\n"
+                + "          });\n"
+                + "          break;\n"
+                + "        }\n"
+                + "\n"
+                + "        if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
+                + "          ix++;\n"
+                + "        }\n"
                 + "      }\n"
                 + "    }\n"
                 + "\n"
@@ -5559,8 +5666,27 @@ public class ARScannedElementPane extends ARPane {
                 + "  function getElementAttributes(element) {\n"
                 + "    const attributes = [];\n"
                 + "\n"
-                + "    for (const attr of element.attributes) {\n"
-                + "      attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
+                + "    try {\n"
+                + "      for (const attr of element.attributes) {\n"
+                + "        attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
+                + "      }\n"
+                + "    } catch (error) {\n"
+                + "      // If accessing attributes directly fails (likely due to cross-origin restrictions)\n"
+                + "      // Attempt to get attributes using JavaScript execution within the iframe's context\n"
+                + "      const iframe = element.ownerDocument.defaultView.frameElement;\n"
+                + "      if (iframe) {\n"
+                + "        const iframeWindow = iframe.contentWindow;\n"
+                + "        iframeWindow.document.addEventListener(\"DOMContentLoaded\", () => {\n"
+                + "          const iframeElement = iframeWindow.document.querySelector(\n"
+                + "            `#${element.id}`\n"
+                + "          ); // Adjust selector as needed\n"
+                + "          if (iframeElement) {\n"
+                + "            for (const attr of iframeElement.attributes) {\n"
+                + "              attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
+                + "            }\n"
+                + "          }\n"
+                + "        });\n"
+                + "      }\n"
                 + "    }\n"
                 + "\n"
                 + "    return attributes;\n"
@@ -5891,6 +6017,16 @@ public class ARScannedElementPane extends ARPane {
                                     if (iframeElement.isPresent()) {
                                         if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
                                             iFrameText.setText("iFrame Detected");
+                                            elementsFound = elementsFound.stream()
+                                                    .map(elementDTO -> {
+                                                        if ("iFrame-Child".equals(elementDTO.getTypeElement())) {
+                                                            elementDTO.setIFrameXPath(iframeElement
+                                                                    .get()
+                                                                    .getXPath());
+                                                        }
+                                                        return elementDTO;
+                                                    })
+                                                    .collect(Collectors.toList());
                                         }
                                     } else {
                                         iFrameText.setText("");
@@ -5941,7 +6077,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private ElementDTO prefillDefinedName(List<ElementDTO> elementsFound) {
-                
+
         StringBuilder sb = new StringBuilder();
 
         ElementDTO pickTarget = null;
@@ -5958,22 +6094,17 @@ public class ARScannedElementPane extends ARPane {
                     || !Strings.isNullOrEmpty(pickTarget.getText())) {
                 nameDefined = pickTarget.getTagName()
                         + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
-                        ? "-" + pickTarget.getAttribName()
-                        : !Strings.isNullOrEmpty(pickTarget.getAttribId())
-                        ? "-" + pickTarget.getAttribId()
-                        : !Strings.isNullOrEmpty(pickTarget.getText())
-                        ? "-"
-                        + truncate(
-                        pickTarget.getText(),
-                        50)
-                        : "");
+                                ? "-" + pickTarget.getAttribName()
+                                : !Strings.isNullOrEmpty(pickTarget.getAttribId())
+                                        ? "-" + pickTarget.getAttribId()
+                                        : !Strings.isNullOrEmpty(pickTarget.getText())
+                                                ? "-" + truncate(pickTarget.getText(), 50)
+                                                : "");
 
             } else if (picked.getAllAttributes() != null) {
 
                 // Split by comma to get key-value pairs
-                String[] parts = pickTarget
-                        .getAllAttributes()
-                        .split(",");
+                String[] parts = pickTarget.getAllAttributes().split(",");
 
                 String idValue = null;
                 String nameValue = null;
@@ -5985,9 +6116,7 @@ public class ARScannedElementPane extends ARPane {
 
                     if (keyValue.length == 2) { // Ensure valid key-value pair
                         String key = keyValue[0].trim();
-                        String value = keyValue[1]
-                                .trim()
-                                .replaceAll("\"", ""); // Remove quotes
+                        String value = keyValue[1].trim().replaceAll("\"", ""); // Remove quotes
 
                         if (key.equals("id")) {
                             idValue = value;
@@ -6011,30 +6140,25 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 // sb.append("nameDefined: " + nameDefined).append("\n");
-                sb.append("TagType: " + pickTarget.getTagName())
-                        .append("\n");
-                sb.append("ID: " + pickTarget.getAttribId())
-                        .append("\n");
-                sb.append("Name: " + pickTarget.getAttribName())
-                        .append("\n");
-                sb.append("All Attributes: " + pickTarget.getAllAttributes())
-                        .append("\n");
+                sb.append("TagType: " + pickTarget.getTagName()).append("\n");
+                sb.append("ID: " + pickTarget.getAttribId()).append("\n");
+                sb.append("Name: " + pickTarget.getAttribName()).append("\n");
+                sb.append("All Attributes: " + pickTarget.getAllAttributes()).append("\n");
                 //
                 // sb.append("Attrib Value: " + pickTarget.getAttributeValue())
                 //
                 //  .append("\n");
-                sb.append("Named: " + nameDefined)
-                        .append("\n");
+                sb.append("Named: " + nameDefined).append("\n");
 
                 iFrameCoords = "";
             }
         }
 
- Platform.runLater( () ->{
-        countdownTextField.setText(sb.toString());
-        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
- });
-        
+        Platform.runLater(() -> {
+            countdownTextField.setText(sb.toString());
+            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+        });
+
         return pickTarget;
     }
 

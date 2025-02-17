@@ -302,9 +302,9 @@ public class ARWebElement {
                     // Handle the OUTPUT case
                     outputElement.setValue(true);
                 } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.IFRAME)) {
-                // Handle the OUTPUT case
-                iFrameElement.setValue(true);
-            } else {
+                    // Handle the OUTPUT case
+                    iFrameElement.setValue(true);
+                } else {
                     // Handle other cases like INPUT
                     outputElement.setValue(false);
                     clickElement.setValue(false);

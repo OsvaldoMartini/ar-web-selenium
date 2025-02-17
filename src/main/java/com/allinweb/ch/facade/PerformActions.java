@@ -2920,7 +2920,7 @@ public class PerformActions {
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.SPAN.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
                 targetDefine.setIconType(WebElementIcon.OUTPUT);
-            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.IFRAME.getValue()) ) {
+            } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.IFRAME.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.IFRAME);
                 targetDefine.setIconType(WebElementIcon.IFRAME);
             } else {
@@ -2962,6 +2962,11 @@ public class PerformActions {
             String testIdAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.TEST_ID);
             String nameAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.NAME);
             String valueAttributeValue = extractAttribute(targetElem, WebElementAttributeEnum.VALUE);
+
+            String hasMatLabelValue = extractAttribute(targetElem, WebElementAttributeEnum.MAT_LABEL);
+            String hasMatInputValue = extractAttribute(targetElem, WebElementAttributeEnum.MAT_INPUT);
+            String hasInputValue = extractAttribute(targetElem, WebElementAttributeEnum.MAT_INPUT);
+
             String valueHRefFile = extractFileExtension(extractAttribute(targetElem, WebElementAttributeEnum.HREF));
 
             String textLabel = targetElem.getText();
@@ -3032,11 +3037,26 @@ public class PerformActions {
                 target = setElementText(target, textLabel, tagNameDefined);
             } else if (!Strings.isNullOrEmpty(textLabel) && !Strings.isNullOrEmpty(tagNameDefined)) {
                 target = setElementText(target, textLabel, tagNameDefined);
+            } else if (!Strings.isNullOrEmpty(hasMatLabelValue)) {
+                target = setElementText(target, hasMatLabelValue, hasMatLabelValue);
+            } else if (!Strings.isNullOrEmpty(hasMatInputValue)) {
+                target = setElementText(target, hasMatInputValue, hasMatInputValue);
+            } else if (!Strings.isNullOrEmpty(hasInputValue)) {
+                target = setElementText(target, hasInputValue, hasInputValue);
+            } else if (!Strings.isNullOrEmpty(dataTestIdAttributeValue)) {
+                target = setElementText(target, dataTestIdAttributeValue, dataTestIdAttributeValue);
+            } else if (!Strings.isNullOrEmpty(titleAttributeValue)) {
+                target = setElementText(target, titleAttributeValue, titleAttributeValue);
             } else if (!Strings.isNullOrEmpty(tagNameDefined) && tagNameDefined.equalsIgnoreCase("iFrame")) {
-                target = setElementText(
-                        target, target.getOriginalTagName(), ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
+                target = setElementText(target, target.getOriginalTagName(), tagNameDefined);
             } else {
-                target.setTagType(WebElementTagNameEnum.OUTPUT);
+                //                if (tagNameDefined.equalsIgnoreCase("input")) {
+                //                    target.setTagType(WebElementTagNameEnum.INPUT);
+                //                }else  if (tagNameDefined.equalsIgnoreCase("input")) {
+                //                    target.setTagType(WebElementTagNameEnum.OUTPUT);
+                //                } else  if (tagNameDefined.equalsIgnoreCase("input")) {
+                //                    target.setTagType(WebElementTagNameEnum.OUTPUT);
+                //                }
                 target = setElementText(
                         target, target.getOriginalTagName(), ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             }

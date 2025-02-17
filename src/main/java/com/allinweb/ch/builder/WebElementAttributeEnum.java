@@ -20,7 +20,10 @@ public enum WebElementAttributeEnum {
     CLASS("class"),
     STYLE("style"),
     TITLE("title"),
-    DISABLED("disabled");
+    DISABLED("disabled"),
+    MAT_LABEL("mat-label"),
+    MAT_INPUT("mat-input"),
+    INPUT("input");
 
     private String value;
 
