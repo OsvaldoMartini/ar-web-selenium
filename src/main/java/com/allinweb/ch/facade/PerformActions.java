@@ -824,6 +824,8 @@ public class PerformActions {
                     case searchAttribute -> {
                         isSearchAttribute = true;
                         searchAttributeValue = instructionReference.get().getValue();
+                        String[] parts = searchAttributeValue.split("=");
+                        criterias = convertToCriteriaList(tagName, List.of(parts[0]), parts[1]);
                     }
                     case attribute -> criterias = convertToCriteriaList(
                             tagName,
@@ -864,7 +866,7 @@ public class PerformActions {
                                     foundElementList.add(element);
                                 }
                             } else if (isSearchAttribute) {
-                                String[] parts = searchAttributeValue.split(",");
+                                String[] parts = searchAttributeValue.split("=");
                                 WebElement element =
                                         findElementByAttributeParams(arWebDriver.getDriver(), parts[0], parts[1]);
                                 if (element != null) {
@@ -979,7 +981,7 @@ public class PerformActions {
         if (dataFieldValue != null) {
             element.clear();
             element.sendKeys(dataFieldValue);
-            element.sendKeys(Keys.TAB);
+            element.sendKeys(Keys.ENTER);
         }
 
         return fieldName + "->" + dataFieldValue;
@@ -1163,11 +1165,11 @@ public class PerformActions {
                 if (dataFieldValue != null) {
                     element.clear();
                     element.sendKeys(dataFieldValue);
-                    element.sendKeys(Keys.TAB);
+                    element.sendKeys(Keys.ENTER);
 
                 } else {
                     element.sendKeys(UtilsMethods.generateRandomID(10));
-                    element.sendKeys(Keys.TAB);
+                    element.sendKeys(Keys.ENTER);
                 }
             } else {
                 dataFieldValue = defaultValue;
