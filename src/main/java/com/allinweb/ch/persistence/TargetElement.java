@@ -39,6 +39,7 @@ public class TargetElement {
     WebElement element;
     Boolean isElementHidden;
     Boolean cloned;
+    String searchAttributeValue;
 
     public TargetElement(TargetElement origin) {
         this.nameLabel = origin.nameLabel;
@@ -68,6 +69,7 @@ public class TargetElement {
         this.element = origin.element;
         this.isElementHidden = origin.isElementHidden;
         this.cloned = origin.cloned;
+        this.searchAttributeValue = origin.searchAttributeValue;
     }
 
     public void reset() {
@@ -97,6 +99,8 @@ public class TargetElement {
         this.iconType = null;
         this.element = null;
         this.isElementHidden = null;
+        this.cloned = false;
+        this.searchAttributeValue = null;
     }
 }
 

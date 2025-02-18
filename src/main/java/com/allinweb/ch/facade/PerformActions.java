@@ -735,11 +735,12 @@ public class PerformActions {
                 || arPriorities.getAllPriorityList().size() < 4) {
             StringBuilder priorMissing = new StringBuilder();
             priorMissing.append("1,xpath,currentXPath" + System.lineSeparator());
-            priorMissing.append("2,coordinates,coordinates" + System.lineSeparator());
-            priorMissing.append("3,attributeID,attributeID" + System.lineSeparator());
-            priorMissing.append("4,attributeName,attributeName" + System.lineSeparator());
-            priorMissing.append("5,attribute,test-id" + System.lineSeparator());
-            priorMissing.append("6,attributes,allAttributes" + System.lineSeparator());
+            priorMissing.append("2,attributeID,attributeID" + System.lineSeparator());
+            priorMissing.append("3,attributeName,attributeName" + System.lineSeparator());
+            priorMissing.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
+            priorMissing.append("5,coordinates,coordinates" + System.lineSeparator());
+            priorMissing.append("6,attribute,test-id" + System.lineSeparator());
+            //            priorMissing.append("7,attributes,allAttributes" + System.lineSeparator());
             arPriorities.loadPrioritiesFromString(priorMissing.toString());
         }
 
@@ -791,74 +792,123 @@ public class PerformActions {
                                 priority.getName(),
                                 instructionReference.get().getReferenceType(),
                                 instructionReference.get().getValue()));
-            }
 
-            List<By> criterias = null;
+                List<By> criterias = null;
 
-            // Handle different priority types (like XPath, attribute, etc.)
-            switch (priority.getPriorityType()) {
-                case xpath -> criterias = Arrays.asList(
-                        new By[] {By.xpath(instructionReference.get().getValue())});
-                case attribute -> criterias = convertToCriteriaList(
-                        tagName, priority.getName(), instructionReference.get().getValue());
-                case coordinates -> {
-                    // Coordinates case (not used for locating elements directly)
-                }
-                case allAttributes -> {
-                    // Coordinates case (not used for locating elements directly)
-                }
-                case ById -> {}
-                case ByClassName -> {}
-                case ByName -> {}
-                case ByTagName -> {}
-                case ByLinkText -> {}
-                case ByPartialLinkText -> {}
-                case ByCssSelector -> {}
-                case ExecuteScript -> {}
-                case createXPath -> {}
-                case dynamic -> {}
-                case jsoup -> {}
-            }
+                boolean isAttributeID = false;
+                boolean isAttributeName = false;
+                boolean isSearchAttribute = false;
+                String searchAttributeValue = "";
 
-            if (criterias != null) {
-                for (By criteria : criterias) {
-                    List<WebElement> foundElementList = arWebDriver.getDriver().findElements(criteria);
+                // Handle different priority types (like XPath, attribute, etc.)
+                switch (priority.getPriorityType()) {
+                    case xpath -> criterias =
+                            Arrays.asList(By.xpath(instructionReference.get().getValue()));
 
-                    if (foundElementList != null && foundElementList.size() > 0 && iframeElement == null) {
-                        // Wait for element visibility and process
-                        try {
-                            waitForAction.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(criteria));
-                        } catch (Exception e) {
-                            ARLogger.getInstance(PerformActions.class)
-                                    .fine(String.format(
-                                            "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
-                                            instructionPath, criteria, e.getMessage()));
-                        }
-
-                        // If multiple elements found, verify each
-                        if (foundElementList.size() > 1) {
-                            int k = 0;
-                            while (elementFound == null && k < foundElementList.size()) {
-                                String xpath = ARWebUtil.extractXPath(
-                                        foundElementList.get(k).toString());
-
-                                // Second verification for XPath found
-                                if (xpath.equals(instructionReference.get().getValue())) {
-                                    elementFound = foundElementList.get(k);
-                                    break;
-                                }
-                                k++;
-                            }
-                        } else {
-                            elementFound = foundElementList.get(0);
-                        }
-                    } else {
-                        elementFound = iframeElement;
+                    case attributeID -> {
+                        isAttributeID = true;
+                        searchAttributeValue = instructionReference.get().getValue();
+                        criterias = convertToCriteriaList(
+                                tagName,
+                                priority.getName(),
+                                instructionReference.get().getValue());
+                    }
+                    case attributeName -> {
+                        isAttributeName = true;
+                        searchAttributeValue = instructionReference.get().getValue();
+                        criterias = convertToCriteriaList(
+                                tagName,
+                                priority.getName(),
+                                instructionReference.get().getValue());
+                    }
+                    case searchAttribute -> {
+                        isSearchAttribute = true;
+                        searchAttributeValue = instructionReference.get().getValue();
+                    }
+                    case attribute -> criterias = convertToCriteriaList(
+                            tagName,
+                            priority.getName(),
+                            instructionReference.get().getValue());
+                    case coordinates, allAttributes -> {
+                        // These cases are placeholders and do not need additional handling
                     }
 
-                    // Switch back to main content after interacting with iframe (if applicable)
-                    if (instructionPath.contains("iframe")) {
-                        arWebDriver.getDriver().switchTo().defaultContent();
+                    case ExecuteScript, createXPath, dynamic, jsoup -> {
+                        // Handle the special cases (implement if needed)
+                    }
+
+                    case ById, ByClassName, ByName, ByTagName, ByLinkText, ByPartialLinkText, ByCssSelector -> {
+                        // These cases can be handled if needed, otherwise leave them empty
+                    }
+                }
+
+                if (criterias != null) {
+                    for (By criteria : criterias) {
+
+                        List<WebElement> foundElementList = new ArrayList<>();
+                        try {
+                            foundElementList = arWebDriver.getDriver().findElements(criteria);
+                        } catch (Exception ignore) {
+
+                        }
+
+                        if (foundElementList.size() == 0) {
+                            if (isAttributeID) {
+                                WebElement element = findElementByID(arWebDriver.getDriver(), searchAttributeValue);
+                                if (element != null) {
+                                    foundElementList.add(element);
+                                }
+                            } else if (isAttributeName) {
+                                WebElement element = findElementsByName(arWebDriver.getDriver(), searchAttributeValue);
+                                if (element != null) {
+                                    foundElementList.add(element);
+                                }
+                            } else if (isSearchAttribute) {
+                                String[] parts = searchAttributeValue.split(",");
+                                WebElement element =
+                                        findElementByAttributeParams(arWebDriver.getDriver(), parts[0], parts[1]);
+                                if (element != null) {
+                                    foundElementList.add(element);
+                                }
+                            }
+                        }
+
+                        if (foundElementList != null && foundElementList.size() > 0 && iframeElement == null) {
+                            // Wait for element visibility and process
+                            try {
+                                waitForAction.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(criteria));
+                            } catch (Exception e) {
+                                ARLogger.getInstance(PerformActions.class)
+                                        .fine(String.format(
+                                                "Could Not Find xPath \"%s\" Criteria \"%s\" -> Cause: %s",
+                                                instructionPath, criteria, e.getMessage()));
+                            }
+
+                            // If multiple elements found, verify each
+                            if (foundElementList.size() > 1) {
+                                int k = 0;
+                                while (elementFound == null && k < foundElementList.size()) {
+                                    String xpath = ARWebUtil.extractXPath(
+                                            foundElementList.get(k).toString());
+
+                                    // Second verification for XPath found
+                                    if (xpath.equals(instructionReference.get().getValue())) {
+                                        elementFound = foundElementList.get(k);
+                                        break;
+                                    }
+                                    k++;
+                                }
+                            } else {
+                                elementFound = foundElementList.get(0);
+                            }
+                        } else {
+                            elementFound = iframeElement;
+                        }
+
+                        // Switch back to main content after interacting with iframe (if applicable)
+                        if (instructionPath.contains("iframe")) {
+                            arWebDriver.getDriver().switchTo().defaultContent();
+                        }
                     }
                 }
             }
@@ -896,6 +946,12 @@ public class PerformActions {
 
         for (String priority : priorityToSearch) {
             priority = priority.trim();
+
+            if (priority.equalsIgnoreCase("attributeID")) {
+                priority = "id";
+            } else if (priority.equalsIgnoreCase("attributeName")) {
+                priority = "name";
+            }
             // Create the By.cssSelector object and add it to the list
             By criteria = By.cssSelector(tagName + "[" + priority + "='" + someXPath + "']");
             criteriaList.add(criteria);
@@ -2879,6 +2935,7 @@ public class PerformActions {
                         customXPath,
                         null,
                         null,
+                        null,
                         null));
             }
         }
@@ -3224,6 +3281,28 @@ public class PerformActions {
         } catch (Exception error) {
 
         }
+    }
+
+    public static WebElement findElementByID(WebDriver driver, String elementID) {
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        jsExecutor = (JavascriptExecutor) driver;
+        return (WebElement) jsExecutor.executeScript("return document.getElementById(arguments[0]);", elementID);
+    }
+
+    public static WebElement findElementsByName(WebDriver driver, String elementName) {
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        jsExecutor = (JavascriptExecutor) driver;
+        return (WebElement)
+                jsExecutor.executeScript("return document.getElementsByName(arguments[0])[0];", elementName);
+    }
+
+    public static WebElement findElementByAttributeParams(
+            WebDriver driver, String attributeName, String attributeValue) {
+        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
+        return (WebElement) jsExecutor.executeScript(
+                "return document.querySelector('[arguments[0]=\"' + arguments[1] + '\"]');",
+                attributeName,
+                attributeValue);
     }
 
     public static String extractAttribute(WebElement element, WebElementAttributeEnum attributeEnum) {

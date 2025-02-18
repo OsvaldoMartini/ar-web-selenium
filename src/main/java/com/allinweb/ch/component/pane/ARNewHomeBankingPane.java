@@ -203,9 +203,12 @@ public class ARNewHomeBankingPane extends ARPane {
             StringBuilder priorities = new StringBuilder();
             priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
             priorities.append("1,xpath,currentXPath" + System.lineSeparator());
-            priorities.append("2,coordinates,coordinates" + System.lineSeparator());
-            priorities.append("3,xpath,allAttributes" + System.lineSeparator());
-            priorities.append("4,attribute,test-id" + System.lineSeparator());
+            priorities.append("2,attributeID,attributeID" + System.lineSeparator());
+            priorities.append("3,attributeName,attributeName" + System.lineSeparator());
+            priorities.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
+            priorities.append("5,coordinates,coordinates" + System.lineSeparator());
+            priorities.append("6,attribute,test-id" + System.lineSeparator());
+            //            priorMissing.append("7,attributes,allAttributes" + System.lineSeparator());
             priorityField.setText(priorities.toString());
 
             StringBuilder searchCriteria = new StringBuilder();

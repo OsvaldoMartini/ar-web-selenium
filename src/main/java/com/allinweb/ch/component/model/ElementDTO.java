@@ -20,6 +20,7 @@ public class ElementDTO {
     private String iFrameXPath;
     private String attributeValue;
     private String attributeType;
+    private String searchAttributeValue;
 
     // Copy Constructor
     public ElementDTO(ElementDTO other) {
@@ -35,5 +36,6 @@ public class ElementDTO {
         this.iFrameXPath = other.iFrameXPath;
         this.attributeValue = other.attributeValue;
         this.attributeType = other.attributeType;
+        this.searchAttributeValue = other.searchAttributeValue;
     }
 }

@@ -243,6 +243,9 @@ public class ARWebElement {
                     if (!Strings.isNullOrEmpty(targetElement.getAttribName())) {
                         savedReferences.put("attributeName", targetElement.getAttribName());
                     }
+                    if (!Strings.isNullOrEmpty(targetElement.getSearchAttributeValue())) {
+                        savedReferences.put("searchAttribute", targetElement.getSearchAttributeValue());
+                    }
                 } else if (targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.CUSTOM_XPATH)) {
                     savedReferences.put("currentXPath", targetElement.getCurrentXPath());
                     savedReferences.put("customXPath", targetElement.getCustomXPath());
@@ -253,12 +256,17 @@ public class ARWebElement {
                     if (!Strings.isNullOrEmpty(targetElement.getAttribName())) {
                         savedReferences.put("attributeName", targetElement.getAttribName());
                     }
+                    if (!Strings.isNullOrEmpty(targetElement.getSearchAttributeValue())) {
+                        savedReferences.put("searchAttribute", targetElement.getSearchAttributeValue());
+                    }
                 } else if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getMainXPath())) {
                     savedReferences.put("xpath", targetElement.getCurrentXPath());
                 } else if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
                     savedReferences.put("attributeID", targetElement.getAttribId());
                 } else if (!Strings.isNullOrEmpty(targetElement.getAttribName())) {
                     savedReferences.put("attributeName", targetElement.getAttribName());
+                } else if (!Strings.isNullOrEmpty(targetElement.getSearchAttributeValue())) {
+                    savedReferences.put("searchAttribute", targetElement.getSearchAttributeValue());
                 } else if (!Strings.isNullOrEmpty(targetElement.getAttributeValue())) {
                     savedReferences.put("attribute", targetElement.getAttributeValue());
                 } else { // In case of Dynamic Creation

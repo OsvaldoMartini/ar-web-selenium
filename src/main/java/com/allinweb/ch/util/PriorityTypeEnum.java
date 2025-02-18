@@ -4,6 +4,7 @@ public enum PriorityTypeEnum {
     attribute,
     attributeName,
     attributeID,
+    searchAttribute,
     ByAttribute, // NEW
     xpath,
     coordinates,

@@ -167,8 +167,8 @@ public class ARScannedElementPane extends ARPane {
     private CheckBox checkOutputText;
 
     private Label defineNameLabel;
-    private Label attribIdTextFieldLabel;
-    private Label attribNameTextFieldLabel;
+    //    private Label searchAttribNameLabel;
+    private Label searchAttribValueLabel;
     private Label currentXPathLabel;
     private Label currentAllAttributesLabel;
     private Label customXPathLabel;
@@ -184,8 +184,8 @@ public class ARScannedElementPane extends ARPane {
 
     private TextField defineNameField;
     private TextField testActionsField;
-    private TextField attribIdTextField;
-    private TextField attribNameTextField;
+    //    private TextField searchAttribNameField;
+    private TextField searchAttribValueField;
     private TextField currentXPathTextField;
     private TextField allAttributesTextField;
     private TextField customXPathTextField;
@@ -407,8 +407,9 @@ public class ARScannedElementPane extends ARPane {
 
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
 
-        attribIdTextFieldLabel = new Label("Attrib Id Found");
-        attribNameTextFieldLabel = new Label("Attrib Name Found");
+        //        searchAttribNameLabel = new Label("Search Attribute Name");
+        searchAttribValueLabel = new Label("Search Per Attribute");
+
         currentXPathLabel = new Label("XPath");
         currentAllAttributesLabel = new Label("All Attributes");
         customXPathLabel = new Label("Custom XPath");
@@ -418,10 +419,12 @@ public class ARScannedElementPane extends ARPane {
         defineNameField = new TextField();
         defineNameField.setPromptText("DEFINE A NAME");
 
-        attribIdTextField = new TextField();
-        attribIdTextField.setPromptText("Attrib Id");
-        attribNameTextField = new TextField();
-        attribNameTextField.setPromptText("Attrib Name");
+        //        searchAttribNameField = new TextField();
+        //        searchAttribNameField.setPromptText("Search Attrib Name");
+
+        searchAttribValueField = new TextField();
+        searchAttribValueField.setPromptText("Search per Attrib");
+
         currentXPathTextField = new TextField();
         currentXPathTextField.setPromptText("XPath");
         //        iFrameXPathTextField = new TextField();
@@ -633,6 +636,10 @@ public class ARScannedElementPane extends ARPane {
                             vBoxCheckBox,
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacerVert(),
+                            //                            searchAttribNameLabel,
+                            //                            searchAttribNameField,
+                            searchAttribValueLabel,
+                            searchAttribValueField,
                             textFlowResult,
                             boxActions,
                             createSpacerVert(),
@@ -1141,6 +1148,15 @@ public class ARScannedElementPane extends ARPane {
                 cloneTarget.setDefinedName(defineNameField.getText().trim());
                 cloneTarget.setNameLabel(defineNameField.getText().trim());
                 cloneTarget.setNameField(defineNameField.getText().trim());
+            }
+
+            //            if (!Strings.isNullOrEmpty(searchAttribNameField.getText().trim())) {
+            //                cloneTarget.setAttribSearchName(searchAttribNameField.getText().trim());
+            //            }
+
+            if (!Strings.isNullOrEmpty(searchAttribValueField.getText().trim())) {
+                cloneTarget.setSearchAttributeValue(
+                        searchAttribValueField.getText().trim());
             }
 
             try {
@@ -3509,13 +3525,24 @@ public class ARScannedElementPane extends ARPane {
                 sb.append("TagType: " + this.targetSelected.getTagType()).append("\n");
                 sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
                 sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
-                sb.append("All Attributes: " + this.targetSelected.getAllAttributes())
-                        .append("\n");
                 sb.append("Text: " + this.targetSelected.getSomeText()).append("\n");
 
-                //                sb.append("Attrib Value: " + this.targetSelected.getAttributeValue())
-                //                        .append("\n");
+                if (!Strings.isNullOrEmpty(this.targetSelected.getSearchAttributeValue())) {
+                    sb.append("Search Attrib: " + this.targetSelected.getSearchAttributeValue())
+                            .append("\n");
+                    searchAttribValueField.setText(this.targetSelected.getSearchAttributeValue());
+                    searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                } else {
+                    sb.append("Search Attrib: No Defined").append("\n");
+                }
+
                 sb.append("Named: " + nameDefined).append("\n");
+                String[] attributes = this.targetSelected.getAllAttributes().split(",");
+                sb.append("All Attributes Found: ").append("\n");
+                for (String attribute : attributes) {
+                    sb.append("->  ").append(attribute.trim()).append("\n");
+                }
+
                 countdownTextField.setText(sb.toString());
                 countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
 
@@ -6881,13 +6908,24 @@ public class ARScannedElementPane extends ARPane {
                 sb.append("TagType: " + pickTarget.getTagName()).append("\n");
                 sb.append("ID: " + pickTarget.getAttribId()).append("\n");
                 sb.append("Name: " + pickTarget.getAttribName()).append("\n");
-                sb.append("All Attributes: " + pickTarget.getAllAttributes()).append("\n");
                 sb.append("Text: " + pickTarget.getText()).append("\n");
-                //
-                // sb.append("Attrib Value: " + pickTarget.getAttributeValue())
-                //
-                //  .append("\n");
+
+                if (!Strings.isNullOrEmpty(pickTarget.getSearchAttributeValue())) {
+                    sb.append("Search Attrib: " + pickTarget.getSearchAttributeValue() + "="
+                                    + pickTarget.getSearchAttributeValue())
+                            .append("\n");
+                    searchAttribValueField.setText(pickTarget.getSearchAttributeValue());
+                    searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                } else {
+                    sb.append("Search Attrib: No Defined").append("\n");
+                }
+
                 sb.append("Named: " + nameDefined).append("\n");
+                String[] attributes = pickTarget.getAllAttributes().split(",");
+                sb.append("All Attributes Found: ").append("\n");
+                for (String attribute : attributes) {
+                    sb.append("->  ").append(attribute.trim()).append("\n");
+                }
 
                 iFrameCoords = "";
             }
