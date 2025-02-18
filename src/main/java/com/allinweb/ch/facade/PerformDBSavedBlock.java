@@ -125,7 +125,7 @@ public class PerformDBSavedBlock {
                     + "parent_id, "
                     + "path, "
                     + "variable_id, "
-                    + "component_block_id, "
+                    + "block_id, "
                     + "bot_job_id, "
                     + "active)\n"
                     + "VALUES ("

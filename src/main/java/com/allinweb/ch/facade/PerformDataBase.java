@@ -238,6 +238,40 @@ public class PerformDataBase {
         return false;
     }
 
+    private static boolean deleteCompVariable(int homeBankingId, int blockId, int botJobId) {
+        // Build the SQL delete statement
+
+        try (Statement stmt = getConnection().createStatement()) {
+
+            String deleteSQL =
+                    "DELETE FROM variable WHERE " + " instruction_id = " + blockId + " AND bot_job_id = " + blockId;
+
+            // Execute the update statement and check if any rows were affected
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Delete Variables for instruction ID %d has been successfully deleted from botJobId %d:",
+                                homeBankingId, blockId));
+            } else {
+                /*ARLogger.getInstance(PerformDataBase.class)
+                       .warning(String.format(
+                               "No matching record found for instruction ID %d in botJobId %d:",
+                               instructionId, bot_job_id));
+
+                */
+            }
+            return true;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error deleting  Variable ID %d from botJobId ID %d. Error: %s: ",
+                            homeBankingId, blockId, e.getMessage()));
+        }
+        return false;
+    }
+
     private static boolean deleteReferences(int botJobId, int instructionId) {
         // Build the SQL delete statement
         try (Statement stmt = getConnection().createStatement()) {
@@ -264,6 +298,36 @@ public class PerformDataBase {
                     .severe(String.format(
                             "Error deleting instruction ID %d from botJobId ID %d. Error: %s",
                             instructionId, botJobId, e.getMessage()));
+        }
+        return false;
+    }
+
+    private static boolean deleteCompReferences(int homeBankingId, int blockId, int botJobId) {
+        // Build the SQL delete statement
+        try (Statement stmt = getConnection().createStatement()) {
+
+            String deleteSQL = "DELETE FROM reference" + " WHERE instruction_id = " + blockId;
+
+            // Execute the update statement and check if any rows were affected
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Delete References for Instruction ID %d has been successfully deleted from botJobId %d.",
+                                homeBankingId, blockId));
+            } else {
+                //                ARLogger.getInstance(PerformDataBase.class)
+                //                        .warning(String.format(
+                //                                "No matching record found for instruction ID %d in block %d.",
+                //                                instructionId, botJobId));
+            }
+            return true;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error deleting instruction ID %d from botJobId ID %d. Error: %s",
+                            homeBankingId, blockId, e.getMessage()));
         }
         return false;
     }
@@ -318,7 +382,80 @@ public class PerformDataBase {
         return false;
     }
 
+    private static boolean deleteCompRow(int homeBankingId, int blockId, int botJobId) {
+        // Build the SQL delete statement
+        try (Statement stmt = getConnection().createStatement()) {
+
+            int rowsAffected = 0;
+            String deleteSQL = "DELETE FROM instruction" + " WHERE id = "
+                    + homeBankingId
+                    + (blockId > 0 ? " AND block_id = " + blockId : " AND block_id IS NULL");
+
+            if ("deleteInstructionDTO.getActions()" != null
+                    && ("deleteInstructionDTO.getActions()".equals("IF")
+                            || "deleteInstructionDTO.getActions()".equals("ELSE")
+                            || "deleteInstructionDTO.getActions()".equals("ENDIF"))) {
+
+                rowsAffected += stmt.executeUpdate("DELETE FROM instruction  "
+                        + " WHERE "
+                        + " block_id = " + blockId + " AND parent_id = "
+                        + "deleteInstructionDTO.getParentId()");
+            } else {
+
+                rowsAffected += stmt.executeUpdate(deleteSQL);
+            }
+
+            // Execute the update statement and check if any rows were affected
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "The instruction with ID %d has been successfully deleted from block %d.",
+                                "deleteInstructionDTO.getInstructionId()", blockId));
+            } else {
+                //                ARLogger.getInstance(PerformDataBase.class)
+                //                        .warning(String.format(
+                //                                "No matching record found for instruction ID %d in block %d.",
+                // instructionId, blockId));
+            }
+            return true;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error deleting instruction ID %d from block ID %d. Error: %s",
+                            "deleteInstructionDTO.getInstructionId()", blockId, e.getMessage()));
+        }
+        return false;
+    }
+
     public static void deleteNullBlocks(int botJobId) {
+        // Build the SQL delete statement
+        try (Statement stmt = getConnection().createStatement()) {
+
+            String deleteSQL = "DELETE FROM block b "
+                    + "WHERE b.bot_job_id = " + botJobId
+                    //                    + " AND b.block_order_number != 1 " // Exclude block with blockOrderNumber = 1
+                    + " AND NOT EXISTS ( "
+                    + "     SELECT 1 "
+                    + "     FROM instruction bli "
+                    + "     WHERE bli.block_id = b.id);";
+
+            // Execute the update statement and check if any rows were affected
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "The %d Nulls Blocks successfully deleted from botJobId %d.", rowsAffected, botJobId));
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error deleting Null Blocks with BotJobId ID %d. Error: %s", botJobId, e.getMessage()));
+        }
+    }
+
+    public static void deleteCompNullBlocks(int homeBankingId, int blockId, int botJobId) {
         // Build the SQL delete statement
         try (Statement stmt = getConnection().createStatement()) {
 
@@ -2415,39 +2552,65 @@ public class PerformDataBase {
         return -1;
     }
 
-    public int migrationScriptsv2_6f() {
+    public ErrorMessage dropTablesMigrationScriptsv2_7f() {
         // Build the SQL update statement
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = 0;
 
             if (POSTGRES_DB) {
 
-                // Update the bot_job_id in instruction using the bot_job_id from block
-                String updateSQL = "ALTER TABLE block_loop_instruction \n" + "RENAME TO new_block_loop_instruction;\n";
+                stmt.executeUpdate("DROP TABLE job_run_report;");
+                stmt.executeUpdate("DROP TABLE  variable;");
+                stmt.executeUpdate("DROP TABLE  instruction_reference;");
+                stmt.executeUpdate("DROP TABLE  block_loop_instruction;");
 
-                rowsAffected = stmt.executeUpdate(updateSQL);
+                stmt.executeUpdate("DROP TABLE  saved_instruction_reference;");
+                stmt.executeUpdate("DROP TABLE  saved_block_loop_instruction;");
+                stmt.executeUpdate("DROP TABLE  saved_blocks;");
+
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
 
                 // Update the bot_job_id in reference using the instruction_id from
-                // instruction
-                updateSQL = "ALTER TABLE instruction_reference \n" + "RENAME TO reference;";
-
-                rowsAffected += stmt.executeUpdate(updateSQL);
 
             } else {
 
-                String updateSQL = "DROP TABLE instruction;";
-                rowsAffected = stmt.executeUpdate(updateSQL);
+                stmt.executeUpdate("DROP TABLE job_run_report;");
+                stmt.executeUpdate("DROP TABLE  variable;");
+                stmt.executeUpdate("DROP TABLE  instruction_reference;");
+                stmt.executeUpdate("DROP TABLE  complex_instruction;");
+                stmt.executeUpdate("DROP TABLE  block_loop_instruction;");
 
-                // Update the bot_job_id in instruction using the bot_job_id from block
-                updateSQL = "ALTER TABLE block_loop_instruction \n" + "RENAME TO new_block_loop_instruction;\n";
+                stmt.executeUpdate("DROP TABLE  saved_instruction_reference;");
+                stmt.executeUpdate("DROP TABLE  saved_block_loop_instruction;");
+                stmt.executeUpdate("DROP TABLE  saved_blocks;");
 
-                rowsAffected = stmt.executeUpdate(updateSQL);
-
-                updateSQL = "DROP TABLE reference;";
-                rowsAffected = stmt.executeUpdate(updateSQL);
-                updateSQL = "ALTER TABLE instruction_reference \n" + "RENAME TO reference;";
-
-                rowsAffected += stmt.executeUpdate(updateSQL);
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
+                rowsAffected += stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
             }
 
             if (rowsAffected > 0) {
@@ -2456,11 +2619,12 @@ public class PerformDataBase {
             } else {
                 ARLogger.getInstance(PerformDataBase.class).info("Migration DB Scripts - No Rows were updated");
             }
-            return rowsAffected;
-        } catch (SQLException e) {
-            ARLogger.getInstance(PerformDataBase.class).warning("Migration DB Scripts - Error: " + e.getMessage());
+            return null;
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class).warning("Migration DB Scripts - Error: " + error.getMessage());
+            return new ErrorMessage(
+                    "Error Drop Tables Migration 2.7f", "Error dropping OLD objects", error.getMessage());
         }
-        return -1;
     }
 
     public List<VariableLoadDTO> instVariablesToDuplicateOLD(Connection conn, int oldBotJobId, String targetTable)
@@ -3342,9 +3506,10 @@ public class PerformDataBase {
                 + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, parent_id, path, coordinates, iframe_xpath, variable_id, block_id, bot_job_id) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        if (targetTable.equalsIgnoreCase("component_instruction")) {
-            blockLoopInstructionInsertQuery = blockLoopInstructionInsertQuery.replace("block_id", "component_block_id");
-        }
+        //        if (targetTable.equalsIgnoreCase("component_instruction")) {
+        //            blockLoopInstructionInsertQuery = blockLoopInstructionInsertQuery.replace("block_id",
+        // "component_block_id");
+        //        }
 
         try (PreparedStatement blockLoopStmt = conn.prepareStatement(blockLoopInstructionInsertQuery)) {
             for (com.allinweb.ch.component.model.InstructionDTO instruction : instList) {
@@ -3798,5 +3963,16 @@ public class PerformDataBase {
                     .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
+    }
+
+    // Handle DELETE_INSTRUCTION message
+    public static void deleteComponent(int homeBankingId, int blockId, int botJobId) {
+        if (deleteCompVariable(homeBankingId, blockId, botJobId))
+            if (deleteCompReferences(homeBankingId, blockId, botJobId))
+                if (deleteCompRow(homeBankingId, blockId, botJobId)) {
+                    deleteCompNullBlocks(homeBankingId, blockId, botJobId);
+                    //                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionDTO.getBlockId()),
+                    // true);
+                }
     }
 }

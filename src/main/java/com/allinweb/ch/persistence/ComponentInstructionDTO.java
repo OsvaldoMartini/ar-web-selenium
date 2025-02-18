@@ -63,7 +63,7 @@ public class ComponentInstructionDTO extends BaseDTO {
     private Boolean active;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "component_block_id")
+    @JoinColumn(name = "block_id")
     private ComponentBlockDTO componentBlockDTO;
 
     @Transient

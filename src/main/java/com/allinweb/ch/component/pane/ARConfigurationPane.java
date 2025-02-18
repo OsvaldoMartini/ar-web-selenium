@@ -536,6 +536,8 @@ public class ARConfigurationPane extends ARPane {
                     }
                 }
 
+                performDataBase.dropTablesMigrationScriptsv2_7f();
+
                 if (errorMessage == null) {
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
