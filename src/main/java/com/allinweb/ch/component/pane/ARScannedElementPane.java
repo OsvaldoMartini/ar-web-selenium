@@ -165,6 +165,7 @@ public class ARScannedElementPane extends ARPane {
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
+    private CheckBox checkForceEnterText;
 
     private Label defineNameLabel;
     //    private Label searchAttribNameLabel;
@@ -364,6 +365,8 @@ public class ARScannedElementPane extends ARPane {
         checkClickElement = new CheckBox("For Click");
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
+        checkForceEnterText = new CheckBox("Add <PRESS ENTER>");
+        checkForceEnterText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
@@ -562,7 +565,9 @@ public class ARScannedElementPane extends ARPane {
             boxCoordenates.getChildren().addAll(checkClickElement);
 
             VBox vBoxCheckBox = new VBox();
-            vBoxCheckBox.getChildren().addAll(boxCoordenates, checkInputText, checkOutputText, iFrameText);
+            vBoxCheckBox
+                    .getChildren()
+                    .addAll(boxCoordenates, checkInputText, checkOutputText, checkForceEnterText, iFrameText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
             //        gridPaneTop.add(vBox, 9, 0);
 
@@ -3211,15 +3216,20 @@ public class ARScannedElementPane extends ARPane {
                                 ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
 
                                 String actionReq = checkClickElement.isSelected()
-                                        ? "CLICK"
+                                        ? ARConstants.CLICK
                                         : checkInputText.isSelected()
-                                                ? "INPUT"
-                                                : checkOutputText.isSelected() ? "OUTPUT" : "OTHER";
-                                InstructionDTO instruction = arWebHover.buildBlockLoopInstruction(
-                                        arWebHover.getTargetElement().getTagType(),
-                                        actionReq,
-                                        checkPickElement.isSelected(),
-                                        list.size());
+                                                ? ARConstants.INSERT
+                                                : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
+
+                                WebElementTagNameEnum tagType =
+                                        arWebHover.getTargetElement().getTagType();
+
+                                if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
+                                    tagType = WebElementTagNameEnum.INPUT_ENTER;
+                                }
+
+                                InstructionDTO instruction = arWebHover.buildNewInstruction(
+                                        tagType, actionReq, checkPickElement.isSelected(), list.size());
 
                                 instruction.setCoordinates(
                                         arWebHover.getTargetElement().getMainCoordinates());
@@ -3244,7 +3254,11 @@ public class ARScannedElementPane extends ARPane {
                                         for (int i = 0; i < parts.length; i++) {
                                             parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
                                             if (parts[i].startsWith("I:")) {
-                                                parts[i] = "I:" + finalNameWebElement; // Modify only the relevant part
+                                                if (parts[i].contains(":E:")) {
+                                                    parts[i] = "I:E:" + finalNameWebElement;
+                                                } else {
+                                                    parts[i] = "I:" + finalNameWebElement;
+                                                }
                                                 break; // Stop after modifying the first match
                                             }
                                         }
@@ -7716,7 +7730,10 @@ public class ARScannedElementPane extends ARPane {
 
                         // Case for Inputs
                         String valueInsert = "No Data Found";
-                        if (actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
+                        if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                            String reference = actions[2];
+                            valueInsert = dataExcel.get(reference);
+                        } else if (actions[0].equals(ARConstants.INSERT)) {
                             String reference = actions[1];
                             valueInsert = dataExcel.get(reference);
                         }

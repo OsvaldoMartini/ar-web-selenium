@@ -146,6 +146,8 @@ public class ARConstants {
     public static final String TAB = "TAB";
     public static final String SEND_KEYS = "SEND_KEYS";
     public static final String INSERT = "I";
+    public static final String ENTER = "E";
+    public static final String INSERT_ENTER = "I:E";
     public static final String CLICK = "C";
     public static final String FOCUS = "FOCUS";
     public static final String SELECT = "SELECT";

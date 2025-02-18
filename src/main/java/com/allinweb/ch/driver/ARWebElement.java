@@ -616,7 +616,7 @@ public class ARWebElement {
         //        }
     }
 
-    public InstructionDTO buildBlockLoopInstruction(
+    public InstructionDTO buildNewInstruction(
             WebElementTagNameEnum forceTag, String actionReq, boolean identityHover, Integer orderNumber) {
         InstructionDTO loop = new InstructionDTO();
         loop.setActionCustomMaxWaitSec(30);
@@ -632,42 +632,81 @@ public class ARWebElement {
             action = ARConstants.EXTRACT_FIELD + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + "EXTERNAL_REFERENCE";
         } else {
             if (identityHover) {
-                action = actionReq.equalsIgnoreCase("INPUT")
-                        ? ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText()
-                        : actionReq.equalsIgnoreCase("OUTPUT")
-                                ? ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText()
-                                : actionReq.equalsIgnoreCase("OTHER")
-                                        ? ARConstants.OTHER
-                                                + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
-                                                + nameLabel.getText()
-                                        : actionReq.equalsIgnoreCase("click")
-                                                ? ARConstants.CLICK
-                                                : clickElement.get()
-                                                        ? ARConstants.CLICK
-                                                        : ARConstants.INSERT
-                                                                + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
-                                                                + nameLabel.getText();
+                switch (actionReq.toUpperCase()) {
+                    case ARConstants.INSERT:
+                        if (forceTag.equals(WebElementTagNameEnum.INPUT_ENTER)) {
+                            action = ARConstants.INSERT_ENTER
+                                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                    + nameLabel.getText();
+                        } else {
+                            action = ARConstants.INSERT
+                                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                    + nameLabel.getText();
+                        }
+                        break;
+
+                    case ARConstants.OUTPUT:
+                        action = ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                        break;
+
+                    case ARConstants.OTHER:
+                        action = ARConstants.OTHER + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                        break;
+
+                    case ARConstants.CLICK:
+                        action = ARConstants.CLICK;
+                        break;
+
+                    default:
+                        // For all other cases, check clickElement.get() and handle accordingly
+                        action = clickElement.get()
+                                ? ARConstants.CLICK
+                                : ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                        break;
+                }
+
             } else {
 
                 if (targetElement.getTagType() != null) {
-                    if (targetElement.getTagType().equals(WebElementTagNameEnum.INPUT)) {
-                        action = ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
-                    } else if (targetElement.getTagType().equals(WebElementTagNameEnum.HIDDEN)) {
-                        action = ARConstants.INSERT
-                                + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
-                                + nameLabel.getText()
-                                + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
-                                + ARConstants.HIDDEN;
-                    } else if (targetElement.getTagType().equals(WebElementTagNameEnum.BUTTON)) {
-                        action = ARConstants.CLICK;
+                    switch (targetElement.getTagType()) {
+                        case INPUT:
+                            if (forceTag.equals(WebElementTagNameEnum.INPUT_ENTER)) {
+                                action = ARConstants.INSERT_ENTER
+                                        + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                        + nameLabel.getText();
+                            } else {
+                                action = ARConstants.INSERT
+                                        + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                        + nameLabel.getText();
+                            }
+                            break;
 
-                    } else if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.OUTPUT)) {
-                        // Handle the OUTPUT case
-                        action = ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
-                    } else {
-                        action = ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();
+                        case HIDDEN:
+                            action = ARConstants.INSERT
+                                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                    + nameLabel.getText()
+                                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                    + ARConstants.HIDDEN;
+                            break;
+
+                        case BUTTON:
+                            action = ARConstants.CLICK;
+                            break;
+
+                        default:
+                            if (targetElement.getTagType().getValue().equalsIgnoreCase(ARConstants.OUTPUT)) {
+                                action = ARConstants.OUTPUT
+                                        + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                        + nameLabel.getText();
+                            } else {
+                                action = ARConstants.OUTPUT
+                                        + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                                        + nameLabel.getText();
+                            }
+                            break;
                     }
                 } else {
+                    // Handle case where targetElement.getTagType() is null
                     action = clickElement.get()
                             ? ARConstants.CLICK
                             : ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel.getText();

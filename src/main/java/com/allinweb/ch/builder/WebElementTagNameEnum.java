@@ -5,6 +5,7 @@ import java.util.List;
 public enum WebElementTagNameEnum {
     ALL("*"),
     INPUT("input"),
+    INPUT_ENTER("I:E"),
     OUTPUT("O"),
     BUTTON("button"),
     FORM("form"),

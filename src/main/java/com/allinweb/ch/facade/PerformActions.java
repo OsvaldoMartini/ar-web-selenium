@@ -211,12 +211,18 @@ public class PerformActions {
                             }
                             return passed;
                         } else {
+                            Boolean pressEnterAfter = false;
+                            if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                                pressEnterAfter = true;
+                            }
+
                             passed = insertInElement(
                                     byPassNotFound,
                                     instructionElement,
                                     data.getValue(),
                                     currentInstruction.getDefaultValue(),
-                                    currentInstruction.getCodified());
+                                    currentInstruction.getCodified(),
+                                    pressEnterAfter);
 
                             if (!passed) {
                                 // Try by coordinates
@@ -981,7 +987,7 @@ public class PerformActions {
         if (dataFieldValue != null) {
             element.clear();
             element.sendKeys(dataFieldValue);
-            element.sendKeys(Keys.ENTER);
+            element.sendKeys(Keys.TAB);
         }
 
         return fieldName + "->" + dataFieldValue;
@@ -1138,7 +1144,12 @@ public class PerformActions {
     }
 
     private boolean insertInElement(
-            boolean byPassNotFound, WebElement element, String dataFieldValue, String defaultValue, boolean isEncrypted)
+            boolean byPassNotFound,
+            WebElement element,
+            String dataFieldValue,
+            String defaultValue,
+            boolean isEncrypted,
+            boolean pressEnterAfter)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
 
@@ -1165,11 +1176,18 @@ public class PerformActions {
                 if (dataFieldValue != null) {
                     element.clear();
                     element.sendKeys(dataFieldValue);
-                    element.sendKeys(Keys.ENTER);
-
+                    if (!pressEnterAfter) {
+                        element.sendKeys(Keys.TAB);
+                    } else {
+                        element.sendKeys(Keys.ENTER);
+                    }
                 } else {
                     element.sendKeys(UtilsMethods.generateRandomID(10));
-                    element.sendKeys(Keys.ENTER);
+                    if (!pressEnterAfter) {
+                        element.sendKeys(Keys.TAB);
+                    } else {
+                        element.sendKeys(Keys.ENTER);
+                    }
                 }
             } else {
                 dataFieldValue = defaultValue;
@@ -1178,6 +1196,11 @@ public class PerformActions {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
                 element.sendKeys(dataFieldValue);
+                if (!pressEnterAfter) {
+                    element.sendKeys(Keys.TAB);
+                } else {
+                    element.sendKeys(Keys.ENTER);
+                }
             }
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1989,7 +2012,12 @@ public class PerformActions {
             case ARConstants.CLICK:
                 return "Click Element --> " + msgInstruction.getKey();
             case ARConstants.INSERT:
-                return "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
+                if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                    return "Insert/<Enter> action for  -> " + msgInstruction.getKey() + " = "
+                            + msgInstruction.getValue();
+                } else {
+                    return "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
+                }
             case ARConstants.LIST_OPERATION:
                 return "List Operation performed for " + msgInstruction.getKey();
             case ARConstants.HOLD:

@@ -721,7 +721,7 @@ public class ARWebElementNew {
         //        }
     }
 
-    public InstructionDTO buildBlockLoopInstruction(
+    public InstructionDTO buildNewInstruction(
             WebElementTagNameEnum forceTag, String actionReq, boolean identityHover, Integer orderNumber) {
         InstructionDTO loop = new InstructionDTO();
         loop.setActionCustomMaxWaitSec(30);
