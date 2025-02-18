@@ -40,6 +40,7 @@ public class TargetElement {
     Boolean isElementHidden;
     Boolean cloned;
     String searchAttributeValue;
+    boolean forceCoordinates;
 
     public TargetElement(TargetElement origin) {
         this.nameLabel = origin.nameLabel;
@@ -70,6 +71,7 @@ public class TargetElement {
         this.isElementHidden = origin.isElementHidden;
         this.cloned = origin.cloned;
         this.searchAttributeValue = origin.searchAttributeValue;
+        this.forceCoordinates = origin.forceCoordinates;
     }
 
     public void reset() {
@@ -101,6 +103,7 @@ public class TargetElement {
         this.isElementHidden = null;
         this.cloned = false;
         this.searchAttributeValue = null;
+        this.forceCoordinates = false;
     }
 }
 

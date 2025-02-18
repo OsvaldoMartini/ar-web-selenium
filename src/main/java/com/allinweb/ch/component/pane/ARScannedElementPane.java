@@ -8,9 +8,9 @@ import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.ARWebElementListCell;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
@@ -161,7 +161,7 @@ public class ARScannedElementPane extends ARPane {
 
     private CheckBox checkTestAction;
     private CheckBox checkJavaScript;
-    private CheckBox checkCoordinates;
+    private CheckBox checkTestCoordinates;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
@@ -213,7 +213,7 @@ public class ARScannedElementPane extends ARPane {
     private String iFrameCoords;
     private List<ElementDTO> elementsFound = new ArrayList<>();
 
-    List<BlockLoopInstructionLoadDTO> instructionsExecuted = new ArrayList<>();
+    List<InstructionLoadDTO> instructionsExecuted = new ArrayList<>();
     List<Integer> executedSuccess = new ArrayList<>();
     Map<String, WebElement> mapAdvanced = new HashMap<>();
 
@@ -361,7 +361,7 @@ public class ARScannedElementPane extends ARPane {
         checkTestAction = new CheckBox("Test Actions");
         checkJavaScript = new CheckBox("JS");
 
-        checkCoordinates = new CheckBox("Coordinates");
+        checkTestCoordinates = new CheckBox("Test Coordinates");
 
         //        checkClickElement.setSelected(true);
         checkClickElement = new CheckBox("For Click");
@@ -563,9 +563,9 @@ public class ARScannedElementPane extends ARPane {
             checkClickElement
                     .prefWidthProperty()
                     .bind(boxCoordenates.widthProperty().multiply(0.50));
-            checkCoordinates
-                    .prefWidthProperty()
-                    .bind(boxCoordenates.widthProperty().multiply(0.50));
+            //            checkTestCoordinates
+            //                    .prefWidthProperty()
+            //                    .bind(boxCoordenates.widthProperty().multiply(0.50));
 
             // Add elements to the HBox
             //            boxCoordenates.getChildren().addAll(checkClickElement, checkCoordinates);
@@ -619,16 +619,25 @@ public class ARScannedElementPane extends ARPane {
 
             HBox boxActions = new HBox();
             boxActions.setSpacing(5);
-
             // Set proportional widths for each child
             testActionsField = new TextField("0001");
             checkTestAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.70));
             checkJavaScript.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.10));
             testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
 
-            // Add elements to the HBox
-            //            boxActions.getChildren().addAll(checkTestAction, checkJavaScript, testActionsField);
             boxActions.getChildren().addAll(checkTestAction, testActionsField);
+
+            HBox boxCorrdinates = new HBox();
+            boxCorrdinates.setSpacing(5);
+            checkTestCoordinates
+                    .prefWidthProperty()
+                    .bind(boxActions.widthProperty().multiply(0.70));
+            coordsTextField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
+            boxCorrdinates.getChildren().addAll(checkTestCoordinates, coordsTextField);
+
+            //            coordsTextField
+            //                    .prefWidthProperty()
+            //                    .bind(boxCoordenates.widthProperty().multiply(0.50));
 
             HBox hBoxPickClone = new HBox();
             hBoxPickClone
@@ -660,6 +669,7 @@ public class ARScannedElementPane extends ARPane {
                             searchAttribValueField,
                             textFlowResult,
                             boxActions,
+                            boxCorrdinates,
                             createSpacerVert(),
                             createCustomSeparator(Color.DARKBLUE, 2),
                             hBoxLaunchButon,
@@ -968,7 +978,7 @@ public class ARScannedElementPane extends ARPane {
 
             // Set all instructions' executed field to false
             botJobLoadList.get(0).getBlockLoadDTOList().stream()
-                    .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())
+                    .flatMap(block -> block.getInstructionLoadDTOS().stream())
                     .forEach(instruction -> instruction.setExecuted(false));
 
             recallJob();
@@ -1733,7 +1743,28 @@ public class ARScannedElementPane extends ARPane {
     private TargetElement checkValidateSearchPriorities(TargetElement target) {
         WebElement elementValid = null;
         if (!Strings.isNullOrEmpty(target.getCurrentXPath())) {
-            if (elementValid == null) {
+
+            if (target.isForceCoordinates()) {
+                // Try by coordinates
+                try {
+                    Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
+                    boolean passed = performAction.executeActionsAtCoordinates(
+                            target.getCoords(), filedData, ARConstants.VISUALIZE, false);
+                    if (passed) {
+                        elementValid = performAction.getElementFromCoordinates(target.getCoords());
+                        if (elementValid != null && elementValid.getTagName() != null) {
+                            target.setElement(elementValid);
+                        }
+
+                        target.setXPathWorkedFirst(ARConstants.SEARCH_COORD);
+                    }
+
+                } catch (Exception e) {
+                    ARLogger.getInstance(ARScannedElementPane.class)
+                            .warning(String.format(
+                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+                }
+            } else if (elementValid == null) {
                 try {
                     elementValid = arWebDriver.getDriver().findElement(By.xpath(target.getCurrentXPath()));
                     if (elementValid != null && elementValid.getTagName() != null) {
@@ -1792,27 +1823,6 @@ public class ARScannedElementPane extends ARPane {
                                     .warning(String.format(
                                             "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
                         }
-                    }
-
-                } else if (elementValid == null) {
-                    // Try by coordinates
-                    try {
-                        Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                        boolean passed = performAction.executeActionsAtCoordinates(
-                                target.getCoords(), filedData, ARConstants.VISUALIZE);
-                        if (passed) {
-                            elementValid = performAction.getElementFromCoordinates(target.getCoords());
-                            if (elementValid != null && elementValid.getTagName() != null) {
-                                target.setElement(elementValid);
-                            }
-
-                            target.setXPathWorkedFirst(ARConstants.SEARCH_COORD);
-                        }
-
-                    } catch (Exception e) {
-                        ARLogger.getInstance(ARScannedElementPane.class)
-                                .warning(String.format(
-                                        "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
                     }
                 }
             }
@@ -2738,7 +2748,8 @@ public class ARScannedElementPane extends ARPane {
                                 performAction.executeActionsAtCoordinates(
                                         arWebHover.getSavedReferences().get("coordinates"),
                                         filedData,
-                                        ARConstants.CLICK);
+                                        ARConstants.CLICK,
+                                        false);
 
                                 // It Means Did Not Failed to Coordinates
                                 // I am Setting here to avoid the Not Found Message
@@ -2823,19 +2834,26 @@ public class ARScannedElementPane extends ARPane {
 
                             String[] coordinates = new String[] {mainCoordenates, savedCoordenates};
 
-                            if (checkCoordinates.isSelected()) {
+                            if (checkTestCoordinates.isSelected()) {
                                 performAction.executeActionsAtCoordinates(
-                                        coordinates[1], fieldData, ARConstants.VISUALIZE);
+                                        coordinates[1], fieldData, ARConstants.VISUALIZE, false);
                                 performAction.executeActionsAtCoordinates(
-                                        coordinates[0], fieldData, ARConstants.VISUALIZE);
-
-                                performAction.executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.CLICK);
-                                performAction.executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.CLICK);
+                                        coordinates[0], fieldData, ARConstants.VISUALIZE, false);
 
                                 performAction.executeActionsAtCoordinates(
-                                        coordinates[1], fieldData, ARConstants.INSERT);
+                                        coordinates[1], fieldData, ARConstants.CLICK, false);
                                 performAction.executeActionsAtCoordinates(
-                                        coordinates[0], fieldData, ARConstants.INSERT);
+                                        coordinates[0], fieldData, ARConstants.CLICK, false);
+
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[1], fieldData, ARConstants.INSERT, false);
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[0], fieldData, ARConstants.INSERT, false);
+
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[1], fieldData, ARConstants.INSERT, true);
+                                performAction.executeActionsAtCoordinates(
+                                        coordinates[0], fieldData, ARConstants.INSERT, true);
 
                                 performAction.moveAndClickAtCoordinates(coordinates[1], arWebDriver.getDriver());
                                 performAction.moveAndClickAtCoordinates(coordinates[0], arWebDriver.getDriver());
@@ -2852,7 +2870,7 @@ public class ARScannedElementPane extends ARPane {
                             Text actionText9;
                             Text actionText10;
                             Text actionText11;
-                            Text actionText12;
+                            //                            Text actionText12;
 
                             StringBuilder actionsTested = new StringBuilder();
                             actionsTested.append("Actions Tested:" + System.lineSeparator());
@@ -2865,11 +2883,10 @@ public class ARScannedElementPane extends ARPane {
                                     ARConstants.SELECT,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
-
                             actionsTested.append(result + System.lineSeparator());
-
                             actionText2 = new Text(result);
                             if (result.contains("Failed")) {
                                 actionText2.setStyle("-fx-font-size: 12px; -fx-fill: red;");
@@ -2882,11 +2899,10 @@ public class ARScannedElementPane extends ARPane {
                                     ARConstants.CLICK,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
-
                             actionsTested.append(result + System.lineSeparator());
-
                             actionText3 = new Text(result);
                             if (result.contains("Failed")) {
                                 actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
@@ -2899,11 +2915,10 @@ public class ARScannedElementPane extends ARPane {
                                     ARConstants.GET_VALUE,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
-
                             actionsTested.append(result + System.lineSeparator());
-
                             actionText4 = new Text(result);
                             if (result.contains("Failed")) {
                                 actionText4.setStyle("-fx-font-size: 12px; -fx-fill: red;");
@@ -2916,11 +2931,10 @@ public class ARScannedElementPane extends ARPane {
                                     ARConstants.CLEAR,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
-
                             actionsTested.append(result + System.lineSeparator());
-
                             actionText5 = new Text(result);
                             if (result.contains("Failed")) {
                                 actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
@@ -2933,11 +2947,10 @@ public class ARScannedElementPane extends ARPane {
                                     ARConstants.INSERT,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
-
                             actionsTested.append(result + System.lineSeparator());
-
                             actionText6 = new Text(result);
                             if (result.contains("Failed")) {
                                 actionText6.setStyle("-fx-font-size: 12px; -fx-fill: red;");
@@ -2947,10 +2960,11 @@ public class ARScannedElementPane extends ARPane {
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
-                                    ARConstants.GET_VALUE,
+                                    ARConstants.FOCUS,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
 
                             actionsTested.append(result + System.lineSeparator());
@@ -2964,10 +2978,11 @@ public class ARScannedElementPane extends ARPane {
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
-                                    ARConstants.FOCUS,
+                                    ARConstants.TAB,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
 
                             actionsTested.append(result + System.lineSeparator());
@@ -2981,14 +2996,13 @@ public class ARScannedElementPane extends ARPane {
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
-                                    ARConstants.TAB,
+                                    ARConstants.COORD_VISUALIZA,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
-
                             actionsTested.append(result + System.lineSeparator());
-
                             actionText9 = new Text(result);
                             if (result.contains("Failed")) {
                                 actionText9.setStyle("-fx-font-size: 12px; -fx-fill: red;");
@@ -2998,10 +3012,11 @@ public class ARScannedElementPane extends ARPane {
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
-                                    ARConstants.COORD_VISUALIZA,
+                                    ARConstants.COORD_CLICK,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
 
                             actionsTested.append(result + System.lineSeparator());
@@ -3015,10 +3030,11 @@ public class ARScannedElementPane extends ARPane {
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
-                                    ARConstants.COORD_CLICK,
+                                    ARConstants.COORD_INSERT,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver());
+                                    arWebDriver.getDriver(),
+                                    false);
                             System.out.println(result);
 
                             actionsTested.append(result + System.lineSeparator());
@@ -3028,23 +3044,6 @@ public class ARScannedElementPane extends ARPane {
                                 actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
                             } else {
                                 actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performAction.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.COORD_INSERT,
-                                    coordinates,
-                                    fieldData,
-                                    arWebDriver.getDriver());
-                            System.out.println(result);
-
-                            actionsTested.append(result + System.lineSeparator());
-
-                            actionText12 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
                             System.out.println(actionsTested.toString());
@@ -3062,8 +3061,7 @@ public class ARScannedElementPane extends ARPane {
                                             actionText8,
                                             actionText9,
                                             actionText10,
-                                            actionText11,
-                                            actionText12);
+                                            actionText11);
 
                             Platform.runLater(() -> {
                                 textFlowResult.getChildren().clear();
@@ -3378,7 +3376,7 @@ public class ARScannedElementPane extends ARPane {
 
                                             botJobLoadList = performDataBase.loadBotJobComplete(currentBotJobId);
                                             if (botJobLoadList.size() > 0) {
-                                                List<BlockLoopInstructionLoadDTO> blockLoopInstructions =
+                                                List<InstructionLoadDTO> blockLoopInstructions =
                                                         performDataBase.buildJsonViewData(botJobLoadList);
 
                                                 String jsonData = gson.toJson(blockLoopInstructions);
@@ -3560,6 +3558,13 @@ public class ARScannedElementPane extends ARPane {
                 sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
                 sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
                 sb.append("Text: " + this.targetSelected.getSomeText()).append("\n");
+
+                if (!Strings.isNullOrEmpty(this.targetSelected.getCoords())) {
+                    sb.append("Coordinates: " + this.targetSelected.getCoords()).append("\n");
+                    coordsTextField.setText(this.targetSelected.getCoords());
+                } else {
+                    sb.append("Coordinates: EMPTY").append("\n");
+                }
 
                 if (!Strings.isNullOrEmpty(this.targetSelected.getSearchAttributeValue())) {
                     sb.append("Search Attrib: " + this.targetSelected.getSearchAttributeValue())
@@ -6944,6 +6949,13 @@ public class ARScannedElementPane extends ARPane {
                 sb.append("Name: " + pickTarget.getAttribName()).append("\n");
                 sb.append("Text: " + pickTarget.getText()).append("\n");
 
+                if (!Strings.isNullOrEmpty(pickTarget.getCoords())) {
+                    sb.append("Coordinates: " + pickTarget.getCoords()).append("\n");
+                    coordsTextField.setText(pickTarget.getCoords());
+                } else {
+                    sb.append("Coordinates: EMPTY").append("\n");
+                }
+
                 if (!Strings.isNullOrEmpty(pickTarget.getSearchAttributeValue())) {
                     sb.append("Search Attrib: " + pickTarget.getSearchAttributeValue() + "="
                                     + pickTarget.getSearchAttributeValue())
@@ -7211,7 +7223,7 @@ public class ARScannedElementPane extends ARPane {
 
         // Review if Has Not Executed Instructions
         boolean hasUnexecutedInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
-                .flatMap(block -> block.getBlockLoopInstructionLoadDTOS().stream())
+                .flatMap(block -> block.getInstructionLoadDTOS().stream())
                 .anyMatch(instruction -> instruction.getExecuted() == null || !instruction.getExecuted());
 
         if (hasUnexecutedInstructions) {
@@ -7288,11 +7300,11 @@ public class ARScannedElementPane extends ARPane {
 
         // Assuming blocksLoaded is your List<BlockLoadDTO>
         List<String> allActions = blocksLoaded.stream()
-                .flatMap(
-                        blockLoadDTO -> blockLoadDTO
-                                .getBlockLoopInstructionLoadDTOS()
+                .flatMap(blockLoadDTO ->
+                        blockLoadDTO
+                                .getInstructionLoadDTOS()
                                 .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
-                .map(BlockLoopInstructionLoadDTO::getActions) // Extract the actions
+                .map(InstructionLoadDTO::getActions) // Extract the actions
                 .collect(Collectors.toList()); // Collect all actions into a List
 
         ExcelReader excelReader = new ExcelReader();
@@ -7390,7 +7402,7 @@ public class ARScannedElementPane extends ARPane {
 
         Set<String> mapIgnore = new HashSet<>();
 
-        boolean searchByJavaScript = checkJavaScript.isSelected();
+        //        boolean searchByJavaScript = checkJavaScript.isSelected();
 
         String mainMsg = "";
         boolean byPassNotFound = false;
@@ -7590,15 +7602,15 @@ public class ARScannedElementPane extends ARPane {
                 // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on current
                 // Block
                 parentIdsForLoop = performAction.getParentIdsForLoop(
-                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
+                        blocksLoaded.get(currentBlock).getInstructionLoadDTOS());
 
                 // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF", "ELSEIF",
                 // "ELSE", and "ENDIF"
                 mapConditional = performAction.getConditionIndexMapByParentId(blockLoad);
 
                 // Step 3: Get all Instructions Ids on current Block
-                int[] instructionIds = blockLoad.getBlockLoopInstructionLoadDTOS().stream()
-                        .mapToInt(BlockLoopInstructionLoadDTO::getId)
+                int[] instructionIds = blockLoad.getInstructionLoadDTOS().stream()
+                        .mapToInt(InstructionLoadDTO::getId)
                         .toArray();
 
                 // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
@@ -7629,8 +7641,8 @@ public class ARScannedElementPane extends ARPane {
 
                         long currentInstructionStartTime = System.nanoTime();
 
-                        BlockLoopInstructionLoadDTO currentInstruction =
-                                blockLoad.getBlockLoopInstructionLoadDTOS().get(currentIndex);
+                        InstructionLoadDTO currentInstruction =
+                                blockLoad.getInstructionLoadDTOS().get(currentIndex);
 
                         byPassFlagLoop = parentIdsForLoop.contains(currentInstruction.getId());
 
@@ -7783,8 +7795,7 @@ public class ARScannedElementPane extends ARPane {
                         } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
                             // <currentId:parentId:parentName>
                             msgInstruction = performAction.getInstructionDetailsById(
-                                    blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS(),
-                                    currentInstruction);
+                                    blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
 
                             if (msgInstruction == null) {
                                 msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
@@ -7799,8 +7810,7 @@ public class ARScannedElementPane extends ARPane {
                             }
                         } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
                             msgInstruction = performAction.getInstructionDetailsById(
-                                    blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS(),
-                                    currentInstruction);
+                                    blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
                             if (msgInstruction == null) {
                                 msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
                                 success = false;
@@ -8175,12 +8185,20 @@ public class ARScannedElementPane extends ARPane {
                                     success = false;
                                 }
 
-                                if (webElementFound == null && searchByJavaScript) {
+                                if (webElementFound == null && currentInstruction.getForceCoordinates()) {
+
+                                    Boolean pressEnterAfter = false;
+                                    if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                                        pressEnterAfter = true;
+                                    }
                                     if (actions[0].equalsIgnoreCase(ARConstants.VISUALIZE)
                                             || actions[0].equalsIgnoreCase(ARConstants.CLICK)
                                             || actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
                                         success = performAction.executeActionsAtCoordinates(
-                                                mapSavedLocators.get("coordinates"), fieldData, actions[0]);
+                                                mapSavedLocators.get("coordinates"),
+                                                fieldData,
+                                                actions[0],
+                                                pressEnterAfter);
                                     }
                                 }
 
@@ -8610,10 +8628,10 @@ public class ARScannedElementPane extends ARPane {
             for (int j = 0; success && j < blocksLoaded.size(); j++) {
 
                 // Call the method to get the filtered list
-                List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                        instructionsExecuted, blocksLoaded.get(j).getBlockLoopInstructionLoadDTOS());
+                List<InstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
+                        instructionsExecuted, blocksLoaded.get(j).getInstructionLoadDTOS());
 
-                for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
+                for (InstructionLoadDTO currentInstruction : unexecutedInstructions) {
                     if (currentInstruction.getDefaultValue() == null) {
                         String[] arr = UtilsMethods.splitIfContains(
                                 currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
@@ -8631,10 +8649,10 @@ public class ARScannedElementPane extends ARPane {
                 String blockReportName = "#" + blockOrder + " " + blockName;
 
                 // Call the method to get the filtered list
-                List<BlockLoopInstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                        instructionsExecuted, blocksLoaded.get(j).getBlockLoopInstructionLoadDTOS());
+                List<InstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
+                        instructionsExecuted, blocksLoaded.get(j).getInstructionLoadDTOS());
 
-                for (BlockLoopInstructionLoadDTO currentInstruction : unexecutedInstructions) {
+                for (InstructionLoadDTO currentInstruction : unexecutedInstructions) {
 
                     long currentInstructionStartTime = System.nanoTime();
                     File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -8863,7 +8881,7 @@ public class ARScannedElementPane extends ARPane {
         contentPane.requestLayout();
     }
 
-    private void fillUpCurretLocators(BlockLoopInstructionLoadDTO currentInstruction) {
+    private void fillUpCurretLocators(InstructionLoadDTO currentInstruction) {
         for (InstructionReferenceLoadDTO reference : currentInstruction.getInstructionReferenceLoadDTOList()) {
             switch (reference.getReferenceType()) {
                 case "allAttributes":
@@ -8885,11 +8903,11 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    public static List<BlockLoopInstructionLoadDTO> getUnexecutedInstructions(
-            List<BlockLoopInstructionLoadDTO> instructionsExecuted, List<BlockLoopInstructionLoadDTO> otherList) {
+    public static List<InstructionLoadDTO> getUnexecutedInstructions(
+            List<InstructionLoadDTO> instructionsExecuted, List<InstructionLoadDTO> otherList) {
         // Create a set of instructionOrderNumbers from instructionsExecuted
         Set<Integer> executedInstructionOrderNumbers = instructionsExecuted.stream()
-                .map(BlockLoopInstructionLoadDTO::getInstructionOrderNumber)
+                .map(InstructionLoadDTO::getInstructionOrderNumber)
                 .collect(Collectors.toSet());
 
         // Filter the otherList to get instructions where executed is false and not in executedInstructionOrderNumbers
@@ -9423,7 +9441,7 @@ public class ARScannedElementPane extends ARPane {
             Integer currentBotJobId,
             Integer currentBlockId) {
 
-        BlockLoopInstructionLoadDTO instructionDTO = new BlockLoopInstructionLoadDTO();
+        InstructionLoadDTO instructionDTO = new InstructionLoadDTO();
 
         instructionDTO.setPath(xPath);
         instructionDTO.setCoordinates(coordinates);

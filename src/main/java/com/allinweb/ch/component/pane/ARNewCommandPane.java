@@ -1,9 +1,9 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
@@ -2319,7 +2319,7 @@ public class ARNewCommandPane extends ARPane {
 
                     this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
                     if (botJobLoadList.size() > 0) {
-                        List<BlockLoopInstructionLoadDTO> blockLoopInstructions =
+                        List<InstructionLoadDTO> blockLoopInstructions =
                                 performDataBase.buildJsonViewData(botJobLoadList);
 
                         String jsonData = gson.toJson(blockLoopInstructions);

@@ -4,10 +4,10 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.ComponentListCell;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
@@ -356,7 +356,7 @@ public class ARViewBotJobPane extends ARPane {
         if (this.botJobLoadList.size() > 0) {
             createExcelDataFile();
 
-            List<BlockLoopInstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+            List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
 
             performMessage.outputJson(blockLoopInstructions);
 

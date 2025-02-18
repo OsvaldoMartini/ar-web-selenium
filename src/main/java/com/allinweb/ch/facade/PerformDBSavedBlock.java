@@ -1,10 +1,10 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.DetailsDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
@@ -252,17 +252,17 @@ public class PerformDBSavedBlock {
     }
 
     // Creating BLOCK INSTRUCTIONS FROM COMPONENT SAVED INSTRUCTIONS
-    public static List<BlockLoopInstructionLoadDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
+    public static List<InstructionLoadDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
             ComponentBlockDTO componentBlockDTO) {
 
-        BlockLoopInstructionLoadDTO blockLoopInstructionDTO;
+        InstructionLoadDTO blockLoopInstructionDTO;
 
         //        List<BlockLoopInstructionLoadDTO> savedInstructions = ARSharedResources.getInstance()
         //                .getEntityList(
         //                        SavedBlockLoopInstructionDTO.class,
         //                        saved -> saved.getBlock().getId().equals(savedBlocksDTO.getId()));
 
-        List<BlockLoopInstructionLoadDTO> savedInstructions =
+        List<InstructionLoadDTO> savedInstructions =
                 getSavedInstructionsByBlockId(componentBlockDTO.getBotJobDTO().getId(), componentBlockDTO.getId());
 
         //        for (BlockLoopInstructionLoadDTO savedBlockLoopInstructionDTO : savedInstructions) {
@@ -353,9 +353,9 @@ public class PerformDBSavedBlock {
         return null;
     }
 
-    public static List<BlockLoopInstructionLoadDTO> getSavedInstructionsByBlockId(int botJobId, int blockId) {
+    public static List<InstructionLoadDTO> getSavedInstructionsByBlockId(int botJobId, int blockId) {
         // List to store the fetched instructions
-        List<BlockLoopInstructionLoadDTO> instructions = new ArrayList<>();
+        List<InstructionLoadDTO> instructions = new ArrayList<>();
 
         // SQL query to fetch instruction
         String blockLoopQuery =
@@ -385,7 +385,7 @@ public class PerformDBSavedBlock {
             try (ResultSet blockLoopRs = blockLoopStmt.executeQuery()) {
                 while (blockLoopRs.next()) {
                     // Populate BlockLoopInstructionLoadDTO
-                    BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
+                    InstructionLoadDTO instruction = new InstructionLoadDTO();
                     instruction.setId(blockLoopRs.getInt("id"));
                     instruction.setBotJobId(blockLoopRs.getInt("bot_job_id"));
                     instruction.setInstructionOrderNumber(blockLoopRs.getInt("instruction_order_number"));

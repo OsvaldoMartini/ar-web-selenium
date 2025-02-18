@@ -3,8 +3,8 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.BlockLoopInstructionListCell;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -34,8 +34,8 @@ public class ARExportFilterPane extends ARPane {
 
     // UI COMPONENTS
 
-    private ListView<BlockLoopInstructionLoadDTO> exportedFieldList;
-    private ListView<BlockLoopInstructionLoadDTO> filteredFieldList;
+    private ListView<InstructionLoadDTO> exportedFieldList;
+    private ListView<InstructionLoadDTO> filteredFieldList;
 
     private Button exportFieldButton;
     private Button filterFieldButton;
@@ -73,21 +73,20 @@ public class ARExportFilterPane extends ARPane {
         //                                && exp.getBlock().getBotJobDTO().getId() == this.botJobLoad.getId());
 
         // Assuming botJobLoad is an instance of BotJobLoadDTO that has blockLoadDTOList
-        List<BlockLoopInstructionLoadDTO> allBlockLoopInstructionLoadDTOS = new ArrayList<>();
+        List<InstructionLoadDTO> allInstructionLoadDTOS = new ArrayList<>();
 
         // Iterate through each BlockLoadDTO in the blockLoadDTOList
         for (BlockLoadDTO blockLoadDTO : this.botJobLoad.getBlockLoadDTOList()) {
             // For each BlockLoadDTO, extract the list of BlockLoopInstructionLoadDTOs
-            List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS =
-                    blockLoadDTO.getBlockLoopInstructionLoadDTOS();
+            List<InstructionLoadDTO> instructionLoadDTOS = blockLoadDTO.getInstructionLoadDTOS();
 
             // If the list is not null, add all BlockLoopInstructionLoadDTOs to the final list
-            if (blockLoopInstructionLoadDTOS != null) {
-                allBlockLoopInstructionLoadDTOS.addAll(blockLoopInstructionLoadDTOS);
+            if (instructionLoadDTOS != null) {
+                allInstructionLoadDTOS.addAll(instructionLoadDTOS);
             }
         }
         // Filtering for instructions where exportToAR is true and actions contain "INSERT"
-        ObservableList<BlockLoopInstructionLoadDTO> exportedList = allBlockLoopInstructionLoadDTOS.stream()
+        ObservableList<InstructionLoadDTO> exportedList = allInstructionLoadDTOS.stream()
                 .filter(exp -> exp.getExportToAR() != null
                         && exp.getExportToAR() // Ensure exportToAR is not null
                         && exp.getActions().contains(ARConstants.INSERT) // Check for "INSERT" in actions
@@ -95,7 +94,7 @@ public class ARExportFilterPane extends ARPane {
                 .collect(Collectors.toCollection(FXCollections::observableArrayList)); // Convert to ObservableList
 
         // Filtering for instructions where exportToAR is false and actions contain "INSERT"
-        ObservableList<BlockLoopInstructionLoadDTO> filteredList = allBlockLoopInstructionLoadDTOS.stream()
+        ObservableList<InstructionLoadDTO> filteredList = allInstructionLoadDTOS.stream()
                 .filter(exp -> exp.getExportToAR() == null
                         || !exp.getExportToAR() // Ensure exportToAR is either null or false
                                 && exp.getActions().contains(ARConstants.INSERT) // Check for "INSERT" in actions

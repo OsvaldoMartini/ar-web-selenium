@@ -1,8 +1,8 @@
 package com.allinweb.ch.util;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -276,15 +276,15 @@ public class ExcelUtils {
         Set<String> fieldSet = new HashSet<>();
         if (botJobLoadDTO.getBlockLoadDTOList().size() > 0) {
             fieldSet = botJobLoadDTO.getBlockLoadDTOList().stream()
-                    .map(BlockLoadDTO::getBlockLoopInstructionLoadDTOS)
+                    .map(BlockLoadDTO::getInstructionLoadDTOS)
                     .reduce((identity, accumulated) -> {
                         accumulated.addAll(identity);
                         return accumulated;
                     })
                     .get()
                     .stream()
-                    .filter(BlockLoopInstructionLoadDTO::getExportToAR)
-                    .map(BlockLoopInstructionLoadDTO::getActions)
+                    .filter(InstructionLoadDTO::getExportToAR)
+                    .map(InstructionLoadDTO::getActions)
                     .filter(action -> action.contains(ARConstants.INSERT))
                     .map(action -> action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
                     .collect(Collectors.toSet());

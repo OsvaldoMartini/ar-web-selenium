@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableCell;
@@ -9,7 +9,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 
-public class TableCellWithEditMode extends TableCell<BlockLoopInstructionLoadDTO, String> {
+public class TableCellWithEditMode extends TableCell<InstructionLoadDTO, String> {
 
     private final TextField textField = new TextField();
     private final Button saveButton = new Button();
@@ -28,7 +28,7 @@ public class TableCellWithEditMode extends TableCell<BlockLoopInstructionLoadDTO
 
         // Save button action
         saveButton.setOnAction(event -> {
-            BlockLoopInstructionLoadDTO data = getTableView().getItems().get(getIndex());
+            InstructionLoadDTO data = getTableView().getItems().get(getIndex());
             data.setName(textField.getText()); // Update the name in the data object
             nameLabel.setText(textField.getText()); // Update label to show the new name
 
@@ -48,7 +48,7 @@ public class TableCellWithEditMode extends TableCell<BlockLoopInstructionLoadDTO
         if (empty) {
             setGraphic(null);
         } else {
-            BlockLoopInstructionLoadDTO data = getTableView().getItems().get(getIndex());
+            InstructionLoadDTO data = getTableView().getItems().get(getIndex());
 
             if (data.getEditMode()) {
                 textField.setText(item); // Show the TextField with the current name

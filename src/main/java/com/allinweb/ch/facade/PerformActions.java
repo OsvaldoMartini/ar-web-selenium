@@ -5,9 +5,9 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.core.ARSharedResources;
@@ -117,7 +117,7 @@ public class PerformActions {
         return instance.get();
     }
 
-    public WebElement searchElement(BlockLoopInstructionLoadDTO instruction, int botJobId) {
+    public WebElement searchElement(InstructionLoadDTO instruction, int botJobId) {
         WebElement instructionElement = null;
 
         if (!StringUtils.isBlank(instruction.getPath())) {
@@ -152,7 +152,7 @@ public class PerformActions {
             boolean byPassNotFound,
             String savedCoordinates,
             Pair<String, String> data,
-            BlockLoopInstructionLoadDTO currentInstruction,
+            InstructionLoadDTO currentInstruction,
             Map<String, String> mapOperators,
             WebElement instructionElement,
             String actions[])
@@ -171,6 +171,11 @@ public class PerformActions {
                 switchedToIframe = true;
             }
 
+            Boolean pressEnterAfter = false;
+            if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                pressEnterAfter = true;
+            }
+
             if (instructionElement != null) {
                 boolean passed = true;
                 switch (actions[0]) {
@@ -180,7 +185,8 @@ public class PerformActions {
                         if (!passed) {
                             // Try by coordinates
                             Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                            passed = executeActionsAtCoordinates(savedCoordinates, filedData, ARConstants.VISUALIZE);
+                            passed = executeActionsAtCoordinates(
+                                    savedCoordinates, filedData, ARConstants.VISUALIZE, pressEnterAfter);
                         }
                         return passed;
                     case ARConstants.OUTPUT:
@@ -197,24 +203,22 @@ public class PerformActions {
                         if (!passed) {
                             // Try by coordinates
                             Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                            passed = executeActionsAtCoordinates(savedCoordinates, filedData, ARConstants.CLICK);
+                            passed = executeActionsAtCoordinates(
+                                    savedCoordinates, filedData, ARConstants.CLICK, pressEnterAfter);
                         }
                         return passed;
                     case ARConstants.INSERT:
                         if ("select".equalsIgnoreCase(instructionElement.getTagName())) {
                             passed = insertDataInSelectElement(
-                                    byPassNotFound, instructionElement, savedCoordinates, data);
+                                    byPassNotFound, instructionElement, savedCoordinates, data, pressEnterAfter);
 
                             if (!passed) {
                                 // Try by coordinates
-                                passed = executeActionsAtCoordinates(savedCoordinates, data, ARConstants.SELECT);
+                                passed = executeActionsAtCoordinates(
+                                        savedCoordinates, data, ARConstants.SELECT, pressEnterAfter);
                             }
                             return passed;
                         } else {
-                            Boolean pressEnterAfter = false;
-                            if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
-                                pressEnterAfter = true;
-                            }
 
                             passed = insertInElement(
                                     byPassNotFound,
@@ -226,7 +230,8 @@ public class PerformActions {
 
                             if (!passed) {
                                 // Try by coordinates
-                                passed = executeActionsAtCoordinates(savedCoordinates, data, ARConstants.INSERT);
+                                passed = executeActionsAtCoordinates(
+                                        savedCoordinates, data, ARConstants.INSERT, pressEnterAfter);
                             }
                             return passed;
                         }
@@ -244,7 +249,7 @@ public class PerformActions {
         }
     }
 
-    public void performOtherActions(boolean byPassNotFound, BlockLoopInstructionLoadDTO instruction, String actions[])
+    public void performOtherActions(boolean byPassNotFound, InstructionLoadDTO instruction, String actions[])
             throws Exception {
 
         switch (actions[0]) {
@@ -289,7 +294,7 @@ public class PerformActions {
 
     public String performOperatorActions(
             boolean byPassNotFound,
-            BlockLoopInstructionLoadDTO instruction,
+            InstructionLoadDTO instruction,
             String targetXPath,
             String action,
             String[] operations,
@@ -432,7 +437,7 @@ public class PerformActions {
 
     private void showNotFoundElement(String targetXPath, By criteria) {}
 
-    private WebElement locateElementOLD(BlockLoopInstructionLoadDTO currentInstruction, int botJobId) {
+    private WebElement locateElementOLD(InstructionLoadDTO currentInstruction, int botJobId) {
 
         //        WebElement elementInsideIframe = null;
         //                if (xPath.toLowerCase().contains("iframe")){
@@ -693,7 +698,7 @@ public class PerformActions {
         }
     }
 
-    private WebElement locateElement(BlockLoopInstructionLoadDTO currentInstruction, int botJobId) {
+    private WebElement locateElement(InstructionLoadDTO currentInstruction, int botJobId) {
         String instructionPath = currentInstruction.getPath();
         String tagName = null;
 
@@ -1011,7 +1016,7 @@ public class PerformActions {
         return element.getAttribute("value");
     }
 
-    public synchronized String onHoldForSeconds(BlockLoopInstructionLoadDTO instruction) throws Exception {
+    public synchronized String onHoldForSeconds(InstructionLoadDTO instruction) throws Exception {
         if (instruction != null) {
             Integer instructionSeconds = instruction.getOnHoldSeconds();
             if (instructionSeconds != null && instructionSeconds > 0) {
@@ -1250,7 +1255,11 @@ public class PerformActions {
     }
 
     private boolean insertDataInSelectElement(
-            boolean byPassNotFound, WebElement element, String coordinates, Pair<String, String> data)
+            boolean byPassNotFound,
+            WebElement element,
+            String coordinates,
+            Pair<String, String> data,
+            boolean pressEnterAfter)
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
@@ -1272,7 +1281,7 @@ public class PerformActions {
             //            selectCountry.selectByVisibleText(data.getValue());
 
             String[] coordArray = new String[] {coordinates, "coordinates"};
-            sequenceOfCommands(element, ARConstants.SELECT, coordArray, data, arWebDriver.getDriver());
+            sequenceOfCommands(element, ARConstants.SELECT, coordArray, data, arWebDriver.getDriver(), pressEnterAfter);
 
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1391,7 +1400,7 @@ public class PerformActions {
         return true;
     }
 
-    private void listOperation(boolean byPassNotFound, BlockLoopInstructionLoadDTO instructionDTO) {
+    private void listOperation(boolean byPassNotFound, InstructionLoadDTO instructionDTO) {
 
         /*
         TODO: Da rivedere, attualmente non del tutto funzionante
@@ -1554,7 +1563,7 @@ public class PerformActions {
     }
 
     public String getValueIsNotDefinedEngine(
-            BlockLoopInstructionLoadDTO currentInstruction,
+            InstructionLoadDTO currentInstruction,
             String lastInstructionExecuted,
             boolean ifClause,
             boolean elseClause) {
@@ -1586,7 +1595,7 @@ public class PerformActions {
     }
 
     public String getValueIsNotDefined(
-            BlockLoopInstructionLoadDTO currentInstruction,
+            InstructionLoadDTO currentInstruction,
             String lastInstructionExecuted,
             ARConstants.ConditionStatus conditionStatus) {
 
@@ -1667,10 +1676,7 @@ public class PerformActions {
     }
 
     public String parentIdWrongBlockEngine(
-            BlockLoopInstructionLoadDTO currentInstruction,
-            BlockLoadDTO blockLoad,
-            boolean ifClause,
-            boolean elseClause) {
+            InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad, boolean ifClause, boolean elseClause) {
         if (!ifClause && !elseClause) {
             String message = "The Parent Id: <b style='color:red;'>"
                     + "The Parent Id: \"(" + currentInstruction.getParentId() + ")"
@@ -1721,7 +1727,7 @@ public class PerformActions {
     }
 
     public String parentIdWrongBlock(
-            BlockLoopInstructionLoadDTO currentInstruction,
+            InstructionLoadDTO currentInstruction,
             BlockLoadDTO blockLoad,
             String lastInstructionExecuted,
             ARConstants.ConditionStatus conditionStatus) {
@@ -2119,9 +2125,9 @@ public class PerformActions {
         return extendedRefreshArray;
     }
 
-    public String getXPathInstruction(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+    public String getXPathInstruction(InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
         try {
-            return blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+            return blockLoad.getInstructionLoadDTOS().stream()
                     .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
@@ -2131,9 +2137,9 @@ public class PerformActions {
         }
     }
 
-    public String getInstructionParentField(BlockLoopInstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+    public String getInstructionParentField(InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
         try {
-            return blockLoad.getBlockLoopInstructionLoadDTOS().stream()
+            return blockLoad.getInstructionLoadDTOS().stream()
                     .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
@@ -2192,11 +2198,10 @@ public class PerformActions {
     public Map<String, List<Integer>> getConditionIndexMapByParentId(BlockLoadDTO blockLoad) {
         try {
             // Create a map where key is "parentId-actions" and value is a list of indices
-            return IntStream.range(
-                            0, blockLoad.getBlockLoopInstructionLoadDTOS().size())
+            return IntStream.range(0, blockLoad.getInstructionLoadDTOS().size())
                     .filter(index -> {
-                        BlockLoopInstructionLoadDTO instruction =
-                                blockLoad.getBlockLoopInstructionLoadDTOS().get(index);
+                        InstructionLoadDTO instruction =
+                                blockLoad.getInstructionLoadDTOS().get(index);
                         String actions = instruction.getActions();
                         return actions != null
                                 && (actions.equals("IF")
@@ -2207,9 +2212,8 @@ public class PerformActions {
                     .boxed() // Convert IntStream to Stream<Integer>
                     .collect(Collectors.toMap(
                             index -> {
-                                BlockLoopInstructionLoadDTO instruction = blockLoad
-                                        .getBlockLoopInstructionLoadDTOS()
-                                        .get(index);
+                                InstructionLoadDTO instruction =
+                                        blockLoad.getInstructionLoadDTOS().get(index);
                                 return instruction.getParentId() + "-"
                                         + instruction.getActions(); // Key: parentId-actions
                             },
@@ -2290,8 +2294,8 @@ public class PerformActions {
                 element);
     }
 
-    public void executeActionsAtInstructionCoordinates(
-            BlockLoopInstructionLoadDTO currentInstruction, Pair<String, String> data) throws Exception {
+    public void executeActionsAtInstructionCoordinates(InstructionLoadDTO currentInstruction, Pair<String, String> data)
+            throws Exception {
 
         List<com.allinweb.ch.util.Priority> priorityList = ARPriorities.getAllPriorityList();
         Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
@@ -2371,7 +2375,8 @@ public class PerformActions {
         return mapCoordinates;
     }
 
-    public boolean executeActionsAtCoordinates(String savedCoordinates, Pair<String, String> data, String action) {
+    public boolean executeActionsAtCoordinates(
+            String savedCoordinates, Pair<String, String> data, String action, boolean pressEnter) {
 
         int x = 0;
         int y = 0;
@@ -2405,6 +2410,10 @@ public class PerformActions {
                 clickAtCoordinates(xCoord, yCoord);
                 onHoldForSeconds(null);
                 typeCharacters(data);
+
+                if (pressEnter) {
+                    sendEnter(xCoord, yCoord);
+                }
             }
             onHoldForSeconds(null);
             return true;
@@ -2517,12 +2526,20 @@ public class PerformActions {
         new Actions(arWebDriver.getDriver()).sendKeys(fieldData.getValue()).perform();
     }
 
+    private void sendEnter(int x, int y) {
+        new Actions(arWebDriver.getDriver())
+                .moveByOffset(x, y)
+                .sendKeys(Keys.ENTER)
+                .perform();
+    }
+
     public String sequenceOfCommands(
             WebElement element,
             String typeCommand,
             String[] coordinates,
             Pair<String, String> fieldData,
-            WebDriver driver) {
+            WebDriver driver,
+            boolean pressEnterAfter) {
 
         String message = "Nothing to execute";
         try {
@@ -2551,16 +2568,20 @@ public class PerformActions {
                 focusElement(element, driver);
             } else if (typeCommand.equals(ARConstants.COORD_VISUALIZA)) {
                 message = "Coordinates COORD_VISUALIZA";
-                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.VISUALIZE);
-                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.VISUALIZE);
+                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.VISUALIZE, pressEnterAfter);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.VISUALIZE, pressEnterAfter);
             } else if (typeCommand.equals(ARConstants.COORD_CLICK)) {
                 message = "Coordinates COORD_CLICK";
-                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.CLICK);
-                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.CLICK);
+                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.CLICK, pressEnterAfter);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.CLICK, pressEnterAfter);
             } else if (typeCommand.equals(ARConstants.COORD_INSERT)) {
                 message = "Coordinates COORD_INSERT";
-                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.INSERT);
-                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.INSERT);
+                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.INSERT, pressEnterAfter);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.INSERT, pressEnterAfter);
+            } else if (typeCommand.equals(ARConstants.COORD_INSERT_ENTER)) {
+                message = "Coordinates COORD_INSERT";
+                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.INSERT, pressEnterAfter);
+                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.INSERT, pressEnterAfter);
             }
 
             return "Success " + message;
@@ -2653,7 +2674,7 @@ public class PerformActions {
     }
 
     public Pair<String, String> getBlockDetailsById(
-            List<BlockLoadDTO> blocksLoaded, BlockLoopInstructionLoadDTO currentInstruction) {
+            List<BlockLoadDTO> blocksLoaded, InstructionLoadDTO currentInstruction) {
         for (BlockLoadDTO block : blocksLoaded) {
             if (block.getId() != null && block.getId().equals(currentInstruction.getParentId())) {
                 Pair<String, String> blockDetails = new Pair<>(
@@ -2667,9 +2688,8 @@ public class PerformActions {
     }
 
     public Pair<String, String> getInstructionDetailsById(
-            List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS,
-            BlockLoopInstructionLoadDTO currentInstruction) {
-        for (BlockLoopInstructionLoadDTO instParent : blockLoopInstructionLoadDTOS) {
+            List<InstructionLoadDTO> instructionLoadDTOS, InstructionLoadDTO currentInstruction) {
+        for (InstructionLoadDTO instParent : instructionLoadDTOS) {
             if (instParent.getId() != null && instParent.getId().equals(currentInstruction.getParentId())) {
                 Pair<String, String> blockDetails = new Pair<>(
                         currentInstruction.getId() + ":" + instParent.getId() + ":"
@@ -2681,12 +2701,11 @@ public class PerformActions {
         return null; // or throw an exception if the block is not found
     }
 
-    public Map<String, Integer[]> getLoopAndRefreshLoops(
-            List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS) {
+    public Map<String, Integer[]> getLoopAndRefreshLoops(List<InstructionLoadDTO> instructionLoadDTOS) {
         // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
         Map<String, Integer[]> mapRefreshLoops = new HashMap<>();
 
-        for (BlockLoopInstructionLoadDTO instruction : blockLoopInstructionLoadDTOS) {
+        for (InstructionLoadDTO instruction : instructionLoadDTOS) {
             // Filter by actions
             String actions = instruction.getActions();
             if ("REFRESH_LOOP".equalsIgnoreCase(actions) || "LOOP".equalsIgnoreCase(actions)) {
@@ -2728,11 +2747,11 @@ public class PerformActions {
         return mapRefreshLoops;
     }
 
-    public Set<Integer> getParentIdsForLoop(List<BlockLoopInstructionLoadDTO> blockLoopInstructionLoadDTOS) {
-        return blockLoopInstructionLoadDTOS.stream()
+    public Set<Integer> getParentIdsForLoop(List<InstructionLoadDTO> instructionLoadDTOS) {
+        return instructionLoadDTOS.stream()
                 .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions())
                         || "LOOP".equalsIgnoreCase(instruction.getActions()))
-                .map(BlockLoopInstructionLoadDTO::getParentId)
+                .map(InstructionLoadDTO::getParentId)
                 .collect(Collectors.toSet());
     }
 

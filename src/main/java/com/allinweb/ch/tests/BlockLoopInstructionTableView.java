@@ -1,7 +1,7 @@
 package com.allinweb.ch.tests;
 
 import com.allinweb.ch.component.listCell.TableCellWithEditMode;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -30,26 +30,25 @@ import javafx.stage.Stage;
 public class BlockLoopInstructionTableView extends Application {
 
     private VBox mainVBox; // Main VBox layout to hold the blocks
-    private ObservableList<List<BlockLoopInstructionLoadDTO>> blockDataList; // List of block data
-    private ObservableList<BlockLoopInstructionLoadDTO> blockLoopInstructions;
+    private ObservableList<List<InstructionLoadDTO>> blockDataList; // List of block data
+    private ObservableList<InstructionLoadDTO> blockLoopInstructions;
 
-    private TableView<BlockLoopInstructionLoadDTO> createInstructionTable() {
-        TableView<BlockLoopInstructionLoadDTO> tableView = new TableView<>();
+    private TableView<InstructionLoadDTO> createInstructionTable() {
+        TableView<InstructionLoadDTO> tableView = new TableView<>();
 
         // Create columns
-        TableColumn<BlockLoopInstructionLoadDTO, Integer> idColumn = new TableColumn<>("ID");
+        TableColumn<InstructionLoadDTO, Integer> idColumn = new TableColumn<>("ID");
         idColumn.setCellValueFactory(new PropertyValueFactory<>("id"));
 
         // Add a new column for the Name with TextField and Save button
-        TableColumn<BlockLoopInstructionLoadDTO, String> blockOrderNumberColumn = new TableColumn<>("Block Order");
+        TableColumn<InstructionLoadDTO, String> blockOrderNumberColumn = new TableColumn<>("Block Order");
         blockOrderNumberColumn.setCellValueFactory(new PropertyValueFactory<>("blockOrderNumber"));
 
-        TableColumn<BlockLoopInstructionLoadDTO, Integer> instructionOrderColumn =
-                new TableColumn<>("Instruction Order");
+        TableColumn<InstructionLoadDTO, Integer> instructionOrderColumn = new TableColumn<>("Instruction Order");
         instructionOrderColumn.setCellValueFactory(new PropertyValueFactory<>("instructionOrderNumber"));
 
         // Create a new column to show the image based on the "actions" data field
-        TableColumn<BlockLoopInstructionLoadDTO, String> actionTypeColumn = new TableColumn<>("Action");
+        TableColumn<InstructionLoadDTO, String> actionTypeColumn = new TableColumn<>("Action");
         actionTypeColumn.setCellValueFactory(
                 new PropertyValueFactory<>("actions")); // Assuming "actions" is the property in the DTO
 
@@ -92,19 +91,19 @@ public class BlockLoopInstructionTableView extends Application {
         });
 
         // Add a new column for the Name with TextField and Save button
-        TableColumn<BlockLoopInstructionLoadDTO, String> nameColumn = new TableColumn<>("Name");
+        TableColumn<InstructionLoadDTO, String> nameColumn = new TableColumn<>("Name");
         nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
 
         // Use custom TableCellWithEditMode for Name column
         nameColumn.setCellFactory(param -> new TableCellWithEditMode());
 
-        TableColumn<BlockLoopInstructionLoadDTO, String> descriptionColumn = new TableColumn<>("Description");
+        TableColumn<InstructionLoadDTO, String> descriptionColumn = new TableColumn<>("Description");
         descriptionColumn.setCellValueFactory(new PropertyValueFactory<>("description"));
 
         // Add a new column for the buttons (UP, DOWN, Action, Edit, Remove)
-        TableColumn<BlockLoopInstructionLoadDTO, Void> actionColumn = new TableColumn<>("Actions");
+        TableColumn<InstructionLoadDTO, Void> actionColumn = new TableColumn<>("Actions");
         actionColumn.setCellFactory(param -> {
-            final TableCell<BlockLoopInstructionLoadDTO, Void> cell = new TableCell<>() {
+            final TableCell<InstructionLoadDTO, Void> cell = new TableCell<>() {
 
                 private final Button upButton = new Button();
                 private final Button downButton = new Button();
@@ -148,8 +147,8 @@ public class BlockLoopInstructionTableView extends Application {
 
                     // Set up button actions
                     upButton.setOnAction(event -> {
-                        TableView<BlockLoopInstructionLoadDTO> table = getTableView();
-                        ObservableList<BlockLoopInstructionLoadDTO> currentItems = table.getItems();
+                        TableView<InstructionLoadDTO> table = getTableView();
+                        ObservableList<InstructionLoadDTO> currentItems = table.getItems();
                         int currentIndex = getIndex();
 
                         if (currentIndex > 0) {
@@ -161,8 +160,8 @@ public class BlockLoopInstructionTableView extends Application {
                     });
 
                     downButton.setOnAction(event -> {
-                        TableView<BlockLoopInstructionLoadDTO> table = getTableView();
-                        ObservableList<BlockLoopInstructionLoadDTO> currentItems = table.getItems();
+                        TableView<InstructionLoadDTO> table = getTableView();
+                        ObservableList<InstructionLoadDTO> currentItems = table.getItems();
                         int currentIndex = getIndex();
 
                         if (currentIndex < currentItems.size() - 1) {
@@ -174,22 +173,19 @@ public class BlockLoopInstructionTableView extends Application {
                     });
 
                     actionButton.setOnAction(event -> {
-                        BlockLoopInstructionLoadDTO data =
-                                getTableView().getItems().get(getIndex());
+                        InstructionLoadDTO data = getTableView().getItems().get(getIndex());
                         System.out.println("Action button clicked for: " + data.getName());
                     });
 
                     editButton.setOnAction(event -> {
-                        BlockLoopInstructionLoadDTO data =
-                                getTableView().getItems().get(getIndex());
+                        InstructionLoadDTO data = getTableView().getItems().get(getIndex());
                         System.out.println("Edit button clicked for: " + data.getName());
 
-                        TableRow<BlockLoopInstructionLoadDTO> row = getTableRow();
+                        TableRow<InstructionLoadDTO> row = getTableRow();
                         // Adjust the columns to be Editable if you change the Columns Size
                         if (row != null) {
-                            TableCell<BlockLoopInstructionLoadDTO, String> nameCell =
-                                    (TableCell<BlockLoopInstructionLoadDTO, String>)
-                                            row.getChildrenUnmodifiable().get(3);
+                            TableCell<InstructionLoadDTO, String> nameCell = (TableCell<InstructionLoadDTO, String>)
+                                    row.getChildrenUnmodifiable().get(3);
                             if (nameCell instanceof TableCellWithEditMode) {
                                 ((TableCellWithEditMode) nameCell).showEditMode();
                             }
@@ -197,8 +193,7 @@ public class BlockLoopInstructionTableView extends Application {
                     });
 
                     removeButton.setOnAction(event -> {
-                        BlockLoopInstructionLoadDTO data =
-                                getTableView().getItems().get(getIndex());
+                        InstructionLoadDTO data = getTableView().getItems().get(getIndex());
                         System.out.println("Remove button clicked for: " + data.getName());
 
                         // Remove the item from the TableView's items
@@ -208,8 +203,8 @@ public class BlockLoopInstructionTableView extends Application {
                         blockLoopInstructions.remove(data);
 
                         // Find the corresponding block in blockDataList and remove the item from that block
-                        List<BlockLoopInstructionLoadDTO> blockToRemove = null;
-                        for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
+                        List<InstructionLoadDTO> blockToRemove = null;
+                        for (List<InstructionLoadDTO> block : blockDataList) {
                             if (block.remove(data)) {
                                 // If the item was found and removed, check if the block is now empty
                                 if (block.isEmpty()) {
@@ -278,7 +273,7 @@ public class BlockLoopInstructionTableView extends Application {
         // Apply row selection style (Change font to black and bold when row is selected)
         tableView.setRowFactory(tv -> new TableRow<>() {
             @Override
-            protected void updateItem(BlockLoopInstructionLoadDTO item, boolean empty) {
+            protected void updateItem(InstructionLoadDTO item, boolean empty) {
                 super.updateItem(item, empty);
 
                 if (item == null || empty) {
@@ -312,8 +307,8 @@ public class BlockLoopInstructionTableView extends Application {
         blockLoopInstructions = FXCollections.observableArrayList(getBlockLoopInstructions());
 
         // Group the instructions by blockId
-        Map<Integer, List<BlockLoopInstructionLoadDTO>> groupedByBlock =
-                blockLoopInstructions.stream().collect(Collectors.groupingBy(BlockLoopInstructionLoadDTO::getBlockId));
+        Map<Integer, List<InstructionLoadDTO>> groupedByBlock =
+                blockLoopInstructions.stream().collect(Collectors.groupingBy(InstructionLoadDTO::getBlockId));
 
         // Initialize the block data list
         blockDataList = FXCollections.observableArrayList(groupedByBlock.values());
@@ -328,10 +323,10 @@ public class BlockLoopInstructionTableView extends Application {
         // Loop through the blocks and re-add them to the VBox
         for (int i = 0; i < blockDataList.size(); i++) {
             // Get the instructions for the current block
-            List<BlockLoopInstructionLoadDTO> instructions = blockDataList.get(i);
+            List<InstructionLoadDTO> instructions = blockDataList.get(i);
 
             // Sort the instructions by instructionOrderNumber in ascending order
-            instructions.sort(Comparator.comparingInt(BlockLoopInstructionLoadDTO::getInstructionOrderNumber));
+            instructions.sort(Comparator.comparingInt(InstructionLoadDTO::getInstructionOrderNumber));
 
             // Add the block with sorted instructions to the VBox
             addBlockToVBox(i);
@@ -357,7 +352,7 @@ public class BlockLoopInstructionTableView extends Application {
 
     // Method to add blocks to VBox by index
     private void addBlockToVBox(int index) {
-        List<BlockLoopInstructionLoadDTO> instructions = blockDataList.get(index);
+        List<InstructionLoadDTO> instructions = blockDataList.get(index);
 
         // Create a Label for the block name
         String blockName = instructions.get(0).getBlockName();
@@ -405,7 +400,7 @@ public class BlockLoopInstructionTableView extends Application {
         HBox.setHgrow(buttonBox, javafx.scene.layout.Priority.ALWAYS);
 
         // Create a TableView for the instructions under this block
-        TableView<BlockLoopInstructionLoadDTO> tableView = createInstructionTable();
+        TableView<InstructionLoadDTO> tableView = createInstructionTable();
 
         // Set height or padding for the table header row and make borders invisible
         tableView.skinProperty().addListener((obs, oldSkin, newSkin) -> {
@@ -468,10 +463,10 @@ public class BlockLoopInstructionTableView extends Application {
         // Loop through the blocks and re-add them to the VBox
         for (int i = 0; i < blockDataList.size(); i++) {
             // Get the instructions for the current block
-            List<BlockLoopInstructionLoadDTO> instructions = blockDataList.get(i);
+            List<InstructionLoadDTO> instructions = blockDataList.get(i);
 
             // Sort the instructions by instructionOrderNumber in ascending order
-            instructions.sort(Comparator.comparingInt(BlockLoopInstructionLoadDTO::getInstructionOrderNumber));
+            instructions.sort(Comparator.comparingInt(InstructionLoadDTO::getInstructionOrderNumber));
 
             // Add the block with sorted instructions to the VBox
             addBlockToVBox(i);
@@ -501,8 +496,8 @@ public class BlockLoopInstructionTableView extends Application {
     // Method to update blockOrderNumber for each block
     private void updateBlockOrderNumbers() {
         int orderNumber = 1;
-        for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
-            for (BlockLoopInstructionLoadDTO instruction : block) {
+        for (List<InstructionLoadDTO> block : blockDataList) {
+            for (InstructionLoadDTO instruction : block) {
                 instruction.setBlockOrderNumber(orderNumber);
             }
             orderNumber++;
@@ -510,16 +505,16 @@ public class BlockLoopInstructionTableView extends Application {
     }
 
     // Method to sort the table by instructionOrderNumber in ascending order
-    private void sortTableByOrderNumber(TableView<BlockLoopInstructionLoadDTO> tableView) {
-        ObservableList<BlockLoopInstructionLoadDTO> items = tableView.getItems();
-        FXCollections.sort(items, Comparator.comparingInt(BlockLoopInstructionLoadDTO::getInstructionOrderNumber));
+    private void sortTableByOrderNumber(TableView<InstructionLoadDTO> tableView) {
+        ObservableList<InstructionLoadDTO> items = tableView.getItems();
+        FXCollections.sort(items, Comparator.comparingInt(InstructionLoadDTO::getInstructionOrderNumber));
         tableView.setItems(items); // Set sorted items back to the table
     }
 
     // Modify the method to update instructionOrderNumber after any change
-    private void updateInstructionOrderNumbers(ObservableList<BlockLoopInstructionLoadDTO> instructions) {
+    private void updateInstructionOrderNumbers(ObservableList<InstructionLoadDTO> instructions) {
         int orderNumber = 1;
-        for (BlockLoopInstructionLoadDTO instruction : instructions) {
+        for (InstructionLoadDTO instruction : instructions) {
             instruction.setInstructionOrderNumber(orderNumber++);
         }
     }
@@ -529,12 +524,12 @@ public class BlockLoopInstructionTableView extends Application {
         blockLoopInstructions.clear(); // Clear the list
 
         // Iterate through blockDataList and add updated instructions
-        for (List<BlockLoopInstructionLoadDTO> block : blockDataList) {
+        for (List<InstructionLoadDTO> block : blockDataList) {
             blockLoopInstructions.addAll(block);
         }
     }
 
-    private void resizeTableRows(TableView<BlockLoopInstructionLoadDTO> tableView) {
+    private void resizeTableRows(TableView<InstructionLoadDTO> tableView) {
         // Dynamically adjust the height of the TableView based on the number of rows
         tableView.itemsProperty().addListener((obs, oldItems, newItems) -> {
             tableView.setFixedCellSize(30); // Set a fixed height for each row
@@ -548,10 +543,10 @@ public class BlockLoopInstructionTableView extends Application {
     }
 
     // Sample data with 8 blocks and 5 instructions each
-    private ObservableList<BlockLoopInstructionLoadDTO> getBlockLoopInstructions() {
+    private ObservableList<InstructionLoadDTO> getBlockLoopInstructions() {
         return FXCollections.observableArrayList(
                 // Block 1 (Default Block)
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -571,7 +566,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null),
 
                 // Block 2
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -589,7 +584,7 @@ public class BlockLoopInstructionTableView extends Application {
                         4,
                         "firstName:Osvaldo",
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -607,7 +602,7 @@ public class BlockLoopInstructionTableView extends Application {
                         4,
                         "firstName:Osvaldo",
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -625,7 +620,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -645,7 +640,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null),
 
                 // Block 3
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -663,7 +658,7 @@ public class BlockLoopInstructionTableView extends Application {
                         4,
                         "firstName:Osvaldo",
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -683,7 +678,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null),
 
                 // Block 4
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -701,7 +696,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -719,7 +714,7 @@ public class BlockLoopInstructionTableView extends Application {
                         4,
                         "firstName:Osvaldo",
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -737,7 +732,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -755,7 +750,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -775,7 +770,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null),
 
                 // Block 5
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -793,7 +788,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -811,7 +806,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -829,7 +824,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -847,7 +842,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -867,7 +862,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null),
 
                 // Block 6
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -885,7 +880,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -903,7 +898,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -921,7 +916,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -939,7 +934,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -959,7 +954,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null),
 
                 // Block 7
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -977,7 +972,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -995,7 +990,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -1013,7 +1008,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -1031,7 +1026,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -1051,7 +1046,7 @@ public class BlockLoopInstructionTableView extends Application {
                         null),
 
                 // Block 8
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -1069,7 +1064,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -1087,7 +1082,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -1105,7 +1100,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -1123,7 +1118,7 @@ public class BlockLoopInstructionTableView extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",

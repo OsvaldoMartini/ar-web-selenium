@@ -1,7 +1,7 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -399,15 +399,15 @@ public class PerformMessage {
         }
     }
 
-    public void outputJson(List<BlockLoopInstructionLoadDTO> blockLoopInstructions) {
+    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions) {
         // Get the directory path from ARPropertyManager
         String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
 
-        List<BlockLoopInstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
+        List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
-        for (BlockLoopInstructionLoadDTO instruction : blockLoopInstructions) {
+        for (InstructionLoadDTO instruction : blockLoopInstructions) {
             // Create a new BlockLoopInstructionLoadDTO object to avoid modifying the original
-            BlockLoopInstructionLoadDTO updatedInstruction = new BlockLoopInstructionLoadDTO();
+            InstructionLoadDTO updatedInstruction = new InstructionLoadDTO();
 
             // Copy original fields and add 1000 where necessary
             updatedInstruction.setHomeBankingId(instruction.getHomeBankingId() + 1000);

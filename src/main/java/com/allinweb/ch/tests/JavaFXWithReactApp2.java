@@ -1,9 +1,8 @@
 package com.allinweb.ch.tests;
 
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.socket.WebSocketStompServer;
 import com.google.gson.Gson;
-import java.awt.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import javafx.application.Application;
@@ -25,7 +24,7 @@ import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainer
 public class JavaFXWithReactApp2 extends Application {
     private Server jettyServer;
     private ScheduledExecutorService executorService = Executors.newScheduledThreadPool(1);
-    private ObservableList<BlockLoopInstructionLoadDTO> blockLoopInstructions;
+    private ObservableList<InstructionLoadDTO> blockLoopInstructions;
     private WebEngine webEngine;
     private int currentIndex = 0; // Keep track of the current element
 
@@ -201,10 +200,10 @@ public class JavaFXWithReactApp2 extends Application {
     // Sample data with 8 blocks and 5 instructions each
 
     // Sample data with 8 blocks and 5 instructions each
-    private ObservableList<BlockLoopInstructionLoadDTO> getBlockLoopInstructions() {
+    private ObservableList<InstructionLoadDTO> getBlockLoopInstructions() {
         return FXCollections.observableArrayList(
                 // Block 1 (Default Block)
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -224,7 +223,7 @@ public class JavaFXWithReactApp2 extends Application {
                         null),
 
                 // Block 2
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -242,7 +241,7 @@ public class JavaFXWithReactApp2 extends Application {
                         4,
                         "firstName:Osvaldo",
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -260,7 +259,7 @@ public class JavaFXWithReactApp2 extends Application {
                         4,
                         "firstName:Osvaldo",
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -278,7 +277,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -298,7 +297,7 @@ public class JavaFXWithReactApp2 extends Application {
                         null),
 
                 // Block 3
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -316,7 +315,7 @@ public class JavaFXWithReactApp2 extends Application {
                         4,
                         "firstName:Osvaldo",
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -336,7 +335,7 @@ public class JavaFXWithReactApp2 extends Application {
                         null),
 
                 // Block 4
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -354,7 +353,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -372,7 +371,7 @@ public class JavaFXWithReactApp2 extends Application {
                         4,
                         "firstName:Osvaldo",
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -390,7 +389,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -408,7 +407,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -428,7 +427,7 @@ public class JavaFXWithReactApp2 extends Application {
                         null),
 
                 // Block 5
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -446,7 +445,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -464,7 +463,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -482,7 +481,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -500,7 +499,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -520,7 +519,7 @@ public class JavaFXWithReactApp2 extends Application {
                         null),
 
                 // Block 6
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -538,7 +537,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -556,7 +555,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -574,7 +573,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -592,7 +591,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -612,7 +611,7 @@ public class JavaFXWithReactApp2 extends Application {
                         null),
 
                 // Block 7
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -630,7 +629,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -648,7 +647,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -666,7 +665,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -684,7 +683,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -704,7 +703,7 @@ public class JavaFXWithReactApp2 extends Application {
                         null),
 
                 // Block 8
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -722,7 +721,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -740,7 +739,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -758,7 +757,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",
@@ -776,7 +775,7 @@ public class JavaFXWithReactApp2 extends Application {
                         0,
                         null,
                         null),
-                new BlockLoopInstructionLoadDTO(
+                new InstructionLoadDTO(
                         1,
                         11,
                         "JobName",

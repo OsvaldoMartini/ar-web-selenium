@@ -2,8 +2,8 @@ package com.allinweb.ch.component.listCell;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
@@ -65,7 +65,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
     private static final ARComponentBuilder builder = new ARComponentBuilder();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
 
-    private List<BlockLoopInstructionLoadDTO> originalLoopInstruction;
+    private List<InstructionLoadDTO> originalLoopInstruction;
     private List<InstructionReferenceLoadDTO> originalReferences;
 
     protected void updateItem(ComponentBlockDTO componentBlockDTO, boolean empty) {
@@ -263,7 +263,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
                             boolean savedInstStatus = false;
                             for (int j = 0; j < originalLoopInstruction.size(); j++) {
-                                BlockLoopInstructionLoadDTO task = originalLoopInstruction.get(j);
+                                InstructionLoadDTO task = originalLoopInstruction.get(j);
                                 int newId = preFillInstruction(
                                         task.getName(),
                                         task.getDescription(),
@@ -307,8 +307,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                     boolean success = false;
                                     for (InstructionReferenceLoadDTO reference : originalReferences) {
 
-                                        BlockLoopInstructionLoadDTO instructionDTO =
-                                                reference.getBlockLoopInstructionLoadDTO();
+                                        InstructionLoadDTO instructionDTO = reference.getInstructionLoadDTO();
                                         if (instructionDTO == null) {
                                             ARLogger.getInstance(ARViewBotJobPane.class)
                                                     .warning("BlockLoopInstructionDTO is null for reference: "
@@ -468,7 +467,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
             String xPath,
             BlockLoadDTO blockDTOLoad) {
 
-        BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
+        InstructionLoadDTO instruction = new InstructionLoadDTO();
 
         instruction.setName(name);
 
@@ -539,7 +538,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         return newId;
     }
 
-    private int insertInstruction(BlockLoopInstructionLoadDTO instructionDTO) throws SQLException {
+    private int insertInstruction(InstructionLoadDTO instructionDTO) throws SQLException {
         // Generate a Unique-ID for the block
 
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {

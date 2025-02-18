@@ -2,13 +2,13 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.BlockLoopInstructionLoadDTO;
 import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.DetailsDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
@@ -617,7 +617,7 @@ public class PerformDataBase {
     }
 
     // Handle BLOCK_UPDATE message
-    public boolean updateExportAR(BlockLoopInstructionLoadDTO instruction) {
+    public boolean updateExportAR(InstructionLoadDTO instruction) {
         try (Statement stmt = getConnection().createStatement()) {
 
             // Update each export_to_abr
@@ -1045,7 +1045,7 @@ public class PerformDataBase {
 
             Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
             Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
-            Map<Integer, BlockLoopInstructionLoadDTO> instructionMap = new HashMap<>();
+            Map<Integer, InstructionLoadDTO> instructionMap = new HashMap<>();
 
             botJobLoadList.clear();
 
@@ -1079,16 +1079,16 @@ public class PerformDataBase {
                     blockDTO.setBotJobName(botJobDTO.getName());
                     blockDTO.setExportFile(rs.getString("export_file"));
 
-                    blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
+                    blockDTO.setInstructionLoadDTOS(new ArrayList<>());
                     botJobDTO.getBlockLoadDTOList().add(blockDTO);
                     blockMap.put(blockId, blockDTO);
                 }
 
                 int instructionId = rs.getInt("instruction_id");
-                BlockLoopInstructionLoadDTO instruction = instructionMap.get(instructionId);
+                InstructionLoadDTO instruction = instructionMap.get(instructionId);
 
                 if (instruction == null) {
-                    instruction = new BlockLoopInstructionLoadDTO();
+                    instruction = new InstructionLoadDTO();
                     instruction.setId(instructionId);
                     instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                     instruction.setActions(rs.getString("actions"));
@@ -1109,7 +1109,7 @@ public class PerformDataBase {
                     instruction.setInstructionActive(rs.getBoolean("instruction_active"));
 
                     instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
-                    blockDTO.getBlockLoopInstructionLoadDTOS().add(instruction);
+                    blockDTO.getInstructionLoadDTOS().add(instruction);
                     instructionMap.put(instructionId, instruction);
                 }
 
@@ -1640,7 +1640,7 @@ public class PerformDataBase {
                     blockDTO.setBotJobId(botJobDTO.getId());
                     blockDTO.setBotJobName(botJobDTO.getName());
 
-                    blockDTO.setBlockLoopInstructionLoadDTOS(new ArrayList<>());
+                    blockDTO.setInstructionLoadDTOS(new ArrayList<>());
                     botJobDTO.getBlockLoadDTOList().add(blockDTO);
                     blockMap.put(blockId, blockDTO);
                 }
@@ -1943,8 +1943,7 @@ public class PerformDataBase {
         return blockLoadList;
     }
 
-    public int insertInstruction(
-            BlockLoopInstructionLoadDTO instructionDTO, Integer currentBotJobId, Integer currentBlockId) {
+    public int insertInstruction(InstructionLoadDTO instructionDTO, Integer currentBotJobId, Integer currentBlockId) {
 
         boolean isPostgres = POSTGRES_DB;
 
@@ -2215,7 +2214,7 @@ public class PerformDataBase {
 
         preInsertStep(rowMoveDTO, rowList);
 
-        List<BlockLoopInstructionLoadDTO> instructionList = null;
+        List<InstructionLoadDTO> instructionList = null;
         List<BlockLoadDTO> matchingBlocks = null;
 
         this.botJobLoadList = loadBotJobAndBlocks(rowMoveDTO.getBotJobId());
@@ -2245,7 +2244,7 @@ public class PerformDataBase {
         List<BlockLoadDTO> finalMatchingBlocks = matchingBlocks;
         List<com.allinweb.ch.component.model.InstructionDTO> finalInstructionList = rowList;
 
-        BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
+        InstructionLoadDTO instruction = new InstructionLoadDTO();
 
         instruction.setName(name);
 
@@ -3723,16 +3722,16 @@ public class PerformDataBase {
                 .collect(Collectors.toList());
     }
 
-    public List<BlockLoopInstructionLoadDTO> buildJsonViewData(List<BotJobLoadDTO> botJobLoadList) {
+    public List<InstructionLoadDTO> buildJsonViewData(List<BotJobLoadDTO> botJobLoadList) {
         List<com.allinweb.ch.component.model.InstructionDTO> rowList = null;
         for (BlockLoadDTO block : botJobLoadList.get(0).getBlockLoadDTOList()) {
             rowList = getInstructionsByBlockId(botJobLoadList.get(0).getId(), block.getId());
             reorderInstructions(rowList);
         }
 
-        List<BlockLoopInstructionLoadDTO> blockLoopInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
-                .flatMap(itemBlock -> itemBlock.getBlockLoopInstructionLoadDTOS().stream()
-                        .map(loopInstLoad -> new BlockLoopInstructionLoadDTO(
+        List<InstructionLoadDTO> blockLoopInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
+                .flatMap(itemBlock -> itemBlock.getInstructionLoadDTOS().stream()
+                        .map(loopInstLoad -> new InstructionLoadDTO(
                                 botJobLoadList.get(0).getHomeBankingId(), // homBankingId
                                 itemBlock.getBotJobId(), // botJobId
                                 itemBlock.getBotJobName(), // botJob Name
@@ -3755,7 +3754,7 @@ public class PerformDataBase {
         // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
         Set<Integer> parentIdsForRefreshLoop = blockLoopInstructions.stream()
                 .filter(instruction -> "REFRESH_LOOP".equalsIgnoreCase(instruction.getActions()))
-                .map(BlockLoopInstructionLoadDTO::getParentId)
+                .map(InstructionLoadDTO::getParentId)
                 .collect(Collectors.toSet());
 
         // Step 2: Iterate through the list and set refreshLoop = true for rows with id in parentIdsForRefreshLoop
@@ -3768,7 +3767,7 @@ public class PerformDataBase {
         // Step 1: Filter rows where actions = "LOOP" and collect their parent IDs
         Set<Integer> parentIdsForLoopOnly = blockLoopInstructions.stream()
                 .filter(instruction -> "LOOP".equalsIgnoreCase(instruction.getActions()))
-                .map(BlockLoopInstructionLoadDTO::getParentId)
+                .map(InstructionLoadDTO::getParentId)
                 .collect(Collectors.toSet());
 
         // Step 2: Iterate through the list and set loopOnly = true for rows with id in parentIdsForLoopOnly

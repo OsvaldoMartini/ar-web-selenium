@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BlockLoopInstructionLoadDTO {
+public class InstructionLoadDTO {
     private Integer homeBankingId;
     private Integer id;
     private Integer botJobId;
@@ -50,7 +50,7 @@ public class BlockLoopInstructionLoadDTO {
     private List<InstructionReferenceLoadDTO> instructionReferenceLoadDTOList;
 
     // Custom constructor
-    public BlockLoopInstructionLoadDTO(
+    public InstructionLoadDTO(
             Integer homeBankingId,
             Integer botJobId,
             String botJobName,
