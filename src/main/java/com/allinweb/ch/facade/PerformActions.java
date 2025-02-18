@@ -1190,6 +1190,8 @@ public class PerformActions {
                     }
                 } else {
                     element.sendKeys(UtilsMethods.generateRandomID(10));
+                    // Waits component reaction
+                    onHoldInSeconds(1);
                     if (!pressEnterAfter) {
                         element.sendKeys(Keys.TAB);
                     } else {
@@ -2382,6 +2384,8 @@ public class PerformActions {
     public boolean executeActionsAtCoordinates(
             String savedCoordinates, Pair<String, String> data, String action, boolean pressEnterAfter) {
 
+        boolean forceCLick = false;
+
         int x = 0;
         int y = 0;
         int xCoord = 0;
@@ -2407,6 +2411,18 @@ public class PerformActions {
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
             } else if (ARConstants.INSERT.equals(action)) {
+                scrollToCoordinates(x, y);
+                //                sendInputJS(x, y, data.getValue(),arWebDriver.getDriver());
+                //                circleAtCoordinates(x, y, arWebDriver.getDriver());
+                onHoldForSeconds(null);
+                //                clickAtCoordinates(xCoord, yCoord);
+                //                onHoldForSeconds(null);
+                typeCharacters(data);
+
+                if (pressEnterAfter) {
+                    sendEnter(xCoord, yCoord);
+                }
+            } else if (ARConstants.INSERT.equals(action) && forceCLick) {
                 scrollToCoordinates(x, y);
                 //                sendInputJS(x, y, data.getValue(),arWebDriver.getDriver());
                 //                circleAtCoordinates(x, y, arWebDriver.getDriver());
