@@ -1181,6 +1181,8 @@ public class PerformActions {
                 if (dataFieldValue != null) {
                     element.clear();
                     element.sendKeys(dataFieldValue);
+                    // Waits component reaction
+                    onHoldInSeconds(1);
                     if (!pressEnterAfter) {
                         element.sendKeys(Keys.TAB);
                     } else {
@@ -1201,6 +1203,8 @@ public class PerformActions {
                     dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
                 }
                 element.sendKeys(dataFieldValue);
+                // Waits component reaction
+                onHoldInSeconds(1);
                 if (!pressEnterAfter) {
                     element.sendKeys(Keys.TAB);
                 } else {
