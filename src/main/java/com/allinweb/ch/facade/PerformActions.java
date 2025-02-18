@@ -2376,7 +2376,7 @@ public class PerformActions {
     }
 
     public boolean executeActionsAtCoordinates(
-            String savedCoordinates, Pair<String, String> data, String action, boolean pressEnter) {
+            String savedCoordinates, Pair<String, String> data, String action, boolean pressEnterAfter) {
 
         int x = 0;
         int y = 0;
@@ -2411,7 +2411,7 @@ public class PerformActions {
                 onHoldForSeconds(null);
                 typeCharacters(data);
 
-                if (pressEnter) {
+                if (pressEnterAfter) {
                     sendEnter(xCoord, yCoord);
                 }
             }
@@ -2567,21 +2567,25 @@ public class PerformActions {
                 message = "focusElement(element, driver)";
                 focusElement(element, driver);
             } else if (typeCommand.equals(ARConstants.COORD_VISUALIZA)) {
-                message = "Coordinates COORD_VISUALIZA";
+                message = "Coordinates Visualiza";
                 executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.VISUALIZE, pressEnterAfter);
                 executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.VISUALIZE, pressEnterAfter);
             } else if (typeCommand.equals(ARConstants.COORD_CLICK)) {
-                message = "Coordinates COORD_CLICK";
+                message = "Coordinates Click";
                 executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.CLICK, pressEnterAfter);
                 executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.CLICK, pressEnterAfter);
             } else if (typeCommand.equals(ARConstants.COORD_INSERT)) {
-                message = "Coordinates COORD_INSERT";
+                message = "Coordinates Insert";
                 executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.INSERT, pressEnterAfter);
                 executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.INSERT, pressEnterAfter);
             } else if (typeCommand.equals(ARConstants.COORD_INSERT_ENTER)) {
-                message = "Coordinates COORD_INSERT";
+                message = "Coordinates Insert with <ENTER>";
                 executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.INSERT, pressEnterAfter);
                 executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.INSERT, pressEnterAfter);
+            } else if (typeCommand.equals(ARConstants.COORD_INSERT_ENTER)) {
+                message = "Coordinates Insert with <ENTER>";
+                moveAndClickAtCoordinates(coordinates[1], pressEnterAfter);
+                moveAndClickAtCoordinates(coordinates[1], pressEnterAfter);
             }
 
             return "Success " + message;
@@ -2624,53 +2628,64 @@ public class PerformActions {
         ((JavascriptExecutor) driver).executeScript(script, x, y, text);
     }
 
-    public void moveAndClickAtCoordinates(String savedCoordinates, WebDriver driver) {
+    public String moveAndClickAtCoordinates(String savedCoordinates, boolean pressEnterAfter) {
         String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
         double temp1 = Double.parseDouble(coordinates[0]);
         double temp2 = Double.parseDouble(coordinates[1]);
-        int x = (int) temp1;
-        int y = (int) temp2;
+        int xCoord = (int) temp1;
+        int yCoord = (int) temp2;
+        try {
+            String script =
+                    "function moveAndClickMouse(x, y) {\n" + "    const mouseDiv = document.createElement('div');\n"
+                            + "    mouseDiv.style.position = 'absolute';\n"
+                            + "    mouseDiv.style.width = '10px';\n"
+                            + "    mouseDiv.style.height = '10px';\n"
+                            + "    mouseDiv.style.backgroundColor = 'red';\n"
+                            + "    mouseDiv.style.borderRadius = '50%';\n"
+                            + "    mouseDiv.style.zIndex = '10000';\n"
+                            + "    mouseDiv.style.pointerEvents = 'none';\n"
+                            + "    mouseDiv.id = 'virtualMouse';\n"
+                            + "    document.body.appendChild(mouseDiv);\n"
+                            + "\n"
+                            + "    function blinkMouse() {\n"
+                            + "        const mouse = document.getElementById('virtualMouse');\n"
+                            + "        if (mouse) {\n"
+                            + "            mouse.style.visibility = mouse.style.visibility === 'hidden' ? 'visible' : 'hidden';\n"
+                            + "        }\n"
+                            + "    }\n"
+                            + "\n"
+                            + "    const blinkInterval = setInterval(blinkMouse, 500);\n"
+                            + "\n"
+                            + "    mouseDiv.style.left = `${x}px`;\n"
+                            + "    mouseDiv.style.top = `${y}px`;\n"
+                            + "\n"
+                            + "    const element = document.elementFromPoint(x, y);\n"
+                            + "    if (element) {\n"
+                            + "        element.click();\n"
+                            + "    }\n"
+                            + "\n"
+                            + "    setTimeout(() => {\n"
+                            + "        clearInterval(blinkInterval);\n"
+                            + "        const mouse = document.getElementById('virtualMouse');\n"
+                            + "        if (mouse) {\n"
+                            + "            mouse.remove();\n"
+                            + "        }\n"
+                            + "    }, 3000);\n"
+                            + "}\n"
+                            + "\n"
+                            + "moveAndClickMouse(arguments[0], arguments[1]);";
 
-        String script = "function moveAndClickMouse(x, y) {\n" + "    const mouseDiv = document.createElement('div');\n"
-                + "    mouseDiv.style.position = 'absolute';\n"
-                + "    mouseDiv.style.width = '10px';\n"
-                + "    mouseDiv.style.height = '10px';\n"
-                + "    mouseDiv.style.backgroundColor = 'red';\n"
-                + "    mouseDiv.style.borderRadius = '50%';\n"
-                + "    mouseDiv.style.zIndex = '10000';\n"
-                + "    mouseDiv.style.pointerEvents = 'none';\n"
-                + "    mouseDiv.id = 'virtualMouse';\n"
-                + "    document.body.appendChild(mouseDiv);\n"
-                + "\n"
-                + "    function blinkMouse() {\n"
-                + "        const mouse = document.getElementById('virtualMouse');\n"
-                + "        if (mouse) {\n"
-                + "            mouse.style.visibility = mouse.style.visibility === 'hidden' ? 'visible' : 'hidden';\n"
-                + "        }\n"
-                + "    }\n"
-                + "\n"
-                + "    const blinkInterval = setInterval(blinkMouse, 500);\n"
-                + "\n"
-                + "    mouseDiv.style.left = `${x}px`;\n"
-                + "    mouseDiv.style.top = `${y}px`;\n"
-                + "\n"
-                + "    const element = document.elementFromPoint(x, y);\n"
-                + "    if (element) {\n"
-                + "        element.click();\n"
-                + "    }\n"
-                + "\n"
-                + "    setTimeout(() => {\n"
-                + "        clearInterval(blinkInterval);\n"
-                + "        const mouse = document.getElementById('virtualMouse');\n"
-                + "        if (mouse) {\n"
-                + "            mouse.remove();\n"
-                + "        }\n"
-                + "    }, 3000);\n"
-                + "}\n"
-                + "\n"
-                + "moveAndClickMouse(arguments[0], arguments[1]);";
+            ((JavascriptExecutor) arWebDriver.getDriver()).executeScript(script, xCoord, yCoord);
 
-        ((JavascriptExecutor) driver).executeScript(script, x, y);
+            if (pressEnterAfter) {
+                sendEnter(xCoord, yCoord);
+            }
+
+            return "Success Move And Click -> Red Circle";
+
+        } catch (Exception error) {
+            return "Failed Move And Click -> Red Circle";
+        }
     }
 
     public Pair<String, String> getBlockDetailsById(

@@ -2834,30 +2834,40 @@ public class ARScannedElementPane extends ARPane {
 
                             String[] coordinates = new String[] {mainCoordenates, savedCoordenates};
 
-                            if (checkTestCoordinates.isSelected()) {
-                                performAction.executeActionsAtCoordinates(
-                                        coordinates[1], fieldData, ARConstants.VISUALIZE, false);
-                                performAction.executeActionsAtCoordinates(
-                                        coordinates[0], fieldData, ARConstants.VISUALIZE, false);
-
-                                performAction.executeActionsAtCoordinates(
-                                        coordinates[1], fieldData, ARConstants.CLICK, false);
-                                performAction.executeActionsAtCoordinates(
-                                        coordinates[0], fieldData, ARConstants.CLICK, false);
-
-                                performAction.executeActionsAtCoordinates(
-                                        coordinates[1], fieldData, ARConstants.INSERT, false);
-                                performAction.executeActionsAtCoordinates(
-                                        coordinates[0], fieldData, ARConstants.INSERT, false);
-
-                                performAction.executeActionsAtCoordinates(
-                                        coordinates[1], fieldData, ARConstants.INSERT, true);
-                                performAction.executeActionsAtCoordinates(
-                                        coordinates[0], fieldData, ARConstants.INSERT, true);
-
-                                performAction.moveAndClickAtCoordinates(coordinates[1], arWebDriver.getDriver());
-                                performAction.moveAndClickAtCoordinates(coordinates[0], arWebDriver.getDriver());
-                            }
+                            //                            if (checkTestCoordinates.isSelected()) {
+                            //                                performAction.executeActionsAtCoordinates(
+                            //                                        coordinates[1], fieldData, ARConstants.VISUALIZE,
+                            // false);
+                            //                                performAction.executeActionsAtCoordinates(
+                            //                                        coordinates[0], fieldData, ARConstants.VISUALIZE,
+                            // false);
+                            //
+                            //                                performAction.executeActionsAtCoordinates(
+                            //                                        coordinates[1], fieldData, ARConstants.CLICK,
+                            // false);
+                            //                                performAction.executeActionsAtCoordinates(
+                            //                                        coordinates[0], fieldData, ARConstants.CLICK,
+                            // false);
+                            //
+                            //                                performAction.executeActionsAtCoordinates(
+                            //                                        coordinates[1], fieldData, ARConstants.INSERT,
+                            // false);
+                            //                                performAction.executeActionsAtCoordinates(
+                            //                                        coordinates[0], fieldData, ARConstants.INSERT,
+                            // false);
+                            //
+                            //                                performAction.executeActionsAtCoordinates(
+                            //                                        coordinates[1], fieldData, ARConstants.INSERT,
+                            // true);
+                            //                                performAction.executeActionsAtCoordinates(
+                            //                                        coordinates[0], fieldData, ARConstants.INSERT,
+                            // true);
+                            //
+                            //                                performAction.moveAndClickAtCoordinates(coordinates[1],
+                            // arWebDriver.getDriver());
+                            //                                performAction.moveAndClickAtCoordinates(coordinates[0],
+                            // arWebDriver.getDriver());
+                            //                            }
 
                             Text actionText1;
                             Text actionText2;
@@ -2870,7 +2880,8 @@ public class ARScannedElementPane extends ARPane {
                             Text actionText9;
                             Text actionText10;
                             Text actionText11;
-                            //                            Text actionText12;
+                            Text actionText12;
+                            Text actionText13;
 
                             StringBuilder actionsTested = new StringBuilder();
                             actionsTested.append("Actions Tested:" + System.lineSeparator());
@@ -3036,14 +3047,60 @@ public class ARScannedElementPane extends ARPane {
                                     arWebDriver.getDriver(),
                                     false);
                             System.out.println(result);
-
                             actionsTested.append(result + System.lineSeparator());
-
                             actionText11 = new Text(result);
                             if (result.contains("Failed")) {
                                 actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
                             } else {
                                 actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
+
+                            result = performAction.sequenceOfCommands(
+                                    arWebHover.getElement(),
+                                    ARConstants.COORD_INSERT_ENTER,
+                                    coordinates,
+                                    fieldData,
+                                    arWebDriver.getDriver(),
+                                    true);
+                            System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+                            actionText12 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
+
+                            result = performAction.sequenceOfCommands(
+                                    arWebHover.getElement(),
+                                    ARConstants.COORD_INSERT_ENTER,
+                                    coordinates,
+                                    fieldData,
+                                    arWebDriver.getDriver(),
+                                    true);
+                            System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+                            actionText12 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
+
+                            result = performAction.sequenceOfCommands(
+                                    arWebHover.getElement(),
+                                    ARConstants.COORD_MOVE_CLICK_RED,
+                                    coordinates,
+                                    fieldData,
+                                    arWebDriver.getDriver(),
+                                    true);
+                            System.out.println(result);
+                            actionsTested.append(result + System.lineSeparator());
+                            actionText13 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText13.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
                             System.out.println(actionsTested.toString());
@@ -3061,7 +3118,9 @@ public class ARScannedElementPane extends ARPane {
                                             actionText8,
                                             actionText9,
                                             actionText10,
-                                            actionText11);
+                                            actionText11,
+                                            actionText12,
+                                            actionText13);
 
                             Platform.runLater(() -> {
                                 textFlowResult.getChildren().clear();
