@@ -1394,9 +1394,9 @@ public class ARScannedElementPane extends ARPane {
                                         scannedElements1.refresh();
                                     });
                                 } else {
-                                    webElementObservableList1.add(arWebElement);
+                                    webElementObservableList2.add(arWebElement);
                                     Platform.runLater(() -> {
-                                        scannedElements1.refresh();
+                                        scannedElements2.refresh();
                                     });
                                 }
                             }
