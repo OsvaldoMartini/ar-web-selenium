@@ -161,7 +161,7 @@ public class ARScannedElementPane extends ARPane {
 
     private CheckBox checkTestAction;
     private CheckBox checkJavaScript;
-    private CheckBox checkTestCoordinates;
+//    private CheckBox checkTestCoordinates;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
@@ -359,9 +359,9 @@ public class ARScannedElementPane extends ARPane {
                 );
 
         checkTestAction = new CheckBox("Test Actions");
-        checkJavaScript = new CheckBox("JS");
+//        checkJavaScript = new CheckBox("JS");
 
-        checkTestCoordinates = new CheckBox("Test Coordinates");
+//        checkTestCoordinates = new CheckBox("Test Coordinates");
 
         //        checkClickElement.setSelected(true);
         checkClickElement = new CheckBox("For Click");
@@ -424,7 +424,7 @@ public class ARScannedElementPane extends ARPane {
         currentAllAttributesLabel = new Label("All Attributes");
         customXPathLabel = new Label("Custom XPath");
         originalTagNameLabel = new Label("Tag Name");
-        coordsTextFieldLabel = new Label("Coordinates");
+        coordsTextFieldLabel = new Label("Main Coordinates");
 
         defineNameField = new TextField();
         defineNameField.setPromptText("DEFINE A NAME");
@@ -622,18 +622,20 @@ public class ARScannedElementPane extends ARPane {
             // Set proportional widths for each child
             testActionsField = new TextField("0001");
             checkTestAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.70));
-            checkJavaScript.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.10));
+//            checkJavaScript.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.10));
             testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
 
             boxActions.getChildren().addAll(checkTestAction, testActionsField);
 
             HBox boxCorrdinates = new HBox();
             boxCorrdinates.setSpacing(5);
-            checkTestCoordinates
-                    .prefWidthProperty()
-                    .bind(boxActions.widthProperty().multiply(0.70));
+//            checkTestCoordinates
+//                    .prefWidthProperty()
+//                    .bind(boxActions.widthProperty().multiply(0.70));
+            
             coordsTextField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
-            boxCorrdinates.getChildren().addAll(checkTestCoordinates, coordsTextField);
+            
+            boxCorrdinates.getChildren().addAll(coordsTextFieldLabel, coordsTextField);
 
             //            coordsTextField
             //                    .prefWidthProperty()
@@ -3053,22 +3055,6 @@ public class ARScannedElementPane extends ARPane {
                                 actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
                             } else {
                                 actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performAction.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.COORD_INSERT_ENTER,
-                                    coordinates,
-                                    fieldData,
-                                    arWebDriver.getDriver(),
-                                    true);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText12 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
                             result = performAction.sequenceOfCommands(

@@ -2582,14 +2582,12 @@ public class PerformActions {
                 message = "Coordinates Insert with <ENTER>";
                 executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.INSERT, pressEnterAfter);
                 executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.INSERT, pressEnterAfter);
-            } else if (typeCommand.equals(ARConstants.COORD_INSERT_ENTER)) {
+            } else if (typeCommand.equals(ARConstants.COORD_MOVE_CLICK_RED)) {
                 message = "Coordinates Insert with <ENTER>";
                 moveAndClickAtCoordinates(coordinates[1], pressEnterAfter);
                 moveAndClickAtCoordinates(coordinates[1], pressEnterAfter);
             }
-
             return "Success " + message;
-
         } catch (Exception ex) {
             return "Failed Attempt " + message;
         }
