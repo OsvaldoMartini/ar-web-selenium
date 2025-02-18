@@ -60,6 +60,18 @@ public class PerformMessage {
                 0);
     }
 
+    public void multipleActionsElement(String criteria) {
+        showCustomModalDialog(
+                criteria,
+                "Attention Required!",
+                "This element may require multiple actions.",
+                "It likely needs a click action first — then open the options to type in it.",
+                "For testing, always consider using \"TEST ACTIONS\" first to verify the element.",
+                true,
+                null,
+                0);
+    }
+
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
         showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, null, height);
     }

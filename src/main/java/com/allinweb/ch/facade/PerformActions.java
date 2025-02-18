@@ -731,7 +731,15 @@ public class PerformActions {
             }
         }
 
-        if (arPriorities.getAllPriorityList().size() < 4) {}
+        if (arPriorities.getAllPriorityList().size() == 0
+                || arPriorities.getAllPriorityList().size() < 4) {
+            StringBuilder priorMissing = new StringBuilder();
+            priorMissing.append("1,xpath,currentXPath" + System.lineSeparator());
+            priorMissing.append("2,coordinates,coordinates" + System.lineSeparator());
+            priorMissing.append("3,attribute,test-id" + System.lineSeparator());
+            priorMissing.append("4,attributes,allAttributes" + System.lineSeparator());
+            arPriorities.loadPrioritiesFromString(priorMissing.toString());
+        }
 
         WebElement elementFound = null;
         WebElement iframeElement = null;
@@ -792,6 +800,9 @@ public class PerformActions {
                 case attribute -> criterias = convertToCriteriaList(
                         tagName, priority.getName(), instructionReference.get().getValue());
                 case coordinates -> {
+                    // Coordinates case (not used for locating elements directly)
+                }
+                case allAttributes -> {
                     // Coordinates case (not used for locating elements directly)
                 }
                 case ById -> {}

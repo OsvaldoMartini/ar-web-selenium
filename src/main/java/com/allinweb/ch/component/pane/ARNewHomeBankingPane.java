@@ -202,9 +202,9 @@ public class ARNewHomeBankingPane extends ARPane {
         templateButton.setOnAction(event -> {
             StringBuilder priorities = new StringBuilder();
             priorities.append("#numero priorità, categoria, identificativo" + System.lineSeparator());
-            priorities.append("1,xpath,allAttributes" + System.lineSeparator());
-            priorities.append("2,xpath,currentXPath" + System.lineSeparator());
-            priorities.append("3,coordinates,coordinates" + System.lineSeparator());
+            priorities.append("1,xpath,currentXPath" + System.lineSeparator());
+            priorities.append("2,coordinates,coordinates" + System.lineSeparator());
+            priorities.append("3,xpath,allAttributes" + System.lineSeparator());
             priorities.append("4,attribute,test-id" + System.lineSeparator());
             priorityField.setText(priorities.toString());
 

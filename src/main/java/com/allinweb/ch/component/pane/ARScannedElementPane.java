@@ -68,6 +68,7 @@ import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
@@ -177,9 +178,12 @@ public class ARScannedElementPane extends ARPane {
     private Text currentURL;
     private Text iFrameText;
 
+    private VBox textFieldVBox;
+    private TextFlow textFlowResult;
+    private TextArea countdownTextField;
+
     private TextField defineNameField;
     private TextField testActionsField;
-    private TextArea countdownTextField;
     private TextField attribIdTextField;
     private TextField attribNameTextField;
     private TextField currentXPathTextField;
@@ -392,6 +396,8 @@ public class ARScannedElementPane extends ARPane {
         recallJobButton = componentBuilder.buildButton(
                 "Resume", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
 
+        textFlowResult = new TextFlow();
+
         countdownTextField = new TextArea("10");
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         countdownTextField.setEditable(false);
@@ -451,7 +457,13 @@ public class ARScannedElementPane extends ARPane {
             //            webElementObservableList1.clear();
             //            webElementObservableList2.clear();
             webElementObservableList2.clear();
-            Platform.runLater(() -> countdownTextField.setText(""));
+            Platform.runLater(() -> {
+                countdownTextField.setText("");
+                textFlowResult.getChildren().clear();
+                textFlowResult.getChildren().addAll(countdownTextField);
+                textFlowResult.requestLayout();
+                contentPane.requestLayout();
+            });
         });
 
         currentURL = new Text("");
@@ -607,8 +619,10 @@ public class ARScannedElementPane extends ARPane {
                             checkPickElement,
                             createSpacerHoriz());
 
+            textFlowResult.getChildren().addAll(countdownTextField);
+
             // Create the VBox for TextFields
-            VBox textFieldVBox = new VBox();
+            textFieldVBox = new VBox();
             textFieldVBox.setSpacing(6); // Adjust spacing between TextFields
             textFieldVBox
                     .getChildren()
@@ -616,24 +630,10 @@ public class ARScannedElementPane extends ARPane {
                             hBoxPickClone,
                             defineNameLabel,
                             boxName,
-                            //                            attribIdTextFieldLabel,
-                            //                            attribIdTextField,
-                            //                            attribNameTextFieldLabel,
-                            //                            attribNameTextField,
-                            //                            currentXPathLabel,
-                            //                            currentXPathTextField,
-                            //                            currentAllAttributesLabel,
-                            //                            allAttributesTextField,
-                            //                            customXPathLabel,
-                            //                            customXPathTextField,
-                            //                            originalTagNameLabel,
-                            //                            originalTagNameField,
-                            //                            coordsTextFieldLabel,
-                            //                            coordsTextField,
                             vBoxCheckBox,
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacerVert(),
-                            countdownTextField,
+                            textFlowResult,
                             boxActions,
                             createSpacerVert(),
                             createCustomSeparator(Color.DARKBLUE, 2),
@@ -2724,8 +2724,7 @@ public class ARScannedElementPane extends ARPane {
                             elemTagName = arWebHover.getElement().getTagName();
                         }
                     } catch (Exception ex) {
-                        performMessage.couldNotFindElement(elemTagName);
-                        return;
+                        performMessage.multipleActionsElement(elemTagName);
                     }
                 }
 
@@ -2808,8 +2807,24 @@ public class ARScannedElementPane extends ARPane {
                                 performAction.moveAndClickAtCoordinates(coordinates[0], arWebDriver.getDriver());
                             }
 
+                            Text actionText1;
+                            Text actionText2;
+                            Text actionText3;
+                            Text actionText4;
+                            Text actionText5;
+                            Text actionText6;
+                            Text actionText7;
+                            Text actionText8;
+                            Text actionText9;
+                            Text actionText10;
+                            Text actionText11;
+                            Text actionText12;
+
                             StringBuilder actionsTested = new StringBuilder();
                             actionsTested.append("Actions Tested:" + System.lineSeparator());
+
+                            actionText1 = new Text("Actions Tested:");
+                            actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
                             String result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2818,7 +2833,15 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText2 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText2.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText2.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2827,7 +2850,15 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText3 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2836,7 +2867,15 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText4 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText4.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText4.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2847,6 +2886,14 @@ public class ARScannedElementPane extends ARPane {
                             System.out.println(result);
 
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText5 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
+
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.INSERT,
@@ -2854,7 +2901,15 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText6 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText6.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2863,7 +2918,15 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText7 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText7.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText7.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2872,7 +2935,15 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText8 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText8.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText8.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2881,6 +2952,16 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
+                            actionsTested.append(result + System.lineSeparator());
+
+                            actionText9 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText9.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText9.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
+
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.COORD_VISUALIZA,
@@ -2888,7 +2969,15 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText10 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText10.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText10.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2897,7 +2986,15 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
+
+                            actionText11 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
@@ -2906,11 +3003,48 @@ public class ARScannedElementPane extends ARPane {
                                     fieldData,
                                     arWebDriver.getDriver());
                             System.out.println(result);
+
                             actionsTested.append(result + System.lineSeparator());
 
+                            actionText12 = new Text(result);
+                            if (result.contains("Failed")) {
+                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                            } else {
+                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                            }
+
+                            System.out.println(actionsTested.toString());
+
+                            VBox vertical = new VBox();
+                            vertical.getChildren()
+                                    .addAll(
+                                            actionText1,
+                                            actionText2,
+                                            actionText3,
+                                            actionText4,
+                                            actionText5,
+                                            actionText6,
+                                            actionText7,
+                                            actionText8,
+                                            actionText9,
+                                            actionText10,
+                                            actionText11,
+                                            actionText12);
+
                             Platform.runLater(() -> {
-                                countdownTextField.setText(actionsTested.toString());
-                                countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                                textFlowResult.getChildren().clear();
+                                textFlowResult.getChildren().addAll(vertical);
+
+                                textFlowResult.requestLayout();
+
+                                //                                boxListViews.requestLayout();
+                                //                                verticalBox.requestLayout();
+                                //                                getChildren().addAll(blockAndUrl, boxListViews);
+                                contentPane.requestLayout();
+
+                                //                                countdownTextField.setText(actionsTested.toString());
+                                //                                countdownTextField.setStyle("-fx-font-size: 12px;
+                                // -fx-text-fill: blue;");
                             });
                         }
                         //                                arWebElement.getElement().click();
@@ -3245,6 +3379,15 @@ public class ARScannedElementPane extends ARPane {
                 }
             } else if (mouseEvent.getClickCount() == 1) {
 
+                textFlowResult.getChildren().clear();
+                textFlowResult.getChildren().addAll(countdownTextField);
+                textFlowResult.requestLayout();
+                contentPane.requestLayout();
+
+                //                                boxListViews.requestLayout();
+                //                                verticalBox.requestLayout();
+                //                                getChildren().addAll(blockAndUrl, boxListViews);
+
                 for (ARWebElement arWebElement : scannedElements2.getItems()) {
                     performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
                 }
@@ -3375,6 +3518,11 @@ public class ARScannedElementPane extends ARPane {
                 sb.append("Named: " + nameDefined).append("\n");
                 countdownTextField.setText(sb.toString());
                 countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+
+                textFlowResult.getChildren().clear();
+                textFlowResult.getChildren().addAll(countdownTextField);
+                textFlowResult.requestLayout();
+                contentPane.requestLayout();
 
                 defineCheckBoxesClickabe(this.targetSelected);
                 arWebDriver.getDriver().switchTo().defaultContent();
@@ -6748,6 +6896,10 @@ public class ARScannedElementPane extends ARPane {
         Platform.runLater(() -> {
             countdownTextField.setText(sb.toString());
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+            textFlowResult.getChildren().clear();
+            textFlowResult.getChildren().addAll(countdownTextField);
+            textFlowResult.requestLayout();
+            contentPane.requestLayout();
         });
 
         return pickTarget;
@@ -8573,6 +8725,10 @@ public class ARScannedElementPane extends ARPane {
         } else {
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
             countdownTextField.setText(resultActions);
+            textFlowResult.getChildren().clear();
+            textFlowResult.getChildren().addAll(countdownTextField);
+            textFlowResult.requestLayout();
+            contentPane.requestLayout();
 
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstants.FIELDS_SEPARATOR
@@ -8624,6 +8780,10 @@ public class ARScannedElementPane extends ARPane {
         customXPathTextField.setText("");
         countdownTextField.setText("10");
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+        textFlowResult.getChildren().clear();
+        textFlowResult.getChildren().addAll(countdownTextField);
+        textFlowResult.requestLayout();
+        contentPane.requestLayout();
     }
 
     private void fillUpCurretLocators(BlockLoopInstructionLoadDTO currentInstruction) {

@@ -25,11 +25,11 @@ Example:
  
         // PRIORITY FOR ENGINE FIND ELEMENT
         #numero priorità, categoria, identificativo
-        1,xpath,allAttributes
-        2,xpath,currentXPath
-        3,coordinates,coordinates
-        4,attribute,test-id
- 
+        1,xpath,currentXPath
+        2,coordinates,coordinates
+        3,attribute,test-id
+        4,attributes,allAttributes
+        
         // SEARCH TERMS
         1,ByAttribute,test-id
         2,ByChained,By.tagName:input,By.className:mat-mdc-input-element

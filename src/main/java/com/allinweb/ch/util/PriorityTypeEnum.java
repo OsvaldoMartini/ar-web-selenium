@@ -5,6 +5,7 @@ public enum PriorityTypeEnum {
     ByAttribute, // NEW
     xpath,
     coordinates,
+    allAttributes,
     ById,
     ByClassName,
     ByName,
