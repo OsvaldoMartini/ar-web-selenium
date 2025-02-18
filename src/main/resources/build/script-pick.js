@@ -18,29 +18,74 @@
   var elementInfoMap = new Map();
   var allElementInfo = [];
 
-  function getMartiniAbsoluteXPath(element) {
+  function getElementLocators(element) {
+    const locators = [];
+
     if (element === document.body) {
-      return "/html/" + element.tagName.toLowerCase();
+      locators.push("/html/" + element.tagName.toLowerCase());
+      return locators;
     }
-    var ix = 0;
-    var siblings = element.parentNode.childNodes;
-    for (var i = 0; i < siblings.length; i++) {
-      var sibling = siblings[i];
-      if (sibling === element) {
-        return (
-          getMartiniAbsoluteXPath(element.parentNode) +
-          "/" +
-          element.tagName.toLowerCase() +
-          "[" +
-          (ix + 1) +
-          "]"
-        );
+
+    const tagName = element.tagName.toLowerCase();
+    const id = element.id ? `#${element.id}` : "";
+    const className = (
+      typeof element.className === "string" ? element.className : ""
+    )
+      .split(" ")
+      .filter((cls) => !/\d/.test(cls))
+      .join(".");
+
+    if (id) {
+      locators.push(id);
+    }
+
+    if (className) {
+      locators.push(`//${tagName}[contains(@class, '${className}')]`);
+    }
+
+    // Check for other attributes (e.g., 'data-*' attributes)
+    const attributes = Array.from(element.attributes);
+    attributes.forEach((attr) => {
+      if (attr.name !== "class" && attr.name !== "id") {
+        // Exclude class and id
+        locators.push(`${tagName}[@${attr.name}="${attr.value}"]`);
       }
-      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
-        ix++;
+    });
+
+    // Handle iframe elements
+    if (element.ownerDocument !== document) {
+      try {
+        const iframe = element.ownerDocument.defaultView.frameElement;
+        const iframeLocators = getElementLocators(iframe);
+        iframeLocators.forEach((iframePath) => {
+          locators.push(`${iframePath}//${tagName}`);
+        });
+      } catch (error) {
+        console.error("Error getting locators for iframe element:", error);
+      }
+    } else {
+      // Handle regular elements
+      let ix = 0;
+      const siblings = element.parentNode.childNodes;
+
+      for (let i = 0; i < siblings.length; i++) {
+        const sibling = siblings[i];
+
+        if (sibling === element) {
+          const parentLocators = getElementLocators(element.parentNode);
+          parentLocators.forEach((parentPath) => {
+            locators.push(`${parentPath}/${tagName}[${ix + 1}]`);
+          });
+          break;
+        }
+
+        if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
+          ix++;
+        }
       }
     }
-    return "";
+
+    return locators;
   }
   function getMartiniXPath(element) {
     if (element === document.body) {
@@ -173,13 +218,13 @@
     // Store tagName and other details in the Map
     if (iframeDetails && iframeDetails.length > 0) {
       elementInfoMap.set(
-        tagNameTemp,
+        elementXPath,
         `xpath:${elementXPath};text:${someText};${iframeDetails};`
       );
     } else {
       const {
         xpath,
-        absoluteXPath,
+        allAttributes,
         customXPath,
         attribId,
         attribName,
@@ -187,9 +232,9 @@
         someText,
       } = getElementIdentity(elementBelowTooltip);
 
-      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;
+      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
 
-      elementInfoMap.set(tagNameTemp, elementInfoString);
+      elementInfoMap.set(xpath, elementInfoString);
     }
 
     // Parse the someText using the semicolon delimiter
@@ -287,7 +332,7 @@
 
         const {
           xpath,
-          absoluteXPath,
+          allAttributes,
           customXPath,
           attribId,
           attribName,
@@ -295,7 +340,7 @@
           someText,
         } = getElementIdentity(elementBelowTooltip);
 
-        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;
+        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
 
         allElementInfo.push(`clicked-iFrame:${elementInfoString};`);
 
@@ -306,7 +351,7 @@
         iframeElements.forEach(function (elementInsideIframe) {
           const {
             xpath,
-            absoluteXPath,
+            allAttributes,
             customXPath,
             attribId,
             attribName,
@@ -314,7 +359,7 @@
             someText,
           } = getElementIdentity(elementInsideIframe);
 
-          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;
+          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
 
           allElementInfo.push(elementInfoString);
         });
@@ -349,7 +394,7 @@
 
       const {
         xpath,
-        absoluteXPath,
+        allAttributes,
         customXPath,
         attribId,
         attribName,
@@ -357,7 +402,7 @@
         someText,
       } = getElementIdentity(elementBelowTooltip);
 
-      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};absoluteXPath:${absoluteXPath};customXPath:${customXPath};`;
+      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
 
       allElementInfo.push(elementInfoString);
 
@@ -402,16 +447,45 @@
     }, 3000);
   }
 
+  function getElementAttributes(element) {
+    const attributes = [];
+
+    try {
+      for (const attr of element.attributes) {
+        attributes.push(`${attr.name}="${attr.value}"`);
+      }
+    } catch (error) {
+      // If accessing attributes directly fails (likely due to cross-origin restrictions)
+      // Attempt to get attributes using JavaScript execution within the iframe's context
+      const iframe = element.ownerDocument.defaultView.frameElement;
+      if (iframe) {
+        const iframeWindow = iframe.contentWindow;
+        iframeWindow.document.addEventListener("DOMContentLoaded", () => {
+          const iframeElement = iframeWindow.document.querySelector(
+            `#${element.id}`
+          ); // Adjust selector as needed
+          if (iframeElement) {
+            for (const attr of iframeElement.attributes) {
+              attributes.push(`${attr.name}="${attr.value}"`);
+            }
+          }
+        });
+      }
+    }
+
+    return attributes;
+  }
+
   function getElementIdentity(element) {
     var xpath = getMartiniXPath(element);
-    var absoluteXPath = "";
+    var allAttributes = "";
     try {
       // console.log("element", element);
-      absoluteXPath = getMartiniAbsoluteXPath(element);
+      allAttributes = getElementAttributes(element);
     } catch (error) {}
     var customXPath = "";
     try {
-      customXPath = getMartiniCustomXPath(element);
+      customXPath = getElementLocators(element);
     } catch (error) {}
 
     var attribId = element.id || "";
@@ -431,7 +505,7 @@
 
     return {
       xpath,
-      absoluteXPath,
+      allAttributes,
       customXPath,
       attribId,
       attribName,
@@ -625,7 +699,7 @@
   cleanOldValues();
 
   window.revertPickInjections = function () {
-    alert("revertPickInjections");
+    // alert("revertPickInjections");
 
     document.removeEventListener("mouseover", showMartiniTooltip);
     document.removeEventListener("click", handleMartiniClick);
@@ -634,6 +708,7 @@
     // Remove the tooltip from the page and delete the reference after 5 seconds
     setTimeout(() => {
       removeElements();
+      window.allElementInfo = [];
     }, 1000);
   };
 
@@ -660,5 +735,5 @@
     if (event.origin !== trustedOriginURL) return; // check the origin
     console.log(event.data);
   });
-})(arguments[0], arguments[1]);
-// })("http://localhost:3000/", "http://localhost:3000/");
+  // })(arguments[0], arguments[1]);
+})("http://localhost:3000/", "http://localhost:3000/");

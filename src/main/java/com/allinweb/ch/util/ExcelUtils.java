@@ -190,20 +190,32 @@ public class ExcelUtils {
                 for (com.allinweb.ch.component.model.InstructionDTO instruction : filteredInstructions) {
                     String action = instruction.getActions();
                     boolean hasReference = action.contains(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+
                     if (hasReference) {
-                        String reference = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1];
+                        // Split once and store the parts in an array
+                        String[] parts = action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
+
+                        // Get the reference from the second part of the split action
+
+                        String reference = parts[1];
+
+                        if (parts[0].equals(ARConstants.INSERT) && parts[1].equals(ARConstants.ENTER)) {
+                            reference = parts[2];
+                        }
+
                         if (!fieldAddedSet.contains(reference)) {
                             fieldAddedSet.add(reference);
+
+                            // Create cell for instruction field
                             Cell instructionFieldCell = instructionFieldRow.createCell(currentIndex, CellType.STRING);
                             instructionFieldCell.setCellValue(
-                                    action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1]);
+                                    reference); // Use reference directly instead of re-splitting
 
                             int DYNAMIC_ROW = SECOND_ROW + 1;
 
                             if (extractedData != null) {
-
+                                // Loop through extracted data rows
                                 for (int i = 0; i < extractedData.getNumberOfDataRows(); i++) {
-
                                     Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
                                     if (belowRow == null) {
                                         belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
@@ -211,25 +223,17 @@ public class ExcelUtils {
 
                                     Map<String, String> dataExcel = extractedData.getRowFieldValues(i);
                                     // Search for the "reference" in ExtractedData and set it in the below cell
-                                    try {
-                                        String valueFromExtractedData = dataExcel.get(reference); // Example row = 1
-                                        if (valueFromExtractedData != null) {
-                                            Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                                            belowCell.setCellValue(valueFromExtractedData);
-                                        } else {
-                                            Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
-                                            belowCell.setCellValue(
-                                                    "No Data Found"); // Fallback message if value is missing
-                                        }
-
-                                    } catch (Exception ex) {
-                                        Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                    String valueFromExtractedData = dataExcel.get(reference); // Example row = 1
+                                    Cell belowCell = belowRow.createCell(currentIndex, CellType.STRING);
+                                    if (valueFromExtractedData != null) {
+                                        belowCell.setCellValue(valueFromExtractedData);
+                                    } else {
                                         belowCell.setCellValue("No Data Found"); // Fallback message if value is missing
                                     }
                                     DYNAMIC_ROW++;
                                 }
                             } else {
-
+                                // Fallback if extractedData is null
                                 Row belowRow = spreadsheet.getRow(DYNAMIC_ROW); // Get the row below
                                 if (belowRow == null) {
                                     belowRow = spreadsheet.createRow(DYNAMIC_ROW); // Create if it doesn't exist
