@@ -164,7 +164,27 @@ public class ARWebElement {
                 for (Priority priority : arPriorities.getAllPriorityList()) {
                     try {
                         switch (priority.getPriorityType()) {
-                            case attribute -> {
+                            case attributeID -> {
+                                if (Strings.isNullOrEmpty(targetElement.getAttribId())) {
+                                    String attributeValue = element.getAttribute(
+                                            priority.getName().get(0));
+                                    if (attributeValue != null && !attributeValue.isBlank()) {
+                                        savedReferences.put(priority.getName().get(0), attributeValue);
+                                        targetElement.setAttribName(
+                                                priority.getName().get(0));
+                                        targetElement.setAttributeValue(attributeValue);
+                                    }
+
+                                } else {
+                                    String attributeValue = element.getAttribute(targetElement.getAttribId());
+                                    if (attributeValue != null && !attributeValue.isBlank()) {
+                                        savedReferences.put(priority.getName().get(0), attributeValue);
+                                        targetElement.setAttributeValue(attributeValue);
+                                    }
+                                }
+                            }
+
+                            case attributeName -> {
                                 if (Strings.isNullOrEmpty(targetElement.getAttribName())) {
                                     String attributeValue = element.getAttribute(
                                             priority.getName().get(0));
@@ -191,7 +211,6 @@ public class ARWebElement {
                                     savedReferences.put(priority.getName().get(0), targetElement.getMainXPath());
                                 }
                             }
-
                             case coordinates -> {
                                 Rectangle coord = element.getRect();
                                 String coordTemp = (coord.getX() + (coord.getWidth() / 2)) + ","
@@ -215,27 +234,31 @@ public class ARWebElement {
 
                 if (targetElement != null
                         && targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
-                    savedReferences.put(
-                            "currentXPath",
-                            targetElement.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 2
-                    savedReferences.put(
-                            "customXPath",
-                            targetElement.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                    savedReferences.put(
-                            "allAttributes",
-                            targetElement.getAllAttributes()); // Creates Seq to Fin element Via Instructions - 1
+                    savedReferences.put("currentXPath", targetElement.getCurrentXPath());
+                    savedReferences.put("customXPath", targetElement.getCustomXPath());
+                    savedReferences.put("allAttributes", targetElement.getAllAttributes());
+                    if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
+                        savedReferences.put("attributeID", targetElement.getAttribId());
+                    }
+                    if (!Strings.isNullOrEmpty(targetElement.getAttribName())) {
+                        savedReferences.put("attributeName", targetElement.getAttribName());
+                    }
                 } else if (targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.CUSTOM_XPATH)) {
-                    savedReferences.put(
-                            "currentXPath",
-                            targetElement.getCurrentXPath()); // Creates Seq to Fin element Via Instructions - 1
-                    savedReferences.put(
-                            "customXPath",
-                            targetElement.getCustomXPath()); // Creates Seq to Fin element Via Instructions - 2
-                    savedReferences.put(
-                            "allAttributes",
-                            targetElement.getAllAttributes()); // Creates Seq to Fin element Via Instructions - 2
+                    savedReferences.put("currentXPath", targetElement.getCurrentXPath());
+                    savedReferences.put("customXPath", targetElement.getCustomXPath());
+                    savedReferences.put("allAttributes", targetElement.getAllAttributes());
+                    if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
+                        savedReferences.put("attributeID", targetElement.getAttribId());
+                    }
+                    if (!Strings.isNullOrEmpty(targetElement.getAttribName())) {
+                        savedReferences.put("attributeName", targetElement.getAttribName());
+                    }
                 } else if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getMainXPath())) {
                     savedReferences.put("xpath", targetElement.getCurrentXPath());
+                } else if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
+                    savedReferences.put("attributeID", targetElement.getAttribId());
+                } else if (!Strings.isNullOrEmpty(targetElement.getAttribName())) {
+                    savedReferences.put("attributeName", targetElement.getAttribName());
                 } else if (!Strings.isNullOrEmpty(targetElement.getAttributeValue())) {
                     savedReferences.put("attribute", targetElement.getAttributeValue());
                 } else { // In case of Dynamic Creation

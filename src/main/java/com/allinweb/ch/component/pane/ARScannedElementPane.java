@@ -2724,7 +2724,7 @@ public class ARScannedElementPane extends ARPane {
                             elemTagName = arWebHover.getElement().getTagName();
                         }
                     } catch (Exception ex) {
-                        performMessage.multipleActionsElement(elemTagName);
+                        performMessage.multipleActionsElement("Multiple Actions");
                     }
                 }
 

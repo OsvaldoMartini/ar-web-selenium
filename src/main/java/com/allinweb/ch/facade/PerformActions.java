@@ -736,8 +736,10 @@ public class PerformActions {
             StringBuilder priorMissing = new StringBuilder();
             priorMissing.append("1,xpath,currentXPath" + System.lineSeparator());
             priorMissing.append("2,coordinates,coordinates" + System.lineSeparator());
-            priorMissing.append("3,attribute,test-id" + System.lineSeparator());
-            priorMissing.append("4,attributes,allAttributes" + System.lineSeparator());
+            priorMissing.append("3,attributeID,attributeID" + System.lineSeparator());
+            priorMissing.append("4,attributeName,attributeName" + System.lineSeparator());
+            priorMissing.append("5,attribute,test-id" + System.lineSeparator());
+            priorMissing.append("6,attributes,allAttributes" + System.lineSeparator());
             arPriorities.loadPrioritiesFromString(priorMissing.toString());
         }
 
@@ -2906,8 +2908,16 @@ public class PerformActions {
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
 
             targetDefine.setDefinedName(null);
-            targetDefine.setAttributeType("");
-            targetDefine.setAttributeValue("");
+            if (!Strings.isNullOrEmpty(elemenDTO.getAttribId())) {
+                targetDefine.setAttributeType("id");
+                targetDefine.setAttributeValue(elemenDTO.getAttribId());
+            } else if (!Strings.isNullOrEmpty(elemenDTO.getAttribName())) {
+                targetDefine.setAttributeType("name");
+                targetDefine.setAttributeValue(elemenDTO.getAttribName());
+            } else {
+                targetDefine.setAttributeType("");
+                targetDefine.setAttributeValue("");
+            }
             targetDefine.setIFrameElements(null);
 
             targetDefine.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);

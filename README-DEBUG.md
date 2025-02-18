@@ -28,7 +28,9 @@ Example:
         1,xpath,currentXPath
         2,coordinates,coordinates
         3,attribute,test-id
-        4,attributes,allAttributes
+        4,attributeID,attributeID
+        5,attributeName,attributeName
+        6,attributes,allAttributes
         
         // SEARCH TERMS
         1,ByAttribute,test-id

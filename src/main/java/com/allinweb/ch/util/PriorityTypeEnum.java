@@ -2,6 +2,8 @@ package com.allinweb.ch.util;
 
 public enum PriorityTypeEnum {
     attribute,
+    attributeName,
+    attributeID,
     ByAttribute, // NEW
     xpath,
     coordinates,
