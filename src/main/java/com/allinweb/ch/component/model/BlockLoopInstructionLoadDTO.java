@@ -20,6 +20,7 @@ public class BlockLoopInstructionLoadDTO {
     private String name;
     private String path;
     private String coordinates;
+    private Boolean forceCoordinates;
     private String iFrameXPath;
     private String description;
     private Boolean optional;

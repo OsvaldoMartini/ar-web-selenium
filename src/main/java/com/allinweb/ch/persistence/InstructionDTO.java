@@ -28,6 +28,9 @@ public class InstructionDTO extends BaseDTO {
     @Column(name = "coordinates", length = 100)
     private String coordinates;
 
+    @Column(name = "force_coordinates")
+    private Boolean forceCoordinates;
+
     @Column(name = "iframe_xpath", length = 10000)
     private String iFrameXPath;
 
@@ -161,6 +164,14 @@ public class InstructionDTO extends BaseDTO {
 
     public void setCoordinates(String coordinates) {
         this.coordinates = coordinates;
+    }
+
+    public Boolean getForceCoordinates() {
+        return forceCoordinates;
+    }
+
+    public void setForceCoordinates(Boolean forceCoordinates) {
+        this.forceCoordinates = forceCoordinates;
     }
 
     public String getPath() {

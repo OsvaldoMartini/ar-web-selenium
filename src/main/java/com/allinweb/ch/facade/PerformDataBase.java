@@ -2061,6 +2061,14 @@ public class PerformDataBase {
                 }
             }
 
+            if (instructionDTO.getForceCoordinates() != null) {
+                if (isPostgres) {
+                    addColumnValue.accept("force_coordinates", instructionDTO.getForceCoordinates());
+                } else if (instructionDTO.getForceCoordinates()) {
+                    addColumnValue.accept("force_coordinates", 1);
+                }
+            }
+
             //            if (instructionDTO.getEditMode() != null) {
             //                if (isPostgres) {
             //                    addColumnValue.accept("edit_mode", instructionDTO.getEditMode());

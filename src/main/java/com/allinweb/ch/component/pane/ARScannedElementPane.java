@@ -166,6 +166,7 @@ public class ARScannedElementPane extends ARPane {
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
     private CheckBox checkForceEnterText;
+    private CheckBox checkForceCoordText;
 
     private Label defineNameLabel;
     //    private Label searchAttribNameLabel;
@@ -366,8 +367,13 @@ public class ARScannedElementPane extends ARPane {
         checkClickElement = new CheckBox("For Click");
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
+
         checkForceEnterText = new CheckBox("With <PRESS ENTER> Action");
         checkForceEnterText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
+
+        checkForceCoordText = new CheckBox("Force Coordinates");
+        checkForceCoordText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
+
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
@@ -568,7 +574,13 @@ public class ARScannedElementPane extends ARPane {
             VBox vBoxCheckBox = new VBox();
             vBoxCheckBox
                     .getChildren()
-                    .addAll(boxCoordenates, checkInputText, checkOutputText, checkForceEnterText, iFrameText);
+                    .addAll(
+                            boxCoordenates,
+                            checkInputText,
+                            checkOutputText,
+                            checkForceEnterText,
+                            checkForceCoordText,
+                            iFrameText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
             //        gridPaneTop.add(vBox, 9, 0);
 
@@ -3232,6 +3244,12 @@ public class ARScannedElementPane extends ARPane {
                                 InstructionDTO instruction = arWebHover.buildNewInstruction(
                                         tagType, actionReq, checkPickElement.isSelected(), list.size());
 
+                                if (checkForceCoordText.isSelected()) {
+                                    instruction.setForceCoordinates(true);
+                                } else {
+                                    instruction.setForceCoordinates(false);
+                                }
+
                                 instruction.setCoordinates(
                                         arWebHover.getTargetElement().getMainCoordinates());
                                 instruction.setIFrameXPath(
@@ -3279,6 +3297,7 @@ public class ARScannedElementPane extends ARPane {
                                         instruction.getExportToABR(),
                                         instruction.getPath(),
                                         instruction.getCoordinates(),
+                                        instruction.getForceCoordinates(),
                                         instruction.getIFrameXPath(),
                                         currentBotJobId,
                                         currentBlockId);
@@ -9399,6 +9418,7 @@ public class ARScannedElementPane extends ARPane {
             boolean exportToAR,
             String xPath,
             String coordinates,
+            boolean forceCoordinates,
             String iFrameXPath,
             Integer currentBotJobId,
             Integer currentBlockId) {
@@ -9407,6 +9427,7 @@ public class ARScannedElementPane extends ARPane {
 
         instructionDTO.setPath(xPath);
         instructionDTO.setCoordinates(coordinates);
+        instructionDTO.setForceCoordinates(forceCoordinates);
         instructionDTO.setIFrameXPath(iFrameXPath);
         instructionDTO.setName(name);
 
