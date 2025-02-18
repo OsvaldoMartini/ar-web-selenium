@@ -1224,7 +1224,14 @@ public class PerformActions {
         String dataFieldValue = "";
 
         if (data != null) {
-            if (actions.length > 1) {
+            if (actions.length >= 3 && actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                dataFieldName = actions[2].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
+                dataFieldValue = data.get(dataFieldName);
+
+                if (isEncrypted && dataFieldValue != null) {
+                    dataFieldValue = CryptationAlgorithm.decrypt(dataFieldValue);
+                }
+            } else if (actions.length == 2 && actions[0].equals(ARConstants.INSERT)) {
                 dataFieldName = actions[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
                 dataFieldValue = data.get(dataFieldName);
 

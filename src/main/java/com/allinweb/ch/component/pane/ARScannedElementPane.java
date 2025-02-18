@@ -8623,8 +8623,10 @@ public class ARScannedElementPane extends ARPane {
 
                     // Case for Inputs
                     String valueInsert = "No Data Found";
-                    if (actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
-
+                    if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                        String reference = actions[2];
+                        valueInsert = dataExcel.get(reference);
+                    } else if (actions[0].equals(ARConstants.INSERT)) {
                         String reference = actions[1];
                         valueInsert = dataExcel.get(reference);
                     }

@@ -172,7 +172,10 @@ public class ExcelWriter {
                 String value = "";
                 String keyAction = msgLoop.getKey();
 
-                if (actions.length > 1) {
+                if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
+                    String reference = actions[2];
+                    value = data.get(reference);
+                } else if (actions[0].equals(ARConstants.INSERT)) {
                     String reference = actions[1];
                     value = data.get(reference);
                 }
