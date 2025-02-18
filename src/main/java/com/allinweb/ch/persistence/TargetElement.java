@@ -114,7 +114,7 @@ public class TargetElement {
                 performMessage.errorMessage(
                 "I Cannot defene this element",
                 "I will use the Locato \"COORDINATES\"",
-                "Try to get it again -> \"PICK ELEMENT\" or \"FORCE CLONE\"",
+                "Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
                 null,
                 null,
                 0);

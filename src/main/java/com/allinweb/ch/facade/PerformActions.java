@@ -3335,11 +3335,20 @@ public class PerformActions {
 
     public static WebElement findElementByAttributeParams(
             WebDriver driver, String attributeName, String attributeValue) {
+
+        attributeName = attributeName.trim().replaceAll("^\"|\"$", "");
+        attributeValue = attributeValue.trim().replaceAll("^\"|\"$", "");
+
         JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-        return (WebElement) jsExecutor.executeScript(
-                "return document.querySelector('[arguments[0]=\"' + arguments[1] + '\"]');",
-                attributeName,
-                attributeValue);
+        try {
+            // Remove extra quotes around the attribute name and value before passing them to JavaScript
+            return (WebElement) jsExecutor.executeScript(
+                    "return document.querySelector('[\"' + arguments[0] + '\"]' + '=\"' + arguments[1] + '\"]');",
+                    attributeName.trim(),
+                    attributeValue.trim());
+        } catch (Exception ignore) {
+        }
+        return null;
     }
 
     public static String extractAttribute(WebElement element, WebElementAttributeEnum attributeEnum) {

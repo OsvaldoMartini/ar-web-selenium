@@ -150,7 +150,7 @@ public class ARScannedElementPane extends ARPane {
     private Button searchButtons;
     private Button refreshInputFieldsButton;
     private Button refreshOutputFieldsButton;
-    private Button refreshOtherFieldsButton;
+    //    private Button refreshOtherFieldsButton;
     private Button magicFieldsButton;
     private Button leftButton;
     private Button rightButton;
@@ -329,7 +329,7 @@ public class ARScannedElementPane extends ARPane {
         scanIFrameButton = componentBuilder.buildButton(
                 "iFrames", ARConstants.SPACE_L, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5));
         addButtonNewElement = componentBuilder.buildButton(
-                "Add", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
+                "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
 
         searchWithIdsButton = componentBuilder.buildButton(
                 "With IDs", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
@@ -342,8 +342,9 @@ public class ARScannedElementPane extends ARPane {
                 "Input Fields", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
         refreshOutputFieldsButton = componentBuilder.buildButton(
                 "Output Fields", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-        refreshOtherFieldsButton = componentBuilder.buildButton(
-                "Other Elements", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
+        //        refreshOtherFieldsButton = componentBuilder.buildButton(
+        //                "Other Elements", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new
+        // Insets(5.0D));
         magicFieldsButton = componentBuilder.buildButton(
                 "", ARConstants.SPACE_ZERO, "/magic2.png", ARConstants.SPACE_M, new Insets(5.0D));
         magicFieldsButton.setDisable(true);
@@ -365,7 +366,7 @@ public class ARScannedElementPane extends ARPane {
         checkClickElement = new CheckBox("For Click");
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
-        checkForceEnterText = new CheckBox("Add <PRESS ENTER>");
+        checkForceEnterText = new CheckBox("With <PRESS ENTER> Action");
         checkForceEnterText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
@@ -405,8 +406,8 @@ public class ARScannedElementPane extends ARPane {
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         countdownTextField.setEditable(false);
 
-        checkCloneElement = new CheckBox("FORCE CLONE");
-        checkPickElement = new CheckBox("PICK");
+        checkCloneElement = new CheckBox("PICK ONE ");
+        checkPickElement = new CheckBox("HOVER PICK ");
 
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
 
@@ -539,10 +540,10 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.add(searchWithNamesButton, 2, 0);
             gridPaneTop.add(searchButtons, 3, 0);
             gridPaneTop.add(refreshOutputFieldsButton, 4, 0);
-            gridPaneTop.add(refreshOtherFieldsButton, 5, 0);
-            gridPaneTop.add(magicFieldsButton, 6, 0);
-            gridPaneTop.add(leftButton, 7, 0);
-            gridPaneTop.add(rightButton, 8, 0);
+            //            gridPaneTop.add(refreshOtherFieldsButton, 5, 0);
+            gridPaneTop.add(magicFieldsButton, 5, 0);
+            gridPaneTop.add(leftButton, 6, 0);
+            gridPaneTop.add(rightButton, 7, 0);
 
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
@@ -1053,9 +1054,9 @@ public class ARScannedElementPane extends ARPane {
                 } else {
                     performMessage.errorMessage(
                             "Not Web Element to be Detected!",
-                            "Release -> Checkbox -> \"PICK ELEMENT\" or \"FORCE CLONE\" again!",
+                            "Release -> Checkbox -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \" again!",
                             "\"Refresh\" the Page -> <CTRL + F5>",
-                            "Try  \"PICK ELEMENT\" or \"FORCE CLONE\" again!",
+                            "Try  \"HOVER PICK  ELEMENT\" or \"PICK ONE \" again!",
                             null,
                             0);
                 }
@@ -1064,7 +1065,7 @@ public class ARScannedElementPane extends ARPane {
 
         refreshInputFieldsButton.setOnAction(e -> refreshInputBtn("Input Web Elements"));
         refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn("Output Web Elements"));
-        refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn("Others Types of Web Elements"));
+        //        refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn("Others Types of Web Elements"));
         magicFieldsButton.setOnAction(e -> performAction.createOutputHtml("input", arWebDriver.getDriver()));
         searchWithIdsButton.setOnAction(e -> refreshWithIdsBtn("Web Elements with Attribute ID"));
         searchWithNamesButton.setOnAction(e -> refreshWithNamesBtn("Web Elements with Attribute Name"));
@@ -1179,9 +1180,9 @@ public class ARScannedElementPane extends ARPane {
                     ARLogger.getInstance(ARScannedElementPane.class).severe("Could not find the Web Element!");
                     performMessage.errorMessage(
                             "Not Web Element to be Detected!",
-                            "Release -> Checkbox -> \"PICK ELEMENT\" or \"FORCE CLONE\"   again!",
+                            "Release -> Checkbox -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"   again!",
                             "\"Refresh\" the Page -> <CTRL + F5>",
-                            "Try  \"PICK ELEMENT\" or \"FORCE CLONE\"   again!",
+                            "Try  \"HOVER PICK  ELEMENT\" or \"PICK ONE \"   again!",
                             null,
                             0);
                 }
@@ -1191,9 +1192,9 @@ public class ARScannedElementPane extends ARPane {
                         .severe("Error Attempt to create a Dynamic Element\n" + ex.getMessage());
                 performMessage.errorMessage(
                         "\"Error Attempt to create a Dynamic Element!",
-                        "Release -> Checkbox -> \"PICK ELEMENT\" or \"FORCE CLONE\"   again!",
+                        "Release -> Checkbox -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"   again!",
                         "\"Refresh\" the Page -> <CTRL + F5>",
-                        "Try  \"PICK ELEMENT\" or \"FORCE CLONE\"   again!",
+                        "Try  \"HOVER PICK  ELEMENT\" or \"PICK ONE \"   again!",
                         null,
                         0);
             }
@@ -1477,7 +1478,7 @@ public class ARScannedElementPane extends ARPane {
             performMessage.errorMessage(
                     "I Cannot define this element",
                     "I will use the Locato \"COORDINATES\"",
-                    "Try to get it again -> \"PICK ELEMENT\" or \"FORCE CLONE\"",
+                    "Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
                     null,
                     null,
                     0);
@@ -6807,7 +6808,7 @@ public class ARScannedElementPane extends ARPane {
                                                     "Warning: Too many elements found",
                                                     String.format("Total Web Elements: %d", elementsFound.size()),
                                                     "Limiting the result to 50 elements.",
-                                                    "Use \"PICK ELEMENT\" or \"FORCE CLONE\" to select the desired Web Element.",
+                                                    "Use \"HOVER PICK  ELEMENT\" or \"PICK ONE \" to select the desired Web Element.",
                                                     "If the element is not listed, try refining your search criteria.",
                                                     0);
 
