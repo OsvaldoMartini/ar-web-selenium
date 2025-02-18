@@ -40,7 +40,7 @@ public class TargetElement {
     Boolean isElementHidden;
     Boolean cloned;
     String searchAttributeValue;
-    boolean forceCoordinates;
+    Boolean forceCoordinates;
 
     public TargetElement(TargetElement origin) {
         this.nameLabel = origin.nameLabel;

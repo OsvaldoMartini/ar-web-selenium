@@ -161,7 +161,7 @@ public class ARScannedElementPane extends ARPane {
 
     private CheckBox checkTestAction;
     private CheckBox checkJavaScript;
-//    private CheckBox checkTestCoordinates;
+    //    private CheckBox checkTestCoordinates;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
@@ -359,9 +359,9 @@ public class ARScannedElementPane extends ARPane {
                 );
 
         checkTestAction = new CheckBox("Test Actions");
-//        checkJavaScript = new CheckBox("JS");
+        //        checkJavaScript = new CheckBox("JS");
 
-//        checkTestCoordinates = new CheckBox("Test Coordinates");
+        //        checkTestCoordinates = new CheckBox("Test Coordinates");
 
         //        checkClickElement.setSelected(true);
         checkClickElement = new CheckBox("For Click");
@@ -622,19 +622,19 @@ public class ARScannedElementPane extends ARPane {
             // Set proportional widths for each child
             testActionsField = new TextField("0001");
             checkTestAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.70));
-//            checkJavaScript.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.10));
+            //            checkJavaScript.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.10));
             testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
 
             boxActions.getChildren().addAll(checkTestAction, testActionsField);
 
             HBox boxCorrdinates = new HBox();
             boxCorrdinates.setSpacing(5);
-//            checkTestCoordinates
-//                    .prefWidthProperty()
-//                    .bind(boxActions.widthProperty().multiply(0.70));
-            
+            //            checkTestCoordinates
+            //                    .prefWidthProperty()
+            //                    .bind(boxActions.widthProperty().multiply(0.70));
+
             coordsTextField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
-            
+
             boxCorrdinates.getChildren().addAll(coordsTextFieldLabel, coordsTextField);
 
             //            coordsTextField
@@ -1746,7 +1746,7 @@ public class ARScannedElementPane extends ARPane {
         WebElement elementValid = null;
         if (!Strings.isNullOrEmpty(target.getCurrentXPath())) {
 
-            if (target.isForceCoordinates()) {
+            if (target.getForceCoordinates() != null && target.getForceCoordinates()) {
                 // Try by coordinates
                 try {
                     Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
@@ -2834,7 +2834,28 @@ public class ARScannedElementPane extends ARPane {
                                 savedCoordenates = mainCoordenates;
                             }
 
-                            String[] coordinates = new String[] {mainCoordenates, savedCoordenates};
+                            String mainCoordinates =
+                                    arWebHover.getTargetElement().getMainCoordinates();
+                            String savedCoordinates =
+                                    arWebHover.getSavedReferences().get("coordinates");
+
+                            if (Strings.isNullOrEmpty(mainCoordinates)) {
+                                mainCoordinates = arWebHover.getTargetElement().getMainCoordinates();
+                            }
+
+                            if (Strings.isNullOrEmpty(savedCoordinates)) {
+                                savedCoordinates = mainCoordinates;
+                            }
+
+                            List<String> coordinatesList = new ArrayList<>();
+                            if (!Strings.isNullOrEmpty(mainCoordinates)) {
+                                coordinatesList.add(mainCoordinates);
+                            }
+                            if (!Strings.isNullOrEmpty(savedCoordinates) && !savedCoordinates.equals(mainCoordinates)) {
+                                coordinatesList.add(savedCoordinates);
+                            }
+
+                            String[] coordinates = coordinatesList.toArray(new String[0]);
 
                             //                            if (checkTestCoordinates.isSelected()) {
                             //                                performAction.executeActionsAtCoordinates(
@@ -3059,7 +3080,7 @@ public class ARScannedElementPane extends ARPane {
 
                             result = performAction.sequenceOfCommands(
                                     arWebHover.getElement(),
-                                    ARConstants.COORD_INSERT_ENTER,
+                                    ARConstants.COORD_INSERT,
                                     coordinates,
                                     fieldData,
                                     arWebDriver.getDriver(),
@@ -8230,7 +8251,9 @@ public class ARScannedElementPane extends ARPane {
                                     success = false;
                                 }
 
-                                if (webElementFound == null && currentInstruction.getForceCoordinates()) {
+                                if (webElementFound == null
+                                        && currentInstruction.getForceCoordinates() != null
+                                        && currentInstruction.getForceCoordinates()) {
 
                                     Boolean pressEnterAfter = false;
                                     if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {

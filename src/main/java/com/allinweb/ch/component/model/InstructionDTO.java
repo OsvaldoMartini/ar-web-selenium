@@ -17,6 +17,7 @@ public class InstructionDTO {
     private String defaultValue;
     private String path;
     private String coordinates;
+    private Boolean forceCoordinates;
     private String iFrameXPath;
     private String operation;
     private String actions;

@@ -2568,24 +2568,27 @@ public class PerformActions {
                 focusElement(element, driver);
             } else if (typeCommand.equals(ARConstants.COORD_VISUALIZA)) {
                 message = "Coordinates Visualiza";
-                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.VISUALIZE, pressEnterAfter);
-                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.VISUALIZE, pressEnterAfter);
+                for (String coords : coordinates) {
+                    executeActionsAtCoordinates(coords, fieldData, ARConstants.VISUALIZE, pressEnterAfter);
+                }
             } else if (typeCommand.equals(ARConstants.COORD_CLICK)) {
                 message = "Coordinates Click";
-                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.CLICK, pressEnterAfter);
-                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.CLICK, pressEnterAfter);
+                for (String coords : coordinates) {
+                    executeActionsAtCoordinates(coords, fieldData, ARConstants.CLICK, pressEnterAfter);
+                }
             } else if (typeCommand.equals(ARConstants.COORD_INSERT)) {
                 message = "Coordinates Insert";
-                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.INSERT, pressEnterAfter);
-                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.INSERT, pressEnterAfter);
-            } else if (typeCommand.equals(ARConstants.COORD_INSERT_ENTER)) {
-                message = "Coordinates Insert with <ENTER>";
-                executeActionsAtCoordinates(coordinates[1], fieldData, ARConstants.INSERT, pressEnterAfter);
-                executeActionsAtCoordinates(coordinates[0], fieldData, ARConstants.INSERT, pressEnterAfter);
+                if (pressEnterAfter) {
+                    message = "Coordinates Insert with <ENTER>";
+                }
+                for (String coords : coordinates) {
+                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT, pressEnterAfter);
+                }
             } else if (typeCommand.equals(ARConstants.COORD_MOVE_CLICK_RED)) {
-                message = "Coordinates Insert with <ENTER>";
-                moveAndClickAtCoordinates(coordinates[1], pressEnterAfter);
-                moveAndClickAtCoordinates(coordinates[1], pressEnterAfter);
+                message = "Coordinates Move Insert Red Circle";
+                for (String coords : coordinates) {
+                    moveAndClickAtCoordinates(coords, pressEnterAfter);
+                }
             }
             return "Success " + message;
         } catch (Exception ex) {

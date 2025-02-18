@@ -156,7 +156,6 @@ public class ARConstants {
     public static final String COORD_VISUALIZA = "COORD_VISUALIZA";
     public static final String COORD_CLICK = "COORD_CLICK";
     public static final String COORD_INSERT = "COORD_INSERT";
-    public static final String COORD_INSERT_ENTER = "COORD_INSERT_ENTER";
     public static final String COORD_MOVE_CLICK_RED = "COORD_MOVE_CLICK_RED";
     public static final String VISUALIZE = "V";
     public static final String GET_ELEMENT = "G";

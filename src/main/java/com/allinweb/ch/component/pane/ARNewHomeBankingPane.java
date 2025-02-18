@@ -215,13 +215,16 @@ public class ARNewHomeBankingPane extends ARPane {
             //            searchCriteria.append("#numero priorità, categoria, criterioricerca" +
             // System.lineSeparator());
             searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
-            searchCriteria.append(
-                    "2,ByChained,By.tagName:input,By.className:mat-mdc-input-element" + System.lineSeparator());
-            searchCriteria.append(
-                    "3,ByChained,By.xpath://*[contains(@idCOMMA \"mat-input\")]" + System.lineSeparator());
-            searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
-            searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
-            searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" + System.lineSeparator());
+            //            searchCriteria.append(
+            //                    "2,ByChained,By.tagName:input,By.className:mat-mdc-input-element" +
+            // System.lineSeparator());
+            //            searchCriteria.append(
+            //                    "3,ByChained,By.xpath://*[contains(@idCOMMA \"mat-input\")]" +
+            // System.lineSeparator());
+            //            searchCriteria.append("4,ByTagName,input" + System.lineSeparator());
+            //            searchCriteria.append("5,ByTagName,button" + System.lineSeparator());
+            //            searchCriteria.append("6,ByChained,By.cssSelector:[id^=\"mat-input\"]" +
+            // System.lineSeparator());
 
             //            searchCriteria.append("1,ByAttribute,test-id" + System.lineSeparator());
             //            searchCriteria.append("2,ByChained,By.tagName:input" + System.lineSeparator());
@@ -231,21 +234,27 @@ public class ARNewHomeBankingPane extends ARPane {
             searchConfigField.setText(searchCriteria.toString());
 
             // Proxy Example
+            String argument1 = "arg:--disable-web-security";
+            String argument2 = "arg:--disable-site-isolation-trials";
+            String argument3 = "arg:--allow-running-insecure-content";
+            String argument4 = "arg:--disable-features=IsolateOrigins,site-per-process";
+            String argument5 = "#arg:--disable-infobars";
+            String argument6 = "#arg:--disable-dev-shm-usage";
             String proxyAddress = "#proxy:proxy_address:proxy_port";
-            String browserLog = "#browser_log:active";
-            String argument1 = "#argument:--disable-infobars";
-            String argument2 = "#argument:--disable-dev-shm-usage";
-            String argument3 = "#argument:--no-sandbox";
-            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
-            String systemProps2 = "#systemProps:webdriver.chrome.verboseLogging:true";
+            //            String browserLog = "#browser_log:active";
+            //            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
+            //            String systemProps2 = "#systemProps:webdriver.chrome.verboseLogging:true";
             StringBuilder optionsConfig = new StringBuilder();
-            optionsConfig.append(proxyAddress + System.lineSeparator());
-            optionsConfig.append(browserLog + System.lineSeparator());
             optionsConfig.append(argument1 + System.lineSeparator());
             optionsConfig.append(argument2 + System.lineSeparator());
             optionsConfig.append(argument3 + System.lineSeparator());
-            optionsConfig.append(systemProps1 + System.lineSeparator());
-            optionsConfig.append(systemProps2 + System.lineSeparator());
+            optionsConfig.append(argument4 + System.lineSeparator());
+            optionsConfig.append(argument5 + System.lineSeparator());
+            optionsConfig.append(argument6 + System.lineSeparator());
+            optionsConfig.append(proxyAddress + System.lineSeparator());
+            //            optionsConfig.append(browserLog + System.lineSeparator());
+            //            optionsConfig.append(systemProps1 + System.lineSeparator());
+            //            optionsConfig.append(systemProps2 + System.lineSeparator());
 
             optionsConfigField.setText(optionsConfig.toString());
 
