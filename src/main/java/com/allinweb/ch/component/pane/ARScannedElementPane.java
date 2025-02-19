@@ -408,9 +408,9 @@ public class ARScannedElementPane extends ARPane {
 
         textFlowResult = new TextFlow();
 
-        countdownTextField = new TextArea("10");
+        countdownTextField = new TextArea("Pre-Launch status: Ready");
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        countdownTextField.setEditable(false);
+        countdownTextField.setEditable(true);
 
         checkCloneElement = new CheckBox("PICK ONE ");
         checkPickElement = new CheckBox("HOVER PICK ");
@@ -471,11 +471,11 @@ public class ARScannedElementPane extends ARPane {
             //            webElementObservableList2.clear();
             webElementObservableList2.clear();
             Platform.runLater(() -> {
-                countdownTextField.setText("");
-                textFlowResult.getChildren().clear();
-                textFlowResult.getChildren().addAll(countdownTextField);
-                textFlowResult.requestLayout();
-                contentPane.requestLayout();
+                countdownTextField.setText("Pre-Launch status: Ready");
+                //                textFlowResult.getChildren().clear();
+                //                //                textFlowResult.getChildren().addAll(countdownTextField);
+                //                textFlowResult.requestLayout();
+                //                contentPane.requestLayout();
             });
         });
 
@@ -651,7 +651,7 @@ public class ARScannedElementPane extends ARPane {
                             checkPickElement,
                             createSpacerHoriz());
 
-            textFlowResult.getChildren().addAll(countdownTextField);
+            //            textFlowResult.getChildren().addAll(countdownTextField);
 
             // Create the VBox for TextFields
             textFieldVBox = new VBox();
@@ -662,14 +662,25 @@ public class ARScannedElementPane extends ARPane {
                             hBoxPickClone,
                             defineNameLabel,
                             boxName,
+                            //                            attribIdTextFieldLabel,
+                            //                            attribIdTextField,
+                            //                            attribNameTextFieldLabel,
+                            //                            attribNameTextField,
+                            //                            currentXPathLabel,
+                            //                            currentXPathTextField,
+                            //                            currentAllAttributesLabel,
+                            //                            allAttributesTextField,
+                            //                            customXPathLabel,
+                            //                            customXPathTextField,
+                            //                            originalTagNameLabel,
+                            //                            originalTagNameField,
+                            //                            coordsTextFieldLabel,
+                            //                            coordsTextField,
                             vBoxCheckBox,
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacerVert(),
-                            //                            searchAttribNameLabel,
-                            //                            searchAttribNameField,
-                            searchAttribValueLabel,
-                            searchAttribValueField,
-                            textFlowResult,
+                            countdownTextField,
+                            //                            textFlowResult,
                             boxActions,
                             boxCorrdinates,
                             createSpacerVert(),
@@ -3139,6 +3150,14 @@ public class ARScannedElementPane extends ARPane {
                                 //                                verticalBox.requestLayout();
                                 //                                getChildren().addAll(blockAndUrl, boxListViews);
                                 contentPane.requestLayout();
+                                VBox vBoxResult = new VBox();
+                                vBoxResult.getChildren().addAll(textFlowResult);
+                                performMessage.showAlertCombinedVBOX(
+                                        Alert.AlertType.INFORMATION,
+                                        "Test Actions Results",
+                                        "Web Actions Tested:",
+                                        null,
+                                        vBoxResult);
 
                                 //                                countdownTextField.setText(actionsTested.toString());
                                 //                                countdownTextField.setStyle("-fx-font-size: 12px;
@@ -3493,10 +3512,10 @@ public class ARScannedElementPane extends ARPane {
                 }
             } else if (mouseEvent.getClickCount() == 1) {
 
-                textFlowResult.getChildren().clear();
-                textFlowResult.getChildren().addAll(countdownTextField);
-                textFlowResult.requestLayout();
-                contentPane.requestLayout();
+                //                textFlowResult.getChildren().clear();
+                //                textFlowResult.getChildren().addAll(countdownTextField);
+                //                textFlowResult.requestLayout();
+                //                contentPane.requestLayout();
 
                 //                                boxListViews.requestLayout();
                 //                                verticalBox.requestLayout();
@@ -3648,13 +3667,15 @@ public class ARScannedElementPane extends ARPane {
                     sb.append("->  ").append(attribute.trim()).append("\n");
                 }
 
-                countdownTextField.setText(sb.toString());
-                countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                Platform.runLater(() -> {
+                    countdownTextField.setText(sb.toString());
+                    countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                });
 
-                textFlowResult.getChildren().clear();
-                textFlowResult.getChildren().addAll(countdownTextField);
-                textFlowResult.requestLayout();
-                contentPane.requestLayout();
+                //                textFlowResult.getChildren().clear();
+                //                textFlowResult.getChildren().addAll(countdownTextField);
+                //                textFlowResult.requestLayout();
+                //                contentPane.requestLayout();
 
                 defineCheckBoxesClickabe(this.targetSelected);
                 arWebDriver.getDriver().switchTo().defaultContent();
@@ -7046,10 +7067,10 @@ public class ARScannedElementPane extends ARPane {
         Platform.runLater(() -> {
             countdownTextField.setText(sb.toString());
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-            textFlowResult.getChildren().clear();
-            textFlowResult.getChildren().addAll(countdownTextField);
-            textFlowResult.requestLayout();
-            contentPane.requestLayout();
+            //            textFlowResult.getChildren().clear();
+            //            textFlowResult.getChildren().addAll(countdownTextField);
+            //            textFlowResult.requestLayout();
+            //            contentPane.requestLayout();
         });
 
         return pickTarget;
@@ -8888,10 +8909,10 @@ public class ARScannedElementPane extends ARPane {
         } else {
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
             countdownTextField.setText(resultActions);
-            textFlowResult.getChildren().clear();
-            textFlowResult.getChildren().addAll(countdownTextField);
-            textFlowResult.requestLayout();
-            contentPane.requestLayout();
+            //            textFlowResult.getChildren().clear();
+            //            textFlowResult.getChildren().addAll(countdownTextField);
+            //            textFlowResult.requestLayout();
+            //            contentPane.requestLayout();
 
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstants.FIELDS_SEPARATOR
@@ -8941,11 +8962,11 @@ public class ARScannedElementPane extends ARPane {
         iFrameElements = null;
         coordsTextField.setText("");
         customXPathTextField.setText("");
-        countdownTextField.setText("10");
+        countdownTextField.setText("Pre-Launch status: Ready");
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        textFlowResult.getChildren().clear();
-        textFlowResult.getChildren().addAll(countdownTextField);
-        textFlowResult.requestLayout();
+        //        textFlowResult.getChildren().clear();
+        //        textFlowResult.getChildren().addAll(countdownTextField);
+        //        textFlowResult.requestLayout();
         contentPane.requestLayout();
     }
 
