@@ -5287,7 +5287,6 @@ public class ARScannedElementPane extends ARPane {
                                 } else {
                                     iFrameText.setText("");
                                     elementsFound.clear();
-                                    periodicCloneActivated.set(false);
                                 }
                             });
                         }
@@ -6158,7 +6157,6 @@ public class ARScannedElementPane extends ARPane {
                                 } else {
                                     iFrameText.setText("");
                                     elementsFound.clear();
-                                    periodicPickActivated.set(false);
                                 }
                             });
                         }
@@ -7011,7 +7009,7 @@ public class ARScannedElementPane extends ARPane {
                                         int nextIndex = Math.min(lastIndex + 30, elementsFound.size());
                                         elementsChunk = elementsFound.subList(lastIndex, nextIndex);
 
-                                        while (elementsChunk.size() > 0) {
+                                        while (elementsChunk.size() > 0 && periodicSearchActivated.get()) {
 
                                             int remainingElements =
                                                     Math.abs(elementsFound.size() - elementsChunk.size());
