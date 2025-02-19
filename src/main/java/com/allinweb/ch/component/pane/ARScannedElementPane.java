@@ -837,10 +837,10 @@ public class ARScannedElementPane extends ARPane {
         // If more than one tab is open
         if (performAction.windowHandlesList.size() > 1) {
             // Disable the left button if we are on the first tab
-            leftButton.setDisable(currentTabIndex == 0);
-
-            // Disable the right button if we are on the last tab
-            rightButton.setDisable(currentTabIndex == performAction.windowHandlesList.size() - 1);
+            //            leftButton.setDisable(currentTabIndex == 0);
+            //
+            //            // Disable the right button if we are on the last tab
+            //            rightButton.setDisable(currentTabIndex == performAction.windowHandlesList.size() - 1);
         } else {
             // Disable both buttons if there's only one tab or no tabs
             leftButton.setDisable(true);
@@ -859,10 +859,10 @@ public class ARScannedElementPane extends ARPane {
             updateSceneTitleWithCurrentURL(arWebDriver.getDriver().getCurrentUrl());
 
             // Disable the left button if we are at the first tab
-            leftButton.setDisable(currentTabIndex == 0);
+            //            leftButton.setDisable(currentTabIndex == 0);
 
             // Enable the right button since we're no longer on the last tab
-            rightButton.setDisable(false);
+            //            rightButton.setDisable(false);
         }
     }
 
@@ -878,10 +878,10 @@ public class ARScannedElementPane extends ARPane {
             updateSceneTitleWithCurrentURL(arWebDriver.getDriver().getCurrentUrl());
 
             // Disable the right button if we are at the last tab
-            rightButton.setDisable(currentTabIndex == performAction.windowHandlesList.size() - 1);
+            //            rightButton.setDisable(currentTabIndex == performAction.windowHandlesList.size() - 1);
 
             // Enable the left button since we're no longer on the first tab
-            leftButton.setDisable(false);
+            //            leftButton.setDisable(false);
         }
     }
 
