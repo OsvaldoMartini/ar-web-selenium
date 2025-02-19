@@ -56,6 +56,7 @@ public class PerformMessage {
                 "3. Consider increasing the wait time to ensure the page loads completely.",
                 "4. Consider to Re Scanner or Re Select the Element!",
                 true,
+                "OK",
                 null,
                 0);
     }
@@ -68,12 +69,13 @@ public class PerformMessage {
                 "It likely needs a click action first — then open the options to type in it.",
                 "For testing, always consider using \"TEST ACTIONS\" first to verify the element.",
                 true,
+                "OK",
                 null,
                 0);
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
-        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, null, height);
+        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, "OK", null, height);
     }
 
     public static void showCustomDialog(String title, String message) {
@@ -147,6 +149,7 @@ public class PerformMessage {
             String message3,
             String message4,
             boolean redMsg,
+            String firstButton,
             String secondButton,
             int height) {
         // Create a JDialog as a custom modal message dialog
@@ -220,7 +223,8 @@ public class PerformMessage {
             Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
 
             // OK button with custom gradient background
-            JButton okButton = new JButton("OK") {
+
+            JButton okButton = new JButton(firstButton) {
                 @Override
                 protected void paintComponent(Graphics g) {
                     if (isOpaque()) {
@@ -282,7 +286,7 @@ public class PerformMessage {
             Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
 
             // OK button with custom gradient background
-            JButton okButton = new JButton("OK") {
+            JButton okButton = new JButton(firstButton) {
                 @Override
                 protected void paintComponent(Graphics g) {
                     if (isOpaque()) {

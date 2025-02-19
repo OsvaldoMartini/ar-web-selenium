@@ -431,7 +431,8 @@ public class PerformActions {
                 null,
                 null,
                 true,
-                null,
+                "Continue",
+                "Stop All",
                 0);
     }
 
@@ -2194,6 +2195,7 @@ public class PerformActions {
                     null,
                     null,
                     true,
+                    "OK",
                     null,
                     0);
         }
@@ -3172,7 +3174,7 @@ public class PerformActions {
             boolean isElementHidden;
             try {
                 isElementHidden = extractAttribute(targetElem, WebElementAttributeEnum.TYPE) != null
-                        && extractAttribute(targetElem, WebElementAttributeEnum.VALUE)
+                        && extractAttribute(targetElem, WebElementAttributeEnum.TYPE)
                                 .equalsIgnoreCase("hidden");
 
             } catch (Exception ignored) {
