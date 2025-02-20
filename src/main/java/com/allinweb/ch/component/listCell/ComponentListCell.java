@@ -272,7 +272,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                         task.getOnHoldSeconds(),
                                         task.getVariableId(),
                                         task.getInstructionOrderNumber(),
-                                        task.getExportToAR(),
+                                        task.getExportToABR(),
                                         task.getPath(),
                                         this.blockLoadDTO);
 
@@ -472,7 +472,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         instruction.setName(name);
 
         instruction.setCodified(false);
-        instruction.setExportToAR(true);
+        instruction.setExportToABR(true);
         instruction.setInstructionActive(true);
 
         instruction.setInstructionOrderNumber(instructionOrderNumber);
@@ -488,7 +488,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
         instruction.setBlockId(blockLoadDTO.getId());
-        instruction.setExportToAR(exportAR);
+        instruction.setExportToABR(exportAR);
         instruction.setPath(xPath);
 
         // Wrap the persistence in a try-catch block
@@ -584,7 +584,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     + "," + instructionDTO.getDefaultValue()
                     + ", '" + instructionDTO.getDescription() + "'"
                     + ", " + instructionDTO.getCodified()
-                    + ", " + instructionDTO.getExportToAR()
+                    + ", " + instructionDTO.getExportToABR()
                     + ", " + instructionDTO.getInstructionOrderNumber()
                     + ", '" + instructionDTO.getName() + "'"
                     + ", " + instructionDTO.getOnHoldSeconds()

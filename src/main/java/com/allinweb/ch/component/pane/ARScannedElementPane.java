@@ -9689,7 +9689,7 @@ public class ARScannedElementPane extends ARPane {
         instructionDTO.setActionCustomMaxWaitSec(30);
         instructionDTO.setOnHoldSeconds(onHold);
         //        instructionDTO.setBlock(savedBlockDTO);
-        instructionDTO.setExportToAR(exportToAR);
+        instructionDTO.setExportToABR(exportToAR);
         instructionDTO.setInstructionActive(true);
 
         // Wrap the persistence in a try-catch block

@@ -9,7 +9,6 @@ import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.persistence.TargetElement;
@@ -3239,7 +3238,7 @@ public class PerformActions {
             }
 
         } catch (Exception e) {
-            ARLogger.getInstance(ARScannedElementPane.class).fine("Error defineTargetNameTitles");
+            ARLogger.getInstance(PerformActions.class).fine("Error defineTargetNameTitles");
         }
         return target;
     }
@@ -3295,7 +3294,7 @@ public class PerformActions {
             return targetTagType;
 
         } catch (Exception ex) {
-            ARLogger.getInstance(ARScannedElementPane.class)
+            ARLogger.getInstance(PerformActions.class)
                     .severe("Could not find any Web Element with XPath/Id/Attributes values.");
         }
         return null;

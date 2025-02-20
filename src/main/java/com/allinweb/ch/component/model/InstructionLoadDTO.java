@@ -29,7 +29,7 @@ public class InstructionLoadDTO {
     private Integer actionCustomMaxWaitSec;
     private Integer onHoldSeconds;
     private Boolean codified;
-    private Boolean exportToAR;
+    private Boolean exportToABR;
     private Boolean executed;
     private String priority;
     private String operation;

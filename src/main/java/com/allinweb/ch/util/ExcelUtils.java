@@ -283,7 +283,7 @@ public class ExcelUtils {
                     })
                     .get()
                     .stream()
-                    .filter(InstructionLoadDTO::getExportToAR)
+                    .filter(InstructionLoadDTO::getExportToABR)
                     .map(InstructionLoadDTO::getActions)
                     .filter(action -> action.contains(ARConstants.INSERT))
                     .map(action -> action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])

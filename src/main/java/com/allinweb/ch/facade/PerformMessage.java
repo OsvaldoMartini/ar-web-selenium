@@ -441,8 +441,8 @@ public class PerformMessage {
             updatedInstruction.setActionCustomMaxWaitSec(instruction.getActionCustomMaxWaitSec());
             updatedInstruction.setOnHoldSeconds(instruction.getOnHoldSeconds());
             updatedInstruction.setCodified(instruction.getCodified());
-            updatedInstruction.setExportToAR(instruction.getExportToAR());
-            updatedInstruction.setExportToAR(instruction.getExportToAR());
+            updatedInstruction.setExportToABR(instruction.getExportToABR());
+            updatedInstruction.setExportToABR(instruction.getExportToABR());
             updatedInstruction.setExecuted(instruction.getExecuted());
             updatedInstruction.setPriority(instruction.getPriority());
             updatedInstruction.setOperation(instruction.getOperation());

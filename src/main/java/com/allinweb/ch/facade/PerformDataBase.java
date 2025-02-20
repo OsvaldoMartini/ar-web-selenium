@@ -14,7 +14,6 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
-import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -621,7 +620,7 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
 
             // Update each export_to_abr
-            String updateSQL = "UPDATE instruction SET export_to_abr = " + instruction.getExportToAR()
+            String updateSQL = "UPDATE instruction SET export_to_abr = " + instruction.getExportToABR()
                     + " WHERE id = " + instruction.getBlockId()
                     + " and bot_job_id = " + instruction.getBotJobId();
 
@@ -631,7 +630,7 @@ public class PerformDataBase {
                 ARLogger.getInstance(PerformDataBase.class)
                         .info(String.format(
                                 "Instruction updated blockId: %s, Export to AR: %s",
-                                instruction.getBlockId(), instruction.getExportToAR()));
+                                instruction.getBlockId(), instruction.getExportToABR()));
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
@@ -1104,7 +1103,7 @@ public class PerformDataBase {
                     instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
                     instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
                     instruction.setCodified(rs.getBoolean("codified"));
-                    instruction.setExportToAR(rs.getBoolean("export_to_abr"));
+                    instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setParentId(rs.getInt("parent_id"));
                     instruction.setInstructionActive(rs.getBoolean("instruction_active"));
@@ -2007,10 +2006,10 @@ public class PerformDataBase {
                 }
             }
 
-            if (instructionDTO.getExportToAR() != null) {
+            if (instructionDTO.getExportToABR() != null) {
                 if (isPostgres) {
-                    addColumnValue.accept("export_to_abr", instructionDTO.getExportToAR());
-                } else if (instructionDTO.getExportToAR()) {
+                    addColumnValue.accept("export_to_abr", instructionDTO.getExportToABR());
+                } else if (instructionDTO.getExportToABR()) {
                     addColumnValue.accept("export_to_abr", 1);
                 }
             }
@@ -2252,7 +2251,7 @@ public class PerformDataBase {
         instruction.setName(name);
 
         instruction.setCodified(false);
-        instruction.setExportToAR(false);
+        instruction.setExportToABR(false);
         instruction.setInstructionActive(true);
         if (rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
             if ("INSERT_BEFORE".equals(rowMoveDTO.getType())) {
@@ -2326,7 +2325,7 @@ public class PerformDataBase {
                 instruction.setBlockId(newBlockId);
             }
         }
-        instruction.setExportToAR(false);
+        instruction.setExportToABR(false);
         instruction.setInstructionActive(true);
         // Wrap the persistence in a try-catch block
         int response;
@@ -3954,12 +3953,11 @@ public class PerformDataBase {
                 pstmt.clearBatch();
             }
 
-            ARLogger.getInstance(ARScannedElementPane.class).info("Batch insert completed successfully.");
+            ARLogger.getInstance(PerformDataBase.class).info("Batch insert completed successfully.");
             return true;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .severe("Cannot Insert References\nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("Cannot Insert References\nError: " + e.getMessage());
             return false;
         }
     }
@@ -3973,8 +3971,7 @@ public class PerformDataBase {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+            ARLogger.getInstance(PerformDataBase.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }

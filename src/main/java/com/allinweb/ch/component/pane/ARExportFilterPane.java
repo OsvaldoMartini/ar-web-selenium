@@ -87,16 +87,16 @@ public class ARExportFilterPane extends ARPane {
         }
         // Filtering for instructions where exportToAR is true and actions contain "INSERT"
         ObservableList<InstructionLoadDTO> exportedList = allInstructionLoadDTOS.stream()
-                .filter(exp -> exp.getExportToAR() != null
-                        && exp.getExportToAR() // Ensure exportToAR is not null
+                .filter(exp -> exp.getExportToABR() != null
+                        && exp.getExportToABR() // Ensure exportToAR is not null
                         && exp.getActions().contains(ARConstants.INSERT) // Check for "INSERT" in actions
                         && exp.getBotJobId().equals(botJobLoad.getId())) // Ensure botJobId matches
                 .collect(Collectors.toCollection(FXCollections::observableArrayList)); // Convert to ObservableList
 
         // Filtering for instructions where exportToAR is false and actions contain "INSERT"
         ObservableList<InstructionLoadDTO> filteredList = allInstructionLoadDTOS.stream()
-                .filter(exp -> exp.getExportToAR() == null
-                        || !exp.getExportToAR() // Ensure exportToAR is either null or false
+                .filter(exp -> exp.getExportToABR() == null
+                        || !exp.getExportToABR() // Ensure exportToAR is either null or false
                                 && exp.getActions().contains(ARConstants.INSERT) // Check for "INSERT" in actions
                                 && exp.getBotJobId().equals(botJobLoad.getId())) // Ensure botJobId matches
                 .collect(Collectors.toCollection(FXCollections::observableArrayList));
@@ -149,7 +149,7 @@ public class ARExportFilterPane extends ARPane {
 
         exportFieldButton.setOnMouseClicked(e -> {
             filteredFieldList.getSelectionModel().getSelectedItems().forEach(instruction -> {
-                instruction.setExportToAR(true);
+                instruction.setExportToABR(true);
                 performDataBase.updateExportAR(instruction);
                 //                ARSharedResources.getInstance().updateEntity(instruction,
                 // BlockLoopInstructionDTO.class);
@@ -158,7 +158,7 @@ public class ARExportFilterPane extends ARPane {
 
         filterFieldButton.setOnMouseClicked(e -> {
             exportedFieldList.getSelectionModel().getSelectedItems().forEach(instruction -> {
-                instruction.setExportToAR(false);
+                instruction.setExportToABR(false);
                 performDataBase.updateExportAR(instruction);
                 //                ARSharedResources.getInstance().updateEntity(instruction,
                 // BlockLoopInstructionDTO.class);

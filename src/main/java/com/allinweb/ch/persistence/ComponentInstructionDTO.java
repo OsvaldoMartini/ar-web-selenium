@@ -60,7 +60,7 @@ public class ComponentInstructionDTO extends BaseDTO {
     private Boolean codified;
 
     @Column(name = "export_to_abr")
-    private Boolean exportToAR;
+    private Boolean exportToABR;
 
     @Column(name = "active")
     private Boolean active;
@@ -230,12 +230,12 @@ public class ComponentInstructionDTO extends BaseDTO {
         this.codified = codified;
     }
 
-    public Boolean getExportToAR() {
-        return exportToAR;
+    public Boolean getExportToABR() {
+        return exportToABR;
     }
 
-    public void setExportToAR(Boolean exportToAR) {
-        this.exportToAR = exportToAR;
+    public void setExportToABR(Boolean exportToABR) {
+        this.exportToABR = exportToABR;
     }
 
     public Boolean getBlockMarked() {

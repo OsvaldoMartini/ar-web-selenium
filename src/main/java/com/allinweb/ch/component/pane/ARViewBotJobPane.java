@@ -1215,7 +1215,7 @@ public class ARViewBotJobPane extends ARPane {
         instruction1.setActionCustomMaxWaitSec(10);
         instruction1.setOnHoldSeconds(5);
         instruction1.setCodified(false);
-        instruction1.setExportToAR(true);
+        instruction1.setExportToABR(true);
         instruction1.setActive(true);
 
         ComponentInstructionDTO instruction2 = new ComponentInstructionDTO();
@@ -1229,7 +1229,7 @@ public class ARViewBotJobPane extends ARPane {
         instruction2.setActionCustomMaxWaitSec(20);
         instruction2.setOnHoldSeconds(10);
         instruction2.setCodified(false);
-        instruction2.setExportToAR(true);
+        instruction2.setExportToABR(true);
         instruction1.setActive(true);
 
         // Assign mock instructions to mock blocks

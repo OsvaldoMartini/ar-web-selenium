@@ -77,7 +77,7 @@ public class PerformDBSavedBlock {
             instruction.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
             instruction.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
             instruction.setCodified(instructionDTO.getCodified());
-            instruction.setExportToAR(instructionDTO.getExportToABR());
+            instruction.setExportToABR(instructionDTO.getExportToABR());
             instruction.setActive(instructionDTO.getInstructionActive());
 
             savedBlockLoopInstructions.add(instruction);
@@ -136,7 +136,7 @@ public class PerformDBSavedBlock {
                     //                    + ", '" + savedInstructionDTO.getDefaultValue() + "'"
                     + ", '" + savedInstructionDTO.getDescription() + "'"
                     + ", " + savedInstructionDTO.getCodified()
-                    + ", " + savedInstructionDTO.getExportToAR()
+                    + ", " + savedInstructionDTO.getExportToABR()
                     + ", " + savedInstructionDTO.getInstructionOrderNumber()
                     + ", '" + savedInstructionDTO.getName() + "'"
                     + ", " + savedInstructionDTO.getOnHoldSeconds()
@@ -216,7 +216,7 @@ public class PerformDBSavedBlock {
                 componentInstructionDTO.setDefaultValue(instructionDTO.getDefaultValue());
                 componentInstructionDTO.setDescription(instructionDTO.getDescription());
                 componentInstructionDTO.setCodified(instructionDTO.getCodified());
-                componentInstructionDTO.setExportToAR(instructionDTO.getExportToABR());
+                componentInstructionDTO.setExportToABR(instructionDTO.getExportToABR());
                 componentInstructionDTO.setActive(instructionDTO.getInstructionActive());
                 componentInstructionDTO.setInstructionOrderNumber(instructionDTO.getInstructionOrderNumber());
                 componentInstructionDTO.setName(instructionDTO.getInstructionName());
@@ -395,7 +395,7 @@ public class PerformDBSavedBlock {
                     instruction.setPath(blockLoopRs.getString("path"));
                     instruction.setOptional(blockLoopRs.getBoolean("optional"));
                     instruction.setCodified(blockLoopRs.getBoolean("codified"));
-                    instruction.setExportToAR(blockLoopRs.getBoolean("export_to_abr"));
+                    instruction.setExportToABR(blockLoopRs.getBoolean("export_to_abr"));
                     instruction.setActionCustomMaxWaitSec(blockLoopRs.getInt("action_custom_max_wait_sec"));
                     instruction.setOnHoldSeconds(blockLoopRs.getInt("on_hold_seconds"));
                     instruction.setBlockId(blockLoopRs.getInt("block_id"));
