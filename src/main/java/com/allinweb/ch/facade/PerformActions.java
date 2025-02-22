@@ -2986,6 +2986,7 @@ public class PerformActions {
                     case "clicked":
                     case "tagName-found":
                     case "clicked-iFrame":
+                    case "iFrame-Found":
                     case "iFrame-Child":
                         typeElement = key;
                         tagName = value;
