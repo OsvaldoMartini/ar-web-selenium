@@ -64,6 +64,7 @@ import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
@@ -2640,6 +2641,178 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
+    private void itPrintsElementDate(ARWebElement arWebHover) {
+
+        //                textFlowResult.getChildren().clear();
+        //                textFlowResult.getChildren().addAll(countdownTextField);
+        //                textFlowResult.requestLayout();
+        //                contentPane.requestLayout();
+
+        //                                boxListViews.requestLayout();
+        //                                verticalBox.requestLayout();
+        //                                getChildren().addAll(blockAndUrl, boxListViews);
+
+        for (ARWebElement arWebElement : scannedElements2.getItems()) {
+            performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
+        }
+
+        StringBuilder sb = new StringBuilder();
+        String nameDefined = "";
+        if (arWebHover.getTargetElement() != null) {
+            this.targetSelected = arWebHover.getTargetElement();
+            this.targetSelected.setElement(arWebHover.getElement()); // RETURN THE ELEMENT FOR OTHER PURPOSE
+
+            arWebDriver.getDriver().switchTo().defaultContent();
+
+            // iFrame
+            if (!Strings.isNullOrEmpty(this.targetSelected.getIFrameXPath())) {
+                try {
+                    WebElement iFrame =
+                            arWebDriver.getDriver().findElement(By.xpath(this.targetSelected.getIFrameXPath()));
+                    arWebDriver.getDriver().switchTo().frame(iFrame);
+                } catch (Exception error) {
+                    ARLogger.getInstance(ARScannedElementPane.class)
+                            .info("iFrame Element not Located\niFrameXPath"
+                                    + arWebHover.getTargetElement().getIFrameXPath()
+                                    + "iFrameChild: "
+                                    + arWebHover.getTargetElement().getMainXPath());
+                    //                            performMessage.errorMessage(
+                    //                                    "iFrame Element not Located",
+                    //                                    "Cannot able to find the iFrame",
+                    //                                    "iFrame Parent or Child",
+                    //                                    null,
+                    //                                    null,
+                    //                                    0);
+                }
+            }
+
+            defineNameField.setText("");
+            if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
+                    || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
+                    || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
+                nameDefined = this.targetSelected.getOriginalTagName()
+                        + (!Strings.isNullOrEmpty(this.targetSelected.getAttribName())
+                        ? "-" + this.targetSelected.getAttribName()
+                        : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
+                        ? "-" + this.targetSelected.getAttribId()
+                        : !Strings.isNullOrEmpty(this.targetSelected.getSomeText())
+                        ? "-" + truncate(this.targetSelected.getSomeText(), 50)
+                        : "");
+                if (this.targetSelected.getDefinedName() != null
+                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = this.targetSelected.getDefinedName();
+                }
+
+                String finalNameDefined = nameDefined;
+                Platform.runLater(() -> defineNameField.setText(truncate(finalNameDefined, 50)));
+
+            } else if (!Strings.isNullOrEmpty(this.targetSelected.getAllAttributes())) {
+
+                // Split by comma to get key-value pairs
+                String[] parts = this.targetSelected.getAllAttributes().split(",");
+
+                String idValue = null;
+                String nameValue = null;
+                String typeValue = null;
+
+                // Loop through each key-value pair
+                for (String part : parts) {
+                    String[] keyValue = part.split("=");
+
+                    if (keyValue.length == 2) { // Ensure valid key-value pair
+                        String key = keyValue[0].trim();
+                        String value = keyValue[1].trim().replaceAll("\"", ""); // Remove quotes
+
+                        if (key.equals("id")) {
+                            idValue = value;
+                        } else if (key.equals("name")) {
+                            nameValue = value;
+                        } else if (key.equals("type")) {
+                            typeValue = value;
+                        }
+                    }
+                }
+
+                // Print based on priority: ID -> Name -> Type
+                if (idValue != null) {
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + idValue;
+                } else if (nameValue != null) {
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + nameValue;
+                } else if (typeValue != null) {
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + typeValue;
+                } else {
+                    nameDefined = this.targetSelected.getOriginalTagName();
+                }
+
+                if (this.targetSelected.getDefinedName() != null
+                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = this.targetSelected.getDefinedName();
+                }
+
+                String finalSomeText = nameDefined;
+                Platform.runLater(() -> defineNameField.setText(truncate(finalSomeText, 50)));
+
+            } else if (!Strings.isNullOrEmpty(this.targetSelected.getOriginalTagName())) {
+
+                if (this.targetSelected.getDefinedName() != null
+                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = this.targetSelected.getDefinedName();
+                } else {
+                    nameDefined = this.targetSelected.getOriginalTagName();
+                }
+                String finalSomeText = nameDefined;
+
+                Platform.runLater(() -> defineNameField.setText(finalSomeText));
+            }
+        }
+
+        //                sb.append(this.targetElement.getOriginalTagName() + "-" +
+        // this.targetElement.getSomeText())
+        //                        .append("\n");
+
+        sb.append("TagType: " + this.targetSelected.getTagType()).append("\n");
+        sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
+        sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
+        sb.append("Text: " + this.targetSelected.getSomeText()).append("\n");
+
+        if (!Strings.isNullOrEmpty(this.targetSelected.getCoords())) {
+            sb.append("Coordinates: " + this.targetSelected.getCoords()).append("\n");
+            coordsTextField.setText(this.targetSelected.getCoords());
+        } else {
+            sb.append("Coordinates: EMPTY").append("\n");
+        }
+
+        if (!Strings.isNullOrEmpty(this.targetSelected.getSearchAttributeValue())) {
+            sb.append("Search Attrib: " + this.targetSelected.getSearchAttributeValue())
+                    .append("\n");
+            searchAttribValueField.setText(this.targetSelected.getSearchAttributeValue());
+            searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+        } else {
+            sb.append("Search Attrib: No Defined").append("\n");
+        }
+
+        sb.append("Named: " + nameDefined).append("\n");
+        String[] attributes = this.targetSelected.getAllAttributes().split(",");
+        sb.append("All Attributes Found: ").append("\n");
+        for (String attribute : attributes) {
+            sb.append("->  ").append(attribute.trim()).append("\n");
+        }
+
+        Platform.runLater(() -> {
+            countdownTextField.setText(sb.toString());
+            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+        });
+
+        //                textFlowResult.getChildren().clear();
+        //                textFlowResult.getChildren().addAll(countdownTextField);
+        //                textFlowResult.requestLayout();
+        //                contentPane.requestLayout();
+
+        defineCheckBoxesClickabe(this.targetSelected);
+        arWebDriver.getDriver().switchTo().defaultContent();
+    }
+
+
     private void addBehaviourToAbrWebElement(ARWebElement arWebHover) {
         EventHandler<MouseEvent> mouseEnteredHandler = mouseEvent -> {
             Task<Void> handleEvent = new Task<>() {
@@ -2698,6 +2871,21 @@ public class ARScannedElementPane extends ARPane {
             };
             new Thread(handleEvent).start();
         };
+
+
+//        scannedElements2.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) -> {
+//            if (newIndex.intValue() == -1) {
+//                return; // No selection, do nothing
+//            }
+//
+//            if (newIndex.intValue() > oldIndex.intValue()) {
+//                itPrintsElementDate(arWebHover);
+////                System.out.println("Moved Down to: " + scannedElements2.getSelectionModel().getSelectedItem());
+//            } else if (newIndex.intValue() < oldIndex.intValue()) {
+//                itPrintsElementDate(arWebHover);
+////                System.out.println("Moved Up to: " + scannedElements2.getSelectionModel().getSelectedItem());
+//            }
+//        });
 
         EventHandler<MouseEvent> mouseClickedHandler = mouseEvent -> {
             if (mouseEvent.getClickCount() == 2) {
@@ -3539,174 +3727,7 @@ public class ARScannedElementPane extends ARPane {
                     }
                 }
             } else if (mouseEvent.getClickCount() == 1) {
-
-                //                textFlowResult.getChildren().clear();
-                //                textFlowResult.getChildren().addAll(countdownTextField);
-                //                textFlowResult.requestLayout();
-                //                contentPane.requestLayout();
-
-                //                                boxListViews.requestLayout();
-                //                                verticalBox.requestLayout();
-                //                                getChildren().addAll(blockAndUrl, boxListViews);
-
-                for (ARWebElement arWebElement : scannedElements2.getItems()) {
-                    performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
-                }
-
-                StringBuilder sb = new StringBuilder();
-                String nameDefined = "";
-                if (arWebHover.getTargetElement() != null) {
-                    this.targetSelected = arWebHover.getTargetElement();
-                    this.targetSelected.setElement(arWebHover.getElement()); // RETURN THE ELEMENT FOR OTHER PURPOSE
-
-                    arWebDriver.getDriver().switchTo().defaultContent();
-
-                    // iFrame
-                    if (!Strings.isNullOrEmpty(this.targetSelected.getIFrameXPath())) {
-                        try {
-                            WebElement iFrame =
-                                    arWebDriver.getDriver().findElement(By.xpath(this.targetSelected.getIFrameXPath()));
-                            arWebDriver.getDriver().switchTo().frame(iFrame);
-                        } catch (Exception error) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .info("iFrame Element not Located\niFrameXPath"
-                                            + arWebHover.getTargetElement().getIFrameXPath()
-                                            + "iFrameChild: "
-                                            + arWebHover.getTargetElement().getMainXPath());
-                            //                            performMessage.errorMessage(
-                            //                                    "iFrame Element not Located",
-                            //                                    "Cannot able to find the iFrame",
-                            //                                    "iFrame Parent or Child",
-                            //                                    null,
-                            //                                    null,
-                            //                                    0);
-                        }
-                    }
-
-                    defineNameField.setText("");
-                    if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                            || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
-                            || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
-                        nameDefined = this.targetSelected.getOriginalTagName()
-                                + (!Strings.isNullOrEmpty(this.targetSelected.getAttribName())
-                                        ? "-" + this.targetSelected.getAttribName()
-                                        : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                                                ? "-" + this.targetSelected.getAttribId()
-                                                : !Strings.isNullOrEmpty(this.targetSelected.getSomeText())
-                                                        ? "-" + truncate(this.targetSelected.getSomeText(), 50)
-                                                        : "");
-                        if (this.targetSelected.getDefinedName() != null
-                                && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                            nameDefined = this.targetSelected.getDefinedName();
-                        }
-
-                        String finalNameDefined = nameDefined;
-                        Platform.runLater(() -> defineNameField.setText(truncate(finalNameDefined, 50)));
-
-                    } else if (!Strings.isNullOrEmpty(this.targetSelected.getAllAttributes())) {
-
-                        // Split by comma to get key-value pairs
-                        String[] parts = this.targetSelected.getAllAttributes().split(",");
-
-                        String idValue = null;
-                        String nameValue = null;
-                        String typeValue = null;
-
-                        // Loop through each key-value pair
-                        for (String part : parts) {
-                            String[] keyValue = part.split("=");
-
-                            if (keyValue.length == 2) { // Ensure valid key-value pair
-                                String key = keyValue[0].trim();
-                                String value = keyValue[1].trim().replaceAll("\"", ""); // Remove quotes
-
-                                if (key.equals("id")) {
-                                    idValue = value;
-                                } else if (key.equals("name")) {
-                                    nameValue = value;
-                                } else if (key.equals("type")) {
-                                    typeValue = value;
-                                }
-                            }
-                        }
-
-                        // Print based on priority: ID -> Name -> Type
-                        if (idValue != null) {
-                            nameDefined = this.targetSelected.getOriginalTagName() + "-" + idValue;
-                        } else if (nameValue != null) {
-                            nameDefined = this.targetSelected.getOriginalTagName() + "-" + nameValue;
-                        } else if (typeValue != null) {
-                            nameDefined = this.targetSelected.getOriginalTagName() + "-" + typeValue;
-                        } else {
-                            nameDefined = this.targetSelected.getOriginalTagName();
-                        }
-
-                        if (this.targetSelected.getDefinedName() != null
-                                && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                            nameDefined = this.targetSelected.getDefinedName();
-                        }
-
-                        String finalSomeText = nameDefined;
-                        Platform.runLater(() -> defineNameField.setText(truncate(finalSomeText, 50)));
-
-                    } else if (!Strings.isNullOrEmpty(this.targetSelected.getOriginalTagName())) {
-
-                        if (this.targetSelected.getDefinedName() != null
-                                && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                            nameDefined = this.targetSelected.getDefinedName();
-                        } else {
-                            nameDefined = this.targetSelected.getOriginalTagName();
-                        }
-                        String finalSomeText = nameDefined;
-
-                        Platform.runLater(() -> defineNameField.setText(finalSomeText));
-                    }
-                }
-
-                //                sb.append(this.targetElement.getOriginalTagName() + "-" +
-                // this.targetElement.getSomeText())
-                //                        .append("\n");
-
-                sb.append("TagType: " + this.targetSelected.getTagType()).append("\n");
-                sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
-                sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
-                sb.append("Text: " + this.targetSelected.getSomeText()).append("\n");
-
-                if (!Strings.isNullOrEmpty(this.targetSelected.getCoords())) {
-                    sb.append("Coordinates: " + this.targetSelected.getCoords()).append("\n");
-                    coordsTextField.setText(this.targetSelected.getCoords());
-                } else {
-                    sb.append("Coordinates: EMPTY").append("\n");
-                }
-
-                if (!Strings.isNullOrEmpty(this.targetSelected.getSearchAttributeValue())) {
-                    sb.append("Search Attrib: " + this.targetSelected.getSearchAttributeValue())
-                            .append("\n");
-                    searchAttribValueField.setText(this.targetSelected.getSearchAttributeValue());
-                    searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-                } else {
-                    sb.append("Search Attrib: No Defined").append("\n");
-                }
-
-                sb.append("Named: " + nameDefined).append("\n");
-                String[] attributes = this.targetSelected.getAllAttributes().split(",");
-                sb.append("All Attributes Found: ").append("\n");
-                for (String attribute : attributes) {
-                    sb.append("->  ").append(attribute.trim()).append("\n");
-                }
-
-                Platform.runLater(() -> {
-                    countdownTextField.setText(sb.toString());
-                    countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-                });
-
-                //                textFlowResult.getChildren().clear();
-                //                textFlowResult.getChildren().addAll(countdownTextField);
-                //                textFlowResult.requestLayout();
-                //                contentPane.requestLayout();
-
-                defineCheckBoxesClickabe(this.targetSelected);
-                arWebDriver.getDriver().switchTo().defaultContent();
+                itPrintsElementDate(arWebHover);
             }
         };
         arWebHover.addEventHandler(MouseEvent.MOUSE_ENTERED, mouseEnteredHandler);
@@ -3714,6 +3735,7 @@ public class ARScannedElementPane extends ARPane {
         arWebHover.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickedHandler);
     }
 
+  
     private Set<WebElement> managePrioritiesCriteria() {
 
         // Gets Always the Latest info form DB
