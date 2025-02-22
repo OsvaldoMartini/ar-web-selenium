@@ -234,12 +234,12 @@ public class ARNewHomeBankingPane extends ARPane {
             searchConfigField.setText(searchCriteria.toString());
 
             // Proxy Example
-            String argument1 = "arg:--disable-web-security";
-            String argument2 = "arg:--disable-site-isolation-trials";
-            String argument3 = "arg:--allow-running-insecure-content";
-            String argument4 = "arg:--disable-features=IsolateOrigins,site-per-process";
-            String argument5 = "#arg:--disable-infobars";
-            String argument6 = "#arg:--disable-dev-shm-usage";
+            String argument1 = "arg:-disable-web-security";
+            String argument2 = "arg:-disable-site-isolation-trials";
+            String argument3 = "arg:-allow-running-insecure-content";
+            String argument4 = "arg:-disable-features=IsolateOrigins,site-per-process";
+            String argument5 = "#arg:-disable-infobars";
+            String argument6 = "#arg:-disable-dev-shm-usage";
             String proxyAddress = "#proxy:proxy_address:proxy_port";
             //            String browserLog = "#browser_log:active";
             //            String systemProps1 = "#systemProps:webdriver.chrome.logfile:logFolder";
