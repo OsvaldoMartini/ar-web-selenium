@@ -65,8 +65,7 @@ public class PerformCloneLoad {
                       var tooltip = document.createElement("div");
                       tooltip.id = "Martini-Is-Awesome";
                       tooltip.style.position = "absolute";
-                      // tooltip.style.backgroundColor = "rgba(255, 165, 0, 0.5)"; // Slightly opaque light orange
-                      tooltip.style.backgroundColor = "rgba(0, 0, 0, 0)"; // Full transparency
+                      tooltip.style.backgroundColor = "rgba(255, 165, 0, 0.5)";
                       tooltip.style.border = "1px solid #ccc";
                       tooltip.style.padding = "10px";
                       tooltip.style.borderRadius = "5px";
@@ -74,21 +73,21 @@ public class PerformCloneLoad {
                       tooltip.style.fontFamily = "Arial, sans-serif";
                       tooltip.style.fontSize = "14px";
                       tooltip.style.color = "#333";
-                      tooltip.style.zIndex = "10000"; // Higher z-index
+                      tooltip.style.zIndex = "10000";
                       tooltip.style.display = "none";
                       document.body.appendChild(tooltip);
-                                        
+
                       window.elementInfoMap = new Map();
                       window.allElementInfo = [];
-                                        
+
                       function connectWebSocket() {
                         try {
                           wSocket = new WebSocket(`ws://localhost:${socketPort}/websocket`);
-                                        
+
                           wSocket.onopen = () => {
                             console.log("WebSocket connected");
                             attempts = 0; // Reset attempts on successful connection
-                                        
+
                             try {
                               const subscriptionMessage = {
                                 type: "echo",
@@ -98,28 +97,28 @@ public class PerformCloneLoad {
                             } catch (sendError) {
                               console.error("Failed to send subscription message:", sendError);
                             }
-                                        
+
                             // Call startCollectingElements AFTER WebSocket is open
                             sendingData();
                           };
-                                        
+
                           wSocket.onmessage = (event) => {
                             let receivedMessage = event.data;
-                                        
+
                             if (receivedMessage.endsWith("\\u0000")) {
                               receivedMessage = receivedMessage.slice(0, -1);
                             }
-                                        
+
                             if (receivedMessage) {
                               try {
                                 const parsedObject = JSON.parse(receivedMessage);
                                 console.log("WebSocket message received:", parsedObject);
-                                        
+
                                 // Process parsedObject.body and parsedObject.footer here
                                 if (parsedObject.body.includes("data_updated")) {
                                   //Handle data update
                                 }
-                                        
+
                                 if (
                                   parsedObject.body.includes("cannot be processed") ||
                                   (parsedObject.footer &&
@@ -132,14 +131,14 @@ public class PerformCloneLoad {
                               }
                             }
                           };
-                                        
+
                           wSocket.onerror = (error) => {
                             console.error("WebSocket error:", error);
                           };
-                                        
+
                           wSocket.onclose = () => {
                             console.log("WebSocket connection closed");
-                                        
+
                             if (attempts < 100) {
                               attempts++;
                               console.log(`Reconnecting attempt ${attempts}...`);
@@ -152,7 +151,7 @@ public class PerformCloneLoad {
                           console.error("Failed to initialize WebSocket:", initError);
                         }
                       }
-                                        
+
                       // Optionally, expose a cleanup function
                       window.cleanupWebSocket = () => {
                         try {
@@ -164,17 +163,17 @@ public class PerformCloneLoad {
                           console.error("Error during WebSocket cleanup:", cleanupError);
                         }
                       };
-                                        
+
                       function sendingData() {
                         window.allElementInfo = [];
                         limitMapCharacters(window.elementInfoMap);
                         console.log("All element info stored in Map:", window.allElementInfo);
                         window.elementInfoMap.clear();
-                                        
+
                         if (wSocket && wSocket.readyState) {
                           console.log("WebSocket readyState:", wSocket.readyState);
                         }
-                                        
+
                         if (
                           wSocket &&
                           wSocket.readyState === WebSocket.OPEN &&
@@ -190,7 +189,7 @@ public class PerformCloneLoad {
                           console.warn("WebSocket is not open. Cannot send message.");
                         }
                       }
-                                        
+
                       // Function to collect general elements based on search terms
                       const collectElements = function collectElements(
                         doc,
@@ -219,7 +218,7 @@ public class PerformCloneLoad {
                             )
                           );
                         }
-                                        
+
                         // After collecting, process element identities for the parent document
                         collectionFound.forEach((element) => {
                           if (
@@ -236,7 +235,7 @@ public class PerformCloneLoad {
                           ) {
                             return;
                           }
-                                        
+
                           const elementIdentity = getElementIdentity(element);
                           if (elementIdentity) {
                             filterSearchTerms(
@@ -248,7 +247,7 @@ public class PerformCloneLoad {
                           }
                         });
                       };
-                                        
+
                       function filterSearchTerms(
                         typeDTO,
                         referXPath,
@@ -271,7 +270,7 @@ public class PerformCloneLoad {
                         // Iterate through search terms and apply corresponding checks
                         searchTerms.forEach((term) => {
                           let matches = false;
-                                        
+
                           if (
                             term.includes("with id") &&
                             elementIdentity.attributeData.some((attr) => attr.name === "id")
@@ -288,7 +287,7 @@ public class PerformCloneLoad {
                           ) {
                             matches = true;
                           }
-                                        
+
                           // If a match is found, set the element in the map
                           if (matches) {
                             window.elementInfoMap.set(
@@ -298,46 +297,46 @@ public class PerformCloneLoad {
                           }
                         });
                       }
-                                        
+
                       function fetchAndParseIframeContent(iframe) {
                         if (!iframe.src) return null;
-                                        
+
                         const xhr = new XMLHttpRequest();
                         xhr.open("GET", iframe.src, false); // 'false' makes the request synchronous
-                                        
+
                         try {
                           xhr.send();
-                                        
+
                           if (xhr.status !== 200) {
                             console.error("Error fetching the iframe content:", xhr.status);
                             return null;
                           }
-                                        
+
                           const htmlContent = xhr.responseText;
-                                        
+
                           // Parse the HTML content
                           const parser = new DOMParser();
                           const parsedDocument = parser.parseFromString(htmlContent, "text/html");
-                                        
+
                           // Get all elements inside the parsed document
                           const srcElements = parsedDocument.querySelectorAll("*");
                           console.log(`srcElements Total: <${srcElements.length}>`);
-                                        
+
                           // srcElements.forEach((element) => {
                           //   console.log(`Element: <${element.tagName}>`);
                           //   console.log("Text Content:", element.textContent.trim());
                           // });
-                                        
+
                           return srcElements; // Return the NodeList
                         } catch (error) {
                           console.error("Error fetching the iframe content:", error);
                           return null;
                         }
                       }
-                                        
+
                       const iFrameDetails = function iFrameDetails(iframe, xPathIFrame, childSize) {
                         const iframeDetails = `Elements inside iframe: ${childSize}`;
-                                        
+
                         console.log(
                           `iFrame Found: ${
                             iframe.src ||
@@ -359,7 +358,7 @@ public class PerformCloneLoad {
                         //   };${iframeDetails}`
                         // );
                       };
-                                        
+
                       // Function to collect iframe elements recursively
                       const collectIframeElements = function collectIframeElements(
                         doc,
@@ -370,7 +369,7 @@ public class PerformCloneLoad {
                           try {
                             let iframeDocument =
                               iframe.contentDocument || iframe.contentWindow.document;
-                                        
+
                             try {
                               console.log(
                                 "Iframe origin:",
@@ -380,13 +379,13 @@ public class PerformCloneLoad {
                             } catch (e) {
                               console.warn("Cross-origin access denied for iframe:", iframe.src);
                             }
-                                        
+
                             if (iframe) {
                               let iframeParsed = null;
                               let srcDocElements = null;
-                                        
+
                               const xPathIFrame = getMartiniXPath(iframe); // Get the XPath of the iframe
-                                        
+
                               const elementIdentity = getElementIdentity(iframe);
                               if (elementIdentity) {
                                 filterSearchTerms(
@@ -396,23 +395,23 @@ public class PerformCloneLoad {
                                   searchTerms
                                 );
                               }
-                                        
+
                               const parser = new DOMParser();
-                                        
+
                               if (iframe.srcdoc) {
                                 iframeParsed = parser.parseFromString(iframe.srcdoc, "text/html");
-                                        
+
                                 // Select all elements inside the parsed document
                                 srcDocElements = iframeParsed.querySelectorAll("*");
                               }
-                                        
+
                               if (iframe.src) {
                                 const srcElements = fetchAndParseIframeContent(iframe);
                                 if (srcElements) {
                                   // console.log("Fetched Elements:", srcElements);
-                                        
+
                                   iFrameDetails(iframe, xPathIFrame, srcElements.length);
-                                        
+
                                   srcElements.forEach(function (element) {
                                     const elementIdentity = getElementIdentity(element);
                                     // console.log(
@@ -431,7 +430,7 @@ public class PerformCloneLoad {
                                   });
                                 }
                               }
-                                        
+
                               // Collect all elements inside the iframe
                               if (!iframe.src) {
                                 iFrameDetails(
@@ -444,12 +443,12 @@ public class PerformCloneLoad {
                                     : 0
                                 );
                               }
-                                        
+
                               iframeDocument
                                 .querySelectorAll("*")
                                 .forEach(function (elementInsideIframe) {
                                   const elementIdentity = getElementIdentity(elementInsideIframe);
-                                        
+
                                   // console.log(
                                   //   "elementIdentity.xPath",
                                   //   `${xPathIFrame}${elementIdentity?.xPath}`
@@ -464,7 +463,7 @@ public class PerformCloneLoad {
                                     );
                                   }
                                 });
-                                        
+
                               // Loop through all the elements and extract their properties
                               srcDocElements?.forEach(function (element) {
                                 const elementIdentity = getElementIdentity(element);
@@ -482,12 +481,12 @@ public class PerformCloneLoad {
                                   );
                                 }
                               });
-                                        
+
                               // Process iframe content depending on the presence of srcdoc
                               if (iframeParsed) {
                                 processIframeElements(iframeParsed, xPathIFrame);
                               }
-                                        
+
                               // If the iframe contains nested iframes, recursively collect them
                               collectIframeElements(iframeDocument, collectionFound, true);
                             } else {
@@ -501,14 +500,14 @@ public class PerformCloneLoad {
                           }
                         });
                       };
-                                        
+
                       const processIframeElements = function (iframeDocument, xPathIFrame) {
                         // Collect all elements inside the iframe
                         iframeDocument
                           .querySelectorAll("*")
                           .forEach(function (elementInsideIframe) {
                             const elementIdentity = getElementIdentity(elementInsideIframe);
-                                        
+
                             // console.log(
                             //   "elementIdentity.xPath",
                             //   `${xPathIFrame}${elementIdentity?.xPath}`
@@ -524,20 +523,20 @@ public class PerformCloneLoad {
                             }
                           });
                       };
-                                        
+
                       var lastHoveredIsIframe = null; // Keep track of the last hovered element type
-                                        
+
                       let lastHoveredElement = null; // Keep track of the previously hovered element
                       // Declare global variables to store iframe details
                       var iframeDocument = null;
                       var iframeElementsCount = 0;
-                                        
+
                       function showMartiniTooltip(event) {
                         var elementBelowTooltip = document.elementFromPoint(
                           event.clientX,
                           event.clientY
                         );
-                                        
+
                         // Do nothing if the hovered element is the tooltip itself or an excluded tag (html, body, main)
                         if (
                           !elementBelowTooltip ||
@@ -548,21 +547,21 @@ public class PerformCloneLoad {
                         ) {
                           return;
                         }
-                                        
+
                         var isIframe = elementBelowTooltip.tagName.toLowerCase() === "iframe";
-                                        
+
                         // Reset only if switching between iframe and non-iframe elements
                         if (lastHoveredIsIframe !== isIframe) {
                           console.clear();
                           elementInfoMap.clear();
                           window.allElementInfo = [];
                         }
-                                        
+
                         lastHoveredIsIframe = isIframe; // Update last hovered element type
-                                        
+
                         // Get the tag name of the element
                         var tagNameTemp = elementBelowTooltip.tagName.toLowerCase();
-                                        
+
                         // If it's an iframe, get the number of elements inside the iframe
                         var iframeDetails = "";
                         if (isIframe) {
@@ -574,18 +573,18 @@ public class PerformCloneLoad {
                             : 0;
                           iframeDetails = `Elements inside iframe: ${iframeElementsCount}`;
                         }
-                                        
+
                         const elementIdentity = getElementIdentity(elementBelowTooltip);
-                                        
+
                         // Store tagName and other details in the Map
                         if (elementIdentity && iframeDetails && iframeDetails.length > 0) {
                           // window.elementInfoMap.set(
                           //   elementIdentity.xPath,
                           //   elementDTO("iFrame-Found", elementIdentity)
                           // );
-                                        
+
                           let collectionFound = [];
-                                        
+
                           // First, collect iframe elements
                           collectIframeElements(document, collectionFound, elementInfoMap);
                         } else if (elementIdentity) {
@@ -593,39 +592,39 @@ public class PerformCloneLoad {
                           //   elementIdentity.xPath,
                           //   elementDTO("tagName-Found", elementIdentity)
                           // );
-                                        
+
                           let collectionFound = [];
                           // Then, collect general elements based on search terms
                           collectElements(document, searchTerms, collectionFound, elementInfoMap);
                         }
-                                        
+
                         // Parse the someText using the semicolon delimiter
                         var parsedText = elementIdentity.someText.split(";");
-                                        
+
                         // Format the tooltip content to make it more readable
                         var tooltipContent = "";
                         tooltipContent += isIframe ? "[Iframe] <br>" : "";
                         tooltipContent += `Tag Name: ${tagNameTemp}<br>`;
                         tooltipContent += isIframe ? `- ${iframeDetails}<br>` : "";
-                                        
+
                         // Replace new lines with <br> before adding each item from parsedText
                         tooltipContent += elementIdentity.someText
                           ? parsedText.map((item) => `- ${item}<br>`).join("")
                           : "No Text<br>";
-                                        
+
                         // Set the tooltip content with line breaks
                         tooltip.innerHTML = tagNameTemp;
-                                        
+
                         // Position the tooltip near the mouse cursor
                         var tooltipWidth = tooltip.offsetWidth;
                         var tooltipHeight = tooltip.offsetHeight;
                         var left = event.pageX - tooltipWidth / 2;
                         var top = event.pageY - tooltipHeight / 2;
-                                        
+
                         tooltip.style.left = left + "px";
                         tooltip.style.top = top + "px";
                         tooltip.style.display = "block";
-                                        
+
                         // Highlight the hovered element
                         if (lastHoveredElement !== elementBelowTooltip) {
                           // Remove highlight from the previous element if any
@@ -634,162 +633,17 @@ public class PerformCloneLoad {
                           }
                           // Add a border to highlight the current element
                           elementBelowTooltip.style.outline = "3px solid red"; // Highlight the element
-                                        
+
                           lastHoveredElement = elementBelowTooltip; // Update the last hovered element
                         }
-                                        
+
                         // console.log("Element Info:", elementInfoMap);
                       }
-                                        
+
                       function hideMartiniTooltip() {
                         tooltip.style.display = "none";
                       }
-                                        
-                      function handleMartiniClick(event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        tooltip.style.display = "none";
-                                        
-                        // Determine the element below the tooltip (mouse position)
-                        var elementBelowTooltip = document.elementFromPoint(
-                          event.clientX,
-                          event.clientY
-                        );
-                                        
-                        // Hide the tooltip
-                        tooltip.style.display = "none";
-                                        
-                        // If the element below the tooltip is an iframe
-                        if (
-                          elementBelowTooltip &&
-                          elementBelowTooltip.tagName.toLowerCase() === "iframe"
-                        ) {
-                          // Get the document inside the iframe
-                          var iframeDocument =
-                            elementBelowTooltip.contentDocument ||
-                            elementBelowTooltip.contentWindow.document;
-                                        
-                          // If the iframe document is valid
-                          if (iframeDocument) {
-                            // Format the iframe details
-                            var iframeDetails = `Elements inside iframe: ${
-                              iframeDocument.body.getElementsByTagName("*").length
-                            }`;
-                                        
-                            // Display the tooltip with iframe details
-                            tooltip.innerHTML = `[Iframe] <br> ${iframeDetails}`;
-                                        
-                            // Position the tooltip near the mouse cursor
-                            var tooltipWidth = tooltip.offsetWidth;
-                            var tooltipHeight = tooltip.offsetHeight;
-                            var left = event.pageX - tooltipWidth / 2;
-                            var top = event.pageY - tooltipHeight / 2;
-                                        
-                            tooltip.style.left = left + "px";
-                            tooltip.style.top = top + "px";
-                            tooltip.style.display = "block";
-                                        
-                            // Initialize an array to store the iframe element information
-                            window.allElementInfo = [];
-                                        
-                            const elementIdentity = getElementIdentity(elementBelowTooltip);
-                                        
-                            xPathIFrame = elementIdentity.xPath;
-                                        
-                            if (elementIdentity) {
-                              window.elementInfoMap.set(
-                                elementIdentity.xPath,
-                                elementDTO("clicked-iFrame", elementIdentity)
-                              );
-                            }
-                                        
-                            // Get all elements inside the iframe and log their details
-                            var iframeElements = iframeDocument.querySelectorAll("*");
-                            iframeElements.forEach(function (elementInsideIframe) {
-                              const elementIdentity = getElementIdentity(elementInsideIframe);
-                              // console.log(
-                              //   "elementIdentity.xPath",
-                              //   `${xPathIFrame}${elementIdentity?.xPath}`
-                              // );
-                              if (elementIdentity) {
-                                elementIdentity.iFrameXPath = xPathIFrame;
-                                window.elementInfoMap.set(
-                                  elementIdentity.xPath,
-                                  elementDTO("iFrame-Child", elementIdentity)
-                                );
-                              }
-                            });
-                          } else {
-                            tooltip.innerHTML = "No iframe document found.";
-                                        
-                            // Position the tooltip near the mouse cursor
-                            var tooltipWidth = tooltip.offsetWidth;
-                            var tooltipHeight = tooltip.offsetHeight;
-                            var left = event.pageX - tooltipWidth / 2;
-                            var top = event.pageY - tooltipHeight / 2;
-                                        
-                            tooltip.style.left = left + "px";
-                            tooltip.style.top = top + "px";
-                            tooltip.style.display = "block";
-                          }
-                        } else {
-                          // If the clicked element is not an iframe, gather its regular information
-                          var tagName = elementBelowTooltip.tagName.toLowerCase();
-                                        
-                          // Avoid main, body, and html tags
-                          if (["html", "body", "main"].includes(tagName)) {
-                            return; // Don't proceed if it's one of these elements
-                          }
-                                        
-                          const elementIdentity = getElementIdentity(elementBelowTooltip);
-                          // Store tagName and other details in the Map
-                          if (elementIdentity) {
-                            window.elementInfoMap.set(
-                              elementIdentity.xPath,
-                              elementDTO("clicked", elementIdentity)
-                            );
-                                        
-                            // Show the tooltip with the element details
-                            // tooltip.innerHTML = `${tagName} <br> ${someText}`;
-                            tooltip.innerHTML = `${tagName} <br> ${elementIdentity.someText}`;
-                            var tooltipWidth = tooltip.offsetWidth;
-                            var tooltipHeight = tooltip.offsetHeight;
-                            var left = event.pageX - tooltipWidth / 2;
-                            var top = event.pageY - tooltipHeight / 2;
-                                        
-                            tooltip.style.left = left + "px";
-                            tooltip.style.top = top + "px";
-                            tooltip.style.display = "block";
-                          }
-                        }
-                                        
-                        sendingData();
-                                        
-                        window.revertPickInjections();
-                                        
-                        // Remove the tooltip from the page and delete the reference after 5 seconds
-                        // Remove the tooltip from the page and delete the reference after 5 seconds
-                        setTimeout(() => {
-                          if (tooltip) {
-                            tooltip.remove(); // Completely remove the tooltip from the DOM
-                            tooltip = null; // Clear the reference to free memory
-                            console.log("Tooltip completely removed.");
-                          }
-                                        
-                          if (lastHoveredElement || elementBelowTooltip) {
-                            // Remove highlight from the previous element if any
-                            if (lastHoveredElement) {
-                              lastHoveredElement.style.outline = ""; // Remove the previous highlight
-                            }
-                                        
-                            // Remove highlight from the previous element if any
-                            if (elementBelowTooltip) {
-                              elementBelowTooltip.style.outline = ""; // Remove the previous highlight
-                            }
-                          }
-                        }, 3000);
-                      }
-                                        
+
                       const getElementIdentity = function getElementIdentity(element) {
                         if (!hiddenFields) {
                           if (
@@ -816,7 +670,7 @@ public class PerformCloneLoad {
                           .getBoundingClientRect()
                           .top.toFixed(2)}`;
                         const someText = getSomeText(tagName, attributeData, element);
-                                        
+
                         return {
                           xPath,
                           tagName,
@@ -828,7 +682,7 @@ public class PerformCloneLoad {
                           someText,
                         };
                       };
-                                        
+
                       const getMartiniXPath = function getMartiniXPath(element) {
                         if (element === document.body) return "/html/body";
                         let ix = 0;
@@ -851,7 +705,7 @@ public class PerformCloneLoad {
                         }
                         return "";
                       };
-                                        
+
                       const elementDTO = function elementDTO(typeElement, identity) {
                         return {
                           typeElement: typeElement,
@@ -869,18 +723,18 @@ public class PerformCloneLoad {
                           searchAttributeValue: identity.searchAttributeValue ?? "",
                         };
                       };
-                                        
+
                       function limitMapCharacters(elementInfoMap) {
                         elementInfoMap.forEach((value, key) => {
                           let modifiedValue = value;
                           window.allElementInfo.push(modifiedValue);
                         });
                       }
-                                        
+
                       function getSomeText(tagName, attributeData, element) {
                         let textSet = new Set();
                         let textResult = "";
-                                        
+
                         if (["input", "textarea", "select", "button"].includes(tagName)) {
                           const extractedText = extractTextFromHTML(element || "");
                           textResult = [
@@ -909,11 +763,11 @@ public class PerformCloneLoad {
                             .join("; ")
                             .trim();
                         }
-                                        
+
                         // Now, extract text from attributes AFTER processing the element
                         attributeData.forEach((attr) => {
                           const trimmedValue = attr.value.trim();
-                                        
+
                           if (trimmedValue) {
                             // Process only if value is not empty
                             if (
@@ -927,7 +781,7 @@ public class PerformCloneLoad {
                             }
                           }
                         });
-                                        
+
                         // Continue processing srcdoc separately
                         attributeData.forEach((attr) => {
                           if (attr.name === "srcdoc") {
@@ -944,18 +798,18 @@ public class PerformCloneLoad {
                             }
                           }
                         });
-                                        
+
                         // Add the extracted text from the element to the set to avoid duplicates
                         textResult
                           .split(";")
                           .map((text) => text.trim())
                           .filter(Boolean)
                           .forEach((text) => textSet.add(text));
-                                        
+
                         // Return a clean, unique, and deduplicated string
                         return Array.from(textSet).join("; ");
                       }
-                                        
+
                       function extractTextFromHTML(element) {
                         // If element is invalid or empty, return an empty result
                         if (!element || element === " ") {
@@ -970,7 +824,7 @@ public class PerformCloneLoad {
                           labels: new Set(), // Using Set to avoid duplicate labels
                           titles: new Set(), // Using Set to avoid duplicate titles
                         };
-                                        
+
                         // Extract text content directly from the element (in case it has no children)
                         if (element.textContent) {
                           let elementText = element.textContent.trim();
@@ -978,7 +832,7 @@ public class PerformCloneLoad {
                             result.text.add(elementText); // Using .add() instead of .push() for Set
                           }
                         }
-                                        
+
                         // Extract label text from input placeholders and other form-related data
                         element.querySelectorAll("label").forEach((label) => {
                           if (label.textContent) {
@@ -987,7 +841,7 @@ public class PerformCloneLoad {
                               result.labels.add(labelText); // Using .add() for Set to ensure uniqueness
                             }
                           }
-                                        
+
                           // Handle associated input fields (if the label has a 'for' attribute)
                           let forAttribute = label.getAttribute("for");
                           if (forAttribute) {
@@ -1004,7 +858,7 @@ public class PerformCloneLoad {
                             }
                           }
                         });
-                                        
+
                         // Extract text from common block and inline elements
                         const textExtractors = [
                           "p",
@@ -1023,7 +877,7 @@ public class PerformCloneLoad {
                           "i",
                           "blockquote",
                         ];
-                                        
+
                         textExtractors.forEach((tagName) => {
                           element.querySelectorAll(tagName).forEach((childElement) => {
                             if (childElement.textContent) {
@@ -1034,7 +888,7 @@ public class PerformCloneLoad {
                             }
                           });
                         });
-                                        
+
                         // Extract text from <a> tags (links)
                         element.querySelectorAll("a").forEach((link) => {
                           if (link.textContent) {
@@ -1044,7 +898,7 @@ public class PerformCloneLoad {
                             }
                           }
                         });
-                                        
+
                         // Extract iframe titles and nested content
                         element.querySelectorAll("iframe").forEach((iframe) => {
                           if (iframe.getAttribute("title")) {
@@ -1053,7 +907,7 @@ public class PerformCloneLoad {
                               result.titles.add(title); // Using .add() for Set to ensure uniqueness
                             }
                           }
-                                        
+
                           try {
                             let iframeDoc =
                               iframe.contentDocument ||
@@ -1066,7 +920,7 @@ public class PerformCloneLoad {
                             console.warn("Could not access iframe content", e);
                           }
                         });
-                                        
+
                         // Convert Sets to arrays before returning to maintain previous structure
                         return {
                           text: Array.from(result.text),
@@ -1074,56 +928,203 @@ public class PerformCloneLoad {
                           titles: Array.from(result.titles),
                         };
                       }
-                                        
+
                       function cleanOldValues() {
                         window.allElementInfo = [];
                       }
-                                        
+
                       cleanOldValues();
-                                        
-                      window.revertPickInjections = function () {
-                        // alert("revertPickInjections");
-                                        
+
+                      window.revertCloneInjections = function () {
+                        // alert("revertCloneInjections");
+
                         document.removeEventListener("mouseover", showMartiniTooltip);
                         document.removeEventListener("click", handleMartiniClick);
-                        console.log("revertPickInjections");
-                                        
+                        console.log("revertCloneInjections");
+
                         // Remove the tooltip from the page and delete the reference after 5 seconds
                         setTimeout(() => {
                           removeElements();
                           window.allElementInfo = [];
                         }, 1000);
                       };
-                                        
+
                       function removeElements() {
                         // Remove highlight from the previous element if any
                         if (lastHoveredElement) {
                           lastHoveredElement.style.outline = ""; // Remove the previous highlight
                         }
-                                        
+
                         if (tooltip) {
                           tooltip.remove(); // Completely remove the tooltip from the DOM
                           tooltip = null; // Clear the reference to free memory
                           console.log("Tooltip completely removed.");
                         }
                       }
-                                        
+
                       connectWebSocket();
-                                        
+
+                      function handleMartiniClick(event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        tooltip.style.display = "none";
+
+                        // Determine the element below the tooltip (mouse position)
+                        var elementBelowTooltip = document.elementFromPoint(
+                          event.clientX,
+                          event.clientY
+                        );
+
+                        // Hide the tooltip
+                        tooltip.style.display = "none";
+
+                        // If the element below the tooltip is an iframe
+                        if (
+                          elementBelowTooltip &&
+                          elementBelowTooltip.tagName.toLowerCase() === "iframe"
+                        ) {
+                          // Get the document inside the iframe
+                          var iframeDocument =
+                            elementBelowTooltip.contentDocument ||
+                            elementBelowTooltip.contentWindow.document;
+
+                          // If the iframe document is valid
+                          if (iframeDocument) {
+                            // Format the iframe details
+                            var iframeDetails = `Elements inside iframe: ${
+                              iframeDocument.body.getElementsByTagName("*").length
+                            }`;
+
+                            // Display the tooltip with iframe details
+                            tooltip.innerHTML = `[Iframe] <br> ${iframeDetails}`;
+
+                            // Position the tooltip near the mouse cursor
+                            var tooltipWidth = tooltip.offsetWidth;
+                            var tooltipHeight = tooltip.offsetHeight;
+                            var left = event.pageX - tooltipWidth / 2;
+                            var top = event.pageY - tooltipHeight / 2;
+
+                            tooltip.style.left = left + "px";
+                            tooltip.style.top = top + "px";
+                            tooltip.style.display = "block";
+
+                            // Initialize an array to store the iframe element information
+                            window.allElementInfo = [];
+
+                            const elementIdentity = getElementIdentity(elementBelowTooltip);
+
+                            xPathIFrame = elementIdentity.xPath;
+
+                            if (elementIdentity) {
+                              window.elementInfoMap.set(
+                                elementIdentity.xPath,
+                                elementDTO("clicked-iFrame", elementIdentity)
+                              );
+                            }
+
+                            // Get all elements inside the iframe and log their details
+                            var iframeElements = iframeDocument.querySelectorAll("*");
+                            iframeElements.forEach(function (elementInsideIframe) {
+                              const elementIdentity = getElementIdentity(elementInsideIframe);
+                              // console.log(
+                              //   "elementIdentity.xPath",
+                              //   `${xPathIFrame}${elementIdentity?.xPath}`
+                              // );
+                              if (elementIdentity) {
+                                elementIdentity.iFrameXPath = xPathIFrame;
+                                window.elementInfoMap.set(
+                                  elementIdentity.xPath,
+                                  elementDTO("iFrame-Child", elementIdentity)
+                                );
+                              }
+                            });
+                          } else {
+                            tooltip.innerHTML = "No iframe document found.";
+
+                            // Position the tooltip near the mouse cursor
+                            var tooltipWidth = tooltip.offsetWidth;
+                            var tooltipHeight = tooltip.offsetHeight;
+                            var left = event.pageX - tooltipWidth / 2;
+                            var top = event.pageY - tooltipHeight / 2;
+
+                            tooltip.style.left = left + "px";
+                            tooltip.style.top = top + "px";
+                            tooltip.style.display = "block";
+                          }
+                        } else {
+                          // If the clicked element is not an iframe, gather its regular information
+                          var tagName = elementBelowTooltip.tagName.toLowerCase();
+
+                          // Avoid main, body, and html tags
+                          if (["html", "body", "main"].includes(tagName)) {
+                            return; // Don't proceed if it's one of these elements
+                          }
+
+                          const elementIdentity = getElementIdentity(elementBelowTooltip);
+                          // Store tagName and other details in the Map
+                          if (elementIdentity) {
+                            window.elementInfoMap.set(
+                              elementIdentity.xPath,
+                              elementDTO("clicked", elementIdentity)
+                            );
+
+                            // Show the tooltip with the element details
+                            // tooltip.innerHTML = `${tagName} <br> ${someText}`;
+                            tooltip.innerHTML = `${tagName} <br> ${elementIdentity.someText}`;
+                            var tooltipWidth = tooltip.offsetWidth;
+                            var tooltipHeight = tooltip.offsetHeight;
+                            var left = event.pageX - tooltipWidth / 2;
+                            var top = event.pageY - tooltipHeight / 2;
+
+                            tooltip.style.left = left + "px";
+                            tooltip.style.top = top + "px";
+                            tooltip.style.display = "block";
+                          }
+                        }
+
+                        sendingData();
+
+                        window.revertCloneInjections();
+
+                        // Remove the tooltip from the page and delete the reference after 5 seconds
+                        setTimeout(() => {
+                          window.allElementInfo = [];
+                          window.elementInfoMap.clear();
+
+                          // if (tooltip) {
+                          //   tooltip.remove(); // Completely remove the tooltip from the DOM
+                          //   tooltip = null; // Clear the reference to free memory
+                          //   console.log("Tooltip completely removed.");
+                          // }
+
+                          // if (lastHoveredElement || elementBelowTooltip) {
+                          //   // Remove highlight from the previous element if any
+                          //   if (lastHoveredElement) {
+                          //     lastHoveredElement.style.outline = ""; // Remove the previous highlight
+                          //   }
+
+                          //   // Remove highlight from the previous element if any
+                          //   if (elementBelowTooltip) {
+                          //     elementBelowTooltip.style.outline = ""; // Remove the previous highlight
+                          //   }
+                          // }
+                        }, 1000);
+                      }
+
                       document.addEventListener("mouseover", showMartiniTooltip);
                       //                document.addEventListener('mouseout', hideMartiniTooltip);
                       document.addEventListener("click", handleMartiniClick);
-                                        
-                      // window.postMessage({ type: "myMessage", data: "some data" }, targetOriginURL);
-                                        
+
+                      window.postMessage({ type: "myMessage", data: "some data" }, targetOriginURL);
+
                       window.addEventListener("message", function (event) {
                         if (event.origin !== trustedOriginURL) return; // check the origin
                         console.log(event.data);
                       });
-                                        
-                      window.pickTerms = null; // Invalidating the function
+
+                      // window.cloneTerms = null; // Invalidating the function
                     })(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
                     // })("http://localhost:3000/", "http://localhost:3000/", ["*"], false, 8181);
-                                        
-                    """;
+
+                                """;
 }

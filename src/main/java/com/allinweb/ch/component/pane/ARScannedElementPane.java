@@ -47,7 +47,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -199,9 +198,6 @@ public class ARScannedElementPane extends ARPane {
     private TextField customXPathTextField;
     private TextField originalTagNameField;
     private TextField coordsTextField;
-    private String xpathTextPrevious = "";
-    private AtomicBoolean periodicPickActivated = new AtomicBoolean(false);
-    private AtomicBoolean periodicCloneActivated = new AtomicBoolean(false);
 
     private Boolean resultElementSearch = false;
 
@@ -237,6 +233,7 @@ public class ARScannedElementPane extends ARPane {
     private int portSocket = 8080;
     private String[] defaultSearch;
     private boolean searchHiddenFields;
+    private String xpathTextPrevious;
 
     // Static block to initialize
     static {
@@ -348,7 +345,12 @@ public class ARScannedElementPane extends ARPane {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        performPreLoad.dynamicLoadElementsDTO(arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), defaultSearch, searchHiddenFields, portSocket);
+        performPreLoad.dynamicLoadElementsDTO(
+                arWebDriver.getDriver(),
+                arWebDriver.getDriver().getCurrentUrl(),
+                defaultSearch,
+                searchHiddenFields,
+                portSocket);
 
         performAction.getIframeElementsMap();
 
@@ -1045,37 +1047,70 @@ public class ARScannedElementPane extends ARPane {
         });
         checkPickElement.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
-            checkTestAction.setDisable(checkCloneElement.isSelected());
+            checkTestAction.setDisable(true);
             checkTestAction.setSelected(false);
-
-            checkCloneElement.setDisable(checkPickElement.isSelected());
+            checkCloneElement.setDisable(true);
             checkCloneElement.setSelected(false);
 
-            xpathTextPrevious = "";
             this.targetSelected = null;
             elementsFound.clear();
-            //            webElementObservableList2.clear();
+            resultElementSearch = false;
 
-            periodicPickActivated.set(checkPickElement.isSelected());
+            revertCloneInjections(arWebDriver.getDriver());
+            revertPickInjections(arWebDriver.getDriver());
 
-            handlePickElementClick();
+            if (checkPickElement.isSelected()) {
+                String[] dataArrayClone = {"*"};
+                int finalPort = portSocket;
+                periodicPickThread(
+                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort);
+            }
+
+            Platform.runLater(() -> {
+                launchBotJobButton.setDisable(checkPickElement.isSelected());
+                recallJobButton.setDisable(checkPickElement.isSelected());
+
+                checkTestAction.setDisable(checkPickElement.isSelected());
+                checkTestAction.setSelected(false);
+
+                checkCloneElement.setDisable(checkPickElement.isSelected());
+                checkCloneElement.setSelected(false);
+
+                if (!checkPickElement.isSelected()) {
+                    defineNameField.clear();
+                }
+            });
         });
         checkCloneElement.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
-            checkTestAction.setDisable(checkCloneElement.isSelected());
-            checkTestAction.setSelected(false);
 
-            checkPickElement.setDisable(checkCloneElement.isSelected());
-            checkPickElement.setSelected(false);
-
-            xpathTextPrevious = "";
             this.targetSelected = null;
             elementsFound.clear();
-            //            webElementObservableList2.clear();
+            resultElementSearch = false;
 
-            periodicCloneActivated.set(checkCloneElement.isSelected());
+            revertCloneInjections(arWebDriver.getDriver());
 
-            handleCloneElementClick();
+            if (checkCloneElement.isSelected()) {
+                String[] dataArrayClone = {"*"};
+                int finalPort = portSocket;
+                periodicCloneThread(
+                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort);
+            }
+
+            Platform.runLater(() -> {
+                launchBotJobButton.setDisable(checkCloneElement.isSelected());
+                recallJobButton.setDisable(checkCloneElement.isSelected());
+
+                checkTestAction.setDisable(checkCloneElement.isSelected());
+                checkTestAction.setSelected(false);
+
+                checkPickElement.setDisable(checkCloneElement.isSelected());
+                checkPickElement.setSelected(false);
+
+                if (!checkCloneElement.isSelected()) {
+                    defineNameField.clear();
+                }
+            });
         });
         checkClickElement.setOnAction(event -> {
             if (checkClickElement.isSelected()) {
@@ -1115,7 +1150,7 @@ public class ARScannedElementPane extends ARPane {
                             .findFirst(); // Get the first matching ElementDTO
 
                     if (checkPickElement.isSelected()) {
-                        handlePickElementClick();
+                        //                        handlePickElementClick();
                     } else if (iframeElement.isPresent()) {
                         insertNewElement(iframeElement.get(), elementsFound);
                     } else {
@@ -1523,7 +1558,6 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                 } catch (Exception e) {
-                    xpathTextPrevious = ""; // Allows clicking in the same element again
                     System.out.println("Element not found for XPath: " + elementDTO.getXPath());
                     ARConstants.DialogModal respModal = performMessage.showCustomModalDialog(
                             "Error selecting Web Element",
@@ -1960,46 +1994,6 @@ public class ARScannedElementPane extends ARPane {
         handleSearchTermClick(dataArray);
     }
 
-    private void handlePickElementClick() {
-
-        resultElementSearch = false;
-
-        elementsFound.clear();
-
-        revertCloneInjections(arWebDriver.getDriver());
-        revertPickInjections(arWebDriver.getDriver());
-
-        if (checkPickElement.isSelected()) {
-
-            String[] dataArrayClone = {"*"};
-            int finalPort = portSocket;
-            Platform.runLater(() -> periodicPickThread(
-                    arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
-
-            //            injectJavaScript(arWebDriver.getDriver());
-            //            injectJumpTab(arWebDriver.getDriver());
-        }
-
-        revertPickButtons();
-    }
-
-    private void handleCloneElementClick() {
-
-        resultElementSearch = false;
-        elementsFound.clear();
-
-        revertCloneInjections(arWebDriver.getDriver());
-        revertPickInjections(arWebDriver.getDriver());
-
-        String[] dataArrayPick = {"*"};
-        if (checkCloneElement.isSelected()) {
-            int finalPort = portSocket;
-            Platform.runLater(() -> periodicCloneThread(
-                    arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayPick, finalPort));
-        }
-        revertCloneButtons();
-    }
-
     private void handleSearchTermClick(String[] dataArray) {
         webElementObservableList1.clear();
 
@@ -2009,7 +2003,6 @@ public class ARScannedElementPane extends ARPane {
         resultElementSearch = true;
 
         elementsFound.clear();
-        xpathTextPrevious = "";
         this.targetSelected = null;
 
         revertCloneInjections(arWebDriver.getDriver());
@@ -2020,31 +2013,12 @@ public class ARScannedElementPane extends ARPane {
                 arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArray, finalPort));
     }
 
-    private void revertPickButtons() {
-        Platform.runLater(() -> {
-            checkTestAction.setDisable(checkPickElement.isSelected());
-            launchBotJobButton.setDisable(checkPickElement.isSelected());
-            recallJobButton.setDisable(checkPickElement.isSelected());
-
-            checkCloneElement.setDisable(checkPickElement.isSelected());
-
-            periodicPickActivated.set(checkPickElement.isSelected());
-
-            if (!checkPickElement.isSelected()) {
-                defineNameField.clear();
-            }
-        });
-    }
-
     private void revertCloneButtons() {
         Platform.runLater(() -> {
-            checkTestAction.setDisable(checkCloneElement.isSelected());
-            launchBotJobButton.setDisable(checkCloneElement.isSelected());
-            recallJobButton.setDisable(checkCloneElement.isSelected());
-
-            checkPickElement.setDisable(checkCloneElement.isSelected());
-
-            periodicCloneActivated.set(checkCloneElement.isSelected());
+            checkTestAction.setDisable(true);
+            launchBotJobButton.setDisable(true);
+            recallJobButton.setDisable(true);
+            checkPickElement.setDisable(true);
 
             if (!checkCloneElement.isSelected()) {
                 defineNameField.clear();

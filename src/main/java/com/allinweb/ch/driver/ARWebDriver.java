@@ -157,9 +157,9 @@ public class ARWebDriver {
             //            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
 
             driver.get(url);
-//            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
+            //            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
 
-//            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
+            //            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
 
             // Wait for the page to finish loading
             //            Thread.sleep(3000);
