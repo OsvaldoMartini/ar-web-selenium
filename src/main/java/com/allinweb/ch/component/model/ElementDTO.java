@@ -15,7 +15,7 @@ public class ElementDTO {
     private String attribId;
     private String attribName;
     private String coords;
-    private String allAttributes;
+    private AttributeData[] attributeData;
     private String customXPath;
     private String iFrameXPath;
     private String attributeValue;
@@ -31,7 +31,7 @@ public class ElementDTO {
         this.attribId = other.attribId;
         this.attribName = other.attribName;
         this.coords = other.coords;
-        this.allAttributes = other.allAttributes;
+        this.attributeData = other.attributeData;
         this.customXPath = other.customXPath;
         this.iFrameXPath = other.iFrameXPath;
         this.attributeValue = other.attributeValue;

@@ -3,13 +3,13 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
@@ -27,7 +27,6 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ARWebDriver {
 
@@ -35,9 +34,11 @@ public class ARWebDriver {
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
 
     private static final PerformMessage performMessage;
+    private static final PerformPreLoad performPreLoad;
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
+        performPreLoad = PerformPreLoad.getInstance();
     }
 
     public static String identifyLineSeparator(String text) {
@@ -51,7 +52,8 @@ public class ARWebDriver {
         return System.lineSeparator(); // Default line separator if none found
     }
 
-    public WebDriver openDriver(String url, String optionsConfig) {
+    public WebDriver openDriver(
+            String url, String optionsConfig, String[] dataArray, boolean searchHiddenFields, int port) {
 
         if (Strings.isNullOrEmpty(url.trim())) {
             ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
@@ -151,15 +153,20 @@ public class ARWebDriver {
         driver.manage().window().maximize();
 
         try {
+            //            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
+            //            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
 
             driver.get(url);
+            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
+
+            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
 
             // Wait for the page to finish loading
-            Thread.sleep(3000);
-            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
-            wait.until(webDriver -> ((JavascriptExecutor) webDriver)
-                    .executeScript("return document.readyState")
-                    .equals("complete"));
+            //            Thread.sleep(3000);
+            //            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
+            //            wait.until(webDriver -> ((JavascriptExecutor) webDriver)
+            //                    .executeScript("return document.readyState")
+            //                    .equals("complete"));
 
         } catch (Exception e) {
 

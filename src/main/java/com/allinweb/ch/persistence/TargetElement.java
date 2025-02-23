@@ -2,6 +2,7 @@ package com.allinweb.ch.persistence;
 
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.component.model.AttributeData;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -15,7 +16,7 @@ public class TargetElement {
     String nameLabel;
     String nameField;
     String currentXPath;
-    String allAttributes;
+    AttributeData[] attributeData;
     String customXPath;
     String coords;
     String mainXPath;
@@ -46,7 +47,7 @@ public class TargetElement {
         this.nameLabel = origin.nameLabel;
         this.nameField = origin.nameField;
         this.currentXPath = origin.currentXPath;
-        this.allAttributes = origin.allAttributes;
+        this.attributeData = origin.attributeData;
         this.customXPath = origin.customXPath;
         this.coords = origin.coords;
         this.mainXPath = origin.mainXPath;
@@ -78,7 +79,7 @@ public class TargetElement {
         this.nameLabel = null;
         this.nameField = null;
         this.currentXPath = null;
-        this.allAttributes = null;
+        this.attributeData = null;
         this.customXPath = null;
         this.coords = null;
         this.mainXPath = null;

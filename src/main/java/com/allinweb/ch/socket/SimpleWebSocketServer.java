@@ -7,6 +7,7 @@ import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
+import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
@@ -103,8 +104,8 @@ public class SimpleWebSocketServer {
                     handleMessageByType(type, jsonMessage, session);
                     break;
             }
-        } catch (Exception e) {
-            System.err.println("Error processing message: " + e.getMessage());
+        } catch (Exception error) {
+            System.err.println("Error processing message: " + error.getMessage());
             if (type != null) {
                 sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
             } else {
@@ -116,11 +117,18 @@ public class SimpleWebSocketServer {
     private void handleMessageByType(String type, JsonObject jsonEntry, Session session) {
         // Dispatch to the correct method based on the message type
         switch (type) {
+            case "SEARCH_TOOL":
+                // Extract the "body" field from the JsonObject
+                ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+                elementSplitDTO.setType("SEARCH_TOOL FROM MARTINI");
+                String jsonData = gson.toJson(elementSplitDTO);
+                sendMessageJson(session, jsonData, null);
+                break;
             case "RESPONSE_BACK":
                 // Extract the "body" field from the JsonObject
                 BlockSplitDTO received = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 received.setType("MARTINI");
-                String jsonData = gson.toJson(received);
+                jsonData = gson.toJson(received);
                 sendMessageJson(session, jsonData, null);
                 break;
             case "BLOCKS_COMPONENT":

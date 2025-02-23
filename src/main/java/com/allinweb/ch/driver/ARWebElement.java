@@ -1,6 +1,7 @@
 package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.component.model.AttributeData;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.InstructionDTO;
@@ -236,7 +237,10 @@ public class ARWebElement {
                         && targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
                     savedReferences.put("currentXPath", targetElement.getCurrentXPath());
                     savedReferences.put("customXPath", targetElement.getCustomXPath());
-                    savedReferences.put("allAttributes", targetElement.getAllAttributes());
+                    for (AttributeData attrb : targetElement.getAttributeData()) {
+                        savedReferences.put(
+                                attrb.getName().trim(), attrb.getValue().trim());
+                    }
                     if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
                         savedReferences.put("attributeID", targetElement.getAttribId());
                     }
@@ -249,7 +253,11 @@ public class ARWebElement {
                 } else if (targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.CUSTOM_XPATH)) {
                     savedReferences.put("currentXPath", targetElement.getCurrentXPath());
                     savedReferences.put("customXPath", targetElement.getCustomXPath());
-                    savedReferences.put("allAttributes", targetElement.getAllAttributes());
+                    for (AttributeData attrb : targetElement.getAttributeData()) {
+                        savedReferences.put(
+                                attrb.getName().trim(), attrb.getValue().trim());
+                    }
+
                     if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
                         savedReferences.put("attributeID", targetElement.getAttribId());
                     }
@@ -267,6 +275,12 @@ public class ARWebElement {
                     savedReferences.put("attributeName", targetElement.getAttribName());
                 } else if (!Strings.isNullOrEmpty(targetElement.getSearchAttributeValue())) {
                     savedReferences.put("searchAttribute", targetElement.getSearchAttributeValue());
+                } else if (targetElement.getAttributeData().length > 0) {
+                    for (AttributeData attrb : targetElement.getAttributeData()) {
+                        savedReferences.put(
+                                attrb.getName().trim(), attrb.getValue().trim());
+                    }
+
                 } else if (!Strings.isNullOrEmpty(targetElement.getAttributeValue())) {
                     savedReferences.put("attribute", targetElement.getAttributeValue());
                 } else { // In case of Dynamic Creation
