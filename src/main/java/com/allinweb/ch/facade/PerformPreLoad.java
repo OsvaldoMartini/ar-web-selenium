@@ -51,6 +51,20 @@ public class PerformPreLoad {
         }
     }
 
+
+    public ErrorMessage dynamicInitElementsDTO(
+            WebDriver driver, String currentUrl, String[] dataArray, boolean searchHiddenFields, int port) {
+
+        List<String> dataList = Arrays.asList(dataArray);
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript(jsCodeInit, dataList, searchHiddenFields, port);
+            return null;
+        } catch (Exception error) {
+            return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
+        }
+    }
+
     public void dynamicLoadAlerts(
             WebDriver driver, String url, String[] dataArray, boolean searchHiddenFields, int port) {
         List<String> dataList = Arrays.asList(dataArray);
@@ -684,22 +698,29 @@ public class PerformPreLoad {
     private String jsCodeInject =
             """
                     (function (searchTerms, hiddenFields, socketPort) {
-                      var attempts = 0;
-                      var wSocket = null;
-                      var pageFullyLoaded = false;
+                      let attempts = 0;
+                      let maxAttempts = 100;
+                      let wSocket = null;
+                      let pageFullyLoaded = false;
                       window.elementInfoMap = new Map();
                       window.searchTerms = ["button", "input", "a"];
                       window.allElementInfo = [];
                       // var elementInfoSubmit = new Map();
-                                        
+                                       
                       function connectWebSocket() {
+                        if (attempts >= maxAttempts) {
+                          console.error("Reached maximum reconnection attempts. Stopping.");
+                          return;
+                        }
+                                       
                         try {
+                          console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
                           wSocket = new WebSocket(`ws://localhost:${socketPort}/websocket`);
-                                        
+                                       
                           wSocket.onopen = () => {
                             console.log("WebSocket connected");
                             attempts = 0; // Reset attempts on successful connection
-                                        
+                                       
                             try {
                               const subscriptionMessage = {
                                 type: "echo",
@@ -709,28 +730,28 @@ public class PerformPreLoad {
                             } catch (sendError) {
                               console.error("Failed to send subscription message:", sendError);
                             }
-                                        
+                                       
                             // Call startCollectingElements AFTER WebSocket is open
                             startCollectingElements(searchTerms);
                           };
-                                        
+                                       
                           wSocket.onmessage = (event) => {
                             let receivedMessage = event.data;
-                                        
+                                       
                             if (receivedMessage.endsWith("\\u0000")) {
                               receivedMessage = receivedMessage.slice(0, -1);
                             }
-                                        
+                                       
                             if (receivedMessage) {
                               try {
                                 const parsedObject = JSON.parse(receivedMessage);
                                 console.log("WebSocket message received:", parsedObject);
-                                        
+                                       
                                 // Process parsedObject.body and parsedObject.footer here
                                 if (parsedObject.body.includes("data_updated")) {
                                   //Handle data update
                                 }
-                                        
+                                       
                                 if (
                                   parsedObject.body.includes("cannot be processed") ||
                                   (parsedObject.footer &&
@@ -743,27 +764,30 @@ public class PerformPreLoad {
                               }
                             }
                           };
-                                        
+                                       
                           wSocket.onerror = (error) => {
                             console.error("WebSocket error:", error);
+                            // connectWebSocket(); // Retry connection
                           };
-                                        
+                                       
                           wSocket.onclose = () => {
                             console.log("WebSocket connection closed");
-                                        
-                            if (attempts < 100) {
+                                       
+                            if (attempts < maxAttempts) {
                               attempts++;
                               console.log(`Reconnecting attempt ${attempts}...`);
                               connectWebSocket(); // Retry connection
                             } else {
-                              console.log("100 Attempts to Reconnect with the WebSocket.");
+                              console.log(
+                                `${maxAttempts} Attempts to Reconnect with the WebSocket.`
+                              );
                             }
                           };
                         } catch (initError) {
                           console.error("Failed to initialize WebSocket:", initError);
                         }
                       }
-                                        
+                                       
                       // Optionally, expose a cleanup function
                       window.cleanupWebSocket = () => {
                         try {
@@ -775,7 +799,7 @@ public class PerformPreLoad {
                           console.error("Error during WebSocket cleanup:", cleanupError);
                         }
                       };
-                                        
+                                       
                       function init(eventName) {
                         if (pageFullyLoaded) {
                           console.log("Event Name", eventName);
@@ -796,7 +820,7 @@ public class PerformPreLoad {
                         }
                         pageFullyLoaded = true;
                       }
-                                        
+                                       
                       // Function to collect general elements based on search terms
                       const collectElements = function collectElements(
                         doc,
@@ -825,7 +849,7 @@ public class PerformPreLoad {
                             )
                           );
                         }
-                                        
+                                       
                         // After collecting, process element identities for the parent document
                         collectionFound.forEach((element) => {
                           if (
@@ -835,7 +859,7 @@ public class PerformPreLoad {
                           ) {
                             return;
                           }
-                                        
+                                       
                           const elementIdentity = getElementIdentity(element);
                           if (elementIdentity) {
                             filterSearchTerms(
@@ -847,7 +871,7 @@ public class PerformPreLoad {
                           }
                         });
                       };
-                                        
+                                       
                       function filterSearchTerms(
                         typeDTO,
                         referXPath,
@@ -870,7 +894,7 @@ public class PerformPreLoad {
                         // Iterate through search terms and apply corresponding checks
                         searchTerms.forEach((term) => {
                           let matches = false;
-                                        
+                                       
                           if (
                             term.includes("with id") &&
                             elementIdentity.attributeData.some((attr) => attr.name === "id")
@@ -887,7 +911,7 @@ public class PerformPreLoad {
                           ) {
                             matches = true;
                           }
-                                        
+                                       
                           // If a match is found, set the element in the map
                           if (matches) {
                             window.elementInfoMap.set(
@@ -897,46 +921,46 @@ public class PerformPreLoad {
                           }
                         });
                       }
-                                        
+                                       
                       function fetchAndParseIframeContent(iframe) {
                         if (!iframe.src) return null;
-                                        
+                                       
                         const xhr = new XMLHttpRequest();
                         xhr.open("GET", iframe.src, false); // 'false' makes the request synchronous
-                                        
+                                       
                         try {
                           xhr.send();
-                                        
+                                       
                           if (xhr.status !== 200) {
                             console.error("Error fetching the iframe content:", xhr.status);
                             return null;
                           }
-                                        
+                                       
                           const htmlContent = xhr.responseText;
-                                        
+                                       
                           // Parse the HTML content
                           const parser = new DOMParser();
                           const parsedDocument = parser.parseFromString(htmlContent, "text/html");
-                                        
+                                       
                           // Get all elements inside the parsed document
                           const srcElements = parsedDocument.querySelectorAll("*");
                           console.log(`srcElements Total: <${srcElements.length}>`);
-                                        
+                                       
                           // srcElements.forEach((element) => {
                           //   console.log(`Element: <${element.tagName}>`);
                           //   console.log("Text Content:", element.textContent.trim());
                           // });
-                                        
+                                       
                           return srcElements; // Return the NodeList
                         } catch (error) {
                           console.error("Error fetching the iframe content:", error);
                           return null;
                         }
                       }
-                                        
+                                       
                       const iFrameDetails = function iFrameDetails(iframe, xPathIFrame, childSize) {
                         const iframeDetails = `Elements inside iframe: ${childSize}`;
-                                        
+                                       
                         console.log(
                           `iFrame Found: ${
                             iframe.src ||
@@ -958,7 +982,7 @@ public class PerformPreLoad {
                         //   };${iframeDetails}`
                         // );
                       };
-                                        
+                                       
                       // Function to collect iframe elements recursively
                       const collectIframeElements = function collectIframeElements(
                         doc,
@@ -969,7 +993,7 @@ public class PerformPreLoad {
                           try {
                             let iframeDocument =
                               iframe.contentDocument || iframe.contentWindow.document;
-                                        
+                                       
                             try {
                               console.log(
                                 "Iframe origin:",
@@ -979,13 +1003,13 @@ public class PerformPreLoad {
                             } catch (e) {
                               console.warn("Cross-origin access denied for iframe:", iframe.src);
                             }
-                                        
+                                       
                             if (iframe) {
                               let iframeParsed = null;
                               let srcDocElements = null;
-                                        
+                                       
                               const xPathIFrame = getMartiniXPath(iframe); // Get the XPath of the iframe
-                                        
+                                       
                               const elementIdentity = getElementIdentity(iframe);
                               if (elementIdentity) {
                                 filterSearchTerms(
@@ -995,23 +1019,23 @@ public class PerformPreLoad {
                                   searchTerms
                                 );
                               }
-                                        
+                                       
                               const parser = new DOMParser();
-                                        
+                                       
                               if (iframe.srcdoc) {
                                 iframeParsed = parser.parseFromString(iframe.srcdoc, "text/html");
-                                        
+                                       
                                 // Select all elements inside the parsed document
                                 srcDocElements = iframeParsed.querySelectorAll("*");
                               }
-                                        
+                                       
                               if (iframe.src) {
                                 const srcElements = fetchAndParseIframeContent(iframe);
                                 if (srcElements) {
                                   // console.log("Fetched Elements:", srcElements);
-                                        
+                                       
                                   iFrameDetails(iframe, xPathIFrame, srcElements.length);
-                                        
+                                       
                                   srcElements.forEach(function (element) {
                                     const elementIdentity = getElementIdentity(element);
                                     // console.log(
@@ -1030,7 +1054,7 @@ public class PerformPreLoad {
                                   });
                                 }
                               }
-                                        
+                                       
                               // Collect all elements inside the iframe
                               if (!iframe.src) {
                                 iFrameDetails(
@@ -1043,12 +1067,12 @@ public class PerformPreLoad {
                                     : 0
                                 );
                               }
-                                        
+                                       
                               iframeDocument
                                 .querySelectorAll("*")
                                 .forEach(function (elementInsideIframe) {
                                   const elementIdentity = getElementIdentity(elementInsideIframe);
-                                        
+                                       
                                   // console.log(
                                   //   "elementIdentity.xPath",
                                   //   `${xPathIFrame}${elementIdentity?.xPath}`
@@ -1063,7 +1087,7 @@ public class PerformPreLoad {
                                     );
                                   }
                                 });
-                                        
+                                       
                               // Loop through all the elements and extract their properties
                               srcDocElements?.forEach(function (element) {
                                 const elementIdentity = getElementIdentity(element);
@@ -1081,12 +1105,12 @@ public class PerformPreLoad {
                                   );
                                 }
                               });
-                                        
+                                       
                               // Process iframe content depending on the presence of srcdoc
                               if (iframeParsed) {
                                 processIframeElements(iframeParsed, xPathIFrame);
                               }
-                                        
+                                       
                               // If the iframe contains nested iframes, recursively collect them
                               collectIframeElements(iframeDocument, collectionFound, true);
                             } else {
@@ -1100,14 +1124,14 @@ public class PerformPreLoad {
                           }
                         });
                       };
-                                        
+                                       
                       const processIframeElements = function (iframeDocument, xPathIFrame) {
                         // Collect all elements inside the iframe
                         iframeDocument
                           .querySelectorAll("*")
                           .forEach(function (elementInsideIframe) {
                             const elementIdentity = getElementIdentity(elementInsideIframe);
-                                        
+                                       
                             // console.log(
                             //   "elementIdentity.xPath",
                             //   `${xPathIFrame}${elementIdentity?.xPath}`
@@ -1123,7 +1147,7 @@ public class PerformPreLoad {
                             }
                           });
                       };
-                                        
+                                       
                       // Function to initialize the collection process
                       const startCollectingElements = function startCollectingElements(
                         searchTerms
@@ -1131,27 +1155,23 @@ public class PerformPreLoad {
                         // const searchTerms = ["button", "input", "a", "div"]; // Define elements to search for
                         window.elementInfoMap = new Map(); // Initialize the map to store element information
                         let collectionFound = [];
-                                        
+                                       
                         // First, collect iframe elements
                         collectIframeElements(document, collectionFound, elementInfoMap);
-                                        
+                                       
                         // Then, collect general elements based on search terms
                         collectElements(document, searchTerms, collectionFound, elementInfoMap);
-                                        
+                                       
                         window.allElementInfo = [];
                         limitMapCharacters(window.elementInfoMap);
                         console.log("All element info stored in Map:", window.allElementInfo);
                         window.elementInfoMap.clear();
-                                        
+                                       
                         if (wSocket && wSocket.readyState) {
                           console.log("WebSocket readyState:", wSocket.readyState);
                         }
-                                        
-                        if (
-                          wSocket &&
-                          wSocket.readyState === WebSocket.OPEN &&
-                          window.allElementInfo.length > 0
-                        ) {
+                                       
+                        if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                           const message = {
                             type: "SEARCH_TOOL",
                             details: window.allElementInfo, // Send allElementInfo
@@ -1159,10 +1179,10 @@ public class PerformPreLoad {
                           wSocket.send(JSON.stringify(message));
                           console.log("Sent SEARCH_TOOL:", message);
                         } else {
-                          console.warn("WebSocket is not open. Cannot send message.");
+                          connectWebSocket(); // Retry connection
                         }
                       };
-                                        
+                                       
                       const getElementIdentity = function getElementIdentity(element) {
                         if (!hiddenFields) {
                           if (
@@ -1189,7 +1209,7 @@ public class PerformPreLoad {
                           .getBoundingClientRect()
                           .top.toFixed(2)}`;
                         const someText = getSomeText(tagName, attributeData, element);
-                                        
+                                       
                         return {
                           xPath,
                           tagName,
@@ -1201,7 +1221,7 @@ public class PerformPreLoad {
                           someText,
                         };
                       };
-                                        
+                                       
                       // Helper function to generate a unique XPath for an element
                       const getMartiniXPath = function getMartiniXPath(element) {
                         if (element === document.body) return "/html/body";
@@ -1225,7 +1245,7 @@ public class PerformPreLoad {
                         }
                         return "";
                       };
-                                        
+                                       
                       // Helper function to generate element information string
                       const elementInfoString = function elementInfoString(element, identity) {
                         return `${element.tagName.toLowerCase()};xpath:${identity.xpath};text:${
@@ -1236,7 +1256,7 @@ public class PerformPreLoad {
                           identity.customXPath
                         };`;
                       };
-                                        
+                                       
                       const elementDTO = function elementDTO(typeElement, identity) {
                         return {
                           typeElement: typeElement,
@@ -1254,18 +1274,18 @@ public class PerformPreLoad {
                           searchAttributeValue: identity.searchAttributeValue ?? "",
                         };
                       };
-                                        
+                                       
                       function limitMapCharacters(elementInfoMap) {
                         elementInfoMap.forEach((value, key) => {
                           let modifiedValue = value;
                           window.allElementInfo.push(modifiedValue);
                         });
                       }
-                                        
+                                       
                       function getSomeText(tagName, attributeData, element) {
                         let textSet = new Set();
                         let textResult = "";
-                                        
+                                       
                         if (["input", "textarea", "select", "button"].includes(tagName)) {
                           const extractedText = extractTextFromHTML(element || "");
                           textResult = [
@@ -1294,11 +1314,11 @@ public class PerformPreLoad {
                             .join("; ")
                             .trim();
                         }
-                                        
+                                       
                         // Now, extract text from attributes AFTER processing the element
                         attributeData.forEach((attr) => {
                           const trimmedValue = attr.value.trim();
-                                        
+                                       
                           if (trimmedValue) {
                             // Process only if value is not empty
                             if (
@@ -1312,7 +1332,7 @@ public class PerformPreLoad {
                             }
                           }
                         });
-                                        
+                                       
                         // Continue processing srcdoc separately
                         attributeData.forEach((attr) => {
                           if (attr.name === "srcdoc") {
@@ -1329,25 +1349,33 @@ public class PerformPreLoad {
                             }
                           }
                         });
-                                        
+                                       
                         // Add the extracted text from the element to the set to avoid duplicates
                         textResult
                           .split(";")
                           .map((text) => text.trim())
                           .filter(Boolean)
                           .forEach((text) => textSet.add(text));
-                                        
+                                       
                         // Return a clean, unique, and deduplicated string
                         return Array.from(textSet).join("; ");
                       }
-                                        
+                                       
                       function extractTextFromHTML(element) {
+                        // If element is invalid or empty, return an empty result
+                        if (!element || element === " ") {
+                          return {
+                            text: [],
+                            labels: [],
+                            titles: [],
+                          };
+                        }
                         const result = {
                           text: new Set(), // Using Set to avoid duplicate text
                           labels: new Set(), // Using Set to avoid duplicate labels
                           titles: new Set(), // Using Set to avoid duplicate titles
                         };
-                                        
+                                       
                         // Extract text content directly from the element (in case it has no children)
                         if (element.textContent) {
                           let elementText = element.textContent.trim();
@@ -1355,7 +1383,7 @@ public class PerformPreLoad {
                             result.text.add(elementText); // Using .add() instead of .push() for Set
                           }
                         }
-                                        
+                                       
                         // Extract label text from input placeholders and other form-related data
                         element.querySelectorAll("label").forEach((label) => {
                           if (label.textContent) {
@@ -1364,7 +1392,7 @@ public class PerformPreLoad {
                               result.labels.add(labelText); // Using .add() for Set to ensure uniqueness
                             }
                           }
-                                        
+                                       
                           // Handle associated input fields (if the label has a 'for' attribute)
                           let forAttribute = label.getAttribute("for");
                           if (forAttribute) {
@@ -1381,7 +1409,7 @@ public class PerformPreLoad {
                             }
                           }
                         });
-                                        
+                                       
                         // Extract text from common block and inline elements
                         const textExtractors = [
                           "p",
@@ -1400,7 +1428,7 @@ public class PerformPreLoad {
                           "i",
                           "blockquote",
                         ];
-                                        
+                                       
                         textExtractors.forEach((tagName) => {
                           element.querySelectorAll(tagName).forEach((childElement) => {
                             if (childElement.textContent) {
@@ -1411,7 +1439,7 @@ public class PerformPreLoad {
                             }
                           });
                         });
-                                        
+                                       
                         // Extract text from <a> tags (links)
                         element.querySelectorAll("a").forEach((link) => {
                           if (link.textContent) {
@@ -1421,7 +1449,7 @@ public class PerformPreLoad {
                             }
                           }
                         });
-                                        
+                                       
                         // Extract iframe titles and nested content
                         element.querySelectorAll("iframe").forEach((iframe) => {
                           if (iframe.getAttribute("title")) {
@@ -1430,7 +1458,7 @@ public class PerformPreLoad {
                               result.titles.add(title); // Using .add() for Set to ensure uniqueness
                             }
                           }
-                                        
+                                       
                           try {
                             let iframeDoc =
                               iframe.contentDocument ||
@@ -1443,7 +1471,7 @@ public class PerformPreLoad {
                             console.warn("Could not access iframe content", e);
                           }
                         });
-                                        
+                                       
                         // Convert Sets to arrays before returning to maintain previous structure
                         return {
                           text: Array.from(result.text),
@@ -1451,21 +1479,21 @@ public class PerformPreLoad {
                           titles: Array.from(result.titles),
                         };
                       }
-                                        
+                                       
                       // Event listener to handle incoming messages from iframes
                       window.addEventListener("message", function (event) {
                         if (event.origin !== window.trustedOriginURL) {
                           return; // Ignore messages from untrusted origins
                         }
-                                        
+                                       
                         console.log("Received message data:", event.data);
-                                        
+                                       
                         if (event.data.type === "elementsData") {
                           const elementData = event.data.data; // Process received element data
                           console.log("Element data from parent:", elementData);
                         }
                       });
-                                        
+                                       
                       function checkEdgeTrackingPrevention() {
                         if (navigator.userAgent.includes("Edg")) {
                           console.log(
@@ -1473,9 +1501,9 @@ public class PerformPreLoad {
                           );
                         }
                       }
-                                        
+                                       
                       checkEdgeTrackingPrevention();
-                                        
+                                       
                       // MOVE EVENT LISTENERS OUTSIDE
                       if (
                         document.readyState === "complete" ||
@@ -1493,16 +1521,17 @@ public class PerformPreLoad {
                         });
                         window.attachEvent?.("onload", () => init("onload"));
                       }
-                                        
+                                       
                       connectWebSocket();
                       // startCollectingElements(window.searchTerms);
                       // init("Initiate");
+//                      window.initSearchTerms = null; // Invalidating the function
                     })(arguments[0], arguments[1], arguments[2]);
                     // })([], false, 8181);
                     // })(["with name"], false, 8181);
                     // })(["input", "button", "a"], false, 8181);
                     // })(["*"], false, 8181);
                     // })(["button"], false, 8181);
-                                        
+                                                            
                     """;
 }
