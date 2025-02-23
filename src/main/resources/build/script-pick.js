@@ -477,7 +477,7 @@
   }
 
   function getElementIdentity(element) {
-    var xpath = getMartiniXPath(element);
+    var xPath = getMartiniXPath(element);
     var allAttributes = "";
     try {
       // console.log("element", element);

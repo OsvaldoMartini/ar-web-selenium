@@ -216,19 +216,19 @@ public class PerformPreLoad {
 
                             window.updateDownloadProgress = function (progress) {
                                 window.downloadState.progress = progress;
-                                alertText.textContent = 'Page loading... JavaScript injected. Download progress: ' + progress + '%';
+                                alertText.textContent = 'Page loading... . Download progress: ' + progress + '%';
                                 console.log("Alert Text Content: " + alertText.textContent);
                             };
 
                             window.startDownload = function () {
                                 window.downloadState.isDownloading = true;
-                                alertText.textContent = 'Page loading... JavaScript injected. Download started';
+                                alertText.textContent = 'Page loading... . Download started';
                                 console.log("Alert Text Content: " + alertText.textContent);
                             };
 
                             window.finishDownload = function () {
                                 window.downloadState.isDownloading = false;
-                                alertText.textContent = 'Page loading... JavaScript injected. Download finished';
+                                alertText.textContent = 'Page loading... . Download finished';
                                 console.log("Alert Text Content: " + alertText.textContent);
                             };
                         }
