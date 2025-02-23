@@ -200,7 +200,6 @@ public class ARScannedElementPane extends ARPane {
     private String xpathTextPrevious = "";
     private AtomicBoolean periodicPickActivated = new AtomicBoolean(false);
     private AtomicBoolean periodicCloneActivated = new AtomicBoolean(false);
-    private AtomicBoolean periodicSearchActivated = new AtomicBoolean(false);
 
     private Boolean resultElementSearch = false;
 
@@ -1934,7 +1933,7 @@ public class ARScannedElementPane extends ARPane {
         //        webElementObservableList1.clear();
         //        manageUIScanAttributeNameFirst();
 
-        String[] dataArray = {"name"};
+        String[] dataArray = {"with name"};
 
         handleSearchTermClick(dataArray);
     }
@@ -1943,7 +1942,7 @@ public class ARScannedElementPane extends ARPane {
         //        webElementObservableList1.clear();
         //        manageUIScanIdsFirst();
 
-        String[] dataArray = {"id"};
+        String[] dataArray = {"with id"};
 
         handleSearchTermClick(dataArray);
     }
@@ -1996,8 +1995,6 @@ public class ARScannedElementPane extends ARPane {
         elementsFound.clear();
         xpathTextPrevious = "";
         this.targetSelected = null;
-
-        periodicSearchActivated.set(true);
 
         revertCloneInjections(arWebDriver.getDriver());
         revertPickInjections(arWebDriver.getDriver());
@@ -4520,10 +4517,10 @@ public class ARScannedElementPane extends ARPane {
                 + "\n"
                 + "  function getElementIdentity(element) {\n"
                 + "    var xPath = getMartiniXPath(element);\n"
-                + "    var allAttributes = \"\";\n"
+                + "    var attributeData = \"\";\n"
                 + "    try {\n"
                 + "      // console.log(\"element\", element);\n"
-                + "      allAttributes = getElementAttributes(element);\n"
+                + "      attributeData = getElementAttributes(element);\n"
                 + "    } catch (error) {}\n"
                 + "    var customXPath = \"\";\n"
                 + "    try {\n"
@@ -4546,7 +4543,7 @@ public class ARScannedElementPane extends ARPane {
                 + "    var someText = getSomeText(element.tagName.toLowerCase(), element);\n"
                 + "\n"
                 + "    return {\n"
-                + "      xpath,\n"
+                + "      xPath,\n"
                 + "      allAttributes,\n"
                 + "      customXPath,\n"
                 + "      attribId,\n"
@@ -4778,7 +4775,7 @@ public class ARScannedElementPane extends ARPane {
                 + "      );\n"
                 + "    } else {\n"
                 + "      const {\n"
-                + "        xpath,\n"
+                + "        xPath,\n"
                 + "        allAttributes,\n"
                 + "        customXPath,\n"
                 + "        attribId,\n"
@@ -4789,7 +4786,7 @@ public class ARScannedElementPane extends ARPane {
                 + "\n"
                 + "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
                 + "\n"
-                + "      elementInfoMap.set(xpath, elementInfoString);\n"
+                + "      elementInfoMap.set(xPath, elementInfoString);\n"
                 + "    }\n"
                 + "\n"
                 + "    // Parse the someText using the semicolon delimiter\n"
@@ -5063,7 +5060,7 @@ public class ARScannedElementPane extends ARPane {
                 + "        allElementInfo = [];\n"
                 + "\n"
                 + "        const {\n"
-                + "          xpath,\n"
+                + "          xPath,\n"
                 + "          allAttributes,\n"
                 + "          customXPath,\n"
                 + "          attribId,\n"
@@ -5082,7 +5079,7 @@ public class ARScannedElementPane extends ARPane {
                 + "        var iframeElements = iframeDocument.querySelectorAll(\"*\");\n"
                 + "        iframeElements.forEach(function (elementInsideIframe) {\n"
                 + "          const {\n"
-                + "            xpath,\n"
+                + "            xPath,\n"
                 + "            allAttributes,\n"
                 + "            customXPath,\n"
                 + "            attribId,\n"
@@ -5125,7 +5122,7 @@ public class ARScannedElementPane extends ARPane {
                 + "      // limitMapCharacters(elementInfoMap, \"tagName-found\");\n"
                 + "\n"
                 + "      const {\n"
-                + "        xpath,\n"
+                + "        xPath,\n"
                 + "        allAttributes,\n"
                 + "        customXPath,\n"
                 + "        attribId,\n"
@@ -5588,7 +5585,7 @@ public class ARScannedElementPane extends ARPane {
                 + "      );\n"
                 + "    } else {\n"
                 + "      const {\n"
-                + "        xpath,\n"
+                + "        xPath,\n"
                 + "        allAttributes,\n"
                 + "        customXPath,\n"
                 + "        attribId,\n"
@@ -5599,7 +5596,7 @@ public class ARScannedElementPane extends ARPane {
                 + "\n"
                 + "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
                 + "\n"
-                + "      elementInfoMap.set(xpath, elementInfoString);\n"
+                + "      elementInfoMap.set(xPath, elementInfoString);\n"
                 + "    }\n"
                 + "\n"
                 + "    // Parse the someText using the semicolon delimiter\n"
@@ -5696,7 +5693,7 @@ public class ARScannedElementPane extends ARPane {
                 + "        allElementInfo = [];\n"
                 + "\n"
                 + "        const {\n"
-                + "          xpath,\n"
+                + "          xPath,\n"
                 + "          allAttributes,\n"
                 + "          customXPath,\n"
                 + "          attribId,\n"
@@ -5715,7 +5712,7 @@ public class ARScannedElementPane extends ARPane {
                 + "        var iframeElements = iframeDocument.querySelectorAll(\"*\");\n"
                 + "        iframeElements.forEach(function (elementInsideIframe) {\n"
                 + "          const {\n"
-                + "            xpath,\n"
+                + "            xPath,\n"
                 + "            allAttributes,\n"
                 + "            customXPath,\n"
                 + "            attribId,\n"
@@ -5758,7 +5755,7 @@ public class ARScannedElementPane extends ARPane {
                 + "      limitMapCharacters(elementInfoMap, \"tagName-Found\");\n"
                 + "\n"
                 + "      const {\n"
-                + "        xpath,\n"
+                + "        xPath,\n"
                 + "        allAttributes,\n"
                 + "        customXPath,\n"
                 + "        attribId,\n"
@@ -5843,10 +5840,10 @@ public class ARScannedElementPane extends ARPane {
                 + "\n"
                 + "  function getElementIdentity(element) {\n"
                 + "    var xPath = getMartiniXPath(element);\n"
-                + "    var allAttributes = \"\";\n"
+                + "    var attributeData = \"\";\n"
                 + "    try {\n"
                 + "      // console.log(\"element\", element);\n"
-                + "      allAttributes = getElementAttributes(element);\n"
+                + "      attributeData = getElementAttributes(element);\n"
                 + "    } catch (error) {}\n"
                 + "    var customXPath = \"\";\n"
                 + "    try {\n"
@@ -5869,7 +5866,7 @@ public class ARScannedElementPane extends ARPane {
                 + "    var someText = getSomeText(element.tagName.toLowerCase(), element);\n"
                 + "\n"
                 + "    return {\n"
-                + "      xpath,\n"
+                + "      xPath,\n"
                 + "      allAttributes,\n"
                 + "      customXPath,\n"
                 + "      attribId,\n"
@@ -6250,14 +6247,14 @@ public class ARScannedElementPane extends ARPane {
 
             if (!Strings.isNullOrEmpty(pickTarget.getAttribId())
                     || !Strings.isNullOrEmpty(pickTarget.getAttribName())
-                    || !Strings.isNullOrEmpty(pickTarget.getText())) {
+                    || !Strings.isNullOrEmpty(pickTarget.getSomeText())) {
                 nameDefined = pickTarget.getTagName()
                         + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
                                 ? "-" + pickTarget.getAttribName()
                                 : !Strings.isNullOrEmpty(pickTarget.getAttribId())
                                         ? "-" + pickTarget.getAttribId()
-                                        : !Strings.isNullOrEmpty(pickTarget.getText())
-                                                ? "-" + truncate(pickTarget.getText(), 50)
+                                        : !Strings.isNullOrEmpty(pickTarget.getSomeText())
+                                                ? "-" + truncate(pickTarget.getSomeText(), 50)
                                                 : "");
 
             } else if (picked.getAttributeData() != null) {
@@ -6299,7 +6296,7 @@ public class ARScannedElementPane extends ARPane {
                 sb.append("TagType: " + pickTarget.getTagName()).append("\n");
                 sb.append("ID: " + pickTarget.getAttribId()).append("\n");
                 sb.append("Name: " + pickTarget.getAttribName()).append("\n");
-                sb.append("Text: " + pickTarget.getText()).append("\n");
+                sb.append("Text: " + pickTarget.getSomeText()).append("\n");
 
                 if (!Strings.isNullOrEmpty(pickTarget.getCoords())) {
                     sb.append("Coordinates: " + pickTarget.getCoords()).append("\n");
@@ -8362,14 +8359,14 @@ public class ARScannedElementPane extends ARPane {
 
             for (Map.Entry<String, WebElement> entry : mapAdvanced.entrySet()) {
                 WebElement entryElem = entry.getValue();
-                String xpath = entry.getKey();
+                String xPath = entry.getKey();
                 String attributeValue = entryElem.getAttribute(attributeName);
 
                 if (Strings.isNullOrEmpty(attributeValue)) {
                     attributeValue = "(" + attributeName + ") has no value";
                 }
                 System.out.println("AR Element Creation ->  Tag: " + entryElem.getTagName() + ", " + attributeName
-                        + ": " + attributeValue + ", XPath: " + xpath);
+                        + ": " + attributeValue + ", XPath: " + xPath);
 
                 try {
 
@@ -8397,7 +8394,7 @@ public class ARScannedElementPane extends ARPane {
                     ARLogger.getInstance(ARScannedElementPane.class)
                             .fine(String.format(
                                     "Error attempt to create Advance Element  attribute: %s xPath: %s\nError: %s",
-                                    attributeValue, xpath, ex.getMessage()));
+                                    attributeValue, xPath, ex.getMessage()));
                 }
             }
         } else {

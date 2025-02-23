@@ -3051,7 +3051,7 @@ public class PerformActions {
             targetDefine.setAttribId(elemenDTO.getAttribId());
             targetDefine.setAttribName(elemenDTO.getAttribName());
             targetDefine.setOriginalTagName(elemenDTO.getTagName());
-            targetDefine.setSomeText(elemenDTO.getText());
+            targetDefine.setSomeText(elemenDTO.getSomeText());
             targetDefine.setCoords(elemenDTO.getCoords());
 
             targetDefine.setMainXPath(elemenDTO.getXPath());
@@ -3551,7 +3551,7 @@ public class PerformActions {
                 + "      const elementIdentity = getElementIdentity(node);\n"
                 + "      if (elementIdentity) {\n"
                 + "        elementInfoMap.set(\n"
-                + "          elementIdentity.xpath,\n"
+                + "          elementIdentity.xPath,\n"
                 + "          `tagName-Found;${elementInfoString(node, elementIdentity)}`\n"
                 + "        );\n"
                 + "      }\n"
@@ -3650,7 +3650,7 @@ public class PerformActions {
                 + "          const elementIdentity = getElementIdentity(iframe);\n"
                 + "          if (elementIdentity) {\n"
                 + "            elementInfoMap.set(\n"
-                + "              elementIdentity.xpath,\n"
+                + "              elementIdentity.xPath,\n"
                 + "              `iFrame-Found;${elementInfoString(iframe, elementIdentity)}`\n"
                 + "            );\n"
                 + "          }\n"
@@ -3674,7 +3674,7 @@ public class PerformActions {
                 + "              srcElements.forEach(function (element) {\n"
                 + "                const elementIdentity = getElementIdentity(element);\n"
                 + "                // console.log(\n"
-                + "                //   \"elementIdentity.xpath\",\n"
+                + "                //   \"elementIdentity.xPath\",\n"
                 + "                //   `${xPathIFrame}${elementIdentity?.xpath}`\n"
                 + "                // );\n"
                 + "                if (elementIdentity) {\n"
@@ -3709,7 +3709,7 @@ public class PerformActions {
                 + "              const elementIdentity = getElementIdentity(elementInsideIframe);\n"
                 + "\n"
                 + "              // console.log(\n"
-                + "              //   \"elementIdentity.xpath\",\n"
+                + "              //   \"elementIdentity.xPath\",\n"
                 + "              //   `${xPathIFrame}${elementIdentity?.xpath}`\n"
                 + "              // );\n"
                 + "              if (elementIdentity) {\n"
@@ -3730,7 +3730,7 @@ public class PerformActions {
                 + "\n"
                 + "            const elementIdentity = getElementIdentity(element);\n"
                 + "            // console.log(\n"
-                + "            //   \"elementIdentity.xpath\",\n"
+                + "            //   \"elementIdentity.xPath\",\n"
                 + "            //   `${xPathIFrame}${elementIdentity?.xpath}`\n"
                 + "            // );\n"
                 + "            if (elementIdentity) {\n"
@@ -3773,7 +3773,7 @@ public class PerformActions {
                 + "        const elementIdentity = getElementIdentity(elementInsideIframe);\n"
                 + "\n"
                 + "        // console.log(\n"
-                + "        //   \"elementIdentity.xpath\",\n"
+                + "        //   \"elementIdentity.xPath\",\n"
                 + "        //   `${xPathIFrame}${elementIdentity?.xpath}`\n"
                 + "        // );\n"
                 + "        if (elementIdentity) {\n"
