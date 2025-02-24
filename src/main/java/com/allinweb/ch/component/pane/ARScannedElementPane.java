@@ -1047,23 +1047,17 @@ public class ARScannedElementPane extends ARPane {
         });
         checkPickElement.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
-            checkTestAction.setDisable(true);
-            checkTestAction.setSelected(false);
-            checkCloneElement.setDisable(true);
-            checkCloneElement.setSelected(false);
-
             this.targetSelected = null;
             elementsFound.clear();
             resultElementSearch = false;
 
-            revertCloneInjections(arWebDriver.getDriver());
             revertPickInjections(arWebDriver.getDriver());
 
             if (checkPickElement.isSelected()) {
                 String[] dataArrayClone = {"*"};
                 int finalPort = portSocket;
-                periodicPickThread(
-                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort);
+                Platform.runLater(() -> periodicPickThread(
+                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
             }
 
             Platform.runLater(() -> {
@@ -1083,7 +1077,6 @@ public class ARScannedElementPane extends ARPane {
         });
         checkCloneElement.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
-
             this.targetSelected = null;
             elementsFound.clear();
             resultElementSearch = false;
@@ -1093,8 +1086,8 @@ public class ARScannedElementPane extends ARPane {
             if (checkCloneElement.isSelected()) {
                 String[] dataArrayClone = {"*"};
                 int finalPort = portSocket;
-                periodicCloneThread(
-                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort);
+                Platform.runLater(() -> periodicCloneThread(
+                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
             }
 
             Platform.runLater(() -> {
