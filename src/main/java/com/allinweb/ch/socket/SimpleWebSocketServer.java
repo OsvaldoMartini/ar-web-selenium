@@ -17,6 +17,7 @@ import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.util.ARConstants;
@@ -86,10 +87,12 @@ public class SimpleWebSocketServer {
 
     private static final PerformDataBase performDataBase;
     private static final PerformDBSavedBlock performDBSavedBlock;
+    private static final PerformMessage performMessage;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
         performDBSavedBlock = PerformDBSavedBlock.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     // Store all connected sessions
@@ -190,6 +193,8 @@ public class SimpleWebSocketServer {
                 if (!Strings.isNullOrEmpty(elementSplitDTO.getSessionId())) {
                     sessionId = elementSplitDTO.getSessionId();
                     sendMessageJson(sessionId, jsonData, null);
+                    performMessage.outputJsonElementDTO(elementSplitDTO.getDetails());
+                    
                 } else {
                     Session sessionDest = activeSessions.get(sessionId);
 
