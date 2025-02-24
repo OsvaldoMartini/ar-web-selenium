@@ -194,7 +194,7 @@ public class SimpleWebSocketServer {
                     sessionId = elementSplitDTO.getSessionId();
                     sendMessageJson(sessionId, jsonData, null);
                     performMessage.outputJsonElementDTO(elementSplitDTO.getDetails());
-                    
+
                 } else {
                     Session sessionDest = activeSessions.get(sessionId);
 

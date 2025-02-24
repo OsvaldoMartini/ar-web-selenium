@@ -497,7 +497,6 @@ public class PerformMessage {
         }
     }
 
-
     public void outputJsonElementDTO(ElementDTO[] elementDTO) {
         // Get the directory path from ARPropertyManager
         String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
@@ -538,7 +537,6 @@ public class PerformMessage {
             System.err.println("Error writing JSON to file: " + e.getMessage());
         }
     }
-
 
     public void generalErrorIFrame(String xpath) {
         // Styled text elements
