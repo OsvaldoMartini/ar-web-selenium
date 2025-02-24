@@ -600,7 +600,9 @@ public class ARScannedElementPane extends ARPane {
                 arWebDriver.getDriver().getCurrentUrl(),
                 defaultSearch,
                 searchHiddenFields,
-                portSocket);
+                portSocket,
+                "searchTermsId",
+                "scannerDestDTO");
 
         performAction.getIframeElementsMap();
 
@@ -4795,8 +4797,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void periodicSearchThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
-        ErrorMessage errorMessage =
-                performPreLoad.dynamicLoadElementsDTO(driver, currentUrl, dataArray, searchHiddenFields, port);
+        ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
+                driver, currentUrl, dataArray, searchHiddenFields, port, "searchTermsId", "scannerDestDTO");
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");

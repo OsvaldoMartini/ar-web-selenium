@@ -39,12 +39,18 @@ public class PerformPreLoad {
     }
 
     public ErrorMessage dynamicLoadElementsDTO(
-            WebDriver driver, String currentUrl, String[] dataArray, boolean searchHiddenFields, int port) {
+            WebDriver driver,
+            String currentUrl,
+            String[] dataArray,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String scannerDest) {
 
         List<String> dataList = Arrays.asList(dataArray);
         try {
             jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(jsCodeInject, dataList, searchHiddenFields, port);
+            jsExecutor.executeScript(jsCodeInject, dataList, searchHiddenFields, port, sessionId, scannerDest);
             return null;
         } catch (Exception error) {
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
@@ -696,7 +702,7 @@ public class PerformPreLoad {
 
     private String jsCodeInject =
             """
-                            (function (searchTerms, hiddenFields, socketPort) {
+                            (function (searchTerms, hiddenFields, socketPort, sessionId, sessionDest) {
                               let attempts = 0;
                               let maxAttempts = 100;
                               let wSocket = null;
@@ -704,6 +710,8 @@ public class PerformPreLoad {
                               window.elementInfoMap = new Map();
                               window.searchTerms = ["button", "input", "a", "select"];
                               window.allElementInfo = [];
+                              window.sessionId = sessionId;
+                              window.sessionDest = sessionDest;
                               // var elementInfoSubmit = new Map();
 
                               function connectWebSocket() {
@@ -715,16 +723,17 @@ public class PerformPreLoad {
                                 try {
                                   console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
                                   wSocket = new WebSocket(
-                                    `ws://localhost:${socketPort}/websocket?sessionId=martiniElementDTO`
+                                    `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
                                   );
 
                                   wSocket.onopen = () => {
-                                    console.log("WebSocket connected");
+                                    console.log(`WebSocket connected for session: ${window.sessionId}`);
                                     attempts = 0; // Reset attempts on successful connection
 
                                     try {
                                       const subscriptionMessage = {
                                         type: "echo",
+                                        sessionId: window.sessionId,
                                         body: "subscribe",
                                       };
                                       wSocket.send(JSON.stringify(subscriptionMessage));
@@ -733,7 +742,7 @@ public class PerformPreLoad {
                                     }
 
                                     // Call startCollectingElements AFTER WebSocket is open
-                                    startCollectingElements(searchTerms);
+                                    startCollectingElements(window.searchTerms);
                                   };
 
                                   wSocket.onmessage = (event) => {
@@ -1175,6 +1184,7 @@ public class PerformPreLoad {
                                 if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                                   const message = {
                                     type: "SEARCH_TOOL",
+                                    sessionId: window.sessionDest,
                                     details: window.allElementInfo, // Send allElementInfo
                                   };
                                   wSocket.send(JSON.stringify(message));
@@ -1525,12 +1535,12 @@ public class PerformPreLoad {
                               // startCollectingElements(window.searchTerms);
                               // init("Initiate");
                               // window.initSearchTerms = null; // Invalidating the function
-                            })(arguments[0], arguments[1], arguments[2]);
-                            // })([], false, 8181);
-                            // })(["with name"], false, 8181);
-                            // })(["input", "button", "a"], false, 8181);
-                            // })(["*"], false, 8181);
-                            // })(["button"], false, 8181);
+                            })(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
+                            // })([], false, 8181, "searchTermsId", "scannerDestDTO");
+                            // })(["with name"], false, 8181, "searchTermsId", "scannerDestDTO");
+                            // })(["input", "button", "a"], false, 8181, "searchTermsId", "scannerDestDTO");
+                            // })(["*"], false, 8181, "searchTermsId", "scannerDestDTO");
+                            // })(["button"], false, 8181, "searchTermsId", "scannerDestDTO");
 
                     """;
 }

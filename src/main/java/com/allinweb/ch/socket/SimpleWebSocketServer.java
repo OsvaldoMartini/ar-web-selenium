@@ -27,7 +27,9 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +75,15 @@ public class SimpleWebSocketServer {
         activeSessions.remove(sessionId);
     }
 
+    private String generateCustomSessionId(Session session) {
+        // Get the current date in yyyyMMdd format
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+        String date = dateFormat.format(new Date());
+
+        // Generate custom session ID with the date and timestamp
+        return date + "-" + System.currentTimeMillis();
+    }
+
     private static final PerformDataBase performDataBase;
     private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
@@ -89,7 +100,18 @@ public class SimpleWebSocketServer {
     @OnOpen
     public void onOpen(Session session) {
         // Get the sessionId from the query parameter passed by the frontend
-        String sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+        String sessionId = null;
+        try {
+            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+            if (!Strings.isNullOrEmpty(sessionId)) {
+                addSession(sessionId, session);
+            } else {
+                addSession(generateCustomSessionId(session), session);
+            }
+            sessions.add(session);
+        } catch (Exception noSessionId) {
+            addSession(generateCustomSessionId(session), session);
+        }
 
         if (sessionId != null) {
             addSession(sessionId, session); // Store the session with the custom ID
@@ -112,6 +134,7 @@ public class SimpleWebSocketServer {
             // Parse the incoming message (assuming JSON format)
             JsonObject jsonMessage = JsonParser.parseString(message).getAsJsonObject();
             type = jsonMessage.has("type") ? jsonMessage.get("type").getAsString() : "unknown";
+            String sessionId = jsonMessage.has("sessionId") ? jsonMessage.get("sessionId").getAsString() : "unknown";
 
             // Process the message based on its type
             switch (type) {
@@ -120,7 +143,7 @@ public class SimpleWebSocketServer {
                     broadcastMessageToAll(broadcastMessage);
                     break;
                 case "echo":
-                    sendMessageJson(session, "Echo: " + jsonMessage.get("body").getAsString(), null);
+                    sendMessageJson(sessionId, "Echo: " + jsonMessage.get("body").getAsString(), "sessionId: " + sessionId);
                     break;
                 default:
                     handleMessageByType(type, jsonMessage, session);
@@ -138,6 +161,22 @@ public class SimpleWebSocketServer {
 
     private void handleMessageByType(String type, JsonObject jsonEntry, Session session) {
         // Dispatch to the correct method based on the message type
+        String sessionId = null;
+        try {
+            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+            if (!Strings.isNullOrEmpty(sessionId)) {
+                if (!activeSessions.containsKey(sessionId) ) {
+                    if (!activeSessions.get(sessionId).isOpen()) {
+                        addSession(sessionId, session);
+                    }
+                }
+            } else {
+                addSession(generateCustomSessionId(session), session);
+            }
+        } catch (Exception noSessionId) {
+            addSession(generateCustomSessionId(session), session);
+        }
+
         switch (type) {
             case "SEARCH_TOOL":
             case "NEW_ELEMENT_DTO":
@@ -146,16 +185,16 @@ public class SimpleWebSocketServer {
                 ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
                 elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " + elementSplitDTO.getDetails().length);
                 String jsonData = gson.toJson(elementSplitDTO);
-                try {
-                    String sessionId =
-                            session.getRequestParameterMap().get("sessionId").get(0);
-                    if (!Strings.isNullOrEmpty(sessionId)) {
-                        sendMessageJson(sessionId, jsonData, null);
-                    }
-                } catch (Exception noSessionId) {
-                    broadcastMessageToAll(jsonData);
-                }
+                if (!Strings.isNullOrEmpty(elementSplitDTO.getSessionId())) {
+                    sessionId = elementSplitDTO.getSessionId();
+                    sendMessageJson(sessionId, jsonData, null);
+                } else {
+                    Session sessionDest = activeSessions.get(sessionId);
 
+                    if (sessionDest != null && sessionDest.isOpen()) {
+                        sendMessageJson(sessionDest, jsonData, null);
+                    } else broadcastMessageToAll(jsonData);
+                }
                 break;
             case "RESPONSE_BACK":
                 // Extract the "body" field from the JsonObject

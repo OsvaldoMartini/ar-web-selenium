@@ -5,5 +5,6 @@ import lombok.Data;
 @Data
 public class ElementSplitDTO {
     private String type;
+    private String sessionId;
     private ElementDTO[] details;
 }
