@@ -134,7 +134,8 @@ public class SimpleWebSocketServer {
             // Parse the incoming message (assuming JSON format)
             JsonObject jsonMessage = JsonParser.parseString(message).getAsJsonObject();
             type = jsonMessage.has("type") ? jsonMessage.get("type").getAsString() : "unknown";
-            String sessionId = jsonMessage.has("sessionId") ? jsonMessage.get("sessionId").getAsString() : "unknown";
+            String sessionId =
+                    jsonMessage.has("sessionId") ? jsonMessage.get("sessionId").getAsString() : "unknown";
 
             // Process the message based on its type
             switch (type) {
@@ -143,7 +144,8 @@ public class SimpleWebSocketServer {
                     broadcastMessageToAll(broadcastMessage);
                     break;
                 case "echo":
-                    sendMessageJson(sessionId, "Echo: " + jsonMessage.get("body").getAsString(), "sessionId: " + sessionId);
+                    sendMessageJson(
+                            sessionId, "Echo: " + jsonMessage.get("body").getAsString(), "sessionId: " + sessionId);
                     break;
                 default:
                     handleMessageByType(type, jsonMessage, session);
@@ -165,7 +167,7 @@ public class SimpleWebSocketServer {
         try {
             sessionId = session.getRequestParameterMap().get("sessionId").get(0);
             if (!Strings.isNullOrEmpty(sessionId)) {
-                if (!activeSessions.containsKey(sessionId) ) {
+                if (!activeSessions.containsKey(sessionId)) {
                     if (!activeSessions.get(sessionId).isOpen()) {
                         addSession(sessionId, session);
                     }

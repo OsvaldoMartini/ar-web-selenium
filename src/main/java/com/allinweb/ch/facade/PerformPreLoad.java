@@ -708,7 +708,8 @@ public class PerformPreLoad {
                               let wSocket = null;
                               let pageFullyLoaded = false;
                               window.elementInfoMap = new Map();
-                              window.searchTerms = ["button", "input", "a", "select"];
+                              // window.searchTerms = ["button", "input", "a", "select"];
+                              window.searchTerms = searchTerms;
                               window.allElementInfo = [];
                               window.sessionId = sessionId;
                               window.sessionDest = sessionDest;
