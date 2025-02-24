@@ -168,23 +168,19 @@ public class PerformCloneLoad {
                         window.allElementInfo = [];
                         limitMapCharacters(window.elementInfoMap);
                         console.log("All element info stored in Map:", window.allElementInfo);
-                        window.elementInfoMap.clear();
 
                         if (wSocket && wSocket.readyState) {
                           console.log("WebSocket readyState:", wSocket.readyState);
                         }
 
-                        if (
-                          wSocket &&
-                          wSocket.readyState === WebSocket.OPEN &&
-                          window.allElementInfo.length > 0
-                        ) {
+                        if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                           const message = {
                             type: "SEARCH_TOOL",
                             details: window.allElementInfo, // Send allElementInfo
                           };
                           wSocket.send(JSON.stringify(message));
                           console.log("Sent SEARCH_TOOL:", message);
+                          window.elementInfoMap.clear();
                         } else {
                           console.warn("WebSocket is not open. Cannot send message.");
                         }
@@ -363,9 +359,13 @@ public class PerformCloneLoad {
                       const collectIframeElements = function collectIframeElements(
                         doc,
                         collectionFound,
-                        isIframeChild = false
+                        isIframeChild = false,
+                        iframe
                       ) {
-                        doc.querySelectorAll("iframe").forEach((iframe) => {
+                        console.log("isIframe");
+
+                        if (iframe) {
+                          //doc.querySelectorAll("iframe").forEach((iframe) => {
                           try {
                             let iframeDocument =
                               iframe.contentDocument || iframe.contentWindow.document;
@@ -498,7 +498,7 @@ public class PerformCloneLoad {
                               e
                             );
                           }
-                        });
+                        }
                       };
 
                       const processIframeElements = function (iframeDocument, xPathIFrame) {
@@ -1060,6 +1060,7 @@ public class PerformCloneLoad {
                             return; // Don't proceed if it's one of these elements
                           }
 
+                          window.elementInfoMap.clear();
                           const elementIdentity = getElementIdentity(elementBelowTooltip);
                           // Store tagName and other details in the Map
                           if (elementIdentity) {
@@ -1084,7 +1085,7 @@ public class PerformCloneLoad {
 
                         sendingData();
 
-                        window.revertCloneInjections();
+                        // window.revertCloneInjections();
 
                         // Remove the tooltip from the page and delete the reference after 5 seconds
                         setTimeout(() => {
@@ -1125,6 +1126,5 @@ public class PerformCloneLoad {
                       // window.cloneTerms = null; // Invalidating the function
                     })(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
                     // })("http://localhost:3000/", "http://localhost:3000/", ["*"], false, 8181);
-
-                                """;
+                                                    """;
 }
