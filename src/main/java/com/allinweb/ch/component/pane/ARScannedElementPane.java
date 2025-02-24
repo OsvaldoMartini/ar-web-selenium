@@ -144,11 +144,11 @@ public class ARScannedElementPane extends ARPane {
     private HBox componentBox;
 
     private ObservableList<ARWebElement> webElementObservableList1;
-    private ObservableList<ARWebElement> webElementObservableList2;
+    //    private ObservableList<ARWebElement> webElementObservableList2;
     //    private ObservableList<ARWebElement> webElementObservableList3;
     //    private ObservableList<ARWebElementNew> webElementObservableList4;
     private ListView<ARWebElement> scannedElements1;
-    private ListView<ARWebElement> scannedElements2;
+    //    private ListView<ARWebElement> scannedElements2;
     //    private ListView<ARWebElement> scannedElements3;
     //    private ListView<ARWebElementNew> scannedElements4;
 
@@ -342,234 +342,7 @@ public class ARScannedElementPane extends ARPane {
 
         String jsonData =
                 """
-                [
-                  {
-                    "typeElement": "button",
-                    "tagName": "button",
-                    "xPath": "//button[@id='submit']",
-                    "someText": "Submit",
-                    "attribId": "submit",
-                    "attribName": "submitBtn",
-                    "coords": "100,200",
-                    "attributeData": [],
-                    "customXPath": "//button[contains(text(),'Submit')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "enabled",
-                    "attributeType": "boolean",
-                    "searchAttributeValue": "submit"
-                  },
-                  {
-                    "typeElement": "input",
-                    "tagName": "input",
-                    "xPath": "//input[@name='username']",
-                    "someText": "",
-                    "attribId": "userInput",
-                    "attribName": "username",
-                    "coords": "150,250",
-                    "attributeData": [],
-                    "customXPath": "//input[@placeholder='Enter username']",
-                    "iFrameXPath": "",
-                    "attributeValue": "text",
-                    "attributeType": "string",
-                    "searchAttributeValue": "username"
-                  },
-                  {
-                    "typeElement": "input",
-                    "tagName": "input",
-                    "xPath": "//input[@type='password']",
-                    "someText": "",
-                    "attribId": "password",
-                    "attribName": "passwordInput",
-                    "coords": "150,280",
-                    "attributeData": [],
-                    "customXPath": "//input[@name='password']",
-                    "iFrameXPath": "",
-                    "attributeValue": "password",
-                    "attributeType": "string",
-                    "searchAttributeValue": "password"
-                  },
-                  {
-                    "typeElement": "div",
-                    "tagName": "div",
-                    "xPath": "//div[@class='alert']",
-                    "someText": "Error: Invalid login",
-                    "attribId": "",
-                    "attribName": "errorDiv",
-                    "coords": "160,300",
-                    "attributeData": [],
-                    "customXPath": "//div[contains(text(),'Error')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "visible",
-                    "attributeType": "boolean",
-                    "searchAttributeValue": "alert"
-                  },
-                  {
-                    "typeElement": "a",
-                    "tagName": "a",
-                    "xPath": "//a[@href='/forgot-password']",
-                    "someText": "Forgot Password?",
-                    "attribId": "",
-                    "attribName": "forgotPwd",
-                    "coords": "170,320",
-                    "attributeData": [],
-                    "customXPath": "//a[contains(text(),'Forgot')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "link",
-                    "attributeType": "string",
-                    "searchAttributeValue": "forgot-password"
-                  },
-                  {
-                    "typeElement": "label",
-                    "tagName": "label",
-                    "xPath": "//label[@for='username']",
-                    "someText": "Username:",
-                    "attribId": "",
-                    "attribName": "usernameLabel",
-                    "coords": "100,200",
-                    "attributeData": [],
-                    "customXPath": "//label[contains(text(),'Username')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "text",
-                    "attributeType": "string",
-                    "searchAttributeValue": "usernameLabel"
-                  },
-                  {
-                    "typeElement": "select",
-                    "tagName": "select",
-                    "xPath": "//select[@id='country']",
-                    "someText": "",
-                    "attribId": "countrySelect",
-                    "attribName": "country",
-                    "coords": "200,350",
-                    "attributeData": [],
-                    "customXPath": "//select[@name='country']",
-                    "iFrameXPath": "",
-                    "attributeValue": "dropdown",
-                    "attributeType": "string",
-                    "searchAttributeValue": "country"
-                  },
-                  {
-                    "typeElement": "option",
-                    "tagName": "option",
-                    "xPath": "//option[@value='US']",
-                    "someText": "United States",
-                    "attribId": "",
-                    "attribName": "usOption",
-                    "coords": "210,360",
-                    "attributeData": [],
-                    "customXPath": "//option[contains(text(),'United States')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "selected",
-                    "attributeType": "boolean",
-                    "searchAttributeValue": "US"
-                  },
-                  {
-                    "typeElement": "checkbox",
-                    "tagName": "input",
-                    "xPath": "//input[@type='checkbox' and @id='agree']",
-                    "someText": "",
-                    "attribId": "agree",
-                    "attribName": "agreeCheck",
-                    "coords": "220,370",
-                    "attributeData": [],
-                    "customXPath": "//input[@name='agree']",
-                    "iFrameXPath": "",
-                    "attributeValue": "checked",
-                    "attributeType": "boolean",
-                    "searchAttributeValue": "agree"
-                  },
-                  {
-                    "typeElement": "radio",
-                    "tagName": "input",
-                    "xPath": "//input[@type='radio' and @name='gender']",
-                    "someText": "",
-                    "attribId": "male",
-                    "attribName": "genderRadio",
-                    "coords": "230,380",
-                    "attributeData": [],
-                    "customXPath": "//input[@value='male']",
-                    "iFrameXPath": "",
-                    "attributeValue": "selected",
-                    "attributeType": "boolean",
-                    "searchAttributeValue": "male"
-                  },
-                  {
-                    "typeElement": "textarea",
-                    "tagName": "textarea",
-                    "xPath": "//textarea[@id='comments']",
-                    "someText": "",
-                    "attribId": "comments",
-                    "attribName": "commentsTextArea",
-                    "coords": "240,390",
-                    "attributeData": [],
-                    "customXPath": "//textarea[@name='comments']",
-                    "iFrameXPath": "",
-                    "attributeValue": "text",
-                    "attributeType": "string",
-                    "searchAttributeValue": "comments"
-                  },
-                  {
-                    "typeElement": "span",
-                    "tagName": "span",
-                    "xPath": "//span[@class='tooltip']",
-                    "someText": "Help text",
-                    "attribId": "",
-                    "attribName": "helpTooltip",
-                    "coords": "250,400",
-                    "attributeData": [],
-                    "customXPath": "//span[contains(text(),'Help')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "visible",
-                    "attributeType": "boolean",
-                    "searchAttributeValue": "tooltip"
-                  },
-                  {
-                    "typeElement": "table",
-                    "tagName": "table",
-                    "xPath": "//table[@id='dataTable']",
-                    "someText": "",
-                    "attribId": "dataTable",
-                    "attribName": "dataTable",
-                    "coords": "260,410",
-                    "attributeData": [],
-                    "customXPath": "//table[contains(@class,'data-table')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "structure",
-                    "attributeType": "string",
-                    "searchAttributeValue": "dataTable"
-                  },
-                  {
-                    "typeElement": "tr",
-                    "tagName": "tr",
-                    "xPath": "//tr[@class='row1']",
-                    "someText": "",
-                    "attribId": "",
-                    "attribName": "tableRow",
-                    "coords": "270,420",
-                    "attributeData": [],
-                    "customXPath": "//tr[contains(@class,'row1')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "row",
-                    "attributeType": "string",
-                    "searchAttributeValue": "row1"
-                  },
-                  {
-                    "typeElement": "td",
-                    "tagName": "td",
-                    "xPath": "//td[@class='column1']",
-                    "someText": "Cell Data",
-                    "attribId": "",
-                    "attribName": "tableCell",
-                    "coords": "280,430",
-                    "attributeData": [],
-                    "customXPath": "//td[contains(@class,'column1')]",
-                    "iFrameXPath": "",
-                    "attributeValue": "text",
-                    "attributeType": "string",
-                    "searchAttributeValue": "column1"
-                  }
-                ]
-
+                []
                 """;
 
         buildWebView(jsonData, portSocket);
@@ -693,10 +466,10 @@ public class ARScannedElementPane extends ARPane {
         scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ARConstants.SPACE_ZERO);
         scannedElements1.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
 
-        webElementObservableList2 = FXCollections.observableArrayList();
-        scannedElements2 = new ListView<>(webElementObservableList2);
-        scannedElements2 = componentBuilder.setAnchorPaneAnchors(scannedElements2, ARConstants.SPACE_ZERO);
-        scannedElements2.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
+        //        webElementObservableList2 = FXCollections.observableArrayList();
+        //        scannedElements2 = new ListView<>(webElementObservableList2);
+        //        scannedElements2 = componentBuilder.setAnchorPaneAnchors(scannedElements2, ARConstants.SPACE_ZERO);
+        //        scannedElements2.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
 
         //        webElementObservableList3 = FXCollections.observableArrayList();
         //        scannedElements3 = new ListView<>(webElementObservableList3);
@@ -779,7 +552,7 @@ public class ARScannedElementPane extends ARPane {
         cleanListButton.setOnAction(e -> {
             //            webElementObservableList1.clear();
             //            webElementObservableList2.clear();
-            webElementObservableList2.clear();
+            //            webElementObservableList2.clear();
             Platform.runLater(() -> {
                 countdownTextField.setText("Pre-Launch status: Ready");
                 //                textFlowResult.getChildren().clear();
@@ -1027,7 +800,7 @@ public class ARScannedElementPane extends ARPane {
 
             // Bind the height of ListViews to the height of the HBox
             scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
-            scannedElements2.prefHeightProperty().bind(boxListViews.heightProperty());
+            componentBox.prefHeightProperty().bind(boxListViews.heightProperty());
             //            scannedElements3.prefHeightProperty().bind(boxListViews.heightProperty());
             //            scannedElements4.prefHeightProperty().bind(boxListViews.heightProperty());
 
@@ -1035,7 +808,7 @@ public class ARScannedElementPane extends ARPane {
 
             // Set Hgrow for each ListView to make them equally distributed
             HBox.setHgrow(scannedElements1, Priority.ALWAYS);
-            HBox.setHgrow(scannedElements2, Priority.ALWAYS);
+            HBox.setHgrow(componentBox, Priority.ALWAYS);
             //            HBox.setHgrow(scannedElements3, Priority.ALWAYS);
             //            HBox.setHgrow(scannedElements4, Priority.ALWAYS);
 
@@ -1066,7 +839,7 @@ public class ARScannedElementPane extends ARPane {
             stackLabelOthers.getChildren().addAll(othersBox);
 
             stackLabelOthers.setAlignment(Pos.CENTER);
-            VBox elements2VBox = new VBox(stackLabelOthers, scannedElements2);
+            VBox elements2VBox = new VBox(stackLabelOthers, componentBox);
             HBox.setHgrow(elements2VBox, Priority.ALWAYS);
 
             //            Label labelNew = new Label("New");
@@ -1405,7 +1178,7 @@ public class ARScannedElementPane extends ARPane {
                 insertNewElement();
             } else {
                 if (elementsFound.size() > 0) {
-                    webElementObservableList2.clear();
+                    //                    webElementObservableList2.clear();
 
                     Optional<ElementDTO> iframeElement = elementsFound.stream()
                             .filter(element -> "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
@@ -1456,7 +1229,7 @@ public class ARScannedElementPane extends ARPane {
         });
 
         scannedElements1.getItems().addListener(this::addBehaviourToAddedElements);
-        scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
+        //        scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
         //        scannedElements3.getItems().addListener(this::addBehaviourToAddedElements);
 
         //        manageUIScan();
@@ -1554,10 +1327,10 @@ public class ARScannedElementPane extends ARPane {
 
                     ARWebElement arWebElement = new ARWebElement(cloneTarget, botJob.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
-                        webElementObservableList2.add(arWebElement);
-                        Platform.runLater(() -> {
-                            scannedElements2.refresh();
-                        });
+                        //                        webElementObservableList2.add(arWebElement);
+                        //                        Platform.runLater(() -> {
+                        //                            scannedElements2.refresh();
+                        //                        });
                     }
 
                 } else {
@@ -1616,8 +1389,8 @@ public class ARScannedElementPane extends ARPane {
 
                 ARWebElement arWebElement = new ARWebElement(targetIFrame, botJob.getId());
                 if (arWebElement != null && arWebElement.getElement() != null) {
-                    webElementObservableList2.add(arWebElement);
-                    Platform.runLater(() -> scannedElements2.refresh());
+                    //                    webElementObservableList2.add(arWebElement);
+                    //                    Platform.runLater(() -> scannedElements2.refresh());
                 }
 
                 System.out.println("IFrame Element as Button: " + targetIFrame.getDefinedName());
@@ -1655,10 +1428,10 @@ public class ARScannedElementPane extends ARPane {
                     ARWebElement arWebElement = new ARWebElement(targetChild, botJob.getId());
 
                     if (arWebElement != null && arWebElement.getElement() != null) {
-                        webElementObservableList2.add(arWebElement);
-                        Platform.runLater(() -> {
-                            scannedElements2.refresh();
-                        });
+                        //                        webElementObservableList2.add(arWebElement);
+                        //                        Platform.runLater(() -> {
+                        //                            scannedElements2.refresh();
+                        //                        });
                     }
 
                     System.out.println(
@@ -1692,8 +1465,8 @@ public class ARScannedElementPane extends ARPane {
 
                 scannedElements1.requestLayout();
                 scannedElements1.refresh();
-                scannedElements2.requestLayout();
-                scannedElements2.refresh();
+                //                scannedElements2.requestLayout();
+                //                scannedElements2.refresh();
                 bottomPane.requestLayout();
             });
 
@@ -1704,8 +1477,8 @@ public class ARScannedElementPane extends ARPane {
             Platform.runLater(() -> {
                 scannedElements1.requestLayout();
                 scannedElements1.refresh();
-                scannedElements2.requestLayout();
-                scannedElements2.refresh();
+                //                scannedElements2.requestLayout();
+                //                scannedElements2.refresh();
                 bottomPane.requestLayout();
             });
 
@@ -1743,10 +1516,10 @@ public class ARScannedElementPane extends ARPane {
 
                     ARWebElement arWebElement = new ARWebElement(targetFound, botJob.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
-                        webElementObservableList2.add(arWebElement);
-                        Platform.runLater(() -> {
-                            scannedElements2.refresh();
-                        });
+                        //                        webElementObservableList2.add(arWebElement);
+                        //                        Platform.runLater(() -> {
+                        //                            scannedElements2.refresh();
+                        //                        });
                     }
 
                     System.out.println(
@@ -1807,10 +1580,10 @@ public class ARScannedElementPane extends ARPane {
                                         scannedElements1.refresh();
                                     });
                                 } else {
-                                    webElementObservableList2.add(arWebElement);
-                                    Platform.runLater(() -> {
-                                        scannedElements2.refresh();
-                                    });
+                                    //                                    webElementObservableList2.add(arWebElement);
+                                    //                                    Platform.runLater(() -> {
+                                    //                                        scannedElements2.refresh();
+                                    //                                    });
                                 }
                             }
 
@@ -2364,39 +2137,40 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void manageUIScanClickable() {
-        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
-        for (WebElementTagNameEnum tag : clickableTags) {
-            // addProgressBar();
-            boolean scanOK = scanARElementsAsync(
-                    null,
-                    By.tagName(tag.getValue()),
-                    ARWebElement::isClickable,
-                    webElementObservableList2,
-                    null,
-                    "UI Scan Clickable");
+    //    private void manageUIScanClickable() {
+    //        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
+    //        for (WebElementTagNameEnum tag : clickableTags) {
+    //            // addProgressBar();
+    //            boolean scanOK = scanARElementsAsync(
+    //                    null,
+    //                    By.tagName(tag.getValue()),
+    //                    ARWebElement::isClickable,
+    //                    webElementObservableList2,
+    //                    null,
+    //                    "UI Scan Clickable");
+    //
+    //            if (!scanOK) {
+    //                break;
+    //            }
+    //        }
+    //    }
 
-            if (!scanOK) {
-                break;
-            }
-        }
-    }
+    //    private void manageUIScanPriorities() {
+    //        Set<WebElement> webElements = managePrioritiesCriteria();
+    //        try {
+    //            if (webElements != null && webElements.size() > 0) {
+    //                // addProgressBar();
+    //                scanARElementsAsync(webElements, null, null, webElementObservableList2, null, "UI Scan By
+    // Priorities");
+    //            }
+    //        } catch (Exception e) {
+    //            System.out.println("Error " + e.getMessage());
+    //        }
+    //    }
 
-    private void manageUIScanPriorities() {
-        Set<WebElement> webElements = managePrioritiesCriteria();
-        try {
-            if (webElements != null && webElements.size() > 0) {
-                // addProgressBar();
-                scanARElementsAsync(webElements, null, null, webElementObservableList2, null, "UI Scan By Priorities");
-            }
-        } catch (Exception e) {
-            System.out.println("Error " + e.getMessage());
-        }
-    }
-
-    private void manageUIScanOutputs() {
-        scanARElementsAsync(By.xpath("CODE_CRITERIA"), webElementObservableList2, "UI Scan Outputs");
-    }
+    //    private void manageUIScanOutputs() {
+    //        scanARElementsAsync(By.xpath("CODE_CRITERIA"), webElementObservableList2, "UI Scan Outputs");
+    //    }
 
     private void scanARElementsAsync(
             By criteria, ObservableList<ARWebElement> listToAddNewElements, String criteriaMSG) {
@@ -2901,18 +2675,18 @@ public class ARScannedElementPane extends ARPane {
         handleSearchTermClick(dataArray);
     }
 
-    private void refreshOtherElemBtn(String searchType) {
-        webElementObservableList2.clear();
-
-        // Check if Browser is Inactive
-        try {
-            windowHandles = arWebDriver.getDriver().getWindowHandles();
-        } catch (Exception e) {
-            browserNotAttached();
-            return;
-        }
-        manageUIScanPriorities();
-    }
+    //    private void refreshOtherElemBtn(String searchType) {
+    //        webElementObservableList2.clear();
+    //
+    //        // Check if Browser is Inactive
+    //        try {
+    //            windowHandles = arWebDriver.getDriver().getWindowHandles();
+    //        } catch (Exception e) {
+    //            browserNotAttached();
+    //            return;
+    //        }
+    //        manageUIScanPriorities();
+    //    }
 
     private void addBehaviourToAddedElements(ListChangeListener.Change<? extends ARWebElement> change) {
         while (change.next()) {
@@ -2931,9 +2705,9 @@ public class ARScannedElementPane extends ARPane {
         //                                verticalBox.requestLayout();
         //                                getChildren().addAll(blockAndUrl, boxListViews);
 
-        for (ARWebElement arWebElement : scannedElements2.getItems()) {
-            performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
-        }
+        //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
+        //            performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
+        //        }
 
         StringBuilder sb = new StringBuilder();
         String nameDefined = "";
@@ -6999,8 +6773,8 @@ public class ARScannedElementPane extends ARPane {
 
                                 scannedElements1.requestLayout();
                                 scannedElements1.refresh();
-                                scannedElements2.requestLayout();
-                                scannedElements2.refresh();
+                                //                                scannedElements2.requestLayout();
+                                //                                scannedElements2.refresh();
                                 bottomPane.requestLayout();
                             });
 

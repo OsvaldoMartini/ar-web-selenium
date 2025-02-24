@@ -1,6 +1,6 @@
-(function (targetOriginURL, trustedOriginURL, searchTerms) {
+(function (targetOriginURL, trustedOriginURL, searchTerms, hiddenFields) {
   var elementInfoMap = new Map();
-  var allElementInfo = [];
+  // var elementInfoSubmit = new Map();
   let elementsTagName = [];
   let elementsSelector = [];
   let allElementsPage = [];
@@ -22,7 +22,7 @@
       allElementsPage.forEach((node) => {
         // Avoid processing main, body, and html tags
         if (
-          ["html", "body", "main", "script", "meta", "head"].includes(
+          ["html", "body", "main", "script", "meta", "head", "style"].includes(
             node.tagName.toLowerCase()
           )
         ) {
@@ -51,24 +51,29 @@
           return;
         }
 
-        // Process the element and gather identity details
-        const {
-          xpath,
-          allAttributes,
-          customXPath,
-          attribId,
-          attribName,
-          coords,
-          someText,
-        } = getElementIdentity(node);
+        const elementIdentity = getElementIdentity(node);
+        if (elementIdentity) {
+          // Only add if not null
+          const {
+            xpath,
+            allAttributes,
+            customXPath,
+            attribId,
+            attribName,
+            coords,
+            someText,
+          } = elementIdentity;
 
-        if (someText && someText.length > 0) {
-          // Construct the element info string
-          var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
+          if (someText && someText.length > 0) {
+            // Construct the element info string
+            var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
 
-          // highlightElementsSequentially(elementsToProcess);
-          // Store the element information in the Map with XPath as the key
-          elementInfoMap.set(xpath, elementInfoString);
+            // highlightElementsSequentially(elementsToProcess);
+            // Store the element information in the Map with XPath as the key
+            if (!elementInfoMap.has(xpath)) {
+              elementInfoMap.set(xpath, elementInfoString);
+            }
+          }
         }
       });
     } else {
@@ -90,7 +95,7 @@
       elementsTagName.forEach((node) => {
         // Avoid processing main, body, and html tags
         if (
-          ["html", "body", "main", "script", "meta", "head"].includes(
+          ["html", "body", "main", "script", "meta", "head", "style"].includes(
             node.tagName.toLowerCase()
           )
         ) {
@@ -119,30 +124,35 @@
           return;
         }
 
-        // Process the element and gather identity details
-        const {
-          xpath,
-          allAttributes,
-          customXPath,
-          attribId,
-          attribName,
-          coords,
-          someText,
-        } = getElementIdentity(node);
+        const elementIdentity = getElementIdentity(node);
+        if (elementIdentity) {
+          // Only add if not null
+          const {
+            xpath,
+            allAttributes,
+            customXPath,
+            attribId,
+            attribName,
+            coords,
+            someText,
+          } = elementIdentity;
 
-        // Construct the element info string
-        var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
+          // Construct the element info string
+          var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
 
-        // highlightElementsSequentially(elementsToProcess);
-        // Store the element information in the Map with XPath as the key
-        elementInfoMap.set(xpath, elementInfoString);
+          // highlightElementsSequentially(elementsToProcess);
+          // Store the element information in the Map with XPath as the key
+          if (!elementInfoMap.has(xpath)) {
+            elementInfoMap.set(xpath, elementInfoString);
+          }
+        }
       });
 
       // Process each element in the main document
       elementsSelector.forEach((node) => {
         // Avoid processing main, body, and html tags
         if (
-          ["html", "body", "main", "script", "meta", "head"].includes(
+          ["html", "body", "main", "script", "meta", "head", "style"].includes(
             node.tagName.toLowerCase()
           )
         ) {
@@ -171,28 +181,36 @@
           return;
         }
 
-        // Process the element and gather identity details
-        const {
-          xpath,
-          allAttributes,
-          customXPath,
-          attribId,
-          attribName,
-          coords,
-          someText,
-        } = getElementIdentity(node);
+        const elementIdentity = getElementIdentity(node);
+        if (elementIdentity) {
+          // Only add if not null
+          const {
+            xpath,
+            allAttributes,
+            customXPath,
+            attribId,
+            attribName,
+            coords,
+            someText,
+          } = elementIdentity;
 
-        // Construct the element info string
-        var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
+          // Construct the element info string
+          var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
 
-        // highlightElementsSequentially(elementsToProcess);
-        // Store the element information in the Map with XPath as the key
-        elementInfoMap.set(xpath, elementInfoString);
+          // highlightElementsSequentially(elementsToProcess);
+          // Store the element information in the Map with XPath as the key
+          if (!elementInfoMap.has(xpath)) {
+            elementInfoMap.set(xpath, elementInfoString);
+          }
+        }
       });
     }
 
     limitMapCharacters(elementInfoMap, "tagName-found");
 
+    // if (elementInfoSubmit && elementInfoSubmit.length > 0) {
+    //   limitMapCharacters(elementInfoSubmit, "submit-found");
+    // }
     // window.allElementInfo = elementInfoMap; // Save to global for further use
     // Optionally, log the entire Map of element information
     console.log("All element info stored in Map:", window.allElementInfo);
@@ -221,19 +239,25 @@
         return;
       }
 
-      const {
-        xpath,
-        allAttributes,
-        customXPath,
-        attribId,
-        attribName,
-        coords,
-        someText,
-      } = getElementIdentity(element);
+      const elementIdentity = getElementIdentity(node);
+      if (elementIdentity) {
+        // Only add if not null
+        const {
+          xpath,
+          allAttributes,
+          customXPath,
+          attribId,
+          attribName,
+          coords,
+          someText,
+        } = elementIdentity;
 
-      let elementInfoString = `found:${element.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
+        let elementInfoString = `found:${element.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
 
-      elementInfoMap.set(xpath, elementInfoString);
+        if (!elementInfoMap.has(xpath)) {
+          elementInfoMap.set(xpath, elementInfoString);
+        }
+      }
     });
   }
 
@@ -402,6 +426,21 @@
   }
 
   function getElementIdentity(element) {
+    // Allow <input type="hidden"> but exclude all other hidden elements
+    if (!hiddenFields) {
+      if (
+        (element.offsetWidth === 0 ||
+          element.offsetHeight === 0 ||
+          window.getComputedStyle(element).visibility === "hidden") &&
+        !(
+          element.tagName.toLowerCase() === "input" &&
+          element.type.toLowerCase() === "hidden"
+        )
+      ) {
+        return null; // Ignore all hidden elements except <input type="hidden">
+      }
+    }
+
     var xPath = getMartiniXPath(element);
     var allAttributes = "";
     try {
@@ -427,6 +466,21 @@
     }
 
     var someText = getSomeText(element.tagName.toLowerCase(), element);
+
+    // // If element is an input with type submit OR a button with type submit
+    // if (
+    //   (element.tagName.toLowerCase() === "input" &&
+    //     element.type === "submit") ||
+    //   (element.tagName.toLowerCase() === "button" &&
+    //     (element.type === "submit" || !element.type)) // Default button type is "submit" if not set
+    // ) {
+    //   var elementInfoString = `${element.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;
+
+    //   // Add to global Map without repetition
+    //   if (!elementInfoSubmit.has(xpath)) {
+    //     elementInfoSubmit.set(xpath, elementInfoString);
+    //   }
+    // }
 
     return {
       xpath,
@@ -607,8 +661,12 @@
 
   window.revertSearchjections = function () {
     // alert("revertPickInjections");
-    document.removeEventListener("click", handleMartiniClick);
-    console.log("revertPickInjections");
+    console.log("revertSearchjections");
+    elementInfoMap.clear();
+    allElementInfo = [];
+    elementsTagName = [];
+    elementsSelector = [];
+    allElementsPage = [];
 
     setTimeout(() => {
       window.allElementInfo = [];
@@ -680,11 +738,13 @@
   // });
 
   handleSearchTermsMartini(searchTerms);
-})(arguments[0], arguments[1], arguments[2]);
+  // handleSearchTermsMartini(["allWithText"]);
+})(arguments[0], arguments[1], arguments[2], arguments[3]);
 // })("http://localhost:3000/", "http://localhost:3000/", [
 //   "allWithText",
 //   "div",
 //   "id",
 //   "name",
 //   "input",
-// ]);
+// ],
+// true);
