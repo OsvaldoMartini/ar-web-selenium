@@ -161,8 +161,8 @@ public class ARScannedElementPane extends ARPane {
     private Button cleanListButton;
     private Button turnOnOffButton;
 
-    private CheckBox checkPickElement;
-    private CheckBox checkCloneElement;
+    private CheckBox checkHoverPick;
+    private CheckBox checkPickOneClone;
 
     private CheckBox checkTestAction;
     private CheckBox checkJavaScript;
@@ -450,8 +450,8 @@ public class ARScannedElementPane extends ARPane {
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         countdownTextField.setEditable(true);
 
-        checkCloneElement = new CheckBox("PICK ONE ");
-        checkPickElement = new CheckBox("HOVER PICK ");
+        checkPickOneClone = new CheckBox("PICK ONE ");
+        checkHoverPick = new CheckBox("HOVER PICK ");
 
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
 
@@ -592,7 +592,7 @@ public class ARScannedElementPane extends ARPane {
 
             //        gridPaneTop.add(configureButton, 4, 0);
             //        gridPaneTop.add(launchBotJobButton, 5, 0);
-            //        gridPaneTop.add(checkPickElement, 6, 0);
+            //        gridPaneTop.add(checkHoverPick, 6, 0);
             //        gridPaneTop.add(addButtonNewElement, 7, 0);
             //        gridPaneTop.add(currentXPathTextField, 8, 0);
 
@@ -685,9 +685,9 @@ public class ARScannedElementPane extends ARPane {
                     .getChildren()
                     .addAll(
                             createSpacerHoriz(),
-                            checkCloneElement,
+                            checkPickOneClone,
                             createSpacerHoriz(),
-                            checkPickElement,
+                            checkHoverPick,
                             createSpacerHoriz());
 
             //            textFlowResult.getChildren().addAll(countdownTextField);
@@ -1045,7 +1045,7 @@ public class ARScannedElementPane extends ARPane {
             // loadBotJob(botJob);
             recallJob();
         });
-        checkPickElement.setOnMouseClicked(e -> {
+        checkHoverPick.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
             this.targetSelected = null;
             elementsFound.clear();
@@ -1053,29 +1053,29 @@ public class ARScannedElementPane extends ARPane {
 
             revertPickInjections(arWebDriver.getDriver());
 
-            if (checkPickElement.isSelected()) {
+            if (checkHoverPick.isSelected()) {
                 String[] dataArrayClone = {"*"};
                 int finalPort = portSocket;
-                Platform.runLater(() -> periodicPickThread(
+                Platform.runLater(() -> periodicHoverPickThread(
                         arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
             }
 
             Platform.runLater(() -> {
-                launchBotJobButton.setDisable(checkPickElement.isSelected());
-                recallJobButton.setDisable(checkPickElement.isSelected());
+                launchBotJobButton.setDisable(checkHoverPick.isSelected());
+                recallJobButton.setDisable(checkHoverPick.isSelected());
 
-                checkTestAction.setDisable(checkPickElement.isSelected());
+                checkTestAction.setDisable(checkHoverPick.isSelected());
                 checkTestAction.setSelected(false);
 
-                checkCloneElement.setDisable(checkPickElement.isSelected());
-                checkCloneElement.setSelected(false);
+                checkPickOneClone.setDisable(checkHoverPick.isSelected());
+                checkPickOneClone.setSelected(false);
 
-                if (!checkPickElement.isSelected()) {
+                if (!checkHoverPick.isSelected()) {
                     defineNameField.clear();
                 }
             });
         });
-        checkCloneElement.setOnMouseClicked(e -> {
+        checkPickOneClone.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
             this.targetSelected = null;
             elementsFound.clear();
@@ -1083,24 +1083,24 @@ public class ARScannedElementPane extends ARPane {
 
             revertCloneInjections(arWebDriver.getDriver());
 
-            if (checkCloneElement.isSelected()) {
+            if (checkPickOneClone.isSelected()) {
                 String[] dataArrayClone = {"*"};
                 int finalPort = portSocket;
-                Platform.runLater(() -> periodicCloneThread(
+                Platform.runLater(() -> periodicPickOneCloneThread(
                         arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
             }
 
             Platform.runLater(() -> {
-                launchBotJobButton.setDisable(checkCloneElement.isSelected());
-                recallJobButton.setDisable(checkCloneElement.isSelected());
+                launchBotJobButton.setDisable(checkPickOneClone.isSelected());
+                recallJobButton.setDisable(checkPickOneClone.isSelected());
 
-                checkTestAction.setDisable(checkCloneElement.isSelected());
+                checkTestAction.setDisable(checkPickOneClone.isSelected());
                 checkTestAction.setSelected(false);
 
-                checkPickElement.setDisable(checkCloneElement.isSelected());
-                checkPickElement.setSelected(false);
+                checkHoverPick.setDisable(checkPickOneClone.isSelected());
+                checkHoverPick.setSelected(false);
 
-                if (!checkCloneElement.isSelected()) {
+                if (!checkPickOneClone.isSelected()) {
                     defineNameField.clear();
                 }
             });
@@ -1142,7 +1142,7 @@ public class ARScannedElementPane extends ARPane {
                             // "tagName-found".equalsIgnoreCase(element.getTypeElement()))
                             .findFirst(); // Get the first matching ElementDTO
 
-                    if (checkPickElement.isSelected()) {
+                    if (checkHoverPick.isSelected()) {
                         //                        handlePickElementClick();
                     } else if (iframeElement.isPresent()) {
                         insertNewElement(iframeElement.get(), elementsFound);
@@ -1248,7 +1248,7 @@ public class ARScannedElementPane extends ARPane {
 
             TargetElement cloneTarget = new TargetElement(this.targetSelected);
 
-            //            if (checkCloneElement.isSelected()) {
+            //            if (checkPickOneClone.isSelected()) {
             cloneTarget.setCloned(true);
             if (checkInputText.isSelected()) {
                 cloneTarget.setTagType(WebElementTagNameEnum.INPUT);
@@ -2011,9 +2011,9 @@ public class ARScannedElementPane extends ARPane {
             checkTestAction.setDisable(true);
             launchBotJobButton.setDisable(true);
             recallJobButton.setDisable(true);
-            checkPickElement.setDisable(true);
+            checkHoverPick.setDisable(true);
 
-            if (!checkCloneElement.isSelected()) {
+            if (!checkPickOneClone.isSelected()) {
                 defineNameField.clear();
             }
         });
@@ -3547,7 +3547,7 @@ public class ARScannedElementPane extends ARPane {
                                 }
 
                                 InstructionDTO instruction = arWebHover.buildNewInstruction(
-                                        tagType, actionReq, checkPickElement.isSelected(), list.size());
+                                        tagType, actionReq, checkHoverPick.isSelected(), list.size());
 
                                 if (checkForceCoordText.isSelected()) {
                                     instruction.setForceCoordinates(true);
@@ -4477,10 +4477,10 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void periodicCloneThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
+    private void periodicPickOneCloneThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
 
-        ErrorMessage errorMessage =
-                performCloneLoad.dynamicCloneElementsDTO(driver, currentUrl, dataArray, searchHiddenFields, port);
+        ErrorMessage errorMessage = performCloneLoad.dynamicPickOneCloneElementsDTO(
+                driver, currentUrl, dataArray, searchHiddenFields, port);
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
@@ -4507,9 +4507,9 @@ public class ARScannedElementPane extends ARPane {
         return someText.substring(0, limit) + "...";
     }
 
-    private void periodicPickThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
+    private void periodicHoverPickThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
         ErrorMessage errorMessage =
-                performPickLoad.dynamicPickElementsDTO(driver, currentUrl, dataArray, searchHiddenFields, port);
+                performPickLoad.dynamicHoverPickElementsDTO(driver, currentUrl, dataArray, searchHiddenFields, port);
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");

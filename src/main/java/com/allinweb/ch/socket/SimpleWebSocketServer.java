@@ -120,7 +120,7 @@ public class SimpleWebSocketServer {
             case "SEARCH_TOOL":
                 // Extract the "body" field from the JsonObject
                 ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
-                elementSplitDTO.setType("SEARCH_TOOL FROM MARTINI");
+                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " + elementSplitDTO.getDetails().length);
                 String jsonData = gson.toJson(elementSplitDTO);
                 sendMessageJson(session, jsonData, null);
                 break;
