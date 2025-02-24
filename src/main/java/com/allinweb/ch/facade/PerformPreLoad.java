@@ -696,7 +696,7 @@ public class PerformPreLoad {
 
     private String jsCodeInject =
             """
-                            (function initSearchTerms(searchTerms, hiddenFields, socketPort) {
+                            (function (searchTerms, hiddenFields, socketPort) {
                               let attempts = 0;
                               let maxAttempts = 100;
                               let wSocket = null;
@@ -714,7 +714,9 @@ public class PerformPreLoad {
 
                                 try {
                                   console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
-                                  wSocket = new WebSocket(`ws://localhost:${socketPort}/websocket`);
+                                  wSocket = new WebSocket(
+                                    `ws://localhost:${socketPort}/websocket?sessionId=martiniElementDTO`
+                                  );
 
                                   wSocket.onopen = () => {
                                     console.log("WebSocket connected");

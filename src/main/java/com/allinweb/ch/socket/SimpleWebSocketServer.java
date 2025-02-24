@@ -30,7 +30,9 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -59,6 +61,18 @@ public class SimpleWebSocketServer {
     //        return instance.get();
     //    }
 
+    private static final Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+
+    // Store active sessions when a new connection is established
+    public static void addSession(String sessionId, Session session) {
+        activeSessions.put(sessionId, session);
+    }
+
+    // Remove session when disconnected
+    public static void removeSession(String sessionId) {
+        activeSessions.remove(sessionId);
+    }
+
     private static final PerformDataBase performDataBase;
     private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
@@ -74,8 +88,16 @@ public class SimpleWebSocketServer {
 
     @OnOpen
     public void onOpen(Session session) {
-        sessions.add(session);
-        System.out.println("New connection: Session ID = " + session.getId());
+        // Get the sessionId from the query parameter passed by the frontend
+        String sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+
+        if (sessionId != null) {
+            addSession(sessionId, session); // Store the session with the custom ID
+            sessions.add(session);
+            System.out.println("New connection: Custom Session ID = " + sessionId);
+        } else {
+            System.out.println("No session ID provided by client");
+        }
     }
 
     @OnMessage
@@ -118,11 +140,22 @@ public class SimpleWebSocketServer {
         // Dispatch to the correct method based on the message type
         switch (type) {
             case "SEARCH_TOOL":
+            case "NEW_ELEMENT_DTO":
+            case "DEL_ELEMENT_DTO":
                 // Extract the "body" field from the JsonObject
                 ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
                 elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " + elementSplitDTO.getDetails().length);
                 String jsonData = gson.toJson(elementSplitDTO);
-                sendMessageJson(session, jsonData, null);
+                try {
+                    String sessionId =
+                            session.getRequestParameterMap().get("sessionId").get(0);
+                    if (!Strings.isNullOrEmpty(sessionId)) {
+                        sendMessageJson(sessionId, jsonData, null);
+                    }
+                } catch (Exception noSessionId) {
+                    broadcastMessageToAll(jsonData);
+                }
+
                 break;
             case "RESPONSE_BACK":
                 // Extract the "body" field from the JsonObject
@@ -248,8 +281,22 @@ public class SimpleWebSocketServer {
 
     @OnClose
     public void onClose(Session session) {
-        sessions.remove(session);
-        System.out.println("Connection closed: Session ID = " + session.getId());
+        // Clean up session when it closes
+        String sessionId = getSessionIdBySession(session);
+        if (sessionId != null) {
+            removeSession(sessionId);
+            sessions.remove(session);
+            System.out.println("Connection closed: Session ID = " + sessionId);
+        }
+    }
+
+    // Method to get the session ID based on the session object
+    private String getSessionIdBySession(Session session) {
+        return activeSessions.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(session))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
     }
 
     @OnError
@@ -279,6 +326,26 @@ public class SimpleWebSocketServer {
             session.getBasicRemote().sendText(message);
         } catch (IOException e) {
             System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+        }
+    }
+
+    // Method to send a message to a specific session ID
+    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+        Session session = activeSessions.get(sessionId);
+
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("body", msg1);
+                if (msg2 != null && !msg2.isEmpty()) {
+                    jsonMessage.addProperty("footer", msg2);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 

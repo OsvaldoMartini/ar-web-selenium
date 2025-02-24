@@ -145,7 +145,6 @@ public class ARViewBotJobPane extends ARPane {
     private Alert alertToShow;
     private Server jettyServer;
     private ServerContainer wsContainer;
-    private HBox componentBox;
 
     Button componentButton;
     private VBox componentContainer;
@@ -153,6 +152,8 @@ public class ARViewBotJobPane extends ARPane {
 
     private WebView webView = new WebView();
     private WebEngine webEngine;
+    private HBox componentBox;
+
     private ARScene arScene;
 
     public ARViewBotJobPane(BotJobLoadDTO botJobLoad, ARScene arScene) {
@@ -206,6 +207,59 @@ public class ARViewBotJobPane extends ARPane {
                     }
                 })
                 .start();
+        buidUIComponents(finalPort);
+    }
+
+    public void startWebSocketServer(int port) throws Exception {
+        // Check if the port is available
+        if (isPortInUse(port)) {
+            throw new Exception("Port " + port + " is already in use.");
+        }
+
+        // Set up Jetty server to run WebSocket endpoint
+        jettyServer = new Server(port); // Server listens on port 8080
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath("/");
+        jettyServer.setHandler(context);
+
+        // Initialize WebSocket container
+        wsContainer = WebSocketServerContainerInitializer.configureContext(context);
+        //        wsContainer.setDefaultMaxSessionIdleTimeout(600000);
+        //        wsContainer.addEndpoint(WebSocketStompServer.class);
+        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register SimpleWebSocketServer
+
+        // Start Jetty server
+        jettyServer.start();
+        System.out.println("WebSocket server started at ws://localhost:" + port + "/websocket");
+
+        // Example: Retrieve all active sessions
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+        System.out.println("Active WebSocket sessions: " + activeSessions.size());
+    }
+
+    // Method to check if the port is already in use
+    private boolean isPortInUse(int port) {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            return false; // Port is available
+        } catch (IOException e) {
+            return true; // Port is already in use
+        }
+    }
+
+    public void stopWebSocketServer() {
+        if (jettyServer != null && jettyServer.isStarted()) {
+            try {
+                jettyServer.stop();
+            } catch (Exception e) {
+                ARLogger.getInstance(ARViewBotJobPane.class).severe("stopWebSocketServer  \nError: " + e.getMessage());
+            }
+            jettyServer.destroy();
+            ARLogger.getInstance(ARViewBotJobPane.class).info("WebSocket server stopped.");
+            //            System.out.println("WebSocket server stopped.");
+        }
+    }
+
+    public void buidUIComponents(int finalPort) {
 
         // Create a label to display the countdown
         Label countdownLabel = new Label(String.valueOf(remainingSeconds));
@@ -382,19 +436,7 @@ public class ARViewBotJobPane extends ARPane {
 
         buildWebView(jsonData, finalPort);
 
-        //        this.uiBlockList = new ListView<>(blockDTOObservableList);
-        //
-        //        this.uiBlockList.setCellFactory(new ARCellFactory<>(BlockListCell.class)::call);
-        //        this.uiBlockList.setMaxHeight(Double.MAX_VALUE);
-        //        this.uiBlockList.setMaxWidth(Double.MAX_VALUE);
-        //        this.uiBlockList.setPrefHeight(900.0D);
-        //        this.uiBlockList.setBorder(null);
-
         componentBox = new HBox(new Node[] {this.webView});
-
-        // Make webView expand both horizontally and vertically
-        HBox.setHgrow(this.webView, Priority.ALWAYS);
-        VBox.setVgrow(this.webView, Priority.ALWAYS); // Ensures vertical growth
 
         // Prevent componentContainer from growing too much
         HBox.setHgrow(this.componentContainer, Priority.NEVER);
@@ -406,6 +448,7 @@ public class ARViewBotJobPane extends ARPane {
         // Allow botJobContainer to grow vertically as well
         // Ensure botJobContainer and webView grow properly
         VBox.setVgrow(this.botJobContainer, Priority.ALWAYS);
+        HBox.setHgrow(this.webView, Priority.ALWAYS);
         VBox.setVgrow(this.webView, Priority.ALWAYS);
 
         VBox.setVgrow(this.componentBox, Priority.ALWAYS);
@@ -1052,55 +1095,6 @@ public class ARViewBotJobPane extends ARPane {
         } else {
             ARLogger.getInstance(ARViewBotJobPane.class)
                     .info(String.format("Database '%s' Already exist!", dbFile.getName()));
-        }
-    }
-
-    public void startWebSocketServer(int port) throws Exception {
-        // Check if the port is available
-        if (isPortInUse(port)) {
-            throw new Exception("Port " + port + " is already in use.");
-        }
-
-        // Set up Jetty server to run WebSocket endpoint
-        jettyServer = new Server(port); // Server listens on port 8080
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath("/");
-        jettyServer.setHandler(context);
-
-        // Initialize WebSocket container
-        wsContainer = WebSocketServerContainerInitializer.configureContext(context);
-        //        wsContainer.setDefaultMaxSessionIdleTimeout(600000);
-        //        wsContainer.addEndpoint(WebSocketStompServer.class);
-        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register SimpleWebSocketServer
-
-        // Start Jetty server
-        jettyServer.start();
-        System.out.println("WebSocket server started at ws://localhost:" + port + "/websocket");
-
-        // Example: Retrieve all active sessions
-        activeSessions = SimpleWebSocketServer.getAllSessions();
-        System.out.println("Active WebSocket sessions: " + activeSessions.size());
-    }
-
-    // Method to check if the port is already in use
-    private boolean isPortInUse(int port) {
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            return false; // Port is available
-        } catch (IOException e) {
-            return true; // Port is already in use
-        }
-    }
-
-    public void stopWebSocketServer() {
-        if (jettyServer != null && jettyServer.isStarted()) {
-            try {
-                jettyServer.stop();
-            } catch (Exception e) {
-                ARLogger.getInstance(ARViewBotJobPane.class).severe("stopWebSocketServer  \nError: " + e.getMessage());
-            }
-            jettyServer.destroy();
-            ARLogger.getInstance(ARViewBotJobPane.class).info("WebSocket server stopped.");
-            //            System.out.println("WebSocket server stopped.");
         }
     }
 

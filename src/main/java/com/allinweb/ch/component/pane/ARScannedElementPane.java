@@ -59,6 +59,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
+import javafx.concurrent.Worker;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
@@ -73,6 +74,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
@@ -135,6 +138,11 @@ public class ARScannedElementPane extends ARPane {
     private HBox bottomPane;
     private HBox bottomPaneTime;
     private AnchorPane contentPane;
+
+    private WebView webView = new WebView();
+    private WebEngine webEngine;
+    private HBox componentBox;
+
     private ObservableList<ARWebElement> webElementObservableList1;
     private ObservableList<ARWebElement> webElementObservableList2;
     //    private ObservableList<ARWebElement> webElementObservableList3;
@@ -329,6 +337,248 @@ public class ARScannedElementPane extends ARPane {
             }
         }));
 
+        webEngine = webView.getEngine();
+        webEngine.javaScriptEnabledProperty().set(true);
+
+        String jsonData =
+                """
+                [
+                  {
+                    "typeElement": "button",
+                    "tagName": "button",
+                    "xPath": "//button[@id='submit']",
+                    "someText": "Submit",
+                    "attribId": "submit",
+                    "attribName": "submitBtn",
+                    "coords": "100,200",
+                    "attributeData": [],
+                    "customXPath": "//button[contains(text(),'Submit')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "enabled",
+                    "attributeType": "boolean",
+                    "searchAttributeValue": "submit"
+                  },
+                  {
+                    "typeElement": "input",
+                    "tagName": "input",
+                    "xPath": "//input[@name='username']",
+                    "someText": "",
+                    "attribId": "userInput",
+                    "attribName": "username",
+                    "coords": "150,250",
+                    "attributeData": [],
+                    "customXPath": "//input[@placeholder='Enter username']",
+                    "iFrameXPath": "",
+                    "attributeValue": "text",
+                    "attributeType": "string",
+                    "searchAttributeValue": "username"
+                  },
+                  {
+                    "typeElement": "input",
+                    "tagName": "input",
+                    "xPath": "//input[@type='password']",
+                    "someText": "",
+                    "attribId": "password",
+                    "attribName": "passwordInput",
+                    "coords": "150,280",
+                    "attributeData": [],
+                    "customXPath": "//input[@name='password']",
+                    "iFrameXPath": "",
+                    "attributeValue": "password",
+                    "attributeType": "string",
+                    "searchAttributeValue": "password"
+                  },
+                  {
+                    "typeElement": "div",
+                    "tagName": "div",
+                    "xPath": "//div[@class='alert']",
+                    "someText": "Error: Invalid login",
+                    "attribId": "",
+                    "attribName": "errorDiv",
+                    "coords": "160,300",
+                    "attributeData": [],
+                    "customXPath": "//div[contains(text(),'Error')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "visible",
+                    "attributeType": "boolean",
+                    "searchAttributeValue": "alert"
+                  },
+                  {
+                    "typeElement": "a",
+                    "tagName": "a",
+                    "xPath": "//a[@href='/forgot-password']",
+                    "someText": "Forgot Password?",
+                    "attribId": "",
+                    "attribName": "forgotPwd",
+                    "coords": "170,320",
+                    "attributeData": [],
+                    "customXPath": "//a[contains(text(),'Forgot')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "link",
+                    "attributeType": "string",
+                    "searchAttributeValue": "forgot-password"
+                  },
+                  {
+                    "typeElement": "label",
+                    "tagName": "label",
+                    "xPath": "//label[@for='username']",
+                    "someText": "Username:",
+                    "attribId": "",
+                    "attribName": "usernameLabel",
+                    "coords": "100,200",
+                    "attributeData": [],
+                    "customXPath": "//label[contains(text(),'Username')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "text",
+                    "attributeType": "string",
+                    "searchAttributeValue": "usernameLabel"
+                  },
+                  {
+                    "typeElement": "select",
+                    "tagName": "select",
+                    "xPath": "//select[@id='country']",
+                    "someText": "",
+                    "attribId": "countrySelect",
+                    "attribName": "country",
+                    "coords": "200,350",
+                    "attributeData": [],
+                    "customXPath": "//select[@name='country']",
+                    "iFrameXPath": "",
+                    "attributeValue": "dropdown",
+                    "attributeType": "string",
+                    "searchAttributeValue": "country"
+                  },
+                  {
+                    "typeElement": "option",
+                    "tagName": "option",
+                    "xPath": "//option[@value='US']",
+                    "someText": "United States",
+                    "attribId": "",
+                    "attribName": "usOption",
+                    "coords": "210,360",
+                    "attributeData": [],
+                    "customXPath": "//option[contains(text(),'United States')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "selected",
+                    "attributeType": "boolean",
+                    "searchAttributeValue": "US"
+                  },
+                  {
+                    "typeElement": "checkbox",
+                    "tagName": "input",
+                    "xPath": "//input[@type='checkbox' and @id='agree']",
+                    "someText": "",
+                    "attribId": "agree",
+                    "attribName": "agreeCheck",
+                    "coords": "220,370",
+                    "attributeData": [],
+                    "customXPath": "//input[@name='agree']",
+                    "iFrameXPath": "",
+                    "attributeValue": "checked",
+                    "attributeType": "boolean",
+                    "searchAttributeValue": "agree"
+                  },
+                  {
+                    "typeElement": "radio",
+                    "tagName": "input",
+                    "xPath": "//input[@type='radio' and @name='gender']",
+                    "someText": "",
+                    "attribId": "male",
+                    "attribName": "genderRadio",
+                    "coords": "230,380",
+                    "attributeData": [],
+                    "customXPath": "//input[@value='male']",
+                    "iFrameXPath": "",
+                    "attributeValue": "selected",
+                    "attributeType": "boolean",
+                    "searchAttributeValue": "male"
+                  },
+                  {
+                    "typeElement": "textarea",
+                    "tagName": "textarea",
+                    "xPath": "//textarea[@id='comments']",
+                    "someText": "",
+                    "attribId": "comments",
+                    "attribName": "commentsTextArea",
+                    "coords": "240,390",
+                    "attributeData": [],
+                    "customXPath": "//textarea[@name='comments']",
+                    "iFrameXPath": "",
+                    "attributeValue": "text",
+                    "attributeType": "string",
+                    "searchAttributeValue": "comments"
+                  },
+                  {
+                    "typeElement": "span",
+                    "tagName": "span",
+                    "xPath": "//span[@class='tooltip']",
+                    "someText": "Help text",
+                    "attribId": "",
+                    "attribName": "helpTooltip",
+                    "coords": "250,400",
+                    "attributeData": [],
+                    "customXPath": "//span[contains(text(),'Help')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "visible",
+                    "attributeType": "boolean",
+                    "searchAttributeValue": "tooltip"
+                  },
+                  {
+                    "typeElement": "table",
+                    "tagName": "table",
+                    "xPath": "//table[@id='dataTable']",
+                    "someText": "",
+                    "attribId": "dataTable",
+                    "attribName": "dataTable",
+                    "coords": "260,410",
+                    "attributeData": [],
+                    "customXPath": "//table[contains(@class,'data-table')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "structure",
+                    "attributeType": "string",
+                    "searchAttributeValue": "dataTable"
+                  },
+                  {
+                    "typeElement": "tr",
+                    "tagName": "tr",
+                    "xPath": "//tr[@class='row1']",
+                    "someText": "",
+                    "attribId": "",
+                    "attribName": "tableRow",
+                    "coords": "270,420",
+                    "attributeData": [],
+                    "customXPath": "//tr[contains(@class,'row1')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "row",
+                    "attributeType": "string",
+                    "searchAttributeValue": "row1"
+                  },
+                  {
+                    "typeElement": "td",
+                    "tagName": "td",
+                    "xPath": "//td[@class='column1']",
+                    "someText": "Cell Data",
+                    "attribId": "",
+                    "attribName": "tableCell",
+                    "coords": "280,430",
+                    "attributeData": [],
+                    "customXPath": "//td[contains(@class,'column1')]",
+                    "iFrameXPath": "",
+                    "attributeValue": "text",
+                    "attributeType": "string",
+                    "searchAttributeValue": "column1"
+                  }
+                ]
+
+                """;
+
+        buildWebView(jsonData, portSocket);
+
+        componentBox = new HBox(new Node[] {this.webView});
+
+        HBox.setHgrow(this.webView, Priority.ALWAYS);
+        VBox.setVgrow(this.webView, Priority.ALWAYS);
+
         //        if (arWebDriver.getDriver() == null) {
         //            arWebDriver = new ARWebDriver(); // Initialize WebDriver
         //        }
@@ -356,6 +606,26 @@ public class ARScannedElementPane extends ARPane {
 
         handleWindowHandlesChange();
 
+        buildUIComponents();
+    }
+
+    private void buildWebView(String jsonData, int finalPort) {
+        webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
+
+        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+            if (newState == Worker.State.SUCCEEDED) {
+                // After the page has successfully loaded
+                try {
+                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
+                            + jsonData + "), " + finalPort + ") }, 1000)");
+                } catch (Exception e) {
+                    ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    private void buildUIComponents() {
         topPane = componentBuilder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
         bottomPane = componentBuilder.createBottomPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
         bottomPaneTime = componentBuilder.createBottomPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
