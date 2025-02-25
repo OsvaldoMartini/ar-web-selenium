@@ -182,7 +182,6 @@ public class ARViewBotJobPane extends ARPane {
 
     public void initUIComponents() {
         int port = 8080;
-        sessionId = "botJobTasks";
 
         String portSocket = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
         if (portSocket != null) {
@@ -436,6 +435,8 @@ public class ARViewBotJobPane extends ARPane {
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
+        // (SENDER: insertTool) -> botJobTasks
+        sessionId = "botJobTasks";
         buildWebView(jsonData, finalPort, sessionId);
 
         componentBox = new HBox(new Node[] {this.webView});

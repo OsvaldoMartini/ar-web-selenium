@@ -68,8 +68,9 @@ public class JavaFXWithReactApp extends Application {
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
 
-                String sessionIdFromJava = "botJobTasks";
-                String sessionIdFromJavaDTO = "scannerDestDTO";
+                // "scannerTool", "scannerGrid", "searchTerms"
+                // String sessionIdFromJava = "botJobTasks";
+                String sessionIdFromJavaDTO = "scannerGrid";
 
                 String finalPort = "8181";
                 // After the page has successfully loaded
@@ -78,7 +79,7 @@ public class JavaFXWithReactApp extends Application {
                     // window.receiveDataFromJava(JSON.stringify("
                     //                            + jsonData + ")) }, 1000)");
                     //
-                    //webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
+                    // webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
                     //        + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "' ) }, 1000)");
 
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("

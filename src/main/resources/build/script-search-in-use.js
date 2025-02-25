@@ -1,4 +1,12 @@
-(function (searchTerms, hiddenFields, socketPort, sessionId, operationId) {
+// (SENDER: scannerTool) -> scannerGrid
+(function (
+  searchTerms,
+  hiddenFields,
+  socketPort,
+  sessionId,
+  destination,
+  operationId
+) {
   let attempts = 0;
   let maxAttempts = 100;
   let wSocket = null;
@@ -8,6 +16,7 @@
   window.searchTerms = searchTerms;
   window.allElementInfo = [];
   window.sessionId = sessionId;
+  window.destination = destination;
   window.operationId = operationId;
   // var elementInfoSubmit = new Map();
 
@@ -482,7 +491,7 @@
     if (wSocket && wSocket.readyState === WebSocket.OPEN) {
       const message = {
         type: "SEARCH_TOOL",
-        sessionId: window.sessionId,
+        sessionId: window.destination,
         operationId: window.operationId,
         details: window.allElementInfo, // Send allElementInfo
       };
@@ -834,9 +843,16 @@
   // startCollectingElements(window.searchTerms);
   // init("Initiate");
   // window.initSearchTerms = null; // Invalidating the function
-})(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-// })([], false, 8181, "scannerDestDTO", "searchTerms");
-// })(["with name"], false, 8181, "scannerDestDTO", "searchTerms");
-// })(["input", "button", "a"], false, 8181, "scannerDestDTO", "searchTerms");
-// })(["*"], false, 8181, "scannerDestDTO", "searchTerms");
-// })(["button"], false, 8181, "scannerDestDTO", "searchTerms");
+})(
+  arguments[0],
+  arguments[1],
+  arguments[2],
+  arguments[3],
+  arguments[4],
+  arguments[5]
+);
+// })([], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
+// })(["with name"], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
+// })(["input", "button", "a"], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
+// })(["*"], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
+// })(["button"], false, 8181, "scannerTool", "scannerGrid", "searchTerms");

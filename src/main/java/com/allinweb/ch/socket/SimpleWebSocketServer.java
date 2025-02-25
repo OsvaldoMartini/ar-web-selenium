@@ -198,6 +198,7 @@ public class SimpleWebSocketServer {
                 if (!Strings.isNullOrEmpty(elementSplitDTO.getSessionId())) {
                     sessionId = elementSplitDTO.getSessionId();
                     sendMessageJson(sessionId, jsonData, null);
+                    broadcastMessageToAll(jsonData);
                     performMessage.outputJsonElementDTO(elementSplitDTO.getDetails());
 
                 } else {

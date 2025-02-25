@@ -346,7 +346,9 @@ public class ARScannedElementPane extends ARPane {
                 """;
 
         // sessionIdFromJava
-        sessionId = "scannerDestDTO";
+        sessionId =
+                "scannerGrid"; // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks / Default
+        // session
         buildWebView(jsonData, portSocket, sessionId);
 
         activeSessions = SimpleWebSocketServer.getAllSessions();
@@ -372,13 +374,15 @@ public class ARScannedElementPane extends ARPane {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        // "scannerTool", "scannerGrid", "searchTerms"
         performPreLoad.dynamicLoadElementsDTO(
                 arWebDriver.getDriver(),
                 arWebDriver.getDriver().getCurrentUrl(),
                 defaultSearch,
                 searchHiddenFields,
                 portSocket,
-                "scannerDestDTO",
+                "scannerTool",
+                "scannerGrid",
                 "searchTerms");
 
         performAction.getIframeElementsMap();
@@ -4586,8 +4590,9 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void periodicSearchThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
+        // "scannerTool", "scannerGrid", "searchTerms"
         ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
-                driver, currentUrl, dataArray, searchHiddenFields, port, "scannerDestDTO", "searchTerms");
+                driver, currentUrl, dataArray, searchHiddenFields, port, "scannerTool", "scannerGrid", "searchTerms");
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");

@@ -38,6 +38,7 @@ public class PerformPreLoad {
         return instance.get();
     }
 
+    // "scannerTool", "scannerGrid", "searchTerms"
     public ErrorMessage dynamicLoadElementsDTO(
             WebDriver driver,
             String currentUrl,
@@ -45,12 +46,15 @@ public class PerformPreLoad {
             boolean searchHiddenFields,
             int port,
             String sessionId,
+            String destination,
             String operationId) {
 
         List<String> dataList = Arrays.asList(dataArray);
         try {
             jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(jsCodeInject, dataList, searchHiddenFields, port, sessionId, operationId);
+            // "scannerTool", "scannerGrid", "searchTerms"
+            jsExecutor.executeScript(
+                    jsCodeInject, dataList, searchHiddenFields, port, sessionId, destination, operationId);
             return null;
         } catch (Exception error) {
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
@@ -702,7 +706,14 @@ public class PerformPreLoad {
 
     private String jsCodeInject =
             """
-                            (function (searchTerms, hiddenFields, socketPort, sessionId, operationId) {
+                            (function (
+                              searchTerms,
+                              hiddenFields,
+                              socketPort,
+                              sessionId,
+                              destination,
+                              operationId
+                            ) {
                               let attempts = 0;
                               let maxAttempts = 100;
                               let wSocket = null;
@@ -712,6 +723,7 @@ public class PerformPreLoad {
                               window.searchTerms = searchTerms;
                               window.allElementInfo = [];
                               window.sessionId = sessionId;
+                              window.destination = destination;
                               window.operationId = operationId;
                               // var elementInfoSubmit = new Map();
 
@@ -1186,7 +1198,7 @@ public class PerformPreLoad {
                                 if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                                   const message = {
                                     type: "SEARCH_TOOL",
-                                    sessionId: window.sessionId,
+                                    sessionId: window.destination,
                                     operationId: window.operationId,
                                     details: window.allElementInfo, // Send allElementInfo
                                   };
@@ -1538,12 +1550,19 @@ public class PerformPreLoad {
                               // startCollectingElements(window.searchTerms);
                               // init("Initiate");
                               // window.initSearchTerms = null; // Invalidating the function
-                            })(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-                            // })([], false, 8181, "scannerDestDTO", "searchTerms");
-                            // })(["with name"], false, 8181, "scannerDestDTO", "searchTerms");
-                            // })(["input", "button", "a"], false, 8181, "scannerDestDTO", "searchTerms");
-                            // })(["*"], false, 8181, "scannerDestDTO", "searchTerms");
-                            // })(["button"], false, 8181, "scannerDestDTO", "searchTerms");
+                            })(
+                              arguments[0],
+                              arguments[1],
+                              arguments[2],
+                              arguments[3],
+                              arguments[4],
+                              arguments[5]
+                            );
+                            // })([], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
+                            // })(["with name"], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
+                            // })(["input", "button", "a"], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
+                            // })(["*"], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
+                            // })(["button"], false, 8181, "scannerTool", "scannerGrid", "searchTerms");
 
                     """;
 }
