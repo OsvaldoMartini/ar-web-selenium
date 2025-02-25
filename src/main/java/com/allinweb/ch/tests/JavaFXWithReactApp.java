@@ -43,7 +43,6 @@ public class JavaFXWithReactApp extends Application {
         WebEngine webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
-
         //        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
         //            if (newState == Worker.State.SUCCEEDED) {
         //                // Expose the JSBridge object to the JavaScript context
@@ -61,31 +60,30 @@ public class JavaFXWithReactApp extends Application {
         // Send the JSON data to React
         //  +-
 
-
         Gson gson = new Gson();
         String jsonData = gson.toJson(blockLoopInstructions);
         String jsonDataDTO = gson.toJson(elementDTO);
 
-
         //        Delay the script execution to ensure the page has fully loaded
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
-                
+
                 String sessionIdFromJava = "botJobTasks";
                 String sessionIdFromJavaDTO = "scannerDestDTO";
-                
+
                 String finalPort = "8181";
                 // After the page has successfully loaded
                 try {
-//                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-//                            + jsonData + ")) }, 1000)");
-//
-//                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-//                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "' ) }, 1000)");
+                    //                    webEngine.executeScript("setTimeout(function() {
+                    // window.receiveDataFromJava(JSON.stringify("
+                    //                            + jsonData + ")) }, 1000)");
+                    //
+                    //webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
+                    //        + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "' ) }, 1000)");
 
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
                             + jsonDataDTO + "), " + finalPort + ", '" + sessionIdFromJavaDTO + "' ) }, 1000)");
-                    
+
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
                 }

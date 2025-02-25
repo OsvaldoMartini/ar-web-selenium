@@ -4,8 +4,6 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.listCell.ARCellFactory;
-import com.allinweb.ch.component.listCell.ARWebElementListCell;
 import com.allinweb.ch.component.model.AttributeData;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
@@ -145,11 +143,11 @@ public class ARScannedElementPane extends ARPane {
     private WebEngine webEngine;
     private HBox componentBox;
 
-    private ObservableList<ARWebElement> webElementObservableList1;
+    //    private ObservableList<ARWebElement> webElementObservableList1;
     //    private ObservableList<ARWebElement> webElementObservableList2;
     //    private ObservableList<ARWebElement> webElementObservableList3;
     //    private ObservableList<ARWebElementNew> webElementObservableList4;
-    private ListView<ARWebElement> scannedElements1;
+    //    private ListView<ARWebElement> scannedElements1;
     //    private ListView<ARWebElement> scannedElements2;
     //    private ListView<ARWebElement> scannedElements3;
     //    private ListView<ARWebElementNew> scannedElements4;
@@ -466,11 +464,11 @@ public class ARScannedElementPane extends ARPane {
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
-        webElementObservableList1 = FXCollections.observableArrayList();
+        //        webElementObservableList1 = FXCollections.observableArrayList();
 
-        scannedElements1 = new ListView<>(webElementObservableList1);
-        scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ARConstants.SPACE_ZERO);
-        scannedElements1.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
+        //        scannedElements1 = new ListView<>(webElementObservableList1);
+        //        scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ARConstants.SPACE_ZERO);
+        //        scannedElements1.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
 
         //        webElementObservableList2 = FXCollections.observableArrayList();
         //        scannedElements2 = new ListView<>(webElementObservableList2);
@@ -805,7 +803,7 @@ public class ARScannedElementPane extends ARPane {
             HBox boxListViews = new HBox();
 
             // Bind the height of ListViews to the height of the HBox
-            scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
+            //            scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
             componentBox.prefHeightProperty().bind(boxListViews.heightProperty());
             //            scannedElements3.prefHeightProperty().bind(boxListViews.heightProperty());
             //            scannedElements4.prefHeightProperty().bind(boxListViews.heightProperty());
@@ -813,7 +811,7 @@ public class ARScannedElementPane extends ARPane {
             boxListViews.setSpacing(5);
 
             // Set Hgrow for each ListView to make them equally distributed
-            HBox.setHgrow(scannedElements1, Priority.ALWAYS);
+            //            HBox.setHgrow(scannedElements1, Priority.ALWAYS);
             HBox.setHgrow(componentBox, Priority.ALWAYS);
             //            HBox.setHgrow(scannedElements3, Priority.ALWAYS);
             //            HBox.setHgrow(scannedElements4, Priority.ALWAYS);
@@ -823,12 +821,12 @@ public class ARScannedElementPane extends ARPane {
             stackCurrentURL.setAlignment(Pos.CENTER);
             HBox currentURLBox = new HBox(stackCurrentURL);
 
-            Label labelInput = new Label("Input/IDs/Names(No Ids/Names)/Buttons");
-            StackPane stackLabelInput = new StackPane();
-            stackLabelInput.getChildren().add(labelInput);
-            stackLabelInput.setAlignment(Pos.CENTER);
-            VBox elements1VBox = new VBox(stackLabelInput, scannedElements1);
-            HBox.setHgrow(elements1VBox, Priority.ALWAYS);
+            //            Label labelInput = new Label("Input/IDs/Names(No Ids/Names)/Buttons");
+            //            StackPane stackLabelInput = new StackPane();
+            //            stackLabelInput.getChildren().add(labelInput);
+            //            stackLabelInput.setAlignment(Pos.CENTER);
+            //            VBox elements1VBox = new VBox(stackLabelInput, scannedElements1);
+            //            HBox.setHgrow(elements1VBox, Priority.ALWAYS);
 
             //            Label labelOutput = new Label("Output Fields Results");
             //            StackPane stackLabelOutput = new StackPane();
@@ -837,7 +835,7 @@ public class ARScannedElementPane extends ARPane {
             //            VBox elements2VBox = new VBox(stackLabelOutput, scannedElements2);
             //            HBox.setHgrow(elements2VBox, Priority.ALWAYS);
 
-            Label labelOthers = new Label("Other Elements Results (Config)");
+            Label labelOthers = new Label("Input/IDs/Names(No Ids/Names)/Buttons and Other Elements Results");
             StackPane stackLabelOthers = new StackPane();
             HBox othersBox = new HBox();
             createSpacerHoriz();
@@ -859,7 +857,8 @@ public class ARScannedElementPane extends ARPane {
             //            VBox elements4VBox = new VBox(stackLabelNew, scannedElements4);
 
             //            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, elements3VBox, textFieldVBox);
-            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, textFieldVBox);
+            //            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, textFieldVBox);
+            boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
             //                    .addAll(elements1VBox, elements2VBox, elements3VBox, elements4VBox, textFieldVBox);
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
@@ -1234,7 +1233,7 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        scannedElements1.getItems().addListener(this::addBehaviourToAddedElements);
+        //        scannedElements1.getItems().addListener(this::addBehaviourToAddedElements);
         //        scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
         //        scannedElements3.getItems().addListener(this::addBehaviourToAddedElements);
 
@@ -1469,8 +1468,8 @@ public class ARScannedElementPane extends ARPane {
                     e.printStackTrace();
                 }
 
-                scannedElements1.requestLayout();
-                scannedElements1.refresh();
+                //                scannedElements1.requestLayout();
+                //                scannedElements1.refresh();
                 //                scannedElements2.requestLayout();
                 //                scannedElements2.refresh();
                 bottomPane.requestLayout();
@@ -1480,13 +1479,13 @@ public class ARScannedElementPane extends ARPane {
             browserNotAttached();
         } finally {
 
-            Platform.runLater(() -> {
-                scannedElements1.requestLayout();
-                scannedElements1.refresh();
-                //                scannedElements2.requestLayout();
-                //                scannedElements2.refresh();
-                bottomPane.requestLayout();
-            });
+            //            Platform.runLater(() -> {
+            ////                scannedElements1.requestLayout();
+            ////                scannedElements1.refresh();
+            //                //                scannedElements2.requestLayout();
+            //                //                scannedElements2.refresh();
+            //                bottomPane.requestLayout();
+            //            });
 
             // Close the browser
             arWebDriver.getDriver().switchTo().defaultContent();
@@ -1581,10 +1580,10 @@ public class ARScannedElementPane extends ARPane {
 
                             if (arWebElement != null && arWebElement.getElement() != null) {
                                 if (resultElementSearch) {
-                                    webElementObservableList1.add(arWebElement);
-                                    Platform.runLater(() -> {
-                                        scannedElements1.refresh();
-                                    });
+                                    //                                    webElementObservableList1.add(arWebElement);
+                                    //                                    Platform.runLater(() -> {
+                                    //                                        scannedElements1.refresh();
+                                    //                                    });
                                 } else {
                                     //                                    webElementObservableList2.add(arWebElement);
                                     //                                    Platform.runLater(() -> {
@@ -1884,8 +1883,8 @@ public class ARScannedElementPane extends ARPane {
             if (targetIFrames.getDefinedName() != null) {
                 ARWebElement arWebElement = new ARWebElement(targetIFrames, botJob.getId());
                 if (arWebElement != null && arWebElement.getElement() != null) {
-                    webElementObservableList1.add(arWebElement);
-                    Platform.runLater(() -> scannedElements1.refresh());
+                    //                    webElementObservableList1.add(arWebElement);
+                    //                    Platform.runLater(() -> scannedElements1.refresh());
                 }
                 System.out.println("Found element: " + tagName + " with XPath: " + "xpath ???");
             }
@@ -2039,7 +2038,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void handleSearchTermClick(String[] dataArray) {
-        webElementObservableList1.clear();
+        //        webElementObservableList1.clear();
 
         arWebDriver.getDriver().switchTo().defaultContent();
         checkTestAction.setSelected(false);
@@ -2072,9 +2071,9 @@ public class ARScannedElementPane extends ARPane {
 
     private void manageUIScanIFrames(String searchDesc) {
         ARLogger.getInstance(ARScannedElementPane.class).info("iFrames scan triggered");
-        webElementObservableList1.clear();
+        //        webElementObservableList1.clear();
 
-        boolean scanOk = scanIframesAndElements(webElementObservableList1, searchDesc);
+        //        boolean scanOk = scanIframesAndElements(webElementObservableList1, searchDesc);
     }
 
     private void manageUIScanWithoutNameAndId() {
@@ -2084,13 +2083,15 @@ public class ARScannedElementPane extends ARPane {
         // addProgressBar();
 
         // First Check About the Scanner havina  a Browser Attached
-        boolean scanOk = scanARElementsAsync(
-                null, null, null, webElementObservableList1, "input", "UI Scan \"Inputs\" Without Name And Id");
-        // addProgressBar();
-        if (scanOk) {
-            scanARElementsAsync(
-                    null, null, null, webElementObservableList1, "button", "UI Scan \"Buttons\" Without Name And Id");
-        }
+        //        boolean scanOk = scanARElementsAsync(
+        //                null, null, null, webElementObservableList1, "input", "UI Scan \"Inputs\" Without Name And
+        // Id");
+        //        // addProgressBar();
+        //        if (scanOk) {
+        //            scanARElementsAsync(
+        //                    null, null, null, webElementObservableList1, "button", "UI Scan \"Buttons\" Without Name
+        // And Id");
+        //        }
     }
 
     private void addProgressBar(int items) {
@@ -2111,37 +2112,37 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void manageUIScanAttributeNameFirst() {
-        idAttributeFirst = false;
-        nameAttributeFirst = true;
-        withoutNameAndId = false;
-        scanARElementsAsync(null, null, null, webElementObservableList1, "name", "UI Scan Attribute Name First");
-    }
+    //    private void manageUIScanAttributeNameFirst() {
+    //        idAttributeFirst = false;
+    //        nameAttributeFirst = true;
+    //        withoutNameAndId = false;
+    //        scanARElementsAsync(null, null, null, webElementObservableList1, "name", "UI Scan Attribute Name First");
+    //    }
 
-    private boolean manageUIScanIdsFirst() {
-        idAttributeFirst = true;
-        nameAttributeFirst = false;
-        withoutNameAndId = false;
-        return scanARElementsAsync(null, null, null, webElementObservableList1, "id", "UI Scan Ids First");
-    }
+    //    private boolean manageUIScanIdsFirst() {
+    //        idAttributeFirst = true;
+    //        nameAttributeFirst = false;
+    //        withoutNameAndId = false;
+    //        return scanARElementsAsync(null, null, null, webElementObservableList1, "id", "UI Scan Ids First");
+    //    }
 
-    private void manageUIScanInputs() {
-        List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
-        for (WebElementTagNameEnum tag : inputTags) {
-            // addProgressBar();
-            boolean scanOk = scanARElementsAsync(
-                    null,
-                    By.tagName(tag.getValue()),
-                    ARWebElement::isNotClickable,
-                    webElementObservableList1,
-                    null,
-                    "UI Scan Inputs");
-
-            if (!scanOk) {
-                break;
-            }
-        }
-    }
+    //    private void manageUIScanInputs() {
+    //        List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
+    //        for (WebElementTagNameEnum tag : inputTags) {
+    //            // addProgressBar();
+    //            boolean scanOk = scanARElementsAsync(
+    //                    null,
+    //                    By.tagName(tag.getValue()),
+    //                    ARWebElement::isNotClickable,
+    //                    webElementObservableList1,
+    //                    null,
+    //                    "UI Scan Inputs");
+    //
+    //            if (!scanOk) {
+    //                break;
+    //            }
+    //        }
+    //    }
 
     //    private void manageUIScanClickable() {
     //        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
@@ -2291,10 +2292,12 @@ public class ARScannedElementPane extends ARPane {
                                         ARWebElement arWebElement = new ARWebElement(targetElement, botJob.getId());
                                         if (arWebElement != null) {
                                             listARElements.add(arWebElement);
-                                            Platform.runLater(() -> {
-                                                scannedElements1.requestLayout();
-                                                scannedElements1.refresh();
-                                            });
+                                            //                                            Platform.runLater(() -> {
+                                            //
+                                            // scannedElements1.requestLayout();
+                                            //
+                                            // scannedElements1.refresh();
+                                            //                                            });
                                         }
                                     }
                                     targetElement.reset();
@@ -2394,10 +2397,10 @@ public class ARScannedElementPane extends ARPane {
                     }
                 });
             } else {
-                Platform.runLater(() -> {
-                    scannedElements1.requestLayout();
-                    scannedElements1.refresh();
-                });
+                //                Platform.runLater(() -> {
+                //                    scannedElements1.requestLayout();
+                //                    scannedElements1.refresh();
+                //                });
             }
             return result;
         });
@@ -2579,9 +2582,12 @@ public class ARScannedElementPane extends ARPane {
                                     if (targetIFrames.getDefinedName() != null) {
                                         ARWebElement arWebElement = new ARWebElement(targetIFrames, botJob.getId());
                                         if (arWebElement != null && arWebElement.getElement() != null) {
-                                            webElementObservableList1.add(arWebElement);
-                                            Platform.runLater(() -> scannedElements1.refresh());
-                                            System.out.println("Found element: " + targetIFrames.getDefinedName());
+                                            //
+                                            // webElementObservableList1.add(arWebElement);
+                                            //                                            Platform.runLater(() ->
+                                            // scannedElements1.refresh());
+                                            //                                            System.out.println("Found
+                                            // element: " + targetIFrames.getDefinedName());
                                         }
                                     }
 
@@ -6780,8 +6786,8 @@ public class ARScannedElementPane extends ARPane {
                                     e.printStackTrace();
                                 }
 
-                                scannedElements1.requestLayout();
-                                scannedElements1.refresh();
+                                //                                scannedElements1.requestLayout();
+                                //                                scannedElements1.refresh();
                                 //                                scannedElements2.requestLayout();
                                 //                                scannedElements2.refresh();
                                 bottomPane.requestLayout();
