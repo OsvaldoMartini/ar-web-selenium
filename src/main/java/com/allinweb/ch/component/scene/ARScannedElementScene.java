@@ -9,14 +9,11 @@ import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.Session;
 
 public class ARScannedElementScene extends ARScene {
-    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
 
     private static final Double SCENE_HEIGHT = 650D;
     private static final Double SCENE_WIDTH = 1100D;

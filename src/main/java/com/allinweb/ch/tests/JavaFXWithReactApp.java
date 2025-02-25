@@ -138,7 +138,7 @@ public class JavaFXWithReactApp extends Application {
 
     public void startWebSocketServer() throws Exception {
         // Set up Jetty server to run WebSocket endpoint
-        jettyServer = new Server(8080); // Server listens on port 8080
+        jettyServer = new Server(8181); // Server listens on port 8080
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         jettyServer.setHandler(context);

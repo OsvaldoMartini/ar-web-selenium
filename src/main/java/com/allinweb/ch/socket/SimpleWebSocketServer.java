@@ -7,6 +7,7 @@ import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
+import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
@@ -189,16 +190,15 @@ public class SimpleWebSocketServer {
         // Dispatch to the correct method based on the message type
         switch (type) {
             case "SEARCH_TOOL":
-            case "NEW_ELEMENT_DTO":
-            case "DEL_ELEMENT_DTO":
                 // Extract the "body" field from the JsonObject
                 ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
-                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " + elementSplitDTO.getDetails().length);
+                //                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " +
+                // elementSplitDTO.getDetails().length);
                 String jsonData = gson.toJson(elementSplitDTO);
                 if (!Strings.isNullOrEmpty(elementSplitDTO.getSessionId())) {
                     sessionId = elementSplitDTO.getSessionId();
                     sendMessageJson(sessionId, jsonData, null);
-                    broadcastMessageToAll(jsonData);
+                    //                    broadcastMessageToAll(jsonData);
                     performMessage.outputJsonElementDTO(elementSplitDTO.getDetails());
 
                 } else {
@@ -208,6 +208,13 @@ public class SimpleWebSocketServer {
                         sendMessageJson(sessionDest, jsonData, null);
                     } else broadcastMessageToAll(jsonData);
                 }
+                break;
+            case "NEW_ELEMENT_DTO":
+            case "DEL_ELEMENT_DTO":
+            case "DETAILS_ELEMENT_DTO":
+                // Extract the "body" field from the JsonObject
+                ElementSplitDTO processDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+                middleWareMsg(processDTO);
                 break;
             case "RESPONSE_BACK":
                 // Extract the "body" field from the JsonObject
@@ -344,6 +351,16 @@ public class SimpleWebSocketServer {
             default:
                 sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
                 break;
+        }
+    }
+
+    private void middleWareMsg(ElementSplitDTO processDTO) {
+        if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
+            ElementDTO elementDTO = processDTO.getDetails()[0];
+            if (processDTO.getType().equals("DETAILS_ELEMENT_DTO")) {
+                sendMessageJson(
+                        "scannerReceiver", "Action type : \"" + "scannerReceiver" + "\"", "cannot be processed");
+            }
         }
     }
 

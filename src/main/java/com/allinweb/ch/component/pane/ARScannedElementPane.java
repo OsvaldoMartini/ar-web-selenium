@@ -36,6 +36,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.text.SimpleDateFormat;
@@ -43,7 +44,6 @@ import java.time.Duration;
 import java.util.*;
 import java.util.Date;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -80,7 +80,14 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 import javax.net.ssl.*;
+import javax.websocket.ClientEndpoint;
+import javax.websocket.ContainerProvider;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.OnOpen;
 import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -89,17 +96,75 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.support.pagefactory.ByChained;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+@ClientEndpoint
 public class ARScannedElementPane extends ARPane {
-    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+    private static Map<String, Session> activeSessions;
 
-    //    private Stage compStage;
     private final Gson gson = new Gson();
+
+    @OnOpen
+    public void onOpen(Session session) {
+        this.session = session;
+        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+
+        // Sending an initial message
+        sendMessage("Hello from JavaFX WebSocket client!");
+    }
+
+    @OnMessage
+    public void onMessage(String message) {
+        System.out.println("Received: " + message);
+
+        // Updating UI from WebSocket message (MUST be on JavaFX Thread)
+        Platform.runLater(() -> {
+            // Example: Update some UI component (e.g., a Label)
+            // myLabel.setText("Received: " + message);
+        });
+    }
+
+    @OnClose
+    public void onClose(Session session) {
+        System.out.println("Connection closed.");
+    }
+
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        System.out.println("Error: " + throwable.getMessage());
+    }
+
+    // Method to send a message
+    public void sendMessage(String message) {
+        executorWebSocket.submit(() -> {
+            //            if (session != null && session.isOpen()) {
+            //                try {
+            //                    session.getBasicRemote().sendText(message);
+            //                } catch (Exception e) {
+            //                    e.printStackTrace();
+            //                }
+            //            }
+        });
+    }
+
+    private void connectWebSocketClient(int portSocket, String sessionId) {
+        String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
+        executorWebSocket.submit(() -> {
+            try {
+                WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+                container.connectToServer(this, new URI(serverUri));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
 
     private int currentTabIndex = 0; // Track the currently active tab index
     public ARWebDriver arWebDriver;
     private Set<String> windowHandles;
     private WebElement previousElement = null;
     private WebElement currentElement = null;
+
+    private Session session;
+    private static final ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
 
     private ExecutorService executorService;
     private static final int SECONDS = 3; // Total seconds for the countdown
@@ -264,10 +329,14 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public ARScannedElementPane(BotJobDTO botJob, BlockDTO blockJob, ARWebDriver arWebDriver) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+
         String port = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
             portSocket = Integer.parseInt(port);
         }
+
+        connectWebSocketClient(portSocket, "scannerReceiver");
 
         searchHiddenFields = false;
 
@@ -350,8 +419,6 @@ public class ARScannedElementPane extends ARPane {
                 "scannerGrid"; // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks / Default
         // session
         buildWebView(jsonData, portSocket, sessionId);
-
-        activeSessions = SimpleWebSocketServer.getAllSessions();
 
         componentBox = new HBox(new Node[] {this.webView});
 
