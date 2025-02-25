@@ -12,6 +12,7 @@ import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -31,7 +32,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -56,7 +58,10 @@ import javax.websocket.Session;
 
 public class ARNewCommandPane extends ARPane {
 
-    private Set<Session> sessions;
+    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+
+    private Session session;
+    private String sessionId;
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformDataBase performDataBase;
@@ -187,11 +192,13 @@ public class ARNewCommandPane extends ARPane {
             RowMoveDTO rowMoveDTO,
             BotJobLoadDTO botJobLoad,
             ObservableList<ComboBoxVars> webPageItems,
-            Set<Session> sessions) {
+            Session session,
+            String sessionId) {
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
-        this.sessions = sessions;
+        this.session = session;
+        this.sessionId = sessionId;
 
         //        if (this.botJobLoad.getBlockLoadDTOList() == null) {
         //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
@@ -2323,7 +2330,8 @@ public class ARNewCommandPane extends ARPane {
                                 performDataBase.buildJsonViewData(botJobLoadList);
 
                         String jsonData = gson.toJson(blockLoopInstructions);
-                        broadcastMessageToAll(jsonData);
+                        //                        broadcastMessageToAll(jsonData);
+                        sendMessageJson(sessionId, jsonData, null);
                     }
 
                     showAlertTimer(
@@ -2488,13 +2496,43 @@ public class ARNewCommandPane extends ARPane {
     //        return null;
     //    }
 
+    //    private void broadcastMessageToAll(String message) {
+    //        synchronized (sessions) {
+    //            for (Session session : sessions) {
+    //                if (session.isOpen()) {
+    //                    sendMessageJson(session, "data_updated", message);
+    //                }
+    //            }
+    //        }
+    //    }
+
     private void broadcastMessageToAll(String message) {
-        synchronized (sessions) {
-            for (Session session : sessions) {
-                if (session.isOpen()) {
-                    sendMessageJson(session, "data_updated", message);
-                }
+        if (activeSessions == null) {
+            activeSessions = SimpleWebSocketServer.getAllSessions();
+        }
+        for (Session session : activeSessions.values()) { // Looping correctly
+            if (session.isOpen()) {
+                sendMessageJson(session, message, null);
             }
+        }
+    }
+
+    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+        Session session = activeSessions.get(sessionId);
+
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("body", msg1);
+                if (msg2 != null && !msg2.isEmpty()) {
+                    jsonMessage.addProperty("footer", msg2);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 

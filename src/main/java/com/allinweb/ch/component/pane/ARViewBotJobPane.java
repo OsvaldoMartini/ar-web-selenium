@@ -82,7 +82,8 @@ import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainer
 public class ARViewBotJobPane extends ARPane {
 
     // Set to hold all active WebSocket sessions
-    private static Set<Session> activeSessions = new HashSet<>();
+    private static Map<String, Session> activeSessions;
+    private String sessionId;
 
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
@@ -181,6 +182,7 @@ public class ARViewBotJobPane extends ARPane {
 
     public void initUIComponents() {
         int port = 8080;
+        sessionId = "botJobTasks";
 
         String portSocket = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
         if (portSocket != null) {
@@ -434,7 +436,7 @@ public class ARViewBotJobPane extends ARPane {
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
-        buildWebView(jsonData, finalPort);
+        buildWebView(jsonData, finalPort, sessionId);
 
         componentBox = new HBox(new Node[] {this.webView});
 
@@ -523,7 +525,7 @@ public class ARViewBotJobPane extends ARPane {
         }
     }
 
-    private void buildWebView(String jsonData, int finalPort) {
+    private void buildWebView(String jsonData, int finalPort, String sessionIdFromJava) {
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
@@ -531,7 +533,7 @@ public class ARViewBotJobPane extends ARPane {
                 // After the page has successfully loaded
                 try {
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData + "), " + finalPort + ") }, 1000)");
+                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "' ) }, 1000)");
                 } catch (Exception e) {
                     ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
                 }
@@ -889,8 +891,6 @@ public class ARViewBotJobPane extends ARPane {
         try {
             Platform.runLater(() -> {
                 try {
-
-                    activeSessions = SimpleWebSocketServer.getAllSessions();
                     // Call the ARScannedElementScene here
                     ARScannedElementScene scene = arScannedElementScene.initialize(
                             homeBankingLoadDTO.getPriority(),
@@ -904,8 +904,7 @@ public class ARViewBotJobPane extends ARPane {
                                             .getBlockLoadDTOList()
                                             .get(0)
                                             .getId()
-                                    : null,
-                            activeSessions);
+                                    : null);
 
                     scene.show(); // Make sure the scene is shown
                 } catch (Exception ex) {

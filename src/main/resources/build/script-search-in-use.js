@@ -1,4 +1,4 @@
-(function (searchTerms, hiddenFields, socketPort, sessionId, sessionDest) {
+(function (searchTerms, hiddenFields, socketPort, sessionId, operationId) {
   let attempts = 0;
   let maxAttempts = 100;
   let wSocket = null;
@@ -8,7 +8,7 @@
   window.searchTerms = searchTerms;
   window.allElementInfo = [];
   window.sessionId = sessionId;
-  window.sessionDest = sessionDest;
+  window.operationId = operationId;
   // var elementInfoSubmit = new Map();
 
   function connectWebSocket() {
@@ -31,6 +31,7 @@
           const subscriptionMessage = {
             type: "echo",
             sessionId: window.sessionId,
+            operationId: "test echo",
             body: "subscribe",
           };
           wSocket.send(JSON.stringify(subscriptionMessage));
@@ -481,7 +482,8 @@
     if (wSocket && wSocket.readyState === WebSocket.OPEN) {
       const message = {
         type: "SEARCH_TOOL",
-        sessionId: window.sessionDest,
+        sessionId: window.sessionId,
+        operationId: window.operationId,
         details: window.allElementInfo, // Send allElementInfo
       };
       wSocket.send(JSON.stringify(message));
@@ -833,8 +835,8 @@
   // init("Initiate");
   // window.initSearchTerms = null; // Invalidating the function
 })(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-// })([], false, 8181, "searchTermsId", "scannerDestDTO");
-// })(["with name"], false, 8181, "searchTermsId", "scannerDestDTO");
-// })(["input", "button", "a"], false, 8181, "searchTermsId", "scannerDestDTO");
-// })(["*"], false, 8181, "searchTermsId", "scannerDestDTO");
-// })(["button"], false, 8181, "searchTermsId", "scannerDestDTO");
+// })([], false, 8181, "scannerDestDTO", "searchTerms");
+// })(["with name"], false, 8181, "scannerDestDTO", "searchTerms");
+// })(["input", "button", "a"], false, 8181, "scannerDestDTO", "searchTerms");
+// })(["*"], false, 8181, "scannerDestDTO", "searchTerms");
+// })(["button"], false, 8181, "scannerDestDTO", "searchTerms");

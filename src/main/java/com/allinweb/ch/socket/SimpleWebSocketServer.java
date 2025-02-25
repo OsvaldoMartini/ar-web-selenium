@@ -29,12 +29,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -76,6 +73,10 @@ public class SimpleWebSocketServer {
         activeSessions.remove(sessionId);
     }
 
+    public static Map<String, Session> getAllSessions() {
+        return activeSessions;
+    }
+
     private String generateCustomSessionId(Session session) {
         // Get the current date in yyyyMMdd format
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
@@ -96,7 +97,6 @@ public class SimpleWebSocketServer {
     }
 
     // Store all connected sessions
-    private static final Set<Session> sessions = Collections.synchronizedSet(new HashSet<>());
     private final Gson gson = new Gson();
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
@@ -106,19 +106,18 @@ public class SimpleWebSocketServer {
         String sessionId = null;
         try {
             sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+
             if (!Strings.isNullOrEmpty(sessionId)) {
                 addSession(sessionId, session);
             } else {
                 addSession(generateCustomSessionId(session), session);
             }
-            sessions.add(session);
         } catch (Exception noSessionId) {
             addSession(generateCustomSessionId(session), session);
         }
 
         if (sessionId != null) {
             addSession(sessionId, session); // Store the session with the custom ID
-            sessions.add(session);
             System.out.println("New connection: Custom Session ID = " + sessionId);
         } else {
             System.out.println("No session ID provided by client");
@@ -140,6 +139,28 @@ public class SimpleWebSocketServer {
             String sessionId =
                     jsonMessage.has("sessionId") ? jsonMessage.get("sessionId").getAsString() : "unknown";
 
+            // if Not have Session and does not Exist into the activeSessions
+            // Is Going to Handle the Control
+            if (Strings.isNullOrEmpty(sessionId)) {
+                sessionId = null;
+                try {
+                    sessionId =
+                            session.getRequestParameterMap().get("sessionId").get(0);
+                    if (!Strings.isNullOrEmpty(sessionId)) {
+                        if (!activeSessions.containsKey(sessionId)) {
+                            if (!activeSessions.get(sessionId).isOpen()) {
+                                addSession(sessionId, session);
+                            }
+                        }
+                    } else {
+                        addSession(generateCustomSessionId(session), session);
+                    }
+
+                } catch (Exception noSessionId) {
+                    addSession(generateCustomSessionId(session), session);
+                }
+            }
+
             // Process the message based on its type
             switch (type) {
                 case "broadcast":
@@ -151,7 +172,7 @@ public class SimpleWebSocketServer {
                             sessionId, "Echo: " + jsonMessage.get("body").getAsString(), "sessionId: " + sessionId);
                     break;
                 default:
-                    handleMessageByType(type, jsonMessage, session);
+                    handleMessageByType(type, jsonMessage, session, sessionId);
                     break;
             }
         } catch (Exception error) {
@@ -164,24 +185,8 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void handleMessageByType(String type, JsonObject jsonEntry, Session session) {
+    private void handleMessageByType(String type, JsonObject jsonEntry, Session session, String sessionId) {
         // Dispatch to the correct method based on the message type
-        String sessionId = null;
-        try {
-            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
-            if (!Strings.isNullOrEmpty(sessionId)) {
-                if (!activeSessions.containsKey(sessionId)) {
-                    if (!activeSessions.get(sessionId).isOpen()) {
-                        addSession(sessionId, session);
-                    }
-                }
-            } else {
-                addSession(generateCustomSessionId(session), session);
-            }
-        } catch (Exception noSessionId) {
-            addSession(generateCustomSessionId(session), session);
-        }
-
         switch (type) {
             case "SEARCH_TOOL":
             case "NEW_ELEMENT_DTO":
@@ -249,8 +254,24 @@ public class SimpleWebSocketServer {
             case "INSERT_BEFORE_ELSEIF":
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-                injectStepAfterOrBefore(sessions, insertBeforeDTO);
-                sendMessageJson(session, "Success INSERT Actions", "no Rows were detected!");
+                if (activeSessions.containsKey(sessionId)) {
+                    session = activeSessions.get(sessionId);
+                    if (session.isOpen()) {
+                        injectStepAfterOrBefore(session, sessionId, insertBeforeDTO);
+                    } else {
+                        performMessage.errorMessage(
+                                "Session Not Active",
+                                "Session Id: " + sessionId + " is Not active!",
+                                null,
+                                null,
+                                null,
+                                0);
+                    }
+
+                } else {
+                    performMessage.errorMessage(
+                            "Session Not Created", "Session Id: " + sessionId + " Dos Not Exist!", null, null, null, 0);
+                }
                 break;
             case "BLOCK_EXCEL_FILE":
                 BlockDetailsDTO blockExcelDTO = gson.fromJson(jsonEntry, BlockDetailsDTO.class);
@@ -331,7 +352,6 @@ public class SimpleWebSocketServer {
         String sessionId = getSessionIdBySession(session);
         if (sessionId != null) {
             removeSession(sessionId);
-            sessions.remove(session);
             System.out.println("Connection closed: Session ID = " + sessionId);
         }
     }
@@ -358,14 +378,22 @@ public class SimpleWebSocketServer {
     }
 
     private void broadcastMessageToAll(String message) {
-        synchronized (sessions) {
-            for (Session session : sessions) {
-                if (session.isOpen()) {
-                    sendMessageJson(session, message, null);
-                }
+        for (Session session : activeSessions.values()) { // Looping correctly
+            if (session.isOpen()) {
+                sendMessageJson(session, message, null);
             }
         }
     }
+
+    //    private void broadcastMessageToAll(String message) {
+    //        synchronized (sessions) {
+    //            for (Session session : sessions) {
+    //                if (session.isOpen()) {
+    //                    sendMessageJson(session, message, null);
+    //                }
+    //            }
+    //        }
+    //    }
 
     private void sendMessage(Session session, String message) {
         try {
@@ -462,7 +490,7 @@ public class SimpleWebSocketServer {
         // Add business logic to handle ROW_MOVE
     }
 
-    private void injectStepAfterOrBefore(Set<Session> sessions, RowMoveDTO rowMoveDTO) {
+    private void injectStepAfterOrBefore(Session session, String sessionId, RowMoveDTO rowMoveDTO) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
@@ -478,7 +506,7 @@ public class SimpleWebSocketServer {
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
                     ARNewCommandScene newCommandScene =
-                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
+                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, session, sessionId);
                     newCommandScene.show();
                 });
             } else {
@@ -535,10 +563,5 @@ public class SimpleWebSocketServer {
                     new ARSaveComponentScene(componentBlockDTO, blockDTO, blockSplitDTO.getDetails());
             newSaveBlockScene.showModal();
         });
-    }
-
-    // This method can be used to get all active WebSocket sessions
-    public static Set<Session> getAllSessions() {
-        return sessions;
     }
 }

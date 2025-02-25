@@ -6,7 +6,6 @@ import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ComboBoxVars;
-import java.util.Set;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -21,23 +20,26 @@ public class ARNewCommandScene extends ARScene {
     private RowMoveDTO rowMoveDTO;
     private BotJobLoadDTO botJobLoad;
     private ObservableList<ComboBoxVars> webPageItems;
-    private Set<Session> sessions;
+    private Session session;
+    private String sessionId;
 
     public ARNewCommandScene(
             RowMoveDTO rowMoveDTO,
             BotJobLoadDTO botJobLoad,
             ObservableList<ComboBoxVars> webPageItems,
-            Set<Session> sessions) {
+            Session session,
+            String sessionId) {
         super();
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
-        this.sessions = sessions;
+        this.session = session;
+        this.sessionId = sessionId;
     }
 
     @Override
     public IARPane buildPane() {
-        return new ARNewCommandPane(rowMoveDTO, botJobLoad, webPageItems, sessions);
+        return new ARNewCommandPane(rowMoveDTO, botJobLoad, webPageItems, session, sessionId);
     }
 
     @Override

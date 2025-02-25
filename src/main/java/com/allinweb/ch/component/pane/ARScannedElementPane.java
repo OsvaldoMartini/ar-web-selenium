@@ -29,6 +29,7 @@ import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
+import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -44,6 +45,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.Date;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -90,10 +92,10 @@ import org.openqa.selenium.support.pagefactory.ByChained;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ARScannedElementPane extends ARPane {
+    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
 
     //    private Stage compStage;
     private final Gson gson = new Gson();
-    private Set<Session> sessions;
 
     private int currentTabIndex = 0; // Track the currently active tab index
     public ARWebDriver arWebDriver;
@@ -239,6 +241,8 @@ public class ARScannedElementPane extends ARPane {
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final IframeInputLocator iframeInputLocator;
     private int portSocket = 8080;
+    private String sessionId;
+
     private String[] defaultSearch;
     private boolean searchHiddenFields;
     private String xpathTextPrevious;
@@ -261,8 +265,7 @@ public class ARScannedElementPane extends ARPane {
         return arWebDriver;
     }
 
-    public ARScannedElementPane(BotJobDTO botJob, BlockDTO blockJob, ARWebDriver arWebDriver, Set<Session> sessions) {
-        this.sessions = sessions;
+    public ARScannedElementPane(BotJobDTO botJob, BlockDTO blockJob, ARWebDriver arWebDriver) {
         String port = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
             portSocket = Integer.parseInt(port);
@@ -340,12 +343,15 @@ public class ARScannedElementPane extends ARPane {
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
-        String jsonData =
-                """
+        String jsonData = """
                 []
                 """;
 
-        buildWebView(jsonData, portSocket);
+        // sessionIdFromJava
+        sessionId = "scannerDestDTO";
+        buildWebView(jsonData, portSocket, sessionId);
+
+        activeSessions = SimpleWebSocketServer.getAllSessions();
 
         componentBox = new HBox(new Node[] {this.webView});
 
@@ -374,8 +380,8 @@ public class ARScannedElementPane extends ARPane {
                 defaultSearch,
                 searchHiddenFields,
                 portSocket,
-                "searchTermsId",
-                "scannerDestDTO");
+                "scannerDestDTO",
+                "searchTerms");
 
         performAction.getIframeElementsMap();
 
@@ -384,7 +390,7 @@ public class ARScannedElementPane extends ARPane {
         buildUIComponents();
     }
 
-    private void buildWebView(String jsonData, int finalPort) {
+    private void buildWebView(String jsonData, int finalPort, String sessionIdFromJava) {
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
@@ -392,7 +398,7 @@ public class ARScannedElementPane extends ARPane {
                 // After the page has successfully loaded
                 try {
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData + "), " + finalPort + ") }, 1000)");
+                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "' ) }, 1000)");
                 } catch (Exception e) {
                     ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
                 }
@@ -3733,7 +3739,10 @@ public class ARScannedElementPane extends ARPane {
                                                         performDataBase.buildJsonViewData(botJobLoadList);
 
                                                 String jsonData = gson.toJson(blockLoopInstructions);
-                                                broadcastMessageToAll(jsonData);
+                                                //
+                                                // broadcastMessageToAll(jsonData);
+
+                                                sendMessageJson(sessionId, jsonData, null);
                                             }
 
                                             performMessage.showAlertCombinedVBOX(
@@ -4572,7 +4581,7 @@ public class ARScannedElementPane extends ARPane {
 
     private void periodicSearchThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
         ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
-                driver, currentUrl, dataArray, searchHiddenFields, port, "searchTermsId", "scannerDestDTO");
+                driver, currentUrl, dataArray, searchHiddenFields, port, "scannerDestDTO", "searchTerms");
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
@@ -7217,13 +7226,43 @@ public class ARScannedElementPane extends ARPane {
         return button;
     }
 
+    //    private void broadcastMessageToAll(String message) {
+    //        synchronized (sessions) {
+    //            for (Session session : sessions) {
+    //                if (session.isOpen()) {
+    //                    sendMessageJson(session, "data_updated", message);
+    //                }
+    //            }
+    //        }
+    //    }
+
     private void broadcastMessageToAll(String message) {
-        synchronized (sessions) {
-            for (Session session : sessions) {
-                if (session.isOpen()) {
-                    sendMessageJson(session, "data_updated", message);
-                }
+        if (activeSessions == null) {
+            activeSessions = SimpleWebSocketServer.getAllSessions();
+        }
+        for (Session session : activeSessions.values()) { // Looping correctly
+            if (session.isOpen()) {
+                sendMessageJson(session, message, null);
             }
+        }
+    }
+
+    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+        Session session = activeSessions.get(sessionId);
+
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("body", msg1);
+                if (msg2 != null && !msg2.isEmpty()) {
+                    jsonMessage.addProperty("footer", msg2);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 

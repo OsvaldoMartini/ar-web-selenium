@@ -9,12 +9,14 @@ import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
 import java.time.format.DateTimeFormatter;
-import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.Session;
 
 public class ARScannedElementScene extends ARScene {
+    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
 
     private static final Double SCENE_HEIGHT = 650D;
     private static final Double SCENE_WIDTH = 1100D;
@@ -40,13 +42,13 @@ public class ARScannedElementScene extends ARScene {
     private Integer botJobId;
     private Integer blockId;
     private String priority;
-    private Set<Session> sessions;
+    private Session session;
+    private String sessionId;
 
-    public ARScannedElementScene initialize(String priority, Integer botJobId, Integer blockId, Set<Session> sessions) {
+    public ARScannedElementScene initialize(String priority, Integer botJobId, Integer blockId) {
         this.priority = priority;
         this.botJobId = botJobId;
         this.blockId = blockId;
-        this.sessions = sessions;
         return this;
     }
 
@@ -56,8 +58,7 @@ public class ARScannedElementScene extends ARScene {
         return new ARScannedElementPane(
                 ARSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId),
                 blockId != null ? ARSharedResources.getInstance().getEntityById(BlockDTO.class, blockId) : null,
-                arWebDriver,
-                sessions);
+                arWebDriver);
     }
 
     @Override

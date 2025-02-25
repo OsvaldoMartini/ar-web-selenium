@@ -6,6 +6,8 @@ import lombok.Data;
 @Data
 public class RowMoveDTO {
     private String type;
+    private String sessionId;
+    private String operationId;
     private Integer botJobId;
     private String botJobName;
     private Integer blockId;
