@@ -156,9 +156,17 @@ public class ARWebElement {
         initUI();
 
         try {
-            if (arPriorities.getAllPriorityList().size() == 0) {
-                arPriorities.loadPriorities();
-                ARLogger.getInstance(Thread.class).finer("Reloaded arPriorities.loadPriorities()");
+            if (arPriorities.getAllPriorityList() == null
+                    || arPriorities.getAllPriorityList().size() == 0) {
+                StringBuilder priorMissing = new StringBuilder();
+                priorMissing.append("1,xpath,currentXPath" + System.lineSeparator());
+                priorMissing.append("2,attributeID,attributeID" + System.lineSeparator());
+                priorMissing.append("3,attributeName,attributeName" + System.lineSeparator());
+                priorMissing.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
+                priorMissing.append("5,coordinates,coordinates" + System.lineSeparator());
+                priorMissing.append("6,attribute,test-id" + System.lineSeparator());
+                arPriorities.loadPrioritiesFromString(priorMissing.toString());
+                ARLogger.getInstance(Thread.class).finer("Reloaded arPriorities.loadPrioritiesFromString()");
             }
 
             if (targetElement.getMainXPath() == null && arPriorities.getJobId() != null) {
@@ -236,7 +244,7 @@ public class ARWebElement {
                 if (targetElement != null
                         && targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.REGULAR_XPATH)) {
                     savedReferences.put("currentXPath", targetElement.getCurrentXPath());
-                    savedReferences.put("customXPath", targetElement.getCustomXPath());
+                    //                    savedReferences.put("customXPath", targetElement.getCustomXPath());
                     savedReferences.put("allAttributes", targetElement.getAllAttributes());
                     if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
                         savedReferences.put("attributeID", targetElement.getAttribId());
@@ -249,7 +257,7 @@ public class ARWebElement {
                     }
                 } else if (targetElement.getXPathWorkedFirst().equalsIgnoreCase(ARConstants.CUSTOM_XPATH)) {
                     savedReferences.put("currentXPath", targetElement.getCurrentXPath());
-                    savedReferences.put("customXPath", targetElement.getCustomXPath());
+                    //                    savedReferences.put("customXPath", targetElement.getCustomXPath());
                     savedReferences.put("allAttributes", targetElement.getAllAttributes());
                     if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
                         savedReferences.put("attributeID", targetElement.getAttribId());

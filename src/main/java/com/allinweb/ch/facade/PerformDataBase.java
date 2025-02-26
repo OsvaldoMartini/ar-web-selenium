@@ -4035,6 +4035,10 @@ public class PerformDataBase {
 
             for (InstructionReferenceLoadDTO reference : queue) {
 
+                if (reference.getReferenceType().equalsIgnoreCase("customXPath")) {
+                    continue;
+                }
+
                 // Set parameters
                 pstmt.setInt(1, currentId);
                 pstmt.setString(2, reference.getReferenceType());

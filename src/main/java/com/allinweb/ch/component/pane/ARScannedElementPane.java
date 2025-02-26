@@ -3704,24 +3704,14 @@ public class ARScannedElementPane extends ARPane {
 
                                         } else {
 
-                                            Text variableText1Styled =
-                                                    new Text("The Instruction " + instruction.getName() + " with "
-                                                            + queue.size() + " reference locators"
-                                                            + "\nWas Added!"
-                                                            + "\nTHE ENGINE IS GOING TO FAIL FOR THIS ELEMENT");
-                                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                                            VBox combinedTextContainer = new VBox();
-                                            combinedTextContainer.setSpacing(5); // Add some sp
-
-                                            combinedTextContainer.getChildren().add(variableText1Styled);
-
-                                            performMessage.showAlertCombinedVBOX(
-                                                    Alert.AlertType.ERROR,
-                                                    "Web Instruction Failed",
-                                                    "Add Web Instruction FAILED",
-                                                    null,
-                                                    combinedTextContainer);
+                                            performMessage.errorMessage(
+                                                    "Web Instruction Warning",
+                                                    "Potential Issue with Web Instruction",
+                                                    "The instruction \"" + instruction.getName() + "\" was added with "
+                                                            + queue.size() + " reference locators.",
+                                                    "However, the engine may not process this element correctly",
+                                                    "due to insufficient identifiable attributes.",
+                                                    0);
                                         }
                                     });
                                 } catch (Exception ex) {
