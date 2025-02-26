@@ -5,6 +5,7 @@ import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.persistence.ComponentInstructionDTO;
 import com.allinweb.ch.util.ARConstants;
+import java.util.ArrayList;
 import java.util.List;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -26,7 +27,7 @@ public class SavedBlockLoopInstructionListCell extends ListCell<ComponentInstruc
         super.updateItem(item, empty);
         Node graphic = null;
 
-        if (!empty && item != null && item.getBlock() != null) {
+        if (!empty && item != null && item.getBlockId() != null) {
             ImageView clickImage;
             ImageView insertImage;
             Label nameLabel;
@@ -80,10 +81,9 @@ public class SavedBlockLoopInstructionListCell extends ListCell<ComponentInstruc
                 ARSharedResources.getInstance().getEntityById(ComponentInstructionDTO.class, instruction.getId());
         int order = currentInstruction.getInstructionOrderNumber();
 
-        ComponentBlockDTO block = ARSharedResources.getInstance()
-                .getEntityById(
-                        ComponentBlockDTO.class, currentInstruction.getBlock().getId());
-        List<ComponentInstructionDTO> instructionList = block.getSavedBlockLoopInstructions();
+        ComponentBlockDTO block =
+                ARSharedResources.getInstance().getEntityById(ComponentBlockDTO.class, currentInstruction.getBlockId());
+        List<ComponentInstructionDTO> instructionList = new ArrayList<>(); // block.getSavedBlockLoopInstructions();
         ComponentInstructionDTO instructionToChange = instructionList.stream()
                 .filter(i -> i.getInstructionOrderNumber() == order + directionQuantity)
                 .findFirst()

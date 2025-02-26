@@ -495,7 +495,7 @@ public class ARSaveComponentPane extends ARPane {
                     warningMSG("Error creating a new componen! Please try again.");
                 }
 
-                //                ARSharedResources.getInstance().changeDbConnection();
+                //                ARSharedResources.getInstance().changeDbConnection(previousDB);
 
                 //                Close();
             } else {
@@ -563,56 +563,60 @@ public class ARSaveComponentPane extends ARPane {
     //        return newId;
     //    }
 
-    private boolean insertComponentReferences(ComponentReferenceDTO referenceDTO, int instructionId) {
+    //    private boolean insertComponentReferences(ComponentReferenceDTO referenceDTO, int instructionId) {
+    //
+    //        // Generate a Unique-ID for the block
+    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
+    //
+    //            // Fetch instructionId from savedBlockLoopInstructionDTO
+    //
+    //            Integer nextId = loadNextIdBReferenceData() + 1;
+    //
+    //            // Build the SQL insert query
+    //            String insertSQL = "INSERT INTO component_reference(id, reference_type, value, instruction_id) VALUES
+    // ("
+    //                    + nextId + ", "
+    //                    + "'" + referenceDTO.getReferenceType() + "', "
+    //                    + "'" + referenceDTO.getValue() + "', " // name
+    //                    + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
+    //
+    //            int rowsAffected = stmt.executeUpdate(insertSQL);
+    //            if (rowsAffected > 0) {
+    //                ARLogger.getInstance(ARViewBotJobPane.class)
+    //                        .info(String.format(
+    //                                "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type:
+    // %s\nValue: %s\nInstructionId: %d",
+    //                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
+    //            } else {
+    //                ARLogger.getInstance(ARViewBotJobPane.class)
+    //                        .warning(String.format(
+    //                                "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue:
+    // %s\nInstructionId: %d",
+    //                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
+    //            }
+    //
+    //            return true;
+    //        } catch (SQLException e) {
+    //            ARLogger.getInstance(ARViewBotJobPane.class)
+    //                    .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
+    //            return false;
+    //        }
+    //    }
 
-        // Generate a Unique-ID for the block
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
-
-            // Fetch instructionId from savedBlockLoopInstructionDTO
-
-            Integer nextId = loadNextIdBReferenceData() + 1;
-
-            // Build the SQL insert query
-            String insertSQL = "INSERT INTO component_reference(id, reference_type, value, instruction_id) VALUES ("
-                    + nextId + ", "
-                    + "'" + referenceDTO.getReferenceType() + "', "
-                    + "'" + referenceDTO.getValue() + "', " // name
-                    + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
-
-            int rowsAffected = stmt.executeUpdate(insertSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(ARViewBotJobPane.class)
-                        .info(String.format(
-                                "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
-                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
-            } else {
-                ARLogger.getInstance(ARViewBotJobPane.class)
-                        .warning(String.format(
-                                "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
-                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
-            }
-
-            return true;
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class)
-                    .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
-            return false;
-        }
-    }
-
-    private Integer loadNextIdBReferenceData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_reference";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
+    //    private Integer loadNextIdBReferenceData() {
+    //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+    //        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_reference";
+    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
+    //            while (rs.next()) {
+    //                return rs.getInt("max_id");
+    //            }
+    //        } catch (SQLException e) {
+    //            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " +
+    // e.getMessage());
+    //        }
+    //        return null;
+    //    }
 
     private void Close() {
         Platform.runLater(() -> {

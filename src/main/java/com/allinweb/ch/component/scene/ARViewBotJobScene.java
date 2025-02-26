@@ -70,6 +70,7 @@ public class ARViewBotJobScene extends ARScene {
             newBlockDetails.setTypeId(1);
             newBlockDetails.setActive(true);
             newBlockDetails.setWait(3);
+            newBlockDetails.setBlockOrderNumber(1);
 
             newBlockDetails.setBotJobId(this.botLoadJob.getId());
 

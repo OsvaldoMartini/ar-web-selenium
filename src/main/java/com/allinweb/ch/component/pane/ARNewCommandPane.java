@@ -1512,7 +1512,7 @@ public class ARNewCommandPane extends ARPane {
                         this.rowMoveDTO);
             }
 
-            ARSharedResources.getInstance().changeDbConnection();
+            //            ARSharedResources.getInstance().changeDbConnection(previousDB);
         });
 
         // Add a listener to print the ID when the selection changes

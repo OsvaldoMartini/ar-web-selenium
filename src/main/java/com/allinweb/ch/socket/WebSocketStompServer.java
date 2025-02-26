@@ -14,8 +14,6 @@ import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
-import com.allinweb.ch.core.ARSharedResources;
-import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
@@ -62,11 +60,11 @@ public class WebSocketStompServer {
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     private static final PerformDataBase performDataBase;
-    private static final PerformDBSavedBlock performDBSavedBlock;
+    //    private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
-        performDBSavedBlock = PerformDBSavedBlock.getInstance();
+        //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
     }
 
     public int getBotJobId() {
@@ -93,17 +91,17 @@ public class WebSocketStompServer {
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(body, BlockSplitDTO.class);
                 splitBlocks(blockSplitDTO);
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_MOVE":
                 BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
                 moveBlock(blockMoveDTO);
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "ROW_UPDATE":
                 RowMoveDTO rowUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
                 rowUpdate(rowUpdateDTO);
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
@@ -115,7 +113,7 @@ public class WebSocketStompServer {
                             performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
                 }
                 sendMessageToAll("ROW_MOVE");
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "INSERT_BEFORE":
             case "INSERT_AFTER":
@@ -125,12 +123,12 @@ public class WebSocketStompServer {
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
                 injectStepAfterOrBefore(insertBeforeDTO, session);
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_EXCEL_FILE":
                 BlockDetailsDTO blockExcelDTO = gson.fromJson(body, BlockDetailsDTO.class);
                 excelFileBlock(blockExcelDTO);
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_ORDER":
                 BlockOrderDTO blockReorder = gson.fromJson(body, BlockOrderDTO.class);
@@ -142,14 +140,14 @@ public class WebSocketStompServer {
                     performDataBase.deleteNullBlocks(
                             blockReorder.getUpdatedBlocks().get(0).getBotJobId());
 
-                    ARSharedResources.getInstance().changeDbConnection();
+                    // ARSharedResources.getInstance().changeDbConnection();
                 }
                 break;
             case "INSTRUCTION_STATUS":
                 InstructionDTO instructionDTO = gson.fromJson(body, InstructionDTO.class);
                 performDataBase.updateInstructionStatus(instructionDTO);
 
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_STATUS":
                 RowMoveDTO blockStateDTO = gson.fromJson(body, RowMoveDTO.class);
@@ -163,14 +161,14 @@ public class WebSocketStompServer {
                 performDataBase.updateInstructionStatusByBlock(
                         blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
 
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
 
                 break;
             case "BLOCK_UPDATE":
                 RowMoveDTO blockUpdateDTO = gson.fromJson(body, RowMoveDTO.class);
                 performDataBase.updateBlockName(
                         blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
 
                 break;
             case "DELETE_INSTRUCTION":
@@ -180,19 +178,19 @@ public class WebSocketStompServer {
                 List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
                         deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
                 performDataBase.reorderInstructions(rowList);
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "DELETE_BLOCK":
                 DeleteBlockDTO deleteBlockDTO = gson.fromJson(body, DeleteBlockDTO.class);
                 performDataBase.deleteBlock(deleteBlockDTO);
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 sendMessageToAll("deleteBlock");
                 break;
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
                 performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
                 performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 break;
 
             default:
@@ -308,7 +306,8 @@ public class WebSocketStompServer {
 
     private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        ComponentBlockDTO componentBlockDTO = performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
+        ComponentBlockDTO componentBlockDTO =
+                new ComponentBlockDTO(); // performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
 
         BlockDTO blockDTO = new BlockDTO();
         blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());

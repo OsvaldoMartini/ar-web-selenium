@@ -10,6 +10,7 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
@@ -64,7 +65,6 @@ import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
-import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
@@ -114,14 +114,16 @@ public class ARScannedElementPane extends ARPane {
 
     private DatabaseUserDTO databaseUserDto;
 
-    private BotJobDTO botJob;
-    private BlockDTO blockJob;
+    private BotJobLoadDTO botJobLoad;
+    private BlockLoadDTO blockLoad;
+
     private int currentBlockId;
 
     double comboWidth = 200;
 
-    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
+    private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
+    private HomeBankingLoadDTO homeBanking;
 
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
@@ -247,22 +249,29 @@ public class ARScannedElementPane extends ARPane {
         return arWebDriver;
     }
 
-    public ARScannedElementPane(BotJobDTO botJob, BlockDTO blockJob, ARWebDriver arWebDriver, Set<Session> sessions) {
+    public ARScannedElementPane(
+            HomeBankingLoadDTO homeBanking,
+            BotJobLoadDTO botJobLoadDTO,
+            BlockLoadDTO blockLoadDTO,
+            ARWebDriver arWebDriver,
+            Set<Session> sessions) {
         this.sessions = sessions;
+        this.homeBanking = homeBanking;
+        this.arWebDriver = arWebDriver;
 
         ARLogger.getInstance(ARWebDriver.class).fine("Calling ARScannedElementPane");
 
         // Ensure botJob and arPriorities are not null before accessing their methods
-        if (botJob != null && arPriorities != null) {
+        if (this.botJobLoad != null && arPriorities != null) {
             // Check if we need to update arPriorities
-            if (arPriorities.getJobId() == null || !arPriorities.getJobId().equals(botJob.getId())) {
+            if (arPriorities.getJobId() == null || !arPriorities.getJobId().equals(this.botJobLoad.getId())) {
                 // Set Job ID in arPriorities
-                arPriorities.setJobId(botJob.getId());
+                arPriorities.setJobId(this.botJobLoad.getId());
 
                 // Check for non-null HomeBanking and Priority
-                if (botJob.getHomeBanking() != null) {
-                    String priorityValue = botJob.getHomeBanking().getPriority();
-                    String searchConfig = botJob.getHomeBanking().getSearchConfig();
+                if (homeBanking != null) {
+                    String priorityValue = homeBanking.getPriority();
+                    String searchConfig = homeBanking.getSearchConfig();
 
                     if (priorityValue != null) {
                         arPriorities.loadPrioritiesFromString(priorityValue);
@@ -274,14 +283,14 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 // Initialize performAction with arPriorities and arWebDriver
-                performAction.initializePerformActions(arPriorities, arWebDriver);
+                performAction.initializePerformActions(arPriorities, this.arWebDriver);
             }
         }
 
         // Assign instance variables
-        this.botJob = botJob;
-        this.blockJob = blockJob;
-        this.arWebDriver = arWebDriver;
+        this.botJobLoad = botJobLoadDTO;
+        this.blockLoad = blockLoadDTO;
+        performAction.initializePerformActions(arPriorities, this.arWebDriver);
     }
 
     @Override
@@ -318,9 +327,7 @@ public class ARScannedElementPane extends ARPane {
         //        if (arWebDriver.getDriver() == null) {
         //            arWebDriver = new ARWebDriver(); // Initialize WebDriver
         //        }
-        arWebDriver.openDriver(
-                botJob.getHomeBanking().getUrl(),
-                botJob.getHomeBanking().getOptionsConfig().toString());
+        arWebDriver.openDriver(homeBanking.getUrl(), homeBanking.getOptionsConfig());
 
         performAction.getIframeElementsMap();
 
@@ -491,9 +498,9 @@ public class ARScannedElementPane extends ARPane {
         currentURL.setFill(Color.BLUE);
         currentURL.setStyle("-fx-font-size: 16px;");
 
-        updateSceneTitleWithCurrentURL(botJob.getHomeBanking().getUrl());
+        updateSceneTitleWithCurrentURL(homeBanking.getUrl());
 
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJob.getId());
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
         loadAllBlockItems(this.blockLoadList);
 
         refreshBlocksButton = createPathButton();
@@ -842,7 +849,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void refreshBlocks(boolean secondItem) {
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJob.getId());
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
         loadAllBlockItems(this.blockLoadList);
 
         if (!secondItem) {
@@ -995,7 +1002,7 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
-            this.botJobLoadList = performDataBase.loadBotJobComplete(botJob.getId());
+            this.botJobLoadList = performDataBase.loadBotJobComplete(botJobLoad.getId());
             instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
@@ -1011,7 +1018,7 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
-            this.botJobLoadList = performDataBase.loadBotJobComplete(botJob.getId());
+            this.botJobLoadList = performDataBase.loadBotJobComplete(botJobLoad.getId());
             // loadBotJob(botJob);
             recallJob();
         });
@@ -1224,7 +1231,7 @@ public class ARScannedElementPane extends ARPane {
             try {
                 if (cloneTarget.getElement() != null) {
 
-                    ARWebElement arWebElement = new ARWebElement(cloneTarget, botJob.getId());
+                    ARWebElement arWebElement = new ARWebElement(cloneTarget, botJobLoad.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
                         webElementObservableList2.add(arWebElement);
                         Platform.runLater(() -> {
@@ -1257,7 +1264,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void insertNewElement(ElementDTO iframeElementDTO, List<ElementDTO> elementsFound) {
+    private boolean insertNewElement(ElementDTO iframeElementDTO, List<ElementDTO> elementsFound) {
 
         try {
             // Locate and switch to the iframe first
@@ -1286,7 +1293,7 @@ public class ARScannedElementPane extends ARPane {
                 //                targetLocal.setTagType(WebElementTagNameEnum.BUTTON);
                 //                targetLocal.setIconType(WebElementIcon.CLICK);
 
-                ARWebElement arWebElement = new ARWebElement(targetIFrame, botJob.getId());
+                ARWebElement arWebElement = new ARWebElement(targetIFrame, botJobLoad.getId());
                 if (arWebElement != null && arWebElement.getElement() != null) {
                     webElementObservableList2.add(arWebElement);
                     Platform.runLater(() -> scannedElements2.refresh());
@@ -1324,7 +1331,7 @@ public class ARScannedElementPane extends ARPane {
                     TargetElement targetChild = performAction.defineSearchReturn(elementChild, elemFound, null);
                     targetChild = performAction.defineTargetNameTitles(targetChild);
 
-                    ARWebElement arWebElement = new ARWebElement(targetChild, botJob.getId());
+                    ARWebElement arWebElement = new ARWebElement(targetChild, botJobLoad.getId());
 
                     if (arWebElement != null && arWebElement.getElement() != null) {
                         webElementObservableList2.add(arWebElement);
@@ -1348,7 +1355,7 @@ public class ARScannedElementPane extends ARPane {
                             "stop all",
                             0);
                     if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                        return;
+                        return true;
                     }
                     //                    performMessage.generalErrorIFrame(elementChild.getXPath());
                 }
@@ -1384,6 +1391,7 @@ public class ARScannedElementPane extends ARPane {
             // Close the browser
             arWebDriver.getDriver().switchTo().defaultContent();
         }
+        return false;
     }
 
     private void insertNewElement(String iFrameXPath, List<ElementDTO> elementsFound) {
@@ -1413,7 +1421,7 @@ public class ARScannedElementPane extends ARPane {
 
                     targetFound = performAction.defineSearchReturn(elementFound, element, targetFound);
 
-                    ARWebElement arWebElement = new ARWebElement(targetFound, botJob.getId());
+                    ARWebElement arWebElement = new ARWebElement(targetFound, botJobLoad.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
                         webElementObservableList2.add(arWebElement);
                         Platform.runLater(() -> {
@@ -1437,7 +1445,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void insertNewElement(List<ElementDTO> elementsDTO) {
+    private boolean insertNewElement(List<ElementDTO> elementsDTO) {
 
         try {
             // Loop through and find elements
@@ -1469,7 +1477,7 @@ public class ARScannedElementPane extends ARPane {
 
                         if (!elementDTO.getTagName().equalsIgnoreCase("clicked")) {
 
-                            ARWebElement arWebElement = new ARWebElement(targetLocal, botJob.getId());
+                            ARWebElement arWebElement = new ARWebElement(targetLocal, botJobLoad.getId());
                             targetLocal.setElement(null);
 
                             if (arWebElement != null && arWebElement.getElement() != null) {
@@ -1509,7 +1517,8 @@ public class ARScannedElementPane extends ARPane {
                             0);
 
                     if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                        return;
+                        elementsDTO.clear();
+                        return true;
                     }
                 }
             }
@@ -1522,6 +1531,7 @@ public class ARScannedElementPane extends ARPane {
             // Close the browser
             arWebDriver.getDriver().switchTo().defaultContent();
         }
+        return false;
     }
 
     private TargetElement extractPickClone(ElementDTO pickTarget) {
@@ -1766,7 +1776,7 @@ public class ARScannedElementPane extends ARPane {
             }
 
             if (targetIFrames.getDefinedName() != null) {
-                ARWebElement arWebElement = new ARWebElement(targetIFrames, botJob.getId());
+                ARWebElement arWebElement = new ARWebElement(targetIFrames, botJobLoad.getId());
                 if (arWebElement != null && arWebElement.getElement() != null) {
                     webElementObservableList1.add(arWebElement);
                     Platform.runLater(() -> scannedElements1.refresh());
@@ -2229,7 +2239,7 @@ public class ARScannedElementPane extends ARPane {
                                     // checkValidateSearchPriorities(targetElement);
 
                                     if (targetElement.getDefinedName() != null) {
-                                        ARWebElement arWebElement = new ARWebElement(targetElement, botJob.getId());
+                                        ARWebElement arWebElement = new ARWebElement(targetElement, botJobLoad.getId());
                                         if (arWebElement != null) {
                                             listARElements.add(arWebElement);
                                             Platform.runLater(() -> {
@@ -2518,7 +2528,7 @@ public class ARScannedElementPane extends ARPane {
 
                                 try {
                                     if (targetIFrames.getDefinedName() != null) {
-                                        ARWebElement arWebElement = new ARWebElement(targetIFrames, botJob.getId());
+                                        ARWebElement arWebElement = new ARWebElement(targetIFrames, botJobLoad.getId());
                                         if (arWebElement != null && arWebElement.getElement() != null) {
                                             webElementObservableList1.add(arWebElement);
                                             Platform.runLater(() -> scannedElements1.refresh());
@@ -2692,12 +2702,12 @@ public class ARScannedElementPane extends ARPane {
                     || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
                 nameDefined = this.targetSelected.getOriginalTagName()
                         + (!Strings.isNullOrEmpty(this.targetSelected.getAttribName())
-                        ? "-" + this.targetSelected.getAttribName()
-                        : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                        ? "-" + this.targetSelected.getAttribId()
-                        : !Strings.isNullOrEmpty(this.targetSelected.getSomeText())
-                        ? "-" + truncate(this.targetSelected.getSomeText(), 50)
-                        : "");
+                                ? "-" + this.targetSelected.getAttribName()
+                                : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
+                                        ? "-" + this.targetSelected.getAttribId()
+                                        : !Strings.isNullOrEmpty(this.targetSelected.getSomeText())
+                                                ? "-" + truncate(this.targetSelected.getSomeText(), 50)
+                                                : "");
                 if (this.targetSelected.getDefinedName() != null
                         && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
                     nameDefined = this.targetSelected.getDefinedName();
@@ -2812,7 +2822,6 @@ public class ARScannedElementPane extends ARPane {
         arWebDriver.getDriver().switchTo().defaultContent();
     }
 
-
     private void addBehaviourToAbrWebElement(ARWebElement arWebHover) {
         EventHandler<MouseEvent> mouseEnteredHandler = mouseEvent -> {
             Task<Void> handleEvent = new Task<>() {
@@ -2872,20 +2881,22 @@ public class ARScannedElementPane extends ARPane {
             new Thread(handleEvent).start();
         };
 
-
-//        scannedElements2.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) -> {
-//            if (newIndex.intValue() == -1) {
-//                return; // No selection, do nothing
-//            }
-//
-//            if (newIndex.intValue() > oldIndex.intValue()) {
-//                itPrintsElementDate(arWebHover);
-////                System.out.println("Moved Down to: " + scannedElements2.getSelectionModel().getSelectedItem());
-//            } else if (newIndex.intValue() < oldIndex.intValue()) {
-//                itPrintsElementDate(arWebHover);
-////                System.out.println("Moved Up to: " + scannedElements2.getSelectionModel().getSelectedItem());
-//            }
-//        });
+        //        scannedElements2.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
+        // {
+        //            if (newIndex.intValue() == -1) {
+        //                return; // No selection, do nothing
+        //            }
+        //
+        //            if (newIndex.intValue() > oldIndex.intValue()) {
+        //                itPrintsElementDate(arWebHover);
+        ////                System.out.println("Moved Down to: " +
+        // scannedElements2.getSelectionModel().getSelectedItem());
+        //            } else if (newIndex.intValue() < oldIndex.intValue()) {
+        //                itPrintsElementDate(arWebHover);
+        ////                System.out.println("Moved Up to: " +
+        // scannedElements2.getSelectionModel().getSelectedItem());
+        //            }
+        //        });
 
         EventHandler<MouseEvent> mouseClickedHandler = mouseEvent -> {
             if (mouseEvent.getClickCount() == 2) {
@@ -3446,12 +3457,12 @@ public class ARScannedElementPane extends ARPane {
 
                     if (result) {
 
-                        BotJobLoadDTO botJobLoadDTO = performDataBase.loadBotJobById(this.botJob.getId());
+                        BotJobLoadDTO botJobCheck = performDataBase.loadBotJobById(this.botJobLoad.getId());
 
-                        if (botJobLoadDTO == null) {
+                        if (botJobCheck == null) {
 
                             variableText1Styled = new Text(String.format(
-                                    "Check if you already have a Bot Job \"%\" Created!", this.botJob.getName()));
+                                    "Check if you already have a Bot Job \"%\" Created!", this.botJobLoad.getName()));
                             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
                             combinedTextContainer.getChildren().clear();
@@ -3467,12 +3478,12 @@ public class ARScannedElementPane extends ARPane {
                             ARLogger.getInstance(ARScannedElementPane.class)
                                     .severe(String.format(
                                             "Check if you already have a Bot Job \"%\" Created!",
-                                            this.botJob.getName()));
+                                            this.botJobLoad.getName()));
                             return;
                         }
 
                         // It Prevents Start without blocks
-                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJob.getId());
+                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
                         if (blockLoadList.isEmpty()) {
 
                             BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
@@ -3482,7 +3493,7 @@ public class ARScannedElementPane extends ARPane {
                             newBlockDetails.setActive(true);
                             newBlockDetails.setWait(3);
 
-                            newBlockDetails.setBotJobId(botJob.getId());
+                            newBlockDetails.setBotJobId(botJobLoad.getId());
 
                             currentBlockId = performDataBase.createNewBlock(newBlockDetails);
 
@@ -3490,22 +3501,23 @@ public class ARScannedElementPane extends ARPane {
                                 performAction.showAlert(
                                         Alert.AlertType.ERROR,
                                         "Error Creating new Block",
-                                        "Verify the BVot Job Name if have any",
+                                        "Verify the Bot Job Name if have any",
                                         "Check if you already have a Bot Job Created!");
 
                                 ARLogger.getInstance(Thread.class)
                                         .severe(String.format(
                                                 "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
-                                                botJob.getId()));
+                                                botJobLoad.getId()));
                                 return;
                             } else {
 
-                                setBlockJob(
-                                        ARSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
+                                //                                setBlockJob(
+                                //
+                                // ARSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
                                 ARLogger.getInstance(Thread.class)
                                         .info(String.format(
                                                 "Created a new Block id %d for bot job Id %d",
-                                                currentBlockId, botJob.getId()));
+                                                currentBlockId, botJobLoad.getId()));
                             }
 
                             Platform.runLater(() -> {
@@ -3522,9 +3534,8 @@ public class ARScannedElementPane extends ARPane {
                                 ARLogger.getInstance(Task.class)
                                         .fine("THREAD: fetching instruction list from database");
                                 ObservableList<InstructionDTO> list = ARSharedResources.getInstance()
-                                        .getEntityList(
-                                                InstructionDTO.class,
-                                                (instr) -> instr.getBlock().getId() == currentBlockId);
+                                        .getEntityList(InstructionDTO.class, (instr) -> instr.getBlockId()
+                                                .equals(currentBlockId));
                                 ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
 
                                 String actionReq = checkClickElement.isSelected()
@@ -3553,12 +3564,12 @@ public class ARScannedElementPane extends ARPane {
                                         arWebHover.getTargetElement().getMainCoordinates());
                                 instruction.setIFrameXPath(
                                         arWebHover.getTargetElement().getIFrameXPath());
-                                instruction.setBlock(blockJob);
+                                instruction.setBlockId(blockLoad.getId());
                                 instruction.setInstructionOrderNumber(list.size() + 1);
 
                                 ARLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
 
-                                Integer currentBotJobId = botJob.getId();
+                                Integer currentBotJobId = botJobLoad.getId();
 
                                 // Change the Name on the fly
                                 if (!Strings.isNullOrEmpty(finalNameWebElement)) {
@@ -3735,11 +3746,10 @@ public class ARScannedElementPane extends ARPane {
         arWebHover.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickedHandler);
     }
 
-  
     private Set<WebElement> managePrioritiesCriteria() {
 
         // Gets Always the Latest info form DB
-        databaseUserDto = loadUserData(botJob.getHomeBanking().getId());
+        databaseUserDto = loadUserData(homeBanking.getId());
         arPriorities.loadSearchElementsConfig(databaseUserDto.getSearchConfig());
 
         Set<WebElement> elementsResponse = new HashSet<>();
@@ -3751,7 +3761,7 @@ public class ARScannedElementPane extends ARPane {
 
             // Fetch the HTML content of the page
             Document docJSoup = null;
-            docJSoup = JsoupConnect(botJob.getHomeBanking().getUrl());
+            docJSoup = JsoupConnect(homeBanking.getUrl());
             Set<WebElementWrapper> uniqueWrapperElements = new HashSet<>();
             List<WebElement> finalList = new ArrayList<>();
             Set<WebElement> uniqueWebElements = new HashSet<>();
@@ -5287,7 +5297,13 @@ public class ARScannedElementPane extends ARPane {
 
                                         // Direct Insert to the Factory of Elements
                                         if (iframeElement.isPresent()) {
-                                            insertNewElement(iframeElement.get(), elementsFound);
+                                            boolean stopAll = insertNewElement(iframeElement.get(), elementsFound);
+                                            if (stopAll) {
+                                                iFrameText.setText("");
+                                                iFrameElements = new String[0];
+                                                elementsFound.clear();
+                                                periodicCloneActivated.set(false);
+                                            }
                                         } else {
 
                                             if (!Strings.isNullOrEmpty(pickTarget.getXPath())
@@ -5297,7 +5313,14 @@ public class ARScannedElementPane extends ARPane {
 
                                                 if (targetLocal.getNameField() != null
                                                         && targetLocal.getNameLabel() != null) {
-                                                    insertNewElement(elementsFound);
+                                                    boolean stopAll = insertNewElement(elementsFound);
+
+                                                    if (stopAll) {
+                                                        iFrameText.setText("");
+                                                        elementsFound.clear();
+                                                        iFrameElements = new String[0];
+                                                        periodicCloneActivated.set(false);
+                                                    }
                                                 }
                                             }
                                         }
@@ -7350,7 +7373,7 @@ public class ARScannedElementPane extends ARPane {
         String selectSQL =
                 "SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
                         + "                         FROM home_banking bank "
-                        + "                         left join bot_job bot on bot.home_banking_id = bank.id "
+                        + "                         left join bot_job bot on bot.active = 1 and bot.home_banking_id = bank.id "
                         + " WHERE bank.id = " + bankId
                         + "                         group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
@@ -7372,87 +7395,6 @@ public class ARScannedElementPane extends ARPane {
             System.out.println(e.getMessage());
         }
         return databaseUserDto;
-        //        jobUserList.clear();
-        //        loadBotJobData();
-    }
-
-    private void loadBotJob(BotJobDTO botJob) {
-        String selectSQL =
-                " SELECT bot.ID botId, bot.Name botName, blk.ID blockId, blk.Name blockName, blk.block_order_number, "
-                        + " blockInstr.id blockInstrId, blockInstr.instruction_order_number instructionOrderNumber, blockInstr.actions, "
-                        + " instr.id instId, instr.reference_type, instr.value"
-                        + " FROM reference instr "
-                        + " join instruction blockInstr on blockInstr.id = instr.instruction_id"
-                        + " join bot_job bot on bot.id = " + botJob.getId()
-                        + " join block blk on blk.bot_job_id = bot.id "
-                        + " order by blockInstr.id, blockInstr.instruction_order_number, instr.id";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-
-            List<ReferenceDTO> instructions = new ArrayList<>();
-
-            while (rs.next()) {
-                String botId = rs.getString("botId");
-                String botName = rs.getString("botName");
-                String blockId = rs.getString("blockId");
-                String blockName = rs.getString("blockName");
-                String blockOrderNumber = rs.getString("block_order_number");
-
-                String blockInstrId = rs.getString("blockInstrId");
-                String instructionOrderNumber = rs.getString("instructionOrderNumber");
-                String actions = rs.getString("actions");
-
-                String instId = rs.getString("instId");
-                String referenceType = rs.getString("reference_type");
-                String value = rs.getString("value");
-
-                if (botJob.getId() == Integer.parseInt(botId)) {
-                    for (BlockDTO block : botJob.getBlocks()) {
-                        if (block.getId() == Integer.parseInt(blockId)) {
-                            boolean exist = false;
-                            for (InstructionDTO blockInstruction : block.getBlockLoopInstructionDTOS()) {
-                                if (blockInstruction.getId() == Integer.parseInt(blockInstrId)) {
-                                    for (ReferenceDTO instructionReference :
-                                            blockInstruction.getInstructionReferenceDTOList()) {
-                                        if (instructionReference.getId() == Integer.parseInt(instId)
-                                                && instructionReference
-                                                        .getReferenceType()
-                                                        .equalsIgnoreCase(referenceType)
-                                                && instructionReference
-                                                        .getValue()
-                                                        .equalsIgnoreCase(value)) {
-                                            exist = true;
-                                            break;
-                                        }
-                                    }
-                                    if (!exist) {
-                                        ReferenceDTO inst = new ReferenceDTO();
-                                        inst.setId(Integer.parseInt(instId));
-                                        inst.setReferenceType(referenceType);
-                                        inst.setValue(value);
-                                        instructions.add(inst);
-                                        break;
-                                    }
-                                }
-                                if (exist) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                //                System.out.println(String.format(
-                //                        "%s  %s  %s  %s  %s   %s   %s   %s",
-                //                        botId, botName, blockId, blockName, blockOrderNumber, referenceType, value));
-
-                //               databaseUserDto = new DatabaseUserDTO(
-                //                        id, jobs, name, url, priority, searchConfig, optionsConfig, username,
-                // password);
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
         //        jobUserList.clear();
         //        loadBotJobData();
     }
@@ -8424,7 +8366,7 @@ public class ARScannedElementPane extends ARPane {
                                 WebElement webElementFound = null;
                                 try {
                                     webElementFound =
-                                            performAction.searchElement(currentInstruction, this.botJob.getId());
+                                            performAction.searchElement(currentInstruction, this.botJobLoad.getId());
                                 } catch (Exception ex) {
                                     extraMsg = "Element not found. Please try rescanning.!";
                                     success = false;
@@ -8957,7 +8899,7 @@ public class ARScannedElementPane extends ARPane {
 
                         WebElement webElementFound = null;
                         try {
-                            webElementFound = performAction.searchElement(currentInstruction, this.botJob.getId());
+                            webElementFound = performAction.searchElement(currentInstruction, this.botJobLoad.getId());
                         } catch (Exception ex) {
                             extraMsg = "Element not found. Please try rescanning.!";
                         }
@@ -9067,11 +9009,6 @@ public class ARScannedElementPane extends ARPane {
         } else {
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
             countdownTextField.setText(resultActions);
-            //            textFlowResult.getChildren().clear();
-            //            textFlowResult.getChildren().addAll(countdownTextField);
-            //            textFlowResult.requestLayout();
-            //            contentPane.requestLayout();
-
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)
@@ -9079,35 +9016,14 @@ public class ARScannedElementPane extends ARPane {
                     + labelsValue.getProperty(Labels.KO)
                     + ARConstants.FIELDS_SEPARATOR
                     + resultActions;
-            //            report.setStatus(status);
-            //            report.setDuration(totalExecutionTime / 100);
-            writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
 
-            variableText1Styled = new Text("Bot-Job Error");
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-            variableText3Styled = new Text("Last Execution:");
-            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-            variableText4Styled = new Text(resultActions);
-            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            Text variableText5Styled = new Text(extraMsg);
-            variableText5Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            combinedTextContainer
-                    .getChildren()
-                    .addAll(
-                            variableText1Styled,
-                            variableText2Styled,
-                            variableText3Styled,
-                            variableText4Styled,
-                            variableText5Styled);
-
-            performMessage.showAlertCombinedVBOX(
-                    Alert.AlertType.ERROR, "FAIL", "Execution Failed", null, combinedTextContainer);
+            performMessage.errorMessage(
+                    "Error Trying to find an Web Element",
+                    "I ran 10 Attempts to find the Element",
+                    "Change the Action to \"Force Coordinates\"",
+                    "Last Execution",
+                    resultActions,
+                    260);
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
         return true;
@@ -9277,7 +9193,7 @@ public class ARScannedElementPane extends ARPane {
                     targetLocal.setElement(entryElem);
 
                     if (targetLocal.getDefinedName() != null) {
-                        ARWebElement arWebElement = new ARWebElement(targetLocal, botJob.getId());
+                        ARWebElement arWebElement = new ARWebElement(targetLocal, botJobLoad.getId());
                         if (arWebElement != null) {
                             listARElements.add(arWebElement);
                         }
@@ -9652,9 +9568,9 @@ public class ARScannedElementPane extends ARPane {
         return null;
     }
 
-    public void setBlockJob(BlockDTO blockJob) {
-        this.blockJob = blockJob;
-    }
+    //    public void setBlockJob(BlockDTO blockLoadDTO) {
+    //        this.blockLoad = blockLoadDTO;
+    //    }
 
     private static void showAlertInfo(String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);

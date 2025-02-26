@@ -37,13 +37,22 @@ import javafx.scene.layout.*;
 
 public class ARMainPane extends ARPane {
 
+    private static final ARSharedResources dbResource;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARNewBotJobScene arNewBotJobScene;
+    private static String previousDB;
+    private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
+
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    // Postgres
+    private static boolean POSTGRES_DB = false;
 
     // Static block to initialize
     static {
+        dbResource = ARSharedResources.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
@@ -70,9 +79,33 @@ public class ARMainPane extends ARPane {
     ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
 
     public ARMainPane() {
-        arNewBotJobScene.initialize(viewBotJobListView);
-
+        String previousDB = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
         String pathDB = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+
+        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+        } else {
+            POSTGRES_DB = false;
+        }
+
+        if (!POSTGRES_DB) {
+            String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+            if (!dbFile.exists()) {
+                performDataBase.initializeDatabase(dbUrl, dbFile);
+            } else {
+                ARLogger.getInstance(ARViewBotJobPane.class)
+                        .info(String.format("Database '%s' already exists!", dbFile.getName()));
+            }
+        }
+
+        dbResource.setPreviousDB(previousDB);
+        arConfigurationScene.initialize(previousDB);
+
         if (pathDB == null || pathDB.isBlank()) {
             arConfigurationScene.show();
             new ARAlertScene(
@@ -148,9 +181,10 @@ public class ARMainPane extends ARPane {
 
         //        ObservableList<BotJobLoadDTO> botJobList =
         // ARSharedResources.getInstance().getEntityList(BotJobDTO.class);
-        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+        botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ARCellFactory<>(BotJobListCell.class)::call);
+        arNewBotJobScene.initialize(botJobList);
 
         //        viewBotJobListView.setMaxSize(800D, 580D);
 
@@ -169,8 +203,8 @@ public class ARMainPane extends ARPane {
     public void initUIBehaviour() {
         newBotJobButton.setOnMouseClicked(e -> {
             arNewBotJobScene.showModal();
-            ObservableList<BotJobLoadDTO> botJobList =
-                    FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+            botJobList.clear();
+            botJobList.addAll(performDataBase.loadAllBotJobs());
             viewBotJobListView.setItems(botJobList);
         });
 
@@ -188,9 +222,7 @@ public class ARMainPane extends ARPane {
                 return;
             }
         });
-        /*viewBotJobButton.setOnMouseClicked(
-                e -> new ARViewBotJobListScene().show()
-        );*/
+
         configureButton.setOnMouseClicked(e -> {
             arConfigurationScene.showModal();
             performDataBase.changeDbConnection();

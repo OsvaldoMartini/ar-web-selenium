@@ -16,7 +16,7 @@ public class ARConfigurationScene extends ARScene {
     private static final String TITLE = "Configuration";
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<ARConfigurationScene> instance = () -> new ARConfigurationScene();
-
+    private String previousDB;
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     // Private constructor to prevent instantiation
 
@@ -32,7 +32,7 @@ public class ARConfigurationScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARConfigurationPane();
+        return new ARConfigurationPane(previousDB);
     }
 
     @Override
@@ -60,5 +60,9 @@ public class ARConfigurationScene extends ARScene {
             modalStage.initModality(Modality.APPLICATION_MODAL); // Make it modal
             modalStage.showAndWait(); // Block until this window is closed
         }
+    }
+
+    public void initialize(String previousDB) {
+        this.previousDB = previousDB;
     }
 }

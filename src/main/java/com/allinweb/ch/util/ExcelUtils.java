@@ -88,11 +88,11 @@ public class ExcelUtils {
         try {
             bufferedWriter = new BufferedWriter(new FileWriter(file));
 
-            List<BlockDTO> blockList = botJob.getBlocks();
+            List<BotJobLoadDTO> lisBotJobBlocks = performDataBase.loadBotJobAndBlocks(botJob.getId());
 
             Set<String> fieldAddedSet = new HashSet<>();
 
-            for (BlockDTO block : blockList) {
+            for (BlockLoadDTO block : lisBotJobBlocks.get(0).getBlockLoadDTOList()) {
                 String firstRow = "#" + block.getName();
                 bufferedWriter.write(firstRow);
                 bufferedWriter.newLine();
@@ -101,7 +101,7 @@ public class ExcelUtils {
                         .getEntityList(
                                 InstructionDTO.class,
                                 Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber),
-                                (instruction) -> instruction.getBlock().getId() == block.getId()
+                                (instruction) -> instruction.getBlockId().equals(block.getId())
                                         && instruction.getActions().contains(ARConstants.INSERT));
 
                 Integer last = instructionList.size();

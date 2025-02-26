@@ -53,6 +53,7 @@ public class ARSharedResources {
     private List<DatabaseUserDTO> databaseList = new ArrayList<>();
     // Very important sequence on initiation
     private static ARPriorities arPriorities;
+
     private String previousDB;
 
     public Connection getConn() {
@@ -71,6 +72,7 @@ public class ARSharedResources {
     private Map<Class<? extends BaseDTO>, ObservableList<? extends BaseDTO>> entityMap;
 
     public ARSharedResources() {
+        this.previousDB = "Access";
         entityMap = new HashMap<>();
         entityMap.put(HomeBankingDTO.class, FXCollections.observableArrayList());
         entityMap.put(BotJobDTO.class, FXCollections.observableArrayList());
@@ -80,6 +82,7 @@ public class ARSharedResources {
         this.entityMap.put(ComponentInstructionDTO.class, FXCollections.observableArrayList());
         this.entityMap.put(ComponentReferenceDTO.class, FXCollections.observableArrayList());
         entityMap.put(ReferenceDTO.class, FXCollections.observableArrayList());
+
         changeDbConnection();
     }
 
@@ -326,40 +329,42 @@ public class ARSharedResources {
 
     public void cacheEntitiesFromDB() {
 
-        getEntityList(HomeBankingDTO.class).clear();
-        getEntityList(BotJobDTO.class).clear();
-        getEntityList(BlockDTO.class).clear();
-        getEntityList(InstructionDTO.class).clear();
-        this.getEntityList(ComponentBlockDTO.class).clear();
-        this.getEntityList(ComponentInstructionDTO.class).clear();
-        this.getEntityList(ComponentReferenceDTO.class).clear();
-        getEntityList(ReferenceDTO.class).clear();
-        this.repository = new Repository(session);
-        getEntityList(HomeBankingDTO.class).addAll(repository.findAllEntities(HomeBankingDTO.class));
-        getEntityList(BotJobDTO.class).addAll(repository.findAllEntities(BotJobDTO.class));
-        getEntityList(BlockDTO.class).addAll(repository.findAllEntities(BlockDTO.class));
-        getEntityList(InstructionDTO.class).addAll(repository.findAllEntities(InstructionDTO.class));
-        this.getEntityList(ComponentBlockDTO.class).addAll(repository.findAllEntities(ComponentBlockDTO.class));
-        this.getEntityList(ComponentInstructionDTO.class)
-                .addAll(repository.findAllEntities(ComponentInstructionDTO.class));
-        this.getEntityList(ComponentReferenceDTO.class).addAll(repository.findAllEntities(ComponentReferenceDTO.class));
-        getEntityList(ReferenceDTO.class).addAll(repository.findAllEntities(ReferenceDTO.class));
-        try {
-
-            cleanList(BotJobDTO.class, (botJob) -> botJob.getHomeBanking() == null);
-
-            cleanList(BlockDTO.class, (block) -> block.getBotJobDTO() == null);
-            cleanList(InstructionDTO.class, (instruction) -> instruction.getBlock() == null);
-            cleanList(ComponentInstructionDTO.class, (instruction) -> {
-                return instruction.getBlock() == null;
-            });
-            cleanList(ReferenceDTO.class, (ref) -> ref.getBlockLoopInstructionDTO() == null);
-            cleanList(ComponentReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionDTO() == null);
-        } catch (Exception e) {
-            ARLogger.getInstance(ARWebDriver.class)
-                    .severe("Many Entities Still Open In Threads\n" + "Wait to get to finish.\nError: "
-                            + e.getMessage());
-        }
+        //        getEntityList(HomeBankingDTO.class).clear();
+        //        getEntityList(BotJobDTO.class).clear();
+        //        getEntityList(BlockDTO.class).clear();
+        //        getEntityList(InstructionDTO.class).clear();
+        //        this.getEntityList(ComponentBlockDTO.class).clear();
+        //        this.getEntityList(ComponentInstructionDTO.class).clear();
+        //        this.getEntityList(ComponentReferenceDTO.class).clear();
+        //        getEntityList(ReferenceDTO.class).clear();
+        //        this.repository = new Repository(session);
+        //        getEntityList(HomeBankingDTO.class).addAll(repository.findAllEntities(HomeBankingDTO.class));
+        //        getEntityList(BotJobDTO.class).addAll(repository.findAllEntities(BotJobDTO.class));
+        //        getEntityList(BlockDTO.class).addAll(repository.findAllEntities(BlockDTO.class));
+        //        getEntityList(InstructionDTO.class).addAll(repository.findAllEntities(InstructionDTO.class));
+        //
+        // this.getEntityList(ComponentBlockDTO.class).addAll(repository.findAllEntities(ComponentBlockDTO.class));
+        //        this.getEntityList(ComponentInstructionDTO.class)
+        //                .addAll(repository.findAllEntities(ComponentInstructionDTO.class));
+        //
+        // this.getEntityList(ComponentReferenceDTO.class).addAll(repository.findAllEntities(ComponentReferenceDTO.class));
+        //        getEntityList(ReferenceDTO.class).addAll(repository.findAllEntities(ReferenceDTO.class));
+        //        try {
+        //
+        //            cleanList(BotJobDTO.class, (botJob) -> botJob.getHomeBanking() == null);
+        //
+        //            cleanList(BlockDTO.class, (block) -> block.getBotJobDTO() == null);
+        //            cleanList(InstructionDTO.class, (instruction) -> instruction.getBlock() == null);
+        //            cleanList(ComponentInstructionDTO.class, (instruction) -> {
+        //                return instruction.getBlock() == null;
+        //            });
+        //            cleanList(ReferenceDTO.class, (ref) -> ref.getBlockLoopInstructionDTO() == null);
+        //            cleanList(ComponentReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionDTO() == null);
+        //        } catch (Exception e) {
+        //            ARLogger.getInstance(ARWebDriver.class)
+        //                    .severe("Many Entities Still Open In Threads\n" + "Wait to get to finish.\nError: "
+        //                            + e.getMessage());
+        //        }
         updateDBPriorities();
     }
 
@@ -435,49 +440,51 @@ public class ARSharedResources {
         //            }
 
         String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-        if (previousDB != null && previousDB != dataBaseType) {
+        if (this.previousDB != null && !previousDB.equals(dataBaseType)) {
             closeConnection();
-            previousDB = dataBaseType;
-        } else {
-            previousDB = dataBaseType;
-        }
+            this.previousDB = dataBaseType;
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
-        }
+            if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+                POSTGRES_DB = true;
+            } else {
+                POSTGRES_DB = false;
+            }
 
-        if (POSTGRES_DB) {
-            String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-            sessionFactory = new Configuration()
-                    .configure()
-                    .setProperty("hibernate.connection.url", dbUrl)
-                    .setProperty("hibernate.connection.username", USERNAME)
-                    .setProperty("hibernate.connection.password", PASSWORD)
-                    .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
-                    .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
-                    //                        .setProperty("hibernate.hbm2ddl.auto", "update")
-                    .buildSessionFactory();
-            session = sessionFactory.openSession();
-            cacheEntitiesFromDB();
-        } else {
-
-            String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-            if (!dbPath.isBlank()) {
-                File dbFolder = new File(dbPath);
-                dbFolder.mkdirs();
-                String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+            if (POSTGRES_DB) {
+                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
                 sessionFactory = new Configuration()
                         .configure()
                         .setProperty("hibernate.connection.url", dbUrl)
-                        //                            .setProperty("hibernate.hbm2ddl.auto", "update")
+                        .setProperty("hibernate.connection.username", USERNAME)
+                        .setProperty("hibernate.connection.password", PASSWORD)
+                        .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
+                        .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
+                        //                        .setProperty("hibernate.hbm2ddl.auto", "update")
                         .buildSessionFactory();
                 session = sessionFactory.openSession();
                 cacheEntitiesFromDB();
+            } else {
+
+                String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+                if (!dbPath.isBlank()) {
+                    File dbFolder = new File(dbPath);
+                    dbFolder.mkdirs();
+                    String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                    sessionFactory = new Configuration()
+                            .configure()
+                            .setProperty("hibernate.connection.url", dbUrl)
+                            //                            .setProperty("hibernate.hbm2ddl.auto", "update")
+                            .buildSessionFactory();
+                    session = sessionFactory.openSession();
+                    cacheEntitiesFromDB();
+                }
             }
         }
         //        }
+    }
+
+    public void setPreviousDB(String previousDB) {
+        this.previousDB = previousDB;
     }
 
     private void updateUserData(String priority, String searchConfig, String optionsConfig) {
@@ -561,7 +568,7 @@ public class ARSharedResources {
         String selectSQL =
                 " SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
                         + " FROM home_banking bank "
-                        + " left join bot_job bot on bot.home_banking_id = bank.id "
+                        + " left join bot_job bot on bot.active = 1 and bot.home_banking_id = bank.id "
                         + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
         try (Statement stmt = getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {

@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.persistence.HomeBankingDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.util.ARConstants;
 import javafx.application.Platform;
 import javafx.scene.Node;
@@ -8,9 +8,9 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.layout.TilePane;
 
-public class HomeBankingListCell extends ListCell<HomeBankingDTO> {
+public class HomeBankingListCell extends ListCell<HomeBankingLoadDTO> {
     @Override
-    protected void updateItem(HomeBankingDTO item, boolean empty) {
+    protected void updateItem(HomeBankingLoadDTO item, boolean empty) {
         super.updateItem(item, empty);
         Node graphic = null;
         if (!empty && item != null && item.getUrl() != null) {

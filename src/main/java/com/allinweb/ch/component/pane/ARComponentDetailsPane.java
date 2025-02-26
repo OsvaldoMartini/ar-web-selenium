@@ -82,7 +82,7 @@ public class ARComponentDetailsPane extends ARPane {
                 .getEntityList(
                         ComponentInstructionDTO.class,
                         Comparator.comparingInt(ComponentInstructionDTO::getInstructionOrderNumber),
-                        (instruction) -> instruction.getBlock().getId() == componentBlockDTO.getId());
+                        (instruction) -> instruction.getBlockId().equals(componentBlockDTO.getId()));
 
         ListView<ComponentInstructionDTO> instructionList = new ListView<>(instructionObservableList);
         instructionList.setFixedCellSize(ARConstants.SPACE_L);

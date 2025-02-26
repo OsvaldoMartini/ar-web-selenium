@@ -410,7 +410,7 @@ public class PerformMessage {
         List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
         for (InstructionLoadDTO instruction : blockLoopInstructions) {
-            // Create a new BlockLoopInstructionLoadDTO object to avoid modifying the original
+            // Create a new InstructionLoadDTO object to avoid modifying the original
             InstructionLoadDTO updatedInstruction = new InstructionLoadDTO();
 
             // Copy original fields and add 1000 where necessary
@@ -481,7 +481,7 @@ public class PerformMessage {
                 .setPrettyPrinting()
                 .create();
 
-        // Serialize the list of BlockLoopInstructionLoadDTO to JSON
+        // Serialize the list of InstructionLoadDTO to JSON
         String jsonData = gson.toJson(updatedList);
 
         // Create the file path

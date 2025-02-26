@@ -18,9 +18,7 @@ import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
-import com.allinweb.ch.persistence.ComponentInstructionDTO;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -35,7 +33,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -84,12 +81,6 @@ public class ARViewBotJobPane extends ARPane {
     // Set to hold all active WebSocket sessions
     private static Set<Session> activeSessions = new HashSet<>();
 
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
-
-    // Postgres
-    private static boolean POSTGRES_DB = false;
-
     private Connection conn = null;
     private ObservableList<VariableUserDTO> variablesList;
 
@@ -97,14 +88,14 @@ public class ARViewBotJobPane extends ARPane {
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
     private BotJobLoadDTO botJobLoad;
-    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
-    private ObservableList<BlockDTO> blockDTOObservableList;
-    private ListView<BlockDTO> uiBlockList;
+    private List<BotJobLoadDTO> botJobLoadList;
+    private BlockLoadDTO blockLoadDTO;
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     private static final ARScannedElementScene arScannedElementScene;
+    private String previousDB;
 
     // Static block to initialize
     static {
@@ -161,18 +152,6 @@ public class ARViewBotJobPane extends ARPane {
         // Initialize database IF IS ACCESS TO BE USED
         variablesList = FXCollections.observableArrayList();
         webPageItems = FXCollections.observableArrayList();
-
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        if (!POSTGRES_DB) {
-            initializeDatabase();
-        }
 
         Platform.runLater(() -> this.variablesList = performDataBase.loadJobVariables(this.botJobLoad.getId()));
         Platform.runLater(() -> this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId()));
@@ -527,7 +506,7 @@ public class ARViewBotJobPane extends ARPane {
 
             //            ARSharedResources.getInstance().updateEntity(this.botJobLoad, BotJobDTO.class);
 
-            ARSharedResources.getInstance().changeDbConnection();
+            // ARSharedResources.getInstance().changeDbConnection();
 
             Text variableText1Styled = new Text(String.format("Bot Job \"%s\" Updated", this.botJobLoad.getName()));
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
@@ -564,7 +543,7 @@ public class ARViewBotJobPane extends ARPane {
 
         this.generateExcelButton.setOnMouseClicked((e) -> {
             // Cache entities from the database
-            //            ARSharedResources.getInstance().changeDbConnection();
+            //            ARSharedResources.getInstance().changeDbConnection(previousDB);
 
             this.botJobLoadList = performDataBase.loadBotJobAndBlocks(this.botJobLoad.getId());
 
@@ -842,6 +821,10 @@ public class ARViewBotJobPane extends ARPane {
     private void executeScannerTask() {
 
         HomeBankingLoadDTO homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        this.blockLoadDTO = this.botJobLoad.getBlockLoadDTOList() != null
+                        && this.botJobLoad.getBlockLoadDTOList().size() > 0
+                ? this.botJobLoad.getBlockLoadDTOList().get(0)
+                : null;
 
         try {
             Platform.runLater(() -> {
@@ -850,19 +833,7 @@ public class ARViewBotJobPane extends ARPane {
                     activeSessions = SimpleWebSocketServer.getAllSessions();
                     // Call the ARScannedElementScene here
                     ARScannedElementScene scene = arScannedElementScene.initialize(
-                            homeBankingLoadDTO.getPriority(),
-                            this.botJobLoad.getId(),
-                            this.botJobLoad.getBlockLoadDTOList() != null
-                                            && this.botJobLoad
-                                                            .getBlockLoadDTOList()
-                                                            .size()
-                                                    > 0
-                                    ? this.botJobLoad
-                                            .getBlockLoadDTOList()
-                                            .get(0)
-                                            .getId()
-                                    : null,
-                            activeSessions);
+                            homeBankingLoadDTO, this.botJobLoad, this.blockLoadDTO, activeSessions);
 
                     scene.show(); // Make sure the scene is shown
                 } catch (Exception ex) {
@@ -1032,29 +1003,6 @@ public class ARViewBotJobPane extends ARPane {
         return this.botJobLoad;
     }
 
-    private void initializeDatabase() {
-
-        String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-        String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-        File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-        if (!dbFile.exists()) {
-            try (Connection conn = DriverManager.getConnection(dbUrl)) {
-                try (Statement stmt = conn.createStatement()) {
-                    String createTableSQL = "CREATE TABLE home_banking (" + "ID AUTOINCREMENT PRIMARY KEY, "
-                            + "name TEXT, password TEXT, url TEXT, username TEXT, priority TEXT)";
-                    stmt.executeUpdate(createTableSQL);
-                }
-                System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
-            } catch (SQLException e) {
-                ARLogger.getInstance(ARViewBotJobPane.class).severe("initializeDatabase\nError: " + e.getMessage());
-            }
-        } else {
-            ARLogger.getInstance(ARViewBotJobPane.class)
-                    .info(String.format("Database '%s' Already exist!", dbFile.getName()));
-        }
-    }
-
     public void startWebSocketServer(int port) throws Exception {
         // Check if the port is available
         if (isPortInUse(port)) {
@@ -1199,73 +1147,75 @@ public class ARViewBotJobPane extends ARPane {
         return false;
     }
 
-    private void createMockSavedBlocksDTOs() {
-        // Create mock data for SavedBlocksDTO
-        ObservableList<ComponentBlockDTO> componentBlockDTOS = FXCollections.observableArrayList();
-
-        // Create mock SavedBlockLoopInstructionDTO entries
-        ComponentInstructionDTO instruction1 = new ComponentInstructionDTO();
-        instruction1.setInstructionOrderNumber(1);
-        instruction1.setActions("Action 1");
-        instruction1.setName("Instruction 1");
-        instruction1.setPath("/path/to/instruction1");
-        instruction1.setDescription("Description for Instruction 1");
-        instruction1.setOptional(false);
-        instruction1.setDefaultValue("default1");
-        instruction1.setActionCustomMaxWaitSec(10);
-        instruction1.setOnHoldSeconds(5);
-        instruction1.setCodified(false);
-        instruction1.setExportToABR(true);
-        instruction1.setActive(true);
-
-        ComponentInstructionDTO instruction2 = new ComponentInstructionDTO();
-        instruction2.setInstructionOrderNumber(2);
-        instruction2.setActions("Action 2");
-        instruction2.setName("Instruction 2");
-        instruction2.setPath("/path/to/instruction2");
-        instruction2.setDescription("Description for Instruction 2");
-        instruction2.setOptional(false);
-        instruction2.setDefaultValue("default2");
-        instruction2.setActionCustomMaxWaitSec(20);
-        instruction2.setOnHoldSeconds(10);
-        instruction2.setCodified(false);
-        instruction2.setExportToABR(true);
-        instruction1.setActive(true);
-
-        // Assign mock instructions to mock blocks
-        ComponentBlockDTO block1 = new ComponentBlockDTO();
-        block1.setName("Block One");
-        block1.setDescription("Description for Block One");
-        block1.setTypeId(1);
-        block1.setActive(true);
-        block1.setWait(3);
-        block1.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction1))); // Assign instruction1 to block1
-
-        ComponentBlockDTO block2 = new ComponentBlockDTO();
-        block2.setName("Block Two");
-        block2.setDescription("Description for Block Two");
-        block2.setTypeId(2);
-        block2.setActive(true);
-        block2.setWait(3);
-        block2.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction2))); // Assign instruction2 to block2
-
-        ComponentBlockDTO block3 = new ComponentBlockDTO();
-        block3.setName("Another Block");
-        block3.setDescription("Description for Another Block");
-        block3.setTypeId(3);
-        block3.setActive(true);
-        block3.setWait(3);
-        block3.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
-
-        ComponentBlockDTO block4 = new ComponentBlockDTO();
-        block4.setName("Sample Block");
-        block4.setDescription("Description for Sample Block");
-        block4.setTypeId(4);
-        block4.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
-
-        // Add mock blocks to the ObservableList
-        componentBlockDTOS.addAll(block1, block2, block3, block4);
-
-        this.componentList.setItems(componentBlockDTOS);
-    }
+    //    private void createMockSavedBlocksDTOs() {
+    //        // Create mock data for SavedBlocksDTO
+    //        ObservableList<ComponentBlockDTO> componentBlockDTOS = FXCollections.observableArrayList();
+    //
+    //        // Create mock SavedBlockLoopInstructionDTO entries
+    //        ComponentInstructionDTO instruction1 = new ComponentInstructionDTO();
+    //        instruction1.setInstructionOrderNumber(1);
+    //        instruction1.setActions("Action 1");
+    //        instruction1.setName("Instruction 1");
+    //        instruction1.setPath("/path/to/instruction1");
+    //        instruction1.setDescription("Description for Instruction 1");
+    //        instruction1.setOptional(false);
+    //        instruction1.setDefaultValue("default1");
+    //        instruction1.setActionCustomMaxWaitSec(10);
+    //        instruction1.setOnHoldSeconds(5);
+    //        instruction1.setCodified(false);
+    //        instruction1.setExportToABR(true);
+    //        instruction1.setActive(true);
+    //
+    //        ComponentInstructionDTO instruction2 = new ComponentInstructionDTO();
+    //        instruction2.setInstructionOrderNumber(2);
+    //        instruction2.setActions("Action 2");
+    //        instruction2.setName("Instruction 2");
+    //        instruction2.setPath("/path/to/instruction2");
+    //        instruction2.setDescription("Description for Instruction 2");
+    //        instruction2.setOptional(false);
+    //        instruction2.setDefaultValue("default2");
+    //        instruction2.setActionCustomMaxWaitSec(20);
+    //        instruction2.setOnHoldSeconds(10);
+    //        instruction2.setCodified(false);
+    //        instruction2.setExportToABR(true);
+    //        instruction1.setActive(true);
+    //
+    //        // Assign mock instructions to mock blocks
+    //        ComponentBlockDTO block1 = new ComponentBlockDTO();
+    //        block1.setName("Block One");
+    //        block1.setDescription("Description for Block One");
+    //        block1.setTypeId(1);
+    //        block1.setActive(true);
+    //        block1.setWait(3);
+    //        block1.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction1))); // Assign instruction1 to
+    // block1
+    //
+    //        ComponentBlockDTO block2 = new ComponentBlockDTO();
+    //        block2.setName("Block Two");
+    //        block2.setDescription("Description for Block Two");
+    //        block2.setTypeId(2);
+    //        block2.setActive(true);
+    //        block2.setWait(3);
+    //        block2.setSavedBlockLoopInstructions(new ArrayList<>(List.of(instruction2))); // Assign instruction2 to
+    // block2
+    //
+    //        ComponentBlockDTO block3 = new ComponentBlockDTO();
+    //        block3.setName("Another Block");
+    //        block3.setDescription("Description for Another Block");
+    //        block3.setTypeId(3);
+    //        block3.setActive(true);
+    //        block3.setWait(3);
+    //        block3.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
+    //
+    //        ComponentBlockDTO block4 = new ComponentBlockDTO();
+    //        block4.setName("Sample Block");
+    //        block4.setDescription("Description for Sample Block");
+    //        block4.setTypeId(4);
+    //        block4.setSavedBlockLoopInstructions(new ArrayList<>()); // No instructions for this block
+    //
+    //        // Add mock blocks to the ObservableList
+    //        componentBlockDTOS.addAll(block1, block2, block3, block4);
+    //
+    //        this.componentList.setItems(componentBlockDTOS);
+    //    }
 }

@@ -11,8 +11,8 @@ public class InstructionListCell extends ListCell<InstructionDTO> {
     protected void updateItem(InstructionDTO item, boolean empty) {
         super.updateItem(item, empty);
         Node graphic = null;
-        if (!empty && item != null && item.getBlock() != null) {
-            graphic = (new ARWebElement(item)).getGraphicRepresentation();
+        if (!empty && item != null && item.getBlockId() != null) {
+            graphic = (new ARWebElement(item, null)).getGraphicRepresentation();
             if (getScene() != null) {
                 graphic.setUserData(getScene().getRoot().getUserData());
             }

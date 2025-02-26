@@ -14,7 +14,6 @@ import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
-import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
@@ -59,11 +58,11 @@ public class SimpleWebSocketServer {
     //    }
 
     private static final PerformDataBase performDataBase;
-    private static final PerformDBSavedBlock performDBSavedBlock;
+    //    private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
-        performDBSavedBlock = PerformDBSavedBlock.getInstance();
+        //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
     }
 
     // Store all connected sessions
@@ -403,7 +402,8 @@ public class SimpleWebSocketServer {
 
     private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        ComponentBlockDTO componentBlockDTO = performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
+        ComponentBlockDTO componentBlockDTO =
+                new ComponentBlockDTO(); // performDataBase.createSavedBlockDTO(blockSplitDTO);
 
         BlockDTO blockDTO = new BlockDTO();
         blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());

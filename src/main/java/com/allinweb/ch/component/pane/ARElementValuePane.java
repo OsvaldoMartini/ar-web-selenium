@@ -1,14 +1,11 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BankingDTO;
-import com.allinweb.ch.component.model.JobDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.BotJobDTO;
-import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -19,7 +16,6 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javafx.collections.FXCollections;
@@ -342,33 +338,33 @@ public class ARElementValuePane extends ARPane {
         updateButton.setDisable(true);
     }
 
-    private List<BankingDTO> loadFromDB() {
-
-        ARSharedResources.getInstance().refreshEntity(null, HomeBankingDTO.class);
-
-        List<BankingDTO> dtoList = new ArrayList<>();
-
-        List<HomeBankingDTO> listHomeBankingDTO =
-                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
-
-        // Iterate through the result set and populate the DTO list
-        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
-            List<JobDTO> listJobsDto = new ArrayList<>();
-            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
-                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
-                listJobsDto.add(jobsDto);
-            }
-
-            dtoList.add(new BankingDTO(
-                    homeBankingDTO.getId(),
-                    homeBankingDTO.getName(),
-                    homeBankingDTO.getUrl(),
-                    homeBankingDTO.getPriority(),
-                    listJobsDto.size(),
-                    listJobsDto));
-        }
-        return dtoList;
-    }
+    //    private List<BankingDTO> loadFromDB() {
+    //
+    //        ARSharedResources.getInstance().refreshEntity(null, HomeBankingDTO.class);
+    //
+    //        List<BankingDTO> dtoList = new ArrayList<>();
+    //
+    //        List<HomeBankingDTO> listHomeBankingDTO =
+    //                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+    //
+    //        // Iterate through the result set and populate the DTO list
+    //        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
+    //            List<JobDTO> listJobsDto = new ArrayList<>();
+    //            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
+    //                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
+    //                listJobsDto.add(jobsDto);
+    //            }
+    //
+    //            dtoList.add(new BankingDTO(
+    //                    homeBankingDTO.getId(),
+    //                    homeBankingDTO.getName(),
+    //                    homeBankingDTO.getUrl(),
+    //                    homeBankingDTO.getPriority(),
+    //                    listJobsDto.size(),
+    //                    listJobsDto));
+    //        }
+    //        return dtoList;
+    //    }
 
     @Override
     public void initUIBehaviour() {}

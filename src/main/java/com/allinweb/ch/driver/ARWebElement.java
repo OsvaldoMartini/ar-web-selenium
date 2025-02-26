@@ -1,6 +1,7 @@
 package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.InstructionDTO;
@@ -118,33 +119,33 @@ public class ARWebElement {
         initFromWebElement(targetElement.getElement());
     }
 
-    public ARWebElement(WebElement element, String priority) {
-        updatePriorities(priority, null);
+    public ARWebElement(WebElement element, String priority, HomeBankingLoadDTO homeBanking) {
+        updatePriorities(priority, null, homeBanking);
         this.targetElement = targetElement;
         initFromWebElement(targetElement.getElement());
     }
 
-    public ARWebElement(InstructionDTO instruction) {
-        botJobId = instruction.getBlock().getBotJobDTO().getId();
-        updatePriorities(null, instruction);
+    public ARWebElement(InstructionDTO instruction, HomeBankingLoadDTO homeBanking) {
+        botJobId = instruction.getBotJobId();
+        updatePriorities(null, instruction, homeBanking);
         initFromBlockLoopInstruction(instruction);
     }
 
-    private void updatePriorities(String priority, InstructionDTO instruction) {
-        botJobId = instruction.getBlock().getBotJobDTO().getId();
+    private void updatePriorities(String priority, InstructionDTO instruction, HomeBankingLoadDTO homeBanking) {
+        botJobId = instruction.getBotJobId();
         if (arPriorities.getJobId() == null) {
             arPriorities.setJobId(botJobId);
-            if (instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority() != null) {
-                arPriorities.loadPrioritiesFromString(
-                        instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority());
+            if (homeBanking.getPriority() != null) {
+                arPriorities.loadPrioritiesFromString(homeBanking.getPriority());
+            } else if (instruction.getPriority() != null) {
+                arPriorities.loadPrioritiesFromString(instruction.getPriority());
             } else {
                 arPriorities.loadPriorities();
             }
         } else if (arPriorities.getJobId() != botJobId) {
             arPriorities.setJobId(botJobId);
-            if (instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority() != null) {
-                arPriorities.loadPrioritiesFromString(
-                        instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority());
+            if (instruction.getPriority() != null) {
+                arPriorities.loadPrioritiesFromString(instruction.getPriority());
             } else {
                 arPriorities.loadPriorities();
             }

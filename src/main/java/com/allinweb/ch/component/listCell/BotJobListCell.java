@@ -128,33 +128,27 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         //        }
         int rowsAffected = performDataBase.deleteBotJob(botJob.getId());
 
-        Text variableText1Styled = new Text(String.format("Bot Job \"%s\" Deleted!", botJob.getName()));
-        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text variableText2Styled = new Text(String.format("Rows Affected: \"%s\"", rowsAffected));
-        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
         if (rowsAffected == 0) {
-            variableText1Styled = new Text(String.format("Bot Job \"%s\" Deleted!", botJob.getName()));
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            performMessage.showCustomModalDialog(
+                    "Action Delete Bot-Job",
+                    "Bot-Job deleted successfully!",
+                    String.format("The Bot Job \"%s\" was Deleted!", botJob.getName()),
+                    null,
+                    null,
+                    false,
+                    "Close",
+                    null,
+                    0);
         } else if (rowsAffected < 0) {
-            variableText1Styled = new Text(String.format("Bot Job NOT Deleted!", botJob.getName()));
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            variableText2Styled = new Text("Contact the Database Administrator");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+            performMessage.errorMessage(
+                    "I cannot delete the BojJob Now",
+                    "This Bot Job was Flagged as Inactive!",
+                    "Some Access ROW still in use",
+                    null,
+                    null,
+                    0);
+
+            performDataBase.updateStatusBotJob(botJob.getId(), false);
         }
-
-        VBox combinedTextContainer = new VBox();
-        combinedTextContainer.setSpacing(5); // Add some sp
-
-        combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
-
-        performMessage.showAlertCombinedVBOX(
-                rowsAffected > 0 ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
-                "Delete Bot-Job",
-                rowsAffected > 0 ? "Bot-Job deleted successfully!" : "Bot-Job NOT deleted!\"",
-                null,
-                combinedTextContainer);
     }
 }

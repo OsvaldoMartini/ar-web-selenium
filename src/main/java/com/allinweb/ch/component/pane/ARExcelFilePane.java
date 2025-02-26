@@ -282,8 +282,6 @@ public class ARExcelFilePane extends ARPane {
         boolean updateBlock = performDataBase.updateBlockExportFile(
                 blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
 
-        ARSharedResources.getInstance().changeDbConnection();
-
         Text variableText1Styled = new Text(String.format("Export File \"%s\" Updated", exportFile));
         variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 

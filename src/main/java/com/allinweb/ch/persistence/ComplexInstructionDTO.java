@@ -1,15 +1,15 @@
 package com.allinweb.ch.persistence;
 
 import javax.persistence.*;
+import lombok.Data;
 
 @Entity
 @Table(name = "complex_instruction")
-// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "complexInstructionSeq", allocationSize = 1)
+@Data
 public class ComplexInstructionDTO extends BaseDTO {
 
-    @ManyToOne
-    @JoinColumn(name = "instruction_id")
-    private InstructionDTO instructionDTO;
+    @Column(name = "instruction_id")
+    private Integer instructionId;
 
     @Column(name = "order_number")
     private int orderNumber;
@@ -20,43 +20,6 @@ public class ComplexInstructionDTO extends BaseDTO {
     @Column(name = "way")
     private String way;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "bot_job_id")
-    private BotJobDTO botJobDTO;
-
-    public BotJobDTO getBotJobDTO() {
-        return botJobDTO;
-    }
-
-    public void setBotJobDTO(BotJobDTO botJobDTO) {
-        this.botJobDTO = botJobDTO;
-    }
-
-    public ComplexInstructionDTO() {
-        super();
-    }
-
-    public InstructionDTO getBlockLoopInstructionDTO() {
-        return instructionDTO;
-    }
-
-    public void setBlockLoopInstructionDTO(InstructionDTO instructionDTO) {
-        this.instructionDTO = instructionDTO;
-    }
-
-    public int getOrderNumber() {
-        return orderNumber;
-    }
-
-    public void setOrderNumber(int orderNumber) {
-        this.orderNumber = orderNumber;
-    }
-
-    public String getInstruction() {
-        return instruction;
-    }
-
-    public void setInstruction(String instruction) {
-        this.instruction = instruction;
-    }
+    @Column(name = "bot_job_id")
+    private Integer botJobId;
 }
