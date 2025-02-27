@@ -468,7 +468,7 @@ public class ARConfigurationPane extends ARPane {
             List<InstructionLoadDTO> instList = null;
             for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
                 instList = performDataBase.instructionsToDuplicate(
-                        conn, botJobLoadDTO.getId(), -1, "instruction"); // instruction
+                        conn, botJobLoadDTO.getId(), -1, "instruction", "block"); // instruction
                 break;
             }
 

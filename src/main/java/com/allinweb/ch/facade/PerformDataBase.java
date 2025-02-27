@@ -3397,13 +3397,13 @@ public class PerformDataBase {
     }
 
     public List<InstructionReferenceLoadDTO> instReferenceToDuplicateNew(
-            Connection conn, int oldBotJobId, int oldBlockId, String targetTable) throws SQLException {
+            Connection conn, int oldBotJobId, int oldBlockId, String table1, String table2) throws SQLException {
         String query = "SELECT ref.id, ref.reference_type, ref.value, ref.instruction_id, ref.bot_job_id " + "  FROM "
-                + targetTable + " ref ";
+                + table1 + " ref ";
 
         if (oldBlockId > -1) {
-            query +=
-                    " JOIN instruction bli ON bli.id = ref.instruction_id and ref.bot_job_id = ? and bli.block_id = ?  ";
+            query += " JOIN " + table2
+                    + " bli ON bli.id = ref.instruction_id and ref.bot_job_id = ? and bli.block_id = ?  ";
         } else {
             query += " WHERE ref.bot_job_id = ? ";
         }
@@ -3438,7 +3438,7 @@ public class PerformDataBase {
     }
 
     public List<ComplexInstructionLoadDTO> instComplexToDuplicate(
-            Connection conn, int oldBotJobId, int oldBlockId, String targetTable) throws SQLException {
+            Connection conn, int oldBotJobId, int oldBlockId, String table1, String table2) throws SQLException {
         String query = " SELECT \n" + "  cp.id, \n"
                 + "  cp.instruction, \n"
                 + "  cp.order_number, \n"
@@ -3446,10 +3446,11 @@ public class PerformDataBase {
                 + "  cp.instruction_id, \n"
                 + "  cp.bot_job_id \n"
                 + "FROM \n"
-                + targetTable + " cp";
+                + table1 + " cp";
 
         if (oldBlockId > -1) {
-            query += " JOIN instruction bli ON bli.id = cp.instruction_id and cp.bot_job_id = ? and bli.block_id = ?  ";
+            query += " JOIN " + table2
+                    + " bli ON bli.id = cp.instruction_id and cp.bot_job_id = ? and bli.block_id = ?  ";
         } else {
             query += " WHERE cp.bot_job_id = ? ";
         }
@@ -3486,15 +3487,15 @@ public class PerformDataBase {
     }
 
     public List<InstructionLoadDTO> instructionsToDuplicate(
-            Connection conn, int oldBotJobId, int oldBlockId, String tableTarget) throws SQLException {
+            Connection conn, int oldBotJobId, int oldBlockId, String table1, String table2) throws SQLException {
         String query =
                 "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, bli.codified, bli.default_value, \n"
                         + " bli.description, bli.export_to_abr, bli.instruction_order_number, bli.name, bli.on_hold_seconds, "
                         + " bli.operation, bli.optional, \n"
                         + " bli.parent_id, bli.path, bli.coordinates, bli.iframe_xpath, bli.force_coordinates, "
                         + " bli.variable_id, bli.block_id, bli.bot_job_id, blk.block_order_number \n"
-                        + " FROM " + tableTarget + " bli \n"
-                        + " JOIN block blk ON bli.block_id = blk.id \n"
+                        + " FROM " + table1 + " bli \n"
+                        + " JOIN " + table2 + " blk ON bli.block_id = blk.id \n"
                         + " WHERE bli.bot_job_id = ? ";
 
         if (oldBlockId > -1) {
@@ -3610,7 +3611,7 @@ public class PerformDataBase {
 
         //  "block", "block_loop_instruction", "instruction", "instruction_reference", "reference", "variable"
         List<InstructionLoadDTO> instList = instructionsToDuplicate(
-                conn, oldBotJobId, -1, arrayTables[1]); // "block_loop_instruction", "instruction"
+                conn, oldBotJobId, -1, arrayTables[1], arrayTables[0]); // "block_loop_instruction", "instruction"
 
         List<VariableLoadDTO> varsList = instVariablesToDuplicateOLD(conn, oldBotJobId, arrayTables[5]);
 
@@ -3722,7 +3723,6 @@ public class PerformDataBase {
 
     /***
      *  First Sequence   From Instructions tom Components
-     *  Second Sequence  From Components to Instructions
      * @param conn
      * @param blockDetailsDTO
      * @param arrayTables      // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
@@ -3734,6 +3734,7 @@ public class PerformDataBase {
             throws SQLException {
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+        // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
         int oldBotJobId = blockDetailsDTO.getBotJobId();
         int oldBlockId = blockDetailsDTO.getBlockId();
         int homeBankId = blockDetailsDTO.getHomeBankingId();
@@ -3745,6 +3746,7 @@ public class PerformDataBase {
         if (blockList.size() > 0) {
 
             // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
             int currentId = getMaxId(conn, arrayTables[1]) + 1; // block  or component_block
 
             // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
@@ -3759,6 +3761,7 @@ public class PerformDataBase {
             }
             // Duplicate Blocks
             // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
             ErrorMessage errorMessage = duplicateBlocks(conn, blockList, arrayTables[1]);
             if (errorMessage != null) {
                 return errorMessage;
@@ -3769,14 +3772,16 @@ public class PerformDataBase {
         Map<Integer, Integer> variableOlderAndNewId = new HashMap<>();
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-        List<InstructionLoadDTO> instList =
-                instructionsToDuplicate(conn, oldBotJobId, oldBlockId, arrayTables[2]); // instruction
+        // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
+        List<InstructionLoadDTO> instList = instructionsToDuplicate(
+                conn, oldBotJobId, oldBlockId, arrayTables[2], arrayTables[0]); // instruction vs block
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         List<VariableLoadDTO> varsList =
                 instVariablesToDuplicateNEW(conn, oldBotJobId, oldBlockId, arrayTables[6]); // variable
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+        // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
         int currentVarId = getMaxId(conn, arrayTables[7]) + 1; // component_variable
 
         if (varsList.size() > 0) {
@@ -3793,6 +3798,7 @@ public class PerformDataBase {
 
             // Prepare the Ids
             // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
             int currentId = getMaxId(conn, arrayTables[3]) + 1; // component_instruction
             for (InstructionLoadDTO instruction : instList) {
                 instruction.setInstructionId(currentId); // Holds the News Ids
@@ -3814,6 +3820,7 @@ public class PerformDataBase {
             }
             // Duplicate instruction
             // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
             ErrorMessage errorMessage = duplicateBlockLoopInstructions(
                     conn,
                     instList,
@@ -3845,6 +3852,7 @@ public class PerformDataBase {
 
                 // Duplicate variable
                 // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+                // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
                 errorMessage = duplicateVariables(conn, varsList, arrayTables[7]); // component_variable
                 if (errorMessage != null) {
                     return errorMessage;
@@ -3852,11 +3860,12 @@ public class PerformDataBase {
             }
 
             // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
-            List<InstructionReferenceLoadDTO> refersList =
-                    instReferenceToDuplicateNew(conn, oldBotJobId, oldBlockId, arrayTables[4]); // reference
+            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
+            List<InstructionReferenceLoadDTO> refersList = instReferenceToDuplicateNew(
+                    conn, oldBotJobId, oldBlockId, arrayTables[4], arrayTables[2]); // reference
             if (refersList.size() > 0) {
 
-                currentId = getMaxId(conn, arrayTables[5]) + 1; // component_reference
+                currentId = getMaxId(conn, arrayTables[5]) + 1; // component_reference vs reference
 
                 // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
                 for (InstructionReferenceLoadDTO reference : refersList) {
@@ -3875,6 +3884,7 @@ public class PerformDataBase {
 
                 // Duplicate reference
                 // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+                // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
                 errorMessage = duplicateInstructionReferences(conn, refersList, arrayTables[5]); // component_reference
                 if (errorMessage != null) {
                     return errorMessage;
@@ -3882,11 +3892,13 @@ public class PerformDataBase {
             }
 
             // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+            // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
             List<ComplexInstructionLoadDTO> complexList =
-                    instComplexToDuplicate(conn, oldBotJobId, oldBlockId, arrayTables[8]); // complex
+                    instComplexToDuplicate(conn, oldBotJobId, oldBlockId, arrayTables[8], arrayTables[2]); // complex
             if (complexList.size() > 0) {
 
                 // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+                // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
                 currentId = getMaxId(conn, arrayTables[9]) + 1; // component_complex
 
                 // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
@@ -3906,6 +3918,7 @@ public class PerformDataBase {
 
                 // Duplicate complex_instruction
                 // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+                // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
                 errorMessage = duplicateComplexInstructions(conn, complexList, arrayTables[9]); // // component_complex
                 if (errorMessage != null) {
                     return errorMessage;
@@ -3947,7 +3960,7 @@ public class PerformDataBase {
 
         // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
         List<InstructionLoadDTO> instList =
-                instructionsToDuplicate(conn, oldBotJobId, -1, arrayTables[1]); // instruction
+                instructionsToDuplicate(conn, oldBotJobId, -1, arrayTables[1], arrayTables[0]); // instruction
         List<VariableLoadDTO> varsList = instVariablesToDuplicateNEW(conn, oldBotJobId, -1, arrayTables[4]);
 
         // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
@@ -4022,7 +4035,7 @@ public class PerformDataBase {
 
             // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
             List<InstructionReferenceLoadDTO> refersList =
-                    instReferenceToDuplicateNew(conn, oldBotJobId, -1, arrayTables[2]);
+                    instReferenceToDuplicateNew(conn, oldBotJobId, -1, arrayTables[2], arrayTables[1]);
             if (refersList.size() > 0) {
 
                 currentId = getMaxId(conn, arrayTables[2]) + 1;
@@ -4051,7 +4064,8 @@ public class PerformDataBase {
             }
 
             // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            List<ComplexInstructionLoadDTO> complexList = instComplexToDuplicate(conn, oldBotJobId, -1, arrayTables[3]);
+            List<ComplexInstructionLoadDTO> complexList =
+                    instComplexToDuplicate(conn, oldBotJobId, -1, arrayTables[3], arrayTables[1]);
             if (complexList.size() > 0) {
 
                 currentId = getMaxId(conn, arrayTables[3]) + 1;

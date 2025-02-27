@@ -743,7 +743,7 @@ public class SimpleWebSocketServer {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            sendMessageJson(blockDetailsDTO.getSessionId(), jsonData, "botJobTasks");
+            sendMessageJson(blockDetailsDTO.getSessionId(), jsonData, "updateInstructions");
 
         } else {
             performMessage.errorMessage(
