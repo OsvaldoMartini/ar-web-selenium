@@ -4,6 +4,7 @@ import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.HomeBankingListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
@@ -464,7 +465,7 @@ public class ARConfigurationPane extends ARPane {
         try (Connection conn = performDataBase.getConnection()) {
             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
 
-            List<com.allinweb.ch.component.model.InstructionDTO> instList = null;
+            List<InstructionLoadDTO> instList = null;
             for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
                 instList = performDataBase.instructionsToDuplicate(
                         conn, botJobLoadDTO.getId(), -1, "instruction"); // instruction

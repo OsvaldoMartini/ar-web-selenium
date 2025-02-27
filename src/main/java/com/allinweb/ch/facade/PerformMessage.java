@@ -1,7 +1,6 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.ElementDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -324,7 +323,7 @@ public class PerformMessage {
         return status[0];
     }
 
-    public String renderInstructionActions(InstructionDTO instruction) {
+    public String renderInstructionActions(InstructionLoadDTO instruction) {
         // List of valid actions
         List<String> validActions = Arrays.asList("SET", "GET", "CK", "E");
 

@@ -7,7 +7,7 @@
 // import com.allinweb.ch.facade.PerformActions;
 // import com.allinweb.ch.persistence.BlockDTO;
 // import com.allinweb.ch.persistence.ComponentBlockDTO;
-// import com.allinweb.ch.persistence.InstructionDTO;
+// import com.allinweb.ch.persistence.InstructionLoadDTO;
 // import com.allinweb.ch.util.ARConstants;
 // import com.allinweb.ch.util.ARLogger;
 // import java.util.ArrayList;
@@ -110,12 +110,12 @@
 //                AnchorPane.setBottomAnchor(actionPanel, ARConstants.SPACE_XXS);
 //                AnchorPane graphicRepresentation = new AnchorPane(new Node[] {nameFieldsGroup, actionPanel});
 //                graphicRepresentation.setBackground(Background.fill(Color.ROYALBLUE));
-//                ObservableList<InstructionDTO> instructionObservableList = ARSharedResources.getInstance()
+//                ObservableList<InstructionLoadDTO> instructionObservableList = ARSharedResources.getInstance()
 //                        .getEntityList(
-//                                InstructionDTO.class,
-//                                Comparator.comparingInt(InstructionDTO::getInstructionOrderNumber),
+//                                InstructionLoadDTO.class,
+//                                Comparator.comparingInt(InstructionLoadDTO::getInstructionOrderNumber),
 //                                instruction -> instruction.getBlockId().equals(item.getId()));
-//                ListView<InstructionDTO> instructionList = new ListView<>(instructionObservableList);
+//                ListView<InstructionLoadDTO> instructionList = new ListView<>(instructionObservableList);
 //                instructionList.setFixedCellSize(ARConstants.SPACE_L);
 //
 //                instructionList.setCellFactory(new ARCellFactory<>(InstructionListCell.class)::call);
@@ -129,7 +129,7 @@
 //                uiBlock.setAlignment(Pos.TOP_CENTER);
 //
 //                VBox.setVgrow(instructionList, Priority.ALWAYS);
-//                int size = item.getBlockLoopInstructionDTOS().size();
+//                int size = item.getBlockLoopInstructionLoadDTOS().size();
 //
 //                setMaxHeight(Double.MAX_VALUE);
 //                this.setPrefHeight(ARConstants.SPACE_L * (double) size + 35.0D);
@@ -175,10 +175,10 @@
 //                        BlockDTO block = (BlockDTO)
 //                                Collections.max(list, Comparator.comparingInt(BlockDTO::getBlockOrderNumber));
 //                        if (block != null) {
-//                            List<InstructionDTO> blockLoopInstructions = new ArrayList<InstructionDTO>();
-//                            blockLoopInstructions.addAll(block.getBlockLoopInstructionDTOS());
-//                            blockLoopInstructions.addAll(item.getBlockLoopInstructionDTOS());
-//                            block.setBlockLoopInstructionDTOS(blockLoopInstructions);
+//                            List<InstructionLoadDTO> blockLoopInstructions = new ArrayList<InstructionLoadDTO>();
+//                            blockLoopInstructions.addAll(block.getBlockLoopInstructionLoadDTOS());
+//                            blockLoopInstructions.addAll(item.getBlockLoopInstructionLoadDTOS());
+//                            block.setBlockLoopInstructionLoadDTOS(blockLoopInstructions);
 //                            ARSharedResources.getInstance().updateEntity(block, BlockDTO.class, () -> {
 //                                ARSharedResources.getInstance().refreshEntity(item, BlockDTO.class, () -> {
 //                                    ARSharedResources.getInstance().removeEntity(item, BlockDTO.class, () -> {

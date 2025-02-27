@@ -1424,7 +1424,7 @@ public class PerformActions {
         return true;
     }
 
-    private void listOperation(boolean byPassNotFound, InstructionLoadDTO instructionDTO) {
+    private void listOperation(boolean byPassNotFound, InstructionLoadDTO InstructionLoadDTO) {
 
         /*
         TODO: Da rivedere, attualmente non del tutto funzionante
@@ -1432,9 +1432,10 @@ public class PerformActions {
         [       0       ||       1      ||       2         ||    3    ||        4       ||  5   ||            6                ]
         [backward_button||forward_button||list_elements_tag||condition||expected_results||action||sub_element_on_execute_action]
         */
-        List<ComplexInstructionLoadDTO> complexInstructionDTOS = instructionDTO.getComplexInstructionLoadDTOList();
+        List<ComplexInstructionLoadDTO> complexInstructionLoadDTOS =
+                InstructionLoadDTO.getComplexInstructionLoadDTOList();
         String[] complexActionParts =
-                complexInstructionDTOS.get(0).getInstruction().split(ARConstants.COMPLEX_INSTRUCTION_SEPARATOR);
+                complexInstructionLoadDTOS.get(0).getInstruction().split(ARConstants.COMPLEX_INSTRUCTION_SEPARATOR);
         List<WebElement> webElementList;
         WebElement forwardButton;
         WebElement backwardButton;

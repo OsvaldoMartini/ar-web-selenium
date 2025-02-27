@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -391,18 +390,18 @@ public class ARSaveComponentPane extends ARPane {
                     //                            boolean success = false;
                     //                            for (ComponentReferenceDTO reference : originalReferences) {
                     //
-                    //                                ComponentInstructionDTO instructionDTO =
-                    // reference.getSavedBlockLoopInstructionDTO();
-                    //                                if (instructionDTO == null) {
+                    //                                ComponentInstructionDTO InstructionLoadDTO =
+                    // reference.getSavedBlockLoopInstructionLoadDTO();
+                    //                                if (InstructionLoadDTO == null) {
                     //                                    ARLogger.getInstance(ARViewBotJobPane.class)
-                    //                                            .warning("SavedBlockLoopInstructionDTO is null for
+                    //                                            .warning("SavedBlockLoopInstructionLoadDTO is null for
                     // reference: "
                     //                                                    + reference.getReferenceType());
                     //                                    continue;
                     //                                }
                     //
                     //                                success = insertComponentReferences(reference,
-                    // instructionDTO.getId());
+                    // InstructionLoadDTO.getId());
                     //                                if (!success) {
                     //                                    break;
                     //                                }
@@ -588,7 +587,7 @@ public class ARSaveComponentPane extends ARPane {
     //        // Generate a Unique-ID for the block
     //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
     //
-    //            // Fetch instructionId from savedBlockLoopInstructionDTO
+    //            // Fetch instructionId from savedBlockLoopInstructionLoadDTO
     //
     //            Integer nextId = loadNextIdBReferenceData() + 1;
     //
@@ -700,9 +699,9 @@ public class ARSaveComponentPane extends ARPane {
         return null;
     }
 
-    public List<InstructionDTO> getSavedInstructionsByBlockId(int botJobId, int blockId) {
+    public List<InstructionLoadDTO> getSavedInstructionsByBlockId(int botJobId, int blockId) {
         // List to store the fetched instructions
-        List<InstructionDTO> instructions = new ArrayList<>();
+        List<InstructionLoadDTO> instructions = new ArrayList<>();
 
         // Build the SQL query statement
         String querySQL = "SELECT * FROM component_instruction WHERE block_id = " + blockId
@@ -714,7 +713,7 @@ public class ARSaveComponentPane extends ARPane {
 
             while (rs.next()) {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionDTO instruction = new InstructionDTO();
+                InstructionLoadDTO instruction = new InstructionLoadDTO();
                 instruction.setInstructionId(rs.getInt("id"));
                 instruction.setInstructionName(rs.getString("name"));
                 instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));

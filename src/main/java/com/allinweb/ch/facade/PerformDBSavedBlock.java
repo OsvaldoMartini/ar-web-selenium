@@ -3,7 +3,7 @@
 // import com.allinweb.ch.component.model.BlockLoadDTO;
 // import com.allinweb.ch.component.model.BlockSplitDTO;
 // import com.allinweb.ch.component.model.DetailsDTO;
-// import com.allinweb.ch.component.model.InstructionDTO;
+//
 // import com.allinweb.ch.component.model.InstructionLoadDTO;
 // import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 // import com.allinweb.ch.core.ARSharedResources;
@@ -59,26 +59,26 @@
 //
 //    public ComponentBlockDTO createSavedBlockDTO(BlockSplitDTO blockSplitDTO) {
 //
-//        List<InstructionDTO> instructions = performDataBase.getInstructionsByBlockId(
+//        List<InstructionLoadDTO> instructions = performDataBase.getInstructionsByBlockId(
 //                blockSplitDTO.getDetails().getNewBlock().getBotJobId(),
 //                blockSplitDTO.getDetails().getNewBlock().getBlockId());
 //
 //        List<ComponentInstructionDTO> savedBlockLoopInstructions = new ArrayList<>();
 //
-//        for (InstructionDTO instructionDTO : instructions) {
-//            // Create mock SavedBlockLoopInstructionDTO entries
+//        for (InstructionLoadDTO InstructionLoadDTO : instructions) {
+//            // Create mock SavedBlockLoopInstructionLoadDTO entries
 //            ComponentInstructionDTO instruction = new ComponentInstructionDTO();
 //            instruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber());
-//            instruction.setActions(instructionDTO.getActions());
-//            instruction.setName(instructionDTO.getInstructionName());
-//            instruction.setPath(instructionDTO.getPath());
-//            instruction.setDescription(instructionDTO.getDescription());
-//            instruction.setOptional(instructionDTO.getOptional());
-//            instruction.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
-//            instruction.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
-//            instruction.setCodified(instructionDTO.getCodified());
-//            instruction.setExportToABR(instructionDTO.getExportToABR());
-//            instruction.setActive(instructionDTO.getInstructionActive());
+//            instruction.setActions(InstructionLoadDTO.getActions());
+//            instruction.setName(InstructionLoadDTO.getInstructionName());
+//            instruction.setPath(InstructionLoadDTO.getPath());
+//            instruction.setDescription(InstructionLoadDTO.getDescription());
+//            instruction.setOptional(InstructionLoadDTO.getOptional());
+//            instruction.setActionCustomMaxWaitSec(InstructionLoadDTO.getActionCustomMaxWaitSec());
+//            instruction.setOnHoldSeconds(InstructionLoadDTO.getOnHoldSeconds());
+//            instruction.setCodified(InstructionLoadDTO.getCodified());
+//            instruction.setExportToABR(InstructionLoadDTO.getExportToABR());
+//            instruction.setActive(InstructionLoadDTO.getInstructionActive());
 //
 //            savedBlockLoopInstructions.add(instruction);
 //        }
@@ -96,16 +96,17 @@
 //    }
 //
 //    public int insertSavedInstruction(
-//            ComponentInstructionDTO savedInstructionDTO, int savedCurrentBotJobId, int savedCurrentBlockId)
+//            ComponentInstructionDTO savedInstructionLoadDTO, int savedCurrentBotJobId, int savedCurrentBlockId)
 //            throws SQLException {
 //        // Generate a Unique-ID for the block
 //
 //        try (Statement stmt = performDataBase.getConnection().createStatement()) {
 //
 //            Integer nextId = loadNextIdSavedInstructionData() + 1;
-//            savedInstructionDTO.setId(nextId);
+//            savedInstructionLoadDTO.setId(nextId);
 //
-//            String pathValue = (savedInstructionDTO.getPath() != null) ? "'" + savedInstructionDTO.getPath() + "'" :
+//            String pathValue = (savedInstructionLoadDTO.getPath() != null) ? "'" + savedInstructionLoadDTO.getPath() +
+// "'" :
 // "";
 //
 //            // Build the SQL insert query
@@ -130,25 +131,25 @@
 //                    + "bot_job_id, "
 //                    + "active)\n"
 //                    + "VALUES ("
-//                    + savedInstructionDTO.getId()
-//                    + ", " + savedInstructionDTO.getActionCustomMaxWaitSec()
-//                    + ", '" + savedInstructionDTO.getActions() + "'"
-//                    + ", " + savedInstructionDTO.getBlockMarked()
-//                    //                    + ", '" + savedInstructionDTO.getDefaultValue() + "'"
-//                    + ", '" + savedInstructionDTO.getDescription() + "'"
-//                    + ", " + savedInstructionDTO.getCodified()
-//                    + ", " + savedInstructionDTO.getExportToABR()
-//                    + ", " + savedInstructionDTO.getInstructionOrderNumber()
-//                    + ", '" + savedInstructionDTO.getName() + "'"
-//                    + ", " + savedInstructionDTO.getOnHoldSeconds()
-//                    + ", '" + savedInstructionDTO.getOperation() + "'"
-//                    + ", " + savedInstructionDTO.getOptional()
-//                    + ", " + savedInstructionDTO.getParentId()
+//                    + savedInstructionLoadDTO.getId()
+//                    + ", " + savedInstructionLoadDTO.getActionCustomMaxWaitSec()
+//                    + ", '" + savedInstructionLoadDTO.getActions() + "'"
+//                    + ", " + savedInstructionLoadDTO.getBlockMarked()
+//                    //                    + ", '" + savedInstructionLoadDTO.getDefaultValue() + "'"
+//                    + ", '" + savedInstructionLoadDTO.getDescription() + "'"
+//                    + ", " + savedInstructionLoadDTO.getCodified()
+//                    + ", " + savedInstructionLoadDTO.getExportToABR()
+//                    + ", " + savedInstructionLoadDTO.getInstructionOrderNumber()
+//                    + ", '" + savedInstructionLoadDTO.getName() + "'"
+//                    + ", " + savedInstructionLoadDTO.getOnHoldSeconds()
+//                    + ", '" + savedInstructionLoadDTO.getOperation() + "'"
+//                    + ", " + savedInstructionLoadDTO.getOptional()
+//                    + ", " + savedInstructionLoadDTO.getParentId()
 //                    + ", " + pathValue
-//                    + ", " + savedInstructionDTO.getVariableId()
+//                    + ", " + savedInstructionLoadDTO.getVariableId()
 //                    + ", " + savedCurrentBlockId + ", "
 //                    + ", " + savedCurrentBotJobId + ", "
-//                    + savedInstructionDTO.getActive() // active
+//                    + savedInstructionLoadDTO.getActive() // active
 //                    + ");";
 //
 //            int rowsAffected = stmt.executeUpdate(insertSQL);
@@ -156,19 +157,19 @@
 //                ARLogger.getInstance(PerformDBSavedBlock.class)
 //                        .info(String.format(
 //                                "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
-//                                savedInstructionDTO.getId(),
-//                                savedInstructionDTO.getName(),
-//                                savedInstructionDTO.getActions(),
-//                                savedInstructionDTO.getOperation()));
+//                                savedInstructionLoadDTO.getId(),
+//                                savedInstructionLoadDTO.getName(),
+//                                savedInstructionLoadDTO.getActions(),
+//                                savedInstructionLoadDTO.getOperation()));
 //                return nextId;
 //            } else {
 //                ARLogger.getInstance(PerformDBSavedBlock.class)
 //                        .warning(String.format(
 //                                "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
-//                                savedInstructionDTO.getId(),
-//                                savedInstructionDTO.getName(),
-//                                savedInstructionDTO.getActions(),
-//                                savedInstructionDTO.getOperation()));
+//                                savedInstructionLoadDTO.getId(),
+//                                savedInstructionLoadDTO.getName(),
+//                                savedInstructionLoadDTO.getActions(),
+//                                savedInstructionLoadDTO.getOperation()));
 //                return -1;
 //            }
 //        }
@@ -192,48 +193,48 @@
 //    // Creating COMPONENT SAVED INSTRUCTIONS FOR BLOCK INSTRUCTIONS
 //    public static List<ComponentInstructionDTO> createSavedBlockLoopInstructionsFromBlocksDTO(
 //            DetailsDTO detailsDTO, ComponentBlockDTO componentBlockDTO) {
-//        ComponentInstructionDTO componentInstructionDTO;
-//        List<ComponentInstructionDTO> componentInstructionDTOS = new ArrayList<>();
+//        ComponentInstructionDTO ComponentInstructionDTO;
+//        List<ComponentInstructionDTO> ComponentInstructionDTOS = new ArrayList<>();
 //
-//        //        List<BlockLoopInstructionDTO> instructionList = ARSharedResources.getInstance()
+//        //        List<BlockLoopInstructionLoadDTO> instructionList = ARSharedResources.getInstance()
 //        //                .getEntityList(
-//        //                        BlockLoopInstructionDTO.class,
+//        //                        BlockLoopInstructionLoadDTO.class,
 //        //                        instruction -> instruction.getBlock().getId().equals(blockDTO.getId()));
 //        if (detailsDTO != null && detailsDTO.getNewBlock() != null) {
 //
-//            List<InstructionDTO> instructionList = performDataBase.getInstructionsByBlockId(
+//            List<InstructionLoadDTO> instructionList = performDataBase.getInstructionsByBlockId(
 //                    detailsDTO.getNewBlock().getBotJobId(),
 //                    detailsDTO.getNewBlock().getBlockId());
 //
-//            List<InstructionDTO> instructionFiltered = performDataBase.filterInstructions(instructionList);
+//            List<InstructionLoadDTO> instructionFiltered = performDataBase.filterInstructions(instructionList);
 //
-//            for (InstructionDTO instructionDTO : instructionFiltered) {
-//                componentInstructionDTO = new ComponentInstructionDTO();
+//            for (InstructionLoadDTO InstructionLoadDTO : instructionFiltered) {
+//                ComponentInstructionDTO = new ComponentInstructionDTO();
 //
-//                componentInstructionDTO.setActionCustomMaxWaitSec(instructionDTO.getActionCustomMaxWaitSec());
-//                componentInstructionDTO.setActions(instructionDTO.getActions());
-//                componentInstructionDTO.setBlockId(componentBlockDTO.getId());
+//                ComponentInstructionDTO.setActionCustomMaxWaitSec(InstructionLoadDTO.getActionCustomMaxWaitSec());
+//                ComponentInstructionDTO.setActions(InstructionLoadDTO.getActions());
+//                ComponentInstructionDTO.setBlockId(componentBlockDTO.getId());
 //
-//                componentInstructionDTO.setDefaultValue(instructionDTO.getDefaultValue());
-//                componentInstructionDTO.setDescription(instructionDTO.getDescription());
-//                componentInstructionDTO.setCodified(instructionDTO.getCodified());
-//                componentInstructionDTO.setExportToABR(instructionDTO.getExportToABR());
-//                componentInstructionDTO.setActive(instructionDTO.getInstructionActive());
-//                componentInstructionDTO.setInstructionOrderNumber(instructionDTO.getInstructionOrderNumber());
-//                componentInstructionDTO.setName(instructionDTO.getInstructionName());
-//                componentInstructionDTO.setOnHoldSeconds(instructionDTO.getOnHoldSeconds());
-//                componentInstructionDTO.setOptional(instructionDTO.getOptional());
-//                componentInstructionDTO.setPath(instructionDTO.getPath());
+//                ComponentInstructionDTO.setDefaultValue(InstructionLoadDTO.getDefaultValue());
+//                ComponentInstructionDTO.setDescription(InstructionLoadDTO.getDescription());
+//                ComponentInstructionDTO.setCodified(InstructionLoadDTO.getCodified());
+//                ComponentInstructionDTO.setExportToABR(InstructionLoadDTO.getExportToABR());
+//                ComponentInstructionDTO.setActive(InstructionLoadDTO.getInstructionActive());
+//                ComponentInstructionDTO.setInstructionOrderNumber(InstructionLoadDTO.getInstructionOrderNumber());
+//                ComponentInstructionDTO.setName(InstructionLoadDTO.getInstructionName());
+//                ComponentInstructionDTO.setOnHoldSeconds(InstructionLoadDTO.getOnHoldSeconds());
+//                ComponentInstructionDTO.setOptional(InstructionLoadDTO.getOptional());
+//                ComponentInstructionDTO.setPath(InstructionLoadDTO.getPath());
 //
 //                List<ComponentReferenceDTO> referenceDTOList =
 //                        new ArrayList<>(ComponentReferenceDTO.createSavedReferencesFromInstructionForSavedInstruction(
-//                                instructionDTO, componentInstructionDTO));
-//                componentInstructionDTO.setSavedInstructionReferenceDTOList(referenceDTOList);
+//                                InstructionLoadDTO, ComponentInstructionDTO));
+//                ComponentInstructionDTO.setSavedInstructionReferenceDTOList(referenceDTOList);
 //
-//                componentInstructionDTOS.add(componentInstructionDTO);
+//                ComponentInstructionDTOS.add(ComponentInstructionDTO);
 //            }
 //        }
-//        return componentInstructionDTOS;
+//        return ComponentInstructionDTOS;
 //    }
 //
 //    // Creating BLOCKS DTO FROM SAVED BLOCKS
@@ -256,46 +257,47 @@
 //    public static List<InstructionLoadDTO> createBlockLoopInstructionsFromSavedBlocksDTO(
 //            ComponentBlockDTO componentBlockDTO) {
 //
-//        InstructionLoadDTO blockLoopInstructionDTO;
+//        InstructionLoadDTO blockLoopInstructionLoadDTO;
 //
 //        //        List<BlockLoopInstructionLoadDTO> savedInstructions = ARSharedResources.getInstance()
 //        //                .getEntityList(
-//        //                        SavedBlockLoopInstructionDTO.class,
+//        //                        SavedBlockLoopInstructionLoadDTO.class,
 //        //                        saved -> saved.getBlock().getId().equals(savedBlocksDTO.getId()));
 //
 //        List<InstructionLoadDTO> savedInstructions =
 //                getSavedInstructionsByBlockId(componentBlockDTO.getBotJobDTO().getId(), componentBlockDTO.getId());
 //
-//        //        for (BlockLoopInstructionLoadDTO savedBlockLoopInstructionDTO : savedInstructions) {
-//        //            blockLoopInstructionDTO = new BlockLoopInstructionLoadDTO();
+//        //        for (BlockLoopInstructionLoadDTO savedBlockLoopInstructionLoadDTO : savedInstructions) {
+//        //            blockLoopInstructionLoadDTO = new BlockLoopInstructionLoadDTO();
 //        //
 //        //
 //        //
-// blockLoopInstructionDTO.setActionCustomMaxWaitSec(savedBlockLoopInstructionDTO.getActionCustomMaxWaitSec());
-//        //            blockLoopInstructionDTO.setActions(savedBlockLoopInstructionDTO.getActions());
+// blockLoopInstructionLoadDTO.setActionCustomMaxWaitSec(savedBlockLoopInstructionLoadDTO.getActionCustomMaxWaitSec());
+//        //            blockLoopInstructionLoadDTO.setActions(savedBlockLoopInstructionLoadDTO.getActions());
 //        //
-//        //            blockLoopInstructionDTO.setBlockId(blockDTO.getId());
-//        //            blockLoopInstructionDTO.setDefaultValue(savedBlockLoopInstructionDTO.getDefaultValue());
-//        //            blockLoopInstructionDTO.setDescription(savedBlockLoopInstructionDTO.getDescription());
-//        //            blockLoopInstructionDTO.setCodified(savedBlockLoopInstructionDTO.getCodified());
-//        //            blockLoopInstructionDTO.setExportToAR(savedBlockLoopInstructionDTO.getExportToAR());
+//        //            blockLoopInstructionLoadDTO.setBlockId(blockDTO.getId());
+//        //            blockLoopInstructionLoadDTO.setDefaultValue(savedBlockLoopInstructionLoadDTO.getDefaultValue());
+//        //            blockLoopInstructionLoadDTO.setDescription(savedBlockLoopInstructionLoadDTO.getDescription());
+//        //            blockLoopInstructionLoadDTO.setCodified(savedBlockLoopInstructionLoadDTO.getCodified());
+//        //            blockLoopInstructionLoadDTO.setExportToAR(savedBlockLoopInstructionLoadDTO.getExportToAR());
 //        //
-// blockLoopInstructionDTO.setInstructionActive(savedBlockLoopInstructionDTO.getInstructionActive());
+// blockLoopInstructionLoadDTO.setInstructionActive(savedBlockLoopInstructionLoadDTO.getInstructionActive());
 //        //
 //        //
-// blockLoopInstructionDTO.setInstructionOrderNumber(savedBlockLoopInstructionDTO.getInstructionOrderNumber());
-//        //            blockLoopInstructionDTO.setName(savedBlockLoopInstructionDTO.getName());
-//        //            blockLoopInstructionDTO.setOnHoldSeconds(savedBlockLoopInstructionDTO.getOnHoldSeconds());
-//        //            blockLoopInstructionDTO.setOptional(savedBlockLoopInstructionDTO.getOptional());
-//        //            blockLoopInstructionDTO.setPath(savedBlockLoopInstructionDTO.getPath());
+// blockLoopInstructionLoadDTO.setInstructionOrderNumber(savedBlockLoopInstructionLoadDTO.getInstructionOrderNumber());
+//        //            blockLoopInstructionLoadDTO.setName(savedBlockLoopInstructionLoadDTO.getName());
+//        //
+// blockLoopInstructionLoadDTO.setOnHoldSeconds(savedBlockLoopInstructionLoadDTO.getOnHoldSeconds());
+//        //            blockLoopInstructionLoadDTO.setOptional(savedBlockLoopInstructionLoadDTO.getOptional());
+//        //            blockLoopInstructionLoadDTO.setPath(savedBlockLoopInstructionLoadDTO.getPath());
 //        //
 //        //            List<InstructionReferenceLoadDTO> referenceDTOList =
 //        //                    new
 //        // ArrayList<>(InstructionReferenceDTO.createReferencesFromSavedInstructionForInstruction(
-//        //                            savedBlockLoopInstructionDTO, blockLoopInstructionDTO));
-//        //            blockLoopInstructionDTO.setInstructionReferenceDTOList(referenceDTOList);
+//        //                            savedBlockLoopInstructionLoadDTO, blockLoopInstructionLoadDTO));
+//        //            blockLoopInstructionLoadDTO.setInstructionReferenceDTOList(referenceDTOList);
 //        //
-//        //            blockLoopInstructionDTOs.add(blockLoopInstructionDTO);
+//        //            blockLoopInstructionLoadDTOs.add(blockLoopInstructionLoadDTO);
 //        //        }
 //
 //        return savedInstructions;

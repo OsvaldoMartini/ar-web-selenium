@@ -2,9 +2,9 @@ package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.InstructionDTO;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
@@ -125,13 +125,13 @@ public class ARWebElement {
         initFromWebElement(targetElement.getElement());
     }
 
-    public ARWebElement(InstructionDTO instruction, HomeBankingLoadDTO homeBanking) {
+    public ARWebElement(InstructionLoadDTO instruction, HomeBankingLoadDTO homeBanking) {
         botJobId = instruction.getBotJobId();
         updatePriorities(null, instruction, homeBanking);
         initFromBlockLoopInstruction(instruction);
     }
 
-    private void updatePriorities(String priority, InstructionDTO instruction, HomeBankingLoadDTO homeBanking) {
+    private void updatePriorities(String priority, InstructionLoadDTO instruction, HomeBankingLoadDTO homeBanking) {
         botJobId = instruction.getBotJobId();
         if (arPriorities.getJobId() == null) {
             arPriorities.setJobId(botJobId);
@@ -385,7 +385,7 @@ public class ARWebElement {
         toBeAddedElement.setValue(true);
     }
 
-    private void initFromBlockLoopInstruction(InstructionDTO instruction) {
+    private void initFromBlockLoopInstruction(InstructionLoadDTO instruction) {
 
         // Split the description string
         if (instruction.getOperation() != null) {
@@ -600,14 +600,14 @@ public class ARWebElement {
 
     private void switchInstruction(int directionQuantity) {
         //        try {
-        //            BlockLoopInstructionDTO currentInstruction =
-        //                    ARSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class,
+        //            BlockLoopInstructionLoadDTO currentInstruction =
+        //                    ARSharedResources.getInstance().getEntityById(BlockLoopInstructionLoadDTO.class,
         // instructionId);
         //            int order = currentInstruction.getInstructionOrderNumber();
         //            BlockDTO block = ARSharedResources.getInstance()
         //                    .getEntityById(BlockDTO.class, currentInstruction.getBlock().getId());
-        //            List<BlockLoopInstructionDTO> instructionList = block.getBlockLoopInstructions();
-        //            BlockLoopInstructionDTO instructionToChange = instructionList.stream()
+        //            List<BlockLoopInstructionLoadDTO> instructionList = block.getBlockLoopInstructions();
+        //            BlockLoopInstructionLoadDTO instructionToChange = instructionList.stream()
         //                    .filter(i -> i.getInstructionOrderNumber() == order + directionQuantity)
         //                    .findFirst()
         //                    .orElseThrow();
@@ -615,9 +615,9 @@ public class ARWebElement {
         //            instructionToChange.setInstructionOrderNumber(order);
         //            ARSharedResources.getInstance()
         //                    .updateEntity(
-        //                            currentInstruction, BlockLoopInstructionDTO.class, () ->
+        //                            currentInstruction, BlockLoopInstructionLoadDTO.class, () ->
         // ARSharedResources.getInstance()
-        //                                    .updateEntity(instructionToChange, BlockLoopInstructionDTO.class));
+        //                                    .updateEntity(instructionToChange, BlockLoopInstructionLoadDTO.class));
         //
         //        } catch (Exception ex) {
         //            ARLogger.getInstance(Thread.class).severe("Error switch Instruction -> Cause: " +
@@ -625,15 +625,15 @@ public class ARWebElement {
         //        }
     }
 
-    public InstructionDTO buildNewInstruction(
+    public InstructionLoadDTO buildNewInstruction(
             WebElementTagNameEnum forceTag, String actionReq, boolean identityHover, Integer orderNumber) {
-        InstructionDTO loop = new InstructionDTO();
+        InstructionLoadDTO loop = new InstructionLoadDTO();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
         loop.setCodified(false);
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
-        loop.setActive(true);
+        loop.setInstructionActive(true);
         loop.setPath(targetElement.getMainXPath());
         String action;
         // TODO: Make a better thing than this

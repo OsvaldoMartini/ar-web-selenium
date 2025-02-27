@@ -9,7 +9,6 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.ElementSplitDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
@@ -189,26 +188,31 @@ public class SimpleWebSocketServer {
 
     private void handleMessageByType(String type, JsonObject jsonEntry, Session session, String sessionId) {
         // Dispatch to the correct method based on the message type
+
+        int botJobIdTask = -1;
+        int homeBankingId = -1;
+        String sessionIdToSend = null;
+        boolean alreadySent = false;
+
         switch (type) {
             case "SEARCH_TOOL":
                 // Extract the "body" field from the JsonObject
                 ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
                 //                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " +
                 // elementSplitDTO.getDetails().length);
-                String jsonData = gson.toJson(elementSplitDTO);
-                if (!Strings.isNullOrEmpty(elementSplitDTO.getSessionId())) {
-                    sessionId = elementSplitDTO.getSessionId();
-                    sendMessageJson(sessionId, jsonData, null);
+                sessionIdToSend = elementSplitDTO.getSessionId();
+                botJobIdTask = elementSplitDTO.getBotJobId();
+                homeBankingId = elementSplitDTO.getHomeBankingId();
+
+                if (sessionIdToSend.equals("scannerGrid")) {
+                    String jsonData = gson.toJson(elementSplitDTO);
+                    sendMessageJson(sessionIdToSend, jsonData, null);
                     //                    broadcastMessageToAll(jsonData);
                     performMessage.outputJsonElementDTO(elementSplitDTO.getDetails());
-
-                } else {
-                    Session sessionDest = activeSessions.get(sessionId);
-
-                    if (sessionDest != null && sessionDest.isOpen()) {
-                        sendMessageJson(sessionDest, jsonData, null);
-                    } else broadcastMessageToAll(jsonData);
                 }
+
+                alreadySent = true;
+
                 break;
             case "NEW_ELEMENT_DTO":
             case "DEL_ELEMENT_DTO":
@@ -221,52 +225,56 @@ public class SimpleWebSocketServer {
                 // Extract the "body" field from the JsonObject
                 BlockSplitDTO received = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 received.setType("MARTINI");
-                jsonData = gson.toJson(received);
+                String jsonData = gson.toJson(received);
                 sendMessageJson(session, jsonData, null);
+                alreadySent = true;
                 break;
             case "BLOCKS_COMPONENT":
                 BlockSplitDTO blockComponentDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 createBlockComponent(blockComponentDTO);
+                alreadySent = true;
                 break;
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+
+                sessionIdToSend = blockSplitDTO.getSessionId();
+                botJobIdTask = blockSplitDTO.getBotJobId();
+                homeBankingId = blockSplitDTO.getHomeBankingId();
+                alreadySent = false;
+
                 splitBlocks(blockSplitDTO);
-                this.botJobLoadList = performDataBase.loadBotJobComplete(blockSplitDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-
-                    jsonData = gson.toJson(blockLoopInstructions);
-
-                    sendMessageJson(blockSplitDTO.getSessionId(), jsonData, "updateInstructions");
-                }
 
                 break;
             case "BLOCK_MOVE":
                 BlockMoveDTO blockMoveDTO = gson.fromJson(jsonEntry, BlockMoveDTO.class);
+
+                sessionIdToSend = blockMoveDTO.getSessionId();
+                botJobIdTask = blockMoveDTO.getBotJobId();
+                homeBankingId = blockMoveDTO.getHomeBankingId();
+                alreadySent = false;
+
                 moveBlock(blockMoveDTO);
-                this.botJobLoadList = performDataBase.loadBotJobComplete(blockMoveDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
 
-                    jsonData = gson.toJson(blockLoopInstructions);
-
-                    sendMessageJson(blockMoveDTO.getSessionId(), jsonData, "updateInstructions");
-                }
                 break;
             case "ROW_UPDATE":
                 RowMoveDTO rowUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+
+                sessionIdToSend = rowUpdateDTO.getSessionId();
+                botJobIdTask = rowUpdateDTO.getBotJobId();
+                homeBankingId = rowUpdateDTO.getHomeBankingId();
+                alreadySent = false;
+
                 rowUpdate(rowUpdateDTO);
 
-                this.botJobLoadList = performDataBase.loadBotJobComplete(rowUpdateDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(sessionId, jsonData, "updateInstructions");
-                }
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+
+                sessionIdToSend = rowMoveDTO.getSessionId();
+                botJobIdTask = rowMoveDTO.getBotJobId();
+                homeBankingId = rowMoveDTO.getHomeBankingId();
+                alreadySent = false;
+
                 if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
                         && rowMoveDTO.getDeleteBlockId() != null
                         && rowMoveDTO.getDeleteBlockId() > -1) {
@@ -274,14 +282,6 @@ public class SimpleWebSocketServer {
 
                     performDataBase.updateBlockOrderNumber(
                             performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
-                }
-
-                this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(rowMoveDTO.getSessionId(), jsonData, "updateInstructions");
                 }
 
                 break;
@@ -292,71 +292,60 @@ public class SimpleWebSocketServer {
             case "INSERT_BEFORE_ELSEIF":
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-                if (activeSessions.containsKey(sessionId)) {
-                    session = activeSessions.get(sessionId);
-                    if (session.isOpen()) {
-                        injectStepAfterOrBefore(session, sessionId, insertBeforeDTO);
-                    } else {
-                        performMessage.errorMessage(
-                                "Session Not Active",
-                                "Session Id: " + sessionId + " is Not active!",
-                                null,
-                                null,
-                                null,
-                                0);
-                    }
 
-                } else {
-                    performMessage.errorMessage(
-                            "Session Not Created", "Session Id: " + sessionId + " Dos Not Exist!", null, null, null, 0);
-                }
+                sessionIdToSend = insertBeforeDTO.getSessionId();
+
+                injectStepAfterOrBefore(sessionIdToSend, insertBeforeDTO);
+
+                alreadySent = true;
+
                 break;
             case "BLOCK_EXCEL_FILE":
                 BlockDetailsDTO blockExcelDTO = gson.fromJson(jsonEntry, BlockDetailsDTO.class);
-                excelFileBlock(blockExcelDTO);
-                this.botJobLoadList = performDataBase.loadBotJobComplete(blockExcelDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                sessionIdToSend = blockExcelDTO.getSessionId();
+                botJobIdTask = blockExcelDTO.getBotJobId();
+                homeBankingId = blockExcelDTO.getHomeBankingId();
+                alreadySent = false;
 
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(blockExcelDTO.getSessionId(), jsonData, "updateInstructions");
-                }
+                excelFileBlock(blockExcelDTO);
 
                 break;
             case "BLOCK_ORDER":
                 BlockOrderDTO blockReorder = gson.fromJson(jsonEntry, BlockOrderDTO.class);
                 if (blockReorder.getUpdatedBlocks().size() > 0) {
+
+                    sessionIdToSend = blockReorder.getSessionId();
+                    botJobIdTask = blockReorder.getBotJobId();
+                    homeBankingId = blockReorder.getHomeBankingId();
+                    alreadySent = false;
+
                     performDataBase.updateBlockOrderNumber(
                             performDataBase.selectAllBlocks(
                                     blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
                             true);
                     performDataBase.deleteNullBlocks(
                             blockReorder.getUpdatedBlocks().get(0).getBotJobId());
-
-                    this.botJobLoadList = performDataBase.loadBotJobComplete(blockReorder.getBotJobId());
-                    if (botJobLoadList.size() > 0) {
-                        List<InstructionLoadDTO> blockLoopInstructions =
-                                performDataBase.buildJsonViewData(botJobLoadList);
-
-                        jsonData = gson.toJson(blockLoopInstructions);
-                        sendMessageJson(blockReorder.getSessionId(), jsonData, "updateInstructions");
-                    }
                 }
                 break;
             case "INSTRUCTION_STATUS":
-                InstructionDTO instructionDTO = gson.fromJson(jsonEntry, InstructionDTO.class);
-                performDataBase.updateInstructionStatus(instructionDTO);
+                InstructionLoadDTO InstructionLoadDTO = gson.fromJson(jsonEntry, InstructionLoadDTO.class);
 
-                this.botJobLoadList = performDataBase.loadBotJobComplete(instructionDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                sessionIdToSend = InstructionLoadDTO.getSessionId();
+                botJobIdTask = InstructionLoadDTO.getBotJobId();
+                homeBankingId = InstructionLoadDTO.getHomeBankingId();
+                alreadySent = false;
 
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(instructionDTO.getSessionId(), jsonData, "updateInstructions");
-                }
+                performDataBase.updateInstructionStatus(InstructionLoadDTO);
+
                 break;
             case "BLOCK_STATUS":
                 RowMoveDTO blockStateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+
+                sessionIdToSend = blockStateDTO.getSessionId();
+                botJobIdTask = blockStateDTO.getBotJobId();
+                homeBankingId = blockStateDTO.getHomeBankingId();
+                alreadySent = false;
+
                 performDataBase.updateBlockStatus(
                         blockStateDTO.getBotJobId(),
                         blockStateDTO.getBlockId(),
@@ -367,70 +356,88 @@ public class SimpleWebSocketServer {
                 performDataBase.updateInstructionStatusByBlock(
                         blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
 
-                this.botJobLoadList = performDataBase.loadBotJobComplete(blockStateDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(blockStateDTO.getSessionId(), jsonData, "updateInstructions");
-                }
-
                 break;
             case "BLOCK_UPDATE":
                 RowMoveDTO blockUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
+
+                sessionIdToSend = blockUpdateDTO.getSessionId();
+                botJobIdTask = blockUpdateDTO.getBotJobId();
+                homeBankingId = blockUpdateDTO.getHomeBankingId();
+                alreadySent = false;
+
                 performDataBase.updateBlockName(
                         blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
 
                 this.botJobLoadList = performDataBase.loadBotJobComplete(blockUpdateDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
 
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(blockUpdateDTO.getSessionId(), jsonData, "updateInstructions");
-                }
                 break;
             case "DELETE_INSTRUCTION":
-                InstructionDTO deleteInstructionDTO = gson.fromJson(jsonEntry, InstructionDTO.class);
-                performDataBase.deleteInstruction(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO);
+                InstructionLoadDTO deleteInstructionLoadDTO = gson.fromJson(jsonEntry, InstructionLoadDTO.class);
 
-                List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
-                        deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
-                performDataBase.reorderInstructions(rowList);
-                this.botJobLoadList = performDataBase.loadBotJobComplete(deleteInstructionDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                sessionIdToSend = deleteInstructionLoadDTO.getSessionId();
+                botJobIdTask = deleteInstructionLoadDTO.getBotJobId();
+                homeBankingId = deleteInstructionLoadDTO.getHomeBankingId();
+                alreadySent = false;
 
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(deleteInstructionDTO.getSessionId(), jsonData, "updateInstructions");
+                if (sessionIdToSend.equals("botJobTasks")) {
+                    performDataBase.deleteInstruction(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO);
+                } else if (sessionIdToSend.equals("componentTasks")) {
+                    performDataBase.deleteComponent(deleteInstructionLoadDTO);
                 }
+
+                List<InstructionLoadDTO> rowList = performDataBase.getInstructionsByBlockId(
+                        deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO.getBlockId());
+                performDataBase.reorderInstructions(rowList);
+
                 break;
             case "DELETE_BLOCK":
                 DeleteBlockDTO deleteBlockDTO = gson.fromJson(jsonEntry, DeleteBlockDTO.class);
-                performDataBase.deleteBlock(deleteBlockDTO);
-                this.botJobLoadList = performDataBase.loadBotJobComplete(deleteBlockDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
 
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(deleteBlockDTO.getSessionId(), jsonData, "updateInstructions");
-                }
+                sessionIdToSend = deleteBlockDTO.getSessionId();
+                botJobIdTask = deleteBlockDTO.getBotJobId();
+                homeBankingId = deleteBlockDTO.getHomeBankingId();
+                alreadySent = false;
+
+                performDataBase.deleteBlock(deleteBlockDTO);
+
                 break;
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(jsonEntry, RollBackBlocksDTO.class);
+
+                sessionIdToSend = rollBackBlocksDTO.getSessionId();
+                botJobIdTask = rollBackBlocksDTO.getBotJobId();
+                homeBankingId = rollBackBlocksDTO.getHomeBankingId();
+
+                alreadySent = false;
+
                 performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
                 performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                this.botJobLoadList = performDataBase.loadBotJobComplete(rollBackBlocksDTO.getBotJobId());
-                if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
 
-                    jsonData = gson.toJson(blockLoopInstructions);
-                    sendMessageJson(rollBackBlocksDTO.getSessionId(), jsonData, "updateInstructions");
-                }
                 break;
 
             default:
                 sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
                 break;
+        }
+
+        if (!alreadySent && sessionId.equals("botJobTasks")) {
+            this.botJobLoadList = performDataBase.loadBotJobComplete(botJobIdTask);
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                String jsonData = gson.toJson(blockLoopInstructions);
+
+                sendMessageJson(sessionIdToSend, jsonData, "updateInstructions");
+            }
+        } else if (!alreadySent && sessionId.equals("componentTasks")) {
+            this.botJobLoadList = performDataBase.loadComponentsComplete(homeBankingId);
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                String jsonData = gson.toJson(blockLoopInstructions);
+
+                sendMessageJson(sessionIdToSend, jsonData, "updateInstructions");
+            }
         }
     }
 
@@ -588,7 +595,7 @@ public class SimpleWebSocketServer {
         // Add business logic to handle ROW_MOVE
     }
 
-    private void injectStepAfterOrBefore(Session session, String sessionId, RowMoveDTO rowMoveDTO) {
+    private void injectStepAfterOrBefore(String sessionId, RowMoveDTO rowMoveDTO) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
@@ -604,7 +611,7 @@ public class SimpleWebSocketServer {
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
                     ARNewCommandScene newCommandScene =
-                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, session, sessionId);
+                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessionId);
                     newCommandScene.show();
                 });
             } else {

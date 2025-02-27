@@ -332,7 +332,7 @@ public class ARSharedResources {
         //        getEntityList(HomeBankingDTO.class).clear();
         //        getEntityList(BotJobDTO.class).clear();
         //        getEntityList(BlockDTO.class).clear();
-        //        getEntityList(InstructionDTO.class).clear();
+        //        getEntityList(InstructionLoadDTO.class).clear();
         //        this.getEntityList(ComponentBlockDTO.class).clear();
         //        this.getEntityList(ComponentInstructionDTO.class).clear();
         //        this.getEntityList(ComponentReferenceDTO.class).clear();
@@ -341,7 +341,7 @@ public class ARSharedResources {
         //        getEntityList(HomeBankingDTO.class).addAll(repository.findAllEntities(HomeBankingDTO.class));
         //        getEntityList(BotJobDTO.class).addAll(repository.findAllEntities(BotJobDTO.class));
         //        getEntityList(BlockDTO.class).addAll(repository.findAllEntities(BlockDTO.class));
-        //        getEntityList(InstructionDTO.class).addAll(repository.findAllEntities(InstructionDTO.class));
+        //        getEntityList(InstructionLoadDTO.class).addAll(repository.findAllEntities(InstructionLoadDTO.class));
         //
         // this.getEntityList(ComponentBlockDTO.class).addAll(repository.findAllEntities(ComponentBlockDTO.class));
         //        this.getEntityList(ComponentInstructionDTO.class)
@@ -354,12 +354,13 @@ public class ARSharedResources {
         //            cleanList(BotJobDTO.class, (botJob) -> botJob.getHomeBanking() == null);
         //
         //            cleanList(BlockDTO.class, (block) -> block.getBotJobDTO() == null);
-        //            cleanList(InstructionDTO.class, (instruction) -> instruction.getBlock() == null);
+        //            cleanList(InstructionLoadDTO.class, (instruction) -> instruction.getBlock() == null);
         //            cleanList(ComponentInstructionDTO.class, (instruction) -> {
         //                return instruction.getBlock() == null;
         //            });
-        //            cleanList(ReferenceDTO.class, (ref) -> ref.getBlockLoopInstructionDTO() == null);
-        //            cleanList(ComponentReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionDTO() == null);
+        //            cleanList(ReferenceDTO.class, (ref) -> ref.getBlockLoopInstructionLoadDTO() == null);
+        //            cleanList(ComponentReferenceDTO.class, (ref) -> ref.getSavedBlockLoopInstructionLoadDTO() ==
+        // null);
         //        } catch (Exception e) {
         //            ARLogger.getInstance(ARWebDriver.class)
         //                    .severe("Many Entities Still Open In Threads\n" + "Wait to get to finish.\nError: "

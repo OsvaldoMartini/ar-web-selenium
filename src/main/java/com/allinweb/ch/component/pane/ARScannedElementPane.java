@@ -425,7 +425,7 @@ public class ARScannedElementPane extends ARPane {
         sessionId =
                 "scannerGrid"; // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks / Default
         // session
-        buildWebView(jsonData, portSocket, sessionId);
+        buildWebView(webEngine, jsonData, portSocket, sessionId, homeBanking.getId());
 
         componentBox = new HBox(new Node[] {this.webView});
 
@@ -444,15 +444,17 @@ public class ARScannedElementPane extends ARPane {
         buildUIComponents();
     }
 
-    private void buildWebView(String jsonData, int finalPort, String sessionIdFromJava) {
+    private void buildWebView(
+            WebEngine webEngine, String jsonData, int finalPort, String sessionIdFromJava, int homeBanking) {
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 // After the page has successfully loaded
                 try {
-                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "' ) }, 1000)");
+                    webEngine.executeScript(
+                            "setTimeout(function() { window.receiveDataFromJava(JSON.stringify(" + jsonData + "), "
+                                    + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + " ) }, 1000)");
                 } catch (Exception e) {
                     ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
                 }
@@ -3668,10 +3670,18 @@ public class ARScannedElementPane extends ARPane {
 
                                 ARLogger.getInstance(Task.class)
                                         .fine("THREAD: fetching instruction list from database");
-                                ObservableList<InstructionDTO> list = ARSharedResources.getInstance()
-                                        .getEntityList(InstructionDTO.class, (instr) -> instr.getBlockId()
-                                                .equals(currentBlockId));
-                                ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + list.size());
+
+                                //                                ObservableList<InstructionLoadDTO> list =
+                                // ARSharedResources.getInstance()
+                                //                                        .getEntityList(InstructionLoadDTO.class,
+                                // (instr) -> instr.getBlockId()
+                                //                                                .equals(currentBlockId));
+
+                                List<InstructionLoadDTO> listInstr =
+                                        performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
+
+                                ARLogger.getInstance(Task.class)
+                                        .finer("THREAD: instruction list size " + listInstr.size());
 
                                 String actionReq = checkClickElement.isSelected()
                                         ? ARConstants.CLICK
@@ -3686,8 +3696,8 @@ public class ARScannedElementPane extends ARPane {
                                     tagType = WebElementTagNameEnum.INPUT_ENTER;
                                 }
 
-                                InstructionDTO instruction = arWebHover.buildNewInstruction(
-                                        tagType, actionReq, checkPickElement.isSelected(), list.size());
+                                InstructionLoadDTO instruction = arWebHover.buildNewInstruction(
+                                        tagType, actionReq, checkPickElement.isSelected(), listInstr.size());
 
                                 if (checkForceCoordText.isSelected()) {
                                     instruction.setForceCoordinates(true);
@@ -3702,7 +3712,7 @@ public class ARScannedElementPane extends ARPane {
 
                                 instruction.setBlockId(currentBlockId);
 
-                                instruction.setInstructionOrderNumber(list.size() + 1);
+                                instruction.setInstructionOrderNumber(listInstr.size() + 1);
 
                                 ARLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
 
@@ -3785,7 +3795,7 @@ public class ARScannedElementPane extends ARPane {
                                     reference.setBotJobId(currentBotJobId);
 
                                     //
-                                    // reference.setBlockLoopInstructionDTO(instruction);
+                                    // reference.setBlockLoopInstructionLoadDTO(instruction);
                                     queue.add(reference);
                                 }
                                 try {
@@ -9244,7 +9254,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void executeAlert(InstructionDTO instruction) {
+    private void executeAlert(InstructionLoadDTO instruction) {
         // Execute the countdown in a separate thread
         if (instruction != null) {
             Integer instructionSeconds = instruction.getOnHoldSeconds();
@@ -9734,44 +9744,44 @@ public class ARScannedElementPane extends ARPane {
             Integer currentBotJobId,
             Integer currentBlockId) {
 
-        InstructionLoadDTO instructionDTO = new InstructionLoadDTO();
+        InstructionLoadDTO InstructionLoadDTO = new InstructionLoadDTO();
 
-        instructionDTO.setPath(xPath);
-        instructionDTO.setCoordinates(coordinates);
-        instructionDTO.setForceCoordinates(forceCoordinates);
-        instructionDTO.setIFrameXPath(iFrameXPath);
-        instructionDTO.setName(name);
+        InstructionLoadDTO.setPath(xPath);
+        InstructionLoadDTO.setCoordinates(coordinates);
+        InstructionLoadDTO.setForceCoordinates(forceCoordinates);
+        InstructionLoadDTO.setIFrameXPath(iFrameXPath);
+        InstructionLoadDTO.setName(name);
 
-        instructionDTO.setCodified(false);
+        InstructionLoadDTO.setCodified(false);
 
-        instructionDTO.setInstructionOrderNumber(instructionOrderNumber);
+        InstructionLoadDTO.setInstructionOrderNumber(instructionOrderNumber);
 
-        instructionDTO.setOptional(false);
+        InstructionLoadDTO.setOptional(false);
 
-        //        instructionDTO.setOperation(operation);
-        instructionDTO.setActions(actions);
-        instructionDTO.setDescription(description);
+        //        InstructionLoadDTO.setOperation(operation);
+        InstructionLoadDTO.setActions(actions);
+        InstructionLoadDTO.setDescription(description);
 
-        instructionDTO.setVariableId(varId);
+        InstructionLoadDTO.setVariableId(varId);
 
-        instructionDTO.setActionCustomMaxWaitSec(30);
-        instructionDTO.setOnHoldSeconds(onHold);
-        //        instructionDTO.setBlock(savedBlockDTO);
-        instructionDTO.setExportToABR(exportToAR);
-        instructionDTO.setInstructionActive(true);
+        InstructionLoadDTO.setActionCustomMaxWaitSec(30);
+        InstructionLoadDTO.setOnHoldSeconds(onHold);
+        //        InstructionLoadDTO.setBlock(savedBlockDTO);
+        InstructionLoadDTO.setExportToABR(exportToAR);
+        InstructionLoadDTO.setInstructionActive(true);
 
         // Wrap the persistence in a try-catch block
         int newId = -1;
 
         try {
-            newId = performDataBase.insertInstruction(instructionDTO, currentBotJobId, currentBlockId);
+            newId = performDataBase.insertInstruction(InstructionLoadDTO, currentBotJobId, currentBlockId);
 
         } catch (Exception e) {
 
             ARLogger.getInstance(ARScannedElementPane.class)
                     .severe(String.format(
                             "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                            instructionDTO.getName(), e.getMessage()));
+                            InstructionLoadDTO.getName(), e.getMessage()));
 
             return -1;
         }

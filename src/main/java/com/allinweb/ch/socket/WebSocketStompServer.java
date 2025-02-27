@@ -7,7 +7,7 @@ import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
@@ -141,8 +141,8 @@ public class WebSocketStompServer {
                 }
                 break;
             case "INSTRUCTION_STATUS":
-                InstructionDTO instructionDTO = gson.fromJson(body, InstructionDTO.class);
-                performDataBase.updateInstructionStatus(instructionDTO);
+                InstructionLoadDTO InstructionLoadDTO = gson.fromJson(body, InstructionLoadDTO.class);
+                performDataBase.updateInstructionStatus(InstructionLoadDTO);
 
                 // ARSharedResources.getInstance().changeDbConnection();
                 break;
@@ -169,11 +169,11 @@ public class WebSocketStompServer {
 
                 break;
             case "DELETE_INSTRUCTION":
-                InstructionDTO deleteInstructionDTO = gson.fromJson(body, InstructionDTO.class);
-                performDataBase.deleteInstruction(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO);
+                InstructionLoadDTO deleteInstructionLoadDTO = gson.fromJson(body, InstructionLoadDTO.class);
+                performDataBase.deleteInstruction(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO);
 
-                List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
-                        deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
+                List<InstructionLoadDTO> rowList = performDataBase.getInstructionsByBlockId(
+                        deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO.getBlockId());
                 performDataBase.reorderInstructions(rowList);
                 // ARSharedResources.getInstance().changeDbConnection();
                 break;

@@ -4,7 +4,6 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.model.VariableUserDTO;
@@ -375,9 +374,9 @@ public class ARViewBotJobPane extends ARPane {
 
         // Send a message to all connected clients after 5 seconds
         //        WebSocketStompServer.sendMessageToAll(jsonData);
-        List<InstructionDTO> listForDeletion =
+        List<InstructionLoadDTO> listForDeletion =
                 performDataBase.getBlockLoopInstructionIdsWithNullBlock(this.botJobLoad.getId());
-        for (InstructionDTO instruction : listForDeletion) {
+        for (InstructionLoadDTO instruction : listForDeletion) {
             performDataBase.deleteInstruction(this.botJobLoad.getId(), instruction);
         }
         performDataBase.deleteNullBlocks(this.botJobLoad.getId());
@@ -415,7 +414,7 @@ public class ARViewBotJobPane extends ARPane {
 
         // (SENDER: insertTool) -> botJobTasks
         sessionId = "botJobTasks";
-        buildWebView(webEngineTasks, jsonData, finalPort, sessionId);
+        buildWebView(webEngineTasks, jsonData, finalPort, sessionId, this.botJobLoad.getHomeBankingId());
 
         componentBox = new HBox(new Node[] {this.webViewTasks});
 
@@ -433,7 +432,7 @@ public class ARViewBotJobPane extends ARPane {
 
         // (SENDER: insertTool) -> botJobTasks -> componentTasks
         sessionId = "componentTasks";
-        buildWebView(webEngineComp, jsonData, finalPort, sessionId);
+        buildWebView(webEngineComp, jsonData, finalPort, sessionId, this.botJobLoad.getHomeBankingId());
 
         // Make webView expand both horizontally and vertically
         HBox.setHgrow(this.webViewTasks, Priority.ALWAYS);
@@ -449,7 +448,6 @@ public class ARViewBotJobPane extends ARPane {
         // Allow botJobContainer to grow vertically as well
         // Ensure botJobContainer and webView grow properly
         VBox.setVgrow(this.botJobContainer, Priority.ALWAYS);
-        VBox.setVgrow(this.webViewTasks, Priority.ALWAYS);
 
         VBox.setVgrow(this.componentBox, Priority.ALWAYS);
         HBox.setHgrow(this.componentBox, Priority.ALWAYS);
@@ -523,15 +521,17 @@ public class ARViewBotJobPane extends ARPane {
         }
     }
 
-    private void buildWebView(WebEngine webEngine, String jsonData, int finalPort, String sessionIdFromJava) {
+    private void buildWebView(
+            WebEngine webEngine, String jsonData, int finalPort, String sessionIdFromJava, int homeBanking) {
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 // After the page has successfully loaded
                 try {
-                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "' ) }, 1000)");
+                    webEngine.executeScript(
+                            "setTimeout(function() { window.receiveDataFromJava(JSON.stringify(" + jsonData + "), "
+                                    + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + " ) }, 1000)");
                 } catch (Exception e) {
                     ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
                 }
@@ -621,8 +621,8 @@ public class ARViewBotJobPane extends ARPane {
             //            boolean hasInputFields = blockList.stream()
             //                    .flatMap(
             //                            block -> block
-            //                                    .getBlockLoopInstructionDTOS()
-            //                                    .stream()) // Flatten all BlockLoopInstructionDTOs from each block
+            //                                    .getBlockLoopInstructionLoadDTOS()
+            //                                    .stream()) // Flatten all BlockLoopInstructionLoadDTOs from each block
             //                    .anyMatch(instruction -> instruction.getActions() != null
             //                            && instruction.getActions().startsWith("I:"));
 
@@ -1069,6 +1069,9 @@ public class ARViewBotJobPane extends ARPane {
         HBox.setHgrow(searchTextField, Priority.ALWAYS);
 
         this.componentContainer = new VBox(new Node[] {searchPaneBox, webViewComp});
+        HBox.setHgrow(this.webViewComp, Priority.ALWAYS);
+        VBox.setVgrow(this.webViewComp, Priority.ALWAYS); // Ensures vertical growth
+
         this.componentContainer.setSpacing(ARConstants.SPACE_XS);
 
         this.componentContainer.setMaxWidth(800.0D);
@@ -1079,9 +1082,9 @@ public class ARViewBotJobPane extends ARPane {
         return this.botJobLoad;
     }
 
-    public List<InstructionDTO> getInstructionsByBlockId(int botJobId, int blockId) {
+    public List<InstructionLoadDTO> getInstructionsByBlockId(int botJobId, int blockId) {
         // List to store the fetched instructions
-        List<InstructionDTO> instructions = new ArrayList<>();
+        List<InstructionLoadDTO> instructions = new ArrayList<>();
 
         // Build the SQL query statement
         String querySQL =
@@ -1093,7 +1096,7 @@ public class ARViewBotJobPane extends ARPane {
 
             while (rs.next()) {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionDTO instruction = new InstructionDTO();
+                InstructionLoadDTO instruction = new InstructionLoadDTO();
                 instruction.setInstructionId(rs.getInt("id"));
                 instruction.setInstructionName(rs.getString("name"));
                 instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
@@ -1130,11 +1133,11 @@ public class ARViewBotJobPane extends ARPane {
         return instructions;
     }
 
-    public boolean reorderInstructions(List<InstructionDTO> rowList) {
+    public boolean reorderInstructions(List<InstructionLoadDTO> rowList) {
         int orderNumber = 1;
 
         // Iterate through the list and update the instructionOrderNumber
-        for (InstructionDTO instruction : rowList) {
+        for (InstructionLoadDTO instruction : rowList) {
             instruction.setInstructionOrderNumber(orderNumber);
             orderNumber++; // Increment the order number for the next instruction
         }
@@ -1142,7 +1145,7 @@ public class ARViewBotJobPane extends ARPane {
         // Build the SQL update statement
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
             // Loop through each instruction in the rowList
-            for (InstructionDTO instruction : rowList) {
+            for (InstructionLoadDTO instruction : rowList) {
                 // Increment the instructionOrderNumber by 1 for each instruction
                 String updateSQL = "UPDATE instruction SET  "
                         + " instruction_order_number = " + instruction.getInstructionOrderNumber()
@@ -1178,7 +1181,7 @@ public class ARViewBotJobPane extends ARPane {
     //        // Create mock data for SavedBlocksDTO
     //        ObservableList<ComponentBlockDTO> componentBlockDTOS = FXCollections.observableArrayList();
     //
-    //        // Create mock SavedBlockLoopInstructionDTO entries
+    //        // Create mock SavedBlockLoopInstructionLoadDTO entries
     //        ComponentInstructionDTO instruction1 = new ComponentInstructionDTO();
     //        instruction1.setInstructionOrderNumber(1);
     //        instruction1.setActions("Action 1");

@@ -57,17 +57,17 @@ public class ARExportFilterPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        //        ObservableList<BlockLoopInstructionDTO> exportedList = ARSharedResources.getInstance()
+        //        ObservableList<BlockLoopInstructionLoadDTO> exportedList = ARSharedResources.getInstance()
         //                .getEntityList(
-        //                        BlockLoopInstructionDTO.class,
+        //                        BlockLoopInstructionLoadDTO.class,
         //                        (exp) -> exp.getExportToAR()
         //                                && exp.getActions().contains(ARConstants.INSERT)
         //                                && exp.getBlock().getBotJobDTO().getId() == this.botJobLoad.getId());
         //
         //
-        //        ObservableList<BlockLoopInstructionDTO> filteredList = ARSharedResources.getInstance()
+        //        ObservableList<BlockLoopInstructionLoadDTO> filteredList = ARSharedResources.getInstance()
         //                .getEntityList(
-        //                        BlockLoopInstructionDTO.class,
+        //                        BlockLoopInstructionLoadDTO.class,
         //                        (exp) -> !exp.getExportToAR()
         //                                && exp.getActions().contains(ARConstants.INSERT)
         //                                && exp.getBlock().getBotJobDTO().getId() == this.botJobLoad.getId());
@@ -152,7 +152,7 @@ public class ARExportFilterPane extends ARPane {
                 instruction.setExportToABR(true);
                 performDataBase.updateExportAR(instruction);
                 //                ARSharedResources.getInstance().updateEntity(instruction,
-                // BlockLoopInstructionDTO.class);
+                // BlockLoopInstructionLoadDTO.class);
             });
         });
 
@@ -161,7 +161,7 @@ public class ARExportFilterPane extends ARPane {
                 instruction.setExportToABR(false);
                 performDataBase.updateExportAR(instruction);
                 //                ARSharedResources.getInstance().updateEntity(instruction,
-                // BlockLoopInstructionDTO.class);
+                // BlockLoopInstructionLoadDTO.class);
             });
         });
     }

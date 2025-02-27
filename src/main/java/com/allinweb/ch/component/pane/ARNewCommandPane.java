@@ -2,7 +2,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
@@ -59,7 +58,6 @@ public class ARNewCommandPane extends ARPane {
 
     private static Map<String, Session> activeSessions;
 
-    private Session session;
     private String sessionId;
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
@@ -191,7 +189,6 @@ public class ARNewCommandPane extends ARPane {
             RowMoveDTO rowMoveDTO,
             BotJobLoadDTO botJobLoad,
             ObservableList<ComboBoxVars> webPageItems,
-            Session session,
             String sessionId) {
 
         if (activeSessions == null) {
@@ -201,7 +198,6 @@ public class ARNewCommandPane extends ARPane {
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
-        this.session = session;
         this.sessionId = sessionId;
 
         //        if (this.botJobLoad.getBlockLoadDTOList() == null) {
@@ -366,7 +362,7 @@ public class ARNewCommandPane extends ARPane {
         textFlow = new TextFlow();
         operationSelected = new TextFlow();
 
-        InstructionDTO firstInstruction = rowMoveDTO.getUpdatedRows().get(0);
+        InstructionLoadDTO firstInstruction = rowMoveDTO.getUpdatedRows().get(0);
         String operation = performMessage.renderInstructionActions(firstInstruction);
 
         // Create individual text elements with the necessary styling
@@ -2376,7 +2372,7 @@ public class ARNewCommandPane extends ARPane {
     //
     //        if ("INSERT_BEFORE_ELSEIF".equals(actions) || "INSERT_AFTER_ELSEIF".equals(actions)) {}
     //
-    //        List<InstructionDTO> rowList =
+    //        List<InstructionLoadDTO> rowList =
     //                performDataBase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
     //
     //        performDataBase.reorderInstructions(rowList);
@@ -2395,12 +2391,12 @@ public class ARNewCommandPane extends ARPane {
     //        }
     //
     //        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
-    //        List<InstructionDTO> finalInstructionList = rowList;
+    //        List<InstructionLoadDTO> finalInstructionList = rowList;
     //        Task<Void> waitTask = new Task<>() {
     //            @Override
     //            protected Void call() throws Exception {
     //                try {
-    //                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+    //                    BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
     //
     //                    instruction.setName(name);
     //
@@ -2441,7 +2437,7 @@ public class ARNewCommandPane extends ARPane {
     //
     //                    // Wrap the persistence in a try-catch block
     //                    try {
-    //                        ARSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
+    //                        ARSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionLoadDTO.class);
     //                    } catch (Exception e) {
     //                        performAction.showAlert(
     //                                Alert.AlertType.ERROR,

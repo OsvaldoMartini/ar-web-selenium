@@ -297,15 +297,15 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                     boolean success = false;
                                     for (InstructionReferenceLoadDTO reference : originalReferences) {
 
-                                        InstructionLoadDTO instructionDTO = reference.getInstructionLoadDTO();
-                                        if (instructionDTO == null) {
+                                        InstructionLoadDTO InstructionLoadDTO = reference.getInstructionLoadDTO();
+                                        if (InstructionLoadDTO == null) {
                                             ARLogger.getInstance(ARViewBotJobPane.class)
-                                                    .warning("BlockLoopInstructionDTO is null for reference: "
+                                                    .warning("BlockLoopInstructionLoadDTO is null for reference: "
                                                             + reference.getReferenceType());
                                             continue;
                                         }
 
-                                        success = insertComponentReferences(reference, instructionDTO.getId());
+                                        success = insertComponentReferences(reference, InstructionLoadDTO.getId());
                                         if (!success) {
                                             break;
                                         }
@@ -371,7 +371,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                             // ARSharedResources.getInstance()
                             //                                        .addAllEntity(
                             //                                                originalLoopInstruction,
-                            //                                                BlockLoopInstructionDTO.class,
+                            //                                                BlockLoopInstructionLoadDTO.class,
                             //                                                () -> ARSharedResources.getInstance()
                             //                                                        .addAllEntity(
                             //                                                                references,
@@ -527,19 +527,20 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         return newId;
     }
 
-    private int insertInstruction(InstructionLoadDTO instructionDTO) throws SQLException {
+    private int insertInstruction(InstructionLoadDTO InstructionLoadDTO) throws SQLException {
         // Generate a Unique-ID for the block
 
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
 
             Integer nextId = loadNextIdInstructionData() + 1;
-            instructionDTO.setId(nextId);
+            InstructionLoadDTO.setId(nextId);
 
-            String coordinates =
-                    (instructionDTO.getCoordinates() != null) ? "'" + instructionDTO.getCoordinates() + "'" : "";
-            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
-            String iframeXPath = !Strings.isNullOrEmpty(instructionDTO.getIFrameXPath())
-                    ? "'" + instructionDTO.getIFrameXPath() + "'"
+            String coordinates = (InstructionLoadDTO.getCoordinates() != null)
+                    ? "'" + InstructionLoadDTO.getCoordinates() + "'"
+                    : "";
+            String pathValue = (InstructionLoadDTO.getPath() != null) ? "'" + InstructionLoadDTO.getPath() + "'" : "";
+            String iframeXPath = !Strings.isNullOrEmpty(InstructionLoadDTO.getIFrameXPath())
+                    ? "'" + InstructionLoadDTO.getIFrameXPath() + "'"
                     : "";
 
             // Build the SQL insert query
@@ -566,27 +567,27 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     + "bot_job_id, "
                     + "active)\n"
                     + "VALUES ("
-                    + instructionDTO.getId()
-                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
-                    + ", '" + instructionDTO.getActions() + "'"
-                    + ", " + instructionDTO.getBlockMarked()
-                    + "," + instructionDTO.getDefaultValue()
-                    + ", '" + instructionDTO.getDescription() + "'"
-                    + ", " + instructionDTO.getCodified()
-                    + ", " + instructionDTO.getExportToABR()
-                    + ", " + instructionDTO.getInstructionOrderNumber()
-                    + ", '" + instructionDTO.getName() + "'"
-                    + ", " + instructionDTO.getOnHoldSeconds()
-                    + ", '" + instructionDTO.getOperation() + "'"
-                    + ", " + instructionDTO.getOptional()
-                    + ", " + instructionDTO.getParentId()
+                    + InstructionLoadDTO.getId()
+                    + ", " + InstructionLoadDTO.getActionCustomMaxWaitSec()
+                    + ", '" + InstructionLoadDTO.getActions() + "'"
+                    + ", " + InstructionLoadDTO.getBlockMarked()
+                    + "," + InstructionLoadDTO.getDefaultValue()
+                    + ", '" + InstructionLoadDTO.getDescription() + "'"
+                    + ", " + InstructionLoadDTO.getCodified()
+                    + ", " + InstructionLoadDTO.getExportToABR()
+                    + ", " + InstructionLoadDTO.getInstructionOrderNumber()
+                    + ", '" + InstructionLoadDTO.getName() + "'"
+                    + ", " + InstructionLoadDTO.getOnHoldSeconds()
+                    + ", '" + InstructionLoadDTO.getOperation() + "'"
+                    + ", " + InstructionLoadDTO.getOptional()
+                    + ", " + InstructionLoadDTO.getParentId()
                     + ", " + pathValue
                     + ", " + coordinates
                     + ", " + iframeXPath
-                    + ", " + instructionDTO.getVariableId()
-                    + ", " + instructionDTO.getBlockId()
-                    + ", " + instructionDTO.getBotJobId()
-                    + ", " + instructionDTO.getInstructionActive()
+                    + ", " + InstructionLoadDTO.getVariableId()
+                    + ", " + InstructionLoadDTO.getBlockId()
+                    + ", " + InstructionLoadDTO.getBotJobId()
+                    + ", " + InstructionLoadDTO.getInstructionActive()
                     + ");";
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
@@ -594,19 +595,19 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 ARLogger.getInstance(ComponentListCell.class)
                         .info(String.format(
                                 "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
-                                instructionDTO.getId(),
-                                instructionDTO.getName(),
-                                instructionDTO.getActions(),
-                                instructionDTO.getOperation()));
+                                InstructionLoadDTO.getId(),
+                                InstructionLoadDTO.getName(),
+                                InstructionLoadDTO.getActions(),
+                                InstructionLoadDTO.getOperation()));
                 return nextId;
             } else {
                 ARLogger.getInstance(ComponentListCell.class)
                         .warning(String.format(
                                 "Instruction NOT SAVED id: %d Name: %s Actions: %s Operations: %s",
-                                instructionDTO.getId(),
-                                instructionDTO.getName(),
-                                instructionDTO.getActions(),
-                                instructionDTO.getOperation()));
+                                InstructionLoadDTO.getId(),
+                                InstructionLoadDTO.getName(),
+                                InstructionLoadDTO.getActions(),
+                                InstructionLoadDTO.getOperation()));
                 return -1;
             }
         }
@@ -617,7 +618,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         // Generate a Unique-ID for the block
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
 
-            // Fetch instructionId from savedBlockLoopInstructionDTO
+            // Fetch instructionId from savedBlockLoopInstructionLoadDTO
 
             Integer nextId = loadNextIdBReferenceData() + 1;
 

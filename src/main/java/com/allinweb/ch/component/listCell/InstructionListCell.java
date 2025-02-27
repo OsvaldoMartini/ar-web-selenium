@@ -1,14 +1,14 @@
 package com.allinweb.ch.component.listCell;
 
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.driver.ARWebElement;
-import com.allinweb.ch.persistence.InstructionDTO;
 import javafx.application.Platform;
 import javafx.scene.Node;
 import javafx.scene.control.ListCell;
 
-public class InstructionListCell extends ListCell<InstructionDTO> {
+public class InstructionListCell extends ListCell<InstructionLoadDTO> {
     @Override
-    protected void updateItem(InstructionDTO item, boolean empty) {
+    protected void updateItem(InstructionLoadDTO item, boolean empty) {
         super.updateItem(item, empty);
         Node graphic = null;
         if (!empty && item != null && item.getBlockId() != null) {
