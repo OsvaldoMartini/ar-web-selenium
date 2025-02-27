@@ -9,7 +9,6 @@ import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.SingletonSupplier;
 import java.time.format.DateTimeFormatter;
-import java.util.Set;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.Session;
@@ -43,17 +42,14 @@ public class ARScannedElementScene extends ARScene {
     private BotJobLoadDTO botJobLoadDTO;
     private BlockLoadDTO blockLoadDTO;
     private String priority;
-    private Set<Session> sessions;
+    private Session session;
+    private String sessionId;
 
     public ARScannedElementScene initialize(
-            HomeBankingLoadDTO homeBankingLoadDTO,
-            BotJobLoadDTO botJobLoadDTO,
-            BlockLoadDTO blockLoadDTO,
-            Set<Session> sessions) {
+            HomeBankingLoadDTO homeBankingLoadDTO, BotJobLoadDTO botJobLoadDTO, BlockLoadDTO blockLoadDTO) {
         this.homeBankingLoadDTO = homeBankingLoadDTO;
         this.botJobLoadDTO = botJobLoadDTO;
         this.blockLoadDTO = blockLoadDTO;
-        this.sessions = sessions;
         return this;
     }
 
@@ -61,7 +57,7 @@ public class ARScannedElementScene extends ARScene {
     public IARPane buildPane() {
         arWebDriver = new ARWebDriver(); // Initialize WebDriver
 
-        return new ARScannedElementPane(homeBankingLoadDTO, botJobLoadDTO, blockLoadDTO, arWebDriver, sessions);
+        return new ARScannedElementPane(homeBankingLoadDTO, botJobLoadDTO, blockLoadDTO, arWebDriver);
     }
 
     @Override

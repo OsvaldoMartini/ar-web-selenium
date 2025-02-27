@@ -214,7 +214,7 @@
         window.text = elementBelowTooltip.textContent.trim() || "";
       }
 
-      var xpath = getMartiniXPath(elementBelowTooltip);
+      var xPath = getMartiniXPath(elementBelowTooltip);
       var absoluteXPath = getMartiniAbsoluteXPath(elementBelowTooltip);
       var customXPath = getMartiniCustomXPath(elementBelowTooltip);
 

@@ -8,5 +8,6 @@ public class DeleteBlockDTO {
     private String type;
     private int blockId;
     private int botJobId;
+    private String sessionId;
     private List<BlockOrderDetailDTO> updatedBlocks;
 }

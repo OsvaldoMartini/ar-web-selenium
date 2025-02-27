@@ -3066,7 +3066,7 @@ public class PerformActions {
             targetDefine.setAttribId(elemenDTO.getAttribId());
             targetDefine.setAttribName(elemenDTO.getAttribName());
             targetDefine.setOriginalTagName(elemenDTO.getTagName());
-            targetDefine.setSomeText(elemenDTO.getText());
+            targetDefine.setSomeText(elemenDTO.getSomeText());
             targetDefine.setCoords(elemenDTO.getCoords());
 
             targetDefine.setMainXPath(elemenDTO.getXPath());

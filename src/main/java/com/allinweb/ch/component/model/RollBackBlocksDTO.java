@@ -9,5 +9,6 @@ public class RollBackBlocksDTO {
     private Integer botJobId;
     private Integer blockId;
     private String blockName;
+    private String sessionId;
     private List<InstructionDTO> instructions;
 }

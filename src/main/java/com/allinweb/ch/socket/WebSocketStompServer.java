@@ -12,12 +12,9 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
-import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -86,7 +83,7 @@ public class WebSocketStompServer {
                 break;
             case "BLOCKS_COMPONENT":
                 BlockSplitDTO blockComponentDTO = gson.fromJson(body, BlockSplitDTO.class);
-                createBlockComponent(blockComponentDTO);
+                createBlockComponent(blockComponentDTO.getDetails().getNewBlock());
                 break;
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(body, BlockSplitDTO.class);
@@ -304,18 +301,9 @@ public class WebSocketStompServer {
         }
     }
 
-    private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
-        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        ComponentBlockDTO componentBlockDTO =
-                new ComponentBlockDTO(); // performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
-
-        BlockDTO blockDTO = new BlockDTO();
-        blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());
-        //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
-
+    private void createBlockComponent(BlockDetailsDTO blockDetailsDTO) {
         Platform.runLater(() -> {
-            ARSaveComponentScene newSaveBlockScene =
-                    new ARSaveComponentScene(componentBlockDTO, blockDTO, blockSplitDTO.getDetails());
+            ARSaveComponentScene newSaveBlockScene = new ARSaveComponentScene(blockDetailsDTO);
             newSaveBlockScene.showModal();
         });
     }
@@ -372,11 +360,12 @@ public class WebSocketStompServer {
                 this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-                Platform.runLater(() -> {
-                    ARNewCommandScene newCommandScene =
-                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
-                    newCommandScene.showModal();
-                });
+                //                Platform.runLater(() -> {
+                //                    ARNewCommandScene newCommandScene =
+                //                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems,
+                // sessions);
+                //                    newCommandScene.showModal();
+                //                });
             } else {
 
                 if (rowMoveDTO.getUpdatedRows().size() > 0) {

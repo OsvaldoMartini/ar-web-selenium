@@ -29,4 +29,5 @@ public class InstructionDTO {
     private Integer onHoldSeconds;
     private Boolean codified;
     private Boolean exportToABR;
+    private String sessionId;
 }

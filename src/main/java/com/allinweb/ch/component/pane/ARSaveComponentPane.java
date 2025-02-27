@@ -1,8 +1,10 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.DetailsDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
@@ -11,15 +13,21 @@ import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
+import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javafx.animation.KeyFrame;
@@ -39,13 +47,14 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javax.websocket.Session;
 
 public class ARSaveComponentPane extends ARPane {
 
+    private static Map<String, Session> activeSessions;
+
     private final ARComponentBuilder builder = new ARComponentBuilder();
-    private ComponentBlockDTO componentBlockDTO;
-    private BlockDTO blockDTO;
-    private DetailsDTO detailsDTO;
+    private BlockDetailsDTO blockDetailsDTO;
 
     private static final int SECONDS = 3; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;
@@ -83,10 +92,12 @@ public class ARSaveComponentPane extends ARPane {
 
     private AnchorPane mainPane;
 
-    public ARSaveComponentPane(ComponentBlockDTO componentBlockDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
-        this.componentBlockDTO = componentBlockDTO;
-        this.blockDTO = blockDTO;
-        this.detailsDTO = detailsDTO;
+    public ARSaveComponentPane(BlockDetailsDTO blockDetailsDTO) {
+        this.blockDetailsDTO = blockDetailsDTO;
+
+        if (activeSessions == null) {
+            activeSessions = SimpleWebSocketServer.getAllSessions();
+        }
     }
 
     @Override
@@ -132,13 +143,13 @@ public class ARSaveComponentPane extends ARPane {
 
         Label nameLabel = new Label("Name :         ");
 
-        nameTextField = new TextField(componentBlockDTO.getName());
+        nameTextField = new TextField("Comp - " + blockDetailsDTO.getBlockName());
         HBox nameHBox = new HBox(nameLabel, nameTextField);
         HBox.setHgrow(nameTextField, Priority.ALWAYS);
         HBox.setMargin(nameLabel, new Insets(ARConstants.SPACE_XS));
 
         Label descriptionLabel = new Label("Description : ");
-        descriptionTextField = new TextArea(componentBlockDTO.getDescription());
+        descriptionTextField = new TextArea(blockDetailsDTO.getBlockDescription());
 
         regularText = new Text("Excluded Special Operations: ");
         variableText1 = new Text("Set Value" + " / " + "Get Value");
@@ -191,12 +202,12 @@ public class ARSaveComponentPane extends ARPane {
                     // Ensure UI update happens on the JavaFX Application Thread
                     warningMSG("");
 
-                    componentBlockDTO.setName(nameTextField.getText().trim());
-                    componentBlockDTO.setDescription(
+                    blockDetailsDTO.setBlockName(nameTextField.getText().trim());
+                    blockDetailsDTO.setBlockDescription(
                             descriptionTextField.getText().trim());
 
-                    this.savedBlockLoadList = performDataBase.loadSavedBlocksForBotJob(
-                            detailsDTO.getNewBlock().getHomeBankingId());
+                    this.savedBlockLoadList =
+                            performDataBase.loadSavedBlocksForBotJob(blockDetailsDTO.getHomeBankingId());
 
                     //                    originalLoopInstruction =
                     // performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
@@ -222,7 +233,7 @@ public class ARSaveComponentPane extends ARPane {
 
                     // Debugging: Print statements to track data
                     ARLogger.getInstance(ARSaveComponentPane.class)
-                            .fine("Saving New Component Block: " + componentBlockDTO.getName());
+                            .fine("Saving New Component Block: " + blockDetailsDTO.getBlockName());
 
                     try (Connection conn = performDataBase.getConnection()) {
                         String[] arrayTables = {
@@ -238,16 +249,30 @@ public class ARSaveComponentPane extends ARPane {
                         };
                         // Now you can proceed with duplicating the related tables
                         ErrorMessage errorMessage =
-                                performDataBase.saveNewComponent(conn, componentBlockDTO, detailsDTO, arrayTables);
+                                performDataBase.saveNewComponent(conn, blockDetailsDTO, arrayTables);
 
                         if (errorMessage == null) {
+
+                            List<BotJobLoadDTO> botJobLoadList =
+                                    performDataBase.loadComponentsComplete(blockDetailsDTO.getHomeBankingId());
+                            if (botJobLoadList.size() > 0) {
+                                List<InstructionLoadDTO> blockLoopInstructions =
+                                        performDataBase.buildJsonViewData(botJobLoadList);
+
+                                Gson gson =
+                                        new GsonBuilder().setPrettyPrinting().create();
+                                String jsonData = gson.toJson(blockLoopInstructions);
+
+                                sendMessageJson(blockDetailsDTO.getSessionId(), jsonData, "updateInstructions");
+                            }
+
                             showAlertTimer(
                                     Alert.AlertType.INFORMATION,
                                     "Success",
                                     "New Component Creation",
                                     "The Block Component job has been successfully created!",
-                                    String.format("Component Name '%s' ", componentBlockDTO.getName()),
-                                    componentBlockDTO.getDescription(),
+                                    String.format("Component Name '%s' ", blockDetailsDTO.getBlockName()),
+                                    blockDetailsDTO.getBlockDescription(),
                                     null);
 
                         } else {
@@ -733,10 +758,6 @@ public class ARSaveComponentPane extends ARPane {
         });
     }
 
-    public void setBlockJob(BlockDTO blockJob) {
-        this.blockDTO = blockJob;
-    }
-
     private void showAlertTimer(
             Alert.AlertType alertType,
             String title,
@@ -808,6 +829,26 @@ public class ARSaveComponentPane extends ARPane {
         if (executorService != null) {
             remainingSeconds = SECONDS;
             executorService.shutdown();
+        }
+    }
+
+    // Method to send a message to a specific session ID
+    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+        Session session = activeSessions.get(sessionId);
+
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("body", msg1);
+                if (msg2 != null && !msg2.isEmpty()) {
+                    jsonMessage.addProperty("operationId", msg2);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 }

@@ -6,7 +6,6 @@ import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
-import com.allinweb.ch.component.model.DetailsDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
@@ -14,7 +13,6 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
-import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -1131,6 +1129,140 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loadBotJobWithBlock for botJobId %d\nError: %s", botJobId, e.getMessage()));
+        }
+
+        return botJobLoadList;
+    }
+
+    public List<BotJobLoadDTO> loadComponentsComplete(int homeBankingId) {
+        String query = "\n" + "\n"
+                + "SELECT \n"
+                + "    hb.id AS home_banking_id, \n"
+                + "    blk.bot_job_id,\n"
+                + "\t'No Bot Job Name' as bot_job_name,\n"
+                + "\tblk.id AS block_id, \n"
+                + "    blk.block_order_number, \n"
+                + "    blk.name AS block_name, \n"
+                + "    blk.description AS block_description, \n"
+                + "    blk.type_id, \n"
+                + "    blk.export_file,\n"
+                + "    blk.active AS block_active, \n"
+                + "    blk.wait,\n"
+                + "    bli.id AS instruction_id, \n"
+                + "    bli.instruction_order_number, \n"
+                + "    bli.actions, \n"
+                + "    bli.name AS instruction_name, \n"
+                + "    bli.path, \n"
+                + "    bli.coordinates, \n"
+                + "    bli.iframe_xpath, \n"
+                + "    bli.description AS instruction_description, \n"
+                + "    bli.force_coordinates, \n"
+                + "    bli.optional, \n"
+                + "    bli.block_marked, \n"
+                + "    bli.default_value, \n"
+                + "    bli.action_custom_max_wait_sec, \n"
+                + "    bli.on_hold_seconds, \n"
+                + "    bli.codified, \n"
+                + "    bli.export_to_abr, \n"
+                + "    bli.operation, \n"
+                + "    bli.parent_id, \n"
+                + "    bli.active AS instruction_active,\n"
+                + "    irl.reference_type, \n"
+                + "    irl.value AS reference_value\n"
+                + "FROM public.home_banking hb\n"
+                + "LEFT JOIN public.component_block blk ON blk.home_banking_id = hb.id\n"
+                + "LEFT JOIN public.component_instruction bli ON bli.block_id = blk.id\n"
+                + "LEFT JOIN public.component_reference irl ON irl.instruction_id = bli.id\n"
+                + "WHERE hb.id = "
+                + homeBankingId + "\n"
+                + "ORDER BY hb.id, blk.block_order_number, bli.instruction_order_number, bli.id ASC;";
+
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+
+            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
+            Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
+            Map<Integer, InstructionLoadDTO> instructionMap = new HashMap<>();
+
+            botJobLoadList.clear();
+
+            while (rs.next()) {
+                int botJobId = rs.getInt("bot_job_id");
+                BotJobLoadDTO botJobDTO = botJobMap.get(botJobId);
+
+                if (botJobDTO == null) {
+                    botJobDTO = new BotJobLoadDTO();
+                    botJobDTO.setId(botJobId);
+                    botJobDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                    botJobDTO.setName(rs.getString("bot_job_name"));
+                    botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+                    botJobMap.put(botJobId, botJobDTO);
+                    botJobLoadList.add(botJobDTO);
+                }
+
+                int blockId = rs.getInt("block_id");
+                BlockLoadDTO blockDTO = blockMap.get(blockId);
+
+                if (blockDTO == null) {
+                    blockDTO = new BlockLoadDTO();
+                    blockDTO.setId(blockId);
+                    blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+                    blockDTO.setName(rs.getString("block_name"));
+                    blockDTO.setDescription(rs.getString("block_description"));
+                    blockDTO.setTypeId(rs.getInt("type_id"));
+                    blockDTO.setActive(rs.getBoolean("block_active"));
+                    blockDTO.setWait(rs.getInt("wait"));
+                    blockDTO.setBotJobId(botJobDTO.getId());
+                    blockDTO.setBotJobName(botJobDTO.getName());
+                    blockDTO.setExportFile(rs.getString("export_file"));
+
+                    blockDTO.setInstructionLoadDTOS(new ArrayList<>());
+                    botJobDTO.getBlockLoadDTOList().add(blockDTO);
+                    blockMap.put(blockId, blockDTO);
+                }
+
+                int instructionId = rs.getInt("instruction_id");
+                InstructionLoadDTO instruction = instructionMap.get(instructionId);
+
+                if (instruction == null) {
+                    instruction = new InstructionLoadDTO();
+                    instruction.setId(instructionId);
+                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                    instruction.setActions(rs.getString("actions"));
+                    instruction.setName(rs.getString("instruction_name"));
+                    instruction.setPath(rs.getString("path"));
+                    instruction.setCoordinates(rs.getString("coordinates"));
+                    instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                    instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+                    instruction.setDescription(rs.getString("instruction_description"));
+                    instruction.setOptional(rs.getBoolean("optional"));
+                    instruction.setBlockMarked(rs.getBoolean("block_marked"));
+                    instruction.setDefaultValue(rs.getString("default_value"));
+                    instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                    instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                    instruction.setCodified(rs.getBoolean("codified"));
+                    instruction.setExportToABR(rs.getBoolean("export_to_abr"));
+                    instruction.setOperation(rs.getString("operation"));
+                    instruction.setParentId(rs.getInt("parent_id"));
+                    instruction.setInstructionActive(rs.getBoolean("instruction_active"));
+
+                    instruction.setInstructionReferenceLoadDTOList(new ArrayList<>());
+                    blockDTO.getInstructionLoadDTOS().add(instruction);
+                    instructionMap.put(instructionId, instruction);
+                }
+
+                String referenceType = rs.getString("reference_type");
+                if (referenceType != null) {
+                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+                    reference.setReferenceType(referenceType);
+                    reference.setValue(rs.getString("reference_value"));
+                    instruction.getInstructionReferenceLoadDTOList().add(reference);
+                }
+            }
+        } catch (SQLException error) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error loadBotJobWithBlock for botJobId %d\nError: %s", homeBankingId, error.getMessage()));
         }
 
         return botJobLoadList;
@@ -3181,15 +3313,14 @@ public class PerformDataBase {
         return null;
     }
 
-    public ErrorMessage saveNewComponent(
-            Connection conn, ComponentBlockDTO componentBlockDTO, DetailsDTO detailsDTO, String[] arrayTables)
+    public ErrorMessage saveNewComponent(Connection conn, BlockDetailsDTO blockDetailsDTO, String[] arrayTables)
             throws SQLException {
 
         // component_block / instruction / component_instruction / reference / component_reference / variable /
         // component_variable / complex / component_complex
-        int oldBotJobId = detailsDTO.getNewBlock().getBotJobId();
-        int oldBlockId = detailsDTO.getNewBlock().getBlockId();
-        int homeBankId = detailsDTO.getNewBlock().getHomeBankingId();
+        int oldBotJobId = blockDetailsDTO.getBotJobId();
+        int oldBlockId = blockDetailsDTO.getBlockId();
+        int homeBankId = blockDetailsDTO.getHomeBankingId();
 
         Map<Integer, Integer> blocksOlderAndNewId = new HashMap<>();
 
@@ -3207,8 +3338,8 @@ public class PerformDataBase {
                 block.setId(currentId);
                 block.setBotJobId(oldBotJobId);
                 block.setHomeBankingId(homeBankId);
-                block.setName(componentBlockDTO.getName());
-                block.setDescription(componentBlockDTO.getDescription());
+                block.setName(blockDetailsDTO.getBlockName());
+                block.setDescription(blockDetailsDTO.getBlockDescription());
                 currentId++;
             }
             // Duplicate Blocks

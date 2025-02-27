@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.util.ARConstants;
@@ -403,7 +404,7 @@ public class PerformMessage {
         }
     }
 
-    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions) {
+    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions, String fileName) {
         // Get the directory path from ARPropertyManager
         String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
 
@@ -485,7 +486,48 @@ public class PerformMessage {
         String jsonData = gson.toJson(updatedList);
 
         // Create the file path
-        String outputFilePath = jsonPath + "/instructions.json";
+        String outputFilePath = jsonPath + "/" + fileName + ".json";
+
+        // Write the JSON data to the file
+        try (FileWriter writer = new FileWriter(outputFilePath)) {
+            writer.write(jsonData);
+            System.out.println("JSON file saved to: " + outputFilePath);
+        } catch (IOException e) {
+            System.err.println("Error writing JSON to file: " + e.getMessage());
+        }
+    }
+
+    public void outputJsonElementDTO(ElementDTO[] elementDTO) {
+        // Get the directory path from ARPropertyManager
+        String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+
+        // Define Gson ExclusionStrategy to ignore specific fields
+        ExclusionStrategy strategy = new ExclusionStrategy() {
+            @Override
+            public boolean shouldSkipField(FieldAttributes f) {
+                // Skip fields by name (e.g., 'botJobId', 'botJobName')
+                return f.getName().equals("optional")
+                        || f.getName().equals("blockMarked")
+                        || f.getName().equals("editMode");
+            }
+
+            @Override
+            public boolean shouldSkipClass(Class<?> clazz) {
+                return false;
+            }
+        };
+
+        // Initialize Gson with pretty printing for better readability
+        Gson gson = new GsonBuilder()
+                .setExclusionStrategies(strategy)
+                .setPrettyPrinting()
+                .create();
+
+        // Serialize the list of elementDTO to JSON
+        String jsonData = gson.toJson(elementDTO);
+
+        // Create the file path
+        String outputFilePath = jsonPath + "/elementDTO.json";
 
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {

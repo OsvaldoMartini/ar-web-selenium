@@ -7,7 +7,10 @@ import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
+import com.allinweb.ch.component.model.ElementDTO;
+import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
@@ -15,8 +18,7 @@ import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.ComponentBlockDTO;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -25,10 +27,12 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.HashSet;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -57,23 +61,69 @@ public class SimpleWebSocketServer {
     //        return instance.get();
     //    }
 
+    private static final Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+
+    // Store active sessions when a new connection is established
+    public static void addSession(String sessionId, Session session) {
+        activeSessions.put(sessionId, session);
+    }
+
+    // Remove session when disconnected
+    public static void removeSession(String sessionId) {
+        activeSessions.remove(sessionId);
+    }
+
+    public static Map<String, Session> getAllSessions() {
+        return activeSessions;
+    }
+
+    private String generateCustomSessionId(Session session) {
+        // Get the current date in yyyyMMdd format
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+        String date = dateFormat.format(new Date());
+
+        // Generate custom session ID with the date and timestamp
+        return date + "-" + System.currentTimeMillis();
+    }
+
     private static final PerformDataBase performDataBase;
     //    private static final PerformDBSavedBlock performDBSavedBlock;
+    private static final PerformMessage performMessage;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
         //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
+        performMessage = PerformMessage.getInstance();
     }
 
     // Store all connected sessions
-    private static final Set<Session> sessions = Collections.synchronizedSet(new HashSet<>());
     private final Gson gson = new Gson();
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
+    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
+
     @OnOpen
     public void onOpen(Session session) {
-        sessions.add(session);
-        System.out.println("New connection: Session ID = " + session.getId());
+        // Get the sessionId from the query parameter passed by the frontend
+        String sessionId = null;
+        try {
+            sessionId = session.getRequestParameterMap().get("sessionId").get(0);
+
+            if (!Strings.isNullOrEmpty(sessionId)) {
+                addSession(sessionId, session);
+            } else {
+                addSession(generateCustomSessionId(session), session);
+            }
+        } catch (Exception noSessionId) {
+            addSession(generateCustomSessionId(session), session);
+        }
+
+        if (sessionId != null) {
+            addSession(sessionId, session); // Store the session with the custom ID
+            System.out.println("New connection: Custom Session ID = " + sessionId);
+        } else {
+            System.out.println("No session ID provided by client");
+        }
     }
 
     @OnMessage
@@ -88,6 +138,30 @@ public class SimpleWebSocketServer {
             // Parse the incoming message (assuming JSON format)
             JsonObject jsonMessage = JsonParser.parseString(message).getAsJsonObject();
             type = jsonMessage.has("type") ? jsonMessage.get("type").getAsString() : "unknown";
+            String sessionId =
+                    jsonMessage.has("sessionId") ? jsonMessage.get("sessionId").getAsString() : "unknown";
+
+            // if Not have Session and does not Exist into the activeSessions
+            // Is Going to Handle the Control
+            if (Strings.isNullOrEmpty(sessionId)) {
+                sessionId = null;
+                try {
+                    sessionId =
+                            session.getRequestParameterMap().get("sessionId").get(0);
+                    if (!Strings.isNullOrEmpty(sessionId)) {
+                        if (!activeSessions.containsKey(sessionId)) {
+                            if (!activeSessions.get(sessionId).isOpen()) {
+                                addSession(sessionId, session);
+                            }
+                        }
+                    } else {
+                        addSession(generateCustomSessionId(session), session);
+                    }
+
+                } catch (Exception noSessionId) {
+                    addSession(generateCustomSessionId(session), session);
+                }
+            }
 
             // Process the message based on its type
             switch (type) {
@@ -96,14 +170,15 @@ public class SimpleWebSocketServer {
                     broadcastMessageToAll(broadcastMessage);
                     break;
                 case "echo":
-                    sendMessageJson(session, "Echo: " + jsonMessage.get("body").getAsString(), null);
+                    sendMessageJson(
+                            sessionId, "Echo: " + jsonMessage.get("body").getAsString(), "sessionId: " + sessionId);
                     break;
                 default:
-                    handleMessageByType(type, jsonMessage, session);
+                    handleMessageByType(type, jsonMessage, session, sessionId);
                     break;
             }
-        } catch (Exception e) {
-            System.err.println("Error processing message: " + e.getMessage());
+        } catch (Exception error) {
+            System.err.println("Error processing message: " + error.getMessage());
             if (type != null) {
                 sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
             } else {
@@ -112,35 +187,83 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void handleMessageByType(String type, JsonObject jsonEntry, Session session) {
+    private void handleMessageByType(String type, JsonObject jsonEntry, Session session, String sessionId) {
         // Dispatch to the correct method based on the message type
         switch (type) {
+            case "SEARCH_TOOL":
+                // Extract the "body" field from the JsonObject
+                ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+                //                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " +
+                // elementSplitDTO.getDetails().length);
+                String jsonData = gson.toJson(elementSplitDTO);
+                if (!Strings.isNullOrEmpty(elementSplitDTO.getSessionId())) {
+                    sessionId = elementSplitDTO.getSessionId();
+                    sendMessageJson(sessionId, jsonData, null);
+                    //                    broadcastMessageToAll(jsonData);
+                    performMessage.outputJsonElementDTO(elementSplitDTO.getDetails());
+
+                } else {
+                    Session sessionDest = activeSessions.get(sessionId);
+
+                    if (sessionDest != null && sessionDest.isOpen()) {
+                        sendMessageJson(sessionDest, jsonData, null);
+                    } else broadcastMessageToAll(jsonData);
+                }
+                break;
+            case "NEW_ELEMENT_DTO":
+            case "DEL_ELEMENT_DTO":
+            case "DETAILS_ELEMENT_DTO":
+                // Extract the "body" field from the JsonObject
+                ElementSplitDTO processDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+                middleWareMsg(processDTO);
+                break;
             case "RESPONSE_BACK":
                 // Extract the "body" field from the JsonObject
                 BlockSplitDTO received = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 received.setType("MARTINI");
-                String jsonData = gson.toJson(received);
+                jsonData = gson.toJson(received);
                 sendMessageJson(session, jsonData, null);
                 break;
             case "BLOCKS_COMPONENT":
                 BlockSplitDTO blockComponentDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 createBlockComponent(blockComponentDTO);
-                sendMessageJson(session, "Success Create Component", null);
                 break;
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 splitBlocks(blockSplitDTO);
-                sendMessageJson(session, "Success block splitter", null);
+                this.botJobLoadList = performDataBase.loadBotJobComplete(blockSplitDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+
+                    sendMessageJson(blockSplitDTO.getSessionId(), jsonData, "updateInstructions");
+                }
+
                 break;
             case "BLOCK_MOVE":
                 BlockMoveDTO blockMoveDTO = gson.fromJson(jsonEntry, BlockMoveDTO.class);
                 moveBlock(blockMoveDTO);
-                sendMessageJson(session, "Success block move", null);
+                this.botJobLoadList = performDataBase.loadBotJobComplete(blockMoveDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+
+                    sendMessageJson(blockMoveDTO.getSessionId(), jsonData, "updateInstructions");
+                }
                 break;
             case "ROW_UPDATE":
                 RowMoveDTO rowUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
                 rowUpdate(rowUpdateDTO);
-                sendMessageJson(session, "Success row update", null);
+
+                this.botJobLoadList = performDataBase.loadBotJobComplete(rowUpdateDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(sessionId, jsonData, "updateInstructions");
+                }
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
@@ -152,7 +275,15 @@ public class SimpleWebSocketServer {
                     performDataBase.updateBlockOrderNumber(
                             performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
                 }
-                sendMessageJson(session, "Success row move", null);
+
+                this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(rowMoveDTO.getSessionId(), jsonData, "updateInstructions");
+                }
+
                 break;
             case "INSERT_BEFORE":
             case "INSERT_AFTER":
@@ -161,13 +292,36 @@ public class SimpleWebSocketServer {
             case "INSERT_BEFORE_ELSEIF":
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-                injectStepAfterOrBefore(sessions, insertBeforeDTO);
-                sendMessageJson(session, "Success INSERT Actions", "no Rows were detected!");
+                if (activeSessions.containsKey(sessionId)) {
+                    session = activeSessions.get(sessionId);
+                    if (session.isOpen()) {
+                        injectStepAfterOrBefore(session, sessionId, insertBeforeDTO);
+                    } else {
+                        performMessage.errorMessage(
+                                "Session Not Active",
+                                "Session Id: " + sessionId + " is Not active!",
+                                null,
+                                null,
+                                null,
+                                0);
+                    }
+
+                } else {
+                    performMessage.errorMessage(
+                            "Session Not Created", "Session Id: " + sessionId + " Dos Not Exist!", null, null, null, 0);
+                }
                 break;
             case "BLOCK_EXCEL_FILE":
                 BlockDetailsDTO blockExcelDTO = gson.fromJson(jsonEntry, BlockDetailsDTO.class);
                 excelFileBlock(blockExcelDTO);
-                sendMessageJson(session, "Success Block Excel File", null);
+                this.botJobLoadList = performDataBase.loadBotJobComplete(blockExcelDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(blockExcelDTO.getSessionId(), jsonData, "updateInstructions");
+                }
+
                 break;
             case "BLOCK_ORDER":
                 BlockOrderDTO blockReorder = gson.fromJson(jsonEntry, BlockOrderDTO.class);
@@ -179,14 +333,27 @@ public class SimpleWebSocketServer {
                     performDataBase.deleteNullBlocks(
                             blockReorder.getUpdatedBlocks().get(0).getBotJobId());
 
-                    sendMessageJson(session, "Success Block Order", null);
+                    this.botJobLoadList = performDataBase.loadBotJobComplete(blockReorder.getBotJobId());
+                    if (botJobLoadList.size() > 0) {
+                        List<InstructionLoadDTO> blockLoopInstructions =
+                                performDataBase.buildJsonViewData(botJobLoadList);
+
+                        jsonData = gson.toJson(blockLoopInstructions);
+                        sendMessageJson(blockReorder.getSessionId(), jsonData, "updateInstructions");
+                    }
                 }
                 break;
             case "INSTRUCTION_STATUS":
                 InstructionDTO instructionDTO = gson.fromJson(jsonEntry, InstructionDTO.class);
                 performDataBase.updateInstructionStatus(instructionDTO);
 
-                sendMessageJson(session, "Success Instruction Status", null);
+                this.botJobLoadList = performDataBase.loadBotJobComplete(instructionDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(instructionDTO.getSessionId(), jsonData, "updateInstructions");
+                }
                 break;
             case "BLOCK_STATUS":
                 RowMoveDTO blockStateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
@@ -200,15 +367,27 @@ public class SimpleWebSocketServer {
                 performDataBase.updateInstructionStatusByBlock(
                         blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
 
-                sendMessageJson(session, "Success Block Status", null);
+                this.botJobLoadList = performDataBase.loadBotJobComplete(blockStateDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(blockStateDTO.getSessionId(), jsonData, "updateInstructions");
+                }
 
                 break;
             case "BLOCK_UPDATE":
                 RowMoveDTO blockUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
                 performDataBase.updateBlockName(
                         blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-                sendMessageJson(session, "Success Block Update", null);
 
+                this.botJobLoadList = performDataBase.loadBotJobComplete(blockUpdateDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(blockUpdateDTO.getSessionId(), jsonData, "updateInstructions");
+                }
                 break;
             case "DELETE_INSTRUCTION":
                 InstructionDTO deleteInstructionDTO = gson.fromJson(jsonEntry, InstructionDTO.class);
@@ -217,18 +396,36 @@ public class SimpleWebSocketServer {
                 List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
                         deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
                 performDataBase.reorderInstructions(rowList);
-                sendMessageJson(session, "Success Delete Instruction", null);
+                this.botJobLoadList = performDataBase.loadBotJobComplete(deleteInstructionDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(deleteInstructionDTO.getSessionId(), jsonData, "updateInstructions");
+                }
                 break;
             case "DELETE_BLOCK":
                 DeleteBlockDTO deleteBlockDTO = gson.fromJson(jsonEntry, DeleteBlockDTO.class);
                 performDataBase.deleteBlock(deleteBlockDTO);
-                sendMessageJson(session, "Success Delete Block", null);
+                this.botJobLoadList = performDataBase.loadBotJobComplete(deleteBlockDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(deleteBlockDTO.getSessionId(), jsonData, "updateInstructions");
+                }
                 break;
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(jsonEntry, RollBackBlocksDTO.class);
                 performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
                 performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                sendMessageJson(session, "Success Roll Back", null);
+                this.botJobLoadList = performDataBase.loadBotJobComplete(rollBackBlocksDTO.getBotJobId());
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+
+                    jsonData = gson.toJson(blockLoopInstructions);
+                    sendMessageJson(rollBackBlocksDTO.getSessionId(), jsonData, "updateInstructions");
+                }
                 break;
 
             default:
@@ -237,10 +434,33 @@ public class SimpleWebSocketServer {
         }
     }
 
+    private void middleWareMsg(ElementSplitDTO processDTO) {
+        if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
+            ElementDTO elementDTO = processDTO.getDetails()[0];
+            if (processDTO.getType().equals("DETAILS_ELEMENT_DTO")) {
+                sendMessageJson(
+                        "scannerReceiver", "Action type : \"" + "scannerReceiver" + "\"", "cannot be processed");
+            }
+        }
+    }
+
     @OnClose
     public void onClose(Session session) {
-        sessions.remove(session);
-        System.out.println("Connection closed: Session ID = " + session.getId());
+        // Clean up session when it closes
+        String sessionId = getSessionIdBySession(session);
+        if (sessionId != null) {
+            removeSession(sessionId);
+            System.out.println("Connection closed: Session ID = " + sessionId);
+        }
+    }
+
+    // Method to get the session ID based on the session object
+    private String getSessionIdBySession(Session session) {
+        return activeSessions.entrySet().stream()
+                .filter(entry -> entry.getValue().equals(session))
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse(null);
     }
 
     @OnError
@@ -256,20 +476,48 @@ public class SimpleWebSocketServer {
     }
 
     private void broadcastMessageToAll(String message) {
-        synchronized (sessions) {
-            for (Session session : sessions) {
-                if (session.isOpen()) {
-                    sendMessageJson(session, message, null);
-                }
+        for (Session session : activeSessions.values()) { // Looping correctly
+            if (session.isOpen()) {
+                sendMessageJson(session, message, null);
             }
         }
     }
+
+    //    private void broadcastMessageToAll(String message) {
+    //        synchronized (sessions) {
+    //            for (Session session : sessions) {
+    //                if (session.isOpen()) {
+    //                    sendMessageJson(session, message, null);
+    //                }
+    //            }
+    //        }
+    //    }
 
     private void sendMessage(Session session, String message) {
         try {
             session.getBasicRemote().sendText(message);
         } catch (IOException e) {
             System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+        }
+    }
+
+    // Method to send a message to a specific session ID
+    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+        Session session = activeSessions.get(sessionId);
+
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("body", msg1);
+                if (msg2 != null && !msg2.isEmpty()) {
+                    jsonMessage.addProperty("operationId", msg2);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -340,7 +588,7 @@ public class SimpleWebSocketServer {
         // Add business logic to handle ROW_MOVE
     }
 
-    private void injectStepAfterOrBefore(Set<Session> sessions, RowMoveDTO rowMoveDTO) {
+    private void injectStepAfterOrBefore(Session session, String sessionId, RowMoveDTO rowMoveDTO) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
@@ -356,7 +604,7 @@ public class SimpleWebSocketServer {
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
                     ARNewCommandScene newCommandScene =
-                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessions);
+                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, session, sessionId);
                     newCommandScene.show();
                 });
             } else {
@@ -402,26 +650,17 @@ public class SimpleWebSocketServer {
 
     private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        ComponentBlockDTO componentBlockDTO =
-                new ComponentBlockDTO(); // performDataBase.createSavedBlockDTO(blockSplitDTO);
 
-        componentBlockDTO.setName(
-                "Comp - " + blockSplitDTO.getDetails().getNewBlock().getBlockName());
-        componentBlockDTO.setDescription("New Block Component");
-
-        BlockDTO blockDTO = new BlockDTO();
-        blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());
-        //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
-
+        BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();
+        blockDetailsDTO.setHomeBankingId(blockSplitDTO.getHomeBankingId());
+        blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
+        blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
+        if (blockDetailsDTO.getBlockDescription() == null) {
+            blockDetailsDTO.setBlockDescription(blockDetailsDTO.getBlockName() + " description");
+        }
         Platform.runLater(() -> {
-            ARSaveComponentScene newSaveBlockScene =
-                    new ARSaveComponentScene(componentBlockDTO, blockDTO, blockSplitDTO.getDetails());
+            ARSaveComponentScene newSaveBlockScene = new ARSaveComponentScene(blockDetailsDTO);
             newSaveBlockScene.showModal();
         });
-    }
-
-    // This method can be used to get all active WebSocket sessions
-    public static Set<Session> getAllSessions() {
-        return sessions;
     }
 }

@@ -6,6 +6,8 @@ import lombok.Data;
 @Data
 public class BlockOrderDTO {
     private String type;
+    private Integer botJobId;
+    private String sessionId;
     private List<BlockOrderDetailDTO> updatedBlocks;
 
     // Constructors

@@ -15,5 +15,6 @@ public class RowMoveDTO {
     private Boolean blockActive;
     private Boolean instructionActive;
     private Boolean isBetween;
+    private String sessionId;
     private List<InstructionDTO> updatedRows;
 }
