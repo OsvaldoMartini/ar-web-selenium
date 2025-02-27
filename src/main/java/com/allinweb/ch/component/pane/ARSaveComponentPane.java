@@ -251,18 +251,13 @@ public class ARSaveComponentPane extends ARPane {
                                     null);
 
                         } else {
-                            String errorType = "Database error";
-                            String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
-
-                            String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
-                            showAlertTimer(
-                                    Alert.AlertType.ERROR,
-                                    "Error",
+                            performMessage.errorMessage(
+                                    "Access Database error",
                                     errorMessage.getErrorTitle(),
                                     errorMessage.getErrorHeader(),
-                                    detailedMessage,
+                                    "Verify  [INSERT] or [UPDATE] or [SELECT]",
                                     null,
-                                    null);
+                                    0);
                         }
                         Stage stage =
                                 (Stage) ((Button) e.getSource()).getScene().getWindow();

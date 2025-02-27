@@ -87,9 +87,12 @@ public class ARViewBotJobPane extends ARPane {
     private ObservableList<ComboBoxVars> webPageItems;
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
+
     private BotJobLoadDTO botJobLoad;
     private List<BotJobLoadDTO> botJobLoadList;
-    private BlockLoadDTO blockLoadDTO;
+
+    private BlockLoadDTO blockLoad;
+    private List<BlockLoadDTO> blockLoadList;
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformMessage performMessage;
@@ -821,10 +824,17 @@ public class ARViewBotJobPane extends ARPane {
     private void executeScannerTask() {
 
         HomeBankingLoadDTO homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
-        this.blockLoadDTO = this.botJobLoad.getBlockLoadDTOList() != null
-                        && this.botJobLoad.getBlockLoadDTOList().size() > 0
-                ? this.botJobLoad.getBlockLoadDTOList().get(0)
-                : null;
+
+        if (this.botJobLoad.getBlockLoadDTOList() != null
+                && this.botJobLoad.getBlockLoadDTOList().size() > 0) {
+            this.blockLoad = this.botJobLoad.getBlockLoadDTOList().get(0);
+        } else {
+
+            this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
+            if (this.blockLoadList.size() > 0) {
+                this.blockLoad = blockLoadList.get(0);
+            }
+        }
 
         try {
             Platform.runLater(() -> {
@@ -833,7 +843,7 @@ public class ARViewBotJobPane extends ARPane {
                     activeSessions = SimpleWebSocketServer.getAllSessions();
                     // Call the ARScannedElementScene here
                     ARScannedElementScene scene = arScannedElementScene.initialize(
-                            homeBankingLoadDTO, this.botJobLoad, this.blockLoadDTO, activeSessions);
+                            homeBankingLoadDTO, this.botJobLoad, this.blockLoad, activeSessions);
 
                     scene.show(); // Make sure the scene is shown
                 } catch (Exception ex) {

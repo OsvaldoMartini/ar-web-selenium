@@ -745,7 +745,7 @@ public class PerformDataBase {
             pstmt.setString(2, createdBotJob.getName());
             pstmt.setString(3, createdBotJob.getName() + " description");
             pstmt.setInt(4, createdBotJob.getHomeBankingId());
-            pstmt.setBoolean(5, true); // Setting "active" as true
+            pstmt.setInt(5, 1); // Setting "active" as true
 
             pstmt.executeUpdate();
 
@@ -1128,7 +1128,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(Thread.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loadBotJobWithBlock for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
@@ -1659,7 +1659,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException error) {
-            ARLogger.getInstance(Thread.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error loadAllBotJobs\nError: %s", error.getMessage()));
         }
 
@@ -1719,7 +1719,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(Thread.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loadJustJobBlocks for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
@@ -1872,11 +1872,30 @@ public class PerformDataBase {
             return botJobLoadDTO;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(Thread.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error loadBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
 
         return null;
+    }
+
+    public boolean updateBotStatus() {
+        // SQL query to get the blocks for a specific bot job
+        String query = "update bot_job set active = 1";
+
+        // Initialize the necessary data structures
+
+        // Use Statement to execute the query
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(query)) {
+            return true;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("Error updating Active = 1 all botjobs\nError: %s", e.getMessage()));
+        }
+
+        return false;
     }
 
     //    private void loadBotJobComplex(BotJobDTO botJob) {
@@ -1974,7 +1993,7 @@ public class PerformDataBase {
                 + "bot.name AS bot_job_name "
                 + "FROM bot_job bot "
                 + "JOIN block b ON b.bot_job_id = bot.id "
-                + "WHERE active = 1 and bot.id = "
+                + "WHERE bot.active = 1 and bot.id = "
                 + botJobId + " " + // Use the botJobId directly in the query string
                 "ORDER BY b.block_order_number ASC";
 
@@ -2006,7 +2025,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(Thread.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loadBlocksForBotJob for botJobId %d\nError: %s", botJobId, e.getMessage()));
         }
@@ -2551,7 +2570,7 @@ public class PerformDataBase {
                 + " FROM bot_job bot  "
                 + " LEFT JOIN block b ON b.bot_job_id = bot.id  "
                 + " JOIN instruction bli ON bli.block_id = b.id  "
-                + " where active = 1 and bot.id = " + botJobId
+                + " where bot.active = 1 and bot.id = " + botJobId
                 + "   and operation is null  "
                 + "  ORDER BY bot.id, b.block_order_number, bli.instruction_order_number ASC;";
 
@@ -2880,8 +2899,14 @@ public class PerformDataBase {
 
     public List<ComplexInstructionLoadDTO> instComplexToDuplicate(
             Connection conn, int oldBotJobId, int oldBlockId, String targetTable) throws SQLException {
-        String query = "SELECT id, instruction, order_number, way, instruction_id, bot_job_id " + "FROM " + targetTable
-                + " cp";
+        String query = " SELECT \n" + "  cp.id, \n"
+                + "  cp.instruction, \n"
+                + "  cp.order_number, \n"
+                + "  cp.way, \n"
+                + "  cp.instruction_id, \n"
+                + "  cp.bot_job_id \n"
+                + "FROM \n"
+                + targetTable + " cp";
 
         if (oldBlockId > -1) {
             query += " JOIN instruction bli ON bli.id = cp.instruction_id and cp.bot_job_id = ? and bli.block_id = ?  ";
@@ -2926,16 +2951,16 @@ public class PerformDataBase {
                 "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, bli.codified, bli.default_value, \n"
                         + " bli.description, bli.export_to_abr, bli.instruction_order_number, bli.name, bli.on_hold_seconds, "
                         + " bli.operation, bli.optional, \n"
-                        + " bli.parent_id, bli.path, bli.coordinates, bli.iframe_xpath, bli.force_coordinates"
-                        + "  bli.variable_id, bli.block_id, bli.bot_job_id, b.block_order_number \n"
+                        + " bli.parent_id, bli.path, bli.coordinates, bli.iframe_xpath, bli.force_coordinates, "
+                        + " bli.variable_id, bli.block_id, bli.bot_job_id, blk.block_order_number \n"
                         + " FROM " + tableTarget + " bli \n"
-                        + " JOIN block b ON bli.block_id = b.id \n"
+                        + " JOIN block blk ON bli.block_id = blk.id \n"
                         + " WHERE bli.bot_job_id = ? ";
 
         if (oldBlockId > -1) {
-            query += " and b.id = ? ";
+            query += " and blk.id = ? ";
         }
-        query += " order by b.block_order_number, bli.instruction_order_number ";
+        query += " order by blk.block_order_number, bli.instruction_order_number ";
         List<com.allinweb.ch.component.model.InstructionDTO> instructionDTOList = new ArrayList<>();
 
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -2987,14 +3012,14 @@ public class PerformDataBase {
             String[] arrayTables) {
 
         String botJobInsertQuery = "INSERT INTO bot_job (id, name, description, priority, home_banking_id, active) "
-                + "SELECT ?, ?, ?, priority, home_banking_id FROM bot_job WHERE id = ?";
+                + "SELECT ?, ?, ?, priority, home_banking_id, ? FROM bot_job WHERE id = ?";
 
         try (PreparedStatement stmt = conn.prepareStatement(botJobInsertQuery)) {
             stmt.setInt(1, newBotJobId); // Set new name
             stmt.setString(2, newName); // Set new name
             stmt.setString(3, newDescription); // Set new description
-            stmt.setInt(4, oldBotJobId); // Set original botJobId for the SELECT query
-            stmt.setBoolean(5, true); //
+            stmt.setInt(4, 1); //
+            stmt.setInt(5, oldBotJobId); // Set original botJobId for the SELECT query
             stmt.executeUpdate();
 
             System.out.println("Generated BotJob ID: " + newBotJobId);
@@ -3793,9 +3818,9 @@ public class PerformDataBase {
 
             varStmt.executeBatch(); // Execute the batch insert
             return null;
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-            return new ErrorMessage("Error Duplicating Variables", "Block Insertion Failure", e.getMessage());
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+            return new ErrorMessage("Error Duplicating Variables", "Block Insertion Failure", error.getMessage());
         }
     }
 
@@ -3897,9 +3922,10 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteBlockInstruction);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+                ARLogger.getInstance(PerformDataBase.class).finer("Data deleted successfully for: " + instructionId);
             } else {
-                ARLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+                ARLogger.getInstance(PerformDataBase.class)
+                        .finer("No matching record found to delete for: " + instructionId);
             }
         }
     }
@@ -3910,9 +3936,10 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+                ARLogger.getInstance(PerformDataBase.class).finer("Data deleted successfully for: " + instructionId);
             } else {
-                ARLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+                ARLogger.getInstance(PerformDataBase.class)
+                        .finer("No matching record found to delete for: " + instructionId);
             }
         }
     }
@@ -3935,9 +3962,10 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+                ARLogger.getInstance(PerformDataBase.class).finer("Data deleted successfully for: " + instructionId);
             } else {
-                ARLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+                ARLogger.getInstance(PerformDataBase.class)
+                        .finer("No matching record found to delete for: " + instructionId);
             }
         }
     }
@@ -3954,9 +3982,10 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(Thread.class).finer("Data deleted successfully for: " + instructionId);
+                ARLogger.getInstance(PerformDataBase.class).finer("Data deleted successfully for: " + instructionId);
             } else {
-                ARLogger.getInstance(Thread.class).finer("No matching record found to delete for: " + instructionId);
+                ARLogger.getInstance(PerformDataBase.class)
+                        .finer("No matching record found to delete for: " + instructionId);
             }
         }
     }
@@ -4012,7 +4041,7 @@ public class PerformDataBase {
                 }
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(Thread.class)
+            ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loadSavedBlocksForBotJob for Home Banking Id %d\nError: %s",
                             homeBankingId, e.getMessage()));

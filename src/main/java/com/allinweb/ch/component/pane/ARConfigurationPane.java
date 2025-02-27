@@ -718,6 +718,8 @@ public class ARConfigurationPane extends ARPane {
             homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());
             homeBankingListView = new ListView<>(homeBankingList);
 
+            performDataBase.changeDbConnection();
+
             new ARAlertScene(
                     Alert.AlertType.INFORMATION,
                     "Configuration saved",

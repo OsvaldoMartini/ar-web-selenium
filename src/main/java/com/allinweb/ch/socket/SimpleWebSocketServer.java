@@ -405,6 +405,10 @@ public class SimpleWebSocketServer {
         ComponentBlockDTO componentBlockDTO =
                 new ComponentBlockDTO(); // performDataBase.createSavedBlockDTO(blockSplitDTO);
 
+        componentBlockDTO.setName(
+                "Comp - " + blockSplitDTO.getDetails().getNewBlock().getBlockName());
+        componentBlockDTO.setDescription("New Block Component");
+
         BlockDTO blockDTO = new BlockDTO();
         blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());
         //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());

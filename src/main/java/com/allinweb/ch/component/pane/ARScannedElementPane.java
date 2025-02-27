@@ -3401,8 +3401,14 @@ public class ARScannedElementPane extends ARPane {
                             .info("Double clicked the element: "
                                     + arWebHover.getTargetElement().getMainXPath());
 
-                    currentBlockId = comboBoxBlocks.getValue().getExtraId();
-                    String blockName = comboBoxBlocks.getValue().getText();
+                    String blockName = "Default Block";
+                    try {
+                        currentBlockId = comboBoxBlocks.getValue().getExtraId();
+                        blockName = comboBoxBlocks.getValue().getText();
+
+                    } catch (Exception erro) {
+                        currentBlockId = -1;
+                    }
 
                     if (currentBlockId < 0) {
 
@@ -3526,6 +3532,7 @@ public class ARScannedElementPane extends ARPane {
                         }
 
                         String finalNameWebElement = nameDefined;
+                        String finalBlockName = blockName;
                         Task<Void> handleEvent = new Task<>() {
                             @Override
                             protected Void call() throws Exception {
@@ -3564,7 +3571,9 @@ public class ARScannedElementPane extends ARPane {
                                         arWebHover.getTargetElement().getMainCoordinates());
                                 instruction.setIFrameXPath(
                                         arWebHover.getTargetElement().getIFrameXPath());
-                                instruction.setBlockId(blockLoad.getId());
+
+                                instruction.setBlockId(currentBlockId);
+
                                 instruction.setInstructionOrderNumber(list.size() + 1);
 
                                 ARLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
@@ -3660,7 +3669,7 @@ public class ARScannedElementPane extends ARPane {
                                             Text blockNameLabel = new Text("Block : ");
                                             blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
 
-                                            Text blockNameText = new Text(blockName);
+                                            Text blockNameText = new Text(finalBlockName);
                                             blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
 
                                             Text variableText1Styled =
