@@ -2325,14 +2325,13 @@ public class ARNewCommandPane extends ARPane {
                 if (newRowId > 0) {
 
                     this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+                    String jsonData = "[]";
                     if (botJobLoadList.size() > 0) {
                         List<InstructionLoadDTO> blockLoopInstructions =
                                 performDataBase.buildJsonViewData(botJobLoadList);
-
-                        String jsonData = gson.toJson(blockLoopInstructions);
-                        //                        broadcastMessageToAll(jsonData);
-                        sendMessageJson(sessionId, jsonData, "updateInstructions");
+                        jsonData = gson.toJson(blockLoopInstructions);
                     }
+                    sendMessageJson(sessionId, jsonData, "updateInstructions");
 
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
@@ -2524,6 +2523,7 @@ public class ARNewCommandPane extends ARPane {
             try {
                 JsonObject jsonMessage = new JsonObject();
                 jsonMessage.addProperty("body", msg1);
+                jsonMessage.addProperty("sessionId", sessionId);
                 if (msg2 != null && !msg2.isEmpty()) {
                     jsonMessage.addProperty("operationId", msg2);
                 }

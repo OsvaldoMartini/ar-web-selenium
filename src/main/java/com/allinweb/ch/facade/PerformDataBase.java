@@ -13,6 +13,7 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
+import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -481,9 +482,9 @@ public class PerformDataBase {
         }
     }
 
-    public static void deleteCompNullBlocks(InstructionLoadDTO deleteInstructionLoadDTO) {
+    public static void deleteCompNullBlocks(int homeBanking, int botJobId) {
         // Validate input
-        if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getHomeBankingId() <= 0) {
+        if (homeBanking <= 0) {
             ARLogger.getInstance(PerformDataBase.class)
                     .warning("Invalid InstructionLoadDTO provided. Skipping block deletion.");
             return;
@@ -497,10 +498,10 @@ public class PerformDataBase {
                 + "    WHERE bli.block_id = b.id );";
 
         try (PreparedStatement stmt = getConnection().prepareStatement(deleteSQL)) {
-            stmt.setInt(1, deleteInstructionLoadDTO.getHomeBankingId());
+            stmt.setInt(1, homeBanking);
 
-            if (deleteInstructionLoadDTO.getBotJobId() != null) {
-                stmt.setInt(2, deleteInstructionLoadDTO.getBotJobId());
+            if (botJobId > 0) {
+                stmt.setInt(2, botJobId);
             } else {
                 stmt.setNull(2, Types.INTEGER);
             }
@@ -558,6 +559,45 @@ public class PerformDataBase {
         }
     }
 
+    public static void updateCompBlockOrderNumber(
+            List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
+        //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
+        blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
+
+        try (Statement stmt = getConnection().createStatement()) {
+            int newOrderNumber = 1; // Start reordering from 1
+
+            for (BlockOrderDetailDTO blockOrderDetailDTO : blockOrderDetailDTOList) {
+                // Update each block's block_order_number starting from 1
+                String updateSQL = "UPDATE component_block SET block_order_number = "
+                        + (reorderAll ? newOrderNumber : blockOrderDetailDTO.getBlockOrderNumber())
+                        + " WHERE id = "
+                        + blockOrderDetailDTO.getBlockId()
+                        + " AND bot_job_id = " + blockOrderDetailDTO.getBotJobId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
+                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "updateCompBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
+                                    blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
+                }
+
+                newOrderNumber++; // Increment the new order number for the next block
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("Error updateCompBlockOrderNumber. Error: %s", e.getMessage()));
+        }
+    }
+
     public static List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
         try (Statement stmt = getConnection().createStatement()) {
@@ -565,6 +605,42 @@ public class PerformDataBase {
             // Select blocks based on botJobId, ordered by block_order_number ASC
             String selectSQL =
                     "SELECT id FROM block WHERE bot_job_id = " + botJobId + " ORDER BY block_order_number ASC";
+            ResultSet rs = stmt.executeQuery(selectSQL);
+
+            int newOrderNumber = 1;
+            // Iterate through the result set and build BlockOrderDetailDTO list
+            while (rs.next()) {
+                int blockId = rs.getInt("id");
+
+                // Create a BlockOrderDetailDTO object with blockId and the new order number
+                BlockOrderDetailDTO blockDetail = BlockOrderDetailDTO.builder()
+                        .blockId(blockId)
+                        .botJobId(botJobId)
+                        .blockOrderNumber(newOrderNumber)
+                        .build();
+
+                // Add the block detail to the list
+                blockOrderDetails.add(blockDetail);
+
+                // Increment the order number for the next block
+                newOrderNumber++;
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error selecting blocks for botJobId ID %d. Error: %s", botJobId, e.getMessage()));
+        }
+        return blockOrderDetails;
+    }
+
+    public static List<BlockOrderDetailDTO> selectCompAllBlocks(int botJobId) {
+        List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
+        try (Statement stmt = getConnection().createStatement()) {
+
+            // Select blocks based on botJobId, ordered by block_order_number ASC
+            String selectSQL = "SELECT id FROM component_block WHERE bot_job_id = " + botJobId
+                    + " ORDER BY block_order_number ASC";
             ResultSet rs = stmt.executeQuery(selectSQL);
 
             int newOrderNumber = 1;
@@ -623,11 +699,12 @@ public class PerformDataBase {
     }
 
     // Handle BLOCK_UPDATE message
-    public boolean updateBlockExportFile(int botJobId, int blockId, String expoprtFile) {
+    public void updateCompBlockName(int botJobId, int blockId, String blockName) {
         try (Statement stmt = getConnection().createStatement()) {
 
             // Update each block's block_order_number starting from 1
-            String updateSQL = "UPDATE block SET export_file = '" + expoprtFile + "'"
+            String updateSQL = "UPDATE component_block SET name = '" + blockName + "',"
+                    + " description = '" + blockName + "'"
                     + " WHERE id = " + blockId
                     + " and bot_job_id = " + botJobId;
 
@@ -635,7 +712,34 @@ public class PerformDataBase {
 
             if (rowsAffected > 0) {
                 ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format("Block Export File updated blockId: %s, name: %s", blockId, expoprtFile));
+                        .info(String.format("Block Name updated blockId: %s, name: %s", blockId, blockName));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "updateCompBlockName - No matching record found to update botJobId: %d blockId: %d",
+                                botJobId, blockId));
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("Error UpdateBlockOrderNumber. Error: %s", e.getMessage()));
+        }
+    }
+
+    // Handle BLOCK_UPDATE message
+    public boolean updateBlockExportFile(String tableTarget, int botJobId, int blockId, String exportFile) {
+        try (Statement stmt = getConnection().createStatement()) {
+
+            // Update each block's block_order_number starting from 1
+            String updateSQL = "UPDATE " + tableTarget + " SET export_file = '" + exportFile + "'"
+                    + " WHERE id = " + blockId
+                    + " and bot_job_id = " + botJobId;
+
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format("Block Export File updated blockId: %s, name: %s", blockId, exportFile));
             } else {
                 ARLogger.getInstance(PerformDataBase.class)
                         .warning(String.format(
@@ -695,11 +799,12 @@ public class PerformDataBase {
                 getInstructionsByBlockId(deleteBlockDTO.getBotJobId(), deleteBlockDTO.getBlockId());
         if (deleteList.size() > 0) {
             for (InstructionLoadDTO deleteDTO : deleteList) {
+                deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
                 deleteInstruction(deleteBlockDTO.getBotJobId(), deleteDTO);
                 //                updateOtherBlocks()
             }
         }
-        blockDeletion = deleteBlock((int) deleteBlockDTO.getBotJobId(), (int) deleteBlockDTO.getBlockId());
+        blockDeletion = deleteBlockDirect((int) deleteBlockDTO.getBotJobId(), (int) deleteBlockDTO.getBlockId());
         //        updateOtherBlocks(deleteBlockDTO.getUpdatedBlockDTO());
         deleteNullBlocks((int) deleteBlockDTO.getBotJobId());
         if (deleteBlockDTO.getUpdatedBlocks() != null
@@ -708,6 +813,21 @@ public class PerformDataBase {
                     selectAllBlocks(deleteBlockDTO.getUpdatedBlocks().get(0).getBotJobId()), true);
         }
 
+        return blockDeletion;
+    }
+
+    // Handle DELETE_BLOCK message
+    public boolean deleteCompBlock(DeleteBlockDTO deleteBlockDTO) {
+        boolean blockDeletion = false;
+        List<InstructionLoadDTO> deleteList =
+                getCompInstructionsByBlockId(deleteBlockDTO.getBotJobId(), deleteBlockDTO.getBlockId());
+        if (deleteList.size() > 0) {
+            for (InstructionLoadDTO deleteDTO : deleteList) {
+                deleteDTO.setHomeBankingId(deleteBlockDTO.getHomeBankingId());
+                deleteComponent(deleteDTO);
+                //                updateOtherBlocks()
+            }
+        }
         return blockDeletion;
     }
 
@@ -860,6 +980,39 @@ public class PerformDataBase {
         return false;
     }
 
+    public boolean rowsCompUpdateName(List<InstructionLoadDTO> instructions) {
+        // Build the SQL update statement
+        try (Statement stmt = getConnection().createStatement()) {
+            for (InstructionLoadDTO instruction : instructions) {
+
+                String updateSQL = "UPDATE component_instruction SET  "
+                        + " name = '" + instruction.getInstructionName() + "',"
+                        + " actions = '" + instruction.getActions() + "'"
+                        + " WHERE id = " + instruction.getInstructionId()
+                        + " and block_id = " + instruction.getBlockId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "Component Instruction Updated - InstructionId: %s now have name: %s",
+                                    instruction.getInstructionId(), instruction.getInstructionName()));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "Component Instruction Updated - No matching record found to update InstructionId: %d and name: %s",
+                                    instruction.getInstructionId(), instruction.getInstructionName()));
+                }
+            }
+            return true;
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "This Component Instruction \n cannot be updated.\nError: %s", e.getMessage()));
+        }
+        return false;
+    }
+
     public boolean updateMoveRowsOrder(List<InstructionLoadDTO> instructions) {
         // Build the SQL update statement
         try (Statement stmt = getConnection().createStatement()) {
@@ -893,13 +1046,46 @@ public class PerformDataBase {
         return false;
     }
 
-    public void rollBackBlocksRows(RollBackBlocksDTO rollBackBlocksDTO) {
+    public boolean updateCompMoveRowsOrder(List<InstructionLoadDTO> instructions) {
+        // Build the SQL update statement
+        try (Statement stmt = getConnection().createStatement()) {
+            for (InstructionLoadDTO instruction : instructions) {
+
+                String updateSQL = "UPDATE component_instruction SET  "
+                        + " instruction_order_number = " + instruction.getInstructionOrderNumber() + ","
+                        + " block_id = " + instruction.getBlockId()
+                        + " WHERE id = " + instruction.getInstructionId();
+
+                int rowsAffected = stmt.executeUpdate(updateSQL);
+                if (rowsAffected > 0) {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "updateCompMoveRowsOrder - InstructionId: %s now have order number: %d",
+                                    instruction.getInstructionId(), instruction.getInstructionOrderNumber()));
+                } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .warning(String.format(
+                                    "updateCompMoveRowsOrder - No matching record found to update blockId: %d and InstructionId: %d",
+                                    instruction.getBlockId(), instruction.getInstructionId()));
+                }
+            }
+
+            return true;
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "This Order Number for Instructions\n cannot be updated.\nError: %s", e.getMessage()));
+        }
+        return false;
+    }
+
+    public void rollBackBlocksRows(String targetTable, RollBackBlocksDTO rollBackBlocksDTO) {
         // Build the SQL update statement
 
         try (Statement stmt = getConnection().createStatement()) {
             for (InstructionLoadDTO instruction : rollBackBlocksDTO.getInstructions()) {
 
-                String updateSQL = "UPDATE instruction SET  "
+                String updateSQL = "UPDATE " + targetTable + " SET  "
                         + " instruction_order_number = " + instruction.getInstructionOrderNumber() + ","
                         + " block_id = " + rollBackBlocksDTO.getBlockId()
                         + " WHERE id = " + instruction.getInstructionId();
@@ -989,11 +1175,41 @@ public class PerformDataBase {
         return instructions;
     }
 
-    public boolean deleteBlock(int botJobId, int blockId) {
+    public boolean deleteBlockDirect(int botJobId, int blockId) {
         // Build the SQL delete statement
         try (Statement stmt = getConnection().createStatement()) {
 
             String deleteSQL = "DELETE FROM block " + " WHERE id = " + blockId + " and bot_job_id = " + botJobId;
+
+            // Execute the update statement and check if any rows were affected
+            int rowsAffected = stmt.executeUpdate(deleteSQL);
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "The Block id %d has been successfully deleted from botJobId %d.", blockId, botJobId));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "No matching record found for blockId ID %d in botJobId %d.", blockId, botJobId));
+            }
+
+            return true;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error deleting BotJobId ID %d from block ID %d. Error: %s",
+                            botJobId, blockId, e.getMessage()));
+        }
+        return false;
+    }
+
+    public boolean deleteCompBlockDirect(int botJobId, int blockId) {
+        // Build the SQL delete statement
+        try (Statement stmt = getConnection().createStatement()) {
+
+            String deleteSQL =
+                    "DELETE FROM component_block " + " WHERE id = " + blockId + " and bot_job_id = " + botJobId;
 
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
@@ -1301,6 +1517,7 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error loadBotJobWithBlock for botJobId %d\nError: %s", homeBankingId, error.getMessage()));
+            return botJobLoadList = new ArrayList<>();
         }
 
         return botJobLoadList;
@@ -1739,7 +1956,11 @@ public class PerformDataBase {
             while (rs.next()) {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
                 InstructionLoadDTO instruction = new InstructionLoadDTO();
+
                 instruction.setInstructionId(rs.getInt("id"));
+                instruction.setBotJobId(rs.getInt("bot_job_id"));
+                instruction.setBlockId(rs.getInt("block_id"));
+
                 instruction.setInstructionName(rs.getString("name"));
                 instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instruction.setBlockId(rs.getInt("block_id"));
@@ -1770,6 +1991,61 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
+        }
+
+        return instructions;
+    }
+
+    public List<InstructionLoadDTO> getCompInstructionsByBlockId(int botJobId, int blockId) {
+        // List to store the fetched instructions
+        List<InstructionLoadDTO> instructions = new ArrayList<>();
+
+        // Build the SQL query statement
+        String querySQL = "SELECT * FROM component_instruction WHERE block_id = " + blockId
+                + " order by instruction_order_number ASC";
+
+        // Execute the query and process the result set
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(querySQL)) {
+
+            while (rs.next()) {
+                // Assuming you have an Instruction class, populate it with data from the ResultSet
+                InstructionLoadDTO instruction = new InstructionLoadDTO();
+                instruction.setInstructionId(rs.getInt("id"));
+                instruction.setBotJobId(rs.getInt("bot_job_id"));
+                instruction.setBlockId(rs.getInt("block_id"));
+
+                instruction.setInstructionName(rs.getString("name"));
+                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
+                instruction.setBotJobId(botJobId);
+
+                instruction.setActions(rs.getString("actions"));
+                instruction.setPath(rs.getString("path"));
+                instruction.setCoordinates(rs.getString("coordinates"));
+                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
+                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+                instruction.setDescription(rs.getString("description"));
+                instruction.setOptional(rs.getBoolean("optional"));
+                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+                instruction.setCodified(rs.getBoolean("codified"));
+                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
+                instruction.setInstructionActive(rs.getBoolean("active"));
+
+                // Add the instruction to the list
+                instructions.add(instruction);
+            }
+
+            ARLogger.getInstance(PerformDataBase.class)
+                    .info(String.format(
+                            "Fetched %d Component Instructions for Block ID %d:", instructions.size(), blockId));
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format(
+                            "Error fetching Component Instructions for Block ID %d. Error: %s: ",
+                            blockId, e.getMessage()));
         }
 
         return instructions;
@@ -1965,7 +2241,72 @@ public class PerformDataBase {
         return false;
     }
 
+    public boolean updateCompInstructionStatus(InstructionLoadDTO instruction) {
+        // Build the SQL update statement
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = 0;
+
+            if (instruction.getActions().equals("IF")
+                    || instruction.getActions().equals("ELSEIF")
+                    || instruction.getActions().equals("ELSE")
+                    || instruction.getActions().equals("ENDIF")) {
+                rowsAffected = stmt.executeUpdate(
+                        "UPDATE component_instruction SET active = '" + instruction.getInstructionActive() + "'"
+                                + " WHERE "
+                                + " block_id = " + instruction.getBlockId() + " AND parent_id = "
+                                + instruction.getParentId());
+            } else {
+
+                String updateSQL =
+                        "UPDATE component_instruction SET active = '" + instruction.getInstructionActive() + "'"
+                                + " WHERE id = " + instruction.getInstructionId()
+                                + " and block_id = " + instruction.getBlockId();
+
+                rowsAffected = stmt.executeUpdate(updateSQL);
+            }
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "RowsUpdateName - InstructionId: %s now have name: %s",
+                                instruction.getInstructionId(), instruction.getInstructionName()));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "UpdateMoveRowsOrder - No matching record found to update InstructionId: %d and name: %s",
+                                instruction.getInstructionId(), instruction.getInstructionName()));
+            }
+            return true;
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
+        }
+        return false;
+    }
+
     public boolean updateInstructionStatusByBlock(int botJobId, int blockId, boolean blockActive) {
+        // Build the SQL update statement
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = 0;
+
+            rowsAffected = stmt.executeUpdate("UPDATE instruction SET active = '" + blockActive + "'"
+                    + " WHERE "
+                    + " block_id = " + blockId + " AND bot_job_id = " + botJobId);
+
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format("Instruction Status Updated - rowsAffected: %s ", rowsAffected));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class).warning("No Instruction Status were Updated!");
+            }
+            return true;
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("This Instruction\n cannot be updated.\nError: %s", e.getMessage()));
+        }
+        return false;
+    }
+
+    public boolean updateCompInstructionStatusByBlock(int botJobId, int blockId, boolean blockActive) {
         // Build the SQL update statement
         try (Statement stmt = getConnection().createStatement()) {
             int rowsAffected = 0;
@@ -2014,6 +2355,35 @@ public class PerformDataBase {
         } catch (SQLException e) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format("Error updateBlockStatus. Error: %s", e.getMessage()));
+        }
+    }
+
+    public void updateCompBlockStatus(int botJobId, int blockId, String blockName, boolean blockActive, int wait) {
+        try (Statement stmt = getConnection().createStatement()) {
+
+            // Update each block's block_order_number starting from 1
+            String updateSQL = "UPDATE component_block SET active = '" + blockActive + "',"
+                    + " wait = " + wait
+                    + " WHERE id = " + blockId
+                    + " and bot_job_id = " + botJobId;
+
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+
+            if (rowsAffected > 0) {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format(
+                                "Block Status updated blockId: %s, name: %s, Active: %s",
+                                blockId, blockName, blockActive));
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .warning(String.format(
+                                "updateCompBlockStatus - No matching record found to update botJobId: %d blockId: %d",
+                                botJobId, blockId));
+            }
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(PerformDataBase.class)
+                    .severe(String.format("Error updateCompBlockStatus. Error: %s", e.getMessage()));
         }
     }
 
@@ -3350,24 +3720,32 @@ public class PerformDataBase {
         return null;
     }
 
+    /***
+     *  First Sequence   From Instructions tom Components
+     *  Second Sequence  From Components to Instructions
+     * @param conn
+     * @param blockDetailsDTO
+     * @param arrayTables      // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+     *
+     * @return
+     * @throws SQLException
+     */
     public ErrorMessage saveNewComponent(Connection conn, BlockDetailsDTO blockDetailsDTO, String[] arrayTables)
             throws SQLException {
 
-        // component_block / instruction / component_instruction / reference / component_reference / variable /
-        // component_variable / complex / component_complex
+        // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         int oldBotJobId = blockDetailsDTO.getBotJobId();
         int oldBlockId = blockDetailsDTO.getBlockId();
         int homeBankId = blockDetailsDTO.getHomeBankingId();
 
         Map<Integer, Integer> blocksOlderAndNewId = new HashMap<>();
 
-        List<BlockLoadDTO> blockList = blockToComponent(conn, oldBotJobId, oldBlockId);
+        List<BlockLoadDTO> blockList = blockToComponent(conn, oldBotJobId, oldBlockId, arrayTables[0]); // block
         // Duplicate related blocks
         if (blockList.size() > 0) {
 
-            // component_block / instruction / component_instruction / reference / component_reference / variable /
-            // component_variable / complex / component_complex
-            int currentId = getMaxId(conn, arrayTables[0]) + 1; // block  or component_block
+            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+            int currentId = getMaxId(conn, arrayTables[1]) + 1; // block  or component_block
 
             // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
             for (BlockLoadDTO block : blockList) {
@@ -3380,9 +3758,8 @@ public class PerformDataBase {
                 currentId++;
             }
             // Duplicate Blocks
-            // component_block / instruction / component_instruction / reference / component_reference / variable /
-            // component_variable / complex / component_complex
-            ErrorMessage errorMessage = duplicateBlocks(conn, blockList, arrayTables[0]);
+            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+            ErrorMessage errorMessage = duplicateBlocks(conn, blockList, arrayTables[1]);
             if (errorMessage != null) {
                 return errorMessage;
             }
@@ -3391,18 +3768,16 @@ public class PerformDataBase {
         Map<Integer, Integer> parentOlderAndNewId = new HashMap<>();
         Map<Integer, Integer> variableOlderAndNewId = new HashMap<>();
 
-        // component_block / instruction / component_instruction / reference / component_reference / variable /
-        // component_variable / complex / component_complex
+        // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         List<InstructionLoadDTO> instList =
-                instructionsToDuplicate(conn, oldBotJobId, oldBlockId, arrayTables[1]); // instruction
+                instructionsToDuplicate(conn, oldBotJobId, oldBlockId, arrayTables[2]); // instruction
 
-        // component_block / instruction / component_instruction / reference / component_reference / variable /
-        // component_variable / complex / component_complex
-        List<VariableLoadDTO> varsList = instVariablesToDuplicateNEW(conn, oldBotJobId, oldBlockId, arrayTables[5]);
+        // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+        List<VariableLoadDTO> varsList =
+                instVariablesToDuplicateNEW(conn, oldBotJobId, oldBlockId, arrayTables[6]); // variable
 
-        // component_block / instruction / component_instruction / reference / component_reference / variable /
-        // component_variable / complex / component_complex
-        int currentVarId = getMaxId(conn, arrayTables[6]) + 1;
+        // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+        int currentVarId = getMaxId(conn, arrayTables[7]) + 1; // component_variable
 
         if (varsList.size() > 0) {
             for (VariableLoadDTO variable : varsList) {
@@ -3417,9 +3792,8 @@ public class PerformDataBase {
         if (instList.size() > 0) {
 
             // Prepare the Ids
-            // component_block / instruction / component_instruction / reference / component_reference / variable /
-            // component_variable / complex / component_complex
-            int currentId = getMaxId(conn, arrayTables[2]) + 1;
+            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+            int currentId = getMaxId(conn, arrayTables[3]) + 1; // component_instruction
             for (InstructionLoadDTO instruction : instList) {
                 instruction.setInstructionId(currentId); // Holds the News Ids
                 instruction.setBotJobId(oldBotJobId); // Holds the News Ids
@@ -3439,9 +3813,14 @@ public class PerformDataBase {
                 currentId++;
             }
             // Duplicate instruction
-            // component_block/instruction/component_instruction/reference/component_reference/variable/component_variable/complex/component_complex
+            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
             ErrorMessage errorMessage = duplicateBlockLoopInstructions(
-                    conn, instList, parentOlderAndNewId, variableOlderAndNewId, blocksOlderAndNewId, arrayTables[2]);
+                    conn,
+                    instList,
+                    parentOlderAndNewId,
+                    variableOlderAndNewId,
+                    blocksOlderAndNewId,
+                    arrayTables[3]); // component_instruction
             if (errorMessage != null) {
                 return errorMessage;
             }
@@ -3465,19 +3844,19 @@ public class PerformDataBase {
                 }
 
                 // Duplicate variable
-                // component_block/instruction/component_instruction/reference/component_reference/variable/component_variable/complex/component_complex
-                errorMessage = duplicateVariables(conn, varsList, arrayTables[6]);
+                // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+                errorMessage = duplicateVariables(conn, varsList, arrayTables[7]); // component_variable
                 if (errorMessage != null) {
                     return errorMessage;
                 }
             }
 
-            // component_block/instruction/component_instruction/reference/component_reference/variable/component_variable/complex/component_complex
+            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
             List<InstructionReferenceLoadDTO> refersList =
-                    instReferenceToDuplicateNew(conn, oldBotJobId, oldBlockId, arrayTables[3]);
+                    instReferenceToDuplicateNew(conn, oldBotJobId, oldBlockId, arrayTables[4]); // reference
             if (refersList.size() > 0) {
 
-                currentId = getMaxId(conn, arrayTables[4]) + 1;
+                currentId = getMaxId(conn, arrayTables[5]) + 1; // component_reference
 
                 // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
                 for (InstructionReferenceLoadDTO reference : refersList) {
@@ -3495,19 +3874,20 @@ public class PerformDataBase {
                 }
 
                 // Duplicate reference
-                // component_block/instruction/component_instruction/reference/component_reference/variable/component_variable/complex/component_complex
-                errorMessage = duplicateInstructionReferences(conn, refersList, arrayTables[4]);
+                // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+                errorMessage = duplicateInstructionReferences(conn, refersList, arrayTables[5]); // component_reference
                 if (errorMessage != null) {
                     return errorMessage;
                 }
             }
 
-            // component_block/instruction/component_instruction/reference/component_reference/variable/component_variable/complex/component_complex
+            // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
             List<ComplexInstructionLoadDTO> complexList =
-                    instComplexToDuplicate(conn, oldBotJobId, oldBlockId, arrayTables[7]);
+                    instComplexToDuplicate(conn, oldBotJobId, oldBlockId, arrayTables[8]); // complex
             if (complexList.size() > 0) {
 
-                currentId = getMaxId(conn, arrayTables[8]) + 1;
+                // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+                currentId = getMaxId(conn, arrayTables[9]) + 1; // component_complex
 
                 // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
                 for (ComplexInstructionLoadDTO complex : complexList) {
@@ -3525,8 +3905,8 @@ public class PerformDataBase {
                 }
 
                 // Duplicate complex_instruction
-                // component_block/instruction/component_instruction/reference/component_reference/variable/component_variable/complex/component_complex
-                errorMessage = duplicateComplexInstructions(conn, complexList, arrayTables[8]);
+                // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
+                errorMessage = duplicateComplexInstructions(conn, complexList, arrayTables[9]); // // component_complex
                 if (errorMessage != null) {
                     return errorMessage;
                 }
@@ -3702,9 +4082,9 @@ public class PerformDataBase {
         return null;
     }
 
-    public List<BlockLoadDTO> blockToComponent(Connection conn, int oldBotJobId, int oldBlockId) throws SQLException {
-        String query = "SELECT id, block_order_number, description, export_file, name, type_id, wait "
-                + "FROM block WHERE bot_job_id = ? and id = ?";
+    public List<BlockLoadDTO> blockToComponent(Connection conn, int oldBotJobId, int oldBlockId, String tableName)
+            throws SQLException {
+        String query = "SELECT * " + "FROM " + tableName + " WHERE bot_job_id = ? and id = ?";
 
         List<BlockLoadDTO> blockDTOList = new ArrayList<>();
 
@@ -3714,6 +4094,11 @@ public class PerformDataBase {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 BlockLoadDTO blockDTO = new BlockLoadDTO();
+
+                if (tableName.equals("component_block")) {
+                    blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                }
+
                 blockDTO.setId(rs.getInt("id"));
                 blockDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
                 blockDTO.setName(rs.getString("name"));
@@ -4282,11 +4667,11 @@ public class PerformDataBase {
     }
 
     // Handle DELETE_INSTRUCTION message
-    public static void deleteComponent(InstructionLoadDTO deleteInstructionLoadDTO) {
-        if (deleteCompVariable(deleteInstructionLoadDTO))
-            if (deleteCompReferences(deleteInstructionLoadDTO))
-                if (deleteCompInstruction(deleteInstructionLoadDTO)) {
-                    deleteCompNullBlocks(deleteInstructionLoadDTO);
+    public static void deleteComponent(InstructionLoadDTO deleteInstructionLoad) {
+        if (deleteCompVariable(deleteInstructionLoad))
+            if (deleteCompReferences(deleteInstructionLoad))
+                if (deleteCompInstruction(deleteInstructionLoad)) {
+                    deleteCompNullBlocks(deleteInstructionLoad.getHomeBankingId(), deleteInstructionLoad.getBotJobId());
                     //                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionLoadDTO.getBlockId()),
                     // true);
                 }
@@ -4458,6 +4843,7 @@ public class PerformDataBase {
 
                 String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
                         + "ID INTEGER PRIMARY KEY, "
+                        + "reference_type TEXT, "
                         + "value TEXT, "
                         + "instruction_id INTEGER NOT NULL, "
                         + "bot_job_id INTEGER, "
@@ -4487,6 +4873,41 @@ public class PerformDataBase {
             System.out.println(String.format("Database %s has been created!", dbFile.getName()));
         } catch (SQLException error) {
             System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
+    }
+
+    /***
+     *  Second Sequence  From Components to Instructions
+     * @param conn
+     * @param blockDetailsDTO
+     * @param arrayTables      // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
+     *
+     * @return
+     * @throws SQLException
+     */
+    public ErrorMessage injectNewComponent(BlockDetailsDTO blockDetailsDTO) {
+        ARLogger.getInstance(ARSaveComponentPane.class)
+                .fine("Saving New Component Block: " + blockDetailsDTO.getBlockName());
+
+        try (Connection conn = getConnection()) {
+            String[] arrayTables = {
+                "component_block", // 0
+                "block", // 1
+                "component_instruction", // 2
+                "instruction", // 3
+                "component_reference", // 4
+                "reference", // 5
+                "component_variable", // 6
+                "variable", // 7
+                "component_complex", // 8
+                "complex" // 9
+            };
+            // Now you can proceed with duplicating the related tables
+            return saveNewComponent(conn, blockDetailsDTO, arrayTables);
+
+        } catch (SQLException error) {
+            System.out.println(error.getMessage());
+            return new ErrorMessage("Error Duplicating Variables", "Block Insertion Failure", error.getMessage());
         }
     }
 }

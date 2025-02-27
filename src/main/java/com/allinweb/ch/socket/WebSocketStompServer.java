@@ -104,7 +104,7 @@ public class WebSocketStompServer {
                 RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
                 if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
                         && rowMoveDTO.getDeleteBlockId() > -1) {
-                    performDataBase.deleteBlock(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+                    performDataBase.deleteBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
 
                     performDataBase.updateBlockOrderNumber(
                             performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
@@ -185,9 +185,14 @@ public class WebSocketStompServer {
                 break;
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
-                performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
-                performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                // ARSharedResources.getInstance().changeDbConnection();
+
+                performDataBase.rollBackBlocksRows("component_instructions", rollBackBlocksDTO);
+                performDataBase.deleteCompNullBlocks(
+                        rollBackBlocksDTO.getHomeBankingId(), rollBackBlocksDTO.getBotJobId());
+
+                //                performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
+                //                performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
+                //                // ARSharedResources.getInstance().changeDbConnection();
                 break;
 
             default:
@@ -280,9 +285,10 @@ public class WebSocketStompServer {
     }
 
     private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {
+        String sessionId = "componentTasks";
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
         Platform.runLater(() -> {
-            ARExcelFileScene excelFileScene = new ARExcelFileScene(blockExcelDTO);
+            ARExcelFileScene excelFileScene = new ARExcelFileScene(sessionId, blockExcelDTO);
             excelFileScene.showModal();
         });
     }

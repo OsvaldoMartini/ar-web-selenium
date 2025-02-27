@@ -3834,16 +3834,13 @@ public class ARScannedElementPane extends ARPane {
                                                             variableText3Styled);
 
                                             botJobLoadList = performDataBase.loadBotJobComplete(currentBotJobId);
+                                            String jsonData = "[]";
                                             if (botJobLoadList.size() > 0) {
                                                 List<InstructionLoadDTO> blockLoopInstructions =
                                                         performDataBase.buildJsonViewData(botJobLoadList);
-
-                                                String jsonData = gson.toJson(blockLoopInstructions);
-                                                //
-                                                // broadcastMessageToAll(jsonData);
-
-                                                sendMessageJson(sessionId, jsonData, null);
+                                                jsonData = gson.toJson(blockLoopInstructions);
                                             }
+                                            sendMessageJson("botJobTasks", jsonData, "updateInstructions");
 
                                             performMessage.showAlertCombinedVBOX(
                                                     Alert.AlertType.INFORMATION,
@@ -9840,8 +9837,9 @@ public class ARScannedElementPane extends ARPane {
             try {
                 JsonObject jsonMessage = new JsonObject();
                 jsonMessage.addProperty("body", msg1);
+                jsonMessage.addProperty("sessionId", sessionId);
                 if (msg2 != null && !msg2.isEmpty()) {
-                    jsonMessage.addProperty("footer", msg2);
+                    jsonMessage.addProperty("operationId", msg2);
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
             } catch (IOException e) {

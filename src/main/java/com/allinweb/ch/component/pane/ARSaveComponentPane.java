@@ -51,6 +51,7 @@ import javax.websocket.Session;
 public class ARSaveComponentPane extends ARPane {
 
     private static Map<String, Session> activeSessions;
+    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     private final ARComponentBuilder builder = new ARComponentBuilder();
     private BlockDetailsDTO blockDetailsDTO;
@@ -236,15 +237,16 @@ public class ARSaveComponentPane extends ARPane {
 
                     try (Connection conn = performDataBase.getConnection()) {
                         String[] arrayTables = {
-                            "component_block", // 0
-                            "instruction", // 1
-                            "component_instruction", // 2
-                            "reference", // 3
-                            "component_reference", // 4
-                            "variable", // 5
-                            "component_variable", // 6
-                            "complex_instruction", // 7
-                            "component_complex" // 8
+                            "block", // 0
+                            "component_block", // 1
+                            "instruction", // 2
+                            "component_instruction", // 3
+                            "reference", // 4
+                            "component_reference", // 5
+                            "variable", // 6
+                            "component_variable", // 7
+                            "complex_instruction", // 8
+                            "component_complex" // 9
                         };
                         // Now you can proceed with duplicating the related tables
                         ErrorMessage errorMessage =
@@ -254,25 +256,25 @@ public class ARSaveComponentPane extends ARPane {
 
                             List<BotJobLoadDTO> botJobLoadList =
                                     performDataBase.loadComponentsComplete(blockDetailsDTO.getHomeBankingId());
+
+                            String jsonData = "[]";
                             if (botJobLoadList.size() > 0) {
                                 List<InstructionLoadDTO> blockLoopInstructions =
                                         performDataBase.buildJsonViewData(botJobLoadList);
-
-                                Gson gson =
-                                        new GsonBuilder().setPrettyPrinting().create();
-                                String jsonData = gson.toJson(blockLoopInstructions);
-
-                                sendMessageJson(blockDetailsDTO.getSessionId(), jsonData, "updateInstructions");
+                                jsonData = gson.toJson(blockLoopInstructions);
                             }
+                            sendMessageJson(blockDetailsDTO.getSessionId(), jsonData, "componentsUpdate");
 
-                            showAlertTimer(
-                                    Alert.AlertType.INFORMATION,
-                                    "Success",
-                                    "New Component Creation",
-                                    "The Block Component job has been successfully created!",
-                                    String.format("Component Name '%s' ", blockDetailsDTO.getBlockName()),
-                                    blockDetailsDTO.getBlockDescription(),
-                                    null);
+                            //                            showAlertTimer(
+                            //                                    Alert.AlertType.INFORMATION,
+                            //                                    "Success",
+                            //                                    "New Component Creation",
+                            //                                    "The Block Component job has been successfully
+                            // created!",
+                            //                                    String.format("Component Name '%s' ",
+                            // blockDetailsDTO.getBlockName()),
+                            //                                    blockDetailsDTO.getBlockDescription(),
+                            //                                    null);
 
                         } else {
                             performMessage.errorMessage(
@@ -839,6 +841,7 @@ public class ARSaveComponentPane extends ARPane {
             try {
                 JsonObject jsonMessage = new JsonObject();
                 jsonMessage.addProperty("body", msg1);
+                jsonMessage.addProperty("sessionId", sessionId);
                 if (msg2 != null && !msg2.isEmpty()) {
                     jsonMessage.addProperty("operationId", msg2);
                 }
