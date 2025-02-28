@@ -233,6 +233,7 @@ public class ARScannedElementPane extends ARPane {
     private Button rightButton;
     private Button cleanListButton;
     private Button turnOnOffButton;
+    private Button includeAllSelected;
 
     private CheckBox checkPickElement;
     private CheckBox checkCloneElement;
@@ -494,6 +495,9 @@ public class ARScannedElementPane extends ARPane {
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
+
+        includeAllSelected = new Button("Include All Below to the Job");
+        includeAllSelected.setStyle("-fx-background-color: green; -fx-text-fill: white;");
 
         cleanListButton = componentBuilder.buildButton(
                 "", // No text
@@ -892,12 +896,12 @@ public class ARScannedElementPane extends ARPane {
             //            stackLabelOutput.setAlignment(Pos.CENTER);
             //            VBox elements2VBox = new VBox(stackLabelOutput, scannedElements2);
             //            HBox.setHgrow(elements2VBox, Priority.ALWAYS);
-
-            Label labelOthers = new Label("Other Elements Results (Config)");
+            //
+            //            Label labelOthers = new Label("Other Elements Results (Config)");
             StackPane stackLabelOthers = new StackPane();
             HBox othersBox = new HBox();
             createSpacerHoriz();
-            othersBox.getChildren().addAll(labelOthers, createSpacerHoriz(), cleanListButton);
+            othersBox.getChildren().addAll(includeAllSelected, createSpacerHoriz(), cleanListButton);
             stackLabelOthers.getChildren().addAll(othersBox);
 
             stackLabelOthers.setAlignment(Pos.CENTER);
@@ -1132,7 +1136,7 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
-            this.botJobLoadList = performDataBase.loadBotJobComplete(botJobLoad.getId());
+            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobLoad.getId());
             instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
@@ -1148,7 +1152,7 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
-            this.botJobLoadList = performDataBase.loadBotJobComplete(botJobLoad.getId());
+            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobLoad.getId());
             // loadBotJob(botJob);
             recallJob();
         });
@@ -3139,7 +3143,7 @@ public class ARScannedElementPane extends ARPane {
                             elemTagName = arWebHover.getElement().getTagName();
                         }
                     } catch (Exception ex) {
-                        performMessage.multipleActionsElement("Multiple Actions");
+                        //                        performMessage.multipleActionsElement("Multiple Actions");
                     }
                 }
 
@@ -3752,7 +3756,7 @@ public class ARScannedElementPane extends ARPane {
                                         instruction.getVariableId(),
                                         instruction.getInstructionOrderNumber(),
                                         instruction.getExportToABR(),
-                                        instruction.getPath(),
+                                        instruction.getXpath(),
                                         instruction.getCoordinates(),
                                         instruction.getForceCoordinates(),
                                         instruction.getIFrameXPath(),
@@ -3833,7 +3837,7 @@ public class ARScannedElementPane extends ARPane {
                                                             variableText2Styled,
                                                             variableText3Styled);
 
-                                            botJobLoadList = performDataBase.loadBotJobComplete(currentBotJobId);
+                                            botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
                                             String jsonData = "[]";
                                             if (botJobLoadList.size() > 0) {
                                                 List<InstructionLoadDTO> blockLoopInstructions =
@@ -7581,9 +7585,9 @@ public class ARScannedElementPane extends ARPane {
                     arWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
 
-        if (repository == null) {
-            repository = new Repository(ARSharedResources.getInstance().getSession());
-        }
+        //        if (repository == null) {
+        //            repository = new Repository(ARSharedResources.getInstance().getSession());
+        //        }
         try {
             baseLogFile = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
                     + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
@@ -9155,10 +9159,10 @@ public class ARScannedElementPane extends ARPane {
                     + resultActions;
 
             performMessage.errorMessage(
-                    "Error Trying to find an Web Element",
-                    "I ran 10 Attempts to find the Element",
-                    "Change the Action to \"Force Coordinates\"",
-                    "Last Execution",
+                    "Failed to locate the element after 10 attempts.",
+                    "Try rescanning the element,",
+                    "or change the action to \"Force Coordinates\".",
+                    "Last Execution:",
                     resultActions,
                     260);
         }
@@ -9743,7 +9747,7 @@ public class ARScannedElementPane extends ARPane {
 
         InstructionLoadDTO InstructionLoadDTO = new InstructionLoadDTO();
 
-        InstructionLoadDTO.setPath(xPath);
+        InstructionLoadDTO.setXpath(xPath);
         InstructionLoadDTO.setCoordinates(coordinates);
         InstructionLoadDTO.setForceCoordinates(forceCoordinates);
         InstructionLoadDTO.setIFrameXPath(iFrameXPath);

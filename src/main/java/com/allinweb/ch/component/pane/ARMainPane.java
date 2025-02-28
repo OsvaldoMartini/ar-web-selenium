@@ -96,11 +96,13 @@ public class ARMainPane extends ARPane {
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
             if (!dbFile.exists()) {
-                performDataBase.initializeDatabase(dbUrl, dbFile);
+                performDataBase.initializeMainDatabase(dbUrl, dbFile);
             } else {
                 ARLogger.getInstance(ARViewBotJobPane.class)
                         .info(String.format("Database '%s' already exists!", dbFile.getName()));
             }
+            //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
+
         }
 
         dbResource.setPreviousDB(previousDB);

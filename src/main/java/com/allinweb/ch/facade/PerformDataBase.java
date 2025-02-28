@@ -1276,12 +1276,12 @@ public class PerformDataBase {
         return -1;
     }
 
-    public List<BotJobLoadDTO> loadBotJobComplete(int botJobId) {
+    public List<BotJobLoadDTO> loadCompleteJobs(int botJobId) {
         String query = "SELECT bot.home_banking_id, bot.id AS bot_job_id, bot.name AS bot_job_name, "
                 + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
                 + " b.description AS block_description, b.type_id, "
                 + " bli.id AS instruction_id, bli.instruction_order_number, "
-                + " bli.actions, bli.name AS instruction_name, bli.path, bli.coordinates,  bli.iframe_xpath, "
+                + " bli.actions, bli.name AS instruction_name, bli.xpath, bli.coordinates,  bli.iframe_xpath, "
                 + " bli.description AS instruction_description, bli.force_coordinates, "
                 + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
@@ -1350,7 +1350,7 @@ public class PerformDataBase {
                     instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                     instruction.setActions(rs.getString("actions"));
                     instruction.setName(rs.getString("instruction_name"));
-                    instruction.setPath(rs.getString("path"));
+                    instruction.setXpath(rs.getString("xpath"));
                     instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
@@ -1406,7 +1406,7 @@ public class PerformDataBase {
                 + "    bli.instruction_order_number, \n"
                 + "    bli.actions, \n"
                 + "    bli.name AS instruction_name, \n"
-                + "    bli.path, \n"
+                + "    bli.xpath, \n"
                 + "    bli.coordinates, \n"
                 + "    bli.iframe_xpath, \n"
                 + "    bli.description AS instruction_description, \n"
@@ -1484,7 +1484,7 @@ public class PerformDataBase {
                     instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                     instruction.setActions(rs.getString("actions"));
                     instruction.setName(rs.getString("instruction_name"));
-                    instruction.setPath(rs.getString("path"));
+                    instruction.setXpath(rs.getString("xpath"));
                     instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
@@ -1528,7 +1528,7 @@ public class PerformDataBase {
     //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
     //                + " b.description AS block_description, b.type_id, "
     //                + " bli.id AS instruction_id, bli.instruction_order_number, "
-    //                + " bli.actions, bli.name AS instruction_name, bli.path, bli.coordinates, bli.iframe_xpath,
+    //                + " bli.actions, bli.name AS instruction_name, bli.xpath, bli.coordinates, bli.iframe_xpath,
     // bli.description AS
     // instruction_description, "
     //                + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
@@ -1595,7 +1595,7 @@ public class PerformDataBase {
     //                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
     //                    instruction.setActions(rs.getString("actions"));
     //                    instruction.setName(rs.getString("instruction_name"));
-    //                    instruction.setPath(rs.getString("path"));
+    //                    instruction.setPath(rs.getString("xpath"));
     //                    instruction.setCoordinates(rs.getString("coordinates"));
     //                    instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
     //                    instruction.setIFrameXPath(rs.getString("iframe_xpath"));
@@ -1968,7 +1968,7 @@ public class PerformDataBase {
                 instruction.setBotJobId(botJobId);
 
                 instruction.setActions(rs.getString("actions"));
-                instruction.setPath(rs.getString("path"));
+                instruction.setXpath(rs.getString("xpath"));
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
@@ -2021,7 +2021,7 @@ public class PerformDataBase {
                 instruction.setBotJobId(botJobId);
 
                 instruction.setActions(rs.getString("actions"));
-                instruction.setPath(rs.getString("path"));
+                instruction.setXpath(rs.getString("xpath"));
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
@@ -2602,7 +2602,7 @@ public class PerformDataBase {
             // Add non-boolean fields
             addColumnValue.accept("coordinates", InstructionLoadDTO.getCoordinates());
             addColumnValue.accept("iframe_xpath", InstructionLoadDTO.getIFrameXPath());
-            addColumnValue.accept("path", InstructionLoadDTO.getPath());
+            addColumnValue.accept("xpath", InstructionLoadDTO.getXpath());
             addColumnValue.accept("action_custom_max_wait_sec", InstructionLoadDTO.getActionCustomMaxWaitSec());
             addColumnValue.accept("actions", InstructionLoadDTO.getActions());
             addColumnValue.accept("default_value", InstructionLoadDTO.getDefaultValue());
@@ -3105,7 +3105,7 @@ public class PerformDataBase {
                 + "  bli.instruction_order_number,  "
                 + "  bli.actions,  "
                 + "  bli.name AS instruction_name,  "
-                + "  bli.path,  "
+                + "  bli.xpath,  "
                 + "  bli.operation      "
                 + " FROM bot_job bot  "
                 + " LEFT JOIN block b ON b.bot_job_id = bot.id  "
@@ -3492,7 +3492,7 @@ public class PerformDataBase {
                 "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, bli.codified, bli.default_value, \n"
                         + " bli.description, bli.export_to_abr, bli.instruction_order_number, bli.name, bli.on_hold_seconds, "
                         + " bli.operation, bli.optional, \n"
-                        + " bli.parent_id, bli.path, bli.coordinates, bli.iframe_xpath, bli.force_coordinates, "
+                        + " bli.parent_id, bli.xpath, bli.coordinates, bli.iframe_xpath, bli.force_coordinates, "
                         + " bli.variable_id, bli.block_id, bli.bot_job_id, blk.block_order_number \n"
                         + " FROM " + table1 + " bli \n"
                         + " JOIN " + table2 + " blk ON bli.block_id = blk.id \n"
@@ -3528,7 +3528,7 @@ public class PerformDataBase {
                 InstructionLoadDTO.setOperation(rs.getString("operation"));
                 InstructionLoadDTO.setOptional(rs.getBoolean("optional"));
                 InstructionLoadDTO.setParentId(rs.getInt("parent_id"));
-                InstructionLoadDTO.setPath(rs.getString("path"));
+                InstructionLoadDTO.setXpath(rs.getString("xpath"));
                 InstructionLoadDTO.setCoordinates(rs.getString("coordinates"));
                 InstructionLoadDTO.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 InstructionLoadDTO.setIFrameXPath(rs.getString("iframe_xpath"));
@@ -4211,7 +4211,7 @@ public class PerformDataBase {
             throws SQLException {
         String blockLoopInstructionInsertQuery = "INSERT INTO " + targetTable
                 + " (id, action_custom_max_wait_sec, actions, active, block_marked, codified, "
-                + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, parent_id, path, coordinates, force_coordinates, iframe_xpath, variable_id, block_id, bot_job_id) "
+                + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, parent_id, xpath, coordinates, force_coordinates, iframe_xpath, variable_id, block_id, bot_job_id) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         //        if (targetTable.equalsIgnoreCase("component_instruction")) {
@@ -4266,8 +4266,8 @@ public class PerformDataBase {
                     blockLoopStmt.setNull(15, java.sql.Types.INTEGER);
                 }
 
-                if (instruction.getPath() != null) {
-                    blockLoopStmt.setString(16, instruction.getPath());
+                if (instruction.getXpath() != null) {
+                    blockLoopStmt.setString(16, instruction.getXpath());
                 } else {
                     blockLoopStmt.setNull(16, Types.VARCHAR);
                 }
@@ -4691,7 +4691,7 @@ public class PerformDataBase {
                 }
     }
 
-    public void initializeDatabase(String dbUrl, File dbFile) {
+    public void initializeMainDatabase(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {
             try (Statement stmt = conn.createStatement()) {
@@ -4699,30 +4699,34 @@ public class PerformDataBase {
                 // Create home_banking table
                 String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
                         + "ID INTEGER PRIMARY KEY, "
-                        + "url TEXT(10000), "
+                        + "url MEMO, "
                         + "name TEXT, "
-                        + "priority TEXT(10000), "
-                        + "search_config TEXT(10000), "
-                        + "options_config TEXT(10000), "
-                        + "cookies TEXT(10000), "
-                        + "driver_session TEXT(10000), "
+                        + "priority MEMO, "
+                        + "search_config MEMO, "
+                        + "options_config MEMO, "
+                        + "cookies MEMO, "
+                        + "driver_session MEMO, "
                         + "username TEXT, "
                         + "password TEXT)";
                 stmt.executeUpdate(createHomeBankingTableSQL);
 
                 // Create bot_job table with a foreign key reference to home_banking
                 String createBotJobTableSQL = "CREATE TABLE bot_job ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "name TEXT UNIQUE, "
                         + "description TEXT, "
-                        + "priority TEXT, "
-                        + "home_banking_id INTEGER, "
-                        + "FOREIGN KEY (home_banking_id) REFERENCES home_banking(ID) ON DELETE CASCADE)";
+                        + "priority MEMO, "
+                        + "home_banking_id INTEGER);";
                 stmt.executeUpdate(createBotJobTableSQL);
+
+                String addBotJobForeignKeySQL = "ALTER TABLE bot_job "
+                        + "ADD CONSTRAINT FK_BotJob FOREIGN KEY (home_banking_id) "
+                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addBotJobForeignKeySQL);
 
                 // Create block table with a foreign key reference to bot_job
                 String createBlockTableSQL = "CREATE TABLE block ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "block_order_number INTEGER NOT NULL, "
                         + "name TEXT NOT NULL, "
                         + "description TEXT, "
@@ -4730,20 +4734,24 @@ public class PerformDataBase {
                         + "export_file TEXT, "
                         + "active YESNO NOT NULL, "
                         + "wait INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createBlockTableSQL);
+
+                String addForeignKeySQL2 = "ALTER TABLE block "
+                        + "ADD CONSTRAINT FK_2 FOREIGN KEY (bot_job_id) "
+                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL2);
 
                 // Create instruction table with foreign key references to block and bot_job
                 String createInstructionTableSQL = "CREATE TABLE instruction ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "instruction_order_number INTEGER NOT NULL, "
-                        + "actions TEXT, "
+                        + "actions MEMO, "
                         + "name TEXT, "
-                        + "path TEXT, "
+                        + "xpath MEMO, "
                         + "coordinates TEXT, "
                         + "force_coordinates YESNO, "
-                        + "iframe_xpath TEXT, "
+                        + "iframe_xpath MEMO, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional YESNO, "
@@ -4757,53 +4765,79 @@ public class PerformDataBase {
                         + "block_id INTEGER, "
                         + "variable_id INTEGER, "
                         + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (block_id) REFERENCES block(ID) ON DELETE CASCADE, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createInstructionTableSQL);
 
+                String addForeignKeySQL3 = "ALTER TABLE instruction "
+                        + "ADD CONSTRAINT FK_3 FOREIGN KEY (block_id) "
+                        + "REFERENCES block(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL3);
+
+                String addForeignKeySQL4 = "ALTER TABLE instruction "
+                        + "ADD CONSTRAINT FK_4 FOREIGN KEY (bot_job_id) "
+                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL4);
+
                 String createReferenceTableSQL = "CREATE TABLE reference ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "reference_type TEXT, "
-                        + "value TEXT, "
+                        + "value MEMO, "
                         + "instruction_id INTEGER NOT NULL, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES instruction(ID) ON DELETE CASCADE, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createReferenceTableSQL);
 
+                String addForeignKeySQL5 = "ALTER TABLE reference "
+                        + "ADD CONSTRAINT FK_5 FOREIGN KEY (instruction_id) "
+                        + "REFERENCES instruction(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL5);
+
+                String addForeignKeySQL6 = "ALTER TABLE reference "
+                        + "ADD CONSTRAINT FK_6 FOREIGN KEY (bot_job_id) "
+                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL6);
+
                 String createComplexInstructionTableSQL = "CREATE TABLE complex_instruction ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "instruction_id INTEGER, "
                         + "order_number INTEGER NOT NULL, "
-                        + "instruction TEXT, "
-                        + "way TEXT, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES instruction(ID) ON DELETE CASCADE, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
+                        + "instruction MEMO, "
+                        + "way MEMO, "
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createComplexInstructionTableSQL);
+                String addForeignKeySQL14 = "ALTER TABLE complex_instruction "
+                        + "ADD CONSTRAINT FK_14 FOREIGN KEY (instruction_id) "
+                        + "REFERENCES instruction(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL14);
 
                 String createVariableTableSQL = "CREATE TABLE variable ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "type TEXT, "
                         + "name TEXT, "
-                        + "value TEXT, "
+                        + "value MEMO, "
                         + "instruction_id INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES instruction(ID) ON DELETE CASCADE, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createVariableTableSQL);
 
+                String addForeignKeySQL7 = "ALTER TABLE variable "
+                        + "ADD CONSTRAINT FK_7 FOREIGN KEY (instruction_id) "
+                        + "REFERENCES instruction(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL7);
+
+                String addForeignKeySQL8 = "ALTER TABLE variable "
+                        + "ADD CONSTRAINT FK_8 FOREIGN KEY (bot_job_id) "
+                        + "REFERENCES bot_job(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL8);
+
                 String createConfigurationTableSQL = "CREATE TABLE configuration ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "pathJava TEXT, "
+                        + "id INTEGER PRIMARY KEY, "
+                        + "pathJava MEMO, "
                         + "logLevel TEXT, "
                         + "pathDB TEXT, "
                         + "interactionTimeoutSec TEXT, "
-                        + "pathLog TEXT, "
+                        + "pathLog MEMO, "
                         + "defaultInstructionStopSeconds TEXT, "
                         + "pathReport TEXT, "
-                        + "browser TEXT, "
+                        + "browser MEMO, "
                         + "dataBaseType TEXT, "
                         + "pageUpdateTimeoutSec TEXT, "
                         + "pathPriority TEXT, "
@@ -4816,7 +4850,7 @@ public class PerformDataBase {
                 stmt.executeUpdate(createConfigurationTableSQL);
 
                 String createComponentBlockTableSQL = "CREATE TABLE component_block ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "home_banking_id INTEGER, "
                         + "bot_job_id INTEGER, "
                         + "block_order_number INTEGER NOT NULL, "
@@ -4825,18 +4859,23 @@ public class PerformDataBase {
                         + "type_id INTEGER, "
                         + "export_file TEXT, "
                         + "active YESNO, "
-                        + "wait INTEGER)";
+                        + "wait INTEGER);";
                 stmt.executeUpdate(createComponentBlockTableSQL);
 
+                String addForeignKeySQL9 = "ALTER TABLE component_block "
+                        + "ADD CONSTRAINT FK_9 FOREIGN KEY (home_banking_id) "
+                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL9);
+
                 String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "instruction_order_number INTEGER NOT NULL, "
-                        + "actions TEXT, "
-                        + "name TEXT NOT NULL, "
-                        + "path TEXT, "
+                        + "actions MEMO, "
+                        + "name TEXT, "
+                        + "xpath MEMO, "
                         + "coordinates TEXT, "
                         + "force_coordinates YESNO, "
-                        + "iframe_xpath TEXT, "
+                        + "iframe_xpath MEMO, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional YESNO, "
@@ -4846,43 +4885,57 @@ public class PerformDataBase {
                         + "on_hold_seconds INTEGER, "
                         + "codified YESNO, "
                         + "export_to_abr YESNO, "
-                        + "active YESNO, "
+                        + "active YESNO NOT NULL, "
                         + "block_id INTEGER, "
-                        + "executed YESNO, "
-                        + "priority TEXT, "
                         + "variable_id INTEGER, "
                         + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER)";
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createComponentInstructionTableSQL);
 
+                String addForeignKeySQL10 = "ALTER TABLE component_instruction "
+                        + "ADD CONSTRAINT FK_10 FOREIGN KEY (block_id) "
+                        + "REFERENCES block(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL10);
+
                 String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "reference_type TEXT, "
-                        + "value TEXT, "
+                        + "value MEMO, "
                         + "instruction_id INTEGER NOT NULL, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES component_instruction(ID) ON DELETE CASCADE)";
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createComponentReferenceTableSQL);
 
+                String addForeignKeySQL11 = "ALTER TABLE component_reference "
+                        + "ADD CONSTRAINT FK_11 FOREIGN KEY (instruction_id) "
+                        + "REFERENCES component_instruction(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL11);
+
                 String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "type TEXT, "
                         + "name TEXT, "
-                        + "value TEXT, "
+                        + "value MEMO, "
                         + "instruction_id INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES component_instruction(ID) ON DELETE CASCADE)";
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createComponentVariableTableSQL);
+                String addForeignKeySQL12 = "ALTER TABLE component_variable "
+                        + "ADD CONSTRAINT FK_12 FOREIGN KEY (instruction_id) "
+                        + "REFERENCES component_instruction(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL12);
 
                 String createComponentComplexTableSQL = "CREATE TABLE component_complex ("
-                        + "ID INTEGER PRIMARY KEY, "
+                        + "id INTEGER PRIMARY KEY, "
                         + "instruction_id INTEGER, "
                         + "order_number INTEGER NOT NULL, "
-                        + "instruction TEXT, "
-                        + "way TEXT, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES component_instruction(ID) ON DELETE CASCADE)";
+                        + "instruction MEMO, "
+                        + "way MEMO, "
+                        + "bot_job_id INTEGER);";
                 stmt.executeUpdate(createComponentComplexTableSQL);
+
+                String addForeignKeySQL13 = "ALTER TABLE component_complex "
+                        + "ADD CONSTRAINT FK_13 FOREIGN KEY (instruction_id) "
+                        + "REFERENCES component_instruction(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addForeignKeySQL13);
             }
             System.out.println(String.format("Database %s has been created!", dbFile.getName()));
         } catch (SQLException error) {

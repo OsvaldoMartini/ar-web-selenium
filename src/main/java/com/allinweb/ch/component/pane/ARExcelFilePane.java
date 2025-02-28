@@ -42,7 +42,6 @@ import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javax.swing.*;
 import javax.websocket.Session;
 
 public class ARExcelFilePane extends ARPane {
@@ -306,7 +305,7 @@ public class ARExcelFilePane extends ARPane {
 
         List<BotJobLoadDTO> botJobLoadList;
         if (sessionId.equals("botJobTasks")) {
-            botJobLoadList = performDataBase.loadBotJobComplete(blockExcelDTO.getBotJobId());
+            botJobLoadList = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);

@@ -17,8 +17,8 @@ public class InstructionDTO extends BaseDTO {
     @Column(name = "name")
     private String name;
 
-    @Column(name = "path", length = 10000)
-    private String path;
+    @Column(name = "xpath", length = 10000)
+    private String xpath;
 
     @Column(name = "coordinates", length = 100)
     private String coordinates;

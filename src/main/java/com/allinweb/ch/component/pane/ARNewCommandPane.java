@@ -14,18 +14,14 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxImage;
 import com.allinweb.ch.util.ComboBoxOperator;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -74,9 +70,6 @@ public class ARNewCommandPane extends ARPane {
     private final Gson gson = new Gson();
 
     private final ARComponentBuilder componentBuilder = new ARComponentBuilder();
-
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
     private static boolean POSTGRES_DB = false;
@@ -200,34 +193,8 @@ public class ARNewCommandPane extends ARPane {
         this.webPageItems = webPageItems;
         this.sessionId = sessionId;
 
-        //        if (this.botJobLoad.getBlockLoadDTOList() == null) {
-        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-        //            if (this.botJobLoadList.size() > 0) {
-        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        //            }
-        //        } else if (this.botJobLoad.getBlockLoadDTOList() != null
-        //                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
-        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-        //            if (this.botJobLoadList.size() > 0) {
-        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        //            }
-        //        }
-
         if (webPageItems.size() == 0) {
             variablesDisable = true;
-        }
-
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        // Initialize database IF IS ACCESS TO BE USED
-        if (!POSTGRES_DB) {
-            initializeDatabase();
         }
 
         String operationType = rowMoveDTO.getType();
@@ -1944,28 +1911,6 @@ public class ARNewCommandPane extends ARPane {
         return false;
     }
 
-    private void initializeDatabase() {
-
-        String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-        String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-        File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-        if (!dbFile.exists()) {
-            try (Connection conn = DriverManager.getConnection(dbUrl)) {
-                try (Statement stmt = conn.createStatement()) {
-                    String createTableSQL = "CREATE TABLE home_banking (" + "ID AUTOINCREMENT PRIMARY KEY, "
-                            + "name TEXT, password TEXT, url TEXT, username TEXT, priority TEXT)";
-                    stmt.executeUpdate(createTableSQL);
-                }
-                System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
-            } catch (SQLException e) {
-                System.out.println(e.getMessage());
-            }
-        } else {
-            System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
-        }
-    }
-
     private Integer loadNexIdData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
@@ -2324,7 +2269,7 @@ public class ARNewCommandPane extends ARPane {
 
                 if (newRowId > 0) {
 
-                    this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+                    this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
                     String jsonData = "[]";
                     if (botJobLoadList.size() > 0) {
                         List<InstructionLoadDTO> blockLoopInstructions =

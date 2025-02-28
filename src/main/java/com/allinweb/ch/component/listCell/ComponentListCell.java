@@ -263,7 +263,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                         task.getVariableId(),
                                         task.getInstructionOrderNumber(),
                                         task.getExportToABR(),
-                                        task.getPath(),
+                                        task.getXpath(),
                                         this.blockLoadDTO);
 
                                 task.setId(newId);
@@ -478,7 +478,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         instruction.setOnHoldSeconds(onHold);
         instruction.setBlockId(blockLoadDTO.getId());
         instruction.setExportToABR(exportAR);
-        instruction.setPath(xPath);
+        instruction.setXpath(xPath);
 
         // Wrap the persistence in a try-catch block
         int newId = -1;
@@ -538,7 +538,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
             String coordinates = (InstructionLoadDTO.getCoordinates() != null)
                     ? "'" + InstructionLoadDTO.getCoordinates() + "'"
                     : "";
-            String pathValue = (InstructionLoadDTO.getPath() != null) ? "'" + InstructionLoadDTO.getPath() + "'" : "";
+            String pathValue = (InstructionLoadDTO.getXpath() != null) ? "'" + InstructionLoadDTO.getXpath() + "'" : "";
             String iframeXPath = !Strings.isNullOrEmpty(InstructionLoadDTO.getIFrameXPath())
                     ? "'" + InstructionLoadDTO.getIFrameXPath() + "'"
                     : "";

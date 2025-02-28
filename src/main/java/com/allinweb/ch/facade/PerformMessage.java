@@ -433,7 +433,7 @@ public class PerformMessage {
             updatedInstruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber());
             updatedInstruction.setActions(instruction.getActions());
             updatedInstruction.setName(instruction.getName());
-            updatedInstruction.setPath(instruction.getPath());
+            updatedInstruction.setXpath(instruction.getXpath());
             updatedInstruction.setDescription(instruction.getDescription());
             updatedInstruction.setOptional(instruction.getOptional());
             updatedInstruction.setBlockMarked(instruction.getBlockMarked());

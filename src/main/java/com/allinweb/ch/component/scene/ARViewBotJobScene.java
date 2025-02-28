@@ -173,7 +173,7 @@ public class ARViewBotJobScene extends ARScene {
     //                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
     //                    instruction.setActions(rs.getString("actions"));
     //                    instruction.setName(rs.getString("instruction_name"));
-    //                    instruction.setPath(rs.getString("path"));
+    //                    instruction.setPath(rs.getString("xpath"));
     //                    instruction.setDescription(rs.getString("instruction_description"));
     //                    instruction.setOptional(rs.getBoolean("optional"));
     //                    instruction.setBlockMarked(rs.getBoolean("block_marked"));
@@ -274,7 +274,7 @@ public class ARViewBotJobScene extends ARScene {
     //                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
     //                    instruction.setActions(rs.getString("actions"));
     //                    instruction.setName(rs.getString("instruction_name"));
-    //                    instruction.setPath(rs.getString("path"));
+    //                    instruction.setPath(rs.getString("xpath"));
     //                    instruction.setDescription(rs.getString("instruction_description"));
     //                    instruction.setOptional(rs.getBoolean("optional"));
     //                    instruction.setBlockMarked(rs.getBoolean("block_marked"));

@@ -399,7 +399,7 @@
 //                    instruction.setName(blockLoopRs.getString("name"));
 //                    instruction.setDescription(blockLoopRs.getString("description"));
 //                    instruction.setActions(blockLoopRs.getString("actions"));
-//                    instruction.setPath(blockLoopRs.getString("path"));
+//                    instruction.setPath(blockLoopRs.getString("xpath"));
 //                    instruction.setOptional(blockLoopRs.getBoolean("optional"));
 //                    instruction.setCodified(blockLoopRs.getBoolean("codified"));
 //                    instruction.setExportToABR(blockLoopRs.getBoolean("export_to_abr"));

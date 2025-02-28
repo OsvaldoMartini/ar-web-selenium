@@ -382,7 +382,7 @@ public class ARViewBotJobPane extends ARPane {
         performDataBase.deleteNullBlocks(this.botJobLoad.getId());
         performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(this.botJobLoad.getId()), true);
 
-        this.botJobLoadList = performDataBase.loadBotJobComplete(this.botJobLoad.getId());
+        this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
         Gson gson = new Gson();
         String jsonData = "";
 
@@ -1105,7 +1105,7 @@ public class ARViewBotJobPane extends ARPane {
                 instruction.setBotJobId(botJobId);
 
                 instruction.setActions(rs.getString("actions"));
-                instruction.setPath(rs.getString("path"));
+                instruction.setXpath(rs.getString("xpath"));
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));

@@ -484,7 +484,7 @@ public class SimpleWebSocketServer {
         }
 
         if (!alreadySentMgsSocket && sessionIdToSend.equals("botJobTasks")) {
-            this.botJobLoadList = performDataBase.loadBotJobComplete(botJobIdTask);
+            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobIdTask);
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
@@ -736,7 +736,7 @@ public class SimpleWebSocketServer {
 
         ErrorMessage errorMessage = performDataBase.injectNewComponent(blockDetailsDTO);
         if (errorMessage == null) {
-            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadBotJobComplete(blockDetailsDTO.getHomeBankingId());
+            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getHomeBankingId());
 
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {

@@ -634,7 +634,7 @@ public class ARWebElement {
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
         loop.setInstructionActive(true);
-        loop.setPath(targetElement.getMainXPath());
+        loop.setXpath(targetElement.getMainXPath());
         String action;
         // TODO: Make a better thing than this
         if (isIdElement.get()) {

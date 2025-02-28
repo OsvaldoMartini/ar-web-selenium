@@ -724,7 +724,7 @@ public class ARSaveComponentPane extends ARPane {
                 instruction.setBotJobId(botJobId);
 
                 instruction.setActions(rs.getString("actions"));
-                instruction.setPath(rs.getString("path"));
+                instruction.setXpath(rs.getString("xpath"));
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));

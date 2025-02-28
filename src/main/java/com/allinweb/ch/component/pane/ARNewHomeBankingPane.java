@@ -7,14 +7,9 @@ import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
-import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.io.File;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -31,9 +26,6 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 
 public class ARNewHomeBankingPane extends ARPane {
-
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
@@ -83,19 +75,6 @@ public class ARNewHomeBankingPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        // Initialize database IF IS ACCESS TO BE USED
-        if (!POSTGRES_DB) {
-            initializeDatabase();
-        }
         loadAllHomeBankingBotJob();
         updateHomeBankList(databaseList);
 
@@ -477,28 +456,6 @@ public class ARNewHomeBankingPane extends ARPane {
             dataList.add(new BankingDTO(i + 1, "Name " + i, "URL " + i, "Priority " + i, 5, new ArrayList<>()));
         }
         return dataList;
-    }
-
-    private void initializeDatabase() {
-
-        String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-        String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-        File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-        if (!dbFile.exists()) {
-            try (Connection conn = DriverManager.getConnection(dbUrl)) {
-                try (Statement stmt = conn.createStatement()) {
-                    String createTableSQL = "CREATE TABLE home_banking (" + "ID AUTOINCREMENT PRIMARY KEY, "
-                            + "name TEXT, password TEXT, url TEXT, username TEXT, priority TEXT)";
-                    stmt.executeUpdate(createTableSQL);
-                }
-                System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
-            } catch (SQLException e) {
-                System.out.println(e.getMessage());
-            }
-        } else {
-            System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
-        }
     }
 
     private void loadAllHomeBankingBotJob() {
