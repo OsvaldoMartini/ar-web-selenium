@@ -2847,17 +2847,14 @@ public class ARScannedElementPane extends ARPane {
             if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
                     || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
                     || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
-                nameDefined = (
-                        !Strings.isNullOrEmpty(this.targetSelected.getSomeText())
-                                ? truncate(this.targetSelected.getSomeText(), 50) + "-"
-                                : ""
-                ) + this.targetSelected.getOriginalTagName() + (
-                        !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
-                                ? "-" + this.targetSelected.getAttribName()
-                                : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                                ? "-" + this.targetSelected.getAttribId()
-                                : ""
-                );
+                nameDefined = (!Strings.isNullOrEmpty(this.targetSelected.getSomeText())
+                        ? truncate(this.targetSelected.getSomeText(), 50)
+                        : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
+                                ? this.targetSelected.getAttribId()
+                                : !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
+                                        ? this.targetSelected.getAttribName()
+                                        : "");
+
                 if (this.targetSelected.getDefinedName() != null
                         && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
                     nameDefined = this.targetSelected.getDefinedName();
