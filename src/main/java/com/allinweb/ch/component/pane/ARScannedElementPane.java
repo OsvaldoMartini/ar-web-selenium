@@ -2847,14 +2847,17 @@ public class ARScannedElementPane extends ARPane {
             if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
                     || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
                     || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
-                nameDefined = this.targetSelected.getOriginalTagName()
-                        + (!Strings.isNullOrEmpty(this.targetSelected.getAttribName())
+                nameDefined = (
+                        !Strings.isNullOrEmpty(this.targetSelected.getSomeText())
+                                ? truncate(this.targetSelected.getSomeText(), 50) + "-"
+                                : ""
+                ) + this.targetSelected.getOriginalTagName() + (
+                        !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
                                 ? "-" + this.targetSelected.getAttribName()
                                 : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                                        ? "-" + this.targetSelected.getAttribId()
-                                        : !Strings.isNullOrEmpty(this.targetSelected.getSomeText())
-                                                ? "-" + truncate(this.targetSelected.getSomeText(), 50)
-                                                : "");
+                                ? "-" + this.targetSelected.getAttribId()
+                                : ""
+                );
                 if (this.targetSelected.getDefinedName() != null
                         && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
                     nameDefined = this.targetSelected.getDefinedName();
@@ -2892,11 +2895,11 @@ public class ARScannedElementPane extends ARPane {
 
                 // Print based on priority: ID -> Name -> Type
                 if (idValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + idValue;
+                    nameDefined = idValue;
                 } else if (nameValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + nameValue;
+                    nameDefined = nameValue;
                 } else if (typeValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + typeValue;
+                    nameDefined = typeValue;
                 } else {
                     nameDefined = this.targetSelected.getOriginalTagName();
                 }
@@ -7359,11 +7362,11 @@ public class ARScannedElementPane extends ARPane {
 
                 // Print based on priority: ID -> Name -> Type
                 if (idValue != null) {
-                    nameDefined = pickTarget.getTagName() + "-" + idValue;
+                    nameDefined = idValue;
                 } else if (nameValue != null) {
-                    nameDefined = pickTarget.getTagName() + "-" + nameValue;
+                    nameDefined = nameValue;
                 } else if (typeValue != null) {
-                    nameDefined = pickTarget.getTagName() + "-" + typeValue;
+                    nameDefined = typeValue;
                 } else {
                     nameDefined = pickTarget.getTagName();
                 }
