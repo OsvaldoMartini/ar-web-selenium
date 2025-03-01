@@ -8,12 +8,15 @@ import lombok.Data;
 @Table(name = "component_reference")
 @Data
 public class ComponentReferenceDTO extends BaseDTO {
-    @Column(name = "value", length = 10000)
+    @Column(name = "reference_type")
+    private String referenceType;
+
+    @Column(name = "value", columnDefinition = "TEXT")
     private String value;
 
     @Column(name = "instruction_id", nullable = false) // Adds non-null constraint on the foreign key
     private Integer instructionId;
 
-    @Column(name = "bot_job_id")
-    private Integer botJobId;
+    @Column(name = "home_banking_id")
+    private Integer homeBankingId;
 }

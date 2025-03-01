@@ -13,7 +13,7 @@ public class VariableDTO extends BaseDTO {
     @Column(name = "name")
     private String name;
 
-    @Column(name = "value")
+    @Column(name = "value", columnDefinition = "TEXT")
     private String value;
 
     @Column(name = "instruction_id")

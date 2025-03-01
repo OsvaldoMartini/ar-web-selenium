@@ -79,13 +79,16 @@ public class ARMainPane extends ARPane {
     ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
 
     public ARMainPane() {
-        String previousDB = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
         String pathDB = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-
         String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
+        performDataBase.initialize(dataBaseType);
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
+
+            if (!performDataBase.doesInstructionTableExist()) {
+                performDataBase.initializeMainDatabasePostgres();
+            }
         } else {
             POSTGRES_DB = false;
         }
@@ -96,7 +99,7 @@ public class ARMainPane extends ARPane {
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
             if (!dbFile.exists()) {
-                performDataBase.initializeMainDatabase(dbUrl, dbFile);
+                performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
             } else {
                 ARLogger.getInstance(ARViewBotJobPane.class)
                         .info(String.format("Database '%s' already exists!", dbFile.getName()));

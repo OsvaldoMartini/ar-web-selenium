@@ -8,26 +8,27 @@ import lombok.Data;
 @Table(name = "home_banking")
 @Data
 public class HomeBankingDTO extends BaseDTO implements Serializable {
-    @Column(name = "url", length = 10000)
+
+    @Column(name = "url", columnDefinition = "TEXT")
     private String url;
 
     @Column(name = "name")
     @OrderBy("name DESC")
     private String name;
 
-    @Column(name = "priority", length = 10000)
+    @Column(name = "priority", columnDefinition = "TEXT")
     private String priority;
 
-    @Column(name = "search_config", length = 10000)
+    @Column(name = "search_config", columnDefinition = "TEXT")
     private String searchConfig;
 
-    @Column(name = "options_config", length = 10000)
+    @Column(name = "options_config", columnDefinition = "TEXT")
     private String optionsConfig;
 
-    @Column(name = "cookies", length = 10000)
+    @Column(name = "cookies", columnDefinition = "TEXT")
     private String cookies;
 
-    @Column(name = "driver_session", length = 10000)
+    @Column(name = "driver_session", columnDefinition = "TEXT")
     private String driverSession;
 
     @Column(name = "username")

@@ -8,16 +8,19 @@ import lombok.Data;
 @Data
 public class ComponentInstructionDTO extends BaseDTO {
 
+    @Column(name = "home_banking_id")
+    private Integer homeBankingId;
+
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
 
-    @Column(name = "actions", length = 10000)
+    @Column(name = "actions", columnDefinition = "TEXT")
     private String actions;
 
     @Column(name = "name")
     private String name;
 
-    @Column(name = "xpath", length = 10000)
+    @Column(name = "xpath", columnDefinition = "TEXT")
     private String xpath;
 
     @Column(name = "coordinates", length = 100)
@@ -26,13 +29,13 @@ public class ComponentInstructionDTO extends BaseDTO {
     @Column(name = "force_coordinates")
     private Boolean forceCoordinates;
 
-    @Column(name = "iframe_xpath", length = 10000)
+    @Column(name = "iframe_xpath", columnDefinition = "TEXT")
     private String iFrameXPath;
 
     @Column(name = "description")
     private String description;
 
-    @Column(name = "operation", length = 500)
+    @Column(name = "operation", length = 1000)
     private String operation;
 
     @Column(name = "optional")
@@ -73,7 +76,4 @@ public class ComponentInstructionDTO extends BaseDTO {
 
     @Column(name = "parent_id")
     private Integer parentId;
-
-    @Column(name = "bot_job_id")
-    private Integer botJobId;
 }

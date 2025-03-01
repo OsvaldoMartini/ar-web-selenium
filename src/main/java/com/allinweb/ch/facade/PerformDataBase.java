@@ -14,6 +14,7 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.ARSaveComponentPane;
+import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -47,6 +48,8 @@ import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 
 public class PerformDataBase {
+
+    private static String previousDB;
 
     private static Connection conn = null;
 
@@ -84,7 +87,9 @@ public class PerformDataBase {
         // Initialize if necessary
     }
 
-    public void initializePerformActions() {}
+    public void initialize(String databaseType) {
+        this.previousDB = databaseType;
+    }
 
     // Public method to access the singleton instance
     public static PerformDataBase getInstance() {
@@ -111,52 +116,86 @@ public class PerformDataBase {
     }
 
     public static void changeDbConnection() {
+        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
+
+//        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
+            closeConnection();
+            previousDB = dataBaseType;
+
+            if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+                POSTGRES_DB = true;
+
+                if (!doesInstructionTableExist()) {
+                    initializeMainDatabasePostgres();
+                }
+
+            } else {
+                POSTGRES_DB = false;
+
+                String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+                String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+                File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+                if (!dbFile.exists()) {
+                    initializeMainDatabaseAccess(dbUrl, dbFile);
+                } else {
+                    ARLogger.getInstance(ARViewBotJobPane.class)
+                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                }
+            }
+//        }
+    }
+
+    public static void changeDbConnectionHibernate() {
         String priorityPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
         String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
 
-        closeConnection();
+        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
+            closeConnection();
+            previousDB = dataBaseType;
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        if (priorityPath != null) {
-
-            //            if (priorityPath != null && !priorityPath.isBlank()) {
-            //                arPriorities.loadPriorities();
-            //            }
-
-            if (POSTGRES_DB) {
-                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                sessionFactory = new Configuration()
-                        .configure()
-                        .setProperty("hibernate.connection.url", dbUrl)
-                        .setProperty("hibernate.connection.username", USERNAME)
-                        .setProperty("hibernate.connection.password", PASSWORD)
-                        .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
-                        .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
-                        .buildSessionFactory();
-                session = sessionFactory.openSession();
-                //                cacheEntitiesFromDB();
+            if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+                POSTGRES_DB = true;
             } else {
+                POSTGRES_DB = false;
+            }
 
-                try {
-                    String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-                    if (!dbPath.isBlank()) {
-                        File dbFolder = new File(dbPath);
-                        dbFolder.mkdirs();
-                        String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                        sessionFactory = new Configuration()
-                                .configure()
-                                .setProperty("hibernate.connection.url", dbUrl)
-                                .buildSessionFactory();
-                        session = sessionFactory.openSession();
-                        //                    cacheEntitiesFromDB();
+            if (priorityPath != null) {
+
+                //            if (priorityPath != null && !priorityPath.isBlank()) {
+                //                arPriorities.loadPriorities();
+                //            }
+
+                if (POSTGRES_DB) {
+                    String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                    sessionFactory = new Configuration()
+                            .configure()
+                            .setProperty("hibernate.connection.url", dbUrl)
+                            .setProperty("hibernate.connection.username", USERNAME)
+                            .setProperty("hibernate.connection.password", PASSWORD)
+                            .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
+                            .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
+                            .buildSessionFactory();
+                    session = sessionFactory.openSession();
+                    //                cacheEntitiesFromDB();
+                } else {
+
+                    try {
+                        String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+                        if (!dbPath.isBlank()) {
+                            File dbFolder = new File(dbPath);
+                            dbFolder.mkdirs();
+                            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                            sessionFactory = new Configuration()
+                                    .configure()
+                                    .setProperty("hibernate.connection.url", dbUrl)
+                                    .buildSessionFactory();
+                            session = sessionFactory.openSession();
+                            //                    cacheEntitiesFromDB();
+                        }
+                    } catch (Exception error) {
+
                     }
-                } catch (Exception error) {
-
                 }
             }
         }
@@ -910,9 +949,9 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class)
                     .info(String.format("BotJob data saved successfully.\n BotJobId: %d", nextId));
             return nextId;
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("createNewBotJob - \nError: %s", e.getMessage()));
+                    .severe(String.format("createNewBotJob - \nError: %s", error.getMessage()));
             return -1;
         }
     }
@@ -4712,7 +4751,7 @@ public class PerformDataBase {
                 }
     }
 
-    public void initializeMainDatabase(String dbUrl, File dbFile) {
+    public static void initializeMainDatabaseAccess(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {
             try (Statement stmt = conn.createStatement()) {
@@ -4737,6 +4776,7 @@ public class PerformDataBase {
                         + "name TEXT UNIQUE, "
                         + "description TEXT, "
                         + "priority MEMO, "
+                        + "active YESNO NOT NULL, "
                         + "home_banking_id INTEGER);";
                 stmt.executeUpdate(createBotJobTableSQL);
 
@@ -4817,20 +4857,6 @@ public class PerformDataBase {
                         + "REFERENCES bot_job(id) ON DELETE CASCADE";
                 stmt.executeUpdate(addForeignKeySQL6);
 
-                String createComplexInstructionTableSQL = "CREATE TABLE complex_instruction ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "instruction_id INTEGER, "
-                        + "order_number INTEGER NOT NULL, "
-                        + "instruction MEMO, "
-                        + "way MEMO, "
-                        + "bot_job_id INTEGER);";
-                stmt.executeUpdate(createComplexInstructionTableSQL);
-
-                //                String addForeignKeySQL14 = "ALTER TABLE complex_instruction "
-                //                        + "ADD CONSTRAINT FK_14 FOREIGN KEY (instruction_id) "
-                //                        + "REFERENCES instruction(id) ON DELETE CASCADE";
-                //                stmt.executeUpdate(addForeignKeySQL14);
-
                 String createVariableTableSQL = "CREATE TABLE variable ("
                         + "id INTEGER PRIMARY KEY, "
                         + "type TEXT, "
@@ -4874,7 +4900,6 @@ public class PerformDataBase {
                 String createComponentBlockTableSQL = "CREATE TABLE component_block ("
                         + "id INTEGER PRIMARY KEY, "
                         + "home_banking_id INTEGER, "
-                        + "bot_job_id INTEGER, "
                         + "block_order_number INTEGER NOT NULL, "
                         + "name TEXT NOT NULL, "
                         + "description TEXT, "
@@ -4911,7 +4936,7 @@ public class PerformDataBase {
                         + "block_id INTEGER, "
                         + "variable_id INTEGER, "
                         + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER);";
+                        + "home_banking_id INTEGER);";
                 stmt.executeUpdate(createComponentInstructionTableSQL);
 
                 String addForeignKeySQL10 = "ALTER TABLE component_instruction "
@@ -4919,12 +4944,17 @@ public class PerformDataBase {
                         + "REFERENCES component_block(id) ON DELETE CASCADE";
                 stmt.executeUpdate(addForeignKeySQL10);
 
+                String addCompBlkHomeForeignKeySQL = "ALTER TABLE component_instruction "
+                        + "ADD CONSTRAINT FK_BLKHomeBank FOREIGN KEY (home_banking_id) "
+                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addCompBlkHomeForeignKeySQL);
+
                 String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
                         + "id INTEGER PRIMARY KEY, "
                         + "reference_type TEXT, "
                         + "value MEMO, "
                         + "instruction_id INTEGER NOT NULL, "
-                        + "bot_job_id INTEGER);";
+                        + "home_banking_id INTEGER);";
                 stmt.executeUpdate(createComponentReferenceTableSQL);
 
                 String addForeignKeySQL11 = "ALTER TABLE component_reference "
@@ -4932,34 +4962,208 @@ public class PerformDataBase {
                         + "REFERENCES component_instruction(id) ON DELETE CASCADE";
                 stmt.executeUpdate(addForeignKeySQL11);
 
+                String addCompReferForeignKeySQL = "ALTER TABLE component_reference "
+                        + "ADD CONSTRAINT FK_CompRefer FOREIGN KEY (home_banking_id) "
+                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addCompReferForeignKeySQL);
+
                 String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
                         + "id INTEGER PRIMARY KEY, "
                         + "type TEXT, "
                         + "name TEXT, "
                         + "value MEMO, "
                         + "instruction_id INTEGER, "
-                        + "bot_job_id INTEGER);";
+                        + "home_banking_id INTEGER);";
                 stmt.executeUpdate(createComponentVariableTableSQL);
+
                 String addForeignKeySQL12 = "ALTER TABLE component_variable "
                         + "ADD CONSTRAINT FK_12 FOREIGN KEY (instruction_id) "
                         + "REFERENCES component_instruction(id) ON DELETE CASCADE";
                 stmt.executeUpdate(addForeignKeySQL12);
 
-                String createComponentComplexTableSQL = "CREATE TABLE component_complex ("
-                        + "id INTEGER PRIMARY KEY, "
-                        + "instruction_id INTEGER, "
-                        + "order_number INTEGER NOT NULL, "
-                        + "instruction MEMO, "
-                        + "way MEMO, "
-                        + "bot_job_id INTEGER);";
-                stmt.executeUpdate(createComponentComplexTableSQL);
-
-                String addForeignKeySQL13 = "ALTER TABLE component_complex "
-                        + "ADD CONSTRAINT FK_13 FOREIGN KEY (instruction_id) "
-                        + "REFERENCES component_instruction(id) ON DELETE CASCADE";
-                stmt.executeUpdate(addForeignKeySQL13);
+                String addCompVarForeignKeySQL = "ALTER TABLE component_variable "
+                        + "ADD CONSTRAINT FK_CompVar FOREIGN KEY (home_banking_id) "
+                        + "REFERENCES home_banking(id) ON DELETE CASCADE";
+                stmt.executeUpdate(addCompVarForeignKeySQL);
             }
             System.out.println(String.format("Database %s has been created!", dbFile.getName()));
+        } catch (SQLException error) {
+            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
+    }
+
+    public static boolean doesInstructionTableExist() {
+        try (Connection conn = getConnection()) {
+            try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
+                return rs.next(); // Returns true if the table exists
+            }
+        } catch (SQLException error) {
+            System.out.println("Error checking table existence: " + error.getMessage());
+        }
+        return false; // Default return if an exception occurs or the table does not exist
+    }
+
+    public static void initializeMainDatabasePostgres() {
+
+        try (Connection conn = getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+
+                // Create home_banking table
+                String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
+                        + "ID SERIAL PRIMARY KEY, "
+                        + "url TEXT, "
+                        + "name TEXT, "
+                        + "priority TEXT, "
+                        + "search_config TEXT, "
+                        + "options_config TEXT, "
+                        + "cookies TEXT, "
+                        + "driver_session TEXT, "
+                        + "username TEXT, "
+                        + "password TEXT)";
+                stmt.executeUpdate(createHomeBankingTableSQL);
+
+                // Create bot_job table with a foreign key reference to home_banking
+                String createBotJobTableSQL = "CREATE TABLE bot_job ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "name TEXT UNIQUE, "
+                        + "description TEXT, "
+                        + "priority TEXT, "
+                        + "active INTEGER NOT NULL, "
+                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
+                stmt.executeUpdate(createBotJobTableSQL);
+
+                // Create block table with a foreign key reference to bot_job
+                String createBlockTableSQL = "CREATE TABLE block ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "block_order_number INTEGER NOT NULL, "
+                        + "name TEXT NOT NULL, "
+                        + "description TEXT, "
+                        + "type_id INTEGER, "
+                        + "export_file TEXT, "
+                        + "active INTEGER NOT NULL, "
+                        + "wait INTEGER, "
+                        + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
+                stmt.executeUpdate(createBlockTableSQL);
+
+                // Create instruction table with foreign key references to block and bot_job
+                String createInstructionTableSQL = "CREATE TABLE instruction ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "instruction_order_number INTEGER NOT NULL, "
+                        + "actions TEXT, "
+                        + "name TEXT, "
+                        + "xpath TEXT, "
+                        + "coordinates TEXT, "
+                        + "force_coordinates INTEGER, "
+                        + "iframe_xpath TEXT, "
+                        + "description TEXT, "
+                        + "operation TEXT, "
+                        + "optional INTEGER, "
+                        + "block_marked INTEGER, "
+                        + "default_value TEXT, "
+                        + "action_custom_max_wait_sec INTEGER, "
+                        + "on_hold_seconds INTEGER, "
+                        + "codified INTEGER, "
+                        + "export_to_abr INTEGER, "
+                        + "active INTEGER NOT NULL, "
+                        + "block_id INTEGER REFERENCES block(id) ON DELETE CASCADE, "
+                        + "variable_id INTEGER, "
+                        + "parent_id INTEGER, "
+                        + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
+                stmt.executeUpdate(createInstructionTableSQL);
+
+                String createReferenceTableSQL = "CREATE TABLE reference ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "reference_type TEXT, "
+                        + "value TEXT, "
+                        + "instruction_id INTEGER NOT NULL REFERENCES instruction(id) ON DELETE CASCADE, "
+                        + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
+                stmt.executeUpdate(createReferenceTableSQL);
+
+                String createVariableTableSQL = "CREATE TABLE variable ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "type TEXT, "
+                        + "name TEXT, "
+                        + "value TEXT, "
+                        + "instruction_id INTEGER REFERENCES instruction(id) ON DELETE CASCADE, "
+                        + "bot_job_id INTEGER REFERENCES bot_job(id) ON DELETE CASCADE)";
+                stmt.executeUpdate(createVariableTableSQL);
+
+                String createConfigurationTableSQL = "CREATE TABLE configuration ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "pathJava TEXT, "
+                        + "logLevel TEXT, "
+                        + "pathDB TEXT, "
+                        + "interactionTimeoutSec TEXT, "
+                        + "pathLog TEXT, "
+                        + "defaultInstructionStopSeconds TEXT, "
+                        + "pathReport TEXT, "
+                        + "browser TEXT, "
+                        + "dataBaseType TEXT, "
+                        + "pageUpdateTimeoutSec TEXT, "
+                        + "pathPriority TEXT, "
+                        + "pathEngine TEXT, "
+                        + "pathExcel TEXT, "
+                        + "pathExport TEXT, "
+                        + "socketPort TEXT, "
+                        + "blockLimit TEXT, "
+                        + "pathJavaFx TEXT)";
+                stmt.executeUpdate(createConfigurationTableSQL);
+
+                String createComponentBlockTableSQL = "CREATE TABLE component_block ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE, "
+                        + "block_order_number INTEGER NOT NULL, "
+                        + "name TEXT NOT NULL, "
+                        + "description TEXT, "
+                        + "type_id INTEGER, "
+                        + "export_file TEXT, "
+                        + "active INTEGER, "
+                        + "wait INTEGER)";
+                stmt.executeUpdate(createComponentBlockTableSQL);
+
+                String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "instruction_order_number INTEGER NOT NULL, "
+                        + "actions TEXT, "
+                        + "name TEXT, "
+                        + "xpath TEXT, "
+                        + "coordinates TEXT, "
+                        + "force_coordinates INTEGER, "
+                        + "iframe_xpath TEXT, "
+                        + "description TEXT, "
+                        + "operation TEXT, "
+                        + "optional INTEGER, "
+                        + "block_marked INTEGER, "
+                        + "default_value TEXT, "
+                        + "action_custom_max_wait_sec INTEGER, "
+                        + "on_hold_seconds INTEGER, "
+                        + "codified INTEGER, "
+                        + "export_to_abr INTEGER, "
+                        + "active INTEGER NOT NULL, "
+                        + "block_id INTEGER REFERENCES component_block(id) ON DELETE CASCADE, "
+                        + "variable_id INTEGER, "
+                        + "parent_id INTEGER, "
+                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
+                stmt.executeUpdate(createComponentInstructionTableSQL);
+
+                String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "reference_type TEXT, "
+                        + "value TEXT, "
+                        + "instruction_id INTEGER NOT NULL REFERENCES component_instruction(id) ON DELETE CASCADE, "
+                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
+                stmt.executeUpdate(createComponentReferenceTableSQL);
+
+                String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
+                        + "id SERIAL PRIMARY KEY, "
+                        + "type TEXT, "
+                        + "name TEXT, "
+                        + "value TEXT, "
+                        + "instruction_id INTEGER REFERENCES component_instruction(id) ON DELETE CASCADE, "
+                        + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
+                stmt.executeUpdate(createComponentVariableTableSQL);
+            }
+            System.out.println("Database %s has been created!");
         } catch (SQLException error) {
             System.out.println("initializeDatabase\nError: " + error.getMessage());
         }

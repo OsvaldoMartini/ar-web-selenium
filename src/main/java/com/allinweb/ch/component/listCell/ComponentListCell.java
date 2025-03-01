@@ -157,9 +157,10 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 if (result.isPresent() && result.get() == ButtonType.YES) {
 
                     try {
-                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(componentBlockDTO.getBotJobId());
+                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(componentBlockDTO.getHomeBankingId());
 
-                        BotJobLoadDTO botJobLoadDTO = performDataBase.loadBotJobById(componentBlockDTO.getBotJobId());
+                        BotJobLoadDTO botJobLoadDTO =
+                                performDataBase.loadBotJobById(componentBlockDTO.getHomeBankingId());
 
                         if (botJobLoadDTO == null) {
                             performAction.showAlert(
@@ -168,12 +169,12 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                     "Verify the Bot Job Name if have any: ",
                                     String.format(
                                             "Check if you already have a Bot Job \"%\" Created!",
-                                            componentBlockDTO.getBotJobId()));
+                                            componentBlockDTO.getHomeBankingId()));
 
                             ARLogger.getInstance(Thread.class)
                                     .severe(String.format(
                                             "Check if you already have a Bot Job \"%\" Created!",
-                                            componentBlockDTO.getBotJobId()));
+                                            componentBlockDTO.getHomeBankingId()));
                             return;
                         }
 
@@ -181,22 +182,23 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                         //                    if (blockLoadList.isEmpty()) {
 
                         this.botJobDTO = ARSharedResources.getInstance()
-                                .getEntityById(BotJobDTO.class, componentBlockDTO.getBotJobId());
+                                .getEntityById(BotJobDTO.class, componentBlockDTO.getHomeBankingId());
                         if (this.botJobDTO == null) {
                             ARLogger.getInstance(ARScannedElementPane.class)
-                                    .severe("I was not able to load the BotJod id: " + componentBlockDTO.getBotJobId());
+                                    .severe("I was not able to load the BotJod id: "
+                                            + componentBlockDTO.getHomeBankingId());
 
                             performAction.showAlert(
                                     Alert.AlertType.ERROR,
                                     "Error Loading BotJob",
                                     "Bot Job Loading Error",
-                                    "I was not able to load the BotJod id: " + componentBlockDTO.getBotJobId());
+                                    "I was not able to load the BotJod id: " + componentBlockDTO.getHomeBankingId());
 
                             return;
                         }
 
                         this.blockLoadDTO =
-                                new BlockLoadDTO(); // performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(componentBlockDTO, blockLoadDTO.getBotJobId());
+                                new BlockLoadDTO(); // performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(componentBlockDTO, blockLoadDTO.getHomeBankingId());
                         this.blockLoadDTO.setTypeId(1);
                         this.blockLoadDTO.setActive(componentBlockDTO.getActive());
                         this.blockLoadDTO.setWait(componentBlockDTO.getWait());
@@ -225,7 +227,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                             ARLogger.getInstance(Thread.class)
                                     .info(String.format(
                                             "Component %s has been Added to the BotJob %S",
-                                            componentBlockDTO.getName(), componentBlockDTO.getBotJobId()));
+                                            componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
                         } else {
                             performAction.showAlert(
                                     Alert.AlertType.ERROR,
@@ -233,12 +235,12 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                     "Not Possible to user the component",
                                     String.format(
                                             "Error Trying to Insert Component %S to BotJob %d\n!",
-                                            componentBlockDTO.getName(), componentBlockDTO.getBotJobId()));
+                                            componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
 
                             ARLogger.getInstance(Thread.class)
                                     .severe(String.format(
                                             "Error Trying to Insert Component %S to BotJob %d\n!",
-                                            componentBlockDTO.getName(), componentBlockDTO.getBotJobId()));
+                                            componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
                             return;
                         }
 
@@ -397,7 +399,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                 "Unable to Utilize the Component",
                                 String.format(
                                         "Error: Unable to Utilize the Component Name : %s\nBotJob Name: %s\nPlease try again!",
-                                        componentBlockDTO.getName(), componentBlockDTO.getBotJobId()));
+                                        componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
                         ARLogger.getInstance(Task.class)
                                 .severe("Error: Unable to save the block. Please try again.\nError: "
                                         + ex.getMessage());

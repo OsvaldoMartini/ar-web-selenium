@@ -51,10 +51,10 @@ public class ExcelUtils {
     }
 
     public void generateExcelFiles(
-            List<BotJobLoadDTO> botLoadJobs, List<String> allActions, ExtractedData extractedData, boolean openExcel) {
+            BotJobLoadDTO botJobLoad, List<String> allActions, ExtractedData extractedData, boolean openExcel) {
 
-        BotJobLoadDTO botJobLoad = botLoadJobs.get(0);
-        this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
+//        BotJobLoadDTO botJobLoad = botLoadJobs.get(0);
+//        this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
         this.extractedData = extractedData;
 
         File excelFolder = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL));

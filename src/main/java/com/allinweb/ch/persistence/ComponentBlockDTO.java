@@ -11,9 +11,6 @@ public class ComponentBlockDTO extends BaseDTO {
     @Column(name = "home_banking_id")
     private Integer homeBankingId;
 
-    @Column(name = "bot_job_id")
-    private Integer botJobId;
-
     @Column(name = "block_order_number")
     private int blockOrderNumber;
 
@@ -26,7 +23,7 @@ public class ComponentBlockDTO extends BaseDTO {
     @Column(name = "type_id")
     private Integer typeId;
 
-    @Column(name = "export_file")
+    @Column(name = "export_file", columnDefinition = "TEXT")
     private String exportFile;
 
     @Column(name = "active")

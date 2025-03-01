@@ -15,7 +15,7 @@ public class BotJobDTO extends BaseDTO implements Serializable {
     @Column(name = "description")
     private String description;
 
-    @Column(name = "priority")
+    @Column(name = "priority", columnDefinition = "TEXT")
     private String priority;
 
     @Column(name = "home_banking_id")

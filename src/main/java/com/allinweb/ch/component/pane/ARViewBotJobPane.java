@@ -124,8 +124,8 @@ public class ARViewBotJobPane extends ARPane {
 
     Label botJobNameLabel;
     Label botJobDescriptionLabel;
-    private TextField botJobName;
-    private TextField botJobDescription;
+    private TextField botJobNameTextField;
+    private TextField botJobDescriptionTextField;
     VBox botJobContainer;
 
     ListView<ComponentBlockDTO> componentList;
@@ -350,23 +350,23 @@ public class ARViewBotJobPane extends ARPane {
 
         this.botJobNameLabel = new Label(this.botJobLoad.getName());
         this.botJobNameLabel.setPrefWidth(botJobNameWidth);
-        this.botJobName = new TextField(this.botJobLoad.getName());
-        this.botJobName.setPrefWidth(botJobNameWidth);
+        this.botJobNameTextField = new TextField(this.botJobLoad.getName());
+        this.botJobNameTextField.setPrefWidth(botJobNameWidth);
 
         this.initComponentUI();
 
         StackPane botJobNameGroup =
-                new StackPane(new Node[] {this.botJobNameLabel, this.botJobName, this.componentButton});
+                new StackPane(new Node[] {this.botJobNameLabel, this.botJobNameTextField, this.componentButton});
         StackPane.setAlignment(this.componentButton, Pos.CENTER_RIGHT);
         StackPane.setMargin(this.componentButton, new Insets(5.0D, 0.0D, 0.0D, 0.0D));
 
         this.botJobDescriptionLabel = new Label(this.botJobLoad.getDescription());
         this.botJobDescriptionLabel.setPrefWidth(botJobNameWidth);
-        this.botJobDescription = new TextField(this.botJobLoad.getDescription());
-        this.botJobDescription.setPrefWidth(botJobNameWidth);
+        this.botJobDescriptionTextField = new TextField(this.botJobLoad.getDescription());
+        this.botJobDescriptionTextField.setPrefWidth(botJobNameWidth);
 
         StackPane botJobDescriptionGroup =
-                new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescription});
+                new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescriptionTextField});
 
         //        this.blockDTOObservableList = FXCollections.observableArrayList(ARSharedResources.getInstance()
         //                .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() ==
@@ -383,10 +383,12 @@ public class ARViewBotJobPane extends ARPane {
         performDataBase.updateBlockOrderNumber(performDataBase.selectAllBlocks(this.botJobLoad.getId()), true);
 
         this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
+        createExcelDataFile(botJobLoad, botJobLoadList);
+
+
         Gson gson = new Gson();
         String jsonData = "";
 
-        createExcelDataFile();
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (this.botJobLoadList.size() > 0) {
@@ -479,20 +481,28 @@ public class ARViewBotJobPane extends ARPane {
 
     }
 
-    private void createExcelDataFile() {
+    private void createExcelDataFile(BotJobLoadDTO botJobLoad, List<BotJobLoadDTO> botJobList) {
 
         // Retrieve the updated BotJobDTO
         //        BotJobDTO botJobUpdated = (BotJobDTO) ARSharedResources.getInstance().getEntityById(BotJobDTO.class,
         // botJobId);
 
-        if (this.botJobLoadList.size() > 0) {
+        if (botJobLoad != null ) {
 
-            List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
-
+            List<BlockLoadDTO> blocksLoaded = new ArrayList<>(); // Initialize to null
+            if (botJobList != null && !botJobList.isEmpty() && botJobList.get(0) != null) {
+                List<BlockLoadDTO> tempList = botJobList.get(0).getBlockLoadDTOList();
+                if (tempList != null) {
+                    blocksLoaded = tempList;
+                } else {
+                    System.out.println("getBlockLoadDTOList() returned null for the first element.");
+                }
+            }
+            
             List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
             String excelFolderPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
-            String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ARConstants.FILE_FORMAT_EXCEL);
+            String fileName = String.format("%s/%s%s", excelFolderPath, botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
 
             // Create a File object
             File fileCheck = new File(fileName);
@@ -500,7 +510,7 @@ public class ARViewBotJobPane extends ARPane {
 
                 // Check if the Excel file already exists
                 ExtractedData extractedData =
-                        ExcelUtils.isFileExists(botJobLoadList.get(0).getName(), allActions);
+                        ExcelUtils.isFileExists(botJobLoad.getName(), allActions);
 
                 if (extractedData == null
                         || (extractedData.getErrorTitle() != null
@@ -510,7 +520,7 @@ public class ARViewBotJobPane extends ARPane {
                     Task<Void> excelTask = new Task<>() {
                         @Override
                         protected Void call() throws Exception {
-                            new ExcelUtils().generateExcelFiles(botJobLoadList, allActions, extractedData, false);
+                            new ExcelUtils().generateExcelFiles(botJobLoad, allActions, extractedData, false);
                             return null;
                         }
                     };
@@ -568,8 +578,8 @@ public class ARViewBotJobPane extends ARPane {
         //        saveAsBotJobButton.setOnMouseClicked(e -> new ARSaveBotJobAsScene(this.botJobLoad.getId()).show());
         this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
         this.botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
-        this.botJobName.visibleProperty().bind(this.isEditingBotJob);
-        this.botJobDescription.visibleProperty().bind(this.isEditingBotJob);
+        this.botJobNameTextField.visibleProperty().bind(this.isEditingBotJob);
+        this.botJobDescriptionTextField.visibleProperty().bind(this.isEditingBotJob);
         this.editBotJobButton.setOnMouseClicked((e) -> {
             this.isEditingBotJob.set(this.isEditingBotJob.not().getValue());
             this.saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
@@ -577,14 +587,14 @@ public class ARViewBotJobPane extends ARPane {
         this.saveBotJobButton.setOnMouseClicked((e) -> {
             this.isEditingBotJob.set(false);
             this.isEditingBotJob.set(false);
-            this.botJobNameLabel.setText(this.botJobName.getText());
-            this.botJobDescriptionLabel.setText(this.botJobDescription.getText());
+            this.botJobNameLabel.setText(this.botJobNameTextField.getText());
+            this.botJobDescriptionLabel.setText(this.botJobDescriptionTextField.getText());
             this.botJobLoad.setName(this.botJobNameLabel.getText());
             this.botJobLoad.setDescription(this.botJobDescriptionLabel.getText());
             this.saveBotJobButton.setDisable(true);
 
             boolean botJobUpdate = performDataBase.updateBotJobNme(
-                    this.botJobLoad.getId(), botJobName.getText(), botJobDescription.getText());
+                    this.botJobLoad.getId(), botJobNameTextField.getText(), botJobDescriptionTextField.getText());
 
             //            ARSharedResources.getInstance().updateEntity(this.botJobLoad, BotJobDTO.class);
 
@@ -701,7 +711,7 @@ public class ARViewBotJobPane extends ARPane {
                 Task<Void> excelTask = new Task<>() {
                     @Override
                     protected Void call() throws Exception {
-                        new ExcelUtils().generateExcelFiles(botJobLoadList, allActions, extractedData, true);
+                        new ExcelUtils().generateExcelFiles(botJobLoad, allActions, extractedData, true);
                         return null;
                     }
                 };
