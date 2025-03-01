@@ -418,9 +418,7 @@ public class ARScannedElementPane extends ARPane {
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
-        String jsonData = """
-                []
-                """;
+        String jsonData = "[]";
 
         // sessionIdFromJava
         sessionId = "scannerGrid-"

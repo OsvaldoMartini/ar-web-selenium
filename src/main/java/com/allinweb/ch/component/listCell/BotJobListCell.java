@@ -114,18 +114,6 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     }
 
     private void deleteBotJob(BotJobLoadDTO botJob) {
-        // List<BlockOrderDetailDTO> blockDetails = performDataBase.selectAllBlocks(botJob.getId());
-
-        //        boolean botJobDeletion = false;
-        //        for (BlockOrderDetailDTO block : blockDetails) {
-        //            DeleteBlockDTO deleteBlock = new DeleteBlockDTO();
-        //            deleteBlock.setBotJobId(block.getBotJobId());
-        //            deleteBlock.setBlockId(block.getBlockId());
-        //            botJobDeletion = performDataBase.deleteBlock(deleteBlock);
-        //            if (!botJobDeletion) {
-        //                break;
-        //            }
-        //        }
         int rowsAffected = performDataBase.deleteBotJob(botJob.getId());
 
         if (rowsAffected == 0) {
@@ -148,7 +136,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                     null,
                     0);
 
-            performDataBase.updateStatusBotJob(botJob.getId(), false);
+            performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }
 }

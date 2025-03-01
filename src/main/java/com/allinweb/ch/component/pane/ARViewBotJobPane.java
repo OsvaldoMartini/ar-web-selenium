@@ -385,10 +385,8 @@ public class ARViewBotJobPane extends ARPane {
         this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
         createExcelDataFile(botJobLoad, botJobLoadList);
 
-
         Gson gson = new Gson();
-        String jsonData = "";
-
+        String jsonData = "[]";
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (this.botJobLoadList.size() > 0) {
@@ -487,7 +485,7 @@ public class ARViewBotJobPane extends ARPane {
         //        BotJobDTO botJobUpdated = (BotJobDTO) ARSharedResources.getInstance().getEntityById(BotJobDTO.class,
         // botJobId);
 
-        if (botJobLoad != null ) {
+        if (botJobLoad != null) {
 
             List<BlockLoadDTO> blocksLoaded = new ArrayList<>(); // Initialize to null
             if (botJobList != null && !botJobList.isEmpty() && botJobList.get(0) != null) {
@@ -498,19 +496,19 @@ public class ARViewBotJobPane extends ARPane {
                     System.out.println("getBlockLoadDTOList() returned null for the first element.");
                 }
             }
-            
+
             List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
             String excelFolderPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
-            String fileName = String.format("%s/%s%s", excelFolderPath, botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
+            String fileName =
+                    String.format("%s/%s%s", excelFolderPath, botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
 
             // Create a File object
             File fileCheck = new File(fileName);
             if (!fileCheck.exists() && !fileCheck.isDirectory()) {
 
                 // Check if the Excel file already exists
-                ExtractedData extractedData =
-                        ExcelUtils.isFileExists(botJobLoad.getName(), allActions);
+                ExtractedData extractedData = ExcelUtils.isFileExists(botJobLoad.getName(), allActions);
 
                 if (extractedData == null
                         || (extractedData.getErrorTitle() != null

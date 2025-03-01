@@ -14,7 +14,6 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.ARSaveComponentPane;
-import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -118,32 +117,32 @@ public class PerformDataBase {
     public static void changeDbConnection() {
         String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
 
-//        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
-            closeConnection();
-            previousDB = dataBaseType;
+        //        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
+        closeConnection();
+        previousDB = dataBaseType;
 
-            if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-                POSTGRES_DB = true;
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
 
-                if (!doesInstructionTableExist()) {
-                    initializeMainDatabasePostgres();
-                }
-
-            } else {
-                POSTGRES_DB = false;
-
-                String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-                String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-                File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-                if (!dbFile.exists()) {
-                    initializeMainDatabaseAccess(dbUrl, dbFile);
-                } else {
-                    ARLogger.getInstance(ARViewBotJobPane.class)
-                            .info(String.format("Database '%s' already exists!", dbFile.getName()));
-                }
+            if (!doesInstructionTableExist()) {
+                initializeMainDatabasePostgres();
             }
-//        }
+
+        } else {
+            POSTGRES_DB = false;
+
+            String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+            if (!dbFile.exists()) {
+                initializeMainDatabaseAccess(dbUrl, dbFile);
+            } else {
+                ARLogger.getInstance(PerformDataBase.class)
+                        .info(String.format("Database '%s' already exists!", dbFile.getName()));
+            }
+        }
+        //        }
     }
 
     public static void changeDbConnectionHibernate() {
@@ -1828,19 +1827,11 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
 
             // Saved Blocks
-            int rowsAffected = stmt.executeUpdate("DELETE FROM component_reference where bot_job_id = " + botJobId);
-            rowsAffected += stmt.executeUpdate("DELETE FROM component_instruction where bot_job_id = " + botJobId);
-            rowsAffected += stmt.executeUpdate("DELETE FROM component_block where bot_job_id = " + botJobId);
 
-            rowsAffected += stmt.executeUpdate("DELETE FROM variable where bot_job_id = " + botJobId);
-
+            int rowsAffected = stmt.executeUpdate("DELETE FROM variable where bot_job_id = " + botJobId);
             rowsAffected += stmt.executeUpdate("DELETE FROM reference where bot_job_id = " + botJobId);
-            rowsAffected += stmt.executeUpdate("DELETE FROM complex_instruction where bot_job_id = " + botJobId);
-
             rowsAffected += stmt.executeUpdate("DELETE FROM instruction where bot_job_id = " + botJobId);
-
             rowsAffected += stmt.executeUpdate("DELETE FROM block " + " WHERE bot_job_id = " + botJobId);
-
             String deleteSQL = "DELETE FROM bot_job " + " WHERE id = " + botJobId;
 
             // Execute the update statement and check if any rows were affected
@@ -1884,7 +1875,7 @@ public class PerformDataBase {
         return false;
     }
 
-    public boolean updateStatusBotJob(int botJobId, boolean status) {
+    public boolean updateStatusBotJob(int botJobId, int status) {
         // Build the SQL delete statement
         try (Statement stmt = getConnection().createStatement()) {
 

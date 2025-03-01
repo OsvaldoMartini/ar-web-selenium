@@ -7,7 +7,6 @@ import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
-import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
@@ -301,7 +300,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
                                         InstructionLoadDTO InstructionLoadDTO = reference.getInstructionLoadDTO();
                                         if (InstructionLoadDTO == null) {
-                                            ARLogger.getInstance(ARViewBotJobPane.class)
+                                            ARLogger.getInstance(ComponentListCell.class)
                                                     .warning("BlockLoopInstructionLoadDTO is null for reference: "
                                                             + reference.getReferenceType());
                                             continue;
@@ -427,7 +426,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ARLogger.getInstance(ComponentListCell.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -441,7 +440,8 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+            ARLogger.getInstance(ComponentListCell.class)
+                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -497,7 +497,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 //                                "\"Component\" Instruction \"%s\"\nhas been added successfully!",
                 //                                instruction.getName()));
                 //
-                //                ARLogger.getInstance(ARViewBotJobPane.class)
+                //                ARLogger.getInstance(ComponentListCell.class)
                 //                        .info(String.format(
                 //                                "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
                 //                                instruction.getName()));
@@ -508,7 +508,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 //                        "Not possible to insert new Operation",
                 //                        String.format("\"Component\" Instruction \"%s\"\nCannot be saved",
                 // instruction.getName()));
-                //                ARLogger.getInstance(ARViewBotJobPane.class)
+                //                ARLogger.getInstance(ComponentListCell.class)
                 //                        .severe(String.format(
                 //                                "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
                 //                                instruction.getName()));
@@ -521,7 +521,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     "Not possible to insert new Operation",
                     String.format("\"Component\" Instruction \"%s\"\nCannot be saved", instruction.getName()));
 
-            ARLogger.getInstance(ARViewBotJobPane.class)
+            ARLogger.getInstance(ComponentListCell.class)
                     .severe(String.format(
                             "Cannot Insert \"Component\" Instruction \"%s\"\nCannot be saved!\nError: %s",
                             instruction.getName(), e.getMessage()));
@@ -633,12 +633,12 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(ARViewBotJobPane.class)
+                ARLogger.getInstance(ComponentListCell.class)
                         .info(String.format(
                                 "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
                                 nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
             } else {
-                ARLogger.getInstance(ARViewBotJobPane.class)
+                ARLogger.getInstance(ComponentListCell.class)
                         .warning(String.format(
                                 "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
                                 nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
@@ -646,7 +646,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
             return true;
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class)
+            ARLogger.getInstance(ComponentListCell.class)
                     .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
             return false;
         }
@@ -661,7 +661,8 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+            ARLogger.getInstance(ComponentListCell.class)
+                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }

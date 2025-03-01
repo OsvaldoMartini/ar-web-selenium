@@ -329,22 +329,23 @@ public class ARMainPane extends ARPane {
     private void initHeader() {
         header.setMaxHeight(ARConstants.SPACE_M);
         ColumnConstraints con = new ColumnConstraints();
-        con.setPercentWidth(25);
+        con.setPercentWidth(20); // Adjust percentage width
         con.setHgrow(Priority.ALWAYS);
         con.setHalignment(HPos.LEFT);
-        header.getColumnConstraints().add(con);
-        header.getColumnConstraints().add(con);
-        header.getColumnConstraints().add(con);
+
         ColumnConstraints con2 = new ColumnConstraints();
-        con2.setPercentWidth(25);
+        con2.setPercentWidth(20); // Adjust percentage width
         con2.setHgrow(Priority.ALWAYS);
         con2.setHalignment(HPos.CENTER);
-        header.getColumnConstraints().add(con2);
+
+        header.getColumnConstraints().addAll(con, con, con, con2, con); // Add all constraints
+
         VBox.setMargin(header, new Insets(5D, 10D, 5D, 10D));
         header.add(new Label("Name"), 0, 0);
         header.add(new Label("Description"), 1, 0);
         header.add(new Label("Environment"), 2, 0);
-        header.add(new Label("Actions"), 3, 0);
+        header.add(new Label("Status"), 3, 0); // Added Status header
+        header.add(new Label("Actions"), 4, 0); // Shifted Actions header
     }
 
     public void setProperty(String propertyName, String value) {
