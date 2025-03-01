@@ -2848,7 +2848,7 @@ public class ARScannedElementPane extends ARPane {
                     || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
                     || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
                 nameDefined = (!Strings.isNullOrEmpty(this.targetSelected.getSomeText())
-                        ? truncate(this.targetSelected.getSomeText(), 50)
+                        ? performAction.truncateAndNormalize(this.targetSelected.getSomeText(), 30)
                         : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
                                 ? this.targetSelected.getAttribId()
                                 : !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
@@ -2861,7 +2861,8 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 String finalNameDefined = nameDefined;
-                Platform.runLater(() -> defineNameField.setText(truncate(finalNameDefined, 50)));
+                Platform.runLater(
+                        () -> defineNameField.setText(performAction.truncateAndNormalize(finalNameDefined, 30)));
 
             } else if (!Strings.isNullOrEmpty(this.targetSelected.getAllAttributes())) {
 
@@ -2907,7 +2908,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 String finalSomeText = nameDefined;
-                Platform.runLater(() -> defineNameField.setText(truncate(finalSomeText, 50)));
+                Platform.runLater(() -> defineNameField.setText(performAction.truncateAndNormalize(finalSomeText, 30)));
 
             } else if (!Strings.isNullOrEmpty(this.targetSelected.getOriginalTagName())) {
 
@@ -5505,18 +5506,6 @@ public class ARScannedElementPane extends ARPane {
                 .start();
     }
 
-    public static String truncate(String someText, int limit) {
-        if (someText == null || someText.isEmpty()) {
-            return someText;
-        }
-
-        if (someText.length() <= limit) {
-            return someText;
-        }
-
-        return someText.substring(0, limit) + "...";
-    }
-
     private void periodicPickThread(WebDriver driver, String currentUrl) {
         // JavaScript code to inject
         String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n"
@@ -7268,7 +7257,7 @@ public class ARScannedElementPane extends ARPane {
                                             // Update lastIndex to the next chunk
                                             lastIndex = nextIndex;
 
-                                            // Get a chunk of elements from lastIndex to lastIndex + 50
+                                            // Get a chunk of elements from lastIndex to lastIndex + 30
                                             nextIndex = Math.min(lastIndex + 30, elementsFound.size());
                                             elementsChunk = elementsFound.subList(lastIndex, nextIndex);
                                         }
@@ -7321,14 +7310,20 @@ public class ARScannedElementPane extends ARPane {
             if (!Strings.isNullOrEmpty(pickTarget.getAttribId())
                     || !Strings.isNullOrEmpty(pickTarget.getAttribName())
                     || !Strings.isNullOrEmpty(pickTarget.getSomeText())) {
-                nameDefined = pickTarget.getTagName()
-                        + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
-                                ? "-" + pickTarget.getAttribName()
-                                : !Strings.isNullOrEmpty(pickTarget.getAttribId())
-                                        ? "-" + pickTarget.getAttribId()
-                                        : !Strings.isNullOrEmpty(pickTarget.getSomeText())
-                                                ? "-" + truncate(pickTarget.getSomeText(), 50)
-                                                : "");
+                //                nameDefined = pickTarget.getTagName()
+                //                        + (!Strings.isNullOrEmpty(pickTarget.getAttribName())
+                //                                ? "-" + pickTarget.getAttribName()
+                //                                : !Strings.isNullOrEmpty(pickTarget.getAttribId())
+                //                                        ? "-" + pickTarget.getAttribId()
+                //                                        : !Strings.isNullOrEmpty(pickTarget.getSomeText())
+                //                                                ? "-" +
+                // performAction.truncateAndNormalize(pickTarget.getSomeText(), 30)
+                //                                                : "");
+                nameDefined = (!Strings.isNullOrEmpty(pickTarget.getSomeText())
+                        ? performAction.truncateAndNormalize(pickTarget.getSomeText(), 30)
+                        : !Strings.isNullOrEmpty(pickTarget.getAttribId())
+                                ? pickTarget.getAttribId()
+                                : !Strings.isNullOrEmpty(pickTarget.getAttribName()) ? pickTarget.getAttribName() : "");
 
             } else if (picked.getAllAttributes() != null) {
 

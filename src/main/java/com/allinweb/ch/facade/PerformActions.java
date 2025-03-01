@@ -3128,7 +3128,22 @@ public class PerformActions {
         return targetDefine;
     }
 
-    // TODO MORE INTELLIGENT  LOGIC
+    public static String truncateAndNormalize(String someText, int limit) {
+        if (someText == null || someText.isEmpty()) {
+            return someText;
+        }
+
+        // Remove extra spaces and trim
+        String normalizedText = someText.trim().replaceAll("\\s+", " ");
+
+        if (normalizedText.length() <= limit) {
+            return normalizedText;
+        }
+
+        return normalizedText.substring(0, limit) + "...";
+    }
+
+    // TODO MORE INTELLIGENT  LOGIC MADE BY ME
     public TargetElement defineTargetNameTitles(TargetElement target) {
 
         try {
@@ -3204,7 +3219,10 @@ public class PerformActions {
             target.setIsElementHidden(isElementHidden);
 
             // Set nameLabel and nameField based on conditions
-            if (isLabel) {
+            if (!Strings.isNullOrEmpty(target.getSomeText())) {
+                String truncatedSomeText = truncateAndNormalize(target.getSomeText(), 30);
+                target = setElementText(target, truncatedSomeText, truncatedSomeText);
+            } else if (isLabel) {
                 target = setElementText(target, labelAttributeValue, labelAttributeValue);
             } else if (isForLabel) {
                 target = setElementText(target, forLabelAttributeValue, forLabelAttributeValue);
