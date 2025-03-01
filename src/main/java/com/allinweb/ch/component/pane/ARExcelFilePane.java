@@ -309,7 +309,8 @@ public class ARExcelFilePane extends ARPane {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            SimpleWebSocketServer.sendMessageJson(sessionId, jsonData, "updateInstructions");
+            SimpleWebSocketServer.sendMessageJson(
+                    blockExcelDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
         } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
             botJobLoadList = performDataBase.loadComponentsComplete(blockExcelDTO.getHomeBankingId());
@@ -320,7 +321,8 @@ public class ARExcelFilePane extends ARPane {
             }
             //            SimpleWebSocketServer.sendMessageJson(sessionId, jsonData, "componentsUpdate");
 
-            SimpleWebSocketServer.broadcastMessageToAll("componentTasks", jsonData, "componentsUpdate");
+            SimpleWebSocketServer.broadcastMessageToAll(
+                    blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
         }
 
         Text variableText1Styled = new Text(String.format("Export File \"%s\" Updated", exportFile));
@@ -408,7 +410,7 @@ public class ARExcelFilePane extends ARPane {
     //            try {
     //                JsonObject jsonMessage = new JsonObject();
     //                jsonMessage.addProperty("body", msg1);
-    //                jsonMessage.addProperty("sessionId", sessionId);
+    //                jsonMessage.addProperty("homeBankingId", homeBankingId);
     //                if (msg2 != null && !msg2.isEmpty()) {
     //                    jsonMessage.addProperty("operationId", msg2);
     //                }

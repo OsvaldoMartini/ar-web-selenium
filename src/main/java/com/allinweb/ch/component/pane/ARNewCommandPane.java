@@ -2274,7 +2274,7 @@ public class ARNewCommandPane extends ARPane {
                                 performDataBase.buildJsonViewData(botJobLoadList);
                         jsonData = gson.toJson(blockLoopInstructions);
                     }
-                    sendMessageJson(sessionId, jsonData, "updateInstructions");
+                    sendMessageJson(rowMoveDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
@@ -2458,7 +2458,7 @@ public class ARNewCommandPane extends ARPane {
         }
     }
 
-    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
         activeSessions = SimpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
@@ -2467,6 +2467,7 @@ public class ARNewCommandPane extends ARPane {
                 JsonObject jsonMessage = new JsonObject();
                 jsonMessage.addProperty("body", msg1);
                 jsonMessage.addProperty("sessionId", sessionId);
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
                 if (msg2 != null && !msg2.isEmpty()) {
                     jsonMessage.addProperty("operationId", msg2);
                 }

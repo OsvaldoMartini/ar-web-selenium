@@ -3860,7 +3860,10 @@ public class ARScannedElementPane extends ARPane {
                                                 jsonData = gson.toJson(blockLoopInstructions);
                                             }
                                             sendMessageJson(
-                                                    "botJobTasks-" + currentBotJobId, jsonData, "updateInstructions");
+                                                    homeBanking.getId(),
+                                                    "botJobTasks-" + currentBotJobId,
+                                                    jsonData,
+                                                    "updateInstructions");
 
                                             performMessage.showAlertCombinedVBOX(
                                                     Alert.AlertType.INFORMATION,
@@ -9849,7 +9852,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
         activeSessions = SimpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
@@ -9857,6 +9860,7 @@ public class ARScannedElementPane extends ARPane {
             try {
                 JsonObject jsonMessage = new JsonObject();
                 jsonMessage.addProperty("body", msg1);
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
                 jsonMessage.addProperty("sessionId", sessionId);
                 if (msg2 != null && !msg2.isEmpty()) {
                     jsonMessage.addProperty("operationId", msg2);

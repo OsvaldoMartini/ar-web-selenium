@@ -259,7 +259,8 @@ public class ARSaveComponentPane extends ARPane {
                             }
                             // SimpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
                             // "componentsUpdate");
-                            SimpleWebSocketServer.broadcastMessageToAll("componentTasks", jsonData, "componentsUpdate");
+                            SimpleWebSocketServer.broadcastMessageToAll(
+                                    blockDetailsDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
 
                             //                            showAlertTimer(
                             //                                    Alert.AlertType.INFORMATION,
@@ -838,7 +839,8 @@ public class ARSaveComponentPane extends ARPane {
     //            try {
     //                JsonObject jsonMessage = new JsonObject();
     //                jsonMessage.addProperty("body", msg1);
-    //                jsonMessage.addProperty("sessionId", sessionId);
+    //                jsonMessage.addProperty("sessionId", sessionId); jsonMessage.addProperty("homeBankingId",
+    // homeBankingId);
     //                if (msg2 != null && !msg2.isEmpty()) {
     //                    jsonMessage.addProperty("operationId", msg2);
     //                }
