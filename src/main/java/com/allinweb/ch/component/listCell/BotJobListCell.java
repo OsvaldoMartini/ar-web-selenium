@@ -14,6 +14,7 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
@@ -37,6 +38,15 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             Label botJobName = new Label(item.getName());
             Label botJobDescription = new Label(item.getDescription());
             Label homeBankingUrl = new Label(item.getHomeBankingLoadDTO().getName());
+
+            // Create status label
+            Label statusLabel = new Label(item.isActive() ? "Active" : "Inactive");
+            if (!item.isActive()) {
+                statusLabel.setTextFill(Color.GREY); // Grey out inactive items
+            } else {
+                statusLabel.setTextFill(Color.BLACK); // Reset to black for active items
+            }
+
             Button deleteBotJobButton = builder.buildButton(
                     "", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, Insets.EMPTY);
             deleteBotJobButton.setOnMouseClicked(e -> {
@@ -84,23 +94,33 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             GridPane uiBotJob = new GridPane();
             ColumnConstraints con = new ColumnConstraints();
-            con.setPercentWidth(25);
+            con.setPercentWidth(20); // Adjust percentage width
             con.setHalignment(HPos.LEFT);
             uiBotJob.getColumnConstraints().add(con);
             uiBotJob.getColumnConstraints().add(con);
             uiBotJob.getColumnConstraints().add(con);
+
             ColumnConstraints con2 = new ColumnConstraints();
-            con2.setPercentWidth(25);
+            con2.setPercentWidth(20); // Adjust percentage width
             con2.setHalignment(HPos.CENTER);
             uiBotJob.getColumnConstraints().add(con2);
+
+            ColumnConstraints con3 = new ColumnConstraints();
+            con3.setPercentWidth(20); // Adjust percentage width
+            con3.setHalignment(HPos.CENTER);
+            uiBotJob.getColumnConstraints().add(con3);
+
             AnchorPane.setTopAnchor(uiBotJob, ARConstants.SPACE_ZERO);
             AnchorPane.setBottomAnchor(uiBotJob, ARConstants.SPACE_ZERO);
             AnchorPane.setLeftAnchor(uiBotJob, ARConstants.SPACE_ZERO);
             AnchorPane.setRightAnchor(uiBotJob, ARConstants.SPACE_ZERO);
+
             uiBotJob.add(botJobName, 0, 0);
             uiBotJob.add(botJobDescription, 1, 0);
             uiBotJob.add(homeBankingUrl, 2, 0);
-            uiBotJob.add(deleteBotJobButton, 3, 0);
+            uiBotJob.add(statusLabel, 3, 0); // Add status label
+            uiBotJob.add(deleteBotJobButton, 4, 0); // Shift delete button
+
             AnchorPane row = new AnchorPane(uiBotJob);
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {

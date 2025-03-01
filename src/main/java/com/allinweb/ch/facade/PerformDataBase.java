@@ -2092,7 +2092,8 @@ public class PerformDataBase {
             hb.name AS home_banking_name,
             hb.priority AS home_banking_priority, hb.search_config,
             hb.options_config, hb.cookies, hb.driver_session,
-            hb.username, hb.password
+            hb.username, hb.password,
+            bot.active
             FROM bot_job bot
             LEFT JOIN home_banking hb ON bot.home_banking_id = hb.id
             ORDER BY bot.id ASC;
@@ -2111,6 +2112,7 @@ public class PerformDataBase {
                     botJobDTO.setDescription(rs.getString("bot_job_description"));
                     botJobDTO.setPriority(rs.getString("bot_job_priority"));
                     botJobDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                    botJobDTO.setActive(rs.getBoolean("active"));
 
                     // Map HomeBankingLoadDTO fields if home banking details exist
                     Integer homeBankingId = rs.getObject("home_banking_id", Integer.class);
