@@ -423,10 +423,19 @@ public class ARScannedElementPane extends ARPane {
                 """;
 
         // sessionIdFromJava
-        sessionId =
-                "scannerGrid"; // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks / Default
+        sessionId = "scannerGrid-"
+                + this.botJobLoad
+                        .getId(); // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
+        // Default
         // session
-        buildWebView(webEngine, jsonData, portSocket, sessionId, homeBanking.getId());
+        buildWebView(
+                webEngine,
+                jsonData,
+                portSocket,
+                sessionId,
+                homeBanking.getId(),
+                this.botJobLoad.getId(),
+                this.botJobLoad.getName());
 
         componentBox = new HBox(new Node[] {this.webView});
 
@@ -446,16 +455,22 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void buildWebView(
-            WebEngine webEngine, String jsonData, int finalPort, String sessionIdFromJava, int homeBanking) {
+            WebEngine webEngine,
+            String jsonData,
+            int finalPort,
+            String sessionIdFromJava,
+            int homeBanking,
+            int botJobId,
+            String botJobName) {
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 // After the page has successfully loaded
                 try {
-                    webEngine.executeScript(
-                            "setTimeout(function() { window.receiveDataFromJava(JSON.stringify(" + jsonData + "), "
-                                    + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + " ) }, 1000)");
+                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
+                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
+                            + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
                     ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
                 }
@@ -3844,7 +3859,8 @@ public class ARScannedElementPane extends ARPane {
                                                         performDataBase.buildJsonViewData(botJobLoadList);
                                                 jsonData = gson.toJson(blockLoopInstructions);
                                             }
-                                            sendMessageJson("botJobTasks", jsonData, "updateInstructions");
+                                            sendMessageJson(
+                                                    "botJobTasks-" + currentBotJobId, jsonData, "updateInstructions");
 
                                             performMessage.showAlertCombinedVBOX(
                                                     Alert.AlertType.INFORMATION,
@@ -9824,9 +9840,8 @@ public class ARScannedElementPane extends ARPane {
     //    }
 
     private void broadcastMessageToAll(String message) {
-        if (activeSessions == null) {
-            activeSessions = SimpleWebSocketServer.getAllSessions();
-        }
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+
         for (Session session : activeSessions.values()) { // Looping correctly
             if (session.isOpen()) {
                 sendMessageJson(session, message, null);
@@ -9835,6 +9850,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {

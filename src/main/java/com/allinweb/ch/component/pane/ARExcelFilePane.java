@@ -16,9 +16,7 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -296,7 +294,7 @@ public class ARExcelFilePane extends ARPane {
         exportFile = exportFile.replace("\\", "/");
 
         String tableTarget = "block";
-        if (sessionId.equals("componentTasks")) {
+        if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
             tableTarget = "component_block";
         }
 
@@ -304,23 +302,25 @@ public class ARExcelFilePane extends ARPane {
                 tableTarget, blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
 
         List<BotJobLoadDTO> botJobLoadList;
-        if (sessionId.equals("botJobTasks")) {
+        if ((sessionId != null && sessionId.matches(".*botJobTasks.*"))) {
             botJobLoadList = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            sendMessageJson(sessionId, jsonData, "updateInstructions");
+            SimpleWebSocketServer.sendMessageJson(sessionId, jsonData, "updateInstructions");
 
-        } else if (sessionId.equals("componentTasks")) {
+        } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
             botJobLoadList = performDataBase.loadComponentsComplete(blockExcelDTO.getHomeBankingId());
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            sendMessageJson(sessionId, jsonData, "componentsUpdate");
+            //            SimpleWebSocketServer.sendMessageJson(sessionId, jsonData, "componentsUpdate");
+
+            SimpleWebSocketServer.broadcastMessageToAll("componentTasks", jsonData, "componentsUpdate");
         }
 
         Text variableText1Styled = new Text(String.format("Export File \"%s\" Updated", exportFile));
@@ -399,23 +399,25 @@ public class ARExcelFilePane extends ARPane {
         return chosenPath.getAbsolutePath();
     }
 
-    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
-        Session session = activeSessions.get(sessionId);
-
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", msg1);
-                jsonMessage.addProperty("sessionId", sessionId);
-                if (msg2 != null && !msg2.isEmpty()) {
-                    jsonMessage.addProperty("operationId", msg2);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
-    }
+    //    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    //
+    //        activeSessions = SimpleWebSocketServer.getAllSessions();
+    //        Session session = activeSessions.get(sessionId);
+    //
+    //        if (session != null && session.isOpen()) {
+    //            try {
+    //                JsonObject jsonMessage = new JsonObject();
+    //                jsonMessage.addProperty("body", msg1);
+    //                jsonMessage.addProperty("sessionId", sessionId);
+    //                if (msg2 != null && !msg2.isEmpty()) {
+    //                    jsonMessage.addProperty("operationId", msg2);
+    //                }
+    //                session.getBasicRemote().sendText(jsonMessage.toString());
+    //            } catch (IOException e) {
+    //                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+    //            }
+    //        } else {
+    //            System.err.println("Session " + sessionId + " not found or closed.");
+    //        }
+    //    }
 }

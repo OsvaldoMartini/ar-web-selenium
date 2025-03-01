@@ -541,12 +541,12 @@ public class ARConfigurationPane extends ARPane {
                 for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
                     // tablesMigration = {"block", "block_loop_instruction", "instruction", "instruction_reference",
                     // "reference"};
-                    errorMessage = performDataBase.migration2_6f(
-                            conn, botJobLoadDTO.getId(), botJobLoadDTO.getId(), tablesMigration);
-
-                    if (errorMessage != null) {
-                        break;
-                    }
+                    //                    errorMessage = performDataBase.migration2_6f(
+                    //                            conn, botJobLoadDTO.getId(), botJobLoadDTO.getId(), tablesMigration);
+                    //
+                    //                    if (errorMessage != null) {
+                    //                        break;
+                    //                    }
                 }
 
                 performDataBase.dropTablesMigrationScriptsv2_7f();

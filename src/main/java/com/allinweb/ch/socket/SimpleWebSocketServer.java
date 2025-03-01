@@ -61,7 +61,7 @@ public class SimpleWebSocketServer {
     //        return instance.get();
     //    }
 
-    private static final Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
 
     // Store active sessions when a new connection is established
     public static void addSession(String sessionId, Session session) {
@@ -180,9 +180,9 @@ public class SimpleWebSocketServer {
         } catch (Exception error) {
             System.err.println("Error processing message: " + error.getMessage());
             if (type != null) {
-                sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
+                sendMessageJson(session, type, "Action type : \"" + type + "\"", "cannot be processed");
             } else {
-                sendMessageJson(session, "Error processing message", "No \"type\" definition");
+                sendMessageJson(session, type, "Error processing message", "No \"type\" definition");
             }
         }
     }
@@ -228,7 +228,7 @@ public class SimpleWebSocketServer {
                 BlockSplitDTO received = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 received.setType("MARTINI");
                 String jsonData = gson.toJson(received);
-                sendMessageJson(session, jsonData, null);
+                sendMessageJson(session, "Martini", jsonData, null);
                 alreadySentMgsSocket = true;
                 break;
             case "BLOCKS_COMPONENT":
@@ -249,9 +249,9 @@ public class SimpleWebSocketServer {
                 homeBankingId = blockSplitDTO.getHomeBankingId();
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                     splitBlocks(blockSplitDTO);
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                 }
 
                 break;
@@ -263,9 +263,9 @@ public class SimpleWebSocketServer {
                 homeBankingId = blockMoveDTO.getHomeBankingId();
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                     moveBlock(blockMoveDTO);
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                 }
 
                 break;
@@ -278,9 +278,9 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if (rowUpdateDTO.getUpdatedRows().size() > 0) {
-                    if (sessionIdToSend.equals("botJobTasks")) {
+                    if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                         performDataBase.rowsUpdateName(rowUpdateDTO.getUpdatedRows());
-                    } else if (sessionIdToSend.equals("componentTasks")) {
+                    } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                         performDataBase.rowsCompUpdateName(rowUpdateDTO.getUpdatedRows());
                     }
                 }
@@ -294,7 +294,7 @@ public class SimpleWebSocketServer {
                 homeBankingId = rowMoveDTO.getHomeBankingId();
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
 
                     if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
                             && rowMoveDTO.getDeleteBlockId() != null
@@ -306,7 +306,7 @@ public class SimpleWebSocketServer {
                                 performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
                     }
 
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
 
                     if (performDataBase.updateCompMoveRowsOrder(rowMoveDTO.getUpdatedRows())
                             && rowMoveDTO.getDeleteBlockId() != null
@@ -354,7 +354,7 @@ public class SimpleWebSocketServer {
                     homeBankingId = blockReorder.getHomeBankingId();
                     alreadySentMgsSocket = false;
 
-                    if (sessionIdToSend.equals("botJobTasks")) {
+                    if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                         performDataBase.updateBlockOrderNumber(
                                 performDataBase.selectAllBlocks(
                                         blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
@@ -362,7 +362,7 @@ public class SimpleWebSocketServer {
                         performDataBase.deleteNullBlocks(
                                 blockReorder.getUpdatedBlocks().get(0).getBotJobId());
 
-                    } else if (sessionIdToSend.equals("componentTasks")) {
+                    } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                     }
                 }
                 break;
@@ -374,9 +374,9 @@ public class SimpleWebSocketServer {
                 homeBankingId = InstructionLoadDTO.getHomeBankingId();
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                     performDataBase.updateInstructionStatus(InstructionLoadDTO);
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                     performDataBase.updateCompInstructionStatus(InstructionLoadDTO);
                 }
                 break;
@@ -388,7 +388,7 @@ public class SimpleWebSocketServer {
                 homeBankingId = blockStateDTO.getHomeBankingId();
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                     performDataBase.updateBlockStatus(
                             blockStateDTO.getBotJobId(),
                             blockStateDTO.getBlockId(),
@@ -398,7 +398,7 @@ public class SimpleWebSocketServer {
 
                     performDataBase.updateInstructionStatusByBlock(
                             blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                     performDataBase.updateCompBlockStatus(
                             blockStateDTO.getBotJobId(),
                             blockStateDTO.getBlockId(),
@@ -419,10 +419,10 @@ public class SimpleWebSocketServer {
                 homeBankingId = blockUpdateDTO.getHomeBankingId();
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                     performDataBase.updateBlockName(
                             blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                     performDataBase.updateCompBlockName(
                             blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
                 }
@@ -436,9 +436,9 @@ public class SimpleWebSocketServer {
                 homeBankingId = deleteInstructionLoadDTO.getHomeBankingId();
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                     performDataBase.deleteInstruction(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO);
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                     performDataBase.deleteComponent(deleteInstructionLoadDTO);
                 }
 
@@ -451,9 +451,9 @@ public class SimpleWebSocketServer {
                 homeBankingId = deleteBlockDTO.getHomeBankingId();
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                     performDataBase.deleteBlock(deleteBlockDTO);
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                     performDataBase.deleteCompBlock(deleteBlockDTO);
                 }
 
@@ -467,10 +467,10 @@ public class SimpleWebSocketServer {
 
                 alreadySentMgsSocket = false;
 
-                if (sessionIdToSend.equals("botJobTasks")) {
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
                     performDataBase.rollBackBlocksRows("instructions", rollBackBlocksDTO);
                     performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                } else if (sessionIdToSend.equals("componentTasks")) {
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                     performDataBase.rollBackBlocksRows("component_instructions", rollBackBlocksDTO);
                     performDataBase.deleteCompNullBlocks(
                             rollBackBlocksDTO.getHomeBankingId(), rollBackBlocksDTO.getBotJobId());
@@ -479,11 +479,11 @@ public class SimpleWebSocketServer {
                 break;
 
             default:
-                sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
+                sendMessageJson(session, type, "Action type : \"" + type + "\"", "cannot be processed");
                 break;
         }
 
-        if (!alreadySentMgsSocket && sessionIdToSend.equals("botJobTasks")) {
+        if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
             this.botJobLoadList = performDataBase.loadCompleteJobs(botJobIdTask);
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
@@ -492,14 +492,17 @@ public class SimpleWebSocketServer {
             }
             sendMessageJson(sessionIdToSend, jsonData, "updateInstructions");
 
-        } else if (!alreadySentMgsSocket && sessionIdToSend.equals("componentTasks")) {
+        } else if (!alreadySentMgsSocket
+                && (sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
             this.botJobLoadList = performDataBase.loadComponentsComplete(homeBankingId);
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
+
+            broadcastMessageToAll("componentTasks", jsonData, "componentsUpdate");
+            //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
     }
 
@@ -544,23 +547,32 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void broadcastMessageToAll(String message) {
-        for (Session session : activeSessions.values()) { // Looping correctly
-            if (session.isOpen()) {
-                sendMessageJson(session, message, null);
+    public static void broadcastMessageToAll(String broadTo, String body, String operationId) {
+        for (Map.Entry<String, Session> entry : activeSessions.entrySet()) {
+            String sessionKey = entry.getKey();
+            Session session = entry.getValue();
+
+            // Ensure session is open before sending
+            if (session.isOpen() && sessionKey.contains(broadTo)) {
+                try {
+                    sendMessageJson(session, entry.getKey(), body, operationId);
+                } catch (Exception e) {
+                    System.err.println("Failed to send message to session: " + sessionKey);
+                    e.printStackTrace();
+                }
             }
         }
     }
 
-    //    private void broadcastMessageToAll(String message) {
-    //        synchronized (sessions) {
-    //            for (Session session : sessions) {
-    //                if (session.isOpen()) {
-    //                    sendMessageJson(session, message, null);
-    //                }
-    //            }
-    //        }
-    //    }
+    private void broadcastMessageToAll(String message) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+
+        for (Session session : activeSessions.values()) { // Looping correctly
+            if (session.isOpen()) {
+                sendMessageJson(session, "Broad-All", message, null);
+            }
+        }
+    }
 
     private void sendMessage(Session session, String message) {
         try {
@@ -571,16 +583,17 @@ public class SimpleWebSocketServer {
     }
 
     // Method to send a message to a specific session ID
-    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    public static void sendMessageJson(String sessionId, String body, String operationId) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {
             try {
                 JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", msg1);
+                jsonMessage.addProperty("body", body);
                 jsonMessage.addProperty("sessionId", sessionId);
-                if (msg2 != null && !msg2.isEmpty()) {
-                    jsonMessage.addProperty("operationId", msg2);
+                if (operationId != null && !operationId.isEmpty()) {
+                    jsonMessage.addProperty("operationId", operationId);
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
             } catch (IOException e) {
@@ -591,21 +604,21 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void sendMessageJson(Session session, String msg1, String msg2) {
-        try {
-            // Create a JSON object with the key "body" and the provided message
-            JsonObject jsonMessage = new JsonObject();
-            jsonMessage.addProperty("body", msg1);
-            if (!Strings.isNullOrEmpty(msg2)) {
-                jsonMessage.addProperty("footer", msg2);
+    private static void sendMessageJson(Session session, String sessionId, String body, String operationId) {
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("body", body);
+                jsonMessage.addProperty("sessionId", sessionId);
+                if (operationId != null && !operationId.isEmpty()) {
+                    jsonMessage.addProperty("operationId", operationId);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
-            // Convert the JSON object to a string
-            String jsonString = jsonMessage.toString();
-
-            // Send the JSON string over WebSocket
-            session.getBasicRemote().sendText(jsonString);
-        } catch (IOException e) {
-            System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -736,7 +749,7 @@ public class SimpleWebSocketServer {
 
         ErrorMessage errorMessage = performDataBase.injectNewComponent(blockDetailsDTO);
         if (errorMessage == null) {
-            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getHomeBankingId());
+            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
 
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {

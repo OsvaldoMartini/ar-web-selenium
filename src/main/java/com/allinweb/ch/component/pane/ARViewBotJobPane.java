@@ -5,7 +5,6 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
-import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
@@ -88,6 +87,7 @@ public class ARViewBotJobPane extends ARPane {
 
     private BotJobLoadDTO botJobLoad;
     private List<BotJobLoadDTO> botJobLoadList;
+    private List<BotJobLoadDTO> botJobLoadComp;
 
     private BlockLoadDTO blockLoad;
     private List<BlockLoadDTO> blockLoadList;
@@ -386,42 +386,47 @@ public class ARViewBotJobPane extends ARPane {
         Gson gson = new Gson();
         String jsonData = "";
 
+        createExcelDataFile();
+
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (this.botJobLoadList.size() > 0) {
-            createExcelDataFile();
-
             List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-            performMessage.outputJson(blockLoopInstructions, "instructions");
+            performMessage.outputJson(blockLoopInstructions, "botJobTasks-" + this.botJobLoad.getId());
             jsonData = gson.toJson(blockLoopInstructions);
 
         } else {
 
-            BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-            botJobDTO.setId(this.botJobLoad.getId());
-            botJobDTO.setName(this.botJobLoad.getName());
-            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-            this.botJobLoadList.add(botJobDTO);
+            //            BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+            //            botJobDTO.setId(this.botJobLoad.getId());
+            //            botJobDTO.setName(this.botJobLoad.getName());
+            //            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+            //            this.botJobLoadList.add(botJobDTO);
 
-            createExcelDataFile();
-
-            PayloadJson payload = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
-            // Convert the object to JSON using Gson
-            jsonData = gson.toJson(payload);
+            //            PayloadJson payload = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
+            //            // Convert the object to JSON using Gson
+            //            jsonData = gson.toJson(payload);
         }
 
         webEngineTasks = webViewTasks.getEngine();
         webEngineTasks.javaScriptEnabledProperty().set(true);
 
         // (SENDER: insertTool) -> botJobTasks
-        sessionId = "botJobTasks";
-        buildWebView(webEngineTasks, jsonData, finalPort, sessionId, this.botJobLoad.getHomeBankingId());
+        sessionId = "botJobTasks-" + this.botJobLoad.getId();
+        buildWebView(
+                webEngineTasks,
+                jsonData,
+                finalPort,
+                sessionId,
+                this.botJobLoad.getHomeBankingId(),
+                this.botJobLoad.getId(),
+                this.botJobLoad.getName());
 
         componentBox = new HBox(new Node[] {this.webViewTasks});
 
-        this.botJobLoadList = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
-        if (this.botJobLoadList.size() > 0) {
-            List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-            performMessage.outputJson(blockLoopInstructions, "components");
+        this.botJobLoadComp = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
+        if (this.botJobLoadComp.size() > 0) {
+            List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadComp);
+            performMessage.outputJson(blockLoopInstructions, "componentTasks-" + this.botJobLoad.getId());
             jsonData = gson.toJson(blockLoopInstructions);
         } else {
             jsonData = "[]";
@@ -431,8 +436,15 @@ public class ARViewBotJobPane extends ARPane {
         webEngineComp.javaScriptEnabledProperty().set(true);
 
         // (SENDER: insertTool) -> botJobTasks -> componentTasks
-        sessionId = "componentTasks";
-        buildWebView(webEngineComp, jsonData, finalPort, sessionId, this.botJobLoad.getHomeBankingId());
+        sessionId = "componentTasks-" + this.botJobLoad.getId();
+        buildWebView(
+                webEngineComp,
+                jsonData,
+                finalPort,
+                sessionId,
+                this.botJobLoad.getHomeBankingId(),
+                this.botJobLoad.getId(),
+                this.botJobLoad.getName());
 
         // Make webView expand both horizontally and vertically
         HBox.setHgrow(this.webViewTasks, Priority.ALWAYS);
@@ -522,16 +534,22 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void buildWebView(
-            WebEngine webEngine, String jsonData, int finalPort, String sessionIdFromJava, int homeBanking) {
+            WebEngine webEngine,
+            String jsonData,
+            int finalPort,
+            String sessionIdFromJava,
+            int homeBanking,
+            int botJobId,
+            String botJobName) {
         webEngine.load(getClass().getResource("/build/index.html").toExternalForm());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 // After the page has successfully loaded
                 try {
-                    webEngine.executeScript(
-                            "setTimeout(function() { window.receiveDataFromJava(JSON.stringify(" + jsonData + "), "
-                                    + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + " ) }, 1000)");
+                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
+                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
+                            + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
                     ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
                 }

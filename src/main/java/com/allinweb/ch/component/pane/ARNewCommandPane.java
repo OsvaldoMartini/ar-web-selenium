@@ -184,9 +184,7 @@ public class ARNewCommandPane extends ARPane {
             ObservableList<ComboBoxVars> webPageItems,
             String sessionId) {
 
-        if (activeSessions == null) {
-            activeSessions = SimpleWebSocketServer.getAllSessions();
-        }
+        activeSessions = SimpleWebSocketServer.getAllSessions();
 
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
@@ -2451,9 +2449,8 @@ public class ARNewCommandPane extends ARPane {
     //    }
 
     private void broadcastMessageToAll(String message) {
-        if (activeSessions == null) {
-            activeSessions = SimpleWebSocketServer.getAllSessions();
-        }
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+
         for (Session session : activeSessions.values()) { // Looping correctly
             if (session.isOpen()) {
                 sendMessageJson(session, message, null);
@@ -2462,6 +2459,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {

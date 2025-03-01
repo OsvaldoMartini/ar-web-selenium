@@ -18,8 +18,6 @@ import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -94,10 +92,6 @@ public class ARSaveComponentPane extends ARPane {
 
     public ARSaveComponentPane(BlockDetailsDTO blockDetailsDTO) {
         this.blockDetailsDTO = blockDetailsDTO;
-
-        if (activeSessions == null) {
-            activeSessions = SimpleWebSocketServer.getAllSessions();
-        }
     }
 
     @Override
@@ -143,7 +137,7 @@ public class ARSaveComponentPane extends ARPane {
 
         Label nameLabel = new Label("Name :         ");
 
-        nameTextField = new TextField("Comp - " + blockDetailsDTO.getBlockName());
+        nameTextField = new TextField(blockDetailsDTO.getBlockName());
         HBox nameHBox = new HBox(nameLabel, nameTextField);
         HBox.setHgrow(nameTextField, Priority.ALWAYS);
         HBox.setMargin(nameLabel, new Insets(ARConstants.SPACE_XS));
@@ -263,7 +257,9 @@ public class ARSaveComponentPane extends ARPane {
                                         performDataBase.buildJsonViewData(botJobLoadList);
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
-                            sendMessageJson(blockDetailsDTO.getSessionId(), jsonData, "componentsUpdate");
+                            // SimpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
+                            // "componentsUpdate");
+                            SimpleWebSocketServer.broadcastMessageToAll("componentTasks", jsonData, "componentsUpdate");
 
                             //                            showAlertTimer(
                             //                                    Alert.AlertType.INFORMATION,
@@ -833,24 +829,25 @@ public class ARSaveComponentPane extends ARPane {
         }
     }
 
-    // Method to send a message to a specific session ID
-    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
-        Session session = activeSessions.get(sessionId);
-
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", msg1);
-                jsonMessage.addProperty("sessionId", sessionId);
-                if (msg2 != null && !msg2.isEmpty()) {
-                    jsonMessage.addProperty("operationId", msg2);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
-    }
+    //    // Method to send a message to a specific session ID
+    //    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    //        activeSessions = SimpleWebSocketServer.getAllSessions();
+    //        Session session = activeSessions.get(sessionId);
+    //
+    //        if (session != null && session.isOpen()) {
+    //            try {
+    //                JsonObject jsonMessage = new JsonObject();
+    //                jsonMessage.addProperty("body", msg1);
+    //                jsonMessage.addProperty("sessionId", sessionId);
+    //                if (msg2 != null && !msg2.isEmpty()) {
+    //                    jsonMessage.addProperty("operationId", msg2);
+    //                }
+    //                session.getBasicRemote().sendText(jsonMessage.toString());
+    //            } catch (IOException e) {
+    //                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+    //            }
+    //        } else {
+    //            System.err.println("Session " + sessionId + " not found or closed.");
+    //        }
+    //    }
 }
