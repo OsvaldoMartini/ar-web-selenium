@@ -172,7 +172,7 @@ public class ExcelUtils {
             System.out.println(e.getMessage());
         }
 
-        List<BlockLoadDTO> blockList = botJobLoad.getBlockLoadDTOList();
+        List<BlockLoadDTO> blockList = performDataBase.loadBlocksByBotJobId(botJobLoad.getId());
 
         Set<String> fieldAddedSet = new HashSet<>();
 
@@ -187,9 +187,6 @@ public class ExcelUtils {
             for (BlockLoadDTO block : blockList) {
                 Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
                 blockNameCell.setCellValue("#" + block.getName());
-
-                List<InstructionLoadDTO> InstructionLoadDTO =
-                        performDataBase.getInstructionsByBlockId(block.getBotJobId(), block.getId());
 
                 // List to store the filtered instructions
                 List<InstructionLoadDTO> filteredInstructions = new ArrayList<>();
