@@ -495,11 +495,11 @@ public class ARSaveComponentPane extends ARPane {
                     // Ensure closing is done on the JavaFX Application Thread
                     Platform.runLater(this::Close);
 
-                } catch (Exception ex) {
+                } catch (Exception error) {
                     // Handle the exception and display a warning message on the JavaFX Application Thread
 
                     ARLogger.getInstance(Task.class)
-                            .severe("Error: Unable to save the block. Please try again.\nError: " + ex.getMessage());
+                            .severe("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
 
                     showAlertTimer(
                             Alert.AlertType.ERROR,
