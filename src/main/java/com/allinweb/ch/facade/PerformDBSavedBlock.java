@@ -319,7 +319,7 @@
 //                        + "'" + blockDTO.getName() + "', " // name
 //                        + 1 + ", " // type_id
 //                        + blockDTO.getBotJobDTO().getId() + ", " // bot_job_id, assuming BotJobDTO has an ID
-//                        + blockDTO.getActive() + ", " // active
+//                        + (blockDTO.getActive()? 1 : 0) + ", " // active
 //                        + ")";
 //
 //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {

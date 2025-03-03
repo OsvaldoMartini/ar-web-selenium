@@ -909,7 +909,7 @@ public class PerformDataBase {
                         + "'" + blockDTO.getBlockName() + " description', " // description
                         + "'" + blockDTO.getBlockName() + "', " // name
                         + 1 + ", " // type_id
-                        + blockDTO.getActive() + ", " // active
+                        + (blockDTO.getActive()? 1 : 0) + ", " // active
                         + 3 + ", " // wait
                         + botJobId + ")"; // bot_job_id, assuming BotJobDTO has an ID
         try (Statement stmt = getConnection().createStatement()) {
