@@ -909,7 +909,7 @@ public class PerformDataBase {
                         + "'" + blockDTO.getBlockName() + " description', " // description
                         + "'" + blockDTO.getBlockName() + "', " // name
                         + 1 + ", " // type_id
-                        + (blockDTO.getActive()? 1 : 0) + ", " // active
+                        + (blockDTO.getActive() ? 1 : 0) + ", " // active
                         + 3 + ", " // wait
                         + botJobId + ")"; // bot_job_id, assuming BotJobDTO has an ID
         try (Statement stmt = getConnection().createStatement()) {
@@ -2607,8 +2607,6 @@ public class PerformDataBase {
     public int insertInstruction(
             InstructionLoadDTO InstructionLoadDTO, Integer currentBotJobId, Integer currentBlockId) {
 
-        boolean isPostgres = POSTGRES_DB;
-
         try (Statement stmt = getConnection().createStatement()) {
             Integer nextId =
                     InstructionLoadDTO.getId() == null ? loadNextIdInstructionData() + 1 : InstructionLoadDTO.getId();
@@ -2649,95 +2647,51 @@ public class PerformDataBase {
             addColumnValue.accept("variable_id", InstructionLoadDTO.getVariableId());
             addColumnValue.accept("block_id", currentBlockId);
             addColumnValue.accept("bot_job_id", currentBotJobId);
-
             // Add boolean fields with conditional logic
             if (InstructionLoadDTO.getBlockMarked() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("block_marked", InstructionLoadDTO.getBlockMarked());
-                } else if (InstructionLoadDTO.getBlockMarked()) {
-                    addColumnValue.accept("block_marked", 1);
-                }
+                addColumnValue.accept("block_marked", InstructionLoadDTO.getBlockMarked() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getCodified() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("codified", InstructionLoadDTO.getCodified());
-                } else if (InstructionLoadDTO.getCodified()) {
-                    addColumnValue.accept("codified", 1);
-                }
+                addColumnValue.accept("codified", InstructionLoadDTO.getCodified() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getExportToABR() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("export_to_abr", InstructionLoadDTO.getExportToABR());
-                } else if (InstructionLoadDTO.getExportToABR()) {
-                    addColumnValue.accept("export_to_abr", 1);
-                }
+                addColumnValue.accept("export_to_abr", InstructionLoadDTO.getExportToABR() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getOptional() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("optional", InstructionLoadDTO.getOptional());
-                } else if (InstructionLoadDTO.getOptional()) {
-                    addColumnValue.accept("optional", 1);
-                }
+                addColumnValue.accept("optional", InstructionLoadDTO.getOptional() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getInstructionActive() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("active", InstructionLoadDTO.getInstructionActive());
-                } else if (InstructionLoadDTO.getInstructionActive()) {
-                    addColumnValue.accept("active", 1);
-                }
+                addColumnValue.accept("active", InstructionLoadDTO.getInstructionActive() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getExecuted() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("executed", InstructionLoadDTO.getExecuted());
-                } else if (InstructionLoadDTO.getExecuted()) {
-                    addColumnValue.accept("executed", 1);
-                }
+                addColumnValue.accept("executed", InstructionLoadDTO.getExecuted() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getBlockActive() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("block_active", InstructionLoadDTO.getBlockActive());
-                } else if (InstructionLoadDTO.getBlockActive()) {
-                    addColumnValue.accept("block_active", 1);
-                }
+                addColumnValue.accept("block_active", InstructionLoadDTO.getBlockActive() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getRefreshLoop() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("refresh_loop", InstructionLoadDTO.getRefreshLoop());
-                } else if (InstructionLoadDTO.getRefreshLoop()) {
-                    addColumnValue.accept("refresh_loop", 1);
-                }
+                addColumnValue.accept("refresh_loop", InstructionLoadDTO.getRefreshLoop() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getLoopOnly() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("loop_only", InstructionLoadDTO.getLoopOnly());
-                } else if (InstructionLoadDTO.getLoopOnly()) {
-                    addColumnValue.accept("loop_only", 1);
-                }
+                addColumnValue.accept("loop_only", InstructionLoadDTO.getLoopOnly() ? 1 : 0);
             }
 
             if (InstructionLoadDTO.getForceCoordinates() != null) {
-                if (isPostgres) {
-                    addColumnValue.accept("force_coordinates", InstructionLoadDTO.getForceCoordinates());
-                } else if (InstructionLoadDTO.getForceCoordinates()) {
-                    addColumnValue.accept("force_coordinates", 1);
-                }
+                addColumnValue.accept("force_coordinates", InstructionLoadDTO.getForceCoordinates() ? 1 : 0);
             }
 
-            //            if (InstructionLoadDTO.getEditMode() != null) {
-            //                if (isPostgres) {
-            //                    addColumnValue.accept("edit_mode", InstructionLoadDTO.getEditMode());
-            //                } else if (InstructionLoadDTO.getEditMode()) {
-            //                    addColumnValue.accept("edit_mode", 1);
-            //                }
-            //            }
+            // Uncomment if needed
+            // if (InstructionLoadDTO.getEditMode() != null) {
+            //     addColumnValue.accept("edit_mode", InstructionLoadDTO.getEditMode() ? 1 : 0);
+            // }
 
             // Construct final SQL query
             String insertSQL = String.format("INSERT INTO instruction (%s) VALUES (%s)", columns, values);

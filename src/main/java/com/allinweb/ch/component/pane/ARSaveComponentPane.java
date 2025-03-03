@@ -657,7 +657,7 @@ public class ARSaveComponentPane extends ARPane {
                         + "'" + blockDTO.getName() + "', " // name
                         + 1 + ", " // type_id
                         + blockDTO.getBotJobId() + ", " // bot_job_id, assuming BotJobDTO has an ID
-                        + (blockDTO.getActive()? 1 : 0) + ", " // active
+                        + (blockDTO.getActive() ? 1 : 0) + ", " // active
                         + ")";
 
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
