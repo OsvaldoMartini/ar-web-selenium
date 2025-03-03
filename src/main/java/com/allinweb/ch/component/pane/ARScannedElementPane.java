@@ -489,9 +489,9 @@ public class ARScannedElementPane extends ARPane {
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
 
         searchWithIdsButton = componentBuilder.buildButton(
-                "With IDs", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Defined Identifiers", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
         searchWithNamesButton = componentBuilder.buildButton(
-                "With Names", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Defined Names", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
         searchButtons = componentBuilder.buildButton(
                 "Buttons", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
@@ -511,6 +511,7 @@ public class ARScannedElementPane extends ARPane {
 
         includeAllSelected = new Button("Include All Below to the Job");
         includeAllSelected.setStyle("-fx-background-color: green; -fx-text-fill: white;");
+        includeAllSelected.setVisible(false);
 
         cleanListButton = componentBuilder.buildButton(
                 "", // No text
