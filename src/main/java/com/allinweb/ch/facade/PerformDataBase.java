@@ -13,7 +13,6 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
-import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -5268,7 +5267,7 @@ public class PerformDataBase {
      * @throws SQLException
      */
     public ErrorMessage injectNewComponent(BlockDetailsDTO blockDetailsDTO) {
-        ARLogger.getInstance(ARSaveComponentPane.class)
+        ARLogger.getInstance(PerformDataBase.class)
                 .fine("Saving New Component Block: " + blockDetailsDTO.getBlockName());
 
         try (Connection conn = getConnection()) {
