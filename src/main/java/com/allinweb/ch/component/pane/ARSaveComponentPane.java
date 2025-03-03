@@ -244,7 +244,7 @@ public class ARSaveComponentPane extends ARPane {
                         };
                         // Now you can proceed with duplicating the related tables
                         ErrorMessage errorMessage =
-                                performDataBase.saveNewComponent(conn, blockDetailsDTO, arrayTables);
+                                performDataBase.saveNewComponent(conn, blockDetailsDTO, false, arrayTables);
 
                         if (errorMessage == null) {
 
@@ -714,6 +714,7 @@ public class ARSaveComponentPane extends ARPane {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
                 InstructionLoadDTO instruction = new InstructionLoadDTO();
                 instruction.setInstructionId(rs.getInt("id"));
+                instruction.setHomeBankingId(rs.getInt("home_banking_id"));
                 instruction.setInstructionName(rs.getString("name"));
                 instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instruction.setBlockId(rs.getInt("block_id"));

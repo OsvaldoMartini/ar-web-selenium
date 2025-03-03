@@ -172,12 +172,20 @@ public class ARSaveClonePane extends ARPane {
                 return;
             }
 
+            int homeBankId = botJobList.get(0).getHomeBankingId();
+
             try (Connection conn = performDataBase.getConnection()) {
                 int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
 
                 String[] arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
                 ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
-                        conn, selecBotJobDTO.getId(), newBotJobId, newBotJobName, newDescription, arrayTables);
+                        conn,
+                        homeBankId,
+                        selecBotJobDTO.getId(),
+                        newBotJobId,
+                        newBotJobName,
+                        newDescription,
+                        arrayTables);
 
                 if (errorMessage == null) {
                     showAlertTimer(

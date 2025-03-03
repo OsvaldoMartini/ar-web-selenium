@@ -466,9 +466,16 @@ public class ARConfigurationPane extends ARPane {
             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
 
             List<InstructionLoadDTO> instList = null;
+
             for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
+
                 instList = performDataBase.instructionsToDuplicate(
-                        conn, botJobLoadDTO.getId(), -1, "instruction", "block"); // instruction
+                        conn,
+                        botJobLoadDTO.getHomeBankingId(),
+                        botJobLoadDTO.getId(),
+                        -1,
+                        "instruction",
+                        "block"); // instruction
                 break;
             }
 

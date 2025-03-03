@@ -2042,7 +2042,7 @@ public class PerformDataBase {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
                 InstructionLoadDTO instruction = new InstructionLoadDTO();
                 instruction.setInstructionId(rs.getInt("id"));
-                instruction.setBotJobId(rs.getInt("bot_job_id"));
+                instruction.setHomeBankingId(rs.getInt("home_banking_id"));
                 instruction.setBlockId(rs.getInt("block_id"));
 
                 instruction.setInstructionName(rs.getString("name"));
@@ -3315,14 +3315,21 @@ public class PerformDataBase {
 
     public List<VariableLoadDTO> instVariablesToDuplicateNEW(
             Connection conn, int oldBotJobId, int oldBlockId, String targetTable) throws SQLException {
-        String query = "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var.bot_job_id " + " FROM "
-                + targetTable + " var";
+
+        // Determine if we need to use home_banking_id instead of bot_job_id
+        String idColumn = targetTable.equalsIgnoreCase("component_variable") ? "home_banking_id" : "bot_job_id";
+
+        // Build the base query
+        String query = "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var." + idColumn;
+
+        // Adjust the query based on oldBlockId
+        query += " FROM " + targetTable + " var";
 
         if (oldBlockId > -1) {
-            query +=
-                    " JOIN instruction bli ON bli.id = var.instruction_id and var.bot_job_id = ? and bli.block_id = ?  ";
+            query += " JOIN instruction bli ON bli.id = var.instruction_id AND var." + idColumn
+                    + " = ? AND bli.block_id = ? ";
         } else {
-            query += " WHERE var.bot_job_id = ? ";
+            query += " WHERE var." + idColumn + " = ? ";
         }
 
         query += " ORDER BY var.id";
@@ -3331,6 +3338,7 @@ public class PerformDataBase {
 
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
 
+            // Set parameters based on the existence of oldBlockId
             if (oldBlockId > -1) {
                 stmt.setInt(1, oldBotJobId);
                 stmt.setInt(2, oldBlockId);
@@ -3338,6 +3346,7 @@ public class PerformDataBase {
                 stmt.setInt(1, oldBotJobId);
             }
 
+            // Execute the query and process results
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 VariableLoadDTO variableDTO = new VariableLoadDTO();
@@ -3346,7 +3355,12 @@ public class PerformDataBase {
                 variableDTO.setType(rs.getString("type"));
                 variableDTO.setValue(rs.getString("value"));
                 variableDTO.setInstructionId(rs.getInt("instruction_id"));
-                variableDTO.setBotJobId(rs.getInt("bot_job_id"));
+
+                if (targetTable.equalsIgnoreCase("instruction")) {
+                    variableDTO.setBotJobId(rs.getInt("bot_job_id"));
+                } else if (targetTable.equalsIgnoreCase("component_instruction")) {
+                    variableDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                }
 
                 variableDTOList.add(variableDTO); // Add to the list
             }
@@ -3384,14 +3398,22 @@ public class PerformDataBase {
 
     public List<InstructionReferenceLoadDTO> instReferenceToDuplicateNew(
             Connection conn, int oldBotJobId, int oldBlockId, String table1, String table2) throws SQLException {
-        String query = "SELECT ref.id, ref.reference_type, ref.value, ref.instruction_id, ref.bot_job_id " + "  FROM "
-                + table1 + " ref ";
 
+        // Determine the column to use for filtering based on table1
+        String idColumn = table1.equalsIgnoreCase("component_reference") ? "home_banking_id" : "bot_job_id";
+
+        // Build the query string
+        String query = "SELECT ref.id, ref.reference_type, ref.value, ref.instruction_id, ref." + idColumn;
+
+        // Adjust the query based on oldBlockId
+        query += " FROM " + table1 + " ref";
+
+        // Adjust the query for oldBlockId
         if (oldBlockId > -1) {
-            query += " JOIN " + table2
-                    + " bli ON bli.id = ref.instruction_id and ref.bot_job_id = ? and bli.block_id = ?  ";
+            query += " JOIN " + table2 + " bli ON bli.id = ref.instruction_id and ref." + idColumn
+                    + " = ? and bli.block_id = ? ";
         } else {
-            query += " WHERE ref.bot_job_id = ? ";
+            query += " WHERE ref." + idColumn + " = ? ";
         }
 
         query += " ORDER BY ref.id";
@@ -3400,6 +3422,7 @@ public class PerformDataBase {
 
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
 
+            // Set the parameters based on oldBlockId presence
             if (oldBlockId > -1) {
                 stmt.setInt(1, oldBotJobId);
                 stmt.setInt(2, oldBlockId);
@@ -3407,6 +3430,7 @@ public class PerformDataBase {
                 stmt.setInt(1, oldBotJobId);
             }
 
+            // Execute the query and process the results
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 InstructionReferenceLoadDTO referenceDTO = new InstructionReferenceLoadDTO();
@@ -3414,13 +3438,18 @@ public class PerformDataBase {
                 referenceDTO.setReferenceType(rs.getString("reference_type"));
                 referenceDTO.setValue(rs.getString("value"));
                 referenceDTO.setBlockLoopInstructionId(rs.getInt("instruction_id"));
-                referenceDTO.setBotJobId(rs.getInt("bot_job_id"));
 
-                referenceDTOList.add(referenceDTO);
+                if (table1.equalsIgnoreCase("instruction")) {
+                    referenceDTO.setBotJobId(rs.getInt("bot_job_id"));
+                } else if (table1.equalsIgnoreCase("component_instruction")) {
+                    referenceDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                }
+
+                referenceDTOList.add(referenceDTO); // Add to the list
             }
         }
 
-        return referenceDTOList;
+        return referenceDTOList; // Return the list of reference DTOs
     }
 
     public List<ComplexInstructionLoadDTO> instComplexToDuplicate(
@@ -3473,16 +3502,22 @@ public class PerformDataBase {
     }
 
     public List<InstructionLoadDTO> instructionsToDuplicate(
-            Connection conn, int oldBotJobId, int oldBlockId, String table1, String table2) throws SQLException {
-        String query =
-                "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, bli.codified, bli.default_value, \n"
-                        + " bli.description, bli.export_to_abr, bli.instruction_order_number, bli.name, bli.on_hold_seconds, "
-                        + " bli.operation, bli.optional, \n"
-                        + " bli.parent_id, bli.xpath, bli.coordinates, bli.iframe_xpath, bli.force_coordinates, "
-                        + " bli.variable_id, bli.block_id, bli.bot_job_id, blk.block_order_number \n"
-                        + " FROM " + table1 + " bli \n"
-                        + " JOIN " + table2 + " blk ON bli.block_id = blk.id \n"
-                        + " WHERE bli.bot_job_id = ? ";
+            Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String table1, String table2)
+            throws SQLException {
+
+        // Determine the column to use for filtering
+        String idColumn = table1.equalsIgnoreCase("component_instruction") ? "home_banking_id" : "bot_job_id";
+
+        // Build the query
+        String query = "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, "
+                + "bli.codified, bli.default_value, bli.description, bli.export_to_abr, bli.instruction_order_number, "
+                + "bli.name, bli.on_hold_seconds, bli.operation, bli.optional, bli.parent_id, bli.xpath, bli.coordinates, "
+                + "bli.iframe_xpath, bli.force_coordinates, bli.variable_id, bli.block_id, blk.block_order_number, bli."
+                + idColumn;
+
+        query += " FROM " + table1 + " bli "
+                + " JOIN " + table2 + " blk ON bli.block_id = blk.id "
+                + " WHERE bli." + idColumn + " = ? ";
 
         if (oldBlockId > -1) {
             query += " and blk.id = ? ";
@@ -3491,7 +3526,12 @@ public class PerformDataBase {
         List<InstructionLoadDTO> InstructionLoadDTOList = new ArrayList<>();
 
         try (PreparedStatement stmt = conn.prepareStatement(query)) {
-            stmt.setInt(1, oldBotJobId);
+            if (table1.equalsIgnoreCase("instruction")) {
+                stmt.setInt(1, oldBotJobId);
+            } else if (table1.equalsIgnoreCase("component_instruction")) {
+                stmt.setInt(1, homeBankingId);
+            }
+
             if (oldBlockId > -1) {
                 stmt.setInt(2, oldBlockId);
             }
@@ -3520,8 +3560,14 @@ public class PerformDataBase {
                 InstructionLoadDTO.setIFrameXPath(rs.getString("iframe_xpath"));
                 InstructionLoadDTO.setVariableId(rs.getInt("variable_id"));
                 InstructionLoadDTO.setBlockId(rs.getInt("block_id"));
-                InstructionLoadDTO.setBotJobId(rs.getInt("bot_job_id"));
                 InstructionLoadDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
+
+                if (table1.equalsIgnoreCase("instruction")) {
+                    InstructionLoadDTO.setBotJobId(rs.getInt("bot_job_id"));
+                } else if (table1.equalsIgnoreCase("component_instruction")) {
+                    InstructionLoadDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                }
+
                 InstructionLoadDTOList.add(InstructionLoadDTO);
             }
         }
@@ -3531,6 +3577,7 @@ public class PerformDataBase {
 
     public ErrorMessage duplicateBotJobById(
             Connection conn,
+            int homeBankId,
             int oldBotJobId,
             int newBotJobId,
             String newName,
@@ -3552,7 +3599,7 @@ public class PerformDataBase {
 
             // Now you can proceed with duplicating the related tables
             // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-            ErrorMessage errorMessage = duplicateRelatedTables(conn, oldBotJobId, newBotJobId, arrayTables);
+            ErrorMessage errorMessage = duplicateRelatedTables(conn, homeBankId, oldBotJobId, newBotJobId, arrayTables);
             if (errorMessage != null) {
                 return errorMessage;
             }
@@ -3724,7 +3771,8 @@ public class PerformDataBase {
      * @return
      * @throws SQLException
      */
-    public ErrorMessage saveNewComponent(Connection conn, BlockDetailsDTO blockDetailsDTO, String[] arrayTables)
+    public ErrorMessage saveNewComponent(
+            Connection conn, BlockDetailsDTO blockDetailsDTO, boolean injected, String[] arrayTables)
             throws SQLException {
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
@@ -3743,6 +3791,11 @@ public class PerformDataBase {
             // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
             int currentId = getMaxId(conn, arrayTables[1]) + 1; // block  or component_block
 
+            int nextBlockOrder = -1;
+            if (injected) {
+                nextBlockOrder = loadNextBlockOrderNumber(blockDetailsDTO.getBotJobId()) + 1;
+            }
+
             // Assuming instList is a List<InstructionLoadDTO> and refersList is a List<InstructionReferenceLoadDTO>
             for (BlockLoadDTO block : blockList) {
                 blocksOlderAndNewId.put(block.getId(), currentId);
@@ -3751,6 +3804,11 @@ public class PerformDataBase {
                 block.setHomeBankingId(homeBankId);
                 block.setName(blockDetailsDTO.getBlockName());
                 block.setDescription(blockDetailsDTO.getBlockDescription());
+
+                if (injected) {
+                    block.setBlockOrderNumber(nextBlockOrder);
+                }
+
                 currentId++;
             }
             // Duplicate Blocks
@@ -3768,7 +3826,7 @@ public class PerformDataBase {
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
         List<InstructionLoadDTO> instList = instructionsToDuplicate(
-                conn, newBotJobId, oldBlockId, arrayTables[2], arrayTables[0]); // instruction vs block
+                conn, homeBankId, newBotJobId, oldBlockId, arrayTables[2], arrayTables[0]); // instruction vs block
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         List<VariableLoadDTO> varsList =
@@ -3803,12 +3861,20 @@ public class PerformDataBase {
                 }
 
                 // Loop through the instList and find a matching InstructionLoadDTO
-                for (BlockLoadDTO block : blockList) {
-                    if (instruction.getBlockOrderNumber().equals(block.getBlockOrderNumber())) {
+                if (injected) {
+                    for (BlockLoadDTO block : blockList) {
                         // Once found, update the blockLoopInstructionId with the new instructionId
                         instruction.setBlockId(block.getId());
                         instruction.setHomeBankingId(block.getHomeBankingId());
-                        break; // Exit the inner loop since we've found a match
+                    }
+                } else {
+                    for (BlockLoadDTO block : blockList) {
+                        if (instruction.getBlockOrderNumber().equals(block.getBlockOrderNumber())) {
+                            // Once found, update the blockLoopInstructionId with the new instructionId
+                            instruction.setBlockId(block.getId());
+                            instruction.setHomeBankingId(block.getHomeBankingId());
+                            break; // Exit the inner loop since we've found a match
+                        }
                     }
                 }
                 currentId++;
@@ -3932,7 +3998,8 @@ public class PerformDataBase {
         return null;
     }
 
-    public ErrorMessage duplicateRelatedTables(Connection conn, int oldBotJobId, int newBotJobId, String[] arrayTables)
+    public ErrorMessage duplicateRelatedTables(
+            Connection conn, int homeBankId, int oldBotJobId, int newBotJobId, String[] arrayTables)
             throws SQLException {
 
         Map<Integer, Integer> blocksOlderAndNewId = new HashMap<>();
@@ -3963,8 +4030,9 @@ public class PerformDataBase {
         Map<Integer, Integer> variableOlderAndNewId = new HashMap<>();
 
         // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-        List<InstructionLoadDTO> instList =
-                instructionsToDuplicate(conn, oldBotJobId, -1, arrayTables[1], arrayTables[0]); // instruction
+        List<InstructionLoadDTO> instList = instructionsToDuplicate(
+                conn, homeBankId, oldBotJobId, -1, arrayTables[1], arrayTables[0]); // instruction
+
         List<VariableLoadDTO> varsList = instVariablesToDuplicateNEW(conn, oldBotJobId, -1, arrayTables[4]);
 
         // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
@@ -4135,7 +4203,16 @@ public class PerformDataBase {
                 blockDTO.setTypeId(rs.getInt("type_id"));
                 blockDTO.setWait(rs.getInt("wait"));
                 blockDTO.setExportFile(rs.getString("export_file"));
-                blockDTO.setBotJobId(rs.getInt("bot_job_id"));
+
+                // Include bot_job_id if tableName is "block"
+                if (tableName.equalsIgnoreCase("block")) {
+                    blockDTO.setBotJobId(rs.getInt("bot_job_id"));
+                }
+                // Include home_banking_id if tableName is "component_block"
+                if (tableName.equalsIgnoreCase("component_block")) {
+                    blockDTO.setHomeBankingId(rs.getInt("home_banking_id"));
+                }
+
                 blockDTO.setActive(true); // You can set this based on your logic, assuming active as true for now
 
                 blockDTOList.add(blockDTO); // Add to the list
@@ -5208,7 +5285,7 @@ public class PerformDataBase {
                 "complex" // 9
             };
             // Now you can proceed with duplicating the related tables
-            return saveNewComponent(conn, blockDetailsDTO, arrayTables);
+            return saveNewComponent(conn, blockDetailsDTO, true, arrayTables);
 
         } catch (SQLException error) {
             System.out.println(error.getMessage());
