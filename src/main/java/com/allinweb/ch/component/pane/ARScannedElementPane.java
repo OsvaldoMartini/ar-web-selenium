@@ -7669,7 +7669,7 @@ public class ARScannedElementPane extends ARPane {
             extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
         }
 
-        if (extractedData.getErrorMessage() != null) {
+        if (extractedData != null && extractedData.getErrorMessage() != null) {
 
             //            Text variableText1Styled = new Text("Verify the Possible Errors:");
             //            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");

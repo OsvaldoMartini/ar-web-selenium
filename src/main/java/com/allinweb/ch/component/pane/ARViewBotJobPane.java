@@ -692,7 +692,7 @@ public class ARViewBotJobPane extends ARPane {
                 // Check if the Excel file already exists
                 ExtractedData extractedData = ExcelUtils.isFileExists(this.botJobLoad.getName(), allActions);
 
-                if (extractedData.getErrorMessage() != null) {
+                if (extractedData != null && extractedData.getErrorMessage() != null) {
 
                     performMessage.errorMessage(
                             "Excel Error",
