@@ -571,7 +571,7 @@ public class ARViewBotJobPane extends ARPane {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
 
-            new ARViewBotJobScene(this.botJobLoad).show();
+            new ARViewBotJobScene(this.botJobLoad).showModal();
         });
         //        saveAsBotJobButton.setOnMouseClicked(e -> new ARSaveBotJobAsScene(this.botJobLoad.getId()).show());
         this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());

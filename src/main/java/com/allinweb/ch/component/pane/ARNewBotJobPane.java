@@ -212,7 +212,7 @@ public class ARNewBotJobPane extends ARPane {
                 //                viewBotJobListView.setItems(botJobList);
                 //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
-                new ARViewBotJobScene(createdBotJob).show();
+                new ARViewBotJobScene(createdBotJob).showModal();
 
                 // Close the current window
                 Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();

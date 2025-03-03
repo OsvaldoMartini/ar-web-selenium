@@ -247,7 +247,7 @@ public class ARMainPane extends ARPane {
             if (selecBotJobDTO != null) {
                 try {
                     Platform.runLater(() -> {
-                        new ARViewBotJobScene(selecBotJobDTO).show();
+                        new ARViewBotJobScene(selecBotJobDTO).showModal();
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
                     });
 

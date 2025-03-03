@@ -9,6 +9,7 @@ import java.util.Objects;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
@@ -89,6 +90,18 @@ public abstract class ARScene implements IARScene {
                 }
             }
         });
+    }
+
+    public void showModal() {
+        Stage modalStage = new Stage();
+        IARPane pane = buildPane();
+        if (pane != null) {
+            Scene scene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+            modalStage.setScene(scene);
+            modalStage.setTitle(getTitle());
+            modalStage.initModality(Modality.APPLICATION_MODAL); // Make it modal
+            modalStage.showAndWait(); // Block until this window is closed
+        }
     }
 
     private void handleCloseApp(Stage stage) {
