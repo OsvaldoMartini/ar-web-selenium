@@ -11,7 +11,7 @@ import javafx.stage.Stage;
 
 public class ARControlPanel extends Application {
 
-    private static boolean isEnabledLicence = true;
+    private static boolean isEnabledLicence = false;
 
     @Override
     public void start(Stage stage) throws Exception {

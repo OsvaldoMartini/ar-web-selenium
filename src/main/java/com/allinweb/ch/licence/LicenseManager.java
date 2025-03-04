@@ -1,8 +1,10 @@
 package com.allinweb.ch.licence;
 
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.KnownFolders;
 import com.sun.jna.platform.win32.Shell32;
-import com.sun.jna.platform.win32.ShlObj;
-
+import com.sun.jna.ptr.PointerByReference;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -15,13 +17,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
-import com.sun.jna.Native;
-import com.sun.jna.WString;
-import com.sun.jna.platform.win32.Shell32;
-import com.sun.jna.platform.win32.ShlObj;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
@@ -29,13 +24,18 @@ public class LicenseManager {
     public static void generateRequestFile(String ownerLicence) throws Exception {
         String encryptedRequest = encrypt(ownerLicence + "|" + SystemDetails.getSystemDetails(), KEY);
 
-        // Retrieve Desktop path using Windows API (JNA)
-        char[] path = new char[ShlObj.CSIDL_DESKTOPDIRECTORY];
-        if (Shell32.INSTANCE.SHGetFolderPathW(null, ShlObj.CSIDL_DESKTOPDIRECTORY, null, ShlObj.SHGFP_TYPE_CURRENT, path) != 0) {
+        // Use SHGetKnownFolderPath to get Desktop path
+        PointerByReference ppszPath = new PointerByReference();
+        if (Shell32.INSTANCE
+                        .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
+                        .intValue()
+                != 0) {
             throw new IOException("Failed to get desktop directory.");
         }
 
-        String desktopPath = Native.toString(path).trim(); // Trim to remove extra null characters
+        // Convert pointer to string
+        String desktopPath = ppszPath.getValue().getWideString(0);
+        Native.free(Pointer.nativeValue(ppszPath.getValue()));
 
         // Create the file in the desktop directory
         File newFile = new File(desktopPath, "ARWeb 1.1.0.request");

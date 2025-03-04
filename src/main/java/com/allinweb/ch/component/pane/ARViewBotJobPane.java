@@ -77,6 +77,7 @@ public class ARViewBotJobPane extends ARPane {
     // Set to hold all active WebSocket sessions
     private static Map<String, Session> activeSessions;
     private String sessionId;
+    private Gson gson = new Gson();
 
     private Connection conn = null;
     private ObservableList<VariableUserDTO> variablesList;
@@ -385,7 +386,6 @@ public class ARViewBotJobPane extends ARPane {
         this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
         createExcelDataFile(botJobLoad, botJobLoadList);
 
-        Gson gson = new Gson();
         String jsonData = "[]";
 
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
@@ -567,11 +567,33 @@ public class ARViewBotJobPane extends ARPane {
 
     public void initUIBehaviour() {
         refreshButton.setOnMouseClicked(e -> {
-            stopWebSocketServer();
-            Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-            stage.close();
+            this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
+            String jsonData = "[]";
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                jsonData = gson.toJson(blockLoopInstructions);
+            }
+            String sessionTasks = "botJobTasks-" + this.botJobLoad.getId();
 
-            new ARViewBotJobScene(this.botJobLoad).showModal();
+            SimpleWebSocketServer.sendMessageJson(
+                    this.botJobLoad.getHomeBankingId(), sessionTasks, jsonData, "updateInstructions");
+
+            this.botJobLoadList = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
+            jsonData = "[]";
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                jsonData = gson.toJson(blockLoopInstructions);
+            }
+
+            SimpleWebSocketServer.broadcastMessageToAll(
+                    this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+            //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
+
+            //            stopWebSocketServer();
+            //            Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
+            //            stage.close();
+            //
+            //            new ARViewBotJobScene(this.botJobLoad).showModal();
         });
         //        saveAsBotJobButton.setOnMouseClicked(e -> new ARSaveBotJobAsScene(this.botJobLoad.getId()).show());
         this.botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
