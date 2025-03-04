@@ -734,7 +734,7 @@ public class SimpleWebSocketServer {
                 Platform.runLater(() -> {
                     ARNewCommandScene newCommandScene =
                             new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessionId);
-                    newCommandScene.show();
+                    newCommandScene.showModal();
                 });
             } else {
 
