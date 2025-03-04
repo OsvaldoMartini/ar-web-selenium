@@ -1,6 +1,8 @@
 package com.allinweb.ch.control;
 
 import com.allinweb.ch.component.scene.ARMainScene;
+import com.allinweb.ch.licence.LicenseActivationApp;
+import com.allinweb.ch.licence.LicenseManager;
 import com.allinweb.ch.util.ARPropertyManager;
 import java.util.Arrays;
 import java.util.List;
@@ -8,6 +10,8 @@ import javafx.application.Application;
 import javafx.stage.Stage;
 
 public class ARControlPanel extends Application {
+
+    private static boolean isEnabledLicence = true;
 
     @Override
     public void start(Stage stage) throws Exception {
@@ -28,6 +32,16 @@ public class ARControlPanel extends Application {
             String configurationValue = arguments.get(configurationValueIndex);
             ARPropertyManager.setConfigurationFileName(configurationValue);
         }
-        launch();
+        if (isEnabledLicence) {
+            try {
+                if (!LicenseManager.checkLicenseFile().isActive()) {
+                    Application.launch(
+                            LicenseActivationApp.class,
+                            args); // Lancia l'applicazione di gestione licenza se la condizione  falsa
+                } else launch();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else launch();
     }
 }
