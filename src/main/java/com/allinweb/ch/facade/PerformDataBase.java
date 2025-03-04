@@ -3313,10 +3313,11 @@ public class PerformDataBase {
     }
 
     public List<VariableLoadDTO> instVariablesToDuplicateNEW(
-            Connection conn, int oldBotJobId, int oldBlockId, String targetTable) throws SQLException {
+            Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String targetTable)
+            throws SQLException {
 
         // Determine if we need to use home_banking_id instead of bot_job_id
-        String idColumn = targetTable.equalsIgnoreCase("component_variable") ? "home_banking_id" : "bot_job_id";
+        String idColumn = targetTable.equals("component_variable") ? "home_banking_id" : "bot_job_id";
 
         // Build the base query
         String query = "SELECT var.id, var.name, var.type, var.value, var.instruction_id, var." + idColumn;
@@ -3339,10 +3340,19 @@ public class PerformDataBase {
 
             // Set parameters based on the existence of oldBlockId
             if (oldBlockId > -1) {
-                stmt.setInt(1, oldBotJobId);
-                stmt.setInt(2, oldBlockId);
+                if (targetTable.equals("component_variable")) {
+                    stmt.setInt(1, homeBankingId);
+                    stmt.setInt(2, oldBlockId);
+                } else if (targetTable.equals("variable")) {
+                    stmt.setInt(1, oldBotJobId);
+                    stmt.setInt(2, oldBlockId);
+                }
             } else {
-                stmt.setInt(1, oldBotJobId);
+                if (targetTable.equals("component_variable")) {
+                    stmt.setInt(1, homeBankingId);
+                } else if (targetTable.equals("variable")) {
+                    stmt.setInt(1, oldBotJobId);
+                }
             }
 
             // Execute the query and process results
@@ -3396,7 +3406,8 @@ public class PerformDataBase {
     }
 
     public List<InstructionReferenceLoadDTO> instReferenceToDuplicateNew(
-            Connection conn, int oldBotJobId, int oldBlockId, String table1, String table2) throws SQLException {
+            Connection conn, int homeBankingId, int oldBotJobId, int oldBlockId, String table1, String table2)
+            throws SQLException {
 
         // Determine the column to use for filtering based on table1
         String idColumn = table1.equalsIgnoreCase("component_reference") ? "home_banking_id" : "bot_job_id";
@@ -3423,10 +3434,19 @@ public class PerformDataBase {
 
             // Set the parameters based on oldBlockId presence
             if (oldBlockId > -1) {
-                stmt.setInt(1, oldBotJobId);
-                stmt.setInt(2, oldBlockId);
+                if (table1.equals("component_reference")) {
+                    stmt.setInt(1, homeBankingId);
+                    stmt.setInt(2, oldBlockId);
+                } else if (table1.equals("reference")) {
+                    stmt.setInt(1, oldBotJobId);
+                    stmt.setInt(2, oldBlockId);
+                }
             } else {
-                stmt.setInt(1, oldBotJobId);
+                if (table1.equals("component_reference")) {
+                    stmt.setInt(1, homeBankingId);
+                } else if (table1.equals("reference")) {
+                    stmt.setInt(1, oldBotJobId);
+                }
             }
 
             // Execute the query and process the results
@@ -3532,7 +3552,19 @@ public class PerformDataBase {
             }
 
             if (oldBlockId > -1) {
-                stmt.setInt(2, oldBlockId);
+                if (table1.equals("component_instruction")) {
+                    stmt.setInt(1, homeBankingId);
+                    stmt.setInt(2, oldBlockId);
+                } else if (table1.equals("instruction")) {
+                    stmt.setInt(1, oldBotJobId);
+                    stmt.setInt(2, oldBlockId);
+                }
+            } else {
+                if (table1.equals("component_instruction")) {
+                    stmt.setInt(1, homeBankingId);
+                } else if (table1.equals("instruction")) {
+                    stmt.setInt(1, oldBotJobId);
+                }
             }
 
             ResultSet rs = stmt.executeQuery();
@@ -3829,7 +3861,7 @@ public class PerformDataBase {
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         List<VariableLoadDTO> varsList =
-                instVariablesToDuplicateNEW(conn, newBotJobId, oldBlockId, arrayTables[6]); // variable
+                instVariablesToDuplicateNEW(conn, homeBankId, newBotJobId, oldBlockId, arrayTables[6]); // variable
 
         // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
         // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
@@ -3923,7 +3955,7 @@ public class PerformDataBase {
             // block_|_component_block_|_instruction_|_component_instruction_|_reference_|_component_reference_|_variable_|_component_variable_|_complex_|_component_complex
             // component_block_|_block_|_component_instruction_|_instruction_|_component_reference_|_reference_|_component_variable_|_variable_|_component_complex_|_complex
             List<InstructionReferenceLoadDTO> refersList = instReferenceToDuplicateNew(
-                    conn, newBotJobId, oldBlockId, arrayTables[4], arrayTables[2]); // reference
+                    conn, homeBankId, newBotJobId, oldBlockId, arrayTables[4], arrayTables[2]); // reference
             if (refersList.size() > 0) {
 
                 currentId = getMaxId(conn, arrayTables[5]) + 1; // component_reference vs reference
@@ -4032,7 +4064,7 @@ public class PerformDataBase {
         List<InstructionLoadDTO> instList = instructionsToDuplicate(
                 conn, homeBankId, oldBotJobId, -1, arrayTables[1], arrayTables[0]); // instruction
 
-        List<VariableLoadDTO> varsList = instVariablesToDuplicateNEW(conn, oldBotJobId, -1, arrayTables[4]);
+        List<VariableLoadDTO> varsList = instVariablesToDuplicateNEW(conn, homeBankId, oldBotJobId, -1, arrayTables[4]);
 
         // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
         int currentVarId = getMaxId(conn, arrayTables[4]) + 1;
@@ -4108,7 +4140,7 @@ public class PerformDataBase {
 
             // arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
             List<InstructionReferenceLoadDTO> refersList =
-                    instReferenceToDuplicateNew(conn, oldBotJobId, -1, arrayTables[2], arrayTables[1]);
+                    instReferenceToDuplicateNew(conn, homeBankId, oldBotJobId, -1, arrayTables[2], arrayTables[1]);
             if (refersList.size() > 0) {
 
                 currentId = getMaxId(conn, arrayTables[2]) + 1;
