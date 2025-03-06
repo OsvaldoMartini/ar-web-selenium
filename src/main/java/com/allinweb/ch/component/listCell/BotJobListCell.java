@@ -23,10 +23,13 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
+    private static final ARViewBotJobScene arViewBotJobScene;
+
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
+        arViewBotJobScene = ARViewBotJobScene.getInstance();
     }
 
     @Override
@@ -124,7 +127,9 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             AnchorPane row = new AnchorPane(uiBotJob);
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    new ARViewBotJobScene(item).showModal();
+                    //                    new ARViewBotJobScene(item).showModal();
+                    arViewBotJobScene.initialize(item);
+                    arViewBotJobScene.show();
                 }
             });
             graphic = row;

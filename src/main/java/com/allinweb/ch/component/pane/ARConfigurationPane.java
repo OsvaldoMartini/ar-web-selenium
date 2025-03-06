@@ -328,7 +328,7 @@ public class ARConfigurationPane extends ARPane {
         //        gridPaneDB.add(blockLimit, 2, 1);
 
         // Add button in the second row, third column
-        gridPaneDB.add(pathDBButton, 3, 1);
+        gridPaneDB.add(pathDBButton, 2, 1);
 
         // Set margin for pathDBButton to create spacing from right border
         GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));

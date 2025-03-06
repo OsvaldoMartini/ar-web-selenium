@@ -9,13 +9,33 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ARViewBotJobScene extends ARScene {
 
+    protected static final SingletonSupplier<ARViewBotJobScene> instance = () -> new ARViewBotJobScene();
+
+    // Public method to access the singleton instance
+    public static ARViewBotJobScene getInstance() {
+        return instance.get();
+    }
+
     private ARScene currentScene;
+    private BotJobLoadDTO botJobLoad;
+
+    public void initialize(BotJobLoadDTO botJobLoad) {
+        this.botJobLoad = botJobLoad;
+        this.currentScene = currentScene;
+    }
+
+    public ARViewBotJobScene() {
+        super();
+        //        this.botJobLoad = botJobLoad;
+        //        this.currentScene = currentScene;
+    }
 
     private BotJobLoadDTO botLoadJob = null;
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
@@ -32,14 +52,6 @@ public class ARViewBotJobScene extends ARScene {
     static {
         performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
-    }
-
-    private final BotJobLoadDTO botJobLoad;
-
-    public ARViewBotJobScene(BotJobLoadDTO botJobLoad) {
-        super();
-        this.botJobLoad = botJobLoad;
-        this.currentScene = currentScene;
     }
 
     @Override

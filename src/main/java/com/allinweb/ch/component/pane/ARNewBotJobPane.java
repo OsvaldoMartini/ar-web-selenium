@@ -54,10 +54,12 @@ public class ARNewBotJobPane extends ARPane {
 
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
+    private static final ARViewBotJobScene arViewBotJobScene;
 
     static {
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
+        arViewBotJobScene = ARViewBotJobScene.getInstance();
     }
 
     public ARNewBotJobPane(ObservableList<BotJobLoadDTO> botJobList) {
@@ -212,7 +214,8 @@ public class ARNewBotJobPane extends ARPane {
                 //                viewBotJobListView.setItems(botJobList);
                 //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
-                new ARViewBotJobScene(createdBotJob).showModal();
+                arViewBotJobScene.initialize(createdBotJob);
+                arViewBotJobScene.show();
 
                 // Close the current window
                 Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();

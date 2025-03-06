@@ -17,7 +17,7 @@ public class ARScannedElementScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 650D;
     private static final Double SCENE_WIDTH = 1100D;
-    private static final String TITLE = "Scanner Tool";
+    private static final String TITLE = "AR Factory Web Tests";
 
     private ARWebDriver arWebDriver;
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
