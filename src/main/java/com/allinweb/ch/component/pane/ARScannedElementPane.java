@@ -3488,46 +3488,53 @@ public class ARScannedElementPane extends ARPane {
 
                             System.out.println(actionsTested.toString());
 
-                            VBox vertical = new VBox();
-                            vertical.getChildren()
-                                    .addAll(
-                                            actionText1,
-                                            actionText2,
-                                            actionText3,
-                                            actionText4,
-                                            actionText5,
-                                            actionText6,
-                                            actionText7,
-                                            actionText8,
-                                            actionText9,
-                                            actionText10,
-                                            actionText11,
-                                            actionText12,
-                                            actionText13);
+                            ARLogger.getInstance(ARScannedElementPane.class).fine(actionsTested.toString());
 
-                            Platform.runLater(() -> {
-                                textFlowResult.getChildren().clear();
-                                textFlowResult.getChildren().addAll(vertical);
+                            //                            VBox vertical = new VBox();
+                            //                            vertical.getChildren()
+                            //                                    .addAll(
+                            //                                            actionText1,
+                            //                                            actionText2,
+                            //                                            actionText3,
+                            //                                            actionText4,
+                            //                                            actionText5,
+                            //                                            actionText6,
+                            //                                            actionText7,
+                            //                                            actionText8,
+                            //                                            actionText9,
+                            //                                            actionText10,
+                            //                                            actionText11,
+                            //                                            actionText12,
+                            //                                            actionText13);
 
-                                textFlowResult.requestLayout();
-
-                                //                                boxListViews.requestLayout();
-                                //                                verticalBox.requestLayout();
-                                //                                getChildren().addAll(blockAndUrl, boxListViews);
-                                contentPane.requestLayout();
-                                VBox vBoxResult = new VBox();
-                                vBoxResult.getChildren().addAll(textFlowResult);
-                                performMessage.showAlertCombinedVBOX(
-                                        Alert.AlertType.INFORMATION,
-                                        "Test Actions Results",
-                                        "Web Actions Tested:",
-                                        null,
-                                        vBoxResult);
-
-                                //                                countdownTextField.setText(actionsTested.toString());
-                                //                                countdownTextField.setStyle("-fx-font-size: 12px;
-                                // -fx-text-fill: blue;");
-                            });
+                            //                            Platform.runLater(() -> {
+                            //                                textFlowResult.getChildren().clear();
+                            //                                textFlowResult.getChildren().addAll(vertical);
+                            //
+                            //                                textFlowResult.requestLayout();
+                            //
+                            //                                //
+                            // boxListViews.requestLayout();
+                            //                                //
+                            // verticalBox.requestLayout();
+                            //                                //
+                            // getChildren().addAll(blockAndUrl, boxListViews);
+                            //                                contentPane.requestLayout();
+                            //                                VBox vBoxResult = new VBox();
+                            //                                vBoxResult.getChildren().addAll(textFlowResult);
+                            //                                performMessage.showAlertCombinedVBOX(
+                            //                                        Alert.AlertType.INFORMATION,
+                            //                                        "Test Actions Results",
+                            //                                        "Web Actions Tested:",
+                            //                                        null,
+                            //                                        vBoxResult);
+                            //
+                            //                                //
+                            // countdownTextField.setText(actionsTested.toString());
+                            //                                //
+                            // countdownTextField.setStyle("-fx-font-size: 12px;
+                            //                                // -fx-text-fill: blue;");
+                            //                            });
                         }
                         //                                arWebElement.getElement().click();
                     } catch (Exception e) {
