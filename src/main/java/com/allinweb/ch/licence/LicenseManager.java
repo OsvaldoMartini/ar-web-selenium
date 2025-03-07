@@ -15,6 +15,9 @@ import java.security.Key;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -51,13 +54,29 @@ public class LicenseManager {
     }
 
     public static boolean importResponseFile() throws Exception {
-        Path responsePath = Paths.get(System.getProperty("user.home") + "/Desktop/ARWeb 1.1.0.response");
-        if (Files.exists(responsePath)) {
-            String content = Files.readString(responsePath);
+        // Use SHGetKnownFolderPath to get Desktop path
+        PointerByReference ppszPath = new PointerByReference();
+        if (Shell32.INSTANCE
+                        .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
+                        .intValue()
+                != 0) {
+            throw new IOException("Failed to get desktop directory.");
+        }
+
+        // Convert pointer to string
+        String desktopPath = ppszPath.getValue().getWideString(0);
+        Native.free(Pointer.nativeValue(ppszPath.getValue()));
+
+        // Define response file path
+        File responseFile = new File(desktopPath, "ARWeb 1.1.0.response");
+
+        if (responseFile.exists()) {
+            String content = Files.readString(responseFile.toPath());
             String decryptedResponse = decrypt(content, KEY);
             generateLicFile(decryptedResponse);
             return true;
         }
+
         return false;
     }
 
@@ -79,6 +98,13 @@ public class LicenseManager {
         cipher.init(Cipher.DECRYPT_MODE, aesKey);
         byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
         return new String(decrypted);
+    }
+
+    public static void showAlert(Alert.AlertType type, String message) {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(type, message, ButtonType.OK);
+            alert.showAndWait();
+        });
     }
 
     public static LicenceVal checkLicenseFile() throws Exception {

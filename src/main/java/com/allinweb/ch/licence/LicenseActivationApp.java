@@ -12,7 +12,7 @@ public class LicenseActivationApp extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
 
-        showAlert(
+        LicenseManager.showAlert(
                 Alert.AlertType.INFORMATION, LicenseManager.checkLicenseFile().getStaus() + "\n\nPress OK to proceed.");
 
         // Header label for the application
@@ -75,25 +75,27 @@ public class LicenseActivationApp extends Application {
         // Actions for Proceed button
         btnProceed.setOnAction(event -> {
             if (!cbAgree.isSelected()) {
-                showAlert(Alert.AlertType.ERROR, "Please agree to the terms to proceed.");
+                LicenseManager.showAlert(Alert.AlertType.ERROR, "Please agree to the terms to proceed.");
             } else
                 try {
                     if (tfLicenseOwner.getText().isEmpty() && !LicenseManager.importResponseFile()) {
-                        showAlert(Alert.AlertType.ERROR, "The 'Licensed to' field is required.");
+                        LicenseManager.showAlert(Alert.AlertType.ERROR, "The 'Licensed to' field is required.");
                     } else {
                         try {
                             if (rbRequestLicense.isSelected()) {
                                 LicenseManager.generateRequestFile(tfLicenseOwner.getText());
-                                showAlert(Alert.AlertType.INFORMATION, "Request file generated successfully.");
+                                LicenseManager.showAlert(
+                                        Alert.AlertType.INFORMATION, "Request file generated successfully.");
                             } else if (rbActivateLicense.isSelected() && LicenseManager.importResponseFile()) {
-                                showAlert(
+                                LicenseManager.showAlert(
                                         Alert.AlertType.INFORMATION,
-                                        "Licence activated! Press close and restart AR Web.");
+                                        "Licence activated! You can close this Message!");
                             } else {
-                                showAlert(Alert.AlertType.ERROR, "Response file not found or could not be processed.");
+                                LicenseManager.showAlert(
+                                        Alert.AlertType.ERROR, "Response file not found or could not be processed.");
                             }
                         } catch (Exception erro) {
-                            showAlert(Alert.AlertType.ERROR, "An error occurred: " + erro.getMessage());
+                            LicenseManager.showAlert(Alert.AlertType.ERROR, "An error occurred: " + erro.getMessage());
                         }
                     }
                 } catch (Exception e) {
@@ -122,11 +124,6 @@ public class LicenseActivationApp extends Application {
         primaryStage.setTitle("Activation Software Required");
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
-
-    private static void showAlert(Alert.AlertType type, String message) {
-        Alert alert = new Alert(type, message, ButtonType.OK);
-        alert.showAndWait();
     }
 
     public static void main(String[] args) throws Exception {
