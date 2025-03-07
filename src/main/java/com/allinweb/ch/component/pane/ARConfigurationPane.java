@@ -10,7 +10,6 @@ import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
@@ -807,7 +806,7 @@ public class ARConfigurationPane extends ARPane {
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
             }
-            ARLogger.getInstance(ARWebDriver.class)
+            ARLogger.getInstance(ARConfigurationPane.class)
                     .info("All Rows DELETED for:\n"
                             + "ExcelReportDTO;\n"
                             + "Variables;\n"
@@ -821,7 +820,7 @@ public class ARConfigurationPane extends ARPane {
             return true;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(ARWebDriver.class)
+            ARLogger.getInstance(ARConfigurationPane.class)
                     .severe(dataBaseType + " Problems:\n"
                             + "Not Possible delete the  Rows was for these tables:\n"
                             + "ExcelReportDTO;\n"

@@ -11,7 +11,6 @@ import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
@@ -175,7 +174,7 @@ public class ARViewBotJobPane extends ARPane {
                     try {
                         startWebSocketServer(finalPort);
                     } catch (Exception e) {
-                        ARLogger.getInstance(ARWebDriver.class).fine("Port already in Use: " + finalPort);
+                        ARLogger.getInstance(ARViewBotJobPane.class).fine("Port already in Use: " + finalPort);
 
                         Alert alert = new Alert(AlertType.ERROR);
                         alert.setTitle("Port Error");
@@ -270,7 +269,7 @@ public class ARViewBotJobPane extends ARPane {
         this.refreshButton = builder.buildButton(
                 "Refresh", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
         this.openScannerButton = builder.buildButton(
-                "Scan", ARConstants.SPACE_ZERO, "/open_browser.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Factory", ARConstants.SPACE_ZERO, "/open_browser.png", ARConstants.SPACE_M, new Insets(5.0D));
         this.editBotJobButton = builder.buildButton(
                 "Edit Job", ARConstants.SPACE_ZERO, "/edit.png", ARConstants.SPACE_M, new Insets(5.0D));
 
@@ -644,7 +643,7 @@ public class ARViewBotJobPane extends ARPane {
             if (!isScannerButtonClicked) { // Check if the button action was not already triggered
                 isScannerButtonClicked = true; // Set the flag to prevent further clicks
 
-                ARLogger.getInstance(ARWebDriver.class).fine("Calling openScannerButton");
+                ARLogger.getInstance(ARViewBotJobPane.class).fine("Calling openScannerButton");
 
                 arScene.startNewThread(() -> {
                     executeScannerTask();
@@ -967,7 +966,7 @@ public class ARViewBotJobPane extends ARPane {
 
     private void handleExceptionScan(Exception error) {
         // Log the exception
-        ARLogger.getInstance(ARWebDriver.class)
+        ARLogger.getInstance(ARViewBotJobPane.class)
                 .severe("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
 
         // Display the error message to the user
@@ -981,6 +980,8 @@ public class ARViewBotJobPane extends ARPane {
                     null,
                     0);
         } else {
+
+            //            "invalid session id"
 
             if (!error.getMessage().contains("Current browser version")) {
                 String[] lines = error.getMessage().split("\n");
@@ -1017,7 +1018,7 @@ public class ARViewBotJobPane extends ARPane {
                     }
                 }
 
-                ARLogger.getInstance(ARWebDriver.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
+                ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
 
                 performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
             }
@@ -1169,11 +1170,11 @@ public class ARViewBotJobPane extends ARPane {
                 instructions.add(instruction);
             }
 
-            ARLogger.getInstance(ARWebDriver.class)
+            ARLogger.getInstance(ARViewBotJobPane.class)
                     .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
 
         } catch (SQLException e) {
-            ARLogger.getInstance(ARWebDriver.class)
+            ARLogger.getInstance(ARViewBotJobPane.class)
                     .severe(String.format(
                             "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
         }
@@ -1202,7 +1203,7 @@ public class ARViewBotJobPane extends ARPane {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    //                    ARLogger.getInstance(ARWebDriver.class)
+                    //                    ARLogger.getInstance(ARViewBotJobPane.class)
                     //                            .warning(String.format(
                     //                                    "preInsertStep - InstructionId: %s in BlockId: %s now has
                     // order number: %d",
@@ -1210,7 +1211,7 @@ public class ARViewBotJobPane extends ARPane {
                     //                                    instruction.getBlockId(),
                     //                                    instruction.getInstructionOrderNumber() + 1));
                 } else {
-                    ARLogger.getInstance(ARWebDriver.class)
+                    ARLogger.getInstance(ARViewBotJobPane.class)
                             .info(String.format(
                                     "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
                                     instruction.getBlockId(), instruction.getInstructionId()));
@@ -1219,7 +1220,7 @@ public class ARViewBotJobPane extends ARPane {
 
             return true;
         } catch (SQLException e) {
-            ARLogger.getInstance(ARWebDriver.class)
+            ARLogger.getInstance(ARViewBotJobPane.class)
                     .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
         }
         return false;
