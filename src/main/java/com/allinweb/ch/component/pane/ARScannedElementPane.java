@@ -443,6 +443,11 @@ public class ARScannedElementPane extends ARPane {
         //        if (arWebDriver.getDriver() == null) {
         //            arWebDriver = new ARWebDriver(); // Initialize WebDriver
         //        }
+        if (isBrowserClosed(arWebDriver) && arWebDriver.getDriver() != null) {
+            arWebDriver.getDriver().quit();
+            arWebDriver.setDriver(null);
+        }
+
         arWebDriver.openDriver(homeBanking.getUrl(), homeBanking.getOptionsConfig());
 
         performAction.getIframeElementsMap();
@@ -1307,22 +1312,6 @@ public class ARScannedElementPane extends ARPane {
 
             return false;
         }
-    }
-
-    private void browserNotAttached() {
-        Text variableText1Styled = new Text("The Browser attached with this Web Scanner is Not Active");
-        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text variableText2Styled = new Text("Close and Re-open this Scanner Screen");
-        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-        VBox combinedTextContainer = new VBox();
-        combinedTextContainer.setSpacing(5); // Add some sp
-
-        combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
-
-        performMessage.showAlertCombinedVBOX(
-                Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
     }
 
     private void insertNewElement() {
@@ -9897,5 +9886,30 @@ public class ARScannedElementPane extends ARPane {
             // Convert InputStream to String
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    public static boolean isBrowserClosed(ARWebDriver arWebDriver) {
+        try {
+            arWebDriver.getDriver().getTitle(); // Try accessing a property
+            return false; // If no exception, browser is open
+        } catch (Exception e) {
+            return true; // If exception occurs, browser is closed
+        }
+    }
+
+    private void browserNotAttached() {
+        Text variableText1Styled = new Text("The Browser attached with this Web Scanner is Not Active");
+        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+        Text variableText2Styled = new Text("Close and Re-open this Scanner Screen");
+        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+        VBox combinedTextContainer = new VBox();
+        combinedTextContainer.setSpacing(5); // Add some sp
+
+        combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
+
+        performMessage.showAlertCombinedVBOX(
+                Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
     }
 }
