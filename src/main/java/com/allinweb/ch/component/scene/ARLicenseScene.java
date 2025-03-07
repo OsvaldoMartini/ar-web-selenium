@@ -9,9 +9,9 @@ import javafx.stage.Stage;
 
 public class ARLicenseScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 300D;
-    private static final String TITLE = "About";
+    private static final Double SCENE_HEIGHT = 400D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Activation Software Required";
 
     @Override
     public IARPane buildPane() {

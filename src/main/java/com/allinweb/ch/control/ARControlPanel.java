@@ -1,8 +1,8 @@
 package com.allinweb.ch.control;
 
+import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.licence.LicenseActivationApp;
 import com.allinweb.ch.licence.LicenseManager;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -43,10 +43,19 @@ public class ARControlPanel extends Application {
             try {
                 if (!LicenseManager.checkLicenseFile().isActive()) {
                     // If the license is not active, launch the license activation app
-                    Application.launch(LicenseActivationApp.class, args);
+                    //                    Application.launch(LicenseActivationApp.class, args);
+                    Platform.runLater(() -> {
+                        new ARLicenseScene().showModal();
+
+                        ARMainScene primaryStage = new ARMainScene();
+                        primaryStage.show();
+                    });
+
                 } else {
                     // If the license is active, proceed with the main application
-                    Application.launch();
+                    //                    Application.launch();
+                    ARMainScene primaryStage = new ARMainScene();
+                    primaryStage.show();
                 }
             } catch (Exception e) {
                 Text variableText1Styled = new Text("The license file is corrupted.");
@@ -57,13 +66,17 @@ public class ARControlPanel extends Application {
                 combinedTextContainer.setSpacing(5); // Add some space
                 combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
 
-                Platform.runLater(() ->
-                        performMessage.showAlertCombinedVBOX(
-                                Alert.AlertType.ERROR, "License Validation!", "Validation Failed", null, combinedTextContainer));
+                Platform.runLater(() -> performMessage.showAlertCombinedVBOX(
+                        Alert.AlertType.ERROR,
+                        "License Validation!",
+                        "Validation Failed",
+                        null,
+                        combinedTextContainer));
                 ARLogger.getInstance(ARControlPanel.class).fine(e.getMessage());
             }
         } else {
             // If the license is disabled, directly proceed with the main application
+            // Ensure launch(args) is only called once: JavaFX does not allow calling Application.launch() twice.
             launch();
         }
     }

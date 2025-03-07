@@ -88,8 +88,7 @@ public class LicenseActivationApp extends Application {
                                         Alert.AlertType.INFORMATION, "Request file generated successfully.");
                             } else if (rbActivateLicense.isSelected() && LicenseManager.importResponseFile()) {
                                 LicenseManager.showAlert(
-                                        Alert.AlertType.INFORMATION,
-                                        "Licence activated! You can close this Message!");
+                                        Alert.AlertType.INFORMATION, "Licence activated! You can close this Message!");
                             } else {
                                 LicenseManager.showAlert(
                                         Alert.AlertType.ERROR, "Response file not found or could not be processed.");
