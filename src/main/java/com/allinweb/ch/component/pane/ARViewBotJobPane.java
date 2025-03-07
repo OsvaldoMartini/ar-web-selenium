@@ -269,7 +269,7 @@ public class ARViewBotJobPane extends ARPane {
         this.refreshButton = builder.buildButton(
                 "Refresh", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
         this.openScannerButton = builder.buildButton(
-                "Factory", ARConstants.SPACE_ZERO, "/open_browser.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Scanner", ARConstants.SPACE_ZERO, "/open_browser.png", ARConstants.SPACE_M, new Insets(5.0D));
         this.editBotJobButton = builder.buildButton(
                 "Edit Job", ARConstants.SPACE_ZERO, "/edit.png", ARConstants.SPACE_M, new Insets(5.0D));
 
