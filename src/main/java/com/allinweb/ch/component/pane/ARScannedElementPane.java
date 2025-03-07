@@ -3488,7 +3488,8 @@ public class ARScannedElementPane extends ARPane {
 
                             System.out.println(actionsTested.toString());
 
-                            ARLogger.getInstance(ARScannedElementPane.class).fine(actionsTested.toString());
+                            ARLogger.getInstance(ARScannedElementPane.class)
+                                    .fine("Web Actions Tested:\n" + actionsTested.toString());
 
                             //                            VBox vertical = new VBox();
                             //                            vertical.getChildren()
