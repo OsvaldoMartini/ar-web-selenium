@@ -123,6 +123,7 @@ public class PerformDataBase {
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
 
+            createTableOpenAIVector();
             if (!doesInstructionTableExist()) {
                 initializeMainDatabasePostgres();
             }
@@ -5122,6 +5123,28 @@ public class PerformDataBase {
             System.out.println("Error checking table existence: " + error.getMessage());
         }
         return false; // Default return if an exception occurs or the table does not exist
+    }
+
+    public static void createTableOpenAIVector() {
+
+        try (Connection conn = getConnection()) {
+            try (Statement stmt = conn.createStatement()) {
+
+                String createTableVectorOpenAI =
+                        """
+                        CREATE TABLE web_elements (
+                          id SERIAL PRIMARY KEY,
+                          element_name TEXT,
+                          element_type TEXT,
+                          embedding VECTOR(1536) -- size of OpenAI embedding vector
+                        );
+                        """;
+                stmt.executeUpdate(createTableVectorOpenAI);
+            }
+            System.out.println("Database %s has been created!");
+        } catch (SQLException error) {
+            System.out.println("initializeDatabase\nError: " + error.getMessage());
+        }
     }
 
     public static void initializeMainDatabasePostgres() {
