@@ -602,7 +602,7 @@ public class ARConfigurationPane extends ARPane {
             //                        null,
             //                        0);
             //            } else {
-            //                performMessage.showCustomModalDialog(
+            //                performMessage.showCustomModalDialogDrag(
             //                        "Migration DB Scripts Success!",
             //                        String.format("Perform Migration on %s records", rowsAffected),
             //                        "Database",
