@@ -233,12 +233,12 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                     "Error Getting the Component",
                                     "Not Possible to user the component",
                                     String.format(
-                                            "Error Trying to Insert Component %S to BotJob %d\n!",
+                                            "I cannot insert Component %S to BotJob %d\n!",
                                             componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
 
                             ARLogger.getInstance(Thread.class)
                                     .severe(String.format(
-                                            "Error Trying to Insert Component %S to BotJob %d\n!",
+                                            "I cannot insert Component %S to BotJob %d\n!",
                                             componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
                             return;
                         }
