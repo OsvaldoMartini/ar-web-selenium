@@ -1481,7 +1481,7 @@ public class ARScannedElementPane extends ARPane {
                             "Found element: " + elemFound.getTagName() + " with XPath: " + elementChild.getXPath());
                 } catch (Exception e) {
                     System.out.println("Element not found for XPath: " + elementChild.getXPath());
-                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDrag(
+                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                             "Fail Searching IFrame Elements",
                             "Error: Attempt identify IFrame elements",
                             "\"iFrame Web Elements\"",
@@ -1642,7 +1642,7 @@ public class ARScannedElementPane extends ARPane {
                 } catch (Exception e) {
                     xpathTextPrevious = ""; // Allows clicking in the same element again
                     System.out.println("Element not found for XPath: " + elementDTO.getXPath());
-                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDrag(
+                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                             "Error selecting Web Element",
                             "Mandatory Value not Defined",
                             "Not able defining the Name/Label for the New AR Element",
@@ -7205,7 +7205,7 @@ public class ARScannedElementPane extends ARPane {
                                                     Math.abs(elementsFound.size() - elementsChunk.size());
                                             if (elementsChunk.size() == 30) {
 
-                                                respModal = performMessage.showCustomModalDialogDrag(
+                                                respModal = performMessage.showCustomModalDialogDragWin11(
                                                         "Warning: Too Many Elements Found",
                                                         String.format(
                                                                 "Total Web Elements Found: %d", elementsFound.size()),
@@ -8185,7 +8185,7 @@ public class ARScannedElementPane extends ARPane {
                         if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
                             pauseOperation = true;
 
-                            respModal = performMessage.showCustomModalDialogDrag(
+                            respModal = performMessage.showCustomModalDialogDragWin11(
                                     "PAUSE BOT JOB",
                                     String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
                                     " Please click OK to continue!",
@@ -9121,6 +9121,8 @@ public class ARScannedElementPane extends ARPane {
 
         if (totalExecutionTime == 0) {
             writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
+        } else {
+            writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
         }
 
         // PRINT END BASE LOG//
@@ -9141,9 +9143,6 @@ public class ARScannedElementPane extends ARPane {
         combinedTextContainer.setSpacing(5); // Add some sp
 
         if (success) {
-
-            writerReport.insertTotalExecutionTimes(botJobStartTime, System.nanoTime());
-
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.END)

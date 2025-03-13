@@ -142,7 +142,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         int rowsAffected = performDataBase.deleteBotJob(botJob.getId());
 
         if (rowsAffected == 0) {
-            performMessage.showCustomModalDialogDrag(
+            performMessage.showCustomModalDialogDragWin11(
                     "Action Delete Bot-Job",
                     "Bot-Job deleted successfully!",
                     String.format("The Bot Job \"%s\" was Deleted!", botJob.getName()),

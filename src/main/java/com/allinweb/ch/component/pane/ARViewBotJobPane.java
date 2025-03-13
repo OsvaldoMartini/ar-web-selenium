@@ -75,6 +75,7 @@ public class ARViewBotJobPane extends ARPane {
 
     // Set to hold all active WebSocket sessions
     private static Map<String, Session> activeSessions;
+    private int portInitial;
     private String sessionId;
     private Gson gson = new Gson();
 
@@ -161,15 +162,15 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void initUIComponents() {
-        int port = 8080;
+        portInitial = 8080;
 
         String portSocket = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
         if (portSocket != null) {
-            port = Integer.parseInt(portSocket);
+            portInitial = Integer.parseInt(portSocket);
         }
 
         // Start WebSocket server in a background thread
-        int finalPort = port;
+        int finalPort = portInitial;
         new Thread(() -> {
                     try {
                         startWebSocketServer(finalPort);
@@ -573,6 +574,19 @@ public class ARViewBotJobPane extends ARPane {
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             String sessionTasks = "botJobTasks-" + this.botJobLoad.getId();
+            buildWebView(
+                    webEngineTasks,
+                    jsonData,
+                    portInitial,
+                    sessionTasks,
+                    this.botJobLoad.getHomeBankingId(),
+                    this.botJobLoad.getId(),
+                    this.botJobLoad.getName());
+
+            //            componentBox.getChildren().clear();
+            //            componentBox = new HBox(new Node[] {this.webViewTasks});
+            //            componentBox.requestLayout();
+            //            botJobContainer.requestLayout();
 
             SimpleWebSocketServer.sendMessageJson(
                     this.botJobLoad.getHomeBankingId(), sessionTasks, jsonData, "updateInstructions");
