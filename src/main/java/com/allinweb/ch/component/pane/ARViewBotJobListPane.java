@@ -45,8 +45,10 @@ public class ARViewBotJobListPane extends ARPane {
         uiBotJobList = new ListView<>(botJobList);
 
         // Setting the cell factory correctly
-        uiBotJobList.setCellFactory(
-                new ARCellFactory<>(BotJobListCell.class, performMessage, performDataBase, arViewBotJobScene)::call);
+        uiBotJobList.setCellFactory(new ARCellFactory<>(
+                BotJobListCell.class, performMessage, performDataBase, arViewBotJobScene, (ObservableList<
+                                BotJobLoadDTO>)
+                        botJobList)::call);
 
         // Anchor positioning
         AnchorPane.setTopAnchor(uiBotJobList, ARConstants.SPACE_M * 2);

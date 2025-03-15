@@ -13,10 +13,13 @@ import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
+import javafx.collections.ObservableList;
 
 public class ARViewBotJobScene extends ARScene {
 
     protected static final SingletonSupplier<ARViewBotJobScene> instance = () -> new ARViewBotJobScene();
+
+    private ObservableList<BotJobLoadDTO> botJobList;
 
     // Public method to access the singleton instance
     public static ARViewBotJobScene getInstance() {
@@ -26,8 +29,9 @@ public class ARViewBotJobScene extends ARScene {
     private ARScene currentScene;
     private BotJobLoadDTO botJobLoad;
 
-    public void initialize(BotJobLoadDTO botJobLoad) {
+    public void initialize(BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
         this.botJobLoad = botJobLoad;
+        this.botJobList = botJobList;
         this.currentScene = currentScene;
     }
 
@@ -98,7 +102,7 @@ public class ARViewBotJobScene extends ARScene {
                             "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
         }
 
-        return new ARViewBotJobPane(this.botLoadJob, this);
+        return new ARViewBotJobPane(this.botLoadJob, this, botJobList);
     }
 
     @Override

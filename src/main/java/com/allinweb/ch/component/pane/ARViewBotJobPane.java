@@ -149,10 +149,13 @@ public class ARViewBotJobPane extends ARPane {
     private WebView webViewComp = new WebView();
     private WebEngine webEngineComp;
     private ARScene arScene;
+    private final ObservableList<BotJobLoadDTO> botJobList;
 
-    public ARViewBotJobPane(BotJobLoadDTO botJobLoad, ARScene arScene) {
+    public ARViewBotJobPane(BotJobLoadDTO botJobLoad, ARScene arScene, ObservableList<BotJobLoadDTO> botJobList) {
         this.arScene = arScene;
         this.botJobLoad = botJobLoad;
+        this.botJobList = botJobList;
+
         // Initialize database IF IS ACCESS TO BE USED
         variablesList = FXCollections.observableArrayList();
         webPageItems = FXCollections.observableArrayList();
@@ -652,6 +655,10 @@ public class ARViewBotJobPane extends ARPane {
                     botJobUpdate ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!\"",
                     null,
                     combinedTextContainer);
+
+            // Refresh the ListView after adding the new bot job
+            this.botJobList.clear();
+            this.botJobList.addAll(performDataBase.loadAllBotJobs());
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
             if (!isScannerButtonClicked) { // Check if the button action was not already triggered

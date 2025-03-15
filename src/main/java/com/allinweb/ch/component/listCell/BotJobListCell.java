@@ -9,7 +9,7 @@ import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ARConstants;
 import java.util.*;
 import javafx.application.Platform;
-import javafx.geometry.HPos;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -23,12 +23,17 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     private PerformMessage performMessage;
     private PerformDataBase performDataBase;
     private ARViewBotJobScene arViewBotJobScene;
+    private ObservableList<BotJobLoadDTO> botJobList;
 
     public BotJobListCell(
-            PerformMessage performMessage, PerformDataBase performDataBase, ARViewBotJobScene arViewBotJobScene) {
+            PerformMessage performMessage,
+            PerformDataBase performDataBase,
+            ARViewBotJobScene arViewBotJobScene,
+            ObservableList<BotJobLoadDTO> botJobList) {
         this.performMessage = performMessage;
         this.performDataBase = performDataBase;
         this.arViewBotJobScene = arViewBotJobScene;
+        this.botJobList = botJobList;
     }
 
     public BotJobListCell() {
@@ -46,36 +51,36 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             uiBotJob.setPadding(new Insets(5));
 
             Label botJobName = new Label(item.getName());
-            botJobName.setStyle("-fx-font-size: 14px;");  // Reduced font size
-            botJobName.setMinWidth(150);  // Set minimum width
-            botJobName.setMaxWidth(150);  // Set minimum width
+            botJobName.setStyle("-fx-font-size: 14px;"); // Reduced font size
+            botJobName.setMinWidth(150); // Set minimum width
+            botJobName.setMaxWidth(150); // Set minimum width
             botJobName.setWrapText(true);
 
             Label botJobDescription = new Label(item.getDescription());
-            botJobDescription.setStyle("-fx-font-size: 14px;");  // Reduced font size
-            botJobDescription.setMinWidth(150);  // Set minimum width
-            botJobDescription.setMaxWidth(150);  // Set minimum width
+            botJobDescription.setStyle("-fx-font-size: 14px;"); // Reduced font size
+            botJobDescription.setMinWidth(150); // Set minimum width
+            botJobDescription.setMaxWidth(150); // Set minimum width
             botJobDescription.setWrapText(true);
 
             Label homeBankingName = new Label(item.getHomeBankingLoadDTO().getName());
-            homeBankingName.setStyle("-fx-font-size: 14px;");  // Reduced font size
-            homeBankingName.setMinWidth(100);  // Set minimum width
-            homeBankingName.setMaxWidth(100);  // Set minimum width
+            homeBankingName.setStyle("-fx-font-size: 14px;"); // Reduced font size
+            homeBankingName.setMinWidth(100); // Set minimum width
+            homeBankingName.setMaxWidth(100); // Set minimum width
             homeBankingName.setWrapText(true);
-            
+
             Label statusLabel = new Label(item.isActive() ? "Active" : "Inactive");
             statusLabel.setTextFill(item.isActive() ? Color.BLACK : Color.GREY);
-            statusLabel.setStyle("-fx-font-size: 14px;");  // Reduced font size
-            statusLabel.setMinWidth(50);  // Set minimum width
-            statusLabel.setMaxWidth(50);  // Set minimum width
+            statusLabel.setStyle("-fx-font-size: 14px;"); // Reduced font size
+            statusLabel.setMinWidth(50); // Set minimum width
+            statusLabel.setMaxWidth(50); // Set minimum width
 
             Button deleteBotJobButton = builder.buildButton(
                     "", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, Insets.EMPTY);
             deleteBotJobButton.setOnMouseClicked(e -> handleDelete(item));
-            deleteBotJobButton.setMinWidth(20);  // Set minimum width
-            deleteBotJobButton.setMaxWidth(20);  // Set minimum width
-            deleteBotJobButton.setMinHeight(20);  // Set minimum width
-            deleteBotJobButton.setMaxHeight(20);  // Set minimum width
+            deleteBotJobButton.setMinWidth(20); // Set minimum width
+            deleteBotJobButton.setMaxWidth(20); // Set minimum width
+            deleteBotJobButton.setMinHeight(20); // Set minimum width
+            deleteBotJobButton.setMaxHeight(20); // Set minimum width
 
             Region spacer1 = new Region();
             HBox.setHgrow(spacer1, Priority.ALWAYS);
@@ -86,13 +91,17 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             Region spacer4 = new Region();
             HBox.setHgrow(spacer4, Priority.ALWAYS);
 
-            uiBotJob.getChildren().addAll(
-                    botJobName, spacer1,
-                    botJobDescription, spacer2,
-                    homeBankingName, spacer3,
-                    statusLabel, spacer4,
-                    deleteBotJobButton
-            );
+            uiBotJob.getChildren()
+                    .addAll(
+                            botJobName,
+                            spacer1,
+                            botJobDescription,
+                            spacer2,
+                            homeBankingName,
+                            spacer3,
+                            statusLabel,
+                            spacer4,
+                            deleteBotJobButton);
 
             uiBotJob.getChildren().clear();
 
@@ -115,23 +124,30 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             Region spacer5_12_5_2 = new Region();
             HBox.setHgrow(spacer5_12_5_2, Priority.ALWAYS);
 
-            uiBotJob.getChildren().addAll(
-                    botJobName, spacer1_25,
-                    botJobDescription, spacer2_25,
-                    homeBankingName, spacer3_25,
-                    statusLabel, spacer4_12_5, spacer4_12_5_2,
-                    deleteBotJobButton, spacer5_12_5, spacer5_12_5_2
-            );
+            uiBotJob.getChildren()
+                    .addAll(
+                            botJobName,
+                            spacer1_25,
+                            botJobDescription,
+                            spacer2_25,
+                            homeBankingName,
+                            spacer3_25,
+                            statusLabel,
+                            spacer4_12_5,
+                            spacer4_12_5_2,
+                            deleteBotJobButton,
+                            spacer5_12_5,
+                            spacer5_12_5_2);
 
-// Align elements
+            // Align elements
             HBox.setHgrow(botJobName, Priority.NEVER);
             HBox.setHgrow(botJobDescription, Priority.NEVER);
             HBox.setHgrow(homeBankingName, Priority.NEVER);
             HBox.setHgrow(statusLabel, Priority.NEVER);
             HBox.setHgrow(deleteBotJobButton, Priority.NEVER);
 
-            HBox.setMargin(statusLabel, new Insets(0,0,0,10));
-            HBox.setMargin(deleteBotJobButton, new Insets(0,0,0,10));
+            HBox.setMargin(statusLabel, new Insets(0, 0, 0, 10));
+            HBox.setMargin(deleteBotJobButton, new Insets(0, 0, 0, 10));
 
             statusLabel.setAlignment(Pos.CENTER);
             deleteBotJobButton.setAlignment(Pos.CENTER_RIGHT);
@@ -140,7 +156,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(item);
+                    arViewBotJobScene.initialize(item, botJobList);
                     arViewBotJobScene.show();
                 }
             });
@@ -199,6 +215,4 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }
-    
-    
 }

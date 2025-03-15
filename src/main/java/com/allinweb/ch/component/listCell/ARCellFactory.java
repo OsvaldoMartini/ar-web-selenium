@@ -17,24 +17,31 @@ public class ARCellFactory<T, O> implements Callback<T, O> {
     @Override
     public O call(T param) {
         try {
-            if (constructorArgs.length == 0) {
-                // No arguments, use default constructor
-                return listCellImplementation.getConstructor().newInstance();
-            } else {
-                // Find the correct constructor
-                Class<?>[] argTypes = new Class<?>[constructorArgs.length];
-                for (int i = 0; i < constructorArgs.length; i++) {
-                    argTypes[i] = constructorArgs[i].getClass();
+            for (Constructor<?> constructor : listCellImplementation.getConstructors()) {
+                Class<?>[] paramTypes = constructor.getParameterTypes();
+                if (matchesConstructor(paramTypes, constructorArgs)) {
+                    return (O) constructor.newInstance(constructorArgs);
                 }
-
-                Constructor<O> constructor = listCellImplementation.getConstructor(argTypes);
-                return constructor.newInstance(constructorArgs);
             }
+            throw new NoSuchMethodException("No suitable constructor found for " + listCellImplementation.getName());
         } catch (InstantiationException
-                | NoSuchMethodException
+                | IllegalAccessException
                 | InvocationTargetException
-                | IllegalAccessException error) {
-            throw new RuntimeException("Error instantiating cell", error);
+                | NoSuchMethodException e) {
+            throw new RuntimeException("Error instantiating cell", e);
         }
+    }
+
+    // Helper method to match constructor parameters
+    private boolean matchesConstructor(Class<?>[] paramTypes, Object[] args) {
+        if (paramTypes.length != args.length) {
+            return false;
+        }
+        for (int i = 0; i < paramTypes.length; i++) {
+            if (!paramTypes[i].isAssignableFrom(args[i].getClass())) {
+                return false;
+            }
+        }
+        return true;
     }
 }

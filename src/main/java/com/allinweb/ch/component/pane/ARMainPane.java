@@ -28,7 +28,6 @@ import java.util.logging.Level;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -191,8 +190,10 @@ public class ARMainPane extends ARPane {
         // ARSharedResources.getInstance().getEntityList(BotJobDTO.class);
         botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
-        viewBotJobListView.setCellFactory(
-                new ARCellFactory<>(BotJobListCell.class, performMessage, performDataBase, arViewBotJobScene)::call);
+        viewBotJobListView.setCellFactory(new ARCellFactory<>(
+                BotJobListCell.class, performMessage, performDataBase, arViewBotJobScene, (ObservableList<
+                                BotJobLoadDTO>)
+                        botJobList)::call);
         arNewBotJobScene.initialize(arViewBotJobScene, performDataBase, performMessage, botJobList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
 
@@ -253,7 +254,7 @@ public class ARMainPane extends ARPane {
                     Platform.runLater(() -> {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
 
-                        arViewBotJobScene.initialize(selecBotJobDTO);
+                        arViewBotJobScene.initialize(selecBotJobDTO, botJobList);
                         arViewBotJobScene.show();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
@@ -339,33 +340,32 @@ public class ARMainPane extends ARPane {
 
         // Create an HBox for the header and set spacing
         HBox headerHBox = new HBox(10);
-        headerHBox.setPadding(new Insets(5D, 10D, 5D, 20D));  // Added padding to the left (20D)
-
+        headerHBox.setPadding(new Insets(5D, 10D, 5D, 20D)); // Added padding to the left (20D)
 
         // Create labels for each column header
         Label nameLabel = new Label("Name");
-        nameLabel.setMinWidth(150);  // Set minimum width
-        nameLabel.setMaxWidth(150);  // Set maximum width
+        nameLabel.setMinWidth(150); // Set minimum width
+        nameLabel.setMaxWidth(150); // Set maximum width
         nameLabel.setWrapText(true);
 
         Label descriptionLabel = new Label("Description");
-        descriptionLabel.setMinWidth(150);  // Set minimum width
-        descriptionLabel.setMaxWidth(150);  // Set maximum width
+        descriptionLabel.setMinWidth(150); // Set minimum width
+        descriptionLabel.setMaxWidth(150); // Set maximum width
         descriptionLabel.setWrapText(true);
 
         Label environmentLabel = new Label("Environment");
-        environmentLabel.setMinWidth(100);  // Set minimum width
-        environmentLabel.setMaxWidth(100);  // Set maximum width
+        environmentLabel.setMinWidth(100); // Set minimum width
+        environmentLabel.setMaxWidth(100); // Set maximum width
         environmentLabel.setWrapText(true);
 
         Label statusLabel = new Label("Status");
-        statusLabel.setMinWidth(50);  // Set minimum width
-        statusLabel.setMaxWidth(50);  // Set maximum width
+        statusLabel.setMinWidth(50); // Set minimum width
+        statusLabel.setMaxWidth(50); // Set maximum width
         statusLabel.setWrapText(true);
 
         Label actionsLabel = new Label("Actions");
-        actionsLabel.setMinWidth(50);  // Set minimum width
-        actionsLabel.setMaxWidth(50);  // Set maximum width
+        actionsLabel.setMinWidth(50); // Set minimum width
+        actionsLabel.setMaxWidth(50); // Set maximum width
         actionsLabel.setWrapText(true);
 
         // Create spacers
@@ -383,22 +383,22 @@ public class ARMainPane extends ARPane {
         HBox.setHgrow(spacer5, Priority.ALWAYS);
 
         // Add labels and spacers to the HBox
-        headerHBox.getChildren().addAll(
-                nameLabel, spacer1,
-                descriptionLabel, spacer2,
-                environmentLabel, spacerStatus,
-                statusLabel, spacerAction,
-                actionsLabel, spacer5
-        );
+        headerHBox
+                .getChildren()
+                .addAll(
+                        nameLabel, spacer1,
+                        descriptionLabel, spacer2,
+                        environmentLabel, spacerStatus,
+                        statusLabel, spacerAction,
+                        actionsLabel, spacer5);
 
         // Set HBox as the header
-        header.getChildren().clear();  // Clear any existing children (if any)
-        header.getChildren().add(headerHBox);  // Add the new header with labels and spacers
+        header.getChildren().clear(); // Clear any existing children (if any)
+        header.getChildren().add(headerHBox); // Add the new header with labels and spacers
 
         // Set margins for the header
         VBox.setMargin(headerHBox, new Insets(5D, 10D, 5D, 10D));
     }
-
 
     public void setProperty(String propertyName, String value) {
         this.properties.setProperty(propertyName, value);

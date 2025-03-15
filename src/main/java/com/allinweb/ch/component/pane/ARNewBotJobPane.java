@@ -23,7 +23,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
-import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 
@@ -207,7 +206,7 @@ public class ARNewBotJobPane extends ARPane {
 
             if (newJobId > 0) {
                 createdBotJob.setId(newJobId);
-                botJobList.add(createdBotJob); // Add the new bot job to the ObservableList
+                this.botJobList.add(createdBotJob); // Add the new bot job to the ObservableList
 
                 // Refresh the ListView after adding the new bot job
                 this.botJobList.clear();
@@ -215,14 +214,14 @@ public class ARNewBotJobPane extends ARPane {
                 //                viewBotJobListView.setItems(botJobList);
                 //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
-                arViewBotJobScene.initialize(createdBotJob);
+                arViewBotJobScene.initialize(createdBotJob, botJobList);
                 arViewBotJobScene.show();
 
                 // Close the current window
-                Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();
-                if (currentStage != null) {
-                    currentStage.close();
-                }
+                //                Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();
+                //                if (currentStage != null) {
+                //                    currentStage.close();
+                //                }
             } else {
                 ARLogger.getInstance(Thread.class).severe("Error creating BotJobDTO. Check the Block Creation!");
             }
