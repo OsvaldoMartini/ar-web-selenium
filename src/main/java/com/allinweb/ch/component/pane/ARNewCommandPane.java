@@ -2200,46 +2200,47 @@ public class ARNewCommandPane extends ARPane {
             variableText3Copy.setText("");
         }
 
-        // Create an HBox to hold the individual text elements
-        HBox combinedTextContainer = new HBox();
-        combinedTextContainer.setSpacing(5); // Add some spacing between the texts
+        //        // Create an HBox to hold the individual text elements
+        //        HBox combinedTextContainer = new HBox();
+        //        combinedTextContainer.setSpacing(5); // Add some spacing between the texts
+        //
+        //        Text blockNameLabel = new Text("Block : ");
+        //        blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+        //
+        //        Text blockNameText = new Text(blockName);
+        //        blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+        //
+        //        HBox blockNameBox = new HBox();
+        //        blockNameBox.getChildren().addAll(blockNameLabel, blockNameText);
+        //
+        //        HBox allMsgHor = new HBox();
+        //        allMsgHor.setSpacing(5);
+        //        allMsgHor
+        //                .getChildren()
+        //                .addAll(
+        //                        extra,
+        //                        regularTextCopy1,
+        //                        variableText1Copy,
+        //                        regularTextCopy2,
+        //                        variableText2Copy,
+        //                        regularTextCopy3,
+        //                        variableText3Copy,
+        //                        regularTextCopy4);
+        //
+        //        VBox allMsgVer = new VBox();
+        //        allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
+        //
+        //        combinedTextContainer.getChildren().addAll(allMsgVer);
+        //
+        //        boolean alertResponse = performMessage.showCombinedHBox(
+        //                Alert.AlertType.CONFIRMATION,
+        //                "Add new Instruction",
+        //                "Add the New Instruction to the Bot-Job?",
+        //                "",
+        //                combinedTextContainer);
 
-        Text blockNameLabel = new Text("Block : ");
-        blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text blockNameText = new Text(blockName);
-        blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-
-        HBox blockNameBox = new HBox();
-        blockNameBox.getChildren().addAll(blockNameLabel, blockNameText);
-
-        HBox allMsgHor = new HBox();
-        allMsgHor.setSpacing(5);
-        allMsgHor
-                .getChildren()
-                .addAll(
-                        extra,
-                        regularTextCopy1,
-                        variableText1Copy,
-                        regularTextCopy2,
-                        variableText2Copy,
-                        regularTextCopy3,
-                        variableText3Copy,
-                        regularTextCopy4);
-
-        VBox allMsgVer = new VBox();
-        allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
-
-        combinedTextContainer.getChildren().addAll(allMsgVer);
-
-        boolean alertResponse = performMessage.showCombinedHBox(
-                Alert.AlertType.CONFIRMATION,
-                "Add new Instruction",
-                "Add the New Instruction to the Bot-Job?",
-                "",
-                combinedTextContainer);
-
-        if (alertResponse) {
+        //        if (alertResponse) {
+        if (true) {
 
             // Handle loop outside Platform.runLater to ensure multiple iterations
             int endifCount = actions.equalsIgnoreCase(ARConstants.IF) ? 3 : 1;

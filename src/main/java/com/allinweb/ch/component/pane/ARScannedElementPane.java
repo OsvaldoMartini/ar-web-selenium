@@ -3820,34 +3820,50 @@ public class ARScannedElementPane extends ARPane {
                                         boolean saved = performDataBase.insertReferences(queue, instruction.getId());
                                         if (saved) {
 
-//                                            Text blockNameLabel = new Text("Block : ");
-//                                            blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-//
-//                                            Text blockNameText = new Text(finalBlockName);
-//                                            blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-//
-//                                            Text variableText1Styled =
-//                                                    new Text("The Web Instruction \"" + instruction.getName() + "\"");
-//                                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-//
-//                                            Text variableText2Styled =
-//                                                    new Text("With " + queue.size() + " reference locators");
-//                                            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-//
-//                                            Text variableText3Styled = new Text("Has been added successfully!");
-//                                            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-//
-//                                            VBox combinedTextContainer = new VBox();
-//                                            combinedTextContainer.setSpacing(5); // Add some sp
+                                            //                                            Text blockNameLabel = new
+                                            // Text("Block : ");
+                                            //
+                                            // blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                            //
+                                            //                                            Text blockNameText = new
+                                            // Text(finalBlockName);
+                                            //
+                                            // blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+                                            //
+                                            //                                            Text variableText1Styled =
+                                            //                                                    new Text("The Web
+                                            // Instruction \"" + instruction.getName() + "\"");
+                                            //
+                                            // variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                            //
+                                            //                                            Text variableText2Styled =
+                                            //                                                    new Text("With " +
+                                            // queue.size() + " reference locators");
+                                            //
+                                            // variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                            //
+                                            //                                            Text variableText3Styled = new
+                                            // Text("Has been added successfully!");
+                                            //
+                                            // variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                            //
+                                            //                                            VBox combinedTextContainer =
+                                            // new VBox();
+                                            //
+                                            // combinedTextContainer.setSpacing(5); // Add some sp
 
-//                                            combinedTextContainer
-//                                                    .getChildren()
-//                                                    .addAll(
-//                                                            blockNameLabel,
-//                                                            blockNameText,
-//                                                            variableText1Styled,
-//                                                            variableText2Styled,
-//                                                            variableText3Styled);
+                                            //                                            combinedTextContainer
+                                            //                                                    .getChildren()
+                                            //                                                    .addAll(
+                                            //
+                                            // blockNameLabel,
+                                            //                                                            blockNameText,
+                                            //
+                                            // variableText1Styled,
+                                            //
+                                            // variableText2Styled,
+                                            //
+                                            // variableText3Styled);
 
                                             botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
                                             String jsonData = "[]";
@@ -3862,12 +3878,16 @@ public class ARScannedElementPane extends ARPane {
                                                     jsonData,
                                                     "updateInstructions");
 
-//                                            performMessage.showAlertCombinedVBOX(
-//                                                    Alert.AlertType.INFORMATION,
-//                                                    "Web Instruction Add",
-//                                                    "Added New \"Web Instruction\" Instruction",
-//                                                    null,
-//                                                    combinedTextContainer);
+                                            //
+                                            // performMessage.showAlertCombinedVBOX(
+                                            //
+                                            // Alert.AlertType.INFORMATION,
+                                            //                                                    "Web Instruction Add",
+                                            //                                                    "Added New \"Web
+                                            // Instruction\" Instruction",
+                                            //                                                    null,
+                                            //
+                                            // combinedTextContainer);
 
                                         } else {
 
