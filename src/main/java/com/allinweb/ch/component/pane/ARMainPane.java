@@ -336,25 +336,69 @@ public class ARMainPane extends ARPane {
 
     private void initHeader() {
         header.setMaxHeight(ARConstants.SPACE_M);
-        ColumnConstraints con = new ColumnConstraints();
-        con.setPercentWidth(20); // Adjust percentage width
-        con.setHgrow(Priority.ALWAYS);
-        con.setHalignment(HPos.LEFT);
 
-        ColumnConstraints con2 = new ColumnConstraints();
-        con2.setPercentWidth(20); // Adjust percentage width
-        con2.setHgrow(Priority.ALWAYS);
-        con2.setHalignment(HPos.CENTER);
+        // Create an HBox for the header and set spacing
+        HBox headerHBox = new HBox(10);
+        headerHBox.setPadding(new Insets(5D, 10D, 5D, 20D));  // Added padding to the left (20D)
 
-        header.getColumnConstraints().addAll(con, con, con, con2, con); // Add all constraints
 
-        VBox.setMargin(header, new Insets(5D, 10D, 5D, 10D));
-        header.add(new Label("Name"), 0, 0);
-        header.add(new Label("Description"), 1, 0);
-        header.add(new Label("Environment"), 2, 0);
-        header.add(new Label("Status"), 3, 0); // Added Status header
-        header.add(new Label("Actions"), 4, 0); // Shifted Actions header
+        // Create labels for each column header
+        Label nameLabel = new Label("Name");
+        nameLabel.setMinWidth(150);  // Set minimum width
+        nameLabel.setMaxWidth(150);  // Set maximum width
+        nameLabel.setWrapText(true);
+
+        Label descriptionLabel = new Label("Description");
+        descriptionLabel.setMinWidth(150);  // Set minimum width
+        descriptionLabel.setMaxWidth(150);  // Set maximum width
+        descriptionLabel.setWrapText(true);
+
+        Label environmentLabel = new Label("Environment");
+        environmentLabel.setMinWidth(100);  // Set minimum width
+        environmentLabel.setMaxWidth(100);  // Set maximum width
+        environmentLabel.setWrapText(true);
+
+        Label statusLabel = new Label("Status");
+        statusLabel.setMinWidth(50);  // Set minimum width
+        statusLabel.setMaxWidth(50);  // Set maximum width
+        statusLabel.setWrapText(true);
+
+        Label actionsLabel = new Label("Actions");
+        actionsLabel.setMinWidth(50);  // Set minimum width
+        actionsLabel.setMaxWidth(50);  // Set maximum width
+        actionsLabel.setWrapText(true);
+
+        // Create spacers
+        Region spacer1 = new Region();
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
+        Region spacer2 = new Region();
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+        Region spacerStatus = new Region();
+        spacerStatus.setMinWidth(15);
+        HBox.setHgrow(spacerStatus, Priority.ALWAYS);
+        Region spacerAction = new Region();
+        spacerAction.setMinWidth(5);
+        HBox.setHgrow(spacerAction, Priority.ALWAYS);
+        Region spacer5 = new Region();
+        HBox.setHgrow(spacer5, Priority.ALWAYS);
+
+        // Add labels and spacers to the HBox
+        headerHBox.getChildren().addAll(
+                nameLabel, spacer1,
+                descriptionLabel, spacer2,
+                environmentLabel, spacerStatus,
+                statusLabel, spacerAction,
+                actionsLabel, spacer5
+        );
+
+        // Set HBox as the header
+        header.getChildren().clear();  // Clear any existing children (if any)
+        header.getChildren().add(headerHBox);  // Add the new header with labels and spacers
+
+        // Set margins for the header
+        VBox.setMargin(headerHBox, new Insets(5D, 10D, 5D, 10D));
     }
+
 
     public void setProperty(String propertyName, String value) {
         this.properties.setProperty(propertyName, value);

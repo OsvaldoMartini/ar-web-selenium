@@ -11,6 +11,7 @@ import java.util.*;
 import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -40,56 +41,103 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         Node graphic = null;
         if (!empty && item != null && item.getHomeBankingLoadDTO() != null) {
             ARComponentBuilder builder = new ARComponentBuilder();
-            Label botJobName = new Label(item.getName());
-            Label botJobDescription = new Label(item.getDescription());
-            Label homeBankingName = new Label(item.getHomeBankingLoadDTO().getName());
 
-            // Create status label
+            HBox uiBotJob = new HBox(10); // 10 pixels spacing
+            uiBotJob.setPadding(new Insets(5));
+
+            Label botJobName = new Label(item.getName());
+            botJobName.setStyle("-fx-font-size: 14px;");  // Reduced font size
+            botJobName.setMinWidth(150);  // Set minimum width
+            botJobName.setMaxWidth(150);  // Set minimum width
+            botJobName.setWrapText(true);
+
+            Label botJobDescription = new Label(item.getDescription());
+            botJobDescription.setStyle("-fx-font-size: 14px;");  // Reduced font size
+            botJobDescription.setMinWidth(150);  // Set minimum width
+            botJobDescription.setMaxWidth(150);  // Set minimum width
+            botJobDescription.setWrapText(true);
+
+            Label homeBankingName = new Label(item.getHomeBankingLoadDTO().getName());
+            homeBankingName.setStyle("-fx-font-size: 14px;");  // Reduced font size
+            homeBankingName.setMinWidth(100);  // Set minimum width
+            homeBankingName.setMaxWidth(100);  // Set minimum width
+            homeBankingName.setWrapText(true);
+            
             Label statusLabel = new Label(item.isActive() ? "Active" : "Inactive");
             statusLabel.setTextFill(item.isActive() ? Color.BLACK : Color.GREY);
+            statusLabel.setStyle("-fx-font-size: 14px;");  // Reduced font size
+            statusLabel.setMinWidth(50);  // Set minimum width
+            statusLabel.setMaxWidth(50);  // Set minimum width
 
             Button deleteBotJobButton = builder.buildButton(
                     "", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, Insets.EMPTY);
             deleteBotJobButton.setOnMouseClicked(e -> handleDelete(item));
+            deleteBotJobButton.setMinWidth(20);  // Set minimum width
+            deleteBotJobButton.setMaxWidth(20);  // Set minimum width
+            deleteBotJobButton.setMinHeight(20);  // Set minimum width
+            deleteBotJobButton.setMaxHeight(20);  // Set minimum width
 
-            GridPane uiBotJob = new GridPane();
-            uiBotJob.setPadding(new Insets(5));
-            uiBotJob.setHgap(10);
+            Region spacer1 = new Region();
+            HBox.setHgrow(spacer1, Priority.ALWAYS);
+            Region spacer2 = new Region();
+            HBox.setHgrow(spacer2, Priority.ALWAYS);
+            Region spacer3 = new Region();
+            HBox.setHgrow(spacer3, Priority.ALWAYS);
+            Region spacer4 = new Region();
+            HBox.setHgrow(spacer4, Priority.ALWAYS);
 
-            // Define column constraints with specific percentages
-            ColumnConstraints col1 = new ColumnConstraints();
-            col1.setPercentWidth(30); // botJobName
+            uiBotJob.getChildren().addAll(
+                    botJobName, spacer1,
+                    botJobDescription, spacer2,
+                    homeBankingName, spacer3,
+                    statusLabel, spacer4,
+                    deleteBotJobButton
+            );
 
-            ColumnConstraints col2 = new ColumnConstraints();
-            col2.setPercentWidth(30); // botJobDescription
+            uiBotJob.getChildren().clear();
 
-            ColumnConstraints col3 = new ColumnConstraints();
-            col3.setPercentWidth(30); // homeBankingUrl
+            Region spacer1_25 = new Region();
+            HBox.setHgrow(spacer1_25, Priority.ALWAYS);
 
-            ColumnConstraints col4 = new ColumnConstraints();
-            col4.setPercentWidth(5); // statusLabel
+            Region spacer2_25 = new Region();
+            HBox.setHgrow(spacer2_25, Priority.ALWAYS);
 
-            ColumnConstraints col5 = new ColumnConstraints();
-            col5.setPercentWidth(5); // deleteBotJobButton
+            Region spacer3_25 = new Region();
+            HBox.setHgrow(spacer3_25, Priority.ALWAYS);
 
-            // Align text properly in each column
-            col1.setHalignment(HPos.LEFT);
-            col2.setHalignment(HPos.LEFT);
-            col3.setHalignment(HPos.LEFT);
-            col4.setHalignment(HPos.CENTER);
-            col5.setHalignment(HPos.RIGHT);
+            Region spacer4_12_5 = new Region();
+            HBox.setHgrow(spacer4_12_5, Priority.ALWAYS);
+            Region spacer4_12_5_2 = new Region();
+            HBox.setHgrow(spacer4_12_5_2, Priority.ALWAYS);
 
-            // Apply constraints to the GridPane
-            uiBotJob.getColumnConstraints().addAll(col1, col2, col3, col4, col5);
+            Region spacer5_12_5 = new Region();
+            HBox.setHgrow(spacer5_12_5, Priority.ALWAYS);
+            Region spacer5_12_5_2 = new Region();
+            HBox.setHgrow(spacer5_12_5_2, Priority.ALWAYS);
 
-            // Add elements to the GridPane with proper column indexes
-            uiBotJob.add(botJobName, 0, 0);
-            uiBotJob.add(botJobDescription, 1, 0);
-            uiBotJob.add(homeBankingName, 2, 0);
-            uiBotJob.add(statusLabel, 3, 0);
-            uiBotJob.add(deleteBotJobButton, 4, 0);
+            uiBotJob.getChildren().addAll(
+                    botJobName, spacer1_25,
+                    botJobDescription, spacer2_25,
+                    homeBankingName, spacer3_25,
+                    statusLabel, spacer4_12_5, spacer4_12_5_2,
+                    deleteBotJobButton, spacer5_12_5, spacer5_12_5_2
+            );
+
+// Align elements
+            HBox.setHgrow(botJobName, Priority.NEVER);
+            HBox.setHgrow(botJobDescription, Priority.NEVER);
+            HBox.setHgrow(homeBankingName, Priority.NEVER);
+            HBox.setHgrow(statusLabel, Priority.NEVER);
+            HBox.setHgrow(deleteBotJobButton, Priority.NEVER);
+
+            HBox.setMargin(statusLabel, new Insets(0,0,0,10));
+            HBox.setMargin(deleteBotJobButton, new Insets(0,0,0,10));
+
+            statusLabel.setAlignment(Pos.CENTER);
+            deleteBotJobButton.setAlignment(Pos.CENTER_RIGHT);
 
             AnchorPane row = new AnchorPane(uiBotJob);
+
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
                     arViewBotJobScene.initialize(item);
@@ -122,7 +170,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
     private Text createStyledText(String content, String color) {
         Text text = new Text(content);
-        text.setStyle(String.format("-fx-font-size: 18px; -fx-fill: %s;", color));
+        text.setStyle(String.format("-fx-font-size: 14px; -fx-fill: %s;", color));
         return text;
     }
 
@@ -151,4 +199,6 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }
+    
+    
 }
