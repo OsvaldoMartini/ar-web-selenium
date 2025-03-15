@@ -4,6 +4,8 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARNewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.SingletonSupplier;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
@@ -31,15 +33,25 @@ public class ARNewBotJobScene extends ARScene {
     private static final String TITLE = "New Bot Job";
     //    ListView<BotJobLoadDTO> viewBotJobListView;
     private ObservableList<BotJobLoadDTO> botJobList;
+    private PerformDataBase performDataBase;
+    private PerformMessage performMessage;
+    private ARViewBotJobScene arViewBotJobScene;
 
-    public void initialize(ObservableList<BotJobLoadDTO> botJobList) {
+    public void initialize(
+            ARViewBotJobScene arViewBotJobScene,
+            PerformDataBase performDataBase,
+            PerformMessage performMessage,
+            ObservableList<BotJobLoadDTO> botJobList) {
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.performDataBase = performDataBase;
+        this.performMessage = performMessage;
         this.botJobList = botJobList;
     }
 
     @Override
     public IARPane buildPane() {
         // Create ARNewBotJobPane without passing ListView here
-        return new ARNewBotJobPane(botJobList);
+        return new ARNewBotJobPane(arViewBotJobScene, performDataBase, performMessage, botJobList);
     }
 
     @Override

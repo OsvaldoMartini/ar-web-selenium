@@ -104,6 +104,21 @@ public abstract class ARScene implements IARScene {
         }
     }
 
+    public void showModalNew() {
+        if (stage == null) {
+            setupStage(); // Ensure the stage is initialized
+        }
+
+        if (scene == null) {
+            createScene(); // Ensure the scene is created
+        }
+
+        stage.setScene(scene);
+        stage.setTitle(getTitle());
+        stage.initModality(Modality.WINDOW_MODAL);
+        stage.showAndWait(); // Keep the modal behavior
+    }
+
     private void handleCloseApp(Stage stage) {
         stage.setOnCloseRequest(event -> {
             handleCloseThreads();

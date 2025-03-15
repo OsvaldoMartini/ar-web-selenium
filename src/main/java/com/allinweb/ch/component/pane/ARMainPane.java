@@ -191,9 +191,9 @@ public class ARMainPane extends ARPane {
         // ARSharedResources.getInstance().getEntityList(BotJobDTO.class);
         botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
-        viewBotJobListView.setCellFactory(new ARCellFactory<>(BotJobListCell.class)::call);
-        arNewBotJobScene.initialize(botJobList);
-
+        viewBotJobListView.setCellFactory(
+                new ARCellFactory<>(BotJobListCell.class, performMessage, performDataBase, arViewBotJobScene)::call);
+        arNewBotJobScene.initialize(arViewBotJobScene, performDataBase, performMessage, botJobList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
 
         panelPane = new VBox(buttonPane, header, viewBotJobListView);
@@ -210,6 +210,7 @@ public class ARMainPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         newBotJobButton.setOnMouseClicked(e -> {
+            arNewBotJobScene.initialize(arViewBotJobScene, performDataBase, performMessage, botJobList);
             arNewBotJobScene.showModal();
             botJobList.clear();
             botJobList.addAll(performDataBase.loadAllBotJobs());

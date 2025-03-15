@@ -52,19 +52,20 @@ public class ARNewBotJobPane extends ARPane {
     private Timeline timeline;
     private Alert alertToShow;
 
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
-    private static final ARViewBotJobScene arViewBotJobScene;
+    private PerformDataBase performDataBase;
+    private PerformMessage performMessage;
+    private ARViewBotJobScene arViewBotJobScene;
 
-    static {
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
-        arViewBotJobScene = ARViewBotJobScene.getInstance();
-    }
-
-    public ARNewBotJobPane(ObservableList<BotJobLoadDTO> botJobList) {
+    public ARNewBotJobPane(
+            ARViewBotJobScene arViewBotJobScene,
+            PerformDataBase performDataBase,
+            PerformMessage performMessage,
+            ObservableList<BotJobLoadDTO> botJobList) {
         //        this.viewBotJobListView = viewBotJobListView;
         this.botJobList = botJobList; // FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.performDataBase = performDataBase;
+        this.performMessage = performMessage;
         //        this.viewBotJobListView.setItems(botJobList);
     }
 

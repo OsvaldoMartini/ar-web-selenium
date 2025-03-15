@@ -178,6 +178,7 @@ public class PerformActions {
                 boolean passed = true;
                 switch (actions[0]) {
                     case ARConstants.VISUALIZE:
+                        scrollIntoView(instructionElement);
                         passed = scrollToElement(byPassNotFound, instructionElement);
 
                         if (!passed) {
@@ -1008,6 +1009,7 @@ public class PerformActions {
             boolean byPassNotFound, WebElement element, String fieldName, String dataFieldValue) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1033,6 +1035,7 @@ public class PerformActions {
     private String getValueInElement(boolean byPassNotFound, WebElement element) throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1122,11 +1125,12 @@ public class PerformActions {
             ARLogger.getInstance(PerformActions.class)
                     .severe(String.format(
                             "Failed to Scroll to Element \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
-            if (!byPassNotFound) {
-                //                performMessage.couldNotFindElement("Failed to Scroll to Element " +
-                // element.getTagName());
-                performMessage.couldNotInputBotJobVeryFast("Failed to Scroll to Element " + element.getTagName());
-            }
+            //            if (!byPassNotFound) {
+            //                //                performMessage.couldNotFindElement("Failed to Scroll to Element " +
+            //                // element.getTagName());
+            //                performMessage.couldNotInputBotJobVeryFast("Failed to Scroll to Element " +
+            // element.getTagName());
+            //            }
             return false;
         }
     }
@@ -1150,23 +1154,24 @@ public class PerformActions {
             return false;
         }
 
-        //        try {
-        //            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
-        //                ((JavascriptExecutor) arWebDriver.getDriver())
-        //                        .executeScript("arguments[0].scrollIntoView(true);", element);
-        //                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
-        //            }));
-        //        } catch (Exception e) {
-        //            ARLogger.getInstance(PerformActions.class)
-        //                    .fine(String.format(
-        //                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(),
-        // e.getMessage()));
-        //
-        //            if (!byPassNotFound) {
-        //                performMessage.couldNotFindElement(element.getTagName());
-        //            }
-        //            return false;
-        //        }
+        try {
+            //            scrollIntoView(element);
+            //            waitForAction.until(ExpectedConditions.visibilityOf(element));
+            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
+                ((JavascriptExecutor) arWebDriver.getDriver())
+                        .executeScript("arguments[0].scrollIntoView(true);", element);
+                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
+            }));
+        } catch (Exception e) {
+            ARLogger.getInstance(PerformActions.class)
+                    .fine(String.format(
+                            "Could Not Find TagName \"%s\" -> Cause: %s", element.getTagName(), e.getMessage()));
+
+            //                    if (!byPassNotFound) {
+            //                        performMessage.couldNotFindElement(element.getTagName());
+            //                    }
+            //                    return false;
+        }
 
         try {
             element.click();
@@ -1202,6 +1207,7 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
 
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1269,6 +1275,14 @@ public class PerformActions {
         return true;
     }
 
+    private void scrollIntoView(WebElement element) {
+        try {
+            ((JavascriptExecutor) arWebDriver.getDriver()).executeScript("arguments[0].scrollIntoView(true);", element);
+        } catch (Exception ignore) {
+
+        }
+    }
+
     /**
      * Extracts the dataFieldName and dataFieldValue based on the instruction and DTO.
      */
@@ -1313,6 +1327,7 @@ public class PerformActions {
             throws Exception {
         UtilsMethods.exceptionIfNullWebElement(element);
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1358,6 +1373,7 @@ public class PerformActions {
         UtilsMethods.exceptionIfNullWebElement(element);
 
         try {
+            scrollIntoView(element);
             waitForAction.until(ExpectedConditions.visibilityOf(element));
         } catch (Exception ex) {
             ARLogger.getInstance(PerformActions.class)

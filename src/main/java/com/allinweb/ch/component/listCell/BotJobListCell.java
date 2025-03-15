@@ -19,17 +19,19 @@ import javafx.scene.text.Text;
 
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
-    public BotJobListCell() {}
+    private PerformMessage performMessage;
+    private PerformDataBase performDataBase;
+    private ARViewBotJobScene arViewBotJobScene;
 
-    private static final PerformMessage performMessage;
-    private static final PerformDataBase performDataBase;
-    private static final ARViewBotJobScene arViewBotJobScene;
+    public BotJobListCell(
+            PerformMessage performMessage, PerformDataBase performDataBase, ARViewBotJobScene arViewBotJobScene) {
+        this.performMessage = performMessage;
+        this.performDataBase = performDataBase;
+        this.arViewBotJobScene = arViewBotJobScene;
+    }
 
-    // Static block to initialize
-    static {
-        performMessage = PerformMessage.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        arViewBotJobScene = ARViewBotJobScene.getInstance();
+    public BotJobListCell() {
+        // Default constructor
     }
 
     @Override
@@ -40,102 +42,88 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
             ARComponentBuilder builder = new ARComponentBuilder();
             Label botJobName = new Label(item.getName());
             Label botJobDescription = new Label(item.getDescription());
-            Label homeBankingUrl = new Label(item.getHomeBankingLoadDTO().getName());
+            Label homeBankingName = new Label(item.getHomeBankingLoadDTO().getName());
 
             // Create status label
             Label statusLabel = new Label(item.isActive() ? "Active" : "Inactive");
-            if (!item.isActive()) {
-                statusLabel.setTextFill(Color.GREY); // Grey out inactive items
-            } else {
-                statusLabel.setTextFill(Color.BLACK); // Reset to black for active items
-            }
+            statusLabel.setTextFill(item.isActive() ? Color.BLACK : Color.GREY);
 
             Button deleteBotJobButton = builder.buildButton(
                     "", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, Insets.EMPTY);
-            deleteBotJobButton.setOnMouseClicked(e -> {
-                VBox combinedTextContainer = new VBox();
-                combinedTextContainer.setSpacing(5);
-
-                Text variableText1Styled = new Text("Are you sure you want to delete the bot job selected?");
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                Text variableText2Styled = new Text(String.format("Bot Job: \"(%s)%s\"", item.getId(), item.getName()));
-                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                Text variableText3Styled = new Text("THIS ACTION IS GOING TO REMOVE JOB ALL DATA!!!");
-                variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                Text variableText4Styled = new Text("INCLUDING SAVED COMPONENTS FOR THIS JOB!!!");
-                variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                VBox allMsgVer = new VBox();
-                allMsgVer
-                        .getChildren()
-                        .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
-
-                combinedTextContainer.getChildren().addAll(allMsgVer);
-
-                boolean alertResponse = performMessage.showAlertCombinedVBOX(
-                        Alert.AlertType.CONFIRMATION,
-                        "Bot Job Deletion",
-                        "Remove All Details Bot Job",
-                        null,
-                        combinedTextContainer);
-
-                if (alertResponse) {
-                    deleteBotJob(item); // Call your delete method here
-
-                    // After deleting, reset the graphic or refresh the UI
-                    Platform.runLater(() -> {
-                        // Here we can update the layout or remove the item from the list.
-                        // For example, if you want to remove the deleted BotJob from the ListView:
-                        ListView<BotJobLoadDTO> listView = getListView(); // Retrieve the ListView reference
-                        listView.getItems().remove(item); // Remove the item from the list
-                    });
-                }
-            });
+            deleteBotJobButton.setOnMouseClicked(e -> handleDelete(item));
 
             GridPane uiBotJob = new GridPane();
-            ColumnConstraints con = new ColumnConstraints();
-            con.setPercentWidth(20); // Adjust percentage width
-            con.setHalignment(HPos.LEFT);
-            uiBotJob.getColumnConstraints().add(con);
-            uiBotJob.getColumnConstraints().add(con);
-            uiBotJob.getColumnConstraints().add(con);
+            uiBotJob.setPadding(new Insets(5));
+            uiBotJob.setHgap(10);
 
-            ColumnConstraints con2 = new ColumnConstraints();
-            con2.setPercentWidth(20); // Adjust percentage width
-            con2.setHalignment(HPos.CENTER);
-            uiBotJob.getColumnConstraints().add(con2);
+            // Define column constraints with specific percentages
+            ColumnConstraints col1 = new ColumnConstraints();
+            col1.setPercentWidth(30); // botJobName
 
-            ColumnConstraints con3 = new ColumnConstraints();
-            con3.setPercentWidth(20); // Adjust percentage width
-            con3.setHalignment(HPos.CENTER);
-            uiBotJob.getColumnConstraints().add(con3);
+            ColumnConstraints col2 = new ColumnConstraints();
+            col2.setPercentWidth(30); // botJobDescription
 
-            AnchorPane.setTopAnchor(uiBotJob, ARConstants.SPACE_ZERO);
-            AnchorPane.setBottomAnchor(uiBotJob, ARConstants.SPACE_ZERO);
-            AnchorPane.setLeftAnchor(uiBotJob, ARConstants.SPACE_ZERO);
-            AnchorPane.setRightAnchor(uiBotJob, ARConstants.SPACE_ZERO);
+            ColumnConstraints col3 = new ColumnConstraints();
+            col3.setPercentWidth(30); // homeBankingUrl
 
+            ColumnConstraints col4 = new ColumnConstraints();
+            col4.setPercentWidth(5); // statusLabel
+
+            ColumnConstraints col5 = new ColumnConstraints();
+            col5.setPercentWidth(5); // deleteBotJobButton
+
+            // Align text properly in each column
+            col1.setHalignment(HPos.LEFT);
+            col2.setHalignment(HPos.LEFT);
+            col3.setHalignment(HPos.LEFT);
+            col4.setHalignment(HPos.CENTER);
+            col5.setHalignment(HPos.RIGHT);
+
+            // Apply constraints to the GridPane
+            uiBotJob.getColumnConstraints().addAll(col1, col2, col3, col4, col5);
+
+            // Add elements to the GridPane with proper column indexes
             uiBotJob.add(botJobName, 0, 0);
             uiBotJob.add(botJobDescription, 1, 0);
-            uiBotJob.add(homeBankingUrl, 2, 0);
-            uiBotJob.add(statusLabel, 3, 0); // Add status label
-            uiBotJob.add(deleteBotJobButton, 4, 0); // Shift delete button
+            uiBotJob.add(homeBankingName, 2, 0);
+            uiBotJob.add(statusLabel, 3, 0);
+            uiBotJob.add(deleteBotJobButton, 4, 0);
 
             AnchorPane row = new AnchorPane(uiBotJob);
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    //                    new ARViewBotJobScene(item).showModal();
                     arViewBotJobScene.initialize(item);
                     arViewBotJobScene.show();
                 }
             });
+
             graphic = row;
         }
         Node finalGraphic = graphic;
         Platform.runLater(() -> setGraphic(finalGraphic));
+    }
+
+    private void handleDelete(BotJobLoadDTO item) {
+        VBox confirmationBox = new VBox(
+                5,
+                createStyledText("Are you sure you want to delete the bot job selected?", "blue"),
+                createStyledText(String.format("Bot Job: \"(%s)%s\"", item.getId(), item.getName()), "blue"),
+                createStyledText("THIS ACTION IS GOING TO REMOVE ALL JOB DATA!!!", "red"),
+                createStyledText("INCLUDING SAVED COMPONENTS FOR THIS JOB!!!", "red"));
+
+        boolean confirmed = performMessage.showAlertCombinedVBOX(
+                Alert.AlertType.CONFIRMATION, "Bot Job Deletion", "Remove All Details Bot Job", null, confirmationBox);
+
+        if (confirmed) {
+            deleteBotJob(item);
+            Platform.runLater(() -> getListView().getItems().remove(item));
+        }
+    }
+
+    private Text createStyledText(String content, String color) {
+        Text text = new Text(content);
+        text.setStyle(String.format("-fx-font-size: 18px; -fx-fill: %s;", color));
+        return text;
     }
 
     private void deleteBotJob(BotJobLoadDTO botJob) {
@@ -154,13 +142,12 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                     0);
         } else if (rowsAffected < 0) {
             performMessage.errorMessage(
-                    "I cannot delete the BojJob Now",
+                    "I cannot delete the BotJob Now",
                     "This Bot Job was Flagged as Inactive!",
                     "Some Access ROW still in use",
                     null,
                     null,
                     0);
-
             performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }

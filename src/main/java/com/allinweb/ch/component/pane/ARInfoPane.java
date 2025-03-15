@@ -28,8 +28,8 @@ public class ARInfoPane extends ARPane {
     @Override
     public void initUIComponents() {
         // Initialize labels with their corresponding text
-        applicationNameLabel = new Label("ARS Web v3.2f Beta Test");
-        compileDateLabel = new Label("Build: 06-03-2025");
+        applicationNameLabel = new Label("ARS Web v3.3f Beta Test");
+        compileDateLabel = new Label("Build: 14-03-2025");
         copyrightLabel = new Label("Copyright Allinweb AG");
         rightsReservedLabel = new Label("All rights reserved");
 

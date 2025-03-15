@@ -3,6 +3,8 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARViewBotJobListPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
 
 public class ARViewBotJobListScene extends ARScene {
 
@@ -10,13 +12,21 @@ public class ARViewBotJobListScene extends ARScene {
     private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Bot Job List";
 
-    public ARViewBotJobListScene() {
+    private final ARViewBotJobScene arViewBotJobScene;
+    private final PerformDataBase performDataBase;
+    private final PerformMessage performMessage;
+
+    public ARViewBotJobListScene(
+            ARViewBotJobScene arViewBotJobScene, PerformDataBase performDataBase, PerformMessage performMessage) {
         super();
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.performDataBase = performDataBase;
+        this.performMessage = performMessage;
     }
 
     @Override
     public IARPane buildPane() {
-        return new ARViewBotJobListPane();
+        return new ARViewBotJobListPane(arViewBotJobScene, performDataBase, performMessage);
     }
 
     @Override

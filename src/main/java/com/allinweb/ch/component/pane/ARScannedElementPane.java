@@ -9169,11 +9169,11 @@ public class ARScannedElementPane extends ARPane {
 
             performMessage.errorMessage(
                     "Failed to locate the element after 10 attempts.",
-                    "Try rescanning the element,",
-                    "or change the action to \"Force Coordinates\".",
+                    "Try to use \"Force Coordinates\".",
                     "Last Execution:",
+                    null,
                     resultActions,
-                    260);
+                    300);
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
         return true;
