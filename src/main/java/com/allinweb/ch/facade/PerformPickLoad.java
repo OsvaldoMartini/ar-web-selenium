@@ -601,7 +601,7 @@ public class PerformPickLoad {
                                 }
 
                                 // Parse the someText using the semicolon delimiter
-                                var parsedText = elementIdentity.someText.split(";");
+                                var parsedText = elementIdentity.someText?.split(";") || [];
 
                                 // Format the tooltip content to make it more readable
                                 var tooltipContent = "";
