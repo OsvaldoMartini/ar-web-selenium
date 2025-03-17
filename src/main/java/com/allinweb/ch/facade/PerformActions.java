@@ -780,7 +780,7 @@ public class PerformActions {
         }
 
         int attempts = 0;
-        while (elementFound == null && attempts < 10) {
+        while (elementFound == null && attempts < 5) {
 
             for (com.allinweb.ch.util.Priority priority : arPriorities.getAllPriorityList()) {
                 if (elementFound != null) {
@@ -1231,7 +1231,7 @@ public class PerformActions {
                     element.clear();
                     element.sendKeys(dataFieldValue);
                     // Waits component reaction
-                    onHoldInSeconds(1);
+                    onHoldInSeconds(2);
                     if (!pressEnterAfter) {
                         element.sendKeys(Keys.TAB);
                     } else {
@@ -1240,7 +1240,7 @@ public class PerformActions {
                 } else {
                     element.sendKeys(UtilsMethods.generateRandomID(10));
                     // Waits component reaction
-                    onHoldInSeconds(1);
+                    onHoldInSeconds(2);
                     if (!pressEnterAfter) {
                         element.sendKeys(Keys.TAB);
                     } else {
@@ -1255,7 +1255,7 @@ public class PerformActions {
                 }
                 element.sendKeys(dataFieldValue);
                 // Waits component reaction
-                onHoldInSeconds(1);
+                onHoldInSeconds(2);
                 if (!pressEnterAfter) {
                     element.sendKeys(Keys.TAB);
                 } else {
@@ -1355,7 +1355,8 @@ public class PerformActions {
 
             //            performMessage.couldNotFindElement("Could Input Values to Element " + element.getTagName());
 
-            performMessage.couldNotInputBotJobVeryFast("Could Input Values to Element " + element.getTagName());
+            //            performMessage.couldNotInputBotJobVeryFast("Could Input Values to Element " +
+            // element.getTagName());
 
             return false;
         }
@@ -2655,6 +2656,11 @@ public class PerformActions {
                 message = "Select(element)";
                 Select selectCountry = new Select(element);
                 selectCountry.selectByVisibleText(fieldData.getValue());
+                if (!pressEnterAfter) {
+                    element.sendKeys(Keys.TAB);
+                } else {
+                    element.sendKeys(Keys.ENTER);
+                }
             } else if (typeCommand.equals(ARConstants.CLEAR)) {
                 message = "clear()";
                 element.clear();
@@ -2664,6 +2670,11 @@ public class PerformActions {
             } else if (typeCommand.equals(ARConstants.INSERT)) {
                 message = "sendKeys(\"" + fieldData.getValue() + "\")";
                 element.sendKeys(fieldData.getValue());
+                if (!pressEnterAfter) {
+                    element.sendKeys(Keys.TAB);
+                } else {
+                    element.sendKeys(Keys.ENTER);
+                }
             } else if (typeCommand.equals(ARConstants.TAB)) {
                 message = "(Keys.TAB)";
                 element.sendKeys(Keys.TAB);

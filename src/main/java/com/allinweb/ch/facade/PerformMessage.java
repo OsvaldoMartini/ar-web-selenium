@@ -395,13 +395,13 @@ public class PerformMessage {
         if (height > 0) {
             dialog.setSize(380, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 210);
+            dialog.setSize(380, 240);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 250);
-        } else if (message2 != null && message3 != null && message4 != null) {
             dialog.setSize(380, 280);
+        } else if (message2 != null && message3 != null && message4 != null) {
+            dialog.setSize(380, 320);
         } else {
-            dialog.setSize(380, 150);
+            dialog.setSize(380, 200);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen
@@ -512,13 +512,13 @@ public class PerformMessage {
         if (height > 0) {
             dialog.setSize(380, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 210);
+            dialog.setSize(380, 270);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 250);
+            dialog.setSize(380, 310);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 280);
+            dialog.setSize(380, 380);
         } else {
-            dialog.setSize(380, 150);
+            dialog.setSize(380, 210);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen

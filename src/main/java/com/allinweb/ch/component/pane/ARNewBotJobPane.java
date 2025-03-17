@@ -23,6 +23,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 
@@ -218,10 +219,10 @@ public class ARNewBotJobPane extends ARPane {
                 arViewBotJobScene.show();
 
                 // Close the current window
-                //                Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();
-                //                if (currentStage != null) {
-                //                    currentStage.close();
-                //                }
+                Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();
+                if (currentStage != null) {
+                    currentStage.close();
+                }
             } else {
                 ARLogger.getInstance(Thread.class).severe("Error creating BotJobDTO. Check the Block Creation!");
             }
