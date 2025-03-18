@@ -3,7 +3,8 @@
   trustedOriginURL,
   searchTerms,
   hiddenFields,
-  socketPort
+  socketPort,
+  homeBankingId
 ) {
   var attempts = 0;
   var wSocket = null;
@@ -122,8 +123,9 @@
       if (window.allElementInfo.length > 0) {
         const message = {
           type: "SEARCH_TOOL",
-          sessionId: "scannerGrid",
+          sessionId: `scannerGrid-${homeBankingId}`,
           operationId: "searchTerms",
+          homeBankingId: homeBankingId,
           details: window.allElementInfo, // Send allElementInfo
         };
         wSocket.send(JSON.stringify(message));
@@ -548,21 +550,30 @@
     }
 
     // Parse the someText using the semicolon delimiter
-    var parsedText = elementIdentity.someText?.split(";") || [];
+    var parsedText = elementIdentity?.someText
+      ? elementIdentity.someText.split(";")
+      : [];
 
     // Format the tooltip content to make it more readable
     var tooltipContent = "";
+
+    // Check if it's an iframe and add the iframe details
     tooltipContent += isIframe ? "[Iframe] <br>" : "";
+
+    // Add the tag name to the tooltip content
     tooltipContent += `Tag Name: ${tagNameTemp}<br>`;
+
+    // Add iframe details if it is an iframe
     tooltipContent += isIframe ? `- ${iframeDetails}<br>` : "";
 
     // Replace new lines with <br> before adding each item from parsedText
-    tooltipContent += elementIdentity.someText
-      ? parsedText.map((item) => `- ${item}<br>`).join("")
-      : "No Text<br>";
+    tooltipContent +=
+      parsedText.length > 0
+        ? parsedText.map((item) => `- ${item.trim()}<br>`).join("") // Trim spaces from each item
+        : "No Text<br>";
 
     // Set the tooltip content with line breaks
-    tooltip.innerHTML = tagNameTemp;
+    tooltip.innerHTML = tooltipContent; // Set the complete formatted content
 
     // Position the tooltip near the mouse cursor
     var tooltipWidth = tooltip.offsetWidth;
@@ -1246,5 +1257,5 @@
   });
 
   // window.cloneTerms = null; // Invalidating the function
-  // })(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4]);
-})("http://localhost:3000/", "http://localhost:3000/", ["*"], false, 8181);
+  // })(arguments[0], arguments[1], arguments[2], arguments[3], arguments[4], arguments[5]);
+})("http://localhost:3000/", "http://localhost:3000/", ["*"], false, 8181, 1);

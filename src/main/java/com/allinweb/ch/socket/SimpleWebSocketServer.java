@@ -212,7 +212,7 @@ public class SimpleWebSocketServer {
 
                 homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();
-                
+
                 if (sessionIdToSend.equals("scannerGrid-" + homeBankingId)) {
                     String jsonData = gson.toJson(elementSplitDTO);
                     sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
@@ -231,7 +231,7 @@ public class SimpleWebSocketServer {
 
                 homeBankingId = processDTO.getHomeBankingId();
                 sessionIdToSend = processDTO.getSessionId();
-                botJobIdTask = processDTO.getBotJobId();
+                //                botJobIdTask = processDTO.getBotJobId();
 
                 middleWareMsg(homeBankingId, processDTO);
 

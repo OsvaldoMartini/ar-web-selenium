@@ -425,7 +425,7 @@ public class ARScannedElementPane extends ARPane {
 
         // sessionIdFromJava
         sessionId = "scannerGrid-"
-                + this.botJobLoad
+                + this.homeBanking
                         .getId(); // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
         // Default
         // session
@@ -1238,7 +1238,13 @@ public class ARScannedElementPane extends ARPane {
                 String[] dataArrayClone = {"*"};
                 int finalPort = portSocket;
                 Platform.runLater(() -> periodicPickOneCloneThread(
-                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
+                        arWebDriver.getDriver(),
+                        arWebDriver.getDriver().getCurrentUrl(),
+                        dataArrayClone,
+                        finalPort,
+                        homeBanking.getId()));
+            } else {
+                revertHoverPickInjections(arWebDriver.getDriver());
             }
 
             Platform.runLater(() -> {
@@ -4657,10 +4663,11 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void periodicPickOneCloneThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
+    private void periodicPickOneCloneThread(
+            WebDriver driver, String currentUrl, String[] dataArray, int port, int homeBankingId) {
 
         ErrorMessage errorMessage = performCloneLoad.dynamicPickOneCloneElementsDTO(
-                driver, currentUrl, dataArray, searchHiddenFields, port);
+                driver, currentUrl, dataArray, searchHiddenFields, port, homeBankingId);
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
@@ -4871,6 +4878,14 @@ public class ARScannedElementPane extends ARPane {
 
             // Reset the background color
             //        jsExecutor.executeScript("document.body.style.backgroundColor = '';");
+        } catch (Exception ignore) {
+        }
+    }
+
+    private void revertHoverPickInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript("window.revertHoverPickInjections();");
         } catch (Exception ignore) {
         }
     }
