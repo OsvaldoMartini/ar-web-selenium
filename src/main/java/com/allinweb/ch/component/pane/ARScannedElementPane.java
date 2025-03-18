@@ -1756,9 +1756,8 @@ public class ARScannedElementPane extends ARPane {
 
         boolean tagClickable = false;
         // Define regex to extract specific tags (e.g., a, button)
-        String regex = "/([^/\\[]+)";
+        String regex = "/([^/\\[]+)"; 
         Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(targetCheck.getAllAttributes());
 
         // Iterate through each attribute in the array
         for (AttributeData attribute : targetCheck.getAttributeData()) {
