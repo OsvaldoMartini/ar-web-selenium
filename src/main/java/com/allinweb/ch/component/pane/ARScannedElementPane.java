@@ -238,7 +238,6 @@ public class ARScannedElementPane extends ARPane {
     private Button turnOnOffButton;
     private Button includeAllSelected;
 
-    private CheckBox checkPickElement;
     private CheckBox checkCloneElement;
 
     private CheckBox checkTestAction;
@@ -601,7 +600,6 @@ public class ARScannedElementPane extends ARPane {
         countdownTextField.setEditable(true);
 
         checkCloneElement = new CheckBox("PICK ONE ");
-        checkPickElement = new CheckBox("HOVER PICK ");
 
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
 
@@ -831,14 +829,7 @@ public class ARScannedElementPane extends ARPane {
             //                    .bind(boxCoordenates.widthProperty().multiply(0.50));
 
             HBox hBoxPickClone = new HBox();
-            hBoxPickClone
-                    .getChildren()
-                    .addAll(
-                            createSpacerHoriz(),
-                            checkCloneElement,
-                            createSpacerHoriz(),
-                            checkPickElement,
-                            createSpacerHoriz());
+            hBoxPickClone.getChildren().addAll(createSpacerHoriz(), checkCloneElement, createSpacerHoriz());
 
             //            textFlowResult.getChildren().addAll(countdownTextField);
 
@@ -1196,36 +1187,37 @@ public class ARScannedElementPane extends ARPane {
             // loadBotJob(botJob);
             recallJob();
         });
-        checkPickElement.setOnMouseClicked(e -> {
-            arWebDriver.getDriver().switchTo().defaultContent();
-            this.targetSelected = null;
-            elementsFound.clear();
-            resultElementSearch = false;
-
-            revertPickInjections(arWebDriver.getDriver());
-
-            if (checkPickElement.isSelected()) {
-                String[] dataArrayClone = {"*"};
-                int finalPort = portSocket;
-                Platform.runLater(() -> periodicHoverPickThread(
-                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
-            }
-
-            Platform.runLater(() -> {
-                launchBotJobButton.setDisable(checkPickElement.isSelected());
-                recallJobButton.setDisable(checkPickElement.isSelected());
-
-                checkTestAction.setDisable(checkPickElement.isSelected());
-                checkTestAction.setSelected(false);
-
-                checkCloneElement.setDisable(checkPickElement.isSelected());
-                checkCloneElement.setSelected(false);
-
-                if (!checkPickElement.isSelected()) {
-                    defineNameField.clear();
-                }
-            });
-        });
+        //        checkPickElement.setOnMouseClicked(e -> {
+        //            arWebDriver.getDriver().switchTo().defaultContent();
+        //            this.targetSelected = null;
+        //            elementsFound.clear();
+        //            resultElementSearch = false;
+        //
+        //            revertPickInjections(arWebDriver.getDriver());
+        //
+        //            if (checkPickElement.isSelected()) {
+        //                String[] dataArrayClone = {"*"};
+        //                int finalPort = portSocket;
+        //                Platform.runLater(() -> periodicHoverPickThread(
+        //                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone,
+        // finalPort));
+        //            }
+        //
+        //            Platform.runLater(() -> {
+        //                launchBotJobButton.setDisable(checkPickElement.isSelected());
+        //                recallJobButton.setDisable(checkPickElement.isSelected());
+        //
+        //                checkTestAction.setDisable(checkPickElement.isSelected());
+        //                checkTestAction.setSelected(false);
+        //
+        //                checkCloneElement.setDisable(checkPickElement.isSelected());
+        //                checkCloneElement.setSelected(false);
+        //
+        //                if (!checkPickElement.isSelected()) {
+        //                    defineNameField.clear();
+        //                }
+        //            });
+        //        });
         checkCloneElement.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
             this.targetSelected = null;
@@ -1254,8 +1246,8 @@ public class ARScannedElementPane extends ARPane {
                 checkTestAction.setDisable(checkCloneElement.isSelected());
                 checkTestAction.setSelected(false);
 
-                checkPickElement.setDisable(checkCloneElement.isSelected());
-                checkPickElement.setSelected(false);
+                //                checkPickElement.setDisable(checkCloneElement.isSelected());
+                //                checkPickElement.setSelected(false);
 
                 if (!checkCloneElement.isSelected()) {
                     defineNameField.clear();
@@ -1299,9 +1291,7 @@ public class ARScannedElementPane extends ARPane {
                             // "tagName-found".equalsIgnoreCase(element.getTypeElement()))
                             .findFirst(); // Get the first matching ElementDTO
 
-                    if (checkPickElement.isSelected()) {
-                        //                        handlePickElementClick();
-                    } else if (iframeElement.isPresent()) {
+                    if (iframeElement.isPresent()) {
                         insertNewElement(iframeElement.get(), elementsFound);
                     } else {
                         insertNewElement(elementsFound);
@@ -2157,7 +2147,6 @@ public class ARScannedElementPane extends ARPane {
             checkTestAction.setDisable(true);
             launchBotJobButton.setDisable(true);
             recallJobButton.setDisable(true);
-            checkPickElement.setDisable(true);
 
             if (!checkCloneElement.isSelected()) {
                 defineNameField.clear();
@@ -3716,8 +3705,8 @@ public class ARScannedElementPane extends ARPane {
                                     tagType = WebElementTagNameEnum.INPUT_ENTER;
                                 }
 
-                                InstructionLoadDTO instruction = arWebHover.buildNewInstruction(
-                                        tagType, actionReq, checkPickElement.isSelected(), listInstr.size());
+                                InstructionLoadDTO instruction =
+                                        arWebHover.buildNewInstruction(tagType, actionReq, false, listInstr.size());
 
                                 if (checkForceCoordText.isSelected()) {
                                     instruction.setForceCoordinates(true);

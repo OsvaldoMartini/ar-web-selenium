@@ -69,7 +69,9 @@ public class PerformCloneLoad {
                             ) {
                               var attempts = 0;
                               var wSocket = null;
-                              const coordinatesElement = document.createElement("div");
+                              // Temporary storage for original styles
+                              const originalStyles = new Map();
+                              var coordinatesElement = document.createElement("div");
                               coordinatesElement.id = "coordinates";
                               coordinatesElement.style.position = "fixed"; // Fixed so it stays above all elements
                               coordinatesElement.style.padding = "10px";
@@ -460,7 +462,7 @@ public class PerformCloneLoad {
                               }
 
                               // Add event listener for mouse movement to update coordinates
-                              document.addEventListener("mousemove", function (event) {
+                              function showMartiniTooltip(event) {
                                 const x = event.clientX; // X position
                                 const y = event.clientY; // Y position
 
@@ -493,10 +495,9 @@ public class PerformCloneLoad {
 
                                   lastHoveredElement = elementBelowTooltip; // Update the last hovered element
                                 }
-                              });
+                              }
 
-                              // Add event listener for click event to intercept the click
-                              document.addEventListener("click", function (event) {
+                              function handleMartiniClick(event) {
                                 event.preventDefault(); // Prevent the default click action
                                 event.stopPropagation(); // Prevent the event from propagating upwards
                                 coordinatesElement.style.display = "none";
@@ -583,7 +584,6 @@ public class PerformCloneLoad {
                                     // If clickable elements are found, perform your action (e.g., highlight them)
                                     clickableElements.forEach((element) => {
                                       pushElement(element);
-                                      element.style.outline = "3px solid red";
                                     });
                                   } else {
                                     // Commom Elementes
@@ -599,12 +599,18 @@ public class PerformCloneLoad {
                                   window.allElementInfo = [];
                                   window.elementInfoMap.clear();
                                 }, 1000);
-                              });
+                              }
 
                               function pushElement(element) {
                                 const elementIdentity = getElementIdentity(element);
                                 // Store tagName and other details in the Map
                                 if (elementIdentity) {
+                                  if (!originalStyles.has(element)) {
+                                    // Store the original outline before changing it
+                                    originalStyles.set(element, element.style.outline);
+                                  }
+                                  element.style.outline = "3px solid red";
+
                                   window.elementInfoMap.set(
                                     elementIdentity.xPath,
                                     elementDTO("clicked", elementIdentity)
@@ -624,6 +630,43 @@ public class PerformCloneLoad {
 
                               connectWebSocket();
 
+                              window.revertHoverPickInjections = function () {
+                                document.removeEventListener("mousemove", showMartiniTooltip);
+                                document.removeEventListener("click", handleMartiniClick);
+                                console.log("revertHoverPickInjections");
+
+                                // Remove the tooltip from the page and delete the reference after 5 seconds
+                                setTimeout(() => {
+                                  removeElements();
+                                  restoreOriginalStyles();
+                                  window.allElementInfo = [];
+                                }, 1000);
+                              };
+
+                              // Function to restore the original outline
+                              function restoreOriginalStyles() {
+                                originalStyles.forEach((originalStyle, element) => {
+                                  element.style.outline = originalStyle; // Restore original outline
+                                });
+                                originalStyles.clear(); // Clear the stored styles
+                              }
+
+                              function removeElements() {
+                                // Remove highlight from the previous element if any
+                                if (lastHoveredElement) {
+                                  lastHoveredElement.style.outline = ""; // Remove the previous highlight
+                                }
+
+                                if (coordinatesElement) {
+                                  coordinatesElement.remove(); // Completely remove the tooltip from the DOM
+                                  coordinatesElement = null; // Clear the reference to free memory
+                                  console.log("coordinatesElement completely removed.");
+                                }
+                              }
+
+                              document.addEventListener("mousemove", showMartiniTooltip);
+                              document.addEventListener("click", handleMartiniClick);
+
                               window.postMessage({ type: "myMessage", data: "some data" }, targetOriginURL);
 
                               window.addEventListener("message", function (event) {
@@ -640,7 +683,7 @@ public class PerformCloneLoad {
                               arguments[4],
                               arguments[5]
                             );
-                            //})("http://localhost:3000/", "http://localhost:3000/", ["*"], false, 8181, 1);
+                            // })("http://localhost:3000/", "http://localhost:3000/", ["*"], false, 8181, 1);
 
                     """;
 }
