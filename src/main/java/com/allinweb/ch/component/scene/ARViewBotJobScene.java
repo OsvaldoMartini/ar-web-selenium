@@ -9,13 +9,37 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
+import javafx.collections.ObservableList;
 
 public class ARViewBotJobScene extends ARScene {
 
+    protected static final SingletonSupplier<ARViewBotJobScene> instance = () -> new ARViewBotJobScene();
+
+    private ObservableList<BotJobLoadDTO> botJobList;
+
+    // Public method to access the singleton instance
+    public static ARViewBotJobScene getInstance() {
+        return instance.get();
+    }
+
     private ARScene currentScene;
+    private BotJobLoadDTO botJobLoad;
+
+    public void initialize(BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
+        this.botJobLoad = botJobLoad;
+        this.botJobList = botJobList;
+        this.currentScene = currentScene;
+    }
+
+    public ARViewBotJobScene() {
+        super();
+        //        this.botJobLoad = botJobLoad;
+        //        this.currentScene = currentScene;
+    }
 
     private BotJobLoadDTO botLoadJob = null;
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
@@ -34,20 +58,18 @@ public class ARViewBotJobScene extends ARScene {
         performAction = PerformActions.getInstance();
     }
 
-    private final BotJobLoadDTO botJobLoad;
-
-    public ARViewBotJobScene(BotJobLoadDTO botJobLoad) {
-        super();
-        this.botJobLoad = botJobLoad;
-        this.currentScene = currentScene;
-    }
-
     @Override
     public IARPane buildPane() {
 
         //        ARSharedResources.getInstance().cacheEntitiesFromDB();
 
         //        BotJobDTO botJobDTO = ARSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJobId);
+
+        boolean updBotJobStatus = performDataBase.updateBotStatus();
+        if (!updBotJobStatus) {
+            ARLogger.getInstance(ARViewBotJobScene.class)
+                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
+        }
 
         this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
@@ -70,6 +92,7 @@ public class ARViewBotJobScene extends ARScene {
             newBlockDetails.setTypeId(1);
             newBlockDetails.setActive(true);
             newBlockDetails.setWait(3);
+            newBlockDetails.setBlockOrderNumber(1);
 
             newBlockDetails.setBotJobId(this.botLoadJob.getId());
 
@@ -79,7 +102,7 @@ public class ARViewBotJobScene extends ARScene {
                             "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
         }
 
-        return new ARViewBotJobPane(this.botLoadJob, this);
+        return new ARViewBotJobPane(this.botLoadJob, this, botJobList);
     }
 
     @Override
@@ -166,7 +189,7 @@ public class ARViewBotJobScene extends ARScene {
     //                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
     //                    instruction.setActions(rs.getString("actions"));
     //                    instruction.setName(rs.getString("instruction_name"));
-    //                    instruction.setPath(rs.getString("path"));
+    //                    instruction.setPath(rs.getString("xpath"));
     //                    instruction.setDescription(rs.getString("instruction_description"));
     //                    instruction.setOptional(rs.getBoolean("optional"));
     //                    instruction.setBlockMarked(rs.getBoolean("block_marked"));
@@ -267,7 +290,7 @@ public class ARViewBotJobScene extends ARScene {
     //                    instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
     //                    instruction.setActions(rs.getString("actions"));
     //                    instruction.setName(rs.getString("instruction_name"));
-    //                    instruction.setPath(rs.getString("path"));
+    //                    instruction.setPath(rs.getString("xpath"));
     //                    instruction.setDescription(rs.getString("instruction_description"));
     //                    instruction.setOptional(rs.getBoolean("optional"));
     //                    instruction.setBlockMarked(rs.getBoolean("block_marked"));

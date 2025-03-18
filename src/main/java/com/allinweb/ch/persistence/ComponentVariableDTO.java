@@ -1,10 +1,11 @@
 package com.allinweb.ch.persistence;
 
 import javax.persistence.*;
+import lombok.Data;
 
 @Entity
 @Table(name = "component_variable")
-// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "variableSeq", allocationSize = 1)
+@Data
 public class ComponentVariableDTO extends BaseDTO {
     @Column(name = "type")
     private String type;
@@ -12,75 +13,12 @@ public class ComponentVariableDTO extends BaseDTO {
     @Column(name = "name")
     private String name;
 
-    @Column(name = "value")
+    @Column(name = "value", columnDefinition = "TEXT")
     private String value;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "instruction_id")
-    private InstructionDTO instructionDTO;
+    @Column(name = "instruction_id")
+    private Integer instructionId;
 
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "bot_job_id")
-    private BotJobDTO botJobDTO;
-
-    public InstructionDTO getBlockLoopInstructionDTO() {
-        return instructionDTO;
-    }
-
-    public void setBlockLoopInstructionDTO(InstructionDTO instructionDTO) {
-        this.instructionDTO = instructionDTO;
-    }
-
-    public BotJobDTO getBotJobDTO() {
-        return botJobDTO;
-    }
-
-    public void setBotJobDTO(BotJobDTO botJobDTO) {
-        this.botJobDTO = botJobDTO;
-    }
-
-    public ComponentVariableDTO() {
-        super();
-    }
-
-    public ComponentVariableDTO(int id) {
-        super(id);
-    }
-
-    public ComponentVariableDTO(BotJobDTO botJobDTO) {
-        super();
-        this.botJobDTO = botJobDTO;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getValue() {
-        return value;
-    }
-
-    public void setValue(String value) {
-        this.value = value;
-    }
-
-    public BotJobDTO getBotJob() {
-        return botJobDTO;
-    }
-
-    public void setBotJob(BotJobDTO botJobDTO) {
-        this.botJobDTO = botJobDTO;
-    }
+    @Column(name = "home_banking_id")
+    private Integer homeBankingId;
 }

@@ -1,23 +1,15 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BankingDTO;
-import com.allinweb.ch.component.model.JobDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
-import com.allinweb.ch.persistence.HomeBankingDTO;
-import com.allinweb.ch.persistence.JobUserDTO;
-import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.io.File;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -34,9 +26,6 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 
 public class ARNewHomeBankingPane extends ARPane {
-
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
@@ -63,18 +52,20 @@ public class ARNewHomeBankingPane extends ARPane {
 
     private Connection conn = null;
     private ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList();
-    private ObservableList<JobUserDTO> jobUserList = FXCollections.observableArrayList();
+    //    private ObservableList<JobUserDTO> jobUserList = FXCollections.observableArrayList();
     private TableView<DatabaseUserDTO> tableView = new TableView<>();
 
     private List<BankingDTO> dtoList;
     private int currentIndex = 0;
 
     private Pane mainPane;
+    private ObservableList<HomeBankingLoadDTO> homeBankingList;
 
     private boolean isNewState = false;
 
-    public ARNewHomeBankingPane() {
+    public ARNewHomeBankingPane(ObservableList<HomeBankingLoadDTO> homeBankingList) {
         super();
+        this.homeBankingList = homeBankingList;
     }
 
     @Override
@@ -84,20 +75,9 @@ public class ARNewHomeBankingPane extends ARPane {
 
     @Override
     public void initUIComponents() {
+        loadAllHomeBankingBotJob();
+        updateHomeBankList(databaseList);
 
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        // Initialize database IF IS ACCESS TO BE USED
-        if (!POSTGRES_DB) {
-            initializeDatabase();
-        }
-        loadUserData();
         // Create labels
         Label idLabel = new Label("ID:");
         Label nameLabel = new Label("Name:");
@@ -162,7 +142,8 @@ public class ARNewHomeBankingPane extends ARPane {
             }
 
             saveUserData(user);
-            loadUserData();
+            loadAllHomeBankingBotJob();
+            updateHomeBankList(databaseList);
         });
 
         // Create update button
@@ -177,7 +158,8 @@ public class ARNewHomeBankingPane extends ARPane {
                     searchConfigField.getText(),
                     optionsConfigField.getText());
             updateUserData(id, user);
-            loadUserData();
+            loadAllHomeBankingBotJob();
+            updateHomeBankList(databaseList);
         });
 
         Button deleteButton = new Button("Delete");
@@ -195,7 +177,8 @@ public class ARNewHomeBankingPane extends ARPane {
             }
 
             deleteUserData(id);
-            loadUserData();
+            loadAllHomeBankingBotJob();
+            updateHomeBankList(databaseList);
         });
 
         Button templateButton = new Button("Template");
@@ -258,7 +241,8 @@ public class ARNewHomeBankingPane extends ARPane {
 
             optionsConfigField.setText(optionsConfig.toString());
 
-            //            loadUserData();
+            //            loadAllHomeBankingBotJob();
+            //            updateHomeBankList(databaseList);
         });
 
         // Create layout and add components
@@ -384,33 +368,52 @@ public class ARNewHomeBankingPane extends ARPane {
         AnchorPane.setRightAnchor(vbox, 0.0);
     }
 
-    private List<BankingDTO> loadFromDB() {
+    private void updateHomeBankList(List<DatabaseUserDTO> databaseList) {
+        homeBankingList.clear();
 
-        ARSharedResources.getInstance().refreshEntity(null, HomeBankingDTO.class);
+        for (DatabaseUserDTO user : databaseList) {
+            HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
 
-        List<BankingDTO> dtoList = new ArrayList<>();
+            homeBanking.setId(user.getId() != null ? Integer.parseInt(user.getId()) : null);
+            homeBanking.setUrl(user.getUrl() != null ? user.getUrl() : null);
+            homeBanking.setName(user.getName() != null ? user.getName() : null);
+            homeBanking.setPriority(user.getPriority() != null ? user.getPriority() : null);
+            homeBanking.setSearchConfig(user.getSearchConfig() != null ? user.getSearchConfig() : null);
+            homeBanking.setOptionsConfig(user.getOptionsConfig() != null ? user.getOptionsConfig() : null);
+            homeBanking.setUsername(user.getUsername() != null ? user.getUsername() : null);
+            homeBanking.setPassword(user.getPassword() != null ? user.getPassword() : null);
 
-        List<HomeBankingDTO> listHomeBankingDTO =
-                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
-
-        // Iterate through the result set and populate the DTO list
-        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
-            List<JobDTO> listJobsDto = new ArrayList<>();
-            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
-                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
-                listJobsDto.add(jobsDto);
-            }
-
-            dtoList.add(new BankingDTO(
-                    homeBankingDTO.getId(),
-                    homeBankingDTO.getName(),
-                    homeBankingDTO.getUrl(),
-                    homeBankingDTO.getPriority(),
-                    listJobsDto.size(),
-                    listJobsDto));
+            homeBankingList.add(homeBanking);
         }
-        return dtoList;
     }
+
+    //    private List<BankingDTO> loadFromDB() {
+    //
+    //        ARSharedResources.getInstance().refreshEntity(null, HomeBankingDTO.class);
+    //
+    //        List<BankingDTO> dtoList = new ArrayList<>();
+    //
+    //        List<HomeBankingDTO> listHomeBankingDTO =
+    //                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+    //
+    //        // Iterate through the result set and populate the DTO list
+    //        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
+    //            List<JobDTO> listJobsDto = new ArrayList<>();
+    //            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
+    //                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
+    //                listJobsDto.add(jobsDto);
+    //            }
+    //
+    //            dtoList.add(new BankingDTO(
+    //                    homeBankingDTO.getId(),
+    //                    homeBankingDTO.getName(),
+    //                    homeBankingDTO.getUrl(),
+    //                    homeBankingDTO.getPriority(),
+    //                    listJobsDto.size(),
+    //                    listJobsDto));
+    //        }
+    //        return dtoList;
+    //    }
 
     @Override
     public void initUIBehaviour() {}
@@ -455,29 +458,7 @@ public class ARNewHomeBankingPane extends ARPane {
         return dataList;
     }
 
-    private void initializeDatabase() {
-
-        String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-        String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-        File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-        if (!dbFile.exists()) {
-            try (Connection conn = DriverManager.getConnection(dbUrl)) {
-                try (Statement stmt = conn.createStatement()) {
-                    String createTableSQL = "CREATE TABLE home_banking (" + "ID AUTOINCREMENT PRIMARY KEY, "
-                            + "name TEXT, password TEXT, url TEXT, username TEXT, priority TEXT)";
-                    stmt.executeUpdate(createTableSQL);
-                }
-                System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
-            } catch (SQLException e) {
-                System.out.println(e.getMessage());
-            }
-        } else {
-            System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
-        }
-    }
-
-    private void loadUserData() {
+    private void loadAllHomeBankingBotJob() {
         databaseList.clear();
         String selectSQL =
                 " SELECT bank.ID, bank.Name, Url, bank.priority, COUNT(bot.ID) Jobs, search_config searchConfig, options_config optionsConfig, username, password "
@@ -533,6 +514,8 @@ public class ARNewHomeBankingPane extends ARPane {
         } catch (SQLException e) {
             System.out.println(e.getMessage());
         }
+
+        //        return databaseList;
         //        jobUserList.clear();
         //        loadBotJobData();
     }

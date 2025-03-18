@@ -1,7 +1,6 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.model.ElementDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -14,6 +13,10 @@ import com.google.gson.GsonBuilder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.HierarchyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -50,7 +53,7 @@ public class PerformMessage {
     public void initializePerformMessages() {}
 
     public void couldNotFindElement(String criteria) {
-        showCustomModalDialog(
+        showCustomModalDialogDragWin11(
                 criteria,
                 "1. Verify if you are on the correct web page.",
                 "2. Check if the page layout or content has been updated. (Page Refreshed)",
@@ -62,8 +65,21 @@ public class PerformMessage {
                 0);
     }
 
+    public void couldNotInputBotJobVeryFast(String criteria) {
+        showCustomModalDialogDragWin11(
+                criteria,
+                "If fields are written to previous fields, it means they depend on parent data.",
+                "Data loading delays may require waiting time.",
+                "Our AI report analysis can precisely determine the necessary wait times.",
+                "Schedule a consultation with our Commercial Advisor to get your free AI report",
+                true,
+                "OK",
+                null,
+                0);
+    }
+
     public void multipleActionsElement(String criteria) {
-        showCustomModalDialog(
+        showCustomModalDialogDragWin11(
                 criteria,
                 "Attention Required!",
                 "This element may require multiple actions.",
@@ -76,7 +92,7 @@ public class PerformMessage {
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
-        showCustomModalDialog(criteria, msg1, msg2, msg3, msg4, true, "OK", null, height);
+        showCustomModalDialogDragWin11(criteria, msg1, msg2, msg3, msg4, true, "OK", null, height);
     }
 
     public static void showCustomDialog(String title, String message) {
@@ -136,6 +152,42 @@ public class PerformMessage {
         JButton okButton = new JButton("OK");
         okButton.addActionListener(e -> dialog.dispose());
         panel.add(okButton, BorderLayout.SOUTH);
+
+        // Add panel to dialog and set properties
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This will block other input until the dialog is closed
+    }
+
+    public static void showCustomModalDialogDrag(String title, String message, String message2) {
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
+        dialog.setSize(300, 200);
+        dialog.setLocationRelativeTo(null); // Center on screen
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Style the dialog's main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(255, 218, 51)); // Light orange background
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setLayout(new BorderLayout());
+
+        // Style the message
+        JLabel messageLabel = new JLabel(
+                "<html><br><span style='color: blue;'>" + message
+                        + "</span><br>------------------------------<br><span style='color: blue;'>" + message2
+                        + "</span></html>",
+                SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        // OK button to close the dialog
+        JButton okButton = new JButton("OK");
+        okButton.addActionListener(e -> dialog.dispose());
+        panel.add(okButton, BorderLayout.SOUTH);
+
+        // Add drag support
+        addDragSupport(dialog, panel);
 
         // Add panel to dialog and set properties
         dialog.getContentPane().add(panel);
@@ -324,7 +376,325 @@ public class PerformMessage {
         return status[0];
     }
 
-    public String renderInstructionActions(InstructionDTO instruction) {
+    public static ARConstants.DialogModal showCustomModalDialogDrag(
+            String title,
+            String message,
+            String message2,
+            String message3,
+            String message4,
+            boolean redMsg,
+            String firstButton,
+            String secondButton,
+            int height) {
+
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // Modal dialog
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Set dialog size dynamically
+        if (height > 0) {
+            dialog.setSize(380, height);
+        } else if (message2 != null && message3 == null && message4 == null) {
+            dialog.setSize(380, 240);
+        } else if (message2 != null && message3 != null && message4 == null) {
+            dialog.setSize(380, 280);
+        } else if (message2 != null && message3 != null && message4 != null) {
+            dialog.setSize(380, 320);
+        } else {
+            dialog.setSize(380, 200);
+        }
+
+        dialog.setLocationRelativeTo(null); // Center on screen
+
+        // Main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(255, 218, 51)); // Light orange background
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setLayout(new BorderLayout());
+
+        // Build the message
+        String titleMessage = "<html><br><span style='color: blue;'>"
+                + "<span style='font-size: 14px; font-weight: bold;'>" + title
+                + "</span><br>------------------------------<br>";
+
+        String concatenateMsg = "<span style='color: blue;'>" + message;
+        if (message2 != null) {
+            concatenateMsg +=
+                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+        } else {
+            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
+        }
+
+        if (message3 != null && message4 == null) {
+            concatenateMsg +=
+                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
+        } else if (message3 != null && message4 != null) {
+            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
+                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
+                    + message4 + "</span><br><br></html>";
+        } else {
+            concatenateMsg += "</html>";
+        }
+
+        // Apply red color if redMsg is true
+        if (redMsg) {
+            concatenateMsg = concatenateMsg.replaceAll("blue", "red");
+        }
+        concatenateMsg = titleMessage + concatenateMsg;
+
+        // Create a JLabel to display the formatted message
+        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+
+        // Create button panel if second button exists
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
+        buttonPanel.setBackground(new Color(255, 218, 51));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        Dimension buttonSize = new Dimension(150, 20);
+
+        // OK button
+        JButton okButton = createStyledButton(firstButton);
+        okButton.setPreferredSize(buttonSize);
+        okButton.addActionListener(e -> {
+            dialog.dispose();
+            status[0] = ARConstants.DialogModal.OK;
+        });
+        buttonPanel.add(okButton);
+
+        // Stop button if provided
+        if (!Strings.isNullOrEmpty(secondButton)) {
+            JButton stopButton = createStyledButton(secondButton);
+            stopButton.setPreferredSize(buttonSize);
+            stopButton.addActionListener(e -> {
+                System.out.println("Stop button clicked!");
+                dialog.dispose();
+                status[0] = ARConstants.DialogModal.STOP;
+            });
+            buttonPanel.add(stopButton);
+        }
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Add drag support
+        addDragSupport(dialog, panel);
+
+        // Add panel to dialog
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This blocks other input until the dialog is closed
+
+        return status[0];
+    }
+
+    /**
+     * Creates a styled button with Windows 11 theme
+     */
+    public static ARConstants.DialogModal showCustomModalDialogDragWin11(
+            String title,
+            String message,
+            String message2,
+            String message3,
+            String message4,
+            boolean redMsg,
+            String firstButton,
+            String secondButton,
+            int height) {
+
+        // Create a JDialog as a custom modal message dialog
+        JDialog dialog = new JDialog((Frame) null, title, true); // Modal dialog
+        dialog.setUndecorated(true); // Remove the default border
+
+        // Set dialog size dynamically
+        if (height > 0) {
+            dialog.setSize(380, height);
+        } else if (message2 != null && message3 == null && message4 == null) {
+            dialog.setSize(380, 270);
+        } else if (message2 != null && message3 != null && message4 == null) {
+            dialog.setSize(380, 310);
+        } else if (message2 != null && message3 != null && message4 != null) {
+            dialog.setSize(380, 380);
+        } else {
+            dialog.setSize(380, 210);
+        }
+
+        dialog.setLocationRelativeTo(null); // Center on screen
+
+        // Main panel
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)), // Border color
+                BorderFactory.createEmptyBorder(20, 20, 20, 20))); // Padding
+        panel.setLayout(new BorderLayout());
+
+        // Build the message
+        String titleMessage = "<html><br><span style='color: blue;'>"
+                + "<span  style='font-size: 14px; font-weight: bold;'>" + title
+                + "</span><br>------------------------------<br>";
+
+        String concatenateMsg = "<span style='color: blue;'>" + message;
+        if (message2 != null) {
+            concatenateMsg +=
+                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
+        } else {
+            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
+        }
+
+        if (message3 != null && message4 == null) {
+            concatenateMsg +=
+                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
+        } else if (message3 != null && message4 != null) {
+            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
+                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
+                    + message4 + "</span><br><br></html>";
+        } else {
+            concatenateMsg += "</html>";
+        }
+
+        // Apply red color if redMsg is true
+        if (redMsg) {
+            concatenateMsg = concatenateMsg.replaceAll("blue", "#D32F2F");
+        }
+        concatenateMsg = titleMessage + concatenateMsg;
+
+        // Create a JLabel to display the formatted message
+        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
+        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
+        panel.add(messageLabel, BorderLayout.CENTER);
+
+        final ARConstants.DialogModal[] status = {ARConstants.DialogModal.NONE};
+
+        // Create button panel if second button exists
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
+        buttonPanel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        Dimension buttonSize = new Dimension(150, 20);
+
+        // OK button
+        JButton okButton = createStyledButtonWin11(firstButton);
+        okButton.setPreferredSize(buttonSize);
+        okButton.addActionListener(e -> {
+            dialog.dispose();
+            status[0] = ARConstants.DialogModal.OK;
+        });
+        buttonPanel.add(okButton);
+
+        // Stop button if provided
+        if (!Strings.isNullOrEmpty(secondButton)) {
+            JButton stopButton = createStyledButtonWin11(secondButton);
+            stopButton.setPreferredSize(buttonSize);
+            stopButton.addActionListener(e -> {
+                System.out.println("Stop button clicked!");
+                dialog.dispose();
+                status[0] = ARConstants.DialogModal.STOP;
+            });
+            buttonPanel.add(stopButton);
+        }
+
+        panel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Add drag support
+        addDragSupport(dialog, panel);
+
+        // Add panel to dialog
+        dialog.getContentPane().add(panel);
+        dialog.setAlwaysOnTop(true);
+        dialog.setVisible(true); // This blocks other input until the dialog is closed
+
+        return status[0];
+    }
+
+    // Helper method to create styled buttons
+    private static JButton createStyledButton(String text) {
+        return new JButton(text) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                if (isOpaque()) {
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    GradientPaint gradient =
+                            new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
+                    g2.setPaint(gradient);
+                    g2.fillRect(0, 0, getWidth(), getHeight());
+                }
+                super.paintComponent(g);
+            }
+        };
+    }
+
+    /**
+     * Creates a styled button with Windows 11 theme
+     */
+    private static JButton createStyledButtonWin11(String text) {
+        JButton button = new JButton(text);
+
+        // Windows 11 Theme Styling
+        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        button.setForeground(Color.WHITE);
+        button.setBackground(new Color(0, 120, 212)); // Windows 11 blue
+        button.setFocusPainted(false);
+        button.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12)); // Adjust padding
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        // Ensure UI updates properly
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(false);
+        button.putClientProperty("JComponent.outline", null); // Prevents UI interference
+
+        // Hover Effect
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(0, 102, 180)); // Darker blue on hover
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(0, 120, 212)); // Reset color
+            }
+        });
+
+        // Ensure color is reset each time it's used
+        button.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && button.isShowing()) {
+                button.setBackground(new Color(0, 120, 212)); // Restore original color
+            }
+        });
+
+        // Force UI update
+        button.revalidate();
+        button.repaint();
+
+        return button;
+    }
+
+    // Method to add drag-and-drop support
+    private static void addDragSupport(JDialog dialog, JPanel panel) {
+        final Point mouseDownCompCoords = new Point();
+
+        panel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                mouseDownCompCoords.setLocation(e.getPoint());
+            }
+        });
+
+        panel.addMouseMotionListener(new MouseMotionAdapter() {
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                Point currCoords = e.getLocationOnScreen();
+                dialog.setLocation(currCoords.x - mouseDownCompCoords.x, currCoords.y - mouseDownCompCoords.y);
+            }
+        });
+    }
+
+    public String renderInstructionActions(InstructionLoadDTO instruction) {
         // List of valid actions
         List<String> validActions = Arrays.asList("SET", "GET", "CK", "E");
 
@@ -404,14 +774,14 @@ public class PerformMessage {
         }
     }
 
-    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions) {
+    public void outputJson(List<InstructionLoadDTO> blockLoopInstructions, String fileName) {
         // Get the directory path from ARPropertyManager
         String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
 
         List<InstructionLoadDTO> updatedList = new ArrayList<>(); // Create a new list for updated instructions
 
         for (InstructionLoadDTO instruction : blockLoopInstructions) {
-            // Create a new BlockLoopInstructionLoadDTO object to avoid modifying the original
+            // Create a new InstructionLoadDTO object to avoid modifying the original
             InstructionLoadDTO updatedInstruction = new InstructionLoadDTO();
 
             // Copy original fields and add 1000 where necessary
@@ -434,7 +804,7 @@ public class PerformMessage {
             updatedInstruction.setInstructionOrderNumber(instruction.getInstructionOrderNumber());
             updatedInstruction.setActions(instruction.getActions());
             updatedInstruction.setName(instruction.getName());
-            updatedInstruction.setPath(instruction.getPath());
+            updatedInstruction.setXpath(instruction.getXpath());
             updatedInstruction.setDescription(instruction.getDescription());
             updatedInstruction.setOptional(instruction.getOptional());
             updatedInstruction.setBlockMarked(instruction.getBlockMarked());
@@ -482,11 +852,11 @@ public class PerformMessage {
                 .setPrettyPrinting()
                 .create();
 
-        // Serialize the list of BlockLoopInstructionLoadDTO to JSON
+        // Serialize the list of InstructionLoadDTO to JSON
         String jsonData = gson.toJson(updatedList);
 
         // Create the file path
-        String outputFilePath = jsonPath + "/instructions.json";
+        String outputFilePath = jsonPath + "/" + fileName + ".json";
 
         // Write the JSON data to the file
         try (FileWriter writer = new FileWriter(outputFilePath)) {

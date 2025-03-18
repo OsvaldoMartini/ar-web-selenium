@@ -2,9 +2,10 @@ package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.AttributeData;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.InstructionDTO;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;
@@ -119,33 +120,33 @@ public class ARWebElement {
         initFromWebElement(targetElement.getElement());
     }
 
-    public ARWebElement(WebElement element, String priority) {
-        updatePriorities(priority, null);
+    public ARWebElement(WebElement element, String priority, HomeBankingLoadDTO homeBanking) {
+        updatePriorities(priority, null, homeBanking);
         this.targetElement = targetElement;
         initFromWebElement(targetElement.getElement());
     }
 
-    public ARWebElement(InstructionDTO instruction) {
-        botJobId = instruction.getBlock().getBotJobDTO().getId();
-        updatePriorities(null, instruction);
+    public ARWebElement(InstructionLoadDTO instruction, HomeBankingLoadDTO homeBanking) {
+        botJobId = instruction.getBotJobId();
+        updatePriorities(null, instruction, homeBanking);
         initFromBlockLoopInstruction(instruction);
     }
 
-    private void updatePriorities(String priority, InstructionDTO instruction) {
-        botJobId = instruction.getBlock().getBotJobDTO().getId();
+    private void updatePriorities(String priority, InstructionLoadDTO instruction, HomeBankingLoadDTO homeBanking) {
+        botJobId = instruction.getBotJobId();
         if (arPriorities.getJobId() == null) {
             arPriorities.setJobId(botJobId);
-            if (instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority() != null) {
-                arPriorities.loadPrioritiesFromString(
-                        instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority());
+            if (homeBanking.getPriority() != null) {
+                arPriorities.loadPrioritiesFromString(homeBanking.getPriority());
+            } else if (instruction.getPriority() != null) {
+                arPriorities.loadPrioritiesFromString(instruction.getPriority());
             } else {
                 arPriorities.loadPriorities();
             }
         } else if (arPriorities.getJobId() != botJobId) {
             arPriorities.setJobId(botJobId);
-            if (instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority() != null) {
-                arPriorities.loadPrioritiesFromString(
-                        instruction.getBlock().getBotJobDTO().getHomeBanking().getPriority());
+            if (instruction.getPriority() != null) {
+                arPriorities.loadPrioritiesFromString(instruction.getPriority());
             } else {
                 arPriorities.loadPriorities();
             }
@@ -156,9 +157,17 @@ public class ARWebElement {
         initUI();
 
         try {
-            if (arPriorities.getAllPriorityList().size() == 0) {
-                arPriorities.loadPriorities();
-                ARLogger.getInstance(Thread.class).finer("Reloaded arPriorities.loadPriorities()");
+            if (arPriorities.getAllPriorityList() == null
+                    || arPriorities.getAllPriorityList().size() == 0) {
+                StringBuilder priorMissing = new StringBuilder();
+                priorMissing.append("1,xpath,currentXPath" + System.lineSeparator());
+                priorMissing.append("2,attributeID,attributeID" + System.lineSeparator());
+                priorMissing.append("3,attributeName,attributeName" + System.lineSeparator());
+                priorMissing.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
+                priorMissing.append("5,coordinates,coordinates" + System.lineSeparator());
+                priorMissing.append("6,attribute,test-id" + System.lineSeparator());
+                arPriorities.loadPrioritiesFromString(priorMissing.toString());
+                ARLogger.getInstance(Thread.class).finer("Reloaded arPriorities.loadPrioritiesFromString()");
             }
 
             if (targetElement.getMainXPath() == null && arPriorities.getJobId() != null) {
@@ -390,7 +399,7 @@ public class ARWebElement {
         toBeAddedElement.setValue(true);
     }
 
-    private void initFromBlockLoopInstruction(InstructionDTO instruction) {
+    private void initFromBlockLoopInstruction(InstructionLoadDTO instruction) {
 
         // Split the description string
         if (instruction.getOperation() != null) {
@@ -605,14 +614,14 @@ public class ARWebElement {
 
     private void switchInstruction(int directionQuantity) {
         //        try {
-        //            BlockLoopInstructionDTO currentInstruction =
-        //                    ARSharedResources.getInstance().getEntityById(BlockLoopInstructionDTO.class,
+        //            BlockLoopInstructionLoadDTO currentInstruction =
+        //                    ARSharedResources.getInstance().getEntityById(BlockLoopInstructionLoadDTO.class,
         // instructionId);
         //            int order = currentInstruction.getInstructionOrderNumber();
         //            BlockDTO block = ARSharedResources.getInstance()
         //                    .getEntityById(BlockDTO.class, currentInstruction.getBlock().getId());
-        //            List<BlockLoopInstructionDTO> instructionList = block.getBlockLoopInstructions();
-        //            BlockLoopInstructionDTO instructionToChange = instructionList.stream()
+        //            List<BlockLoopInstructionLoadDTO> instructionList = block.getBlockLoopInstructions();
+        //            BlockLoopInstructionLoadDTO instructionToChange = instructionList.stream()
         //                    .filter(i -> i.getInstructionOrderNumber() == order + directionQuantity)
         //                    .findFirst()
         //                    .orElseThrow();
@@ -620,9 +629,9 @@ public class ARWebElement {
         //            instructionToChange.setInstructionOrderNumber(order);
         //            ARSharedResources.getInstance()
         //                    .updateEntity(
-        //                            currentInstruction, BlockLoopInstructionDTO.class, () ->
+        //                            currentInstruction, BlockLoopInstructionLoadDTO.class, () ->
         // ARSharedResources.getInstance()
-        //                                    .updateEntity(instructionToChange, BlockLoopInstructionDTO.class));
+        //                                    .updateEntity(instructionToChange, BlockLoopInstructionLoadDTO.class));
         //
         //        } catch (Exception ex) {
         //            ARLogger.getInstance(Thread.class).severe("Error switch Instruction -> Cause: " +
@@ -630,16 +639,16 @@ public class ARWebElement {
         //        }
     }
 
-    public InstructionDTO buildNewInstruction(
+    public InstructionLoadDTO buildNewInstruction(
             WebElementTagNameEnum forceTag, String actionReq, boolean identityHover, Integer orderNumber) {
-        InstructionDTO loop = new InstructionDTO();
+        InstructionLoadDTO loop = new InstructionLoadDTO();
         loop.setActionCustomMaxWaitSec(30);
         loop.setDescription("loop desc");
         loop.setCodified(false);
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
-        loop.setActive(true);
-        loop.setPath(targetElement.getMainXPath());
+        loop.setInstructionActive(true);
+        loop.setXpath(targetElement.getMainXPath());
         String action;
         // TODO: Make a better thing than this
         if (isIdElement.get()) {

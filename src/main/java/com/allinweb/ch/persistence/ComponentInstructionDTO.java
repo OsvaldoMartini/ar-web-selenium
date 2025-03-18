@@ -1,30 +1,27 @@
 package com.allinweb.ch.persistence;
 
-import java.util.List;
 import javax.persistence.*;
+import lombok.Data;
 
-/**
- * actions syntax: A -> type of action (in this case 'A' is a placeholder)
- *                  if A == I -> insert -> I:X
- *                                           X -> name of field
- */
 @Entity
 @Table(name = "component_instruction")
-// @SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "savedBlockLoopInstructionSeq", allocationSize =
-// 1)
+@Data
 public class ComponentInstructionDTO extends BaseDTO {
+
+    @Column(name = "home_banking_id")
+    private Integer homeBankingId;
 
     @Column(name = "instruction_order_number")
     private int instructionOrderNumber;
 
-    @Column(name = "actions", length = 10000)
+    @Column(name = "actions", columnDefinition = "TEXT")
     private String actions;
 
     @Column(name = "name")
     private String name;
 
-    @Column(name = "path", length = 10000)
-    private String path;
+    @Column(name = "xpath", columnDefinition = "TEXT")
+    private String xpath;
 
     @Column(name = "coordinates", length = 100)
     private String coordinates;
@@ -32,13 +29,13 @@ public class ComponentInstructionDTO extends BaseDTO {
     @Column(name = "force_coordinates")
     private Boolean forceCoordinates;
 
-    @Column(name = "iframe_xpath", length = 10000)
+    @Column(name = "iframe_xpath", columnDefinition = "TEXT")
     private String iFrameXPath;
 
     @Column(name = "description")
     private String description;
 
-    @Column(name = "operation", length = 500)
+    @Column(name = "operation", length = 1000)
     private String operation;
 
     @Column(name = "optional")
@@ -65,9 +62,8 @@ public class ComponentInstructionDTO extends BaseDTO {
     @Column(name = "active")
     private Boolean active;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "block_id")
-    private ComponentBlockDTO componentBlockDTO;
+    @Column(name = "block_id")
+    private Integer blockId;
 
     @Transient
     private Boolean executed;
@@ -80,217 +76,4 @@ public class ComponentInstructionDTO extends BaseDTO {
 
     @Column(name = "parent_id")
     private Integer parentId;
-
-    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "bot_job_id")
-    private BotJobDTO botJobDTO;
-
-    public BotJobDTO getBotJobDTO() {
-        return botJobDTO;
-    }
-
-    public void setBotJobDTO(BotJobDTO botJobDTO) {
-        this.botJobDTO = botJobDTO;
-    }
-
-    @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "instruction_id")
-    private List<ComponentReferenceDTO> componentReferenceDTOList;
-
-    public ComponentInstructionDTO() {
-        super();
-    }
-
-    public ComponentInstructionDTO(int id) {
-        super(id);
-    }
-
-    public ComponentInstructionDTO(ComponentBlockDTO componentBlockDTO) {
-        super();
-        this.componentBlockDTO = componentBlockDTO;
-    }
-
-    public int getInstructionOrderNumber() {
-        return instructionOrderNumber;
-    }
-
-    public void setInstructionOrderNumber(int instructionOrderNumber) {
-        this.instructionOrderNumber = instructionOrderNumber;
-    }
-
-    public Integer getOnHoldSeconds() {
-        return onHoldSeconds;
-    }
-
-    public void setOnHoldSeconds(Integer onHoldSeconds) {
-        this.onHoldSeconds = onHoldSeconds;
-    }
-
-    public String getActions() {
-        return actions;
-    }
-
-    public void setActions(String actions) {
-        this.actions = actions;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getPath() {
-        return path;
-    }
-
-    public void setPath(String path) {
-        this.path = path;
-    }
-
-    public String getCoordinates() {
-        return coordinates;
-    }
-
-    public void setCoordinates(String coordinates) {
-        this.coordinates = coordinates;
-    }
-
-    public Boolean getForceCoordinates() {
-        return forceCoordinates;
-    }
-
-    public void setForceCoordinates(Boolean forceCoordinates) {
-        this.forceCoordinates = forceCoordinates;
-    }
-
-    public String getIFrameXPath() {
-        return iFrameXPath;
-    }
-
-    public void setIFrameXPath(String iFrameXPath) {
-        this.iFrameXPath = iFrameXPath;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getDefaultValue() {
-        return defaultValue;
-    }
-
-    public void setDefaultValue(String defaultValue) {
-        this.defaultValue = defaultValue;
-    }
-
-    public String getOperation() {
-        return operation;
-    }
-
-    public void setOperation(String operation) {
-        this.operation = operation;
-    }
-
-    public ComponentBlockDTO getBlock() {
-        return componentBlockDTO;
-    }
-
-    public void setBlock(ComponentBlockDTO componentBlockDTO) {
-        this.componentBlockDTO = componentBlockDTO;
-    }
-
-    public Integer getActionCustomMaxWaitSec() {
-        return actionCustomMaxWaitSec;
-    }
-
-    public void setActionCustomMaxWaitSec(Integer actionCustomMaxWaitSec) {
-        this.actionCustomMaxWaitSec = actionCustomMaxWaitSec;
-    }
-
-    public Boolean getOptional() {
-        return optional;
-    }
-
-    public void setOptional(Boolean optional) {
-        this.optional = optional;
-    }
-
-    public Boolean getCodified() {
-        return codified;
-    }
-
-    public void setCodified(Boolean codified) {
-        this.codified = codified;
-    }
-
-    public Boolean getExportToABR() {
-        return exportToABR;
-    }
-
-    public void setExportToABR(Boolean exportToABR) {
-        this.exportToABR = exportToABR;
-    }
-
-    public Boolean getBlockMarked() {
-        return blockMarked;
-    }
-
-    public void setBlockMarked(Boolean blockMarked) {
-        this.blockMarked = blockMarked;
-    }
-
-    public Boolean getActive() {
-        return active;
-    }
-
-    public void setActive(Boolean active) {
-        this.active = active;
-    }
-
-    public List<ComponentReferenceDTO> getSavedInstructionReferenceDTOList() {
-        return componentReferenceDTOList;
-    }
-
-    public void setSavedInstructionReferenceDTOList(List<ComponentReferenceDTO> componentReferenceDTOList) {
-        this.componentReferenceDTOList = componentReferenceDTOList;
-    }
-
-    public String getPriority() {
-        return priority;
-    }
-
-    public void setPriority(String priority) {
-        this.priority = priority;
-    }
-
-    public Boolean getExecuted() {
-        return executed;
-    }
-
-    public void setExecuted(Boolean executed) {
-        this.executed = executed;
-    }
-
-    public Integer getVariableId() {
-        return variableId;
-    }
-
-    public void setVariableId(Integer variableId) {
-        this.variableId = variableId;
-    }
-
-    public Integer getParentId() {
-        return parentId;
-    }
-
-    public void setParentId(Integer parentId) {
-        this.parentId = parentId;
-    }
 }

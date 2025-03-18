@@ -2,7 +2,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
@@ -15,25 +14,20 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxImage;
 import com.allinweb.ch.util.ComboBoxOperator;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -58,9 +52,8 @@ import javax.websocket.Session;
 
 public class ARNewCommandPane extends ARPane {
 
-    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+    private static Map<String, Session> activeSessions;
 
-    private Session session;
     private String sessionId;
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
@@ -77,9 +70,6 @@ public class ARNewCommandPane extends ARPane {
     private final Gson gson = new Gson();
 
     private final ARComponentBuilder componentBuilder = new ARComponentBuilder();
-
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
     private static boolean POSTGRES_DB = false;
@@ -192,42 +182,17 @@ public class ARNewCommandPane extends ARPane {
             RowMoveDTO rowMoveDTO,
             BotJobLoadDTO botJobLoad,
             ObservableList<ComboBoxVars> webPageItems,
-            Session session,
             String sessionId) {
+
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
-        this.session = session;
         this.sessionId = sessionId;
-
-        //        if (this.botJobLoad.getBlockLoadDTOList() == null) {
-        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-        //            if (this.botJobLoadList.size() > 0) {
-        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        //            }
-        //        } else if (this.botJobLoad.getBlockLoadDTOList() != null
-        //                && this.botJobLoad.getBlockLoadDTOList().size() == 0) {
-        //            this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-        //            if (this.botJobLoadList.size() > 0) {
-        //                this.botJobLoad.setBlockLoadDTOList(this.botJobLoadList.get(0).getBlockLoadDTOList());
-        //            }
-        //        }
 
         if (webPageItems.size() == 0) {
             variablesDisable = true;
-        }
-
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        // Initialize database IF IS ACCESS TO BE USED
-        if (!POSTGRES_DB) {
-            initializeDatabase();
         }
 
         String operationType = rowMoveDTO.getType();
@@ -362,7 +327,7 @@ public class ARNewCommandPane extends ARPane {
         textFlow = new TextFlow();
         operationSelected = new TextFlow();
 
-        InstructionDTO firstInstruction = rowMoveDTO.getUpdatedRows().get(0);
+        InstructionLoadDTO firstInstruction = rowMoveDTO.getUpdatedRows().get(0);
         String operation = performMessage.renderInstructionActions(firstInstruction);
 
         // Create individual text elements with the necessary styling
@@ -1519,7 +1484,7 @@ public class ARNewCommandPane extends ARPane {
                         this.rowMoveDTO);
             }
 
-            ARSharedResources.getInstance().changeDbConnection();
+            //            ARSharedResources.getInstance().changeDbConnection(previousDB);
         });
 
         // Add a listener to print the ID when the selection changes
@@ -1944,28 +1909,6 @@ public class ARNewCommandPane extends ARPane {
         return false;
     }
 
-    private void initializeDatabase() {
-
-        String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-        String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-        File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-        if (!dbFile.exists()) {
-            try (Connection conn = DriverManager.getConnection(dbUrl)) {
-                try (Statement stmt = conn.createStatement()) {
-                    String createTableSQL = "CREATE TABLE home_banking (" + "ID AUTOINCREMENT PRIMARY KEY, "
-                            + "name TEXT, password TEXT, url TEXT, username TEXT, priority TEXT)";
-                    stmt.executeUpdate(createTableSQL);
-                }
-                System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
-            } catch (SQLException e) {
-                System.out.println(e.getMessage());
-            }
-        } else {
-            System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
-        }
-    }
-
     private Integer loadNexIdData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
@@ -2257,46 +2200,47 @@ public class ARNewCommandPane extends ARPane {
             variableText3Copy.setText("");
         }
 
-        // Create an HBox to hold the individual text elements
-        HBox combinedTextContainer = new HBox();
-        combinedTextContainer.setSpacing(5); // Add some spacing between the texts
+        //        // Create an HBox to hold the individual text elements
+        //        HBox combinedTextContainer = new HBox();
+        //        combinedTextContainer.setSpacing(5); // Add some spacing between the texts
+        //
+        //        Text blockNameLabel = new Text("Block : ");
+        //        blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+        //
+        //        Text blockNameText = new Text(blockName);
+        //        blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+        //
+        //        HBox blockNameBox = new HBox();
+        //        blockNameBox.getChildren().addAll(blockNameLabel, blockNameText);
+        //
+        //        HBox allMsgHor = new HBox();
+        //        allMsgHor.setSpacing(5);
+        //        allMsgHor
+        //                .getChildren()
+        //                .addAll(
+        //                        extra,
+        //                        regularTextCopy1,
+        //                        variableText1Copy,
+        //                        regularTextCopy2,
+        //                        variableText2Copy,
+        //                        regularTextCopy3,
+        //                        variableText3Copy,
+        //                        regularTextCopy4);
+        //
+        //        VBox allMsgVer = new VBox();
+        //        allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
+        //
+        //        combinedTextContainer.getChildren().addAll(allMsgVer);
+        //
+        //        boolean alertResponse = performMessage.showCombinedHBox(
+        //                Alert.AlertType.CONFIRMATION,
+        //                "Add new Instruction",
+        //                "Add the New Instruction to the Bot-Job?",
+        //                "",
+        //                combinedTextContainer);
 
-        Text blockNameLabel = new Text("Block : ");
-        blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text blockNameText = new Text(blockName);
-        blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-
-        HBox blockNameBox = new HBox();
-        blockNameBox.getChildren().addAll(blockNameLabel, blockNameText);
-
-        HBox allMsgHor = new HBox();
-        allMsgHor.setSpacing(5);
-        allMsgHor
-                .getChildren()
-                .addAll(
-                        extra,
-                        regularTextCopy1,
-                        variableText1Copy,
-                        regularTextCopy2,
-                        variableText2Copy,
-                        regularTextCopy3,
-                        variableText3Copy,
-                        regularTextCopy4);
-
-        VBox allMsgVer = new VBox();
-        allMsgVer.getChildren().addAll(blockNameBox, allMsgHor);
-
-        combinedTextContainer.getChildren().addAll(allMsgVer);
-
-        boolean alertResponse = performMessage.showCombinedHBox(
-                Alert.AlertType.CONFIRMATION,
-                "Add new Instruction",
-                "Add the New Instruction to the Bot-Job?",
-                "",
-                combinedTextContainer);
-
-        if (alertResponse) {
+        //        if (alertResponse) {
+        if (true) {
 
             // Handle loop outside Platform.runLater to ensure multiple iterations
             int endifCount = actions.equalsIgnoreCase(ARConstants.IF) ? 3 : 1;
@@ -2324,15 +2268,14 @@ public class ARNewCommandPane extends ARPane {
 
                 if (newRowId > 0) {
 
-                    this.botJobLoadList = performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+                    this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
+                    String jsonData = "[]";
                     if (botJobLoadList.size() > 0) {
                         List<InstructionLoadDTO> blockLoopInstructions =
                                 performDataBase.buildJsonViewData(botJobLoadList);
-
-                        String jsonData = gson.toJson(blockLoopInstructions);
-                        //                        broadcastMessageToAll(jsonData);
-                        sendMessageJson(sessionId, jsonData, null);
+                        jsonData = gson.toJson(blockLoopInstructions);
                     }
+                    sendMessageJson(rowMoveDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
                     showAlertTimer(
                             Alert.AlertType.INFORMATION,
@@ -2372,7 +2315,7 @@ public class ARNewCommandPane extends ARPane {
     //
     //        if ("INSERT_BEFORE_ELSEIF".equals(actions) || "INSERT_AFTER_ELSEIF".equals(actions)) {}
     //
-    //        List<InstructionDTO> rowList =
+    //        List<InstructionLoadDTO> rowList =
     //                performDataBase.getInstructionsByBlockId(rowMoveDTO.getBotJobId(), rowMoveDTO.getBlockId());
     //
     //        performDataBase.reorderInstructions(rowList);
@@ -2391,12 +2334,12 @@ public class ARNewCommandPane extends ARPane {
     //        }
     //
     //        List<BotJobLoadDTO> finalMatchingBlocks = matchingBlocks;
-    //        List<InstructionDTO> finalInstructionList = rowList;
+    //        List<InstructionLoadDTO> finalInstructionList = rowList;
     //        Task<Void> waitTask = new Task<>() {
     //            @Override
     //            protected Void call() throws Exception {
     //                try {
-    //                    BlockLoopInstructionDTO instruction = new BlockLoopInstructionDTO();
+    //                    BlockLoopInstructionLoadDTO instruction = new BlockLoopInstructionLoadDTO();
     //
     //                    instruction.setName(name);
     //
@@ -2437,7 +2380,7 @@ public class ARNewCommandPane extends ARPane {
     //
     //                    // Wrap the persistence in a try-catch block
     //                    try {
-    //                        ARSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionDTO.class);
+    //                        ARSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionLoadDTO.class);
     //                    } catch (Exception e) {
     //                        performAction.showAlert(
     //                                Alert.AlertType.ERROR,
@@ -2507,9 +2450,8 @@ public class ARNewCommandPane extends ARPane {
     //    }
 
     private void broadcastMessageToAll(String message) {
-        if (activeSessions == null) {
-            activeSessions = SimpleWebSocketServer.getAllSessions();
-        }
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+
         for (Session session : activeSessions.values()) { // Looping correctly
             if (session.isOpen()) {
                 sendMessageJson(session, message, null);
@@ -2517,15 +2459,18 @@ public class ARNewCommandPane extends ARPane {
         }
     }
 
-    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {
             try {
                 JsonObject jsonMessage = new JsonObject();
                 jsonMessage.addProperty("body", msg1);
+                jsonMessage.addProperty("sessionId", sessionId);
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
                 if (msg2 != null && !msg2.isEmpty()) {
-                    jsonMessage.addProperty("footer", msg2);
+                    jsonMessage.addProperty("operationId", msg2);
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
             } catch (IOException e) {

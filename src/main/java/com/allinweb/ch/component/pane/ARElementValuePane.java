@@ -1,25 +1,16 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BankingDTO;
-import com.allinweb.ch.component.model.JobDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.BotJobDTO;
-import com.allinweb.ch.persistence.HomeBankingDTO;
-import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.io.File;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javafx.collections.FXCollections;
@@ -31,9 +22,6 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 
 public class ARElementValuePane extends ARPane {
-
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
     private static boolean POSTGRES_DB = false;
@@ -84,18 +72,7 @@ public class ARElementValuePane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
 
-        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-            POSTGRES_DB = true;
-        } else {
-            POSTGRES_DB = false;
-        }
-
-        // Initialize database IF IS ACCESS TO BE USED
-        if (!POSTGRES_DB) {
-            initializeDatabase();
-        }
         loadUserData();
 
         // Create labels
@@ -342,33 +319,33 @@ public class ARElementValuePane extends ARPane {
         updateButton.setDisable(true);
     }
 
-    private List<BankingDTO> loadFromDB() {
-
-        ARSharedResources.getInstance().refreshEntity(null, HomeBankingDTO.class);
-
-        List<BankingDTO> dtoList = new ArrayList<>();
-
-        List<HomeBankingDTO> listHomeBankingDTO =
-                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
-
-        // Iterate through the result set and populate the DTO list
-        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
-            List<JobDTO> listJobsDto = new ArrayList<>();
-            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
-                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
-                listJobsDto.add(jobsDto);
-            }
-
-            dtoList.add(new BankingDTO(
-                    homeBankingDTO.getId(),
-                    homeBankingDTO.getName(),
-                    homeBankingDTO.getUrl(),
-                    homeBankingDTO.getPriority(),
-                    listJobsDto.size(),
-                    listJobsDto));
-        }
-        return dtoList;
-    }
+    //    private List<BankingDTO> loadFromDB() {
+    //
+    //        ARSharedResources.getInstance().refreshEntity(null, HomeBankingDTO.class);
+    //
+    //        List<BankingDTO> dtoList = new ArrayList<>();
+    //
+    //        List<HomeBankingDTO> listHomeBankingDTO =
+    //                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+    //
+    //        // Iterate through the result set and populate the DTO list
+    //        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
+    //            List<JobDTO> listJobsDto = new ArrayList<>();
+    //            for (BotJobDTO botJobDTO : homeBankingDTO.getBotJobs()) {
+    //                JobDTO jobsDto = new JobDTO(botJobDTO.getName(), botJobDTO.getDescription(), new ArrayList<>());
+    //                listJobsDto.add(jobsDto);
+    //            }
+    //
+    //            dtoList.add(new BankingDTO(
+    //                    homeBankingDTO.getId(),
+    //                    homeBankingDTO.getName(),
+    //                    homeBankingDTO.getUrl(),
+    //                    homeBankingDTO.getPriority(),
+    //                    listJobsDto.size(),
+    //                    listJobsDto));
+    //        }
+    //        return dtoList;
+    //    }
 
     @Override
     public void initUIBehaviour() {}
@@ -403,54 +380,6 @@ public class ARElementValuePane extends ARPane {
         }
         return false;
     }
-
-    private void initializeDatabase() {
-
-        String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-        String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-
-        File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
-        if (!dbFile.exists()) {
-            try (Connection conn = DriverManager.getConnection(dbUrl)) {
-                try (Statement stmt = conn.createStatement()) {
-                    String createTableSQL = "CREATE TABLE home_banking (" + "ID AUTOINCREMENT PRIMARY KEY, "
-                            + "name TEXT, password TEXT, url TEXT, username TEXT, priority TEXT)";
-                    stmt.executeUpdate(createTableSQL);
-                }
-                System.out.println(String.format("Database %s has bee created!", dbFile.getName()));
-            } catch (SQLException e) {
-                System.out.println(e.getMessage());
-            }
-        } else {
-            System.out.println(String.format("Database %s Already exist!", dbFile.getName()));
-        }
-    }
-
-    //    private Connection getConnection() {
-    //        if (!POSTGRES_DB) {
-    //            if (conn == null) {
-    //                String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-    //                String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-    //                try {
-    //                    conn = DriverManager.getConnection(dbUrl);
-    //                } catch (SQLException e) {
-    //                    System.out.println(e.getMessage());
-    //                }
-    //            }
-    //            return conn;
-    //        } else {
-    //
-    //            if (conn == null) {
-    //                String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-    //                try {
-    //                    conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
-    //                } catch (SQLException e) {
-    //                    System.out.println(e.getMessage());
-    //                }
-    //            }
-    //            return conn;
-    //        }
-    //    }
 
     private void loadUserData() {
         variablesList.clear();

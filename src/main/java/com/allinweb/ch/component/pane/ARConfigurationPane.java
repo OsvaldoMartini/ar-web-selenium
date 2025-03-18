@@ -3,15 +3,15 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.HomeBankingListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -50,6 +50,11 @@ public class ARConfigurationPane extends ARPane {
     private Timeline timeline;
     private ExecutorService executorService;
     private Alert alertToShow;
+    private String previousDB;
+
+    public ARConfigurationPane(String previousDB) {
+        this.previousDB = previousDB;
+    }
 
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final PerformMessage performMessage;
@@ -60,6 +65,9 @@ public class ARConfigurationPane extends ARPane {
         performDataBase = PerformDataBase.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     }
+
+    private ObservableList<HomeBankingLoadDTO> homeBankingList = FXCollections.observableArrayList();
+    private ListView<HomeBankingLoadDTO> homeBankingListView;
 
     // UI Components
     Label title;
@@ -124,8 +132,6 @@ public class ARConfigurationPane extends ARPane {
     Button deleteAllDBButton;
     Button addHomeBankingButton;
 
-    ListView<HomeBankingDTO> homeBankingListView;
-
     VBox pathGroup;
 
     AnchorPane mainPane;
@@ -177,10 +183,13 @@ public class ARConfigurationPane extends ARPane {
         addHomeBankingButton = builder.buildButton("Insert / Config Scan");
         //        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
-        ObservableList<HomeBankingDTO> homeBankingList =
-                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+        //        ObservableList<HomeBankingDTO> homeBankingList =
+        //                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+
+        homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());
         homeBankingListView = new ListView<>(homeBankingList);
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
+
         // Setting the preferred height for homeBankingListView
         homeBankingListView.setPrefHeight(100); // Set the height to 50px
 
@@ -318,7 +327,7 @@ public class ARConfigurationPane extends ARPane {
         //        gridPaneDB.add(blockLimit, 2, 1);
 
         // Add button in the second row, third column
-        gridPaneDB.add(pathDBButton, 3, 1);
+        gridPaneDB.add(pathDBButton, 2, 1);
 
         // Set margin for pathDBButton to create spacing from right border
         GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
@@ -455,14 +464,21 @@ public class ARConfigurationPane extends ARPane {
         try (Connection conn = performDataBase.getConnection()) {
             List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
 
-            List<com.allinweb.ch.component.model.InstructionDTO> instList = null;
+            List<InstructionLoadDTO> instList = null;
+
             for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
+
                 instList = performDataBase.instructionsToDuplicate(
-                        conn, botJobLoadDTO.getId(), -1, "instruction"); // instruction
+                        conn,
+                        botJobLoadDTO.getHomeBankingId(),
+                        botJobLoadDTO.getId(),
+                        -1,
+                        "instruction",
+                        "block"); // instruction
                 break;
             }
 
-            if (instList != null && instList.size() > 0) {
+            if ((instList != null && instList.size() > 0) || botJobLoadList.size() == 0) {
                 migrationDBLabel.setVisible(false);
                 migrationDBButton.setVisible(false);
             }
@@ -478,7 +494,10 @@ public class ARConfigurationPane extends ARPane {
         //                        .subtract(reloadDBButton.heightProperty())
         //                        .subtract(ARConstants.SPACE_M * 2)
         //                        .subtract(ARConstants.SPACE_L * 2));
-        addHomeBankingButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
+        addHomeBankingButton.setOnMouseClicked(e -> {
+            arNewHomeBankingScene.initialize(homeBankingList);
+            arNewHomeBankingScene.showModal();
+        });
 
         pathExcelButton.setOnMouseClicked(e -> openChooserFor(pathExcel, true));
         //        pathExportButton.setOnMouseClicked(e -> openChooserFor(pathExport, true));
@@ -528,12 +547,12 @@ public class ARConfigurationPane extends ARPane {
                 for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
                     // tablesMigration = {"block", "block_loop_instruction", "instruction", "instruction_reference",
                     // "reference"};
-                    errorMessage = performDataBase.migration2_6f(
-                            conn, botJobLoadDTO.getId(), botJobLoadDTO.getId(), tablesMigration);
-
-                    if (errorMessage != null) {
-                        break;
-                    }
+                    //                    errorMessage = performDataBase.migration2_6f(
+                    //                            conn, botJobLoadDTO.getId(), botJobLoadDTO.getId(), tablesMigration);
+                    //
+                    //                    if (errorMessage != null) {
+                    //                        break;
+                    //                    }
                 }
 
                 performDataBase.dropTablesMigrationScriptsv2_7f();
@@ -583,7 +602,7 @@ public class ARConfigurationPane extends ARPane {
             //                        null,
             //                        0);
             //            } else {
-            //                performMessage.showCustomModalDialog(
+            //                performMessage.showCustomModalDialogDragWin11(
             //                        "Migration DB Scripts Success!",
             //                        String.format("Perform Migration on %s records", rowsAffected),
             //                        "Database",
@@ -700,7 +719,14 @@ public class ARConfigurationPane extends ARPane {
 
             /*ARPropertyManager.getInstance().setProperty(
             ARPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(), pathExtRef.getText()); */
-            ARSharedResources.getInstance().changeDbConnection();
+            // ARSharedResources.getInstance().changeDbConnection();
+
+            homeBankingList.clear();
+            homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());
+            homeBankingListView = new ListView<>(homeBankingList);
+
+            performDataBase.changeDbConnection();
+
             new ARAlertScene(
                     Alert.AlertType.INFORMATION,
                     "Configuration saved",
@@ -723,7 +749,7 @@ public class ARConfigurationPane extends ARPane {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.YES) {
             if (deleteAllJobDetails(dataBaseType)) {
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 new ARAlertScene(
                         Alert.AlertType.INFORMATION,
                         "All Job Details has been deleted!",
@@ -731,7 +757,7 @@ public class ARConfigurationPane extends ARPane {
                         ButtonType.OK);
 
             } else {
-                ARSharedResources.getInstance().changeDbConnection();
+                // ARSharedResources.getInstance().changeDbConnection();
                 new ARAlertScene(
                         Alert.AlertType.ERROR,
                         "\"" + dataBaseType + "\" Problems\nNot possible  to delete All Job Details!",
@@ -780,7 +806,7 @@ public class ARConfigurationPane extends ARPane {
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
                 stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
             }
-            ARLogger.getInstance(ARWebDriver.class)
+            ARLogger.getInstance(ARConfigurationPane.class)
                     .info("All Rows DELETED for:\n"
                             + "ExcelReportDTO;\n"
                             + "Variables;\n"
@@ -794,7 +820,7 @@ public class ARConfigurationPane extends ARPane {
             return true;
 
         } catch (SQLException e) {
-            ARLogger.getInstance(ARWebDriver.class)
+            ARLogger.getInstance(ARConfigurationPane.class)
                     .severe(dataBaseType + " Problems:\n"
                             + "Not Possible delete the  Rows was for these tables:\n"
                             + "ExcelReportDTO;\n"

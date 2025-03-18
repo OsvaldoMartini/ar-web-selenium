@@ -1,13 +1,13 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.model.BlockLoadDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.SingletonSupplier;
-import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BotJobDTO;
 import java.time.format.DateTimeFormatter;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -17,7 +17,7 @@ public class ARScannedElementScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 650D;
     private static final Double SCENE_WIDTH = 1100D;
-    private static final String TITLE = "Scanner Tool";
+    private static final String TITLE = "AR Web Factory";
 
     private ARWebDriver arWebDriver;
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -38,24 +38,26 @@ public class ARScannedElementScene extends ARScene {
 
     private Integer botJobId;
     private Integer blockId;
+    private HomeBankingLoadDTO homeBankingLoadDTO;
+    private BotJobLoadDTO botJobLoadDTO;
+    private BlockLoadDTO blockLoadDTO;
     private String priority;
     private Session session;
     private String sessionId;
 
-    public ARScannedElementScene initialize(String priority, Integer botJobId, Integer blockId) {
-        this.priority = priority;
-        this.botJobId = botJobId;
-        this.blockId = blockId;
+    public ARScannedElementScene initialize(
+            HomeBankingLoadDTO homeBankingLoadDTO, BotJobLoadDTO botJobLoadDTO, BlockLoadDTO blockLoadDTO) {
+        this.homeBankingLoadDTO = homeBankingLoadDTO;
+        this.botJobLoadDTO = botJobLoadDTO;
+        this.blockLoadDTO = blockLoadDTO;
         return this;
     }
 
     @Override
     public IARPane buildPane() {
         arWebDriver = new ARWebDriver(); // Initialize WebDriver
-        return new ARScannedElementPane(
-                ARSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId),
-                blockId != null ? ARSharedResources.getInstance().getEntityById(BlockDTO.class, blockId) : null,
-                arWebDriver);
+
+        return new ARScannedElementPane(homeBankingLoadDTO, botJobLoadDTO, blockLoadDTO, arWebDriver);
     }
 
     @Override

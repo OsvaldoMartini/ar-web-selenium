@@ -2,11 +2,8 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -19,9 +16,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javafx.animation.KeyFrame;
@@ -177,12 +172,20 @@ public class ARSaveClonePane extends ARPane {
                 return;
             }
 
+            int homeBankId = botJobList.get(0).getHomeBankingId();
+
             try (Connection conn = performDataBase.getConnection()) {
                 int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
 
                 String[] arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
                 ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
-                        conn, selecBotJobDTO.getId(), newBotJobId, newBotJobName, newDescription, arrayTables);
+                        conn,
+                        homeBankId,
+                        selecBotJobDTO.getId(),
+                        newBotJobId,
+                        newBotJobName,
+                        newDescription,
+                        arrayTables);
 
                 if (errorMessage == null) {
                     showAlertTimer(
@@ -218,10 +221,10 @@ public class ARSaveClonePane extends ARPane {
         });
     }
 
-    private void clearBotJob(BotJobDTO botJob) {
-        Queue<BlockDTO> blocks = new LinkedList<>(botJob.getBlocks());
-        ARSharedResources.getInstance().removeAllEntity(blocks, BlockDTO.class);
-    }
+    //    private void clearBotJob(BotJobDTO botJob) {
+    //        Queue<BlockDTO> blocks = new LinkedList<>(botJob.getBlocks());
+    //        ARSharedResources.getInstance().removeAllEntity(blocks, BlockDTO.class);
+    //    }
 
     private boolean duplicateExcelFile(String originalFilePath, String newFilePath) {
         try {

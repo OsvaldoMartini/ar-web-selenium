@@ -121,7 +121,7 @@ public class PerformActions {
     public WebElement searchElement(InstructionLoadDTO instruction, int botJobId) {
         WebElement instructionElement = null;
 
-        if (!StringUtils.isBlank(instruction.getPath())) {
+        if (!StringUtils.isBlank(instruction.getXpath())) {
             instructionElement = locateElement(instruction, botJobId);
         }
         return instructionElement;
@@ -163,8 +163,8 @@ public class PerformActions {
         boolean switchedToIframe = false;
 
         try {
-            String xPath = currentInstruction.getPath().toLowerCase();
-            if (currentInstruction.getPath() != null && xPath.contains("iframe")) {
+            String xPath = currentInstruction.getXpath().toLowerCase();
+            if (currentInstruction.getXpath() != null && xPath.contains("iframe")) {
                 // Locate and switch to the iframe
                 WebElement iframeElement = arWebDriver.getDriver().findElement(By.xpath(xPath));
                 WebDriver driver = arWebDriver.getDriver().switchTo().frame(iframeElement);
@@ -464,7 +464,7 @@ public class PerformActions {
         //                    arWebDriver.getDriver().switchTo().defaultContent();
         //                }
 
-        String instructionPath = currentInstruction.getPath();
+        String instructionPath = currentInstruction.getXpath();
         String tagName = null;
         try {
             tagName = removeTrailingSlash(instructionPath);
@@ -701,7 +701,7 @@ public class PerformActions {
     }
 
     private WebElement locateElement(InstructionLoadDTO currentInstruction, int botJobId) {
-        String instructionPath = currentInstruction.getPath();
+        String instructionPath = currentInstruction.getXpath();
         String tagName = null;
 
         arWebDriver.getDriver().switchTo().defaultContent();
@@ -2139,7 +2139,7 @@ public class PerformActions {
                     .filter(f -> f.getId().equals(currentInstruction.getParentId()))
                     .findFirst()
                     .get()
-                    .getPath();
+                    .getXpath();
         } catch (Exception ex) {
             return null;
         }
@@ -3109,6 +3109,21 @@ public class PerformActions {
             }
         }
         return targetDefine;
+    }
+
+    public static String truncateAndNormalize(String someText, int limit) {
+        if (someText == null || someText.isEmpty()) {
+            return someText;
+        }
+
+        // Remove extra spaces and trim
+        String normalizedText = someText.trim().replaceAll("\\s+", " ");
+
+        if (normalizedText.length() <= limit) {
+            return normalizedText;
+        }
+
+        return normalizedText.substring(0, limit) + "...";
     }
 
     // TODO MORE INTELLIGENT  LOGIC

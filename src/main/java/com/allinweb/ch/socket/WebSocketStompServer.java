@@ -7,18 +7,14 @@ import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
-import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.persistence.BlockDTO;
 import com.allinweb.ch.persistence.BotJobDTO;
-import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -61,11 +57,11 @@ public class WebSocketStompServer {
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     private static final PerformDataBase performDataBase;
-    private static final PerformDBSavedBlock performDBSavedBlock;
+    //    private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
-        performDBSavedBlock = PerformDBSavedBlock.getInstance();
+        //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
     }
 
     public int getBotJobId() {
@@ -76,7 +72,7 @@ public class WebSocketStompServer {
         this.botJobId = botJobId;
     }
 
-    private void handleMessageByType(String type, String body, Session session, String sessionId) {
+    private void handleMessageByType(String type, String body, Session session) {
         // Dispatch to the correct method based on the message type
         switch (type) {
             case "RESPONSE_BACK":
@@ -87,7 +83,7 @@ public class WebSocketStompServer {
                 break;
             case "BLOCKS_COMPONENT":
                 BlockSplitDTO blockComponentDTO = gson.fromJson(body, BlockSplitDTO.class);
-                createBlockComponent(blockComponentDTO);
+                createBlockComponent(blockComponentDTO.getDetails().getNewBlock());
                 break;
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(body, BlockSplitDTO.class);
@@ -108,7 +104,7 @@ public class WebSocketStompServer {
                 RowMoveDTO rowMoveDTO = gson.fromJson(body, RowMoveDTO.class);
                 if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
                         && rowMoveDTO.getDeleteBlockId() > -1) {
-                    performDataBase.deleteBlock(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+                    performDataBase.deleteBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
 
                     performDataBase.updateBlockOrderNumber(
                             performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
@@ -123,7 +119,7 @@ public class WebSocketStompServer {
             case "INSERT_BEFORE_ELSEIF":
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(body, RowMoveDTO.class);
-                injectStepAfterOrBefore(insertBeforeDTO, session, sessionId);
+                injectStepAfterOrBefore(insertBeforeDTO, session);
                 // ARSharedResources.getInstance().changeDbConnection();
                 break;
             case "BLOCK_EXCEL_FILE":
@@ -145,8 +141,8 @@ public class WebSocketStompServer {
                 }
                 break;
             case "INSTRUCTION_STATUS":
-                InstructionDTO instructionDTO = gson.fromJson(body, InstructionDTO.class);
-                performDataBase.updateInstructionStatus(instructionDTO);
+                InstructionLoadDTO InstructionLoadDTO = gson.fromJson(body, InstructionLoadDTO.class);
+                performDataBase.updateInstructionStatus(InstructionLoadDTO);
 
                 // ARSharedResources.getInstance().changeDbConnection();
                 break;
@@ -173,11 +169,11 @@ public class WebSocketStompServer {
 
                 break;
             case "DELETE_INSTRUCTION":
-                InstructionDTO deleteInstructionDTO = gson.fromJson(body, InstructionDTO.class);
-                performDataBase.deleteInstruction(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO);
+                InstructionLoadDTO deleteInstructionLoadDTO = gson.fromJson(body, InstructionLoadDTO.class);
+                performDataBase.deleteInstruction(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO);
 
-                List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
-                        deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
+                List<InstructionLoadDTO> rowList = performDataBase.getInstructionsByBlockId(
+                        deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO.getBlockId());
                 performDataBase.reorderInstructions(rowList);
                 // ARSharedResources.getInstance().changeDbConnection();
                 break;
@@ -189,9 +185,14 @@ public class WebSocketStompServer {
                 break;
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
-                performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
-                performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                // ARSharedResources.getInstance().changeDbConnection();
+
+                performDataBase.rollBackBlocksRows("component_instructions", rollBackBlocksDTO);
+                performDataBase.deleteCompNullBlocks(
+                        rollBackBlocksDTO.getHomeBankingId(), rollBackBlocksDTO.getBotJobId());
+
+                //                performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
+                //                performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
+                //                // ARSharedResources.getInstance().changeDbConnection();
                 break;
 
             default:
@@ -224,7 +225,7 @@ public class WebSocketStompServer {
 
             // Extract and handle the message type
             String type = extractType(frame.getBody());
-            handleMessageByType(type, frame.getBody(), session, "SESSION ID NOT DEFINED HERE");
+            handleMessageByType(type, frame.getBody(), session);
 
             // Send a ping to keep the connection alive
             session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
@@ -284,9 +285,10 @@ public class WebSocketStompServer {
     }
 
     private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {
+        String sessionId = "componentTasks";
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
         Platform.runLater(() -> {
-            ARExcelFileScene excelFileScene = new ARExcelFileScene(blockExcelDTO);
+            ARExcelFileScene excelFileScene = new ARExcelFileScene(sessionId, blockExcelDTO);
             excelFileScene.showModal();
         });
     }
@@ -305,17 +307,9 @@ public class WebSocketStompServer {
         }
     }
 
-    private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
-        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        ComponentBlockDTO componentBlockDTO = performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
-
-        BlockDTO blockDTO = new BlockDTO();
-        blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());
-        //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
-
+    private void createBlockComponent(BlockDetailsDTO blockDetailsDTO) {
         Platform.runLater(() -> {
-            ARSaveComponentScene newSaveBlockScene =
-                    new ARSaveComponentScene(componentBlockDTO, blockDTO, blockSplitDTO.getDetails());
+            ARSaveComponentScene newSaveBlockScene = new ARSaveComponentScene(blockDetailsDTO);
             newSaveBlockScene.showModal();
         });
     }
@@ -358,7 +352,7 @@ public class WebSocketStompServer {
         // Add business logic to handle ROW_MOVE
     }
 
-    private void injectStepAfterOrBefore(RowMoveDTO rowMoveDTO, Session session, String sessionId) {
+    private void injectStepAfterOrBefore(RowMoveDTO rowMoveDTO, Session session) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
@@ -372,11 +366,12 @@ public class WebSocketStompServer {
                 this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-                Platform.runLater(() -> {
-                    ARNewCommandScene newCommandScene =
-                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, session, sessionId);
-                    newCommandScene.showModal();
-                });
+                //                Platform.runLater(() -> {
+                //                    ARNewCommandScene newCommandScene =
+                //                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems,
+                // sessions);
+                //                    newCommandScene.showModal();
+                //                });
             } else {
 
                 if (rowMoveDTO.getUpdatedRows().size() > 0) {

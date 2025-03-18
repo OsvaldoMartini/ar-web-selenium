@@ -14,15 +14,17 @@ public class ARExcelFileScene extends ARScene {
     private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Create or Delete the Export Excel File";
     private BlockDetailsDTO blockExcelDTO;
+    private String sessionId;
 
-    public ARExcelFileScene(BlockDetailsDTO blockExcelDTO) {
+    public ARExcelFileScene(String sessionId, BlockDetailsDTO blockExcelDTO) {
         super();
+        this.sessionId = sessionId;
         this.blockExcelDTO = blockExcelDTO;
     }
 
     @Override
     public IARPane buildPane() {
-        return new ARExcelFilePane(blockExcelDTO);
+        return new ARExcelFilePane(sessionId, blockExcelDTO);
     }
 
     @Override

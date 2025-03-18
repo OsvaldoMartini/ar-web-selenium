@@ -1,8 +1,9 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
-import com.allinweb.ch.component.model.DetailsDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
@@ -11,15 +12,19 @@ import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
+import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import javafx.animation.KeyFrame;
@@ -39,13 +44,15 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javax.websocket.Session;
 
 public class ARSaveComponentPane extends ARPane {
 
+    private static Map<String, Session> activeSessions;
+    private Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
     private final ARComponentBuilder builder = new ARComponentBuilder();
-    private ComponentBlockDTO componentBlockDTO;
-    private BlockDTO blockDTO;
-    private DetailsDTO detailsDTO;
+    private BlockDetailsDTO blockDetailsDTO;
 
     private static final int SECONDS = 3; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;
@@ -83,10 +90,8 @@ public class ARSaveComponentPane extends ARPane {
 
     private AnchorPane mainPane;
 
-    public ARSaveComponentPane(ComponentBlockDTO componentBlockDTO, BlockDTO blockDTO, DetailsDTO detailsDTO) {
-        this.componentBlockDTO = componentBlockDTO;
-        this.blockDTO = blockDTO;
-        this.detailsDTO = detailsDTO;
+    public ARSaveComponentPane(BlockDetailsDTO blockDetailsDTO) {
+        this.blockDetailsDTO = blockDetailsDTO;
     }
 
     @Override
@@ -132,13 +137,13 @@ public class ARSaveComponentPane extends ARPane {
 
         Label nameLabel = new Label("Name :         ");
 
-        nameTextField = new TextField(componentBlockDTO.getName());
+        nameTextField = new TextField(blockDetailsDTO.getBlockName());
         HBox nameHBox = new HBox(nameLabel, nameTextField);
         HBox.setHgrow(nameTextField, Priority.ALWAYS);
         HBox.setMargin(nameLabel, new Insets(ARConstants.SPACE_XS));
 
         Label descriptionLabel = new Label("Description : ");
-        descriptionTextField = new TextArea(componentBlockDTO.getDescription());
+        descriptionTextField = new TextArea(blockDetailsDTO.getBlockDescription());
 
         regularText = new Text("Excluded Special Operations: ");
         variableText1 = new Text("Set Value" + " / " + "Get Value");
@@ -191,12 +196,12 @@ public class ARSaveComponentPane extends ARPane {
                     // Ensure UI update happens on the JavaFX Application Thread
                     warningMSG("");
 
-                    componentBlockDTO.setName(nameTextField.getText().trim());
-                    componentBlockDTO.setDescription(
+                    blockDetailsDTO.setBlockName(nameTextField.getText().trim());
+                    blockDetailsDTO.setBlockDescription(
                             descriptionTextField.getText().trim());
 
-                    this.savedBlockLoadList = performDataBase.loadSavedBlocksForBotJob(
-                            detailsDTO.getNewBlock().getHomeBankingId());
+                    this.savedBlockLoadList =
+                            performDataBase.loadSavedBlocksForBotJob(blockDetailsDTO.getHomeBankingId());
 
                     //                    originalLoopInstruction =
                     // performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
@@ -222,47 +227,60 @@ public class ARSaveComponentPane extends ARPane {
 
                     // Debugging: Print statements to track data
                     ARLogger.getInstance(ARSaveComponentPane.class)
-                            .fine("Saving New Component Block: " + componentBlockDTO.getName());
+                            .fine("Saving New Component Block: " + blockDetailsDTO.getBlockName());
 
                     try (Connection conn = performDataBase.getConnection()) {
                         String[] arrayTables = {
-                            "component_block", // 0
-                            "instruction", // 1
-                            "component_instruction", // 2
-                            "reference", // 3
-                            "component_reference", // 4
-                            "variable", // 5
-                            "component_variable", // 6
-                            "complex_instruction", // 7
-                            "component_complex" // 8
+                            "block", // 0
+                            "component_block", // 1
+                            "instruction", // 2
+                            "component_instruction", // 3
+                            "reference", // 4
+                            "component_reference", // 5
+                            "variable", // 6
+                            "component_variable", // 7
+                            "complex_instruction", // 8
+                            "component_complex" // 9
                         };
                         // Now you can proceed with duplicating the related tables
                         ErrorMessage errorMessage =
-                                performDataBase.saveNewComponent(conn, componentBlockDTO, detailsDTO, arrayTables);
+                                performDataBase.saveNewComponent(conn, blockDetailsDTO, false, arrayTables);
 
                         if (errorMessage == null) {
-                            showAlertTimer(
-                                    Alert.AlertType.INFORMATION,
-                                    "Success",
-                                    "New Component Creation",
-                                    "The Block Component job has been successfully created!",
-                                    String.format("Component Name '%s' ", componentBlockDTO.getName()),
-                                    componentBlockDTO.getDescription(),
-                                    null);
+
+                            List<BotJobLoadDTO> botJobLoadList =
+                                    performDataBase.loadComponentsComplete(blockDetailsDTO.getHomeBankingId());
+
+                            String jsonData = "[]";
+                            if (botJobLoadList.size() > 0) {
+                                List<InstructionLoadDTO> blockLoopInstructions =
+                                        performDataBase.buildJsonViewData(botJobLoadList);
+                                jsonData = gson.toJson(blockLoopInstructions);
+                            }
+                            // SimpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
+                            // "componentsUpdate");
+                            SimpleWebSocketServer.broadcastMessageToAll(
+                                    blockDetailsDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+
+                            //                            showAlertTimer(
+                            //                                    Alert.AlertType.INFORMATION,
+                            //                                    "Success",
+                            //                                    "New Component Creation",
+                            //                                    "The Block Component job has been successfully
+                            // created!",
+                            //                                    String.format("Component Name '%s' ",
+                            // blockDetailsDTO.getBlockName()),
+                            //                                    blockDetailsDTO.getBlockDescription(),
+                            //                                    null);
 
                         } else {
-                            String errorType = "Database error";
-                            String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
-
-                            String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
-                            showAlertTimer(
-                                    Alert.AlertType.ERROR,
-                                    "Error",
+                            performMessage.errorMessage(
+                                    "Access Database error",
                                     errorMessage.getErrorTitle(),
                                     errorMessage.getErrorHeader(),
-                                    detailedMessage,
+                                    "Verify  [INSERT] or [UPDATE] or [SELECT]",
                                     null,
-                                    null);
+                                    0);
                         }
                         Stage stage =
                                 (Stage) ((Button) e.getSource()).getScene().getWindow();
@@ -371,18 +389,18 @@ public class ARSaveComponentPane extends ARPane {
                     //                            boolean success = false;
                     //                            for (ComponentReferenceDTO reference : originalReferences) {
                     //
-                    //                                ComponentInstructionDTO instructionDTO =
-                    // reference.getSavedBlockLoopInstructionDTO();
-                    //                                if (instructionDTO == null) {
+                    //                                ComponentInstructionDTO InstructionLoadDTO =
+                    // reference.getSavedBlockLoopInstructionLoadDTO();
+                    //                                if (InstructionLoadDTO == null) {
                     //                                    ARLogger.getInstance(ARViewBotJobPane.class)
-                    //                                            .warning("SavedBlockLoopInstructionDTO is null for
+                    //                                            .warning("SavedBlockLoopInstructionLoadDTO is null for
                     // reference: "
                     //                                                    + reference.getReferenceType());
                     //                                    continue;
                     //                                }
                     //
                     //                                success = insertComponentReferences(reference,
-                    // instructionDTO.getId());
+                    // InstructionLoadDTO.getId());
                     //                                if (!success) {
                     //                                    break;
                     //                                }
@@ -477,11 +495,11 @@ public class ARSaveComponentPane extends ARPane {
                     // Ensure closing is done on the JavaFX Application Thread
                     Platform.runLater(this::Close);
 
-                } catch (Exception ex) {
+                } catch (Exception error) {
                     // Handle the exception and display a warning message on the JavaFX Application Thread
 
                     ARLogger.getInstance(Task.class)
-                            .severe("Error: Unable to save the block. Please try again.\nError: " + ex.getMessage());
+                            .severe("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
 
                     showAlertTimer(
                             Alert.AlertType.ERROR,
@@ -495,7 +513,7 @@ public class ARSaveComponentPane extends ARPane {
                     warningMSG("Error creating a new componen! Please try again.");
                 }
 
-                //                ARSharedResources.getInstance().changeDbConnection();
+                //                ARSharedResources.getInstance().changeDbConnection(previousDB);
 
                 //                Close();
             } else {
@@ -563,56 +581,60 @@ public class ARSaveComponentPane extends ARPane {
     //        return newId;
     //    }
 
-    private boolean insertComponentReferences(ComponentReferenceDTO referenceDTO, int instructionId) {
+    //    private boolean insertComponentReferences(ComponentReferenceDTO referenceDTO, int instructionId) {
+    //
+    //        // Generate a Unique-ID for the block
+    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
+    //
+    //            // Fetch instructionId from savedBlockLoopInstructionLoadDTO
+    //
+    //            Integer nextId = loadNextIdBReferenceData() + 1;
+    //
+    //            // Build the SQL insert query
+    //            String insertSQL = "INSERT INTO component_reference(id, reference_type, value, instruction_id) VALUES
+    // ("
+    //                    + nextId + ", "
+    //                    + "'" + referenceDTO.getReferenceType() + "', "
+    //                    + "'" + referenceDTO.getValue() + "', " // name
+    //                    + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
+    //
+    //            int rowsAffected = stmt.executeUpdate(insertSQL);
+    //            if (rowsAffected > 0) {
+    //                ARLogger.getInstance(ARViewBotJobPane.class)
+    //                        .info(String.format(
+    //                                "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type:
+    // %s\nValue: %s\nInstructionId: %d",
+    //                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
+    //            } else {
+    //                ARLogger.getInstance(ARViewBotJobPane.class)
+    //                        .warning(String.format(
+    //                                "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue:
+    // %s\nInstructionId: %d",
+    //                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
+    //            }
+    //
+    //            return true;
+    //        } catch (SQLException e) {
+    //            ARLogger.getInstance(ARViewBotJobPane.class)
+    //                    .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
+    //            return false;
+    //        }
+    //    }
 
-        // Generate a Unique-ID for the block
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
-
-            // Fetch instructionId from savedBlockLoopInstructionDTO
-
-            Integer nextId = loadNextIdBReferenceData() + 1;
-
-            // Build the SQL insert query
-            String insertSQL = "INSERT INTO component_reference(id, reference_type, value, instruction_id) VALUES ("
-                    + nextId + ", "
-                    + "'" + referenceDTO.getReferenceType() + "', "
-                    + "'" + referenceDTO.getValue() + "', " // name
-                    + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
-
-            int rowsAffected = stmt.executeUpdate(insertSQL);
-            if (rowsAffected > 0) {
-                ARLogger.getInstance(ARViewBotJobPane.class)
-                        .info(String.format(
-                                "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
-                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
-            } else {
-                ARLogger.getInstance(ARViewBotJobPane.class)
-                        .warning(String.format(
-                                "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
-                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
-            }
-
-            return true;
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class)
-                    .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
-            return false;
-        }
-    }
-
-    private Integer loadNextIdBReferenceData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_reference";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
+    //    private Integer loadNextIdBReferenceData() {
+    //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+    //        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_reference";
+    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
+    //            while (rs.next()) {
+    //                return rs.getInt("max_id");
+    //            }
+    //        } catch (SQLException e) {
+    //            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " +
+    // e.getMessage());
+    //        }
+    //        return null;
+    //    }
 
     private void Close() {
         Platform.runLater(() -> {
@@ -635,7 +657,7 @@ public class ARSaveComponentPane extends ARPane {
                         + "'" + blockDTO.getName() + "', " // name
                         + 1 + ", " // type_id
                         + blockDTO.getBotJobId() + ", " // bot_job_id, assuming BotJobDTO has an ID
-                        + blockDTO.getActive() + ", " // active
+                        + (blockDTO.getActive() ? 1 : 0) + ", " // active
                         + ")";
 
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
@@ -676,9 +698,9 @@ public class ARSaveComponentPane extends ARPane {
         return null;
     }
 
-    public List<InstructionDTO> getSavedInstructionsByBlockId(int botJobId, int blockId) {
+    public List<InstructionLoadDTO> getSavedInstructionsByBlockId(int botJobId, int blockId) {
         // List to store the fetched instructions
-        List<InstructionDTO> instructions = new ArrayList<>();
+        List<InstructionLoadDTO> instructions = new ArrayList<>();
 
         // Build the SQL query statement
         String querySQL = "SELECT * FROM component_instruction WHERE block_id = " + blockId
@@ -690,8 +712,9 @@ public class ARSaveComponentPane extends ARPane {
 
             while (rs.next()) {
                 // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionDTO instruction = new InstructionDTO();
+                InstructionLoadDTO instruction = new InstructionLoadDTO();
                 instruction.setInstructionId(rs.getInt("id"));
+                instruction.setHomeBankingId(rs.getInt("home_banking_id"));
                 instruction.setInstructionName(rs.getString("name"));
                 instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
                 instruction.setBlockId(rs.getInt("block_id"));
@@ -699,7 +722,7 @@ public class ARSaveComponentPane extends ARPane {
                 instruction.setBotJobId(botJobId);
 
                 instruction.setActions(rs.getString("actions"));
-                instruction.setPath(rs.getString("path"));
+                instruction.setXpath(rs.getString("xpath"));
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
@@ -732,10 +755,6 @@ public class ARSaveComponentPane extends ARPane {
         Platform.runLater(() -> {
             warningLabel.setText(msg);
         });
-    }
-
-    public void setBlockJob(BlockDTO blockJob) {
-        this.blockDTO = blockJob;
     }
 
     private void showAlertTimer(
@@ -811,4 +830,27 @@ public class ARSaveComponentPane extends ARPane {
             executorService.shutdown();
         }
     }
+
+    //    // Method to send a message to a specific session ID
+    //    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    //        activeSessions = SimpleWebSocketServer.getAllSessions();
+    //        Session session = activeSessions.get(sessionId);
+    //
+    //        if (session != null && session.isOpen()) {
+    //            try {
+    //                JsonObject jsonMessage = new JsonObject();
+    //                jsonMessage.addProperty("body", msg1);
+    //                jsonMessage.addProperty("sessionId", sessionId); jsonMessage.addProperty("homeBankingId",
+    // homeBankingId);
+    //                if (msg2 != null && !msg2.isEmpty()) {
+    //                    jsonMessage.addProperty("operationId", msg2);
+    //                }
+    //                session.getBasicRemote().sendText(jsonMessage.toString());
+    //            } catch (IOException e) {
+    //                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+    //            }
+    //        } else {
+    //            System.err.println("Session " + sessionId + " not found or closed.");
+    //        }
+    //    }
 }

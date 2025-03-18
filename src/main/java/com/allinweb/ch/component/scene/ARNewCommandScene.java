@@ -10,7 +10,6 @@ import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javax.websocket.Session;
 
 public class ARNewCommandScene extends ARScene {
 
@@ -20,26 +19,23 @@ public class ARNewCommandScene extends ARScene {
     private RowMoveDTO rowMoveDTO;
     private BotJobLoadDTO botJobLoad;
     private ObservableList<ComboBoxVars> webPageItems;
-    private Session session;
     private String sessionId;
 
     public ARNewCommandScene(
             RowMoveDTO rowMoveDTO,
             BotJobLoadDTO botJobLoad,
             ObservableList<ComboBoxVars> webPageItems,
-            Session session,
             String sessionId) {
         super();
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
         this.webPageItems = webPageItems;
-        this.session = session;
         this.sessionId = sessionId;
     }
 
     @Override
     public IARPane buildPane() {
-        return new ARNewCommandPane(rowMoveDTO, botJobLoad, webPageItems, session, sessionId);
+        return new ARNewCommandPane(rowMoveDTO, botJobLoad, webPageItems, sessionId);
     }
 
     @Override

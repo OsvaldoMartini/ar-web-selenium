@@ -1,20 +1,27 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BlockDetailsDTO;
+import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.HomeBankingDTO;
+import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -33,9 +40,13 @@ import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javax.swing.*;
+import javax.websocket.Session;
 
 public class ARExcelFilePane extends ARPane {
+
+    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+
+    private final Gson gson = new Gson();
 
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
@@ -67,8 +78,11 @@ public class ARExcelFilePane extends ARPane {
     double buttonWidth = 200;
 
     private BlockDetailsDTO blockExcelDTO;
+    private String sessionId;
 
-    public ARExcelFilePane(BlockDetailsDTO blockExcelDTO) {
+    public ARExcelFilePane(String sessionId, BlockDetailsDTO blockExcelDTO) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+        this.sessionId = sessionId;
         this.blockExcelDTO = blockExcelDTO;
     }
 
@@ -279,10 +293,37 @@ public class ARExcelFilePane extends ARPane {
 
         exportFile = exportFile.replace("\\", "/");
 
-        boolean updateBlock = performDataBase.updateBlockExportFile(
-                blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
+        String tableTarget = "block";
+        if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
+            tableTarget = "component_block";
+        }
 
-        ARSharedResources.getInstance().changeDbConnection();
+        boolean updateBlock = performDataBase.updateBlockExportFile(
+                tableTarget, blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
+
+        List<BotJobLoadDTO> botJobLoadList;
+        if ((sessionId != null && sessionId.matches(".*botJobTasks.*"))) {
+            botJobLoadList = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
+            String jsonData = "[]";
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                jsonData = gson.toJson(blockLoopInstructions);
+            }
+            SimpleWebSocketServer.sendMessageJson(
+                    blockExcelDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
+
+        } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
+            botJobLoadList = performDataBase.loadComponentsComplete(blockExcelDTO.getHomeBankingId());
+            String jsonData = "[]";
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                jsonData = gson.toJson(blockLoopInstructions);
+            }
+            //            SimpleWebSocketServer.sendMessageJson(sessionId, jsonData, "componentsUpdate");
+
+            SimpleWebSocketServer.broadcastMessageToAll(
+                    blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+        }
 
         Text variableText1Styled = new Text(String.format("Export File \"%s\" Updated", exportFile));
         variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
@@ -296,7 +337,6 @@ public class ARExcelFilePane extends ARPane {
         combinedTextContainer.setSpacing(5); // Add some sp
 
         combinedTextContainer.getChildren().add(variableText1Styled);
-
         performMessage.showAlertCombinedVBOX(
                 updateBlock ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
                 "Update Bot-Job",
@@ -360,4 +400,26 @@ public class ARExcelFilePane extends ARPane {
         File chosenPath = chooser.showOpenDialog(new Stage());
         return chosenPath.getAbsolutePath();
     }
+
+    //    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    //
+    //        activeSessions = SimpleWebSocketServer.getAllSessions();
+    //        Session session = activeSessions.get(sessionId);
+    //
+    //        if (session != null && session.isOpen()) {
+    //            try {
+    //                JsonObject jsonMessage = new JsonObject();
+    //                jsonMessage.addProperty("body", msg1);
+    //                jsonMessage.addProperty("homeBankingId", homeBankingId);
+    //                if (msg2 != null && !msg2.isEmpty()) {
+    //                    jsonMessage.addProperty("operationId", msg2);
+    //                }
+    //                session.getBasicRemote().sendText(jsonMessage.toString());
+    //            } catch (IOException e) {
+    //                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+    //            }
+    //        } else {
+    //            System.err.println("Session " + sessionId + " not found or closed.");
+    //        }
+    //    }
 }

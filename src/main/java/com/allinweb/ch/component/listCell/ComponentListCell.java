@@ -7,12 +7,10 @@ import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.ARSaveComponentPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
-import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ARConstants;
@@ -49,13 +47,13 @@ import javafx.scene.text.FontWeight;
 public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
     private static final PerformDataBase performDataBase;
-    private static final PerformDBSavedBlock performDBSavedBlock;
+    //    private static final PerformDBSavedBlock performDBSavedBlock;
     private static final PerformActions performAction;
 
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
-        performDBSavedBlock = PerformDBSavedBlock.getInstance();
+        //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
         performAction = PerformActions.getInstance();
     }
 
@@ -158,11 +156,10 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 if (result.isPresent() && result.get() == ButtonType.YES) {
 
                     try {
-                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(
-                                componentBlockDTO.getBotJobDTO().getId());
+                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(componentBlockDTO.getHomeBankingId());
 
-                        BotJobLoadDTO botJobLoadDTO = performDataBase.loadBotJobById(
-                                componentBlockDTO.getBotJobDTO().getId());
+                        BotJobLoadDTO botJobLoadDTO =
+                                performDataBase.loadBotJobById(componentBlockDTO.getHomeBankingId());
 
                         if (botJobLoadDTO == null) {
                             performAction.showAlert(
@@ -171,12 +168,12 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                     "Verify the Bot Job Name if have any: ",
                                     String.format(
                                             "Check if you already have a Bot Job \"%\" Created!",
-                                            componentBlockDTO.getBotJobDTO().getName()));
+                                            componentBlockDTO.getHomeBankingId()));
 
                             ARLogger.getInstance(Thread.class)
                                     .severe(String.format(
                                             "Check if you already have a Bot Job \"%\" Created!",
-                                            componentBlockDTO.getBotJobDTO().getName()));
+                                            componentBlockDTO.getHomeBankingId()));
                             return;
                         }
 
@@ -184,26 +181,23 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                         //                    if (blockLoadList.isEmpty()) {
 
                         this.botJobDTO = ARSharedResources.getInstance()
-                                .getEntityById(
-                                        BotJobDTO.class,
-                                        componentBlockDTO.getBotJobDTO().getId());
+                                .getEntityById(BotJobDTO.class, componentBlockDTO.getHomeBankingId());
                         if (this.botJobDTO == null) {
                             ARLogger.getInstance(ARScannedElementPane.class)
                                     .severe("I was not able to load the BotJod id: "
-                                            + componentBlockDTO.getBotJobDTO().getId());
+                                            + componentBlockDTO.getHomeBankingId());
 
                             performAction.showAlert(
                                     Alert.AlertType.ERROR,
                                     "Error Loading BotJob",
                                     "Bot Job Loading Error",
-                                    "I was not able to load the BotJod id: "
-                                            + componentBlockDTO.getBotJobDTO().getId());
+                                    "I was not able to load the BotJod id: " + componentBlockDTO.getHomeBankingId());
 
                             return;
                         }
 
-                        this.blockLoadDTO = performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(
-                                componentBlockDTO, blockLoadDTO.getBotJobId());
+                        this.blockLoadDTO =
+                                new BlockLoadDTO(); // performDBSavedBlock.createBlocksDTOFromSavedBlocksDTO(componentBlockDTO, blockLoadDTO.getHomeBankingId());
                         this.blockLoadDTO.setTypeId(1);
                         this.blockLoadDTO.setActive(componentBlockDTO.getActive());
                         this.blockLoadDTO.setWait(componentBlockDTO.getWait());
@@ -232,30 +226,27 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                             ARLogger.getInstance(Thread.class)
                                     .info(String.format(
                                             "Component %s has been Added to the BotJob %S",
-                                            componentBlockDTO.getName(),
-                                            componentBlockDTO.getBotJobDTO().getName()));
+                                            componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
                         } else {
                             performAction.showAlert(
                                     Alert.AlertType.ERROR,
                                     "Error Getting the Component",
                                     "Not Possible to user the component",
                                     String.format(
-                                            "Error Trying to Insert Component %S to BotJob %d\n!",
-                                            componentBlockDTO.getName(),
-                                            componentBlockDTO.getBotJobDTO().getName()));
+                                            "I cannot insert Component %S to BotJob %d\n!",
+                                            componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
 
                             ARLogger.getInstance(Thread.class)
                                     .severe(String.format(
-                                            "Error Trying to Insert Component %S to BotJob %d\n!",
-                                            componentBlockDTO.getName(),
-                                            componentBlockDTO.getBotJobDTO().getName()));
+                                            "I cannot insert Component %S to BotJob %d\n!",
+                                            componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
                             return;
                         }
 
                         if (this.botJobDTO != null) {
 
-                            originalLoopInstruction = performDBSavedBlock.createBlockLoopInstructionsFromSavedBlocksDTO(
-                                    componentBlockDTO);
+                            originalLoopInstruction =
+                                    new ArrayList<>(); // performDBSavedBlock.createBlockLoopInstructionsFromSavedBlocksDTO(componentBlockDTO);
 
                             // Debugging: Ensure originalLoopInstruction has the right data
                             ARLogger.getInstance(ComponentListCell.class)
@@ -273,7 +264,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                         task.getVariableId(),
                                         task.getInstructionOrderNumber(),
                                         task.getExportToABR(),
-                                        task.getPath(),
+                                        task.getXpath(),
                                         this.blockLoadDTO);
 
                                 task.setId(newId);
@@ -307,15 +298,15 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                     boolean success = false;
                                     for (InstructionReferenceLoadDTO reference : originalReferences) {
 
-                                        InstructionLoadDTO instructionDTO = reference.getInstructionLoadDTO();
-                                        if (instructionDTO == null) {
-                                            ARLogger.getInstance(ARViewBotJobPane.class)
-                                                    .warning("BlockLoopInstructionDTO is null for reference: "
+                                        InstructionLoadDTO InstructionLoadDTO = reference.getInstructionLoadDTO();
+                                        if (InstructionLoadDTO == null) {
+                                            ARLogger.getInstance(ComponentListCell.class)
+                                                    .warning("BlockLoopInstructionLoadDTO is null for reference: "
                                                             + reference.getReferenceType());
                                             continue;
                                         }
 
-                                        success = insertComponentReferences(reference, instructionDTO.getId());
+                                        success = insertComponentReferences(reference, InstructionLoadDTO.getId());
                                         if (!success) {
                                             break;
                                         }
@@ -381,7 +372,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                             // ARSharedResources.getInstance()
                             //                                        .addAllEntity(
                             //                                                originalLoopInstruction,
-                            //                                                BlockLoopInstructionDTO.class,
+                            //                                                BlockLoopInstructionLoadDTO.class,
                             //                                                () -> ARSharedResources.getInstance()
                             //                                                        .addAllEntity(
                             //                                                                references,
@@ -407,8 +398,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                                 "Unable to Utilize the Component",
                                 String.format(
                                         "Error: Unable to Utilize the Component Name : %s\nBotJob Name: %s\nPlease try again!",
-                                        componentBlockDTO.getName(),
-                                        componentBlockDTO.getBotJobDTO().getName()));
+                                        componentBlockDTO.getName(), componentBlockDTO.getHomeBankingId()));
                         ARLogger.getInstance(Task.class)
                                 .severe("Error: Unable to save the block. Please try again.\nError: "
                                         + ex.getMessage());
@@ -436,7 +426,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            ARLogger.getInstance(ComponentListCell.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -450,7 +440,8 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+            ARLogger.getInstance(ComponentListCell.class)
+                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -489,7 +480,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         instruction.setOnHoldSeconds(onHold);
         instruction.setBlockId(blockLoadDTO.getId());
         instruction.setExportToABR(exportAR);
-        instruction.setPath(xPath);
+        instruction.setXpath(xPath);
 
         // Wrap the persistence in a try-catch block
         int newId = -1;
@@ -506,7 +497,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 //                                "\"Component\" Instruction \"%s\"\nhas been added successfully!",
                 //                                instruction.getName()));
                 //
-                //                ARLogger.getInstance(ARViewBotJobPane.class)
+                //                ARLogger.getInstance(ComponentListCell.class)
                 //                        .info(String.format(
                 //                                "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
                 //                                instruction.getName()));
@@ -517,7 +508,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 //                        "Not possible to insert new Operation",
                 //                        String.format("\"Component\" Instruction \"%s\"\nCannot be saved",
                 // instruction.getName()));
-                //                ARLogger.getInstance(ARViewBotJobPane.class)
+                //                ARLogger.getInstance(ComponentListCell.class)
                 //                        .severe(String.format(
                 //                                "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
                 //                                instruction.getName()));
@@ -530,7 +521,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     "Not possible to insert new Operation",
                     String.format("\"Component\" Instruction \"%s\"\nCannot be saved", instruction.getName()));
 
-            ARLogger.getInstance(ARViewBotJobPane.class)
+            ARLogger.getInstance(ComponentListCell.class)
                     .severe(String.format(
                             "Cannot Insert \"Component\" Instruction \"%s\"\nCannot be saved!\nError: %s",
                             instruction.getName(), e.getMessage()));
@@ -538,19 +529,20 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         return newId;
     }
 
-    private int insertInstruction(InstructionLoadDTO instructionDTO) throws SQLException {
+    private int insertInstruction(InstructionLoadDTO InstructionLoadDTO) throws SQLException {
         // Generate a Unique-ID for the block
 
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
 
             Integer nextId = loadNextIdInstructionData() + 1;
-            instructionDTO.setId(nextId);
+            InstructionLoadDTO.setId(nextId);
 
-            String coordinates =
-                    (instructionDTO.getCoordinates() != null) ? "'" + instructionDTO.getCoordinates() + "'" : "";
-            String pathValue = (instructionDTO.getPath() != null) ? "'" + instructionDTO.getPath() + "'" : "";
-            String iframeXPath = !Strings.isNullOrEmpty(instructionDTO.getIFrameXPath())
-                    ? "'" + instructionDTO.getIFrameXPath() + "'"
+            String coordinates = (InstructionLoadDTO.getCoordinates() != null)
+                    ? "'" + InstructionLoadDTO.getCoordinates() + "'"
+                    : "";
+            String pathValue = (InstructionLoadDTO.getXpath() != null) ? "'" + InstructionLoadDTO.getXpath() + "'" : "";
+            String iframeXPath = !Strings.isNullOrEmpty(InstructionLoadDTO.getIFrameXPath())
+                    ? "'" + InstructionLoadDTO.getIFrameXPath() + "'"
                     : "";
 
             // Build the SQL insert query
@@ -577,27 +569,27 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     + "bot_job_id, "
                     + "active)\n"
                     + "VALUES ("
-                    + instructionDTO.getId()
-                    + ", " + instructionDTO.getActionCustomMaxWaitSec()
-                    + ", '" + instructionDTO.getActions() + "'"
-                    + ", " + instructionDTO.getBlockMarked()
-                    + "," + instructionDTO.getDefaultValue()
-                    + ", '" + instructionDTO.getDescription() + "'"
-                    + ", " + instructionDTO.getCodified()
-                    + ", " + instructionDTO.getExportToABR()
-                    + ", " + instructionDTO.getInstructionOrderNumber()
-                    + ", '" + instructionDTO.getName() + "'"
-                    + ", " + instructionDTO.getOnHoldSeconds()
-                    + ", '" + instructionDTO.getOperation() + "'"
-                    + ", " + instructionDTO.getOptional()
-                    + ", " + instructionDTO.getParentId()
+                    + InstructionLoadDTO.getId()
+                    + ", " + InstructionLoadDTO.getActionCustomMaxWaitSec()
+                    + ", '" + InstructionLoadDTO.getActions() + "'"
+                    + ", " + InstructionLoadDTO.getBlockMarked()
+                    + "," + InstructionLoadDTO.getDefaultValue()
+                    + ", '" + InstructionLoadDTO.getDescription() + "'"
+                    + ", " + InstructionLoadDTO.getCodified()
+                    + ", " + InstructionLoadDTO.getExportToABR()
+                    + ", " + InstructionLoadDTO.getInstructionOrderNumber()
+                    + ", '" + InstructionLoadDTO.getName() + "'"
+                    + ", " + InstructionLoadDTO.getOnHoldSeconds()
+                    + ", '" + InstructionLoadDTO.getOperation() + "'"
+                    + ", " + InstructionLoadDTO.getOptional()
+                    + ", " + InstructionLoadDTO.getParentId()
                     + ", " + pathValue
                     + ", " + coordinates
                     + ", " + iframeXPath
-                    + ", " + instructionDTO.getVariableId()
-                    + ", " + instructionDTO.getBlockId()
-                    + ", " + instructionDTO.getBotJobId()
-                    + ", " + instructionDTO.getInstructionActive()
+                    + ", " + InstructionLoadDTO.getVariableId()
+                    + ", " + InstructionLoadDTO.getBlockId()
+                    + ", " + InstructionLoadDTO.getBotJobId()
+                    + ", " + InstructionLoadDTO.getInstructionActive()
                     + ");";
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
@@ -605,19 +597,19 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 ARLogger.getInstance(ComponentListCell.class)
                         .info(String.format(
                                 "New Instruction SAVED SUCCESSFULLY id: %d Name: %s Actions: %s Operation: %s",
-                                instructionDTO.getId(),
-                                instructionDTO.getName(),
-                                instructionDTO.getActions(),
-                                instructionDTO.getOperation()));
+                                InstructionLoadDTO.getId(),
+                                InstructionLoadDTO.getName(),
+                                InstructionLoadDTO.getActions(),
+                                InstructionLoadDTO.getOperation()));
                 return nextId;
             } else {
                 ARLogger.getInstance(ComponentListCell.class)
                         .warning(String.format(
                                 "Instruction NOT SAVED id: %d Name: %s Actions: %s Operations: %s",
-                                instructionDTO.getId(),
-                                instructionDTO.getName(),
-                                instructionDTO.getActions(),
-                                instructionDTO.getOperation()));
+                                InstructionLoadDTO.getId(),
+                                InstructionLoadDTO.getName(),
+                                InstructionLoadDTO.getActions(),
+                                InstructionLoadDTO.getOperation()));
                 return -1;
             }
         }
@@ -628,7 +620,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
         // Generate a Unique-ID for the block
         try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
 
-            // Fetch instructionId from savedBlockLoopInstructionDTO
+            // Fetch instructionId from savedBlockLoopInstructionLoadDTO
 
             Integer nextId = loadNextIdBReferenceData() + 1;
 
@@ -641,12 +633,12 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
             int rowsAffected = stmt.executeUpdate(insertSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(ARViewBotJobPane.class)
+                ARLogger.getInstance(ComponentListCell.class)
                         .info(String.format(
                                 "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
                                 nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
             } else {
-                ARLogger.getInstance(ARViewBotJobPane.class)
+                ARLogger.getInstance(ComponentListCell.class)
                         .warning(String.format(
                                 "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue: %s\nInstructionId: %d",
                                 nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
@@ -654,7 +646,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
 
             return true;
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class)
+            ARLogger.getInstance(ComponentListCell.class)
                     .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
             return false;
         }
@@ -669,7 +661,8 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+            ARLogger.getInstance(ComponentListCell.class)
+                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
         }
         return null;
     }

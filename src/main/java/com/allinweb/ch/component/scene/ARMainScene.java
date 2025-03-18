@@ -7,8 +7,8 @@ import com.allinweb.ch.component.scene.base.ARScene;
 public class ARMainScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "AR Web Scanner";
+    private static final Double SCENE_WIDTH = 700D;
+    private static final String TITLE = "AR Web Bot Job List";
 
     public ARMainScene() {
         super();

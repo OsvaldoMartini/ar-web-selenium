@@ -9,27 +9,26 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.ElementSplitDTO;
-import com.allinweb.ch.component.model.InstructionDTO;
+import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
-import com.allinweb.ch.facade.PerformDBSavedBlock;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.BlockDTO;
-import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
+import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +61,7 @@ public class SimpleWebSocketServer {
     //        return instance.get();
     //    }
 
-    private static final Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
 
     // Store active sessions when a new connection is established
     public static void addSession(String sessionId, Session session) {
@@ -88,18 +87,20 @@ public class SimpleWebSocketServer {
     }
 
     private static final PerformDataBase performDataBase;
-    private static final PerformDBSavedBlock performDBSavedBlock;
+    //    private static final PerformDBSavedBlock performDBSavedBlock;
     private static final PerformMessage performMessage;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
-        performDBSavedBlock = PerformDBSavedBlock.getInstance();
+        //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
         performMessage = PerformMessage.getInstance();
     }
 
     // Store all connected sessions
     private final Gson gson = new Gson();
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
+
+    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
 
     @OnOpen
     public void onOpen(Session session) {
@@ -133,9 +134,14 @@ public class SimpleWebSocketServer {
         }
 
         String type = null;
+        int homeBankingId = -1;
         try {
             // Parse the incoming message (assuming JSON format)
             JsonObject jsonMessage = JsonParser.parseString(message).getAsJsonObject();
+            homeBankingId = jsonMessage.has("homeBankingId")
+                    ? Integer.parseInt(jsonMessage.get("homeBankingId").getAsString())
+                    : -1;
+
             type = jsonMessage.has("type") ? jsonMessage.get("type").getAsString() : "unknown";
             String sessionId =
                     jsonMessage.has("sessionId") ? jsonMessage.get("sessionId").getAsString() : "unknown";
@@ -166,11 +172,14 @@ public class SimpleWebSocketServer {
             switch (type) {
                 case "broadcast":
                     String broadcastMessage = jsonMessage.get("body").getAsString();
-                    broadcastMessageToAll(broadcastMessage);
+                    broadcastMessageToAll(homeBankingId, broadcastMessage);
                     break;
                 case "echo":
                     sendMessageJson(
-                            sessionId, "Echo: " + jsonMessage.get("body").getAsString(), "sessionId: " + sessionId);
+                            homeBankingId,
+                            sessionId,
+                            "Echo: " + jsonMessage.get("body").getAsString(),
+                            "sessionId: " + sessionId);
                     break;
                 default:
                     handleMessageByType(type, jsonMessage, session, sessionId);
@@ -179,81 +188,176 @@ public class SimpleWebSocketServer {
         } catch (Exception error) {
             System.err.println("Error processing message: " + error.getMessage());
             if (type != null) {
-                sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
+                sendMessageJson(homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
             } else {
-                sendMessageJson(session, "Error processing message", "No \"type\" definition");
+                sendMessageJson(homeBankingId, session, type, "Error processing message", "No \"type\" definition");
             }
         }
     }
 
     private void handleMessageByType(String type, JsonObject jsonEntry, Session session, String sessionId) {
         // Dispatch to the correct method based on the message type
+
+        int botJobIdTask = -1;
+        int homeBankingId = -1;
+        String sessionIdToSend = null;
+        boolean alreadySentMgsSocket = false;
+
         switch (type) {
             case "SEARCH_TOOL":
                 // Extract the "body" field from the JsonObject
                 ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
                 //                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " +
                 // elementSplitDTO.getDetails().length);
-                String jsonData = gson.toJson(elementSplitDTO);
-                if (!Strings.isNullOrEmpty(elementSplitDTO.getSessionId())) {
-                    sessionId = elementSplitDTO.getSessionId();
-                    sendMessageJson(sessionId, jsonData, null);
+
+                homeBankingId = elementSplitDTO.getHomeBankingId();
+                sessionIdToSend = elementSplitDTO.getSessionId();
+                botJobIdTask = elementSplitDTO.getBotJobId();
+
+                if (sessionIdToSend.equals("scannerGrid")) {
+                    String jsonData = gson.toJson(elementSplitDTO);
+                    sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
                     //                    broadcastMessageToAll(jsonData);
                     performMessage.outputJsonElementDTO(elementSplitDTO.getDetails());
-
-                } else {
-                    Session sessionDest = activeSessions.get(sessionId);
-
-                    if (sessionDest != null && sessionDest.isOpen()) {
-                        sendMessageJson(sessionDest, jsonData, null);
-                    } else broadcastMessageToAll(jsonData);
                 }
+
+                alreadySentMgsSocket = true;
+
                 break;
             case "NEW_ELEMENT_DTO":
             case "DEL_ELEMENT_DTO":
             case "DETAILS_ELEMENT_DTO":
                 // Extract the "body" field from the JsonObject
                 ElementSplitDTO processDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
-                middleWareMsg(processDTO);
+
+                homeBankingId = processDTO.getHomeBankingId();
+                sessionIdToSend = processDTO.getSessionId();
+                botJobIdTask = processDTO.getBotJobId();
+
+                middleWareMsg(homeBankingId, processDTO);
+
+                alreadySentMgsSocket = true;
                 break;
             case "RESPONSE_BACK":
                 // Extract the "body" field from the JsonObject
                 BlockSplitDTO received = gson.fromJson(jsonEntry, BlockSplitDTO.class);
                 received.setType("MARTINI");
-                jsonData = gson.toJson(received);
-                sendMessageJson(session, jsonData, null);
+
+                String jsonData = gson.toJson(received);
+
+                homeBankingId = received.getHomeBankingId();
+                sessionIdToSend = received.getSessionId();
+                botJobIdTask = received.getBotJobId();
+
+                sendMessageJson(homeBankingId, session, "Martini", jsonData, null);
+
+                alreadySentMgsSocket = true;
                 break;
             case "BLOCKS_COMPONENT":
                 BlockSplitDTO blockComponentDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+
+                homeBankingId = blockComponentDTO.getHomeBankingId();
+                sessionIdToSend = blockComponentDTO.getSessionId();
+                botJobIdTask = blockComponentDTO.getBotJobId();
+
                 createBlockComponent(blockComponentDTO);
-                sendMessageJson(session, "Success Create Component", null);
+
+                alreadySentMgsSocket = true;
+                break;
+            case "COMPONENT_INJECT":
+                BlockSplitDTO componentToInjectDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
+
+                homeBankingId = componentToInjectDTO.getHomeBankingId();
+                sessionIdToSend = componentToInjectDTO.getSessionId();
+                botJobIdTask = componentToInjectDTO.getBotJobId();
+
+                injectBlockComponent(componentToInjectDTO);
+
+                alreadySentMgsSocket = true;
+
                 break;
             case "BLOCKS_SPLITTER":
                 BlockSplitDTO blockSplitDTO = gson.fromJson(jsonEntry, BlockSplitDTO.class);
-                splitBlocks(blockSplitDTO);
-                sendMessageJson(session, "Success block splitter", null);
+
+                homeBankingId = blockSplitDTO.getHomeBankingId();
+                sessionIdToSend = blockSplitDTO.getSessionId();
+                botJobIdTask = blockSplitDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                    splitBlocks(blockSplitDTO);
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                }
+
                 break;
             case "BLOCK_MOVE":
                 BlockMoveDTO blockMoveDTO = gson.fromJson(jsonEntry, BlockMoveDTO.class);
-                moveBlock(blockMoveDTO);
-                sendMessageJson(session, "Success block move", null);
+
+                homeBankingId = blockMoveDTO.getHomeBankingId();
+                sessionIdToSend = blockMoveDTO.getSessionId();
+                botJobIdTask = blockMoveDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                    moveBlock(blockMoveDTO);
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                }
+
                 break;
             case "ROW_UPDATE":
                 RowMoveDTO rowUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-                rowUpdate(rowUpdateDTO);
-                sendMessageJson(session, "Success row update", null);
+
+                homeBankingId = rowUpdateDTO.getHomeBankingId();
+                sessionIdToSend = rowUpdateDTO.getSessionId();
+                botJobIdTask = rowUpdateDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if (rowUpdateDTO.getUpdatedRows().size() > 0) {
+                    if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                        performDataBase.rowsUpdateName(rowUpdateDTO.getUpdatedRows());
+                    } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                        performDataBase.rowsCompUpdateName(rowUpdateDTO.getUpdatedRows());
+                    }
+                }
+
                 break;
             case "ROW_MOVE":
                 RowMoveDTO rowMoveDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-                if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
-                        && rowMoveDTO.getDeleteBlockId() != null
-                        && rowMoveDTO.getDeleteBlockId() > -1) {
-                    performDataBase.deleteBlock(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
 
-                    performDataBase.updateBlockOrderNumber(
-                            performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
+                homeBankingId = rowMoveDTO.getHomeBankingId();
+                sessionIdToSend = rowMoveDTO.getSessionId();
+                botJobIdTask = rowMoveDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+
+                    if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
+                            && rowMoveDTO.getDeleteBlockId() != null
+                            && rowMoveDTO.getDeleteBlockId() > -1) {
+
+                        performDataBase.deleteBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+
+                        performDataBase.updateBlockOrderNumber(
+                                performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
+                    }
+
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+
+                    if (performDataBase.updateCompMoveRowsOrder(rowMoveDTO.getUpdatedRows())
+                            && rowMoveDTO.getDeleteBlockId() != null
+                            && rowMoveDTO.getDeleteBlockId() > -1) {
+
+                        performDataBase.deleteCompBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+
+                        performDataBase.updateCompBlockOrderNumber(
+                                performDataBase.selectCompAllBlocks(rowMoveDTO.getBotJobId()), true);
+                    }
                 }
-                sendMessageJson(session, "Success row move", null);
+
                 break;
             case "INSERT_BEFORE":
             case "INSERT_AFTER":
@@ -262,104 +366,203 @@ public class SimpleWebSocketServer {
             case "INSERT_BEFORE_ELSEIF":
             case "EDIT_OPERATION":
                 RowMoveDTO insertBeforeDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-                if (activeSessions.containsKey(sessionId)) {
-                    session = activeSessions.get(sessionId);
-                    if (session.isOpen()) {
-                        injectStepAfterOrBefore(session, sessionId, insertBeforeDTO);
-                    } else {
-                        performMessage.errorMessage(
-                                "Session Not Active",
-                                "Session Id: " + sessionId + " is Not active!",
-                                null,
-                                null,
-                                null,
-                                0);
-                    }
 
-                } else {
-                    performMessage.errorMessage(
-                            "Session Not Created", "Session Id: " + sessionId + " Dos Not Exist!", null, null, null, 0);
-                }
+                homeBankingId = insertBeforeDTO.getHomeBankingId();
+                botJobIdTask = insertBeforeDTO.getBotJobId();
+                sessionIdToSend = insertBeforeDTO.getSessionId();
+
+                injectStepAfterOrBefore(sessionIdToSend, insertBeforeDTO);
+
+                alreadySentMgsSocket = true;
+
                 break;
             case "BLOCK_EXCEL_FILE":
                 BlockDetailsDTO blockExcelDTO = gson.fromJson(jsonEntry, BlockDetailsDTO.class);
-                excelFileBlock(blockExcelDTO);
-                sendMessageJson(session, "Success Block Excel File", null);
+
+                homeBankingId = blockExcelDTO.getHomeBankingId();
+                sessionIdToSend = blockExcelDTO.getSessionId();
+                botJobIdTask = blockExcelDTO.getBotJobId();
+
+                excelFileBlock(sessionIdToSend, blockExcelDTO);
+
+                alreadySentMgsSocket = true;
                 break;
             case "BLOCK_ORDER":
                 BlockOrderDTO blockReorder = gson.fromJson(jsonEntry, BlockOrderDTO.class);
                 if (blockReorder.getUpdatedBlocks().size() > 0) {
-                    performDataBase.updateBlockOrderNumber(
-                            performDataBase.selectAllBlocks(
-                                    blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
-                            true);
-                    performDataBase.deleteNullBlocks(
-                            blockReorder.getUpdatedBlocks().get(0).getBotJobId());
 
-                    sendMessageJson(session, "Success Block Order", null);
+                    homeBankingId = blockReorder.getHomeBankingId();
+                    sessionIdToSend = blockReorder.getSessionId();
+                    botJobIdTask = blockReorder.getBotJobId();
+
+                    alreadySentMgsSocket = false;
+
+                    if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                        performDataBase.updateBlockOrderNumber(
+                                performDataBase.selectAllBlocks(
+                                        blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
+                                true);
+                        performDataBase.deleteNullBlocks(
+                                blockReorder.getUpdatedBlocks().get(0).getBotJobId());
+
+                    } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                    }
                 }
                 break;
             case "INSTRUCTION_STATUS":
-                InstructionDTO instructionDTO = gson.fromJson(jsonEntry, InstructionDTO.class);
-                performDataBase.updateInstructionStatus(instructionDTO);
+                InstructionLoadDTO InstructionLoadDTO = gson.fromJson(jsonEntry, InstructionLoadDTO.class);
 
-                sendMessageJson(session, "Success Instruction Status", null);
+                homeBankingId = InstructionLoadDTO.getHomeBankingId();
+                sessionIdToSend = InstructionLoadDTO.getSessionId();
+                botJobIdTask = InstructionLoadDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                    performDataBase.updateInstructionStatus(InstructionLoadDTO);
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                    performDataBase.updateCompInstructionStatus(InstructionLoadDTO);
+                }
                 break;
             case "BLOCK_STATUS":
                 RowMoveDTO blockStateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-                performDataBase.updateBlockStatus(
-                        blockStateDTO.getBotJobId(),
-                        blockStateDTO.getBlockId(),
-                        blockStateDTO.getBlockName(),
-                        blockStateDTO.getBlockActive(),
-                        3); // Block wait time Default 3 seconds per block
 
-                performDataBase.updateInstructionStatusByBlock(
-                        blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
+                homeBankingId = blockStateDTO.getHomeBankingId();
+                sessionIdToSend = blockStateDTO.getSessionId();
+                botJobIdTask = blockStateDTO.getBotJobId();
 
-                sendMessageJson(session, "Success Block Status", null);
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                    performDataBase.updateBlockStatus(
+                            blockStateDTO.getBotJobId(),
+                            blockStateDTO.getBlockId(),
+                            blockStateDTO.getBlockName(),
+                            blockStateDTO.getBlockActive(),
+                            3); // Block wait time Default 3 seconds per block
+
+                    performDataBase.updateInstructionStatusByBlock(
+                            blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                    performDataBase.updateCompBlockStatus(
+                            blockStateDTO.getBotJobId(),
+                            blockStateDTO.getBlockId(),
+                            blockStateDTO.getBlockName(),
+                            blockStateDTO.getBlockActive(),
+                            3); // Block wait time Default 3 seconds per block
+
+                    performDataBase.updateCompInstructionStatusByBlock(
+                            blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
+                }
 
                 break;
             case "BLOCK_UPDATE":
                 RowMoveDTO blockUpdateDTO = gson.fromJson(jsonEntry, RowMoveDTO.class);
-                performDataBase.updateBlockName(
-                        blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
-                sendMessageJson(session, "Success Block Update", null);
+
+                homeBankingId = blockUpdateDTO.getHomeBankingId();
+                sessionIdToSend = blockUpdateDTO.getSessionId();
+                botJobIdTask = blockUpdateDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                    performDataBase.updateBlockName(
+                            blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                    performDataBase.updateCompBlockName(
+                            blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
+                }
 
                 break;
             case "DELETE_INSTRUCTION":
-                InstructionDTO deleteInstructionDTO = gson.fromJson(jsonEntry, InstructionDTO.class);
-                performDataBase.deleteInstruction(deleteInstructionDTO.getBotJobId(), deleteInstructionDTO);
+                InstructionLoadDTO deleteInstructionLoadDTO = gson.fromJson(jsonEntry, InstructionLoadDTO.class);
 
-                List<InstructionDTO> rowList = performDataBase.getInstructionsByBlockId(
-                        deleteInstructionDTO.getBotJobId(), deleteInstructionDTO.getBlockId());
-                performDataBase.reorderInstructions(rowList);
-                sendMessageJson(session, "Success Delete Instruction", null);
+                homeBankingId = deleteInstructionLoadDTO.getHomeBankingId();
+                sessionIdToSend = deleteInstructionLoadDTO.getSessionId();
+                botJobIdTask = deleteInstructionLoadDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                    performDataBase.deleteInstruction(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO);
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                    performDataBase.deleteComponent(deleteInstructionLoadDTO);
+                }
+
                 break;
             case "DELETE_BLOCK":
                 DeleteBlockDTO deleteBlockDTO = gson.fromJson(jsonEntry, DeleteBlockDTO.class);
-                performDataBase.deleteBlock(deleteBlockDTO);
-                sendMessageJson(session, "Success Delete Block", null);
+
+                homeBankingId = deleteBlockDTO.getHomeBankingId();
+                sessionIdToSend = deleteBlockDTO.getSessionId();
+                botJobIdTask = deleteBlockDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                    performDataBase.deleteBlock(deleteBlockDTO);
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                    performDataBase.deleteCompBlock(deleteBlockDTO);
+                }
+
                 break;
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(jsonEntry, RollBackBlocksDTO.class);
-                performDataBase.rollBackBlocksRows(rollBackBlocksDTO);
-                performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
-                sendMessageJson(session, "Success Roll Back", null);
+
+                homeBankingId = rollBackBlocksDTO.getHomeBankingId();
+                sessionIdToSend = rollBackBlocksDTO.getSessionId();
+                botJobIdTask = rollBackBlocksDTO.getBotJobId();
+
+                alreadySentMgsSocket = false;
+
+                if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+                    performDataBase.rollBackBlocksRows("instructions", rollBackBlocksDTO);
+                    performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
+                } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                    performDataBase.rollBackBlocksRows("component_instructions", rollBackBlocksDTO);
+                    performDataBase.deleteCompNullBlocks(
+                            rollBackBlocksDTO.getHomeBankingId(), rollBackBlocksDTO.getBotJobId());
+                }
+
                 break;
 
             default:
-                sendMessageJson(session, "Action type : \"" + type + "\"", "cannot be processed");
+                sendMessageJson(homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
                 break;
+        }
+
+        if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobIdTask);
+            String jsonData = "[]";
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                jsonData = gson.toJson(blockLoopInstructions);
+            }
+            sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "updateInstructions");
+
+        } else if (!alreadySentMgsSocket
+                && (sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+            this.botJobLoadList = performDataBase.loadComponentsComplete(homeBankingId);
+            String jsonData = "[]";
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                jsonData = gson.toJson(blockLoopInstructions);
+            }
+
+            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
+            //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
     }
 
-    private void middleWareMsg(ElementSplitDTO processDTO) {
+    private void middleWareMsg(int homeBankingId, ElementSplitDTO processDTO) {
         if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
             ElementDTO elementDTO = processDTO.getDetails()[0];
             if (processDTO.getType().equals("DETAILS_ELEMENT_DTO")) {
                 sendMessageJson(
-                        "scannerReceiver", "Action type : \"" + "scannerReceiver" + "\"", "cannot be processed");
+                        homeBankingId,
+                        "scannerReceiver",
+                        "Action type : \"" + "scannerReceiver" + "\"",
+                        "cannot be processed");
             }
         }
     }
@@ -395,23 +598,32 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void broadcastMessageToAll(String message) {
-        for (Session session : activeSessions.values()) { // Looping correctly
-            if (session.isOpen()) {
-                sendMessageJson(session, message, null);
+    public static void broadcastMessageToAll(int homeBankingId, String broadTo, String body, String operationId) {
+        for (Map.Entry<String, Session> entry : activeSessions.entrySet()) {
+            String sessionKey = entry.getKey();
+            Session session = entry.getValue();
+
+            // Ensure session is open before sending
+            if (session.isOpen() && sessionKey.contains(broadTo)) {
+                try {
+                    sendMessageJson(homeBankingId, session, entry.getKey(), body, operationId);
+                } catch (Exception e) {
+                    System.err.println("Failed to send message to session: " + sessionKey);
+                    e.printStackTrace();
+                }
             }
         }
     }
 
-    //    private void broadcastMessageToAll(String message) {
-    //        synchronized (sessions) {
-    //            for (Session session : sessions) {
-    //                if (session.isOpen()) {
-    //                    sendMessageJson(session, message, null);
-    //                }
-    //            }
-    //        }
-    //    }
+    private void broadcastMessageToAll(int homeBankingId, String message) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+
+        for (Session session : activeSessions.values()) { // Looping correctly
+            if (session.isOpen()) {
+                sendMessageJson(homeBankingId, session, "Broad-All", message, null);
+            }
+        }
+    }
 
     private void sendMessage(Session session, String message) {
         try {
@@ -422,15 +634,18 @@ public class SimpleWebSocketServer {
     }
 
     // Method to send a message to a specific session ID
-    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
+    public static void sendMessageJson(int homeBankingId, String sessionId, String body, String operationId) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {
             try {
                 JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", msg1);
-                if (msg2 != null && !msg2.isEmpty()) {
-                    jsonMessage.addProperty("footer", msg2);
+                jsonMessage.addProperty("body", body);
+                jsonMessage.addProperty("sessionId", sessionId);
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
+                if (operationId != null && !operationId.isEmpty()) {
+                    jsonMessage.addProperty("operationId", operationId);
                 }
                 session.getBasicRemote().sendText(jsonMessage.toString());
             } catch (IOException e) {
@@ -441,21 +656,23 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void sendMessageJson(Session session, String msg1, String msg2) {
-        try {
-            // Create a JSON object with the key "body" and the provided message
-            JsonObject jsonMessage = new JsonObject();
-            jsonMessage.addProperty("body", msg1);
-            if (!Strings.isNullOrEmpty(msg2)) {
-                jsonMessage.addProperty("footer", msg2);
+    private static void sendMessageJson(
+            int homeBankingId, Session session, String sessionId, String body, String operationId) {
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
+                jsonMessage.addProperty("sessionId", sessionId);
+                jsonMessage.addProperty("body", body);
+                if (operationId != null && !operationId.isEmpty()) {
+                    jsonMessage.addProperty("operationId", operationId);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
-            // Convert the JSON object to a string
-            String jsonString = jsonMessage.toString();
-
-            // Send the JSON string over WebSocket
-            session.getBasicRemote().sendText(jsonString);
-        } catch (IOException e) {
-            System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -500,15 +717,7 @@ public class SimpleWebSocketServer {
         performDataBase.updateBlockOrderNumber(updatedBlocks, false);
     }
 
-    private void rowUpdate(RowMoveDTO rowUpdateDTO) {
-        if (rowUpdateDTO.getUpdatedRows().size() > 0) {
-            performDataBase.rowsUpdateName(rowUpdateDTO.getUpdatedRows());
-        }
-
-        // Add business logic to handle ROW_MOVE
-    }
-
-    private void injectStepAfterOrBefore(Session session, String sessionId, RowMoveDTO rowMoveDTO) {
+    private void injectStepAfterOrBefore(String sessionId, RowMoveDTO rowMoveDTO) {
 
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
@@ -524,8 +733,8 @@ public class SimpleWebSocketServer {
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
                     ARNewCommandScene newCommandScene =
-                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, session, sessionId);
-                    newCommandScene.show();
+                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessionId);
+                    newCommandScene.showModal();
                 });
             } else {
 
@@ -560,26 +769,58 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {
+    private void excelFileBlock(String sessionId, BlockDetailsDTO blockExcelDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
         Platform.runLater(() -> {
-            ARExcelFileScene excelFileScene = new ARExcelFileScene(blockExcelDTO);
+            ARExcelFileScene excelFileScene = new ARExcelFileScene(sessionId, blockExcelDTO);
             excelFileScene.showModal();
         });
     }
 
     private void createBlockComponent(BlockSplitDTO blockSplitDTO) {
         // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        ComponentBlockDTO componentBlockDTO = performDBSavedBlock.createSavedBlockDTO(blockSplitDTO);
 
-        BlockDTO blockDTO = new BlockDTO();
-        blockDTO.setId(blockSplitDTO.getDetails().getNewBlock().getBlockId());
-        //        blockDTO.setBotJob(blockSplitDTO.getDetails().getNewBlock().getBotJobId());
-
+        BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();
+        blockDetailsDTO.setHomeBankingId(blockSplitDTO.getHomeBankingId());
+        blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
+        blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
+        if (blockDetailsDTO.getBlockDescription() == null) {
+            blockDetailsDTO.setBlockDescription(blockDetailsDTO.getBlockName() + " description");
+        }
         Platform.runLater(() -> {
-            ARSaveComponentScene newSaveBlockScene =
-                    new ARSaveComponentScene(componentBlockDTO, blockDTO, blockSplitDTO.getDetails());
+            ARSaveComponentScene newSaveBlockScene = new ARSaveComponentScene(blockDetailsDTO);
             newSaveBlockScene.showModal();
         });
+    }
+
+    private void injectBlockComponent(BlockSplitDTO blockSplitDTO) {
+        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+
+        BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();
+        blockDetailsDTO.setHomeBankingId(blockSplitDTO.getHomeBankingId());
+        blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
+        blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
+
+        ErrorMessage errorMessage = performDataBase.injectNewComponent(blockDetailsDTO);
+        if (errorMessage == null) {
+            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
+
+            String jsonData = "[]";
+            if (botJobLoadList.size() > 0) {
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                jsonData = gson.toJson(blockLoopInstructions);
+            }
+            sendMessageJson(
+                    blockDetailsDTO.getHomeBankingId(), blockDetailsDTO.getSessionId(), jsonData, "updateInstructions");
+
+        } else {
+            performMessage.errorMessage(
+                    "Access Database error",
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    "Verify  [INSERT] or [UPDATE] or [SELECT]",
+                    null,
+                    0);
+        }
     }
 }

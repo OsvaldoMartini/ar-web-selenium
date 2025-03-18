@@ -1,12 +1,11 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
+import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.HomeBankingDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.google.common.base.Strings;
@@ -40,30 +39,34 @@ public class ARNewBotJobPane extends ARPane {
 
     private Button createBotJobButton;
 
-    private ChoiceBox<HomeBankingDTO> homeBankingChoiceBox;
-
     private VBox container;
 
-    private final ListView<BotJobLoadDTO> viewBotJobListView;
+    private ObservableList<HomeBankingLoadDTO> homeBankingList = FXCollections.observableArrayList();
+    private ChoiceBox<HomeBankingLoadDTO> homeBankingChoiceBox;
+
     private final ObservableList<BotJobLoadDTO> botJobList;
+    //    private final ListView<BotJobLoadDTO> viewBotJobListView;
 
     private static final int SECONDS = 3; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;
     private Timeline timeline;
     private Alert alertToShow;
 
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
+    private PerformDataBase performDataBase;
+    private PerformMessage performMessage;
+    private ARViewBotJobScene arViewBotJobScene;
 
-    static {
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
-    }
-
-    public ARNewBotJobPane(ListView<BotJobLoadDTO> viewBotJobListView) {
-        this.viewBotJobListView = viewBotJobListView;
-        this.botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
-        this.viewBotJobListView.setItems(botJobList);
+    public ARNewBotJobPane(
+            ARViewBotJobScene arViewBotJobScene,
+            PerformDataBase performDataBase,
+            PerformMessage performMessage,
+            ObservableList<BotJobLoadDTO> botJobList) {
+        //        this.viewBotJobListView = viewBotJobListView;
+        this.botJobList = botJobList; // FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.performDataBase = performDataBase;
+        this.performMessage = performMessage;
+        //        this.viewBotJobListView.setItems(botJobList);
     }
 
     @Override
@@ -107,9 +110,12 @@ public class ARNewBotJobPane extends ARPane {
         createBotJobButton = new Button("Create Bot Job");
         labelHomeBanking = new Label("Url:");
 
-        ObservableList<HomeBankingDTO> homeBankingUrlList =
-                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
-        homeBankingChoiceBox = new ChoiceBox<>(homeBankingUrlList);
+        //        ObservableList<HomeBankingDTO> homeBankingUrlList =
+        //                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+
+        homeBankingList.clear();
+        homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());
+        homeBankingChoiceBox = new ChoiceBox<>(homeBankingList);
 
         container = new VBox(
                 labelBotJobName,
@@ -131,7 +137,7 @@ public class ARNewBotJobPane extends ARPane {
     public void initUIBehaviour() {
         homeBankingChoiceBox.setConverter(new StringConverter<>() {
             @Override
-            public String toString(HomeBankingDTO object) {
+            public String toString(HomeBankingLoadDTO object) {
                 if (object != null) {
                     return object.getName() + " | " + object.getUrl();
                 }
@@ -139,7 +145,7 @@ public class ARNewBotJobPane extends ARPane {
             }
 
             @Override
-            public HomeBankingDTO fromString(String string) {
+            public HomeBankingLoadDTO fromString(String string) {
                 return null;
             }
         });
@@ -182,7 +188,7 @@ public class ARNewBotJobPane extends ARPane {
                         "The name already exists!",
                         null,
                         combinedTextContainer);
-                viewBotJobListView.refresh(); // Refresh the ListView to update any UI changes
+                //                viewBotJobListView.refresh(); // Refresh the ListView to update any UI changes
                 return;
             }
 
@@ -201,13 +207,16 @@ public class ARNewBotJobPane extends ARPane {
 
             if (newJobId > 0) {
                 createdBotJob.setId(newJobId);
-                botJobList.add(createdBotJob); // Add the new bot job to the ObservableList
+                this.botJobList.add(createdBotJob); // Add the new bot job to the ObservableList
 
                 // Refresh the ListView after adding the new bot job
-                viewBotJobListView.setItems(botJobList);
-                viewBotJobListView.refresh(); // Explicitly refresh the ListView
+                this.botJobList.clear();
+                this.botJobList.addAll(performDataBase.loadAllBotJobs());
+                //                viewBotJobListView.setItems(botJobList);
+                //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
-                new ARViewBotJobScene(createdBotJob).show();
+                arViewBotJobScene.initialize(createdBotJob, botJobList);
+                arViewBotJobScene.show();
 
                 // Close the current window
                 Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();

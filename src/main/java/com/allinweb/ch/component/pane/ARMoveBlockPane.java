@@ -1,7 +1,5 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.listCell.ARCellFactory;
-import com.allinweb.ch.component.listCell.MoveBlockListCell;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
@@ -51,9 +49,8 @@ public class ARMoveBlockPane extends ARPane {
                 .getEntityList(
                         BlockDTO.class,
                         Comparator.comparingInt(BlockDTO::getId),
-                        (block) -> this.block.getBotJobDTO().getId()
-                                        == block.getBotJobDTO().getId()
-                                && this.block.getId() != block.getId());
+                        (block) ->
+                                this.block.getBotJobId() == block.getBotJobId() && this.block.getId() != block.getId());
 
         if (blockList.size() > 0) {
             blockList = FXCollections.observableArrayList(blockList.subList(1, blockList.size()));
@@ -63,7 +60,7 @@ public class ARMoveBlockPane extends ARPane {
         }
 
         selectBlockListView = new ListView<>(blockList);
-        selectBlockListView.setCellFactory(new ARCellFactory<>(MoveBlockListCell.class)::call);
+        //        selectBlockListView.setCellFactory(new ARCellFactory<>(MoveBlockListCell.class)::call);
         selectBlockListView.setBorder(null);
         selectBlockListView.setBackground(null);
         selectBlockListView.setMaxHeight(Double.MAX_VALUE);
@@ -114,8 +111,7 @@ public class ARMoveBlockPane extends ARPane {
                         .getEntityList(
                                 BlockDTO.class,
                                 Comparator.comparingInt(BlockDTO::getBlockOrderNumber),
-                                (block) -> block.getBotJobDTO().getId()
-                                                == block.getBotJobDTO().getId()
+                                (block) -> block.getBotJobId() == block.getBotJobId()
                                         && block.getBlockOrderNumber() >= selectBlockOrderNumber);
 
                 for (BlockDTO blockDTO : blockObservableList) {

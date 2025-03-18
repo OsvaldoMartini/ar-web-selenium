@@ -28,7 +28,6 @@ import java.util.logging.Level;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -37,17 +36,29 @@ import javafx.scene.layout.*;
 
 public class ARMainPane extends ARPane {
 
+    //    private static final ARSharedResources dbResource;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARNewBotJobScene arNewBotJobScene;
+    private static final ARViewBotJobScene arViewBotJobScene;
+
+    private static String previousDB;
+    private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
+
+    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    // Postgres
+    private static boolean POSTGRES_DB = false;
 
     // Static block to initialize
     static {
+        //        dbResource = ARSharedResources.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
+        arViewBotJobScene = ARViewBotJobScene.getInstance();
     }
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
@@ -70,9 +81,38 @@ public class ARMainPane extends ARPane {
     ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
 
     public ARMainPane() {
-        arNewBotJobScene.initialize(viewBotJobListView);
-
         String pathDB = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
+        performDataBase.initialize(dataBaseType);
+
+        if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
+            POSTGRES_DB = true;
+
+            if (!performDataBase.doesInstructionTableExist()) {
+                performDataBase.initializeMainDatabasePostgres();
+            }
+        } else {
+            POSTGRES_DB = false;
+        }
+
+        if (!POSTGRES_DB) {
+            String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+
+            File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
+            if (!dbFile.exists()) {
+                performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
+            } else {
+                ARLogger.getInstance(ARViewBotJobPane.class)
+                        .info(String.format("Database '%s' already exists!", dbFile.getName()));
+            }
+            //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
+
+        }
+
+        //        dbResource.setPreviousDB(previousDB);
+        arConfigurationScene.initialize(previousDB);
+
         if (pathDB == null || pathDB.isBlank()) {
             arConfigurationScene.show();
             new ARAlertScene(
@@ -148,10 +188,13 @@ public class ARMainPane extends ARPane {
 
         //        ObservableList<BotJobLoadDTO> botJobList =
         // ARSharedResources.getInstance().getEntityList(BotJobDTO.class);
-        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+        botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
-        viewBotJobListView.setCellFactory(new ARCellFactory<>(BotJobListCell.class)::call);
-
+        viewBotJobListView.setCellFactory(new ARCellFactory<>(
+                BotJobListCell.class, performMessage, performDataBase, arViewBotJobScene, (ObservableList<
+                                BotJobLoadDTO>)
+                        botJobList)::call);
+        arNewBotJobScene.initialize(arViewBotJobScene, performDataBase, performMessage, botJobList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
 
         panelPane = new VBox(buttonPane, header, viewBotJobListView);
@@ -168,9 +211,10 @@ public class ARMainPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         newBotJobButton.setOnMouseClicked(e -> {
+            arNewBotJobScene.initialize(arViewBotJobScene, performDataBase, performMessage, botJobList);
             arNewBotJobScene.showModal();
-            ObservableList<BotJobLoadDTO> botJobList =
-                    FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+            botJobList.clear();
+            botJobList.addAll(performDataBase.loadAllBotJobs());
             viewBotJobListView.setItems(botJobList);
         });
 
@@ -188,9 +232,7 @@ public class ARMainPane extends ARPane {
                 return;
             }
         });
-        /*viewBotJobButton.setOnMouseClicked(
-                e -> new ARViewBotJobListScene().show()
-        );*/
+
         configureButton.setOnMouseClicked(e -> {
             arConfigurationScene.showModal();
             performDataBase.changeDbConnection();
@@ -210,7 +252,11 @@ public class ARMainPane extends ARPane {
             if (selecBotJobDTO != null) {
                 try {
                     Platform.runLater(() -> {
-                        new ARViewBotJobScene(selecBotJobDTO).show();
+                        // new ARViewBotJobScene(selecBotJobDTO).showModal();
+
+                        arViewBotJobScene.initialize(selecBotJobDTO, botJobList);
+                        arViewBotJobScene.show();
+
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
                     });
 
@@ -291,23 +337,67 @@ public class ARMainPane extends ARPane {
 
     private void initHeader() {
         header.setMaxHeight(ARConstants.SPACE_M);
-        ColumnConstraints con = new ColumnConstraints();
-        con.setPercentWidth(25);
-        con.setHgrow(Priority.ALWAYS);
-        con.setHalignment(HPos.LEFT);
-        header.getColumnConstraints().add(con);
-        header.getColumnConstraints().add(con);
-        header.getColumnConstraints().add(con);
-        ColumnConstraints con2 = new ColumnConstraints();
-        con2.setPercentWidth(25);
-        con2.setHgrow(Priority.ALWAYS);
-        con2.setHalignment(HPos.CENTER);
-        header.getColumnConstraints().add(con2);
-        VBox.setMargin(header, new Insets(5D, 10D, 5D, 10D));
-        header.add(new Label("Name"), 0, 0);
-        header.add(new Label("Description"), 1, 0);
-        header.add(new Label("Environment"), 2, 0);
-        header.add(new Label("Actions"), 3, 0);
+
+        // Create an HBox for the header and set spacing
+        HBox headerHBox = new HBox(10);
+        headerHBox.setPadding(new Insets(5D, 10D, 5D, 20D)); // Added padding to the left (20D)
+
+        // Create labels for each column header
+        Label nameLabel = new Label("Name");
+        nameLabel.setMinWidth(150); // Set minimum width
+        nameLabel.setMaxWidth(150); // Set maximum width
+        nameLabel.setWrapText(true);
+
+        Label descriptionLabel = new Label("Description");
+        descriptionLabel.setMinWidth(150); // Set minimum width
+        descriptionLabel.setMaxWidth(150); // Set maximum width
+        descriptionLabel.setWrapText(true);
+
+        Label environmentLabel = new Label("Environment");
+        environmentLabel.setMinWidth(100); // Set minimum width
+        environmentLabel.setMaxWidth(100); // Set maximum width
+        environmentLabel.setWrapText(true);
+
+        Label statusLabel = new Label("Status");
+        statusLabel.setMinWidth(50); // Set minimum width
+        statusLabel.setMaxWidth(50); // Set maximum width
+        statusLabel.setWrapText(true);
+
+        Label actionsLabel = new Label("Actions");
+        actionsLabel.setMinWidth(50); // Set minimum width
+        actionsLabel.setMaxWidth(50); // Set maximum width
+        actionsLabel.setWrapText(true);
+
+        // Create spacers
+        Region spacer1 = new Region();
+        HBox.setHgrow(spacer1, Priority.ALWAYS);
+        Region spacer2 = new Region();
+        HBox.setHgrow(spacer2, Priority.ALWAYS);
+        Region spacerStatus = new Region();
+        spacerStatus.setMinWidth(15);
+        HBox.setHgrow(spacerStatus, Priority.ALWAYS);
+        Region spacerAction = new Region();
+        spacerAction.setMinWidth(5);
+        HBox.setHgrow(spacerAction, Priority.ALWAYS);
+        Region spacer5 = new Region();
+        HBox.setHgrow(spacer5, Priority.ALWAYS);
+
+        // Add labels and spacers to the HBox
+        headerHBox
+                .getChildren()
+                .addAll(
+                        nameLabel, spacer1,
+                        descriptionLabel, spacer2,
+                        environmentLabel, spacerStatus,
+                        statusLabel, spacerAction,
+                        actionsLabel, spacer5);
+
+        // Set HBox as the header
+        header.getChildren().clear(); // Clear any existing children (if any)
+        header.getChildren().add(headerHBox); // Add the new header with labels and spacers
+
+        // Set margins for the header
+        VBox.setMargin(headerHBox, new Insets(5D, 10D, 5D, 10D));
     }
 
     public void setProperty(String propertyName, String value) {
