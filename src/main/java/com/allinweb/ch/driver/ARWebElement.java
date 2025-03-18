@@ -1,11 +1,11 @@
 package com.allinweb.ch.driver;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.component.model.AttributeData;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.persistence.InstructionDTO;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.util.*;
 import com.allinweb.ch.util.Priority;

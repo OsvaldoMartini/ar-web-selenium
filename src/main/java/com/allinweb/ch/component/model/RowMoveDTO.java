@@ -18,6 +18,5 @@ public class RowMoveDTO {
     private Boolean instructionActive;
     private Boolean isBetween;
     private Integer homeBankingId;
-    private String sessionId;
     private List<InstructionLoadDTO> updatedRows;
 }

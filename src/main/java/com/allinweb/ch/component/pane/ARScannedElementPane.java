@@ -452,11 +452,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         arWebDriver.openDriver(
-                homeBanking.getUrl(),
-                homeBanking.getOptionsConfig(),
-                defaultSearch,
-                searchHiddenFields,
-                portSocket);
+                homeBanking.getUrl(), homeBanking.getOptionsConfig(), defaultSearch, searchHiddenFields, portSocket);
 
         try {
             performAction.onHoldInSeconds(3);

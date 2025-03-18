@@ -52,46 +52,46 @@ public class ARLicensePane extends ARPane {
         // TextArea for the License Agreement
         TextArea taLicenseAgreement = new TextArea(
                 """
-                LICENZA D'USO DEL SOFTWARE
+                SOFTWARE LICENSE AGREEMENT
 
-                Importante - leggere con attenzione: Questo Accordo di Licenza ("Accordo") è un contratto legale tra te
-                (un individuo o un'entità legale) e [Nome della Tua Azienda] ("Licenziante") per il software che accompagna
-                questo accordo, che include software associato e materiale media, stampato, elettronico o online ("Software").
+                Important - Read Carefully: This License Agreement ("Agreement") is a legal contract between you
+                (an individual or a legal entity) and [Your Company Name] ("Licensor") for the software that accompanies
+                this agreement, which includes associated software and media material, whether printed, electronic, or online ("Software").
 
-                1. Concessione della licenza:
-                   Soggetto ai termini di questo Accordo, il Licenziante concede a te una licenza non esclusiva,
-                   non trasferibile per utilizzare il Software per scopi interni secondo le seguenti limitazioni
-                   e in conformità con la documentazione fornita.
+                1. License Grant:
+                   Subject to the terms of this Agreement, the Licensor grants you a non-exclusive,
+                   non-transferable license to use the Software for internal purposes according to the following limitations
+                   and in compliance with the provided documentation.
 
-                2. Restrizioni:
-                   Non sei autorizzato a:
-                   - Modificare, tradurre, adattare o derivare opere dal Software.
-                   - Ingegnerizzare all'indietro, decompilare, disassemblare o altrimenti tentare di scoprire il codice sorgente del Software.
-                   - Rivendere, noleggiare, sub-licenziare, distribuire o altrimenti trasferire il Software senza il previo consenso scritto del Licenziante.
-                   - Rimuovere qualsiasi avviso di diritto d'autore, marchio o altro avviso di proprietà inclusi nel Software.
+                2. Restrictions:
+                   You are not authorized to:
+                   - Modify, translate, adapt, or create derivative works from the Software.
+                   - Reverse engineer, decompile, disassemble, or otherwise attempt to discover the Software's source code.
+                   - Resell, rent, sublicense, distribute, or otherwise transfer the Software without prior written consent from the Licensor.
+                   - Remove any copyright notices, trademarks, or other proprietary notices included in the Software.
 
-                3. Proprietà del Software:
-                   Il Software è protetto da leggi sul diritto d'autore e trattati internazionali, così come altre leggi e trattati
-                   sulla proprietà intellettuale. Il Software è licenziato, non venduto.
+                3. Ownership of the Software:
+                   The Software is protected by copyright laws and international treaties, as well as other intellectual
+                   property laws and treaties. The Software is licensed, not sold.
 
-                4. Garanzia Limitata:
-                   Il Licenziante garantisce che il Software funzionerà sostanzialmente in conformità con la documentazione
-                   per un periodo di novanta (90) giorni dalla data del tuo acquisto. Qualsiasi sostituzione del Software sarà
-                   garantita per il resto del periodo di garanzia originale o per trenta (30) giorni, a seconda di quale sia più lungo.
+                4. Limited Warranty:
+                   The Licensor warrants that the Software will operate substantially in accordance with the documentation
+                   for a period of ninety (90) days from the date of your purchase. Any replacement Software will be
+                   warranted for the remainder of the original warranty period or for thirty (30) days, whichever is longer.
 
-                5. Limitazione di Responsabilità:
-                   In nessun caso il Licenziante sarà responsabile per danni speciali, incidentali, indiretti o consequenziali
-                   risultanti dall'uso o dall'impossibilità di usare il Software, anche se il Licenziante è stato informato
-                   della possibilità di tali danni. In nessun caso la responsabilità del Licenziante per danni supererà
-                   l'importo pagato per acquistare il Software.
+                5. Limitation of Liability:
+                   In no event shall the Licensor be liable for special, incidental, indirect, or consequential damages
+                   resulting from the use or inability to use the Software, even if the Licensor has been advised of
+                   the possibility of such damages. In no event shall the Licensor's liability for damages exceed
+                   the amount paid to purchase the Software.
 
-                6. Terminazione:
-                   Questo Accordo è in vigore fino alla sua terminazione. Questo Accordo terminerà automaticamente senza preavviso
-                   dal Licenziante se non rispetti qualsiasi termine o condizione di questo Accordo.
+                6. Termination:
+                   This Agreement remains in effect until terminated. This Agreement will automatically terminate without notice
+                   from the Licensor if you fail to comply with any term or condition of this Agreement.
 
-                7. Varie:
-                   Questo Accordo costituisce l'intero accordo tra te e il Licenziante e sostituisce tutte le precedenti
-                   comunicazioni, proposte o accordi, verbali o scritti, riguardo al Software.
+                7. Miscellaneous:
+                   This Agreement constitutes the entire agreement between you and the Licensor and supersedes all prior
+                   communications, proposals, or agreements, whether verbal or written, regarding the Software.
                 """);
 
         Label headerLabel = new Label("AR Web Activation software required");
