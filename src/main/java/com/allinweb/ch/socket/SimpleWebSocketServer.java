@@ -210,11 +210,10 @@ public class SimpleWebSocketServer {
                 //                elementSplitDTO.setType("RETURN FROM MARTINI Total Rows: " +
                 // elementSplitDTO.getDetails().length);
 
-                homeBankingId = elementSplitDTO.getHomeBankingId();
+                homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();
-                botJobIdTask = elementSplitDTO.getBotJobId();
-
-                if (sessionIdToSend.equals("scannerGrid")) {
+                
+                if (sessionIdToSend.equals("scannerGrid-" + homeBankingId)) {
                     String jsonData = gson.toJson(elementSplitDTO);
                     sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
                     //                    broadcastMessageToAll(jsonData);
