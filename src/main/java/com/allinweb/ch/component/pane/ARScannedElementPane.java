@@ -4,8 +4,7 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.listCell.ARCellFactory;
-import com.allinweb.ch.component.listCell.ARWebElementListCell;
+import com.allinweb.ch.component.model.AttributeData;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
@@ -21,8 +20,11 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.driver.ARWebElement;
 import com.allinweb.ch.facade.IframeInputLocator;
 import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformCloneLoad;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPickLoad;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -46,7 +48,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -205,15 +206,17 @@ public class ARScannedElementPane extends ARPane {
     private HBox bottomPane;
     private HBox bottomPaneTime;
     private AnchorPane contentPane;
-    private ObservableList<ARWebElement> webElementObservableList1;
-    private ObservableList<ARWebElement> webElementObservableList2;
+
     private WebView webView = new WebView();
     private WebEngine webEngine;
     private HBox componentBox;
+
+    //    private ObservableList<ARWebElement> webElementObservableList1;
+    //    private ObservableList<ARWebElement> webElementObservableList2;
     //    private ObservableList<ARWebElement> webElementObservableList3;
     //    private ObservableList<ARWebElementNew> webElementObservableList4;
-    private ListView<ARWebElement> scannedElements1;
-    private ListView<ARWebElement> scannedElements2;
+    //    private ListView<ARWebElement> scannedElements1;
+    //    private ListView<ARWebElement> scannedElements2;
     //    private ListView<ARWebElement> scannedElements3;
     //    private ListView<ARWebElementNew> scannedElements4;
 
@@ -272,18 +275,12 @@ public class ARScannedElementPane extends ARPane {
     private TextField customXPathTextField;
     private TextField originalTagNameField;
     private TextField coordsTextField;
-    private String xpathTextPrevious = "";
-    private AtomicBoolean periodicPickActivated = new AtomicBoolean(false);
-    private AtomicBoolean periodicCloneActivated = new AtomicBoolean(false);
-    private AtomicBoolean periodicSearchActivated = new AtomicBoolean(false);
 
     private Boolean resultElementSearch = false;
 
     private Boolean idAttributeFirst = false;
     private Boolean nameAttributeFirst = false;
     private Boolean withoutNameAndId = false;
-
-    private boolean searchHiddenFields = false;
 
     private Map<String, String> mapOperators;
     private Map<String, String> mapExport;
@@ -303,6 +300,9 @@ public class ARScannedElementPane extends ARPane {
     private static ARPropertyManager managerProps;
     private static ARPriorities arPriorities;
     private static final PerformMessage performMessage;
+    private static final PerformPreLoad performPreLoad;
+    private static final PerformCloneLoad performCloneLoad;
+    private static final PerformPickLoad performPickLoad;
     private static final PerformActions performAction;
     private static final PerformDataBase performDataBase;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
@@ -311,13 +311,16 @@ public class ARScannedElementPane extends ARPane {
     private String sessionId;
 
     private String[] defaultSearch;
-    //    private boolean searchHiddenFields;
-    //    private String xpathTextPrevious;
+    private boolean searchHiddenFields;
+    private String xpathTextPrevious;
 
     // Static block to initialize
     static {
         iframeInputLocator = IframeInputLocator.getInstance();
         performMessage = PerformMessage.getInstance();
+        performPreLoad = PerformPreLoad.getInstance();
+        performCloneLoad = PerformCloneLoad.getInstance();
+        performPickLoad = PerformPickLoad.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performAction = PerformActions.getInstance();
         arPriorities = ARPriorities.getInstance();
@@ -374,7 +377,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 // Initialize performAction with arPriorities and arWebDriver
-                performAction.initializePerformActions(arPriorities, this.arWebDriver);
+                performAction.initializePerformActions(arPriorities, arWebDriver);
             }
         }
 
@@ -448,7 +451,28 @@ public class ARScannedElementPane extends ARPane {
             arWebDriver.setDriver(null);
         }
 
-        arWebDriver.openDriver(homeBanking.getUrl(), homeBanking.getOptionsConfig());
+        arWebDriver.openDriver(
+                homeBanking.getUrl(),
+                homeBanking.getOptionsConfig(),
+                defaultSearch,
+                searchHiddenFields,
+                portSocket);
+
+        try {
+            performAction.onHoldInSeconds(3);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // "scannerTool", "scannerGrid", "searchTerms"
+        performPreLoad.dynamicLoadElementsDTO(
+                arWebDriver.getDriver(),
+                arWebDriver.getDriver().getCurrentUrl(),
+                defaultSearch,
+                searchHiddenFields,
+                portSocket,
+                "scannerTool",
+                "scannerGrid",
+                "searchTerms");
 
         performAction.getIframeElementsMap();
 
@@ -545,16 +569,16 @@ public class ARScannedElementPane extends ARPane {
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
-        webElementObservableList1 = FXCollections.observableArrayList();
+        //        webElementObservableList1 = FXCollections.observableArrayList();
 
-        scannedElements1 = new ListView<>(webElementObservableList1);
-        scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ARConstants.SPACE_ZERO);
-        scannedElements1.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
+        //        scannedElements1 = new ListView<>(webElementObservableList1);
+        //        scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ARConstants.SPACE_ZERO);
+        //        scannedElements1.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
 
-        webElementObservableList2 = FXCollections.observableArrayList();
-        scannedElements2 = new ListView<>(webElementObservableList2);
-        scannedElements2 = componentBuilder.setAnchorPaneAnchors(scannedElements2, ARConstants.SPACE_ZERO);
-        scannedElements2.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
+        //        webElementObservableList2 = FXCollections.observableArrayList();
+        //        scannedElements2 = new ListView<>(webElementObservableList2);
+        //        scannedElements2 = componentBuilder.setAnchorPaneAnchors(scannedElements2, ARConstants.SPACE_ZERO);
+        //        scannedElements2.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
 
         //        webElementObservableList3 = FXCollections.observableArrayList();
         //        scannedElements3 = new ListView<>(webElementObservableList3);
@@ -637,7 +661,7 @@ public class ARScannedElementPane extends ARPane {
         cleanListButton.setOnAction(e -> {
             //            webElementObservableList1.clear();
             //            webElementObservableList2.clear();
-            webElementObservableList2.clear();
+            //            webElementObservableList2.clear();
             Platform.runLater(() -> {
                 countdownTextField.setText("Pre-Launch status: Ready");
                 //                textFlowResult.getChildren().clear();
@@ -884,16 +908,16 @@ public class ARScannedElementPane extends ARPane {
             HBox boxListViews = new HBox();
 
             // Bind the height of ListViews to the height of the HBox
-            scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
-            scannedElements2.prefHeightProperty().bind(boxListViews.heightProperty());
+            //            scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
+            componentBox.prefHeightProperty().bind(boxListViews.heightProperty());
             //            scannedElements3.prefHeightProperty().bind(boxListViews.heightProperty());
             //            scannedElements4.prefHeightProperty().bind(boxListViews.heightProperty());
 
             boxListViews.setSpacing(5);
 
             // Set Hgrow for each ListView to make them equally distributed
-            HBox.setHgrow(scannedElements1, Priority.ALWAYS);
-            HBox.setHgrow(scannedElements2, Priority.ALWAYS);
+            //            HBox.setHgrow(scannedElements1, Priority.ALWAYS);
+            HBox.setHgrow(componentBox, Priority.ALWAYS);
             //            HBox.setHgrow(scannedElements3, Priority.ALWAYS);
             //            HBox.setHgrow(scannedElements4, Priority.ALWAYS);
 
@@ -902,12 +926,12 @@ public class ARScannedElementPane extends ARPane {
             stackCurrentURL.setAlignment(Pos.CENTER);
             HBox currentURLBox = new HBox(stackCurrentURL);
 
-            Label labelInput = new Label("Input/IDs/Names(No Ids/Names)/Buttons");
-            StackPane stackLabelInput = new StackPane();
-            stackLabelInput.getChildren().add(labelInput);
-            stackLabelInput.setAlignment(Pos.CENTER);
-            VBox elements1VBox = new VBox(stackLabelInput, scannedElements1);
-            HBox.setHgrow(elements1VBox, Priority.ALWAYS);
+            //            Label labelInput = new Label("Input/IDs/Names(No Ids/Names)/Buttons");
+            //            StackPane stackLabelInput = new StackPane();
+            //            stackLabelInput.getChildren().add(labelInput);
+            //            stackLabelInput.setAlignment(Pos.CENTER);
+            //            VBox elements1VBox = new VBox(stackLabelInput, scannedElements1);
+            //            HBox.setHgrow(elements1VBox, Priority.ALWAYS);
 
             //            Label labelOutput = new Label("Output Fields Results");
             //            StackPane stackLabelOutput = new StackPane();
@@ -915,16 +939,16 @@ public class ARScannedElementPane extends ARPane {
             //            stackLabelOutput.setAlignment(Pos.CENTER);
             //            VBox elements2VBox = new VBox(stackLabelOutput, scannedElements2);
             //            HBox.setHgrow(elements2VBox, Priority.ALWAYS);
-            //
-            //            Label labelOthers = new Label("Other Elements Results (Config)");
+
+            Label labelOthers = new Label("Input/IDs/Names(No Ids/Names)/Buttons and Other Elements Results");
             StackPane stackLabelOthers = new StackPane();
             HBox othersBox = new HBox();
             createSpacerHoriz();
-            othersBox.getChildren().addAll(includeAllSelected, createSpacerHoriz(), cleanListButton);
+            othersBox.getChildren().addAll(labelOthers, createSpacerHoriz(), cleanListButton);
             stackLabelOthers.getChildren().addAll(othersBox);
 
             stackLabelOthers.setAlignment(Pos.CENTER);
-            VBox elements2VBox = new VBox(stackLabelOthers, scannedElements2);
+            VBox elements2VBox = new VBox(stackLabelOthers, componentBox);
             HBox.setHgrow(elements2VBox, Priority.ALWAYS);
 
             //            Label labelNew = new Label("New");
@@ -938,7 +962,8 @@ public class ARScannedElementPane extends ARPane {
             //            VBox elements4VBox = new VBox(stackLabelNew, scannedElements4);
 
             //            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, elements3VBox, textFieldVBox);
-            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, textFieldVBox);
+            //            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, textFieldVBox);
+            boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
             //                    .addAll(elements1VBox, elements2VBox, elements3VBox, elements4VBox, textFieldVBox);
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
@@ -1177,37 +1202,63 @@ public class ARScannedElementPane extends ARPane {
         });
         checkPickElement.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
-            checkTestAction.setDisable(checkCloneElement.isSelected());
-            checkTestAction.setSelected(false);
-
-            checkCloneElement.setDisable(checkPickElement.isSelected());
-            checkCloneElement.setSelected(false);
-
-            xpathTextPrevious = "";
             this.targetSelected = null;
             elementsFound.clear();
-            //            webElementObservableList2.clear();
+            resultElementSearch = false;
 
-            periodicPickActivated.set(checkPickElement.isSelected());
+            revertPickInjections(arWebDriver.getDriver());
 
-            handlePickElementClick();
+            if (checkPickElement.isSelected()) {
+                String[] dataArrayClone = {"*"};
+                int finalPort = portSocket;
+                Platform.runLater(() -> periodicHoverPickThread(
+                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
+            }
+
+            Platform.runLater(() -> {
+                launchBotJobButton.setDisable(checkPickElement.isSelected());
+                recallJobButton.setDisable(checkPickElement.isSelected());
+
+                checkTestAction.setDisable(checkPickElement.isSelected());
+                checkTestAction.setSelected(false);
+
+                checkCloneElement.setDisable(checkPickElement.isSelected());
+                checkCloneElement.setSelected(false);
+
+                if (!checkPickElement.isSelected()) {
+                    defineNameField.clear();
+                }
+            });
         });
         checkCloneElement.setOnMouseClicked(e -> {
             arWebDriver.getDriver().switchTo().defaultContent();
-            checkTestAction.setDisable(checkCloneElement.isSelected());
-            checkTestAction.setSelected(false);
-
-            checkPickElement.setDisable(checkCloneElement.isSelected());
-            checkPickElement.setSelected(false);
-
-            xpathTextPrevious = "";
             this.targetSelected = null;
             elementsFound.clear();
-            //            webElementObservableList2.clear();
+            resultElementSearch = false;
 
-            periodicCloneActivated.set(checkCloneElement.isSelected());
+            revertCloneInjections(arWebDriver.getDriver());
 
-            handleCloneElementClick();
+            if (checkCloneElement.isSelected()) {
+                String[] dataArrayClone = {"*"};
+                int finalPort = portSocket;
+                Platform.runLater(() -> periodicPickOneCloneThread(
+                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone, finalPort));
+            }
+
+            Platform.runLater(() -> {
+                launchBotJobButton.setDisable(checkCloneElement.isSelected());
+                recallJobButton.setDisable(checkCloneElement.isSelected());
+
+                checkTestAction.setDisable(checkCloneElement.isSelected());
+                checkTestAction.setSelected(false);
+
+                checkPickElement.setDisable(checkCloneElement.isSelected());
+                checkPickElement.setSelected(false);
+
+                if (!checkCloneElement.isSelected()) {
+                    defineNameField.clear();
+                }
+            });
         });
         checkClickElement.setOnAction(event -> {
             if (checkClickElement.isSelected()) {
@@ -1237,7 +1288,7 @@ public class ARScannedElementPane extends ARPane {
                 insertNewElement();
             } else {
                 if (elementsFound.size() > 0) {
-                    webElementObservableList2.clear();
+                    //                    webElementObservableList2.clear();
 
                     Optional<ElementDTO> iframeElement = elementsFound.stream()
                             .filter(element -> "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
@@ -1247,7 +1298,7 @@ public class ARScannedElementPane extends ARPane {
                             .findFirst(); // Get the first matching ElementDTO
 
                     if (checkPickElement.isSelected()) {
-                        handlePickElementClick();
+                        //                        handlePickElementClick();
                     } else if (iframeElement.isPresent()) {
                         insertNewElement(iframeElement.get(), elementsFound);
                     } else {
@@ -1287,8 +1338,8 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        scannedElements1.getItems().addListener(this::addBehaviourToAddedElements);
-        scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
+        //        scannedElements1.getItems().addListener(this::addBehaviourToAddedElements);
+        //        scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
         //        scannedElements3.getItems().addListener(this::addBehaviourToAddedElements);
 
         //        manageUIScan();
@@ -1370,10 +1421,10 @@ public class ARScannedElementPane extends ARPane {
 
                     ARWebElement arWebElement = new ARWebElement(cloneTarget, botJobLoad.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
-                        webElementObservableList2.add(arWebElement);
-                        Platform.runLater(() -> {
-                            scannedElements2.refresh();
-                        });
+                        //                        webElementObservableList2.add(arWebElement);
+                        //                        Platform.runLater(() -> {
+                        //                            scannedElements2.refresh();
+                        //                        });
                     }
 
                 } else {
@@ -1432,8 +1483,8 @@ public class ARScannedElementPane extends ARPane {
 
                 ARWebElement arWebElement = new ARWebElement(targetIFrame, botJobLoad.getId());
                 if (arWebElement != null && arWebElement.getElement() != null) {
-                    webElementObservableList2.add(arWebElement);
-                    Platform.runLater(() -> scannedElements2.refresh());
+                    //                    webElementObservableList2.add(arWebElement);
+                    //                    Platform.runLater(() -> scannedElements2.refresh());
                 }
 
                 System.out.println("IFrame Element as Button: " + targetIFrame.getDefinedName());
@@ -1471,10 +1522,10 @@ public class ARScannedElementPane extends ARPane {
                     ARWebElement arWebElement = new ARWebElement(targetChild, botJobLoad.getId());
 
                     if (arWebElement != null && arWebElement.getElement() != null) {
-                        webElementObservableList2.add(arWebElement);
-                        Platform.runLater(() -> {
-                            scannedElements2.refresh();
-                        });
+                        //                        webElementObservableList2.add(arWebElement);
+                        //                        Platform.runLater(() -> {
+                        //                            scannedElements2.refresh();
+                        //                        });
                     }
 
                     System.out.println(
@@ -1506,10 +1557,10 @@ public class ARScannedElementPane extends ARPane {
                     e.printStackTrace();
                 }
 
-                scannedElements1.requestLayout();
-                scannedElements1.refresh();
-                scannedElements2.requestLayout();
-                scannedElements2.refresh();
+                //                scannedElements1.requestLayout();
+                //                scannedElements1.refresh();
+                //                scannedElements2.requestLayout();
+                //                scannedElements2.refresh();
                 bottomPane.requestLayout();
             });
 
@@ -1517,13 +1568,13 @@ public class ARScannedElementPane extends ARPane {
             browserNotAttached();
         } finally {
 
-            Platform.runLater(() -> {
-                scannedElements1.requestLayout();
-                scannedElements1.refresh();
-                scannedElements2.requestLayout();
-                scannedElements2.refresh();
-                bottomPane.requestLayout();
-            });
+            //            Platform.runLater(() -> {
+            ////                scannedElements1.requestLayout();
+            ////                scannedElements1.refresh();
+            //                //                scannedElements2.requestLayout();
+            //                //                scannedElements2.refresh();
+            //                bottomPane.requestLayout();
+            //            });
 
             // Close the browser
             arWebDriver.getDriver().switchTo().defaultContent();
@@ -1560,10 +1611,10 @@ public class ARScannedElementPane extends ARPane {
 
                     ARWebElement arWebElement = new ARWebElement(targetFound, botJobLoad.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
-                        webElementObservableList2.add(arWebElement);
-                        Platform.runLater(() -> {
-                            scannedElements2.refresh();
-                        });
+                        //                        webElementObservableList2.add(arWebElement);
+                        //                        Platform.runLater(() -> {
+                        //                            scannedElements2.refresh();
+                        //                        });
                     }
 
                     System.out.println(
@@ -1619,15 +1670,15 @@ public class ARScannedElementPane extends ARPane {
 
                             if (arWebElement != null && arWebElement.getElement() != null) {
                                 if (resultElementSearch) {
-                                    webElementObservableList1.add(arWebElement);
-                                    Platform.runLater(() -> {
-                                        scannedElements1.refresh();
-                                    });
+                                    //                                    webElementObservableList1.add(arWebElement);
+                                    //                                    Platform.runLater(() -> {
+                                    //                                        scannedElements1.refresh();
+                                    //                                    });
                                 } else {
-                                    webElementObservableList2.add(arWebElement);
-                                    Platform.runLater(() -> {
-                                        scannedElements2.refresh();
-                                    });
+                                    //                                    webElementObservableList2.add(arWebElement);
+                                    //                                    Platform.runLater(() -> {
+                                    //                                        scannedElements2.refresh();
+                                    //                                    });
                                 }
                             }
 
@@ -1713,13 +1764,24 @@ public class ARScannedElementPane extends ARPane {
         Pattern pattern = Pattern.compile(regex);
         Matcher matcher = pattern.matcher(targetCheck.getAllAttributes());
 
-        // Iterate through all matches and check for target tags
-        while (matcher.find()) {
-            String tag = matcher.group(1);
-            if (tag.equals("a") || tag.equals("button")) {
-                System.out.println("Found clickable tag: <" + tag + ">");
-                tagClickable = true;
-                break;
+        // Iterate through each attribute in the array
+        for (AttributeData attribute : targetCheck.getAttributeData()) {
+            // Assuming you want to use the value of the attribute for matching
+            String attributeValue = attribute.getValue(); // Get the value of the attribute
+
+            Matcher matcher = pattern.matcher(attributeValue); // Use the value for matching
+
+            // Check for matches in the current attribute value
+            while (matcher.find()) {
+                String tag = matcher.group(1);
+                if (tag.equals("a") || tag.equals("button")) {
+                    System.out.println("Found clickable tag: <" + tag + ">");
+                    tagClickable = true;
+                    break;
+                }
+            }
+            if (tagClickable) {
+                break; // Exit the loop once a clickable tag is found
             }
         }
 
@@ -1892,7 +1954,7 @@ public class ARScannedElementPane extends ARPane {
             targetIFrames.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
 
             targetIFrames.setMainXPath(xPathElementChild);
-            targetIFrames.setAllAttributes(xPathElementChild); // TO DO
+            targetIFrames.setAttributeData(new AttributeData[0]); // TO DO
             targetIFrames.setCurrentXPath(xPathElementChild);
             targetIFrames.setAttributeValue(retrievedValue);
 
@@ -1915,8 +1977,8 @@ public class ARScannedElementPane extends ARPane {
             if (targetIFrames.getDefinedName() != null) {
                 ARWebElement arWebElement = new ARWebElement(targetIFrames, botJobLoad.getId());
                 if (arWebElement != null && arWebElement.getElement() != null) {
-                    webElementObservableList1.add(arWebElement);
-                    Platform.runLater(() -> scannedElements1.refresh());
+                    //                    webElementObservableList1.add(arWebElement);
+                    //                    Platform.runLater(() -> scannedElements1.refresh());
                 }
                 System.out.println("Found element: " + tagName + " with XPath: " + "xpath ???");
             }
@@ -1977,7 +2039,7 @@ public class ARScannedElementPane extends ARPane {
                 } catch (Exception e) {
                     ARLogger.getInstance(ARScannedElementPane.class)
                             .warning(String.format(
-                                    "Cannot locate a Web Element with Absolut XPath\n%s", target.getAllAttributes()));
+                                    "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
                 }
             } else {
                 if (elementValid == null) {
@@ -2055,7 +2117,7 @@ public class ARScannedElementPane extends ARPane {
         //        webElementObservableList1.clear();
         //        manageUIScanAttributeNameFirst();
 
-        String[] dataArray = {"name"};
+        String[] dataArray = {"with name"};
 
         handleSearchTermClick(dataArray);
     }
@@ -2064,50 +2126,13 @@ public class ARScannedElementPane extends ARPane {
         //        webElementObservableList1.clear();
         //        manageUIScanIdsFirst();
 
-        String[] dataArray = {"id"};
+        String[] dataArray = {"with id"};
 
         handleSearchTermClick(dataArray);
     }
 
-    private void handlePickElementClick() {
-
-        resultElementSearch = false;
-
-        elementsFound.clear();
-
-        revertCloneInjections(arWebDriver.getDriver());
-        revertPickInjections(arWebDriver.getDriver());
-
-        if (checkPickElement.isSelected()) {
-
-            Platform.runLater(() -> periodicPickThread(
-                    arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl()));
-            //            injectJavaScript(arWebDriver.getDriver());
-            //            injectJumpTab(arWebDriver.getDriver());
-        }
-
-        revertPickButtons();
-    }
-
-    private void handleCloneElementClick() {
-
-        resultElementSearch = false;
-        elementsFound.clear();
-
-        revertCloneInjections(arWebDriver.getDriver());
-        revertPickInjections(arWebDriver.getDriver());
-
-        if (checkCloneElement.isSelected()) {
-            Platform.runLater(() -> periodicCloneThread(
-                    arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl()));
-            //            injectJavaScript(arWebDriver.getDriver());
-            //            injectJumpTab(arWebDriver.getDriver());
-        }
-        revertCloneButtons();
-    }
-
     private void handleSearchTermClick(String[] dataArray) {
-        webElementObservableList1.clear();
+        //        webElementObservableList1.clear();
 
         arWebDriver.getDriver().switchTo().defaultContent();
         checkTestAction.setSelected(false);
@@ -2118,40 +2143,20 @@ public class ARScannedElementPane extends ARPane {
         xpathTextPrevious = "";
         this.targetSelected = null;
 
-        periodicSearchActivated.set(true);
-
         revertCloneInjections(arWebDriver.getDriver());
         revertPickInjections(arWebDriver.getDriver());
 
+        int finalPort = portSocket;
         Platform.runLater(() -> periodicSearchThread(
-                arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArray));
-    }
-
-    private void revertPickButtons() {
-        Platform.runLater(() -> {
-            checkTestAction.setDisable(checkPickElement.isSelected());
-            launchBotJobButton.setDisable(checkPickElement.isSelected());
-            recallJobButton.setDisable(checkPickElement.isSelected());
-
-            checkCloneElement.setDisable(checkPickElement.isSelected());
-
-            periodicPickActivated.set(checkPickElement.isSelected());
-
-            if (!checkPickElement.isSelected()) {
-                defineNameField.clear();
-            }
-        });
+                arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArray, finalPort));
     }
 
     private void revertCloneButtons() {
         Platform.runLater(() -> {
-            checkTestAction.setDisable(checkCloneElement.isSelected());
-            launchBotJobButton.setDisable(checkCloneElement.isSelected());
-            recallJobButton.setDisable(checkCloneElement.isSelected());
-
-            checkPickElement.setDisable(checkCloneElement.isSelected());
-
-            periodicCloneActivated.set(checkCloneElement.isSelected());
+            checkTestAction.setDisable(true);
+            launchBotJobButton.setDisable(true);
+            recallJobButton.setDisable(true);
+            checkPickElement.setDisable(true);
 
             if (!checkCloneElement.isSelected()) {
                 defineNameField.clear();
@@ -2161,9 +2166,9 @@ public class ARScannedElementPane extends ARPane {
 
     private void manageUIScanIFrames(String searchDesc) {
         ARLogger.getInstance(ARScannedElementPane.class).info("iFrames scan triggered");
-        webElementObservableList1.clear();
+        //        webElementObservableList1.clear();
 
-        boolean scanOk = scanIframesAndElements(webElementObservableList1, searchDesc);
+        //        boolean scanOk = scanIframesAndElements(webElementObservableList1, searchDesc);
     }
 
     private void manageUIScanWithoutNameAndId() {
@@ -2173,13 +2178,15 @@ public class ARScannedElementPane extends ARPane {
         // addProgressBar();
 
         // First Check About the Scanner havina  a Browser Attached
-        boolean scanOk = scanARElementsAsync(
-                null, null, null, webElementObservableList1, "input", "UI Scan \"Inputs\" Without Name And Id");
-        // addProgressBar();
-        if (scanOk) {
-            scanARElementsAsync(
-                    null, null, null, webElementObservableList1, "button", "UI Scan \"Buttons\" Without Name And Id");
-        }
+        //        boolean scanOk = scanARElementsAsync(
+        //                null, null, null, webElementObservableList1, "input", "UI Scan \"Inputs\" Without Name And
+        // Id");
+        //        // addProgressBar();
+        //        if (scanOk) {
+        //            scanARElementsAsync(
+        //                    null, null, null, webElementObservableList1, "button", "UI Scan \"Buttons\" Without Name
+        // And Id");
+        //        }
     }
 
     private void addProgressBar(int items) {
@@ -2200,71 +2207,72 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void manageUIScanAttributeNameFirst() {
-        idAttributeFirst = false;
-        nameAttributeFirst = true;
-        withoutNameAndId = false;
-        scanARElementsAsync(null, null, null, webElementObservableList1, "name", "UI Scan Attribute Name First");
-    }
+    //    private void manageUIScanAttributeNameFirst() {
+    //        idAttributeFirst = false;
+    //        nameAttributeFirst = true;
+    //        withoutNameAndId = false;
+    //        scanARElementsAsync(null, null, null, webElementObservableList1, "name", "UI Scan Attribute Name First");
+    //    }
 
-    private boolean manageUIScanIdsFirst() {
-        idAttributeFirst = true;
-        nameAttributeFirst = false;
-        withoutNameAndId = false;
-        return scanARElementsAsync(null, null, null, webElementObservableList1, "id", "UI Scan Ids First");
-    }
+    //    private boolean manageUIScanIdsFirst() {
+    //        idAttributeFirst = true;
+    //        nameAttributeFirst = false;
+    //        withoutNameAndId = false;
+    //        return scanARElementsAsync(null, null, null, webElementObservableList1, "id", "UI Scan Ids First");
+    //    }
 
-    private void manageUIScanInputs() {
-        List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
-        for (WebElementTagNameEnum tag : inputTags) {
-            // addProgressBar();
-            boolean scanOk = scanARElementsAsync(
-                    null,
-                    By.tagName(tag.getValue()),
-                    ARWebElement::isNotClickable,
-                    webElementObservableList1,
-                    null,
-                    "UI Scan Inputs");
+    //    private void manageUIScanInputs() {
+    //        List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
+    //        for (WebElementTagNameEnum tag : inputTags) {
+    //            // addProgressBar();
+    //            boolean scanOk = scanARElementsAsync(
+    //                    null,
+    //                    By.tagName(tag.getValue()),
+    //                    ARWebElement::isNotClickable,
+    //                    webElementObservableList1,
+    //                    null,
+    //                    "UI Scan Inputs");
+    //
+    //            if (!scanOk) {
+    //                break;
+    //            }
+    //        }
+    //    }
 
-            if (!scanOk) {
-                break;
-            }
-        }
-    }
+    //    private void manageUIScanClickable() {
+    //        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
+    //        for (WebElementTagNameEnum tag : clickableTags) {
+    //            // addProgressBar();
+    //            boolean scanOK = scanARElementsAsync(
+    //                    null,
+    //                    By.tagName(tag.getValue()),
+    //                    ARWebElement::isClickable,
+    //                    webElementObservableList2,
+    //                    null,
+    //                    "UI Scan Clickable");
+    //
+    //            if (!scanOK) {
+    //                break;
+    //            }
+    //        }
+    //    }
 
-    private void manageUIScanClickable() {
-        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
-        for (WebElementTagNameEnum tag : clickableTags) {
-            // addProgressBar();
-            boolean scanOK = scanARElementsAsync(
-                    null,
-                    By.tagName(tag.getValue()),
-                    ARWebElement::isClickable,
-                    webElementObservableList2,
-                    null,
-                    "UI Scan Clickable");
+    //    private void manageUIScanPriorities() {
+    //        Set<WebElement> webElements = managePrioritiesCriteria();
+    //        try {
+    //            if (webElements != null && webElements.size() > 0) {
+    //                // addProgressBar();
+    //                scanARElementsAsync(webElements, null, null, webElementObservableList2, null, "UI Scan By
+    // Priorities");
+    //            }
+    //        } catch (Exception e) {
+    //            System.out.println("Error " + e.getMessage());
+    //        }
+    //    }
 
-            if (!scanOK) {
-                break;
-            }
-        }
-    }
-
-    private void manageUIScanPriorities() {
-        Set<WebElement> webElements = managePrioritiesCriteria();
-        try {
-            if (webElements != null && webElements.size() > 0) {
-                // addProgressBar();
-                scanARElementsAsync(webElements, null, null, webElementObservableList2, null, "UI Scan By Priorities");
-            }
-        } catch (Exception e) {
-            System.out.println("Error " + e.getMessage());
-        }
-    }
-
-    private void manageUIScanOutputs() {
-        scanARElementsAsync(By.xpath("CODE_CRITERIA"), webElementObservableList2, "UI Scan Outputs");
-    }
+    //    private void manageUIScanOutputs() {
+    //        scanARElementsAsync(By.xpath("CODE_CRITERIA"), webElementObservableList2, "UI Scan Outputs");
+    //    }
 
     private void scanARElementsAsync(
             By criteria, ObservableList<ARWebElement> listToAddNewElements, String criteriaMSG) {
@@ -2379,10 +2387,12 @@ public class ARScannedElementPane extends ARPane {
                                         ARWebElement arWebElement = new ARWebElement(targetElement, botJobLoad.getId());
                                         if (arWebElement != null) {
                                             listARElements.add(arWebElement);
-                                            Platform.runLater(() -> {
-                                                scannedElements1.requestLayout();
-                                                scannedElements1.refresh();
-                                            });
+                                            //                                            Platform.runLater(() -> {
+                                            //
+                                            // scannedElements1.requestLayout();
+                                            //
+                                            // scannedElements1.refresh();
+                                            //                                            });
                                         }
                                     }
                                     targetElement.reset();
@@ -2482,10 +2492,10 @@ public class ARScannedElementPane extends ARPane {
                     }
                 });
             } else {
-                Platform.runLater(() -> {
-                    scannedElements1.requestLayout();
-                    scannedElements1.refresh();
-                });
+                //                Platform.runLater(() -> {
+                //                    scannedElements1.requestLayout();
+                //                    scannedElements1.refresh();
+                //                });
             }
             return result;
         });
@@ -2667,9 +2677,12 @@ public class ARScannedElementPane extends ARPane {
                                     if (targetIFrames.getDefinedName() != null) {
                                         ARWebElement arWebElement = new ARWebElement(targetIFrames, botJobLoad.getId());
                                         if (arWebElement != null && arWebElement.getElement() != null) {
-                                            webElementObservableList1.add(arWebElement);
-                                            Platform.runLater(() -> scannedElements1.refresh());
-                                            System.out.println("Found element: " + targetIFrames.getDefinedName());
+                                            //
+                                            // webElementObservableList1.add(arWebElement);
+                                            //                                            Platform.runLater(() ->
+                                            // scannedElements1.refresh());
+                                            //                                            System.out.println("Found
+                                            // element: " + targetIFrames.getDefinedName());
                                         }
                                     }
 
@@ -2769,18 +2782,18 @@ public class ARScannedElementPane extends ARPane {
         handleSearchTermClick(dataArray);
     }
 
-    private void refreshOtherElemBtn(String searchType) {
-        webElementObservableList2.clear();
-
-        // Check if Browser is Inactive
-        try {
-            windowHandles = arWebDriver.getDriver().getWindowHandles();
-        } catch (Exception e) {
-            browserNotAttached();
-            return;
-        }
-        manageUIScanPriorities();
-    }
+    //    private void refreshOtherElemBtn(String searchType) {
+    //        webElementObservableList2.clear();
+    //
+    //        // Check if Browser is Inactive
+    //        try {
+    //            windowHandles = arWebDriver.getDriver().getWindowHandles();
+    //        } catch (Exception e) {
+    //            browserNotAttached();
+    //            return;
+    //        }
+    //        manageUIScanPriorities();
+    //    }
 
     private void addBehaviourToAddedElements(ListChangeListener.Change<? extends ARWebElement> change) {
         while (change.next()) {
@@ -2799,9 +2812,9 @@ public class ARScannedElementPane extends ARPane {
         //                                verticalBox.requestLayout();
         //                                getChildren().addAll(blockAndUrl, boxListViews);
 
-        for (ARWebElement arWebElement : scannedElements2.getItems()) {
-            performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
-        }
+        //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
+        //            performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
+        //        }
 
         StringBuilder sb = new StringBuilder();
         String nameDefined = "";
@@ -2854,40 +2867,36 @@ public class ARScannedElementPane extends ARPane {
                 Platform.runLater(
                         () -> defineNameField.setText(performAction.truncateAndNormalize(finalNameDefined, 30)));
 
-            } else if (!Strings.isNullOrEmpty(this.targetSelected.getAllAttributes())) {
+            } else if (this.targetSelected.getAttributeData().length > 0) {
 
                 // Split by comma to get key-value pairs
-                String[] parts = this.targetSelected.getAllAttributes().split(",");
 
                 String idValue = null;
                 String nameValue = null;
                 String typeValue = null;
 
                 // Loop through each key-value pair
-                for (String part : parts) {
-                    String[] keyValue = part.split("=");
+                for (AttributeData attributeData : this.targetSelected.getAttributeData()) {
 
-                    if (keyValue.length == 2) { // Ensure valid key-value pair
-                        String key = keyValue[0].trim();
-                        String value = keyValue[1].trim().replaceAll("\"", ""); // Remove quotes
+                    String key = attributeData.getName().trim();
+                    String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
 
-                        if (key.equals("id")) {
-                            idValue = value;
-                        } else if (key.equals("name")) {
-                            nameValue = value;
-                        } else if (key.equals("type")) {
-                            typeValue = value;
-                        }
+                    if (key.equals("id")) {
+                        idValue = value;
+                    } else if (key.equals("name")) {
+                        nameValue = value;
+                    } else if (key.equals("type")) {
+                        typeValue = value;
                     }
                 }
 
                 // Print based on priority: ID -> Name -> Type
                 if (idValue != null) {
-                    nameDefined = idValue;
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + idValue;
                 } else if (nameValue != null) {
-                    nameDefined = nameValue;
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + nameValue;
                 } else if (typeValue != null) {
-                    nameDefined = typeValue;
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + typeValue;
                 } else {
                     nameDefined = this.targetSelected.getOriginalTagName();
                 }
@@ -2940,10 +2949,12 @@ public class ARScannedElementPane extends ARPane {
         }
 
         sb.append("Named: " + nameDefined).append("\n");
-        String[] attributes = this.targetSelected.getAllAttributes().split(",");
         sb.append("All Attributes Found: ").append("\n");
-        for (String attribute : attributes) {
-            sb.append("->  ").append(attribute.trim()).append("\n");
+        for (AttributeData attribute : this.targetSelected.getAttributeData()) {
+            sb.append("->  ")
+                    .append(attribute.getName().trim() + "="
+                            + attribute.getValue().trim())
+                    .append("\n");
         }
 
         Platform.runLater(() -> {
@@ -3488,54 +3499,46 @@ public class ARScannedElementPane extends ARPane {
 
                             System.out.println(actionsTested.toString());
 
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .fine("Web Actions Tested:\n" + actionsTested.toString());
+                            VBox vertical = new VBox();
+                            vertical.getChildren()
+                                    .addAll(
+                                            actionText1,
+                                            actionText2,
+                                            actionText3,
+                                            actionText4,
+                                            actionText5,
+                                            actionText6,
+                                            actionText7,
+                                            actionText8,
+                                            actionText9,
+                                            actionText10,
+                                            actionText11,
+                                            actionText12,
+                                            actionText13);
 
-                            //                            VBox vertical = new VBox();
-                            //                            vertical.getChildren()
-                            //                                    .addAll(
-                            //                                            actionText1,
-                            //                                            actionText2,
-                            //                                            actionText3,
-                            //                                            actionText4,
-                            //                                            actionText5,
-                            //                                            actionText6,
-                            //                                            actionText7,
-                            //                                            actionText8,
-                            //                                            actionText9,
-                            //                                            actionText10,
-                            //                                            actionText11,
-                            //                                            actionText12,
-                            //                                            actionText13);
+                            Platform.runLater(() -> {
+                                textFlowResult.getChildren().clear();
+                                textFlowResult.getChildren().addAll(vertical);
 
-                            //                            Platform.runLater(() -> {
-                            //                                textFlowResult.getChildren().clear();
-                            //                                textFlowResult.getChildren().addAll(vertical);
-                            //
-                            //                                textFlowResult.requestLayout();
-                            //
-                            //                                //
-                            // boxListViews.requestLayout();
-                            //                                //
-                            // verticalBox.requestLayout();
-                            //                                //
-                            // getChildren().addAll(blockAndUrl, boxListViews);
-                            //                                contentPane.requestLayout();
-                            //                                VBox vBoxResult = new VBox();
-                            //                                vBoxResult.getChildren().addAll(textFlowResult);
-                            //                                performMessage.showAlertCombinedVBOX(
-                            //                                        Alert.AlertType.INFORMATION,
-                            //                                        "Test Actions Results",
-                            //                                        "Web Actions Tested:",
-                            //                                        null,
-                            //                                        vBoxResult);
-                            //
-                            //                                //
-                            // countdownTextField.setText(actionsTested.toString());
-                            //                                //
-                            // countdownTextField.setStyle("-fx-font-size: 12px;
-                            //                                // -fx-text-fill: blue;");
-                            //                            });
+                                textFlowResult.requestLayout();
+
+                                //                                boxListViews.requestLayout();
+                                //                                verticalBox.requestLayout();
+                                //                                getChildren().addAll(blockAndUrl, boxListViews);
+                                contentPane.requestLayout();
+                                VBox vBoxResult = new VBox();
+                                vBoxResult.getChildren().addAll(textFlowResult);
+                                performMessage.showAlertCombinedVBOX(
+                                        Alert.AlertType.INFORMATION,
+                                        "Test Actions Results",
+                                        "Web Actions Tested:",
+                                        null,
+                                        vBoxResult);
+
+                                //                                countdownTextField.setText(actionsTested.toString());
+                                //                                countdownTextField.setStyle("-fx-font-size: 12px;
+                                // -fx-text-fill: blue;");
+                            });
                         }
                         //                                arWebElement.getElement().click();
                     } catch (Exception e) {
@@ -4659,2657 +4662,69 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void periodicCloneThread(WebDriver driver, String currentUrl) {
-        // JavaScript code to inject
-        String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n"
-                + "  var tooltip = document.createElement(\"div\");\n"
-                + "  tooltip.id = \"Martini-Is-Awesome\";\n"
-                + "  tooltip.style.position = \"absolute\";\n"
-                + "  tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\";\n"
-                + "  tooltip.style.border = \"1px solid #ccc\";\n"
-                + "  tooltip.style.padding = \"10px\";\n"
-                + "  tooltip.style.borderRadius = \"5px\";\n"
-                + "  tooltip.style.boxShadow = \"0 2px 4px rgba(0, 0, 0, 0.2)\";\n"
-                + "  tooltip.style.fontFamily = \"Arial, sans-serif\";\n"
-                + "  tooltip.style.fontSize = \"14px\";\n"
-                + "  tooltip.style.color = \"#333\";\n"
-                + "  tooltip.style.zIndex = \"10000\";\n"
-                + "  tooltip.style.display = \"none\";\n"
-                + "  document.body.appendChild(tooltip);\n"
-                + "\n"
-                + "  var elementInfoMap = new Map();\n"
-                + "  var allElementInfo = [];\n"
-                + "\n"
-                + "  function getElementIdentity(element) {\n"
-                + "    var xpath = getMartiniXPath(element);\n"
-                + "    var allAttributes = \"\";\n"
-                + "    try {\n"
-                + "      // console.log(\"element\", element);\n"
-                + "      allAttributes = getElementAttributes(element);\n"
-                + "    } catch (error) {}\n"
-                + "    var customXPath = \"\";\n"
-                + "    try {\n"
-                + "      customXPath = getElementLocators(element);\n"
-                + "    } catch (error) {}\n"
-                + "\n"
-                + "    var attribId = element.id || \"\";\n"
-                + "    var attribName = element.name || \"\";\n"
-                + "    var coords = element.getBoundingClientRect();\n"
-                + "    coords = `${coords.left},${coords.top}`;\n"
-                + "\n"
-                + "    var someText = element.textContent.trim() || \"\";\n"
-                + "    if (\n"
-                + "      element.tagName.toLowerCase() === \"input\" ||\n"
-                + "      element.tagName.toLowerCase() === \"textarea\"\n"
-                + "    ) {\n"
-                + "      someText = element.value || \"\";\n"
-                + "    }\n"
-                + "\n"
-                + "    var someText = getSomeText(element.tagName.toLowerCase(), element);\n"
-                + "\n"
-                + "    return {\n"
-                + "      xpath,\n"
-                + "      allAttributes,\n"
-                + "      customXPath,\n"
-                + "      attribId,\n"
-                + "      attribName,\n"
-                + "      coords,\n"
-                + "      someText,\n"
-                + "    };\n"
-                + "  }\n"
-                + "  function getElementAttributes(element) {\n"
-                + "    const attributes = [];\n"
-                + "\n"
-                + "    try {\n"
-                + "      for (const attr of element.attributes) {\n"
-                + "        attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
-                + "      }\n"
-                + "    } catch (error) {\n"
-                + "      // If accessing attributes directly fails (likely due to cross-origin restrictions)\n"
-                + "      // Attempt to get attributes using JavaScript execution within the iframe's context\n"
-                + "      const iframe = element.ownerDocument.defaultView.frameElement;\n"
-                + "      if (iframe) {\n"
-                + "        const iframeWindow = iframe.contentWindow;\n"
-                + "        iframeWindow.document.addEventListener(\"DOMContentLoaded\", () => {\n"
-                + "          const iframeElement = iframeWindow.document.querySelector(\n"
-                + "            `#${element.id}`\n"
-                + "          ); // Adjust selector as needed\n"
-                + "          if (iframeElement) {\n"
-                + "            for (const attr of iframeElement.attributes) {\n"
-                + "              attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
-                + "            }\n"
-                + "          }\n"
-                + "        });\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    return attributes;\n"
-                + "  }\n"
-                + "  function getElementLocators(element) {\n"
-                + "    const locators = [];\n"
-                + "\n"
-                + "    if (element === document.body) {\n"
-                + "      locators.push(\"/html/\" + element.tagName.toLowerCase());\n"
-                + "      return locators;\n"
-                + "    }\n"
-                + "\n"
-                + "    const tagName = element.tagName.toLowerCase();\n"
-                + "    const id = element.id ? `#${element.id}` : \"\";\n"
-                + "    const className = (\n"
-                + "      typeof element.className === \"string\" ? element.className : \"\"\n"
-                + "    )\n"
-                + "      .split(\" \")\n"
-                + "      .filter((cls) => !/\\d/.test(cls))\n"
-                + "      .join(\".\");\n"
-                + "\n"
-                + "    if (id) {\n"
-                + "      locators.push(id);\n"
-                + "    }\n"
-                + "\n"
-                + "    if (className) {\n"
-                + "      locators.push(`//${tagName}[contains(@class, '${className}')]`);\n"
-                + "    }\n"
-                + "\n"
-                + "    // Check for other attributes (e.g., 'data-*' attributes)\n"
-                + "    const attributes = Array.from(element.attributes);\n"
-                + "    attributes.forEach((attr) => {\n"
-                + "      if (attr.name !== \"class\" && attr.name !== \"id\") {\n"
-                + "        // Exclude class and id\n"
-                + "        locators.push(`${tagName}[@${attr.name}=\"${attr.value}\"]`);\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Handle iframe elements\n"
-                + "    if (element.ownerDocument !== document) {\n"
-                + "      try {\n"
-                + "        const iframe = element.ownerDocument.defaultView.frameElement;\n"
-                + "        const iframeLocators = getElementLocators(iframe);\n"
-                + "        iframeLocators.forEach((iframePath) => {\n"
-                + "          locators.push(`${iframePath}//${tagName}`);\n"
-                + "        });\n"
-                + "      } catch (error) {\n"
-                + "        console.error(\"Error getting locators for iframe element:\", error);\n"
-                + "      }\n"
-                + "    } else {\n"
-                + "      // Handle regular elements\n"
-                + "      let ix = 0;\n"
-                + "      const siblings = element.parentNode.childNodes;\n"
-                + "\n"
-                + "      for (let i = 0; i < siblings.length; i++) {\n"
-                + "        const sibling = siblings[i];\n"
-                + "\n"
-                + "        if (sibling === element) {\n"
-                + "          const parentLocators = getElementLocators(element.parentNode);\n"
-                + "          parentLocators.forEach((parentPath) => {\n"
-                + "            locators.push(`${parentPath}/${tagName}[${ix + 1}]`);\n"
-                + "          });\n"
-                + "          break;\n"
-                + "        }\n"
-                + "\n"
-                + "        if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "          ix++;\n"
-                + "        }\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    return locators;\n"
-                + "  }\n"
-                + "  function getMartiniXPath(element) {\n"
-                + "    if (element === document.body) {\n"
-                + "      return \"/html/body\";\n"
-                + "    }\n"
-                + "    var ix = 0;\n"
-                + "    var siblings = element.parentNode ? element.parentNode.childNodes : [];\n"
-                + "    for (var i = 0; i < siblings.length; i++) {\n"
-                + "      var sibling = siblings[i];\n"
-                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "        if (sibling === element) {\n"
-                + "          return (\n"
-                + "            getMartiniXPath(element.parentNode) +\n"
-                + "            \"/\" +\n"
-                + "            element.tagName.toLowerCase() +\n"
-                + "            \"[\" +\n"
-                + "            (ix + 1) +\n"
-                + "            \"]\"\n"
-                + "          );\n"
-                + "        }\n"
-                + "        ix++;\n"
-                + "      }\n"
-                + "    }\n"
-                + "    return \"\";\n"
-                + "  }\n"
-                + "  function getMartiniCustomXPath(element) {\n"
-                + "    if (element === document.body) {\n"
-                + "      return \"/html/\" + element.tagName.toLowerCase();\n"
-                + "    }\n"
-                + "    var className = element.className\n"
-                + "      .split(\" \")\n"
-                + "      .filter(function (cls) {\n"
-                + "        return !/\\d/.test(cls);\n"
-                + "      })\n"
-                + "      .join(\".\");\n"
-                + "    var tagName = element.tagName.toLowerCase();\n"
-                + "    var ix = 0;\n"
-                + "    var siblings = element.parentNode.childNodes;\n"
-                + "    for (var i = 0; i < siblings.length; i++) {\n"
-                + "      var sibling = siblings[i];\n"
-                + "      if (sibling === element) {\n"
-                + "        var path = getMartiniCustomXPath(element.parentNode) + \"/\" + tagName;\n"
-                + "        if (className) {\n"
-                + "          path += '[contains(@class, \"' + className + '\")]';\n"
-                + "        } else {\n"
-                + "          path += \"[\" + (ix + 1) + \"]\";\n"
-                + "        }\n"
-                + "        return path;\n"
-                + "      }\n"
-                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "        ix++;\n"
-                + "      }\n"
-                + "    }\n"
-                + "    return \"\";\n"
-                + "  }\n"
-                + "\n"
-                + "  var lastHoveredIsIframe = null; // Keep track of the last hovered element type\n"
-                + "\n"
-                + "  let lastHoveredElement = null; // Keep track of the previously hovered element\n"
-                + "  // Declare global variables to store iframe details\n"
-                + "  var iframeDocument = null;\n"
-                + "  var iframeElementsCount = 0;\n"
-                + "\n"
-                + "  function showMartiniTooltip(event) {\n"
-                + "    var elementBelowTooltip = document.elementFromPoint(\n"
-                + "      event.clientX,\n"
-                + "      event.clientY\n"
-                + "    );\n"
-                + "\n"
-                + "    // Do nothing if the hovered element is the tooltip itself or an excluded tag (html, body, main)\n"
-                + "    if (\n"
-                + "      !elementBelowTooltip ||\n"
-                + "      elementBelowTooltip === tooltip ||\n"
-                + "      [\"html\", \"body\", \"main\"].includes(\n"
-                + "        elementBelowTooltip.tagName.toLowerCase()\n"
-                + "      )\n"
-                + "    ) {\n"
-                + "      return;\n"
-                + "    }\n"
-                + "\n"
-                + "    var isIframe = elementBelowTooltip.tagName.toLowerCase() === \"iframe\";\n"
-                + "\n"
-                + "    // Reset only if switching between iframe and non-iframe elements\n"
-                + "    if (lastHoveredIsIframe !== isIframe) {\n"
-                + "      console.clear();\n"
-                + "      elementInfoMap.clear();\n"
-                + "      allElementInfo = [];\n"
-                + "    }\n"
-                + "\n"
-                + "    lastHoveredIsIframe = isIframe; // Update last hovered element type\n"
-                + "\n"
-                + "    // Get the tag name of the element\n"
-                + "    var tagNameTemp = elementBelowTooltip.tagName.toLowerCase();\n"
-                + "\n"
-                + "    // // Get the text content of the element (if it has text)\n"
-                + "    // var someText = elementBelowTooltip.textContent.trim();\n"
-                + "    // if (someText === \"\") {\n"
-                + "    //   someText = \"No text content\";\n"
-                + "    // }\n"
-                + "\n"
-                + "    var someText = getSomeText(\n"
-                + "      elementBelowTooltip.tagName.toLowerCase(),\n"
-                + "      elementBelowTooltip\n"
-                + "    );\n"
-                + "\n"
-                + "    // If it's an iframe, get the number of elements inside the iframe\n"
-                + "    var iframeDetails = \"\";\n"
-                + "    if (isIframe) {\n"
-                + "      iframeDocument =\n"
-                + "        elementBelowTooltip.contentDocument ||\n"
-                + "        elementBelowTooltip.contentWindow.document;\n"
-                + "      iframeElementsCount = iframeDocument\n"
-                + "        ? iframeDocument.body.getElementsByTagName(\"*\").length\n"
-                + "        : 0;\n"
-                + "      iframeDetails = `Elements inside iframe: ${iframeElementsCount}`;\n"
-                + "    }\n"
-                + "\n"
-                + "    var elementXPath = getMartiniXPath(elementBelowTooltip);\n"
-                + "\n"
-                + "    // Store tagName and other details in the Map\n"
-                + "    if (iframeDetails && iframeDetails.length > 0) {\n"
-                + "      elementInfoMap.set(\n"
-                + "        elementXPath,\n"
-                + "        `xpath:${elementXPath};text:${someText};${iframeDetails};`\n"
-                + "      );\n"
-                + "    } else {\n"
-                + "      const {\n"
-                + "        xpath,\n"
-                + "        allAttributes,\n"
-                + "        customXPath,\n"
-                + "        attribId,\n"
-                + "        attribName,\n"
-                + "        coords,\n"
-                + "        someText,\n"
-                + "      } = getElementIdentity(elementBelowTooltip);\n"
-                + "\n"
-                + "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "      elementInfoMap.set(xpath, elementInfoString);\n"
-                + "    }\n"
-                + "\n"
-                + "    // Parse the someText using the semicolon delimiter\n"
-                + "    var parsedText = someText.split(\";\");\n"
-                + "\n"
-                + "    // Format the tooltip content to make it more readable\n"
-                + "    var tooltipContent = \"\";\n"
-                + "    tooltipContent += isIframe ? \"[Iframe] <br>\" : \"\";\n"
-                + "    tooltipContent += `Tag Name: ${tagNameTemp}<br>`;\n"
-                + "    tooltipContent += isIframe ? `- ${iframeDetails}<br>` : \"\";\n"
-                + "\n"
-                + "    // Replace new lines with <br> before adding each item from parsedText\n"
-                + "    tooltipContent += someText\n"
-                + "      ? parsedText.map((item) => `- ${item}<br>`).join(\"\")\n"
-                + "      : \"No Text<br>\";\n"
-                + "\n"
-                + "    // Set the tooltip content with line breaks\n"
-                + "    tooltip.innerHTML = tagNameTemp;\n"
-                + "\n"
-                + "    // Position the tooltip near the mouse cursor\n"
-                + "    var tooltipWidth = tooltip.offsetWidth;\n"
-                + "    var tooltipHeight = tooltip.offsetHeight;\n"
-                + "    var left = event.pageX - tooltipWidth / 2;\n"
-                + "    var top = event.pageY - tooltipHeight / 2;\n"
-                + "\n"
-                + "    tooltip.style.left = left + \"px\";\n"
-                + "    tooltip.style.top = top + \"px\";\n"
-                + "    tooltip.style.display = \"block\";\n"
-                + "\n"
-                + "    // Highlight the hovered element\n"
-                + "    if (lastHoveredElement !== elementBelowTooltip) {\n"
-                + "      // Remove highlight from the previous element if any\n"
-                + "      if (lastHoveredElement) {\n"
-                + "        lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
-                + "      }\n"
-                + "      // Add a border to highlight the current element\n"
-                + "      elementBelowTooltip.style.outline = \"3px solid red\"; // Highlight the element\n"
-                + "\n"
-                + "      lastHoveredElement = elementBelowTooltip; // Update the last hovered element\n"
-                + "    }\n"
-                + "\n"
-                + "    // console.log(\"Element Info:\", elementInfoMap);\n"
-                + "  }\n"
-                + "\n"
-                + "  function limitMapCharacters(elementInfoMap, coordText) {\n"
-                + "    elementInfoMap.forEach((value, key) => {\n"
-                + "      let modifiedValue = value;\n"
-                + "\n"
-                + "      // TO DO  REDUCE ONLY THE TEXT FIELD\n"
-                + "\n"
-                + "      // // Check if the key is \"html\" or value length is greater than 400\n"
-                + "      // if (key === \"html\" || value.length > 400) {\n"
-                + "      //   // Truncate the value to 150 characters and add \"...\"\n"
-                + "      //   if (value.length > 150) {\n"
-                + "      //     modifiedValue = value.substring(0, 150) + \"...\";\n"
-                + "      //   }\n"
-                + "\n"
-                + "      //   // If the length exceeds 400 characters, break the value into multiple lines\n"
-                + "      //   if (value.length > 400) {\n"
-                + "      //     const firstPart = value.substring(0, 150);\n"
-                + "      //     const secondPart = value.substring(150);\n"
-                + "      //     modifiedValue = `${firstPart}<br>...${secondPart}`;\n"
-                + "      //   }\n"
-                + "      // }\n"
-                + "\n"
-                + "      // Push the formatted value and key to the array\n"
-                + "      allElementInfo.push(`${coordText}:${modifiedValue}`);\n"
-                + "    });\n"
-                + "  }\n"
-                + "\n"
-                + "  function getSomeText(tagName, element) {\n"
-                + "    let someText = \"\";\n"
-                + "\n"
-                + "    if ([\"input\", \"textarea\", \"select\", \"button\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    } else if ([\"option\", \"label\", \"a\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    } else if (![\"html\", \"body\", \"script\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    }\n"
-                + "\n"
-                + "    someText = someText\n"
-                + "      .split(\";\")\n"
-                + "      .map((text) => text.trim())\n"
-                + "      .filter(Boolean)\n"
-                + "      .join(\";\"); // Clean up sequential text\n"
-                + "\n"
-                + "    return someText;\n"
-                + "  }\n"
-                + "\n"
-                + "  function extractTextFromHTML(element) {\n"
-                + "    const result = {\n"
-                + "      text: new Set(), // Using Set to avoid duplicate text\n"
-                + "      labels: new Set(), // Using Set to avoid duplicate labels\n"
-                + "      titles: new Set(), // Using Set to avoid duplicate titles\n"
-                + "    };\n"
-                + "\n"
-                + "    // Extract text content directly from the element (in case it has no children)\n"
-                + "    if (element.textContent) {\n"
-                + "      let elementText = element.textContent.trim();\n"
-                + "      if (elementText) {\n"
-                + "        result.text.add(elementText); // Using .add() instead of .push() for Set\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    // Extract label text from input placeholders and other form-related data\n"
-                + "    element.querySelectorAll(\"label\").forEach((label) => {\n"
-                + "      if (label.textContent) {\n"
-                + "        let labelText = label.textContent.trim();\n"
-                + "        if (labelText) {\n"
-                + "          result.labels.add(labelText); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "\n"
-                + "      // Handle associated input fields (if the label has a 'for' attribute)\n"
-                + "      let forAttribute = label.getAttribute(\"for\");\n"
-                + "      if (forAttribute) {\n"
-                + "        let associatedInput = element.querySelector(`#${forAttribute}`);\n"
-                + "        if (associatedInput) {\n"
-                + "          // Check if it's an input field or textarea and extract value or placeholder\n"
-                + "          let inputValue = associatedInput.value?.trim();\n"
-                + "          let inputPlaceholder = associatedInput.placeholder?.trim();\n"
-                + "          if (inputValue) {\n"
-                + "            result.text.add(inputValue); // Using .add() for Set to ensure uniqueness\n"
-                + "          } else if (inputPlaceholder) {\n"
-                + "            result.text.add(inputPlaceholder); // Fallback to placeholder\n"
-                + "          }\n"
-                + "        }\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract text from common block and inline elements\n"
-                + "    const textExtractors = [\n"
-                + "      \"p\",\n"
-                + "      \"h1\",\n"
-                + "      \"h2\",\n"
-                + "      \"h3\",\n"
-                + "      \"h4\",\n"
-                + "      \"h5\",\n"
-                + "      \"h6\",\n"
-                + "      \"li\",\n"
-                + "      \"span\",\n"
-                + "      \"div\",\n"
-                + "      \"strong\",\n"
-                + "      \"em\",\n"
-                + "      \"b\",\n"
-                + "      \"i\",\n"
-                + "      \"blockquote\",\n"
-                + "    ];\n"
-                + "\n"
-                + "    textExtractors.forEach((tagName) => {\n"
-                + "      element.querySelectorAll(tagName).forEach((childElement) => {\n"
-                + "        if (childElement.textContent) {\n"
-                + "          let elemText = childElement.textContent.trim();\n"
-                + "          if (elemText) {\n"
-                + "            result.text.add(elemText); // Using .add() for Set to ensure uniqueness\n"
-                + "          }\n"
-                + "        }\n"
-                + "      });\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract text from <a> tags (links)\n"
-                + "    element.querySelectorAll(\"a\").forEach((link) => {\n"
-                + "      if (link.textContent) {\n"
-                + "        let linkText = link.textContent.trim();\n"
-                + "        if (linkText) {\n"
-                + "          result.text.add(linkText); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract iframe titles and nested content\n"
-                + "    element.querySelectorAll(\"iframe\").forEach((iframe) => {\n"
-                + "      if (iframe.getAttribute(\"title\")) {\n"
-                + "        let title = iframe.getAttribute(\"title\")?.trim();\n"
-                + "        if (title) {\n"
-                + "          result.titles.add(title); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "\n"
-                + "      try {\n"
-                + "        let iframeDoc =\n"
-                + "          iframe.contentDocument ||\n"
-                + "          new DOMParser().parseFromString(iframe.srcdoc || \"\", \"text/html\");\n"
-                + "        let iframeContent = extractTextFromHTML(iframeDoc); // Here we assume iframeDoc is an element.\n"
-                + "        iframeContent.titles.forEach((title) => result.titles.add(title));\n"
-                + "        iframeContent.text.forEach((text) => result.text.add(text));\n"
-                + "        iframeContent.labels.forEach((label) => result.labels.add(label));\n"
-                + "      } catch (e) {\n"
-                + "        console.warn(\"Could not access iframe content\", e);\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Convert Sets to arrays before returning to maintain previous structure\n"
-                + "    return {\n"
-                + "      text: Array.from(result.text),\n"
-                + "      labels: Array.from(result.labels),\n"
-                + "      titles: Array.from(result.titles),\n"
-                + "    };\n"
-                + "  }\n"
-                + "\n"
-                + "  function hideMartiniTooltip() {\n"
-                + "    tooltip.style.display = \"none\";\n"
-                + "  }\n"
-                + "  function handleMartiniClick(event) {\n"
-                + "    event.preventDefault();\n"
-                + "    event.stopPropagation();\n"
-                + "    tooltip.style.display = \"none\";\n"
-                + "\n"
-                + "    // Determine the element below the tooltip (mouse position)\n"
-                + "    var elementBelowTooltip = document.elementFromPoint(\n"
-                + "      event.clientX,\n"
-                + "      event.clientY\n"
-                + "    );\n"
-                + "\n"
-                + "    // Hide the tooltip\n"
-                + "    tooltip.style.display = \"none\";\n"
-                + "\n"
-                + "    // If the element below the tooltip is an iframe\n"
-                + "    if (\n"
-                + "      elementBelowTooltip &&\n"
-                + "      elementBelowTooltip.tagName.toLowerCase() === \"iframe\"\n"
-                + "    ) {\n"
-                + "      // Get the document inside the iframe\n"
-                + "      var iframeDocument =\n"
-                + "        elementBelowTooltip.contentDocument ||\n"
-                + "        elementBelowTooltip.contentWindow.document;\n"
-                + "\n"
-                + "      // If the iframe document is valid\n"
-                + "      if (iframeDocument) {\n"
-                + "        // Format the iframe details\n"
-                + "        var iframeDetails = `Elements inside iframe: ${\n"
-                + "          iframeDocument.body.getElementsByTagName(\"*\").length\n"
-                + "        }`;\n"
-                + "\n"
-                + "        // Display the tooltip with iframe details\n"
-                + "        tooltip.innerHTML = `[Iframe] <br> ${iframeDetails}`;\n"
-                + "\n"
-                + "        // Position the tooltip near the mouse cursor\n"
-                + "        var tooltipWidth = tooltip.offsetWidth;\n"
-                + "        var tooltipHeight = tooltip.offsetHeight;\n"
-                + "        var left = event.pageX - tooltipWidth / 2;\n"
-                + "        var top = event.pageY - tooltipHeight / 2;\n"
-                + "\n"
-                + "        tooltip.style.left = left + \"px\";\n"
-                + "        tooltip.style.top = top + \"px\";\n"
-                + "        tooltip.style.display = \"block\";\n"
-                + "\n"
-                + "        // Initialize an array to store the iframe element information\n"
-                + "        allElementInfo = [];\n"
-                + "\n"
-                + "        const {\n"
-                + "          xpath,\n"
-                + "          allAttributes,\n"
-                + "          customXPath,\n"
-                + "          attribId,\n"
-                + "          attribName,\n"
-                + "          coords,\n"
-                + "          someText,\n"
-                + "        } = getElementIdentity(elementBelowTooltip);\n"
-                + "\n"
-                + "        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "        allElementInfo.push(`clicked-iFrame:${elementInfoString};`);\n"
-                + "\n"
-                + "        // limitMapCharacters(elementInfoMap, \"clicked-tagName\");\n"
-                + "\n"
-                + "        // Get all elements inside the iframe and log their details\n"
-                + "        var iframeElements = iframeDocument.querySelectorAll(\"*\");\n"
-                + "        iframeElements.forEach(function (elementInsideIframe) {\n"
-                + "          const {\n"
-                + "            xpath,\n"
-                + "            allAttributes,\n"
-                + "            customXPath,\n"
-                + "            attribId,\n"
-                + "            attribName,\n"
-                + "            coords,\n"
-                + "            someText,\n"
-                + "          } = getElementIdentity(elementInsideIframe);\n"
-                + "\n"
-                + "          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "          allElementInfo.push(elementInfoString);\n"
-                + "        });\n"
-                + "\n"
-                + "        // Log the list of iframe elements\n"
-                + "        console.log(\"List of iframe elements:\", allElementInfo);\n"
-                + "        window.allElementInfo = allElementInfo;\n"
-                + "      } else {\n"
-                + "        tooltip.innerHTML = \"No iframe document found.\";\n"
-                + "\n"
-                + "        // Position the tooltip near the mouse cursor\n"
-                + "        var tooltipWidth = tooltip.offsetWidth;\n"
-                + "        var tooltipHeight = tooltip.offsetHeight;\n"
-                + "        var left = event.pageX - tooltipWidth / 2;\n"
-                + "        var top = event.pageY - tooltipHeight / 2;\n"
-                + "\n"
-                + "        tooltip.style.left = left + \"px\";\n"
-                + "        tooltip.style.top = top + \"px\";\n"
-                + "        tooltip.style.display = \"block\";\n"
-                + "      }\n"
-                + "    } else {\n"
-                + "      // If the clicked element is not an iframe, gather its regular information\n"
-                + "      var tagName = elementBelowTooltip.tagName.toLowerCase();\n"
-                + "\n"
-                + "      // Avoid main, body, and html tags\n"
-                + "      if ([\"html\", \"body\", \"main\"].includes(tagName)) {\n"
-                + "        return; // Don't proceed if it's one of these elements\n"
-                + "      }\n"
-                + "\n"
-                + "      // Format and push regular element information to the array\n"
-                + "      // limitMapCharacters(elementInfoMap, \"tagName-found\");\n"
-                + "\n"
-                + "      const {\n"
-                + "        xpath,\n"
-                + "        allAttributes,\n"
-                + "        customXPath,\n"
-                + "        attribId,\n"
-                + "        attribName,\n"
-                + "        coords,\n"
-                + "        someText,\n"
-                + "      } = getElementIdentity(elementBelowTooltip);\n"
-                + "\n"
-                + "      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "      allElementInfo.push(elementInfoString);\n"
-                + "\n"
-                + "      console.log(\"List of elements:\", allElementInfo);\n"
-                + "      window.allElementInfo = allElementInfo;\n"
-                + "\n"
-                + "      allElementInfo = [];\n"
-                + "\n"
-                + "      // Show the tooltip with the element details\n"
-                + "      // tooltip.innerHTML = `${tagName} <br> ${someText}`;\n"
-                + "      tooltip.innerHTML = `${tagName} <br> ${someText}`;\n"
-                + "      var tooltipWidth = tooltip.offsetWidth;\n"
-                + "      var tooltipHeight = tooltip.offsetHeight;\n"
-                + "      var left = event.pageX - tooltipWidth / 2;\n"
-                + "      var top = event.pageY - tooltipHeight / 2;\n"
-                + "\n"
-                + "      tooltip.style.left = left + \"px\";\n"
-                + "      tooltip.style.top = top + \"px\";\n"
-                + "      tooltip.style.display = \"block\";\n"
-                + "    }\n"
-                + "\n"
-                + "    // window.revertCloneInjections();\n"
-                + "\n"
-                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
-                + "    setTimeout(() => {\n"
-                + "      window.allElementInfo = [];\n"
-                + "      elementInfoMap.clear();\n"
-                + "      allElementInfo = [];\n"
-                + "\n"
-                + "      // if (tooltip) {\n"
-                + "      //   tooltip.remove(); // Completely remove the tooltip from the DOM\n"
-                + "      //   tooltip = null; // Clear the reference to free memory\n"
-                + "      //   console.log(\"Tooltip completely removed.\");\n"
-                + "      // }\n"
-                + "\n"
-                + "      // if (lastHoveredElement || elementBelowTooltip) {\n"
-                + "      //   // Remove highlight from the previous element if any\n"
-                + "      //   if (lastHoveredElement) {\n"
-                + "      //     lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
-                + "      //   }\n"
-                + "\n"
-                + "      //   // Remove highlight from the previous element if any\n"
-                + "      //   if (elementBelowTooltip) {\n"
-                + "      //     elementBelowTooltip.style.outline = \"\"; // Remove the previous highlight\n"
-                + "      //   }\n"
-                + "      // }\n"
-                + "    }, 1000);\n"
-                + "  }\n"
-                + "\n"
-                + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
-                + "  document.addEventListener(\"click\", handleMartiniClick);\n"
-                + "\n"
-                + "  window.revertCloneInjections = function () {\n"
-                + "    // alert(\"revertCloneInjections\");\n"
-                + "\n"
-                + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
-                + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
-                + "    console.log(\"revertCloneInjections\");\n"
-                + "\n"
-                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
-                + "    setTimeout(() => {\n"
-                + "      removeElements();\n"
-                + "    }, 1000);\n"
-                + "  };\n"
-                + "\n"
-                + "  function removeElements() {\n"
-                + "    if (tooltip) {\n"
-                + "      tooltip.remove(); // Completely remove the tooltip from the DOM\n"
-                + "      tooltip = null; // Clear the reference to free memory\n"
-                + "      console.log(\"Tooltip completely removed.\");\n"
-                + "    }\n"
-                + "  }\n"
-                + "\n"
-                + "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n"
-                + "\n"
-                + "  window.addEventListener(\"message\", function (event) {\n"
-                + "    if (event.origin !== trustedOriginURL) return; // check the origin\n"
-                + "    console.log(event.data);\n"
-                + "  });\n"
-                + "\n"
-                + "  if (targetOriginURL) {\n"
-                + "    console.log(\"targetOriginURL\", targetOriginURL);\n"
-                + "  }\n"
-                + "})(arguments[0], arguments[1]);\n"
-                + "// })(\"http://localhost:3000/\", \"http://localhost:3000/\");\n";
+    private void periodicPickOneCloneThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
 
-        //        String mainDomain = "";
-        //        try {
-        //            URL url = new URL(botJob.getHomeBanking().getUrl());
-        //            String host = url.getHost();
-        //
-        //            // Extract the main domain by removing subdomains (e.g., 'www')
-        //            String[] parts = host.split("\\.");
-        //            mainDomain = parts.length >= 2 ? parts[parts.length - 2] + "." + parts[parts.length - 1] : host;
-        //
-        //            System.out.println("Main domain: " + mainDomain);
-        //        } catch (MalformedURLException e) {
-        //            performMessage.errorMessage("Base URL missing", "Cannot find the Base URL", null, null, null, 0);
-        //        }
+        ErrorMessage errorMessage = performCloneLoad.dynamicPickOneCloneElementsDTO(
+                driver, currentUrl, dataArray, searchHiddenFields, port);
 
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(jsCode, currentUrl, currentUrl);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            performMessage.errorMessage("Base URL missing", "Cannot find the Base URL", null, null, null, 0);
+        if (errorMessage != null) {
+            String[] lines = errorMessage.getErrorMessage().split("\n");
+
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+                    null,
+                    0);
         }
-
-        // Start a thread to periodically check the XPath value and update the TextField
-        new Thread(() -> {
-                    while (periodicCloneActivated.get()) {
-
-                        // Execute JavaScript to construct and return a custom object
-                        LinkedHashMap<String, Object> linkedHashMap =
-                                (LinkedHashMap<String, Object>) jsExecutor.executeScript(
-                                        "var obj = { allElementInfo: window.allElementInfo }; return obj;");
-
-                        // Convert the LinkedHashMap to a Java Map (if necessary)
-                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
-
-                        if (linkedHashMap != null) {
-                            Platform.runLater(() -> {
-                                Object iframeElementsObject = resultMap.get("allElementInfo");
-
-                                if (iframeElementsObject instanceof List<?>) {
-                                    // Convert List to String[]
-                                    List<?> iframeElementsList = (List<?>) iframeElementsObject;
-                                    iFrameElements = iframeElementsList.toArray(new String[0]);
-                                } else if (iframeElementsObject instanceof Object[]) {
-                                    // If it's an array, check if it's an array of Strings
-                                    iFrameElements = Arrays.copyOf(
-                                            (Object[]) iframeElementsObject,
-                                            ((Object[]) iframeElementsObject).length,
-                                            String[].class);
-                                } else {
-                                    System.out.println("The iframeElements data is not a List or an array.");
-                                }
-
-                                if (iFrameElements != null && iFrameElements.length > 0) {
-
-                                    // Extract elements from input lines
-                                    elementsFound.clear();
-                                    elementsFound = performAction.extractElementData(iFrameElements);
-                                    iFrameElements = null;
-
-                                    Optional<ElementDTO> iframeElement = elementsFound.stream()
-                                            .filter(element ->
-                                                    "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
-                                            .findFirst();
-
-                                    if (iframeElement.isPresent()) {
-                                        if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
-                                            iFrameText.setText("iFrame Detected");
-                                            elementsFound = elementsFound.stream()
-                                                    .map(elementDTO -> {
-                                                        if ("iFrame-Child".equals(elementDTO.getTypeElement())) {
-                                                            elementDTO.setIFrameXPath(iframeElement
-                                                                    .get()
-                                                                    .getXPath());
-                                                        }
-                                                        return elementDTO;
-                                                    })
-                                                    .collect(Collectors.toList());
-                                        }
-                                    } else {
-                                        iFrameText.setText("");
-                                    }
-
-                                    checkTestAction.setSelected(false);
-                                    //                                    checkCloneElement.setSelected(false);
-                                    //                                    revertCloneButtons();
-
-                                    if (elementsFound.size() > 0) {
-                                        ElementDTO pickTarget = prefillDefinedName(elementsFound);
-
-                                        // Direct Insert to the Factory of Elements
-                                        if (iframeElement.isPresent()) {
-                                            boolean stopAll = insertNewElement(iframeElement.get(), elementsFound);
-                                            if (stopAll) {
-                                                iFrameText.setText("");
-                                                iFrameElements = new String[0];
-                                                elementsFound.clear();
-                                                periodicCloneActivated.set(false);
-                                            }
-                                        } else {
-
-                                            if (!Strings.isNullOrEmpty(pickTarget.getXPath())
-                                                    && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
-
-                                                TargetElement targetLocal = extractPickClone(pickTarget);
-
-                                                if (targetLocal.getNameField() != null
-                                                        && targetLocal.getNameLabel() != null) {
-                                                    boolean stopAll = insertNewElement(elementsFound);
-
-                                                    if (stopAll) {
-                                                        iFrameText.setText("");
-                                                        elementsFound.clear();
-                                                        iFrameElements = new String[0];
-                                                        periodicCloneActivated.set(false);
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        elementsFound.clear();
-                                        periodicCloneActivated.set(false);
-                                    }
-
-                                } else {
-                                    iFrameText.setText("");
-                                    elementsFound.clear();
-                                }
-                            });
-                        }
-                        try {
-                            Thread.sleep(300); // Check every 300 milliseconds
-                        } catch (InterruptedException e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .fine(String.format(
-                                            "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
-                        }
-                    }
-                })
-                .start();
     }
 
-    private void periodicPickThread(WebDriver driver, String currentUrl) {
-        // JavaScript code to inject
-        String jsCode = "(function (targetOriginURL, trustedOriginURL) {\n"
-                + "  var tooltip = document.createElement(\"div\");\n"
-                + "  tooltip.id = \"Martini-Is-Awesome\";\n"
-                + "  tooltip.style.position = \"absolute\";\n"
-                + "  // tooltip.style.backgroundColor = \"rgba(255, 165, 0, 0.5)\"; // Slightly opaque light orange\n"
-                + "  tooltip.style.backgroundColor = \"rgba(0, 0, 0, 0)\"; // Full transparency\n"
-                + "  tooltip.style.border = \"1px solid #ccc\";\n"
-                + "  tooltip.style.padding = \"10px\";\n"
-                + "  tooltip.style.borderRadius = \"5px\";\n"
-                + "  tooltip.style.boxShadow = \"0 2px 4px rgba(0, 0, 0, 0.2)\";\n"
-                + "  tooltip.style.fontFamily = \"Arial, sans-serif\";\n"
-                + "  tooltip.style.fontSize = \"14px\";\n"
-                + "  tooltip.style.color = \"#333\";\n"
-                + "  tooltip.style.zIndex = \"10000\"; // Higher z-index\n"
-                + "  tooltip.style.display = \"none\";\n"
-                + "  document.body.appendChild(tooltip);\n"
-                + "\n"
-                + "  var elementInfoMap = new Map();\n"
-                + "  var allElementInfo = [];\n"
-                + "\n"
-                + "  function getElementLocators(element) {\n"
-                + "    const locators = [];\n"
-                + "\n"
-                + "    if (element === document.body) {\n"
-                + "      locators.push(\"/html/\" + element.tagName.toLowerCase());\n"
-                + "      return locators;\n"
-                + "    }\n"
-                + "\n"
-                + "    const tagName = element.tagName.toLowerCase();\n"
-                + "    const id = element.id ? `#${element.id}` : \"\";\n"
-                + "    const className = (\n"
-                + "      typeof element.className === \"string\" ? element.className : \"\"\n"
-                + "    )\n"
-                + "      .split(\" \")\n"
-                + "      .filter((cls) => !/\\d/.test(cls))\n"
-                + "      .join(\".\");\n"
-                + "\n"
-                + "    if (id) {\n"
-                + "      locators.push(id);\n"
-                + "    }\n"
-                + "\n"
-                + "    if (className) {\n"
-                + "      locators.push(`//${tagName}[contains(@class, '${className}')]`);\n"
-                + "    }\n"
-                + "\n"
-                + "    // Check for other attributes (e.g., 'data-*' attributes)\n"
-                + "    const attributes = Array.from(element.attributes);\n"
-                + "    attributes.forEach((attr) => {\n"
-                + "      if (attr.name !== \"class\" && attr.name !== \"id\") {\n"
-                + "        // Exclude class and id\n"
-                + "        locators.push(`${tagName}[@${attr.name}=\"${attr.value}\"]`);\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Handle iframe elements\n"
-                + "    if (element.ownerDocument !== document) {\n"
-                + "      try {\n"
-                + "        const iframe = element.ownerDocument.defaultView.frameElement;\n"
-                + "        const iframeLocators = getElementLocators(iframe);\n"
-                + "        iframeLocators.forEach((iframePath) => {\n"
-                + "          locators.push(`${iframePath}//${tagName}`);\n"
-                + "        });\n"
-                + "      } catch (error) {\n"
-                + "        console.error(\"Error getting locators for iframe element:\", error);\n"
-                + "      }\n"
-                + "    } else {\n"
-                + "      // Handle regular elements\n"
-                + "      let ix = 0;\n"
-                + "      const siblings = element.parentNode.childNodes;\n"
-                + "\n"
-                + "      for (let i = 0; i < siblings.length; i++) {\n"
-                + "        const sibling = siblings[i];\n"
-                + "\n"
-                + "        if (sibling === element) {\n"
-                + "          const parentLocators = getElementLocators(element.parentNode);\n"
-                + "          parentLocators.forEach((parentPath) => {\n"
-                + "            locators.push(`${parentPath}/${tagName}[${ix + 1}]`);\n"
-                + "          });\n"
-                + "          break;\n"
-                + "        }\n"
-                + "\n"
-                + "        if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "          ix++;\n"
-                + "        }\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    return locators;\n"
-                + "  }\n"
-                + "  function getMartiniXPath(element) {\n"
-                + "    if (element === document.body) {\n"
-                + "      return \"/html/body\";\n"
-                + "    }\n"
-                + "    var ix = 0;\n"
-                + "    var siblings = element.parentNode ? element.parentNode.childNodes : [];\n"
-                + "    for (var i = 0; i < siblings.length; i++) {\n"
-                + "      var sibling = siblings[i];\n"
-                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "        if (sibling === element) {\n"
-                + "          return (\n"
-                + "            getMartiniXPath(element.parentNode) +\n"
-                + "            \"/\" +\n"
-                + "            element.tagName.toLowerCase() +\n"
-                + "            \"[\" +\n"
-                + "            (ix + 1) +\n"
-                + "            \"]\"\n"
-                + "          );\n"
-                + "        }\n"
-                + "        ix++;\n"
-                + "      }\n"
-                + "    }\n"
-                + "    return \"\";\n"
-                + "  }\n"
-                + "  function getMartiniCustomXPath(element) {\n"
-                + "    if (element === document.body) {\n"
-                + "      return \"/html/\" + element.tagName.toLowerCase();\n"
-                + "    }\n"
-                + "\n"
-                + "    // Ensure className is a string; otherwise, set it as an empty string\n"
-                + "    var className = (\n"
-                + "      typeof element.className === \"string\" ? element.className : \"\"\n"
-                + "    )\n"
-                + "      .split(\" \")\n"
-                + "      .filter(function (cls) {\n"
-                + "        return !/\\d/.test(cls);\n"
-                + "      })\n"
-                + "      .join(\".\");\n"
-                + "\n"
-                + "    var tagName = element.tagName.toLowerCase();\n"
-                + "    var ix = 0;\n"
-                + "    var siblings = element.parentNode.childNodes;\n"
-                + "\n"
-                + "    for (var i = 0; i < siblings.length; i++) {\n"
-                + "      var sibling = siblings[i];\n"
-                + "\n"
-                + "      if (sibling === element) {\n"
-                + "        var path = getMartiniCustomXPath(element.parentNode) + \"/\" + tagName;\n"
-                + "\n"
-                + "        if (className) {\n"
-                + "          path += '[contains(@class, \"' + className + '\")]';\n"
-                + "        } else {\n"
-                + "          path += \"[\" + (ix + 1) + \"]\";\n"
-                + "        }\n"
-                + "        return path;\n"
-                + "      }\n"
-                + "\n"
-                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "        ix++;\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    return \"\";\n"
-                + "  }\n"
-                + "\n"
-                + "  var lastHoveredIsIframe = null; // Keep track of the last hovered element type\n"
-                + "\n"
-                + "  let lastHoveredElement = null; // Keep track of the previously hovered element\n"
-                + "  // Declare global variables to store iframe details\n"
-                + "  var iframeDocument = null;\n"
-                + "  var iframeElementsCount = 0;\n"
-                + "\n"
-                + "  function showMartiniTooltip(event) {\n"
-                + "    var elementBelowTooltip = document.elementFromPoint(\n"
-                + "      event.clientX,\n"
-                + "      event.clientY\n"
-                + "    );\n"
-                + "\n"
-                + "    // Do nothing if the hovered element is the tooltip itself or an excluded tag (html, body, main)\n"
-                + "    if (\n"
-                + "      !elementBelowTooltip ||\n"
-                + "      elementBelowTooltip === tooltip ||\n"
-                + "      [\"html\", \"body\", \"main\"].includes(\n"
-                + "        elementBelowTooltip.tagName.toLowerCase()\n"
-                + "      )\n"
-                + "    ) {\n"
-                + "      return;\n"
-                + "    }\n"
-                + "\n"
-                + "    var isIframe = elementBelowTooltip.tagName.toLowerCase() === \"iframe\";\n"
-                + "\n"
-                + "    // Reset only if switching between iframe and non-iframe elements\n"
-                + "    if (lastHoveredIsIframe !== isIframe) {\n"
-                + "      console.clear();\n"
-                + "      elementInfoMap.clear();\n"
-                + "      allElementInfo = [];\n"
-                + "    }\n"
-                + "\n"
-                + "    lastHoveredIsIframe = isIframe; // Update last hovered element type\n"
-                + "\n"
-                + "    // Get the tag name of the element\n"
-                + "    var tagNameTemp = elementBelowTooltip.tagName.toLowerCase();\n"
-                + "\n"
-                + "    // // Get the text content of the element (if it has text)\n"
-                + "    // var someText = elementBelowTooltip.textContent.trim();\n"
-                + "    // if (someText === \"\") {\n"
-                + "    //   someText = \"No text content\";\n"
-                + "    // }\n"
-                + "\n"
-                + "    var someText = getSomeText(\n"
-                + "      elementBelowTooltip.tagName.toLowerCase(),\n"
-                + "      elementBelowTooltip\n"
-                + "    );\n"
-                + "\n"
-                + "    // If it's an iframe, get the number of elements inside the iframe\n"
-                + "    var iframeDetails = \"\";\n"
-                + "    if (isIframe) {\n"
-                + "      iframeDocument =\n"
-                + "        elementBelowTooltip.contentDocument ||\n"
-                + "        elementBelowTooltip.contentWindow.document;\n"
-                + "      iframeElementsCount = iframeDocument\n"
-                + "        ? iframeDocument.body.getElementsByTagName(\"*\").length\n"
-                + "        : 0;\n"
-                + "      iframeDetails = `Elements inside iframe: ${iframeElementsCount}`;\n"
-                + "    }\n"
-                + "\n"
-                + "    var elementXPath = getMartiniXPath(elementBelowTooltip);\n"
-                + "\n"
-                + "    // Store tagName and other details in the Map\n"
-                + "    if (iframeDetails && iframeDetails.length > 0) {\n"
-                + "      elementInfoMap.set(\n"
-                + "        elementXPath,\n"
-                + "        `xpath:${elementXPath};text:${someText};${iframeDetails};`\n"
-                + "      );\n"
-                + "    } else {\n"
-                + "      const {\n"
-                + "        xpath,\n"
-                + "        allAttributes,\n"
-                + "        customXPath,\n"
-                + "        attribId,\n"
-                + "        attribName,\n"
-                + "        coords,\n"
-                + "        someText,\n"
-                + "      } = getElementIdentity(elementBelowTooltip);\n"
-                + "\n"
-                + "      var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "      elementInfoMap.set(xpath, elementInfoString);\n"
-                + "    }\n"
-                + "\n"
-                + "    // Parse the someText using the semicolon delimiter\n"
-                + "    var parsedText = someText.split(\";\");\n"
-                + "\n"
-                + "    // Format the tooltip content to make it more readable\n"
-                + "    var tooltipContent = \"\";\n"
-                + "    tooltipContent += isIframe ? \"[Iframe] <br>\" : \"\";\n"
-                + "    tooltipContent += `Tag Name: ${tagNameTemp}<br>`;\n"
-                + "    tooltipContent += isIframe ? `- ${iframeDetails}<br>` : \"\";\n"
-                + "\n"
-                + "    // Replace new lines with <br> before adding each item from parsedText\n"
-                + "    tooltipContent += someText\n"
-                + "      ? parsedText.map((item) => `- ${item}<br>`).join(\"\")\n"
-                + "      : \"No Text<br>\";\n"
-                + "\n"
-                + "    // Set the tooltip content with line breaks\n"
-                + "    tooltip.innerHTML = tagNameTemp;\n"
-                + "\n"
-                + "    // Position the tooltip near the mouse cursor\n"
-                + "    var tooltipWidth = tooltip.offsetWidth;\n"
-                + "    var tooltipHeight = tooltip.offsetHeight;\n"
-                + "    var left = event.pageX - tooltipWidth / 2;\n"
-                + "    var top = event.pageY - tooltipHeight / 2;\n"
-                + "\n"
-                + "    tooltip.style.left = left + \"px\";\n"
-                + "    tooltip.style.top = top + \"px\";\n"
-                + "    tooltip.style.display = \"block\";\n"
-                + "\n"
-                + "    // Highlight the hovered element\n"
-                + "    if (lastHoveredElement !== elementBelowTooltip) {\n"
-                + "      // Remove highlight from the previous element if any\n"
-                + "      if (lastHoveredElement) {\n"
-                + "        lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
-                + "      }\n"
-                + "      // Add a border to highlight the current element\n"
-                + "      elementBelowTooltip.style.outline = \"3px solid red\"; // Highlight the element\n"
-                + "\n"
-                + "      lastHoveredElement = elementBelowTooltip; // Update the last hovered element\n"
-                + "    }\n"
-                + "\n"
-                + "    // console.log(\"Element Info:\", elementInfoMap);\n"
-                + "  }\n"
-                + "\n"
-                + "  function hideMartiniTooltip() {\n"
-                + "    tooltip.style.display = \"none\";\n"
-                + "  }\n"
-                + "\n"
-                + "  function handleMartiniClick(event) {\n"
-                + "    event.preventDefault();\n"
-                + "    event.stopPropagation();\n"
-                + "    tooltip.style.display = \"none\";\n"
-                + "\n"
-                + "    // Determine the element below the tooltip (mouse position)\n"
-                + "    var elementBelowTooltip = document.elementFromPoint(\n"
-                + "      event.clientX,\n"
-                + "      event.clientY\n"
-                + "    );\n"
-                + "\n"
-                + "    // Hide the tooltip\n"
-                + "    tooltip.style.display = \"none\";\n"
-                + "\n"
-                + "    // If the element below the tooltip is an iframe\n"
-                + "    if (\n"
-                + "      elementBelowTooltip &&\n"
-                + "      elementBelowTooltip.tagName.toLowerCase() === \"iframe\"\n"
-                + "    ) {\n"
-                + "      // Get the document inside the iframe\n"
-                + "      var iframeDocument =\n"
-                + "        elementBelowTooltip.contentDocument ||\n"
-                + "        elementBelowTooltip.contentWindow.document;\n"
-                + "\n"
-                + "      // If the iframe document is valid\n"
-                + "      if (iframeDocument) {\n"
-                + "        // Format the iframe details\n"
-                + "        var iframeDetails = `Elements inside iframe: ${\n"
-                + "          iframeDocument.body.getElementsByTagName(\"*\").length\n"
-                + "        }`;\n"
-                + "\n"
-                + "        // Display the tooltip with iframe details\n"
-                + "        tooltip.innerHTML = `[Iframe] <br> ${iframeDetails}`;\n"
-                + "\n"
-                + "        // Position the tooltip near the mouse cursor\n"
-                + "        var tooltipWidth = tooltip.offsetWidth;\n"
-                + "        var tooltipHeight = tooltip.offsetHeight;\n"
-                + "        var left = event.pageX - tooltipWidth / 2;\n"
-                + "        var top = event.pageY - tooltipHeight / 2;\n"
-                + "\n"
-                + "        tooltip.style.left = left + \"px\";\n"
-                + "        tooltip.style.top = top + \"px\";\n"
-                + "        tooltip.style.display = \"block\";\n"
-                + "\n"
-                + "        // Initialize an array to store the iframe element information\n"
-                + "        allElementInfo = [];\n"
-                + "\n"
-                + "        const {\n"
-                + "          xpath,\n"
-                + "          allAttributes,\n"
-                + "          customXPath,\n"
-                + "          attribId,\n"
-                + "          attribName,\n"
-                + "          coords,\n"
-                + "          someText,\n"
-                + "        } = getElementIdentity(elementBelowTooltip);\n"
-                + "\n"
-                + "        var elementInfoString = `${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "        allElementInfo.push(`clicked-iFrame:${elementInfoString};`);\n"
-                + "\n"
-                + "        // limitMapCharacters(elementInfoMap, \"clicked-tagName\");\n"
-                + "\n"
-                + "        // Get all elements inside the iframe and log their details\n"
-                + "        var iframeElements = iframeDocument.querySelectorAll(\"*\");\n"
-                + "        iframeElements.forEach(function (elementInsideIframe) {\n"
-                + "          const {\n"
-                + "            xpath,\n"
-                + "            allAttributes,\n"
-                + "            customXPath,\n"
-                + "            attribId,\n"
-                + "            attribName,\n"
-                + "            coords,\n"
-                + "            someText,\n"
-                + "          } = getElementIdentity(elementInsideIframe);\n"
-                + "\n"
-                + "          var elementInfoString = `iFrame-Child:${elementInsideIframe.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "          allElementInfo.push(elementInfoString);\n"
-                + "        });\n"
-                + "\n"
-                + "        // Log the list of iframe elements\n"
-                + "        console.log(\"List of iframe elements:\", allElementInfo);\n"
-                + "        window.allElementInfo = allElementInfo;\n"
-                + "      } else {\n"
-                + "        tooltip.innerHTML = \"No iframe document found.\";\n"
-                + "\n"
-                + "        // Position the tooltip near the mouse cursor\n"
-                + "        var tooltipWidth = tooltip.offsetWidth;\n"
-                + "        var tooltipHeight = tooltip.offsetHeight;\n"
-                + "        var left = event.pageX - tooltipWidth / 2;\n"
-                + "        var top = event.pageY - tooltipHeight / 2;\n"
-                + "\n"
-                + "        tooltip.style.left = left + \"px\";\n"
-                + "        tooltip.style.top = top + \"px\";\n"
-                + "        tooltip.style.display = \"block\";\n"
-                + "      }\n"
-                + "    } else {\n"
-                + "      // If the clicked element is not an iframe, gather its regular information\n"
-                + "      var tagName = elementBelowTooltip.tagName.toLowerCase();\n"
-                + "\n"
-                + "      // Avoid main, body, and html tags\n"
-                + "      if ([\"html\", \"body\", \"main\"].includes(tagName)) {\n"
-                + "        return; // Don't proceed if it's one of these elements\n"
-                + "      }\n"
-                + "\n"
-                + "      // Format and push regular element information to the array\n"
-                + "      limitMapCharacters(elementInfoMap, \"tagName-found\");\n"
-                + "\n"
-                + "      const {\n"
-                + "        xpath,\n"
-                + "        allAttributes,\n"
-                + "        customXPath,\n"
-                + "        attribId,\n"
-                + "        attribName,\n"
-                + "        coords,\n"
-                + "        someText,\n"
-                + "      } = getElementIdentity(elementBelowTooltip);\n"
-                + "\n"
-                + "      var elementInfoString = `clicked:${elementBelowTooltip.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "      allElementInfo.push(elementInfoString);\n"
-                + "\n"
-                + "      console.log(\"List of elements:\", allElementInfo);\n"
-                + "      window.allElementInfo = allElementInfo;\n"
-                + "\n"
-                + "      // Show the tooltip with the element details\n"
-                + "      // tooltip.innerHTML = `${tagName} <br> ${someText}`;\n"
-                + "      tooltip.innerHTML = `${tagName} <br> ${someText}`;\n"
-                + "      var tooltipWidth = tooltip.offsetWidth;\n"
-                + "      var tooltipHeight = tooltip.offsetHeight;\n"
-                + "      var left = event.pageX - tooltipWidth / 2;\n"
-                + "      var top = event.pageY - tooltipHeight / 2;\n"
-                + "\n"
-                + "      tooltip.style.left = left + \"px\";\n"
-                + "      tooltip.style.top = top + \"px\";\n"
-                + "      tooltip.style.display = \"block\";\n"
-                + "    }\n"
-                + "\n"
-                + "    window.revertPickInjections();\n"
-                + "\n"
-                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
-                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
-                + "    setTimeout(() => {\n"
-                + "      if (tooltip) {\n"
-                + "        tooltip.remove(); // Completely remove the tooltip from the DOM\n"
-                + "        tooltip = null; // Clear the reference to free memory\n"
-                + "        console.log(\"Tooltip completely removed.\");\n"
-                + "      }\n"
-                + "\n"
-                + "      if (lastHoveredElement || elementBelowTooltip) {\n"
-                + "        // Remove highlight from the previous element if any\n"
-                + "        if (lastHoveredElement) {\n"
-                + "          lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
-                + "        }\n"
-                + "\n"
-                + "        // Remove highlight from the previous element if any\n"
-                + "        if (elementBelowTooltip) {\n"
-                + "          elementBelowTooltip.style.outline = \"\"; // Remove the previous highlight\n"
-                + "        }\n"
-                + "      }\n"
-                + "    }, 3000);\n"
-                + "  }\n"
-                + "\n"
-                + "  function getElementAttributes(element) {\n"
-                + "    const attributes = [];\n"
-                + "\n"
-                + "    try {\n"
-                + "      for (const attr of element.attributes) {\n"
-                + "        attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
-                + "      }\n"
-                + "    } catch (error) {\n"
-                + "      // If accessing attributes directly fails (likely due to cross-origin restrictions)\n"
-                + "      // Attempt to get attributes using JavaScript execution within the iframe's context\n"
-                + "      const iframe = element.ownerDocument.defaultView.frameElement;\n"
-                + "      if (iframe) {\n"
-                + "        const iframeWindow = iframe.contentWindow;\n"
-                + "        iframeWindow.document.addEventListener(\"DOMContentLoaded\", () => {\n"
-                + "          const iframeElement = iframeWindow.document.querySelector(\n"
-                + "            `#${element.id}`\n"
-                + "          ); // Adjust selector as needed\n"
-                + "          if (iframeElement) {\n"
-                + "            for (const attr of iframeElement.attributes) {\n"
-                + "              attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
-                + "            }\n"
-                + "          }\n"
-                + "        });\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    return attributes;\n"
-                + "  }\n"
-                + "\n"
-                + "  function getElementIdentity(element) {\n"
-                + "    var xpath = getMartiniXPath(element);\n"
-                + "    var allAttributes = \"\";\n"
-                + "    try {\n"
-                + "      // console.log(\"element\", element);\n"
-                + "      allAttributes = getElementAttributes(element);\n"
-                + "    } catch (error) {}\n"
-                + "    var customXPath = \"\";\n"
-                + "    try {\n"
-                + "      customXPath = getElementLocators(element);\n"
-                + "    } catch (error) {}\n"
-                + "\n"
-                + "    var attribId = element.id || \"\";\n"
-                + "    var attribName = element.name || \"\";\n"
-                + "    var coords = element.getBoundingClientRect();\n"
-                + "    coords = `${coords.left},${coords.top}`;\n"
-                + "\n"
-                + "    var someText = element.textContent.trim() || \"\";\n"
-                + "    if (\n"
-                + "      element.tagName.toLowerCase() === \"input\" ||\n"
-                + "      element.tagName.toLowerCase() === \"textarea\"\n"
-                + "    ) {\n"
-                + "      someText = element.value || \"\";\n"
-                + "    }\n"
-                + "\n"
-                + "    var someText = getSomeText(element.tagName.toLowerCase(), element);\n"
-                + "\n"
-                + "    return {\n"
-                + "      xpath,\n"
-                + "      allAttributes,\n"
-                + "      customXPath,\n"
-                + "      attribId,\n"
-                + "      attribName,\n"
-                + "      coords,\n"
-                + "      someText,\n"
-                + "    };\n"
-                + "  }\n"
-                + "\n"
-                + "  function limitMapCharacters(elementInfoMap, coordText) {\n"
-                + "    elementInfoMap.forEach((value, key) => {\n"
-                + "      let modifiedValue = value;\n"
-                + "\n"
-                + "      // TO DO  REDUCE ONLY THE TEXT FIELD\n"
-                + "\n"
-                + "      // // Check if the key is \"html\" or value length is greater than 400\n"
-                + "      // if (key === \"html\" || value.length > 400) {\n"
-                + "      //   // Truncate the value to 150 characters and add \"...\"\n"
-                + "      //   if (value.length > 150) {\n"
-                + "      //     modifiedValue = value.substring(0, 150) + \"...\";\n"
-                + "      //   }\n"
-                + "\n"
-                + "      //   // If the length exceeds 400 characters, break the value into multiple lines\n"
-                + "      //   if (value.length > 400) {\n"
-                + "      //     const firstPart = value.substring(0, 150);\n"
-                + "      //     const secondPart = value.substring(150);\n"
-                + "      //     modifiedValue = `${firstPart}<br>...${secondPart}`;\n"
-                + "      //   }\n"
-                + "      // }\n"
-                + "\n"
-                + "      // Push the formatted value and key to the array\n"
-                + "      allElementInfo.push(`${coordText}:${modifiedValue}`);\n"
-                + "    });\n"
-                + "  }\n"
-                + "\n"
-                + "  function getSomeText(tagName, element) {\n"
-                + "    let someText = \"\";\n"
-                + "\n"
-                + "    if ([\"input\", \"textarea\", \"select\", \"button\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    } else if ([\"option\", \"label\", \"a\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    } else if (![\"html\", \"body\", \"script\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    }\n"
-                + "\n"
-                + "    someText = someText\n"
-                + "      .split(\";\")\n"
-                + "      .map((text) => text.trim())\n"
-                + "      .filter(Boolean)\n"
-                + "      .join(\";\"); // Clean up sequential text\n"
-                + "\n"
-                + "    return someText;\n"
-                + "  }\n"
-                + "\n"
-                + "  function extractTextFromHTML(element) {\n"
-                + "    const result = {\n"
-                + "      text: new Set(), // Using Set to avoid duplicate text\n"
-                + "      labels: new Set(), // Using Set to avoid duplicate labels\n"
-                + "      titles: new Set(), // Using Set to avoid duplicate titles\n"
-                + "    };\n"
-                + "\n"
-                + "    // Extract text content directly from the element (in case it has no children)\n"
-                + "    if (element.textContent) {\n"
-                + "      let elementText = element.textContent.trim();\n"
-                + "      if (elementText) {\n"
-                + "        result.text.add(elementText); // Using .add() instead of .push() for Set\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    // Extract label text from input placeholders and other form-related data\n"
-                + "    element.querySelectorAll(\"label\").forEach((label) => {\n"
-                + "      if (label.textContent) {\n"
-                + "        let labelText = label.textContent.trim();\n"
-                + "        if (labelText) {\n"
-                + "          result.labels.add(labelText); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "\n"
-                + "      // Handle associated input fields (if the label has a 'for' attribute)\n"
-                + "      let forAttribute = label.getAttribute(\"for\");\n"
-                + "      if (forAttribute) {\n"
-                + "        let associatedInput = element.querySelector(`#${forAttribute}`);\n"
-                + "        if (associatedInput) {\n"
-                + "          // Check if it's an input field or textarea and extract value or placeholder\n"
-                + "          let inputValue = associatedInput.value?.trim();\n"
-                + "          let inputPlaceholder = associatedInput.placeholder?.trim();\n"
-                + "          if (inputValue) {\n"
-                + "            result.text.add(inputValue); // Using .add() for Set to ensure uniqueness\n"
-                + "          } else if (inputPlaceholder) {\n"
-                + "            result.text.add(inputPlaceholder); // Fallback to placeholder\n"
-                + "          }\n"
-                + "        }\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract text from common block and inline elements\n"
-                + "    const textExtractors = [\n"
-                + "      \"p\",\n"
-                + "      \"h1\",\n"
-                + "      \"h2\",\n"
-                + "      \"h3\",\n"
-                + "      \"h4\",\n"
-                + "      \"h5\",\n"
-                + "      \"h6\",\n"
-                + "      \"li\",\n"
-                + "      \"span\",\n"
-                + "      \"div\",\n"
-                + "      \"strong\",\n"
-                + "      \"em\",\n"
-                + "      \"b\",\n"
-                + "      \"i\",\n"
-                + "      \"blockquote\",\n"
-                + "    ];\n"
-                + "\n"
-                + "    textExtractors.forEach((tagName) => {\n"
-                + "      element.querySelectorAll(tagName).forEach((childElement) => {\n"
-                + "        if (childElement.textContent) {\n"
-                + "          let elemText = childElement.textContent.trim();\n"
-                + "          if (elemText) {\n"
-                + "            result.text.add(elemText); // Using .add() for Set to ensure uniqueness\n"
-                + "          }\n"
-                + "        }\n"
-                + "      });\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract text from <a> tags (links)\n"
-                + "    element.querySelectorAll(\"a\").forEach((link) => {\n"
-                + "      if (link.textContent) {\n"
-                + "        let linkText = link.textContent.trim();\n"
-                + "        if (linkText) {\n"
-                + "          result.text.add(linkText); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract iframe titles and nested content\n"
-                + "    element.querySelectorAll(\"iframe\").forEach((iframe) => {\n"
-                + "      if (iframe.getAttribute(\"title\")) {\n"
-                + "        let title = iframe.getAttribute(\"title\")?.trim();\n"
-                + "        if (title) {\n"
-                + "          result.titles.add(title); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "\n"
-                + "      try {\n"
-                + "        let iframeDoc =\n"
-                + "          iframe.contentDocument ||\n"
-                + "          new DOMParser().parseFromString(iframe.srcdoc || \"\", \"text/html\");\n"
-                + "        let iframeContent = extractTextFromHTML(iframeDoc); // Here we assume iframeDoc is an element.\n"
-                + "        iframeContent.titles.forEach((title) => result.titles.add(title));\n"
-                + "        iframeContent.text.forEach((text) => result.text.add(text));\n"
-                + "        iframeContent.labels.forEach((label) => result.labels.add(label));\n"
-                + "      } catch (e) {\n"
-                + "        console.warn(\"Could not access iframe content\", e);\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Convert Sets to arrays before returning to maintain previous structure\n"
-                + "    return {\n"
-                + "      text: Array.from(result.text),\n"
-                + "      labels: Array.from(result.labels),\n"
-                + "      titles: Array.from(result.titles),\n"
-                + "    };\n"
-                + "  }\n"
-                + "\n"
-                + "  function cleanOldValues() {\n"
-                + "    window.allElementInfo = [];\n"
-                + "  }\n"
-                + "\n"
-                + "  cleanOldValues();\n"
-                + "\n"
-                + "  window.revertPickInjections = function () {\n"
-                + "    // alert(\"revertPickInjections\");\n"
-                + "\n"
-                + "    document.removeEventListener(\"mouseover\", showMartiniTooltip);\n"
-                + "    document.removeEventListener(\"click\", handleMartiniClick);\n"
-                + "    console.log(\"revertPickInjections\");\n"
-                + "\n"
-                + "    // Remove the tooltip from the page and delete the reference after 5 seconds\n"
-                + "    setTimeout(() => {\n"
-                + "      removeElements();\n"
-                + "      window.allElementInfo = [];\n"
-                + "    }, 1000);\n"
-                + "  };\n"
-                + "\n"
-                + "  function removeElements() {\n"
-                + "    // Remove highlight from the previous element if any\n"
-                + "    if (lastHoveredElement) {\n"
-                + "      lastHoveredElement.style.outline = \"\"; // Remove the previous highlight\n"
-                + "    }\n"
-                + "\n"
-                + "    if (tooltip) {\n"
-                + "      tooltip.remove(); // Completely remove the tooltip from the DOM\n"
-                + "      tooltip = null; // Clear the reference to free memory\n"
-                + "      console.log(\"Tooltip completely removed.\");\n"
-                + "    }\n"
-                + "  }\n"
-                + "\n"
-                + "  document.addEventListener(\"mouseover\", showMartiniTooltip);\n"
-                + "  //                document.addEventListener('mouseout', hideMartiniTooltip);\n"
-                + "  document.addEventListener(\"click\", handleMartiniClick);\n"
-                + "\n"
-                + "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n"
-                + "\n"
-                + "  window.addEventListener(\"message\", function (event) {\n"
-                + "    if (event.origin !== trustedOriginURL) return; // check the origin\n"
-                + "    console.log(event.data);\n"
-                + "  });\n"
-                + "  if (targetOriginURL) {\n"
-                + "    console.log(\"targetOriginURL\", targetOriginURL);\n"
-                + "  }\n"
-                + "})(arguments[0], arguments[1]);\n"
-                + "// })(\"http://localhost:3000/\", \"http://localhost:3000/\");\n";
-
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(jsCode, currentUrl, currentUrl);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+    public static String truncate(String someText, int limit) {
+        if (someText == null || someText.isEmpty()) {
+            return someText;
         }
 
-        // Start a thread to periodically check the XPath value and update the TextField
-        new Thread(() -> {
-                    while (periodicPickActivated.get()) {
+        if (someText.length() <= limit) {
+            return someText;
+        }
 
-                        // Execute JavaScript to construct and return a custom object
-                        LinkedHashMap<String, Object> linkedHashMap =
-                                (LinkedHashMap<String, Object>) jsExecutor.executeScript(
-                                        "var obj = { allElementInfo: window.allElementInfo }; return obj;");
-
-                        // Convert the LinkedHashMap to a Java Map (if necessary)
-                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
-
-                        if (linkedHashMap != null) {
-                            Platform.runLater(() -> {
-                                Object iframeElementsObject = resultMap.get("allElementInfo");
-
-                                if (iframeElementsObject instanceof List<?>) {
-                                    // Convert List to String[]
-                                    List<?> iframeElementsList = (List<?>) iframeElementsObject;
-                                    iFrameElements = iframeElementsList.toArray(new String[0]);
-                                } else if (iframeElementsObject instanceof Object[]) {
-                                    // If it's an array, check if it's an array of Strings
-                                    iFrameElements = Arrays.copyOf(
-                                            (Object[]) iframeElementsObject,
-                                            ((Object[]) iframeElementsObject).length,
-                                            String[].class);
-                                } else {
-                                    System.out.println("The iframeElements data is not a List or an array.");
-                                }
-
-                                if (iFrameElements != null && iFrameElements.length > 0) {
-
-                                    // Extract elements from input lines
-                                    elementsFound.clear();
-                                    elementsFound = performAction.extractElementData(iFrameElements);
-                                    iFrameElements = null;
-
-                                    Optional<ElementDTO> iframeElement = elementsFound.stream()
-                                            .filter(element ->
-                                                    "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
-                                            .findFirst();
-
-                                    if (iframeElement.isPresent()) {
-                                        if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
-                                            iFrameText.setText("iFrame Detected");
-                                            elementsFound = elementsFound.stream()
-                                                    .map(elementDTO -> {
-                                                        if ("iFrame-Child".equals(elementDTO.getTypeElement())) {
-                                                            elementDTO.setIFrameXPath(iframeElement
-                                                                    .get()
-                                                                    .getXPath());
-                                                        }
-                                                        return elementDTO;
-                                                    })
-                                                    .collect(Collectors.toList());
-                                        }
-                                    } else {
-                                        iFrameText.setText("");
-                                    }
-
-                                    checkTestAction.setSelected(false);
-                                    checkPickElement.setSelected(false);
-                                    revertPickButtons();
-
-                                    if (elementsFound.size() > 0) {
-                                        ElementDTO pickTarget = prefillDefinedName(elementsFound);
-
-                                        // Direct Insert to the Factory of Elements
-                                        if (iframeElement.isPresent()) {
-                                            insertNewElement(iframeElement.get(), elementsFound);
-                                        } else {
-
-                                            if (!Strings.isNullOrEmpty(pickTarget.getXPath())
-                                                    && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
-
-                                                TargetElement targetLocal = extractPickClone(pickTarget);
-
-                                                if (targetLocal.getNameField() != null
-                                                        && targetLocal.getNameLabel() != null) {
-                                                    insertNewElement(elementsFound);
-                                                }
-                                            }
-                                        }
-
-                                        elementsFound.clear();
-                                        periodicPickActivated.set(false);
-                                    }
-
-                                } else {
-                                    iFrameText.setText("");
-                                    elementsFound.clear();
-                                }
-                            });
-                        }
-                        try {
-                            Thread.sleep(300); // Check every 300 milliseconds
-                        } catch (InterruptedException e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .fine(String.format(
-                                            "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
-                        }
-                    }
-                })
-                .start();
+        return someText.substring(0, limit) + "...";
     }
 
-    private void periodicSearchThread(WebDriver driver, String currentUrl, String[] dataArray) {
-        // JavaScript code to inject
-        String jsCode = "(function (targetOriginURL, trustedOriginURL, searchTerms, hiddenFields) {\n"
-                + "  var elementInfoMap = new Map();\n"
-                + "  // var elementInfoSubmit = new Map();\n"
-                + "  let elementsTagName = [];\n"
-                + "  let elementsSelector = [];\n"
-                + "  let allElementsPage = [];\n"
-                + "\n"
-                + "  function handleSearchTermsMartini(searchTerms) {\n"
-                + "    // Create a Map to store element info with XPath as the key\n"
-                + "    var elementInfoMap = new Map();\n"
-                + "\n"
-                + "    const foundTerm = searchTerms.find((term) => term.includes(\"allWithText\"));\n"
-                + "\n"
-                + "    if (foundTerm) {\n"
-                + "      // Search All with Output texts\n"
-                + "\n"
-                + "      // Collect elements based on search terms\n"
-                + "      searchTerms.forEach((attribute) => {\n"
-                + "        allElementsPage.push(...Array.from(document.querySelectorAll(\"*\")));\n"
-                + "      });\n"
-                + "\n"
-                + "      allElementsPage.forEach((node) => {\n"
-                + "        // Avoid processing main, body, and html tags\n"
-                + "        if (\n"
-                + "          [\"html\", \"body\", \"main\", \"script\", \"meta\", \"head\", \"style\"].includes(\n"
-                + "            node.tagName.toLowerCase()\n"
-                + "          )\n"
-                + "        ) {\n"
-                + "          return;\n"
-                + "        }\n"
-                + "\n"
-                + "        // Check if the element is an iframe\n"
-                + "        if (node.tagName.toLowerCase() === \"iframe\") {\n"
-                + "          try {\n"
-                + "            // Access the iframe's contentDocument\n"
-                + "            const iframeDocument =\n"
-                + "              node.contentDocument || node.contentWindow.document;\n"
-                + "\n"
-                + "            // If iframe's contentDocument is accessible, process its elements\n"
-                + "            if (iframeDocument) {\n"
-                + "              console.log(`Processing iframe: ${node.src}`);\n"
-                + "              handleSearchTermsMartiniInIframe(\n"
-                + "                iframeDocument,\n"
-                + "                searchTerms,\n"
-                + "                elementInfoMap\n"
-                + "              );\n"
-                + "            }\n"
-                + "          } catch (e) {\n"
-                + "            console.error(\"Error accessing iframe content:\", e);\n"
-                + "          }\n"
-                + "          return;\n"
-                + "        }\n"
-                + "\n"
-                + "        const elementIdentity = getElementIdentity(node);\n"
-                + "        if (elementIdentity) {\n"
-                + "          // Only add if not null\n"
-                + "          const {\n"
-                + "            xpath,\n"
-                + "            allAttributes,\n"
-                + "            customXPath,\n"
-                + "            attribId,\n"
-                + "            attribName,\n"
-                + "            coords,\n"
-                + "            someText,\n"
-                + "          } = elementIdentity;\n"
-                + "\n"
-                + "          if (someText && someText.length > 0) {\n"
-                + "            // Construct the element info string\n"
-                + "            var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "            // highlightElementsSequentially(elementsToProcess);\n"
-                + "            // Store the element information in the Map with XPath as the key\n"
-                + "            if (!elementInfoMap.has(xpath)) {\n"
-                + "              elementInfoMap.set(xpath, elementInfoString);\n"
-                + "            }\n"
-                + "          }\n"
-                + "        }\n"
-                + "      });\n"
-                + "    } else {\n"
-                + "      // Regular Search\n"
-                + "\n"
-                + "      // Collect elements based on search terms\n"
-                + "      searchTerms.forEach((attribute) => {\n"
-                + "        elementsTagName.push(\n"
-                + "          ...Array.from(document.getElementsByTagName(attribute))\n"
-                + "        );\n"
-                + "      });\n"
-                + "\n"
-                + "      searchTerms.forEach((attribute) => {\n"
-                + "        elementsSelector.push(\n"
-                + "          ...Array.from(document.querySelectorAll(\"[\" + attribute + \"]\"))\n"
-                + "        );\n"
-                + "      });\n"
-                + "\n"
-                + "      elementsTagName.forEach((node) => {\n"
-                + "        // Avoid processing main, body, and html tags\n"
-                + "        if (\n"
-                + "          [\"html\", \"body\", \"main\", \"script\", \"meta\", \"head\", \"style\"].includes(\n"
-                + "            node.tagName.toLowerCase()\n"
-                + "          )\n"
-                + "        ) {\n"
-                + "          return;\n"
-                + "        }\n"
-                + "\n"
-                + "        // Check if the element is an iframe\n"
-                + "        if (node.tagName.toLowerCase() === \"iframe\") {\n"
-                + "          try {\n"
-                + "            // Access the iframe's contentDocument\n"
-                + "            const iframeDocument =\n"
-                + "              node.contentDocument || node.contentWindow.document;\n"
-                + "\n"
-                + "            // If iframe's contentDocument is accessible, process its elements\n"
-                + "            if (iframeDocument) {\n"
-                + "              console.log(`Processing iframe: ${node.src}`);\n"
-                + "              handleSearchTermsMartiniInIframe(\n"
-                + "                iframeDocument,\n"
-                + "                searchTerms,\n"
-                + "                elementInfoMap\n"
-                + "              );\n"
-                + "            }\n"
-                + "          } catch (e) {\n"
-                + "            console.error(\"Error accessing iframe content:\", e);\n"
-                + "          }\n"
-                + "          return;\n"
-                + "        }\n"
-                + "\n"
-                + "        const elementIdentity = getElementIdentity(node);\n"
-                + "        if (elementIdentity) {\n"
-                + "          // Only add if not null\n"
-                + "          const {\n"
-                + "            xpath,\n"
-                + "            allAttributes,\n"
-                + "            customXPath,\n"
-                + "            attribId,\n"
-                + "            attribName,\n"
-                + "            coords,\n"
-                + "            someText,\n"
-                + "          } = elementIdentity;\n"
-                + "\n"
-                + "          // Construct the element info string\n"
-                + "          var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "          // highlightElementsSequentially(elementsToProcess);\n"
-                + "          // Store the element information in the Map with XPath as the key\n"
-                + "          if (!elementInfoMap.has(xpath)) {\n"
-                + "            elementInfoMap.set(xpath, elementInfoString);\n"
-                + "          }\n"
-                + "        }\n"
-                + "      });\n"
-                + "\n"
-                + "      // Process each element in the main document\n"
-                + "      elementsSelector.forEach((node) => {\n"
-                + "        // Avoid processing main, body, and html tags\n"
-                + "        if (\n"
-                + "          [\"html\", \"body\", \"main\", \"script\", \"meta\", \"head\", \"style\"].includes(\n"
-                + "            node.tagName.toLowerCase()\n"
-                + "          )\n"
-                + "        ) {\n"
-                + "          return;\n"
-                + "        }\n"
-                + "\n"
-                + "        // Check if the element is an iframe\n"
-                + "        if (node.tagName.toLowerCase() === \"iframe\") {\n"
-                + "          try {\n"
-                + "            // Access the iframe's contentDocument\n"
-                + "            const iframeDocument =\n"
-                + "              node.contentDocument || node.contentWindow.document;\n"
-                + "\n"
-                + "            // If iframe's contentDocument is accessible, process its elements\n"
-                + "            if (iframeDocument) {\n"
-                + "              console.log(`Processing iframe: ${node.src}`);\n"
-                + "              handleSearchTermsMartiniInIframe(\n"
-                + "                iframeDocument,\n"
-                + "                searchTerms,\n"
-                + "                elementInfoMap\n"
-                + "              );\n"
-                + "            }\n"
-                + "          } catch (e) {\n"
-                + "            console.error(\"Error accessing iframe content:\", e);\n"
-                + "          }\n"
-                + "          return;\n"
-                + "        }\n"
-                + "\n"
-                + "        const elementIdentity = getElementIdentity(node);\n"
-                + "        if (elementIdentity) {\n"
-                + "          // Only add if not null\n"
-                + "          const {\n"
-                + "            xpath,\n"
-                + "            allAttributes,\n"
-                + "            customXPath,\n"
-                + "            attribId,\n"
-                + "            attribName,\n"
-                + "            coords,\n"
-                + "            someText,\n"
-                + "          } = elementIdentity;\n"
-                + "\n"
-                + "          // Construct the element info string\n"
-                + "          var elementInfoString = `${node.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "          // highlightElementsSequentially(elementsToProcess);\n"
-                + "          // Store the element information in the Map with XPath as the key\n"
-                + "          if (!elementInfoMap.has(xpath)) {\n"
-                + "            elementInfoMap.set(xpath, elementInfoString);\n"
-                + "          }\n"
-                + "        }\n"
-                + "      });\n"
-                + "    }\n"
-                + "\n"
-                + "    limitMapCharacters(elementInfoMap, \"tagName-found\");\n"
-                + "\n"
-                + "    // if (elementInfoSubmit && elementInfoSubmit.length > 0) {\n"
-                + "    //   limitMapCharacters(elementInfoSubmit, \"submit-found\");\n"
-                + "    // }\n"
-                + "    // window.allElementInfo = elementInfoMap; // Save to global for further use\n"
-                + "    // Optionally, log the entire Map of element information\n"
-                + "    console.log(\"All element info stored in Map:\", window.allElementInfo);\n"
-                + "    return window.allElementInfo;\n"
-                + "  }\n"
-                + "\n"
-                + "  // Helper function to handle elements inside an iframe\n"
-                + "  function handleSearchTermsMartiniInIframe(\n"
-                + "    iframeDocument,\n"
-                + "    searchTerms,\n"
-                + "    elementInfoMap\n"
-                + "  ) {\n"
-                + "    let iframeElementsToProcess = [];\n"
-                + "\n"
-                + "    // Collect elements inside the iframe based on search terms\n"
-                + "    searchTerms.forEach((attribute) => {\n"
-                + "      iframeElementsToProcess.push(\n"
-                + "        ...Array.from(iframeDocument.querySelectorAll(\"[\" + attribute + \"]\"))\n"
-                + "      );\n"
-                + "    });\n"
-                + "\n"
-                + "    // Process each element inside the iframe\n"
-                + "    iframeElementsToProcess.forEach((element) => {\n"
-                + "      // Avoid processing main, body, and html tags\n"
-                + "      if ([\"html\", \"body\", \"main\"].includes(element.tagName.toLowerCase())) {\n"
-                + "        return;\n"
-                + "      }\n"
-                + "\n"
-                + "      const elementIdentity = getElementIdentity(node);\n"
-                + "      if (elementIdentity) {\n"
-                + "        // Only add if not null\n"
-                + "        const {\n"
-                + "          xpath,\n"
-                + "          allAttributes,\n"
-                + "          customXPath,\n"
-                + "          attribId,\n"
-                + "          attribName,\n"
-                + "          coords,\n"
-                + "          someText,\n"
-                + "        } = elementIdentity;\n"
-                + "\n"
-                + "        let elementInfoString = `found:${element.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "        if (!elementInfoMap.has(xpath)) {\n"
-                + "          elementInfoMap.set(xpath, elementInfoString);\n"
-                + "        }\n"
-                + "      }\n"
-                + "    });\n"
-                + "  }\n"
-                + "\n"
-                + "  function highlightElementsSequentially(elements) {\n"
-                + "    let previousElement = null; // Variable to store the previously highlighted element\n"
-                + "    let index = 0;\n"
-                + "\n"
-                + "    // Function to change background color to red\n"
-                + "    function changeBackgroundColor() {\n"
-                + "      if (index >= elements.length) {\n"
-                + "        // Stop if we've reached the end of the elements\n"
-                + "        return;\n"
-                + "      }\n"
-                + "\n"
-                + "      // Get the current element\n"
-                + "      const currentElement = elements[index];\n"
-                + "\n"
-                + "      // Log current element\n"
-                + "      console.log(\"Highlighting element:\", currentElement);\n"
-                + "\n"
-                + "      // If there is a previously highlighted element, reset its background color\n"
-                + "      if (previousElement) {\n"
-                + "        previousElement.style.backgroundColor = \"\"; // Reset background color\n"
-                + "      }\n"
-                + "\n"
-                + "      // Change the background color of the current element\n"
-                + "      currentElement.style.backgroundColor = \"red\";\n"
-                + "\n"
-                + "      // Update the previousElement to the current element\n"
-                + "      previousElement = currentElement;\n"
-                + "\n"
-                + "      // Increment the index to move to the next element\n"
-                + "      index++;\n"
-                + "\n"
-                + "      // Call the function again after a short delay (1000ms for 1 second)\n"
-                + "      setTimeout(changeBackgroundColor, 1000); // Adjust delay as needed\n"
-                + "    }\n"
-                + "\n"
-                + "    // Start the background color change\n"
-                + "    changeBackgroundColor();\n"
-                + "  }\n"
-                + "\n"
-                + "  // Call the function to highlight elements sequentially\n"
-                + "  // highlightElementsSequentially();\n"
-                + "\n"
-                + "  function getElementLocators(element) {\n"
-                + "    const locators = [];\n"
-                + "\n"
-                + "    if (element === document.body) {\n"
-                + "      locators.push(\"/html/\" + element.tagName.toLowerCase());\n"
-                + "      return locators;\n"
-                + "    }\n"
-                + "\n"
-                + "    const tagName = element.tagName.toLowerCase();\n"
-                + "    const id = element.id ? `#${element.id}` : \"\";\n"
-                + "    const className = (\n"
-                + "      typeof element.className === \"string\" ? element.className : \"\"\n"
-                + "    )\n"
-                + "      .split(\" \")\n"
-                + "      .filter((cls) => !/\\d/.test(cls))\n"
-                + "      .join(\".\");\n"
-                + "\n"
-                + "    if (id) {\n"
-                + "      locators.push(id);\n"
-                + "    }\n"
-                + "\n"
-                + "    if (className) {\n"
-                + "      locators.push(`//${tagName}[contains(@class, '${className}')]`);\n"
-                + "    }\n"
-                + "\n"
-                + "    // Check for other attributes (e.g., 'data-*' attributes)\n"
-                + "    const attributes = Array.from(element.attributes);\n"
-                + "    attributes.forEach((attr) => {\n"
-                + "      if (attr.name !== \"class\" && attr.name !== \"id\") {\n"
-                + "        // Exclude class and id\n"
-                + "        locators.push(`${tagName}[@${attr.name}=\"${attr.value}\"]`);\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Handle iframe elements\n"
-                + "    if (element.ownerDocument !== document) {\n"
-                + "      try {\n"
-                + "        const iframe = element.ownerDocument.defaultView.frameElement;\n"
-                + "        const iframeLocators = getElementLocators(iframe);\n"
-                + "        iframeLocators.forEach((iframePath) => {\n"
-                + "          locators.push(`${iframePath}//${tagName}`);\n"
-                + "        });\n"
-                + "      } catch (error) {\n"
-                + "        console.error(\"Error getting locators for iframe element:\", error);\n"
-                + "      }\n"
-                + "    } else {\n"
-                + "      // Handle regular elements\n"
-                + "      let ix = 0;\n"
-                + "      const siblings = element.parentNode.childNodes;\n"
-                + "\n"
-                + "      for (let i = 0; i < siblings.length; i++) {\n"
-                + "        const sibling = siblings[i];\n"
-                + "\n"
-                + "        if (sibling === element) {\n"
-                + "          const parentLocators = getElementLocators(element.parentNode);\n"
-                + "          parentLocators.forEach((parentPath) => {\n"
-                + "            locators.push(`${parentPath}/${tagName}[${ix + 1}]`);\n"
-                + "          });\n"
-                + "          break;\n"
-                + "        }\n"
-                + "\n"
-                + "        if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "          ix++;\n"
-                + "        }\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    return locators;\n"
-                + "  }\n"
-                + "  function getMartiniXPath(element) {\n"
-                + "    if (element === document.body) {\n"
-                + "      return \"/html/body\";\n"
-                + "    }\n"
-                + "    var ix = 0;\n"
-                + "    var siblings = element.parentNode ? element.parentNode.childNodes : [];\n"
-                + "    for (var i = 0; i < siblings.length; i++) {\n"
-                + "      var sibling = siblings[i];\n"
-                + "      if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {\n"
-                + "        if (sibling === element) {\n"
-                + "          return (\n"
-                + "            getMartiniXPath(element.parentNode) +\n"
-                + "            \"/\" +\n"
-                + "            element.tagName.toLowerCase() +\n"
-                + "            \"[\" +\n"
-                + "            (ix + 1) +\n"
-                + "            \"]\"\n"
-                + "          );\n"
-                + "        }\n"
-                + "        ix++;\n"
-                + "      }\n"
-                + "    }\n"
-                + "    return \"\";\n"
-                + "  }\n"
-                + "  function getElementAttributes(element) {\n"
-                + "    const attributes = [];\n"
-                + "\n"
-                + "    try {\n"
-                + "      for (const attr of element.attributes) {\n"
-                + "        attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
-                + "      }\n"
-                + "    } catch (error) {\n"
-                + "      // If accessing attributes directly fails (likely due to cross-origin restrictions)\n"
-                + "      // Attempt to get attributes using JavaScript execution within the iframe's context\n"
-                + "      const iframe = element.ownerDocument.defaultView.frameElement;\n"
-                + "      if (iframe) {\n"
-                + "        const iframeWindow = iframe.contentWindow;\n"
-                + "        iframeWindow.document.addEventListener(\"DOMContentLoaded\", () => {\n"
-                + "          const iframeElement = iframeWindow.document.querySelector(\n"
-                + "            `#${element.id}`\n"
-                + "          ); // Adjust selector as needed\n"
-                + "          if (iframeElement) {\n"
-                + "            for (const attr of iframeElement.attributes) {\n"
-                + "              attributes.push(`${attr.name}=\"${attr.value}\"`);\n"
-                + "            }\n"
-                + "          }\n"
-                + "        });\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    return attributes;\n"
-                + "  }\n"
-                + "\n"
-                + "  function getElementIdentity(element) {\n"
-                + "    // Allow <input type=\"hidden\"> but exclude all other hidden elements\n"
-                + "    if (!hiddenFields) {\n"
-                + "      if (\n"
-                + "        (element.offsetWidth === 0 ||\n"
-                + "          element.offsetHeight === 0 ||\n"
-                + "          window.getComputedStyle(element).visibility === \"hidden\") &&\n"
-                + "        !(\n"
-                + "          element.tagName.toLowerCase() === \"input\" &&\n"
-                + "          element.type.toLowerCase() === \"hidden\"\n"
-                + "        )\n"
-                + "      ) {\n"
-                + "        return null; // Ignore all hidden elements except <input type=\"hidden\">\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    var xpath = getMartiniXPath(element);\n"
-                + "    var allAttributes = \"\";\n"
-                + "    try {\n"
-                + "      // console.log(\"element\", element);\n"
-                + "      allAttributes = getElementAttributes(element);\n"
-                + "    } catch (error) {}\n"
-                + "    var customXPath = \"\";\n"
-                + "    try {\n"
-                + "      customXPath = getElementLocators(element);\n"
-                + "    } catch (error) {}\n"
-                + "\n"
-                + "    var attribId = element.id || \"\";\n"
-                + "    var attribName = element.name || \"\";\n"
-                + "    var coords = element.getBoundingClientRect();\n"
-                + "    coords = `${coords.left},${coords.top}`;\n"
-                + "\n"
-                + "    var someText = element.textContent.trim() || \"\";\n"
-                + "    if (\n"
-                + "      element.tagName.toLowerCase() === \"input\" ||\n"
-                + "      element.tagName.toLowerCase() === \"textarea\"\n"
-                + "    ) {\n"
-                + "      someText = element.value || \"\";\n"
-                + "    }\n"
-                + "\n"
-                + "    var someText = getSomeText(element.tagName.toLowerCase(), element);\n"
-                + "\n"
-                + "    // // If element is an input with type submit OR a button with type submit\n"
-                + "    // if (\n"
-                + "    //   (element.tagName.toLowerCase() === \"input\" &&\n"
-                + "    //     element.type === \"submit\") ||\n"
-                + "    //   (element.tagName.toLowerCase() === \"button\" &&\n"
-                + "    //     (element.type === \"submit\" || !element.type)) // Default button type is \"submit\" if not set\n"
-                + "    // ) {\n"
-                + "    //   var elementInfoString = `${element.tagName.toLowerCase()};xpath:${xpath};text:${someText};attribId:${attribId};attribName:${attribName};coords:${coords};allAttributes:${allAttributes};customXPath:${customXPath};`;\n"
-                + "\n"
-                + "    //   // Add to global Map without repetition\n"
-                + "    //   if (!elementInfoSubmit.has(xpath)) {\n"
-                + "    //     elementInfoSubmit.set(xpath, elementInfoString);\n"
-                + "    //   }\n"
-                + "    // }\n"
-                + "\n"
-                + "    return {\n"
-                + "      xpath,\n"
-                + "      allAttributes,\n"
-                + "      customXPath,\n"
-                + "      attribId,\n"
-                + "      attribName,\n"
-                + "      coords,\n"
-                + "      someText,\n"
-                + "    };\n"
-                + "  }\n"
-                + "\n"
-                + "  function getSomeText(tagName, element) {\n"
-                + "    let someText = \"\";\n"
-                + "\n"
-                + "    if ([\"input\", \"textarea\", \"select\", \"button\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    } else if ([\"option\", \"label\", \"a\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    } else if (![\"html\", \"body\", \"script\"].includes(tagName)) {\n"
-                + "      const extractedText = extractTextFromHTML(element || \"\");\n"
-                + "      someText = [\n"
-                + "        ...extractedText.titles,\n"
-                + "        ...extractedText.text,\n"
-                + "        ...extractedText.labels,\n"
-                + "      ]\n"
-                + "        .join(\"; \")\n"
-                + "        .trim();\n"
-                + "    }\n"
-                + "\n"
-                + "    someText = someText\n"
-                + "      .split(\";\")\n"
-                + "      .map((text) => text.trim())\n"
-                + "      .filter(Boolean)\n"
-                + "      .join(\";\"); // Clean up sequential text\n"
-                + "\n"
-                + "    return someText;\n"
-                + "  }\n"
-                + "\n"
-                + "  function extractTextFromHTML(element) {\n"
-                + "    const result = {\n"
-                + "      text: new Set(), // Using Set to avoid duplicate text\n"
-                + "      labels: new Set(), // Using Set to avoid duplicate labels\n"
-                + "      titles: new Set(), // Using Set to avoid duplicate titles\n"
-                + "    };\n"
-                + "\n"
-                + "    // Extract text content directly from the element (in case it has no children)\n"
-                + "    if (element.textContent) {\n"
-                + "      let elementText = element.textContent.trim();\n"
-                + "      if (elementText) {\n"
-                + "        result.text.add(elementText); // Using .add() instead of .push() for Set\n"
-                + "      }\n"
-                + "    }\n"
-                + "\n"
-                + "    // Extract label text from input placeholders and other form-related data\n"
-                + "    element.querySelectorAll(\"label\").forEach((label) => {\n"
-                + "      if (label.textContent) {\n"
-                + "        let labelText = label.textContent.trim();\n"
-                + "        if (labelText) {\n"
-                + "          result.labels.add(labelText); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "\n"
-                + "      // Handle associated input fields (if the label has a 'for' attribute)\n"
-                + "      let forAttribute = label.getAttribute(\"for\");\n"
-                + "      if (forAttribute) {\n"
-                + "        let associatedInput = element.querySelector(`#${forAttribute}`);\n"
-                + "        if (associatedInput) {\n"
-                + "          // Check if it's an input field or textarea and extract value or placeholder\n"
-                + "          let inputValue = associatedInput.value?.trim();\n"
-                + "          let inputPlaceholder = associatedInput.placeholder?.trim();\n"
-                + "          if (inputValue) {\n"
-                + "            result.text.add(inputValue); // Using .add() for Set to ensure uniqueness\n"
-                + "          } else if (inputPlaceholder) {\n"
-                + "            result.text.add(inputPlaceholder); // Fallback to placeholder\n"
-                + "          }\n"
-                + "        }\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract text from common block and inline elements\n"
-                + "    const textExtractors = [\n"
-                + "      \"p\",\n"
-                + "      \"h1\",\n"
-                + "      \"h2\",\n"
-                + "      \"h3\",\n"
-                + "      \"h4\",\n"
-                + "      \"h5\",\n"
-                + "      \"h6\",\n"
-                + "      \"li\",\n"
-                + "      \"span\",\n"
-                + "      \"div\",\n"
-                + "      \"strong\",\n"
-                + "      \"em\",\n"
-                + "      \"b\",\n"
-                + "      \"i\",\n"
-                + "      \"blockquote\",\n"
-                + "    ];\n"
-                + "\n"
-                + "    textExtractors.forEach((tagName) => {\n"
-                + "      element.querySelectorAll(tagName).forEach((childElement) => {\n"
-                + "        if (childElement.textContent) {\n"
-                + "          let elemText = childElement.textContent.trim();\n"
-                + "          if (elemText) {\n"
-                + "            result.text.add(elemText); // Using .add() for Set to ensure uniqueness\n"
-                + "          }\n"
-                + "        }\n"
-                + "      });\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract text from <a> tags (links)\n"
-                + "    element.querySelectorAll(\"a\").forEach((link) => {\n"
-                + "      if (link.textContent) {\n"
-                + "        let linkText = link.textContent.trim();\n"
-                + "        if (linkText) {\n"
-                + "          result.text.add(linkText); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Extract iframe titles and nested content\n"
-                + "    element.querySelectorAll(\"iframe\").forEach((iframe) => {\n"
-                + "      if (iframe.getAttribute(\"title\")) {\n"
-                + "        let title = iframe.getAttribute(\"title\")?.trim();\n"
-                + "        if (title) {\n"
-                + "          result.titles.add(title); // Using .add() for Set to ensure uniqueness\n"
-                + "        }\n"
-                + "      }\n"
-                + "\n"
-                + "      try {\n"
-                + "        let iframeDoc =\n"
-                + "          iframe.contentDocument ||\n"
-                + "          new DOMParser().parseFromString(iframe.srcdoc || \"\", \"text/html\");\n"
-                + "        let iframeContent = extractTextFromHTML(iframeDoc); // Here we assume iframeDoc is an element.\n"
-                + "        iframeContent.titles.forEach((title) => result.titles.add(title));\n"
-                + "        iframeContent.text.forEach((text) => result.text.add(text));\n"
-                + "        iframeContent.labels.forEach((label) => result.labels.add(label));\n"
-                + "      } catch (e) {\n"
-                + "        console.warn(\"Could not access iframe content\", e);\n"
-                + "      }\n"
-                + "    });\n"
-                + "\n"
-                + "    // Convert Sets to arrays before returning to maintain previous structure\n"
-                + "    return {\n"
-                + "      text: Array.from(result.text),\n"
-                + "      labels: Array.from(result.labels),\n"
-                + "      titles: Array.from(result.titles),\n"
-                + "    };\n"
-                + "  }\n"
-                + "\n"
-                + "  function limitMapCharacters(elementInfoMap, coordText) {\n"
-                + "    elementInfoMap.forEach((value, key) => {\n"
-                + "      let modifiedValue = value;\n"
-                + "      // Push the formatted value and key to the array\n"
-                + "      window.allElementInfo.push(`${coordText}:${modifiedValue}`);\n"
-                + "    });\n"
-                + "  }\n"
-                + "\n"
-                + "  function cleanOldValues() {\n"
-                + "    window.allElementInfo = [];\n"
-                + "  }\n"
-                + "\n"
-                + "  cleanOldValues();\n"
-                + "\n"
-                + "  window.revertSearchjections = function () {\n"
-                + "    // alert(\"revertPickInjections\");\n"
-                + "    console.log(\"revertSearchjections\");\n"
-                + "    elementInfoMap.clear();\n"
-                + "    allElementInfo = [];\n"
-                + "    elementsTagName = [];\n"
-                + "    elementsSelector = [];\n"
-                + "    allElementsPage = [];\n"
-                + "\n"
-                + "    setTimeout(() => {\n"
-                + "      window.allElementInfo = [];\n"
-                + "    }, 1000);\n"
-                + "  };\n"
-                + "\n"
-                + "  // window.postMessage({ type: \"myMessage\", data: \"some data\" }, targetOriginURL);\n"
-                + "  window.addEventListener(\"message\", function (event) {\n"
-                + "    if (event.origin !== trustedOriginURL) return; // check the origin\n"
-                + "    console.log(event.data);\n"
-                + "  });\n"
-                + "\n"
-                + "  function highlightElementsSequentially() {\n"
-                + "    // Get all elements on the page\n"
-                + "    const elements = document.querySelectorAll(\"*\"); // This selects all elements\n"
-                + "    let previousElement = null; // Variable to store the previously highlighted element\n"
-                + "\n"
-                + "    let index = 0;\n"
-                + "\n"
-                + "    // Function to change background color to red\n"
-                + "    function changeBackgroundColor() {\n"
-                + "      if (index >= elements.length) {\n"
-                + "        // Stop if we've reached the end of the elements\n"
-                + "        return;\n"
-                + "      }\n"
-                + "\n"
-                + "      // Get the current element\n"
-                + "      const currentElement = elements[index];\n"
-                + "\n"
-                + "      // If there is a previously highlighted element, reset its background color\n"
-                + "      if (previousElement) {\n"
-                + "        previousElement.style.backgroundColor = \"\"; // Reset background color\n"
-                + "      }\n"
-                + "\n"
-                + "      // Change the background color of the current element\n"
-                + "      currentElement.style.backgroundColor = \"#B0E0E6\";\n"
-                + "      // #E0FFFF → Light Cyan\n"
-                + "      // #AFEEEE → Pale Turquoise\n"
-                + "      // #B0E0E6 → Powder Blue\n"
-                + "\n"
-                + "      // Update the previousElement to the current element\n"
-                + "      previousElement = currentElement;\n"
-                + "\n"
-                + "      // Increment the index to move to the next element\n"
-                + "      index++;\n"
-                + "\n"
-                + "      // Call the function again after a short delay (1000ms for 1 second)\n"
-                + "      setTimeout(changeBackgroundColor, 1000); // Adjust delay as needed\n"
-                + "    }\n"
-                + "\n"
-                + "    // Start the background color change\n"
-                + "    changeBackgroundColor();\n"
-                + "  }\n"
-                + "\n"
-                + "  // Call the function to highlight elements sequentially\n"
-                + "  // highlightElementsSequentially();\n"
-                + "\n"
-                + "  // Example usage:\n"
-                + "  // handleSearchTermsMartini([\"data-test\"]);\n"
-                + "\n"
-                + "  // document.addEventListener(\"DOMContentLoaded\", () => {\n"
-                + "  //   searchTerms.forEach((attribute) => {\n"
-                + "  //     console.log(\"attribute\", attribute);\n"
-                + "  //     elementsTagName.push(\n"
-                + "  //       ...Array.from(document.getElementsByTagName(attribute))\n"
-                + "  //     );\n"
-                + "  //   });\n"
-                + "  //   console.log(elementsTagName); // Check if inputs are found\n"
-                + "  // });\n"
-                + "\n"
-                + "  handleSearchTermsMartini(searchTerms);\n"
-                + "  // handleSearchTermsMartini([\"allWithText\"]);\n"
-                + "})(arguments[0], arguments[1], arguments[2], arguments[3]);\n"
-                + "// })(\"http://localhost:3000/\", \"http://localhost:3000/\", [\n"
-                + "//   \"allWithText\",\n"
-                + "//   \"div\",\n"
-                + "//   \"id\",\n"
-                + "//   \"name\",\n"
-                + "//   \"input\",\n"
-                + "// ],\n"
-                + "// true);\n";
+    private void periodicHoverPickThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
+        ErrorMessage errorMessage =
+                performPickLoad.dynamicHoverPickElementsDTO(driver, currentUrl, dataArray, searchHiddenFields, port);
 
-        List<String> dataList = Arrays.asList(dataArray);
+        if (errorMessage != null) {
+            String[] lines = errorMessage.getErrorMessage().split("\n");
 
-        try {
-            jsExecutor = (JavascriptExecutor) driver;
-            jsExecutor.executeScript(jsCode, currentUrl, currentUrl, dataList, searchHiddenFields);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+                    null,
+                    0);
         }
+    }
 
-        // Start a thread to periodically check the XPath value and update the TextField
-        new Thread(() -> {
-                    while (periodicSearchActivated.get()) {
+    private void periodicSearchThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
+        // "scannerTool", "scannerGrid", "searchTerms"
+        ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
+                driver, currentUrl, dataArray, searchHiddenFields, port, "scannerTool", "scannerGrid", "searchTerms");
 
-                        // Execute JavaScript to construct and return a custom object
-                        LinkedHashMap<String, Object> linkedHashMap =
-                                (LinkedHashMap<String, Object>) jsExecutor.executeScript(
-                                        "var obj = { allElementInfo: window.allElementInfo }; return obj;");
+        if (errorMessage != null) {
+            String[] lines = errorMessage.getErrorMessage().split("\n");
 
-                        // Convert the LinkedHashMap to a Java Map (if necessary)
-                        Map<String, Object> resultMap = new LinkedHashMap<>(linkedHashMap);
-
-                        if (linkedHashMap != null) {
-                            Platform.runLater(() -> {
-                                Object iframeElementsObject = resultMap.get("allElementInfo");
-
-                                if (iframeElementsObject instanceof List<?>) {
-                                    // Convert List to String[]
-                                    List<?> iframeElementsList = (List<?>) iframeElementsObject;
-                                    iFrameElements = iframeElementsList.toArray(new String[0]);
-                                } else if (iframeElementsObject instanceof Object[]) {
-                                    // If it's an array, check if it's an array of Strings
-                                    iFrameElements = Arrays.copyOf(
-                                            (Object[]) iframeElementsObject,
-                                            ((Object[]) iframeElementsObject).length,
-                                            String[].class);
-                                } else {
-                                    System.out.println("The iframeElements data is not a List or an array.");
-                                }
-
-                                if (iFrameElements != null && iFrameElements.length > 0) {
-
-                                    // It cleans browser
-                                    jsExecutor.executeScript("window.allElementInfo = [];");
-
-                                    // Extract elements from input lines
-                                    elementsFound.clear();
-                                    elementsFound = performAction.extractElementData(iFrameElements);
-                                    iFrameElements = null;
-
-                                    Optional<ElementDTO> iframeElement = elementsFound.stream()
-                                            .filter(element ->
-                                                    "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
-                                            .findFirst();
-
-                                    if (iframeElement.isPresent()) {
-                                        if (iframeElement.get().getTypeElement().equals("clicked-iFrame")) {
-                                            iFrameText.setText("iFrame Detected");
-                                            elementsFound = elementsFound.stream()
-                                                    .map(elementDTO -> {
-                                                        if ("iFrame-Child".equals(elementDTO.getTypeElement())) {
-                                                            elementDTO.setIFrameXPath(iframeElement
-                                                                    .get()
-                                                                    .getXPath());
-                                                        }
-                                                        return elementDTO;
-                                                    })
-                                                    .collect(Collectors.toList());
-                                        }
-                                    } else {
-                                        iFrameText.setText("");
-                                    }
-
-                                    checkTestAction.setSelected(false);
-                                    checkPickElement.setSelected(false);
-                                    revertPickButtons();
-
-                                    if (elementsFound.size() > 0) {
-                                        ARConstants.DialogModal respModal = null;
-                                        int lastIndex = 0;
-
-                                        List<ElementDTO> elementsChunk;
-                                        int nextIndex = Math.min(lastIndex + 30, elementsFound.size());
-                                        elementsChunk = elementsFound.subList(lastIndex, nextIndex);
-
-                                        while (elementsChunk.size() > 0 && periodicSearchActivated.get()) {
-
-                                            int remainingElements =
-                                                    Math.abs(elementsFound.size() - elementsChunk.size());
-                                            if (elementsChunk.size() == 30) {
-
-                                                respModal = performMessage.showCustomModalDialogDragWin11(
-                                                        "Warning: Too Many Elements Found",
-                                                        String.format(
-                                                                "Total Web Elements Found: %d", elementsFound.size()),
-                                                        "Process in chuncks of 30 per execution.",
-                                                        String.format("Remaining: %d elements", remainingElements),
-                                                        "Press \"Stop All\" to cancel the process.",
-                                                        false,
-                                                        "Continue",
-                                                        "Stop All Process",
-                                                        0);
-
-                                                if (respModal != null
-                                                        && respModal.equals(ARConstants.DialogModal.STOP)) {
-                                                    // It cleans browser
-                                                    periodicSearchActivated.set(false);
-                                                    jsExecutor.executeScript("window.allElementInfo = [];");
-                                                    iFrameElements = null;
-                                                    elementsFound.clear();
-                                                    elementsChunk.clear();
-                                                    break;
-                                                }
-                                            }
-
-                                            ElementDTO pickTarget = prefillDefinedName(elementsChunk);
-
-                                            // Direct Insert to the Factory of Elements
-                                            if (iframeElement.isPresent()) {
-                                                insertNewElement(iframeElement.get(), elementsChunk);
-                                            } else {
-                                                if (!Strings.isNullOrEmpty(pickTarget.getXPath())
-                                                        && !xpathTextPrevious.equalsIgnoreCase(pickTarget.getXPath())) {
-
-                                                    TargetElement targetLocal = extractPickClone(pickTarget);
-
-                                                    if (targetLocal.getNameField() != null
-                                                            && targetLocal.getNameLabel() != null) {
-                                                        insertNewElement(elementsChunk);
-                                                    }
-                                                }
-                                            }
-
-                                            Platform.runLater(() -> {
-                                                scannedElements1.refresh();
-                                                scannedElements1.requestLayout();
-                                            });
-
-                                            // Update lastIndex to the next chunk
-                                            lastIndex = nextIndex;
-
-                                            // Get a chunk of elements from lastIndex to lastIndex + 30
-                                            nextIndex = Math.min(lastIndex + 30, elementsFound.size());
-                                            elementsChunk = elementsFound.subList(lastIndex, nextIndex);
-                                        }
-
-                                        elementsFound.clear();
-                                    } else {
-
-                                        String criterias = "Criterias: " + String.join(", ", dataArray);
-
-                                        performMessage.errorMessage(
-                                                "No Elements Found",
-                                                "Search criteria: ",
-                                                criterias,
-                                                "Try to use \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
-                                                null,
-                                                0);
-                                    }
-
-                                } else {
-                                    iFrameText.setText("");
-                                    elementsFound.clear();
-                                }
-                            });
-                        }
-                        try {
-                            Thread.sleep(300); // Check every 300 milliseconds
-                        } catch (InterruptedException e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .fine(String.format(
-                                            "Error Attempt to get currentXPath / tagName / coords", e.getMessage()));
-                        }
-                    }
-                })
-                .start();
+            performMessage.errorMessage(
+                    errorMessage.getErrorTitle(),
+                    errorMessage.getErrorHeader(),
+                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
+                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
+                    null,
+                    0);
+        }
     }
 
     private ElementDTO prefillDefinedName(List<ElementDTO> elementsFound) {
@@ -7343,40 +4758,37 @@ public class ARScannedElementPane extends ARPane {
                                 ? pickTarget.getAttribId()
                                 : !Strings.isNullOrEmpty(pickTarget.getAttribName()) ? pickTarget.getAttribName() : "");
 
-            } else if (picked.getAllAttributes() != null) {
+            } else if (picked.getAttributeData() != null) {
 
                 // Split by comma to get key-value pairs
-                String[] parts = pickTarget.getAllAttributes().split(",");
+                pickTarget.getAttributeData();
 
                 String idValue = null;
                 String nameValue = null;
                 String typeValue = null;
 
                 // Loop through each key-value pair
-                for (String part : parts) {
-                    String[] keyValue = part.split("=");
+                for (AttributeData part : pickTarget.getAttributeData()) {
 
-                    if (keyValue.length == 2) { // Ensure valid key-value pair
-                        String key = keyValue[0].trim();
-                        String value = keyValue[1].trim().replaceAll("\"", ""); // Remove quotes
+                    String key = part.getName();
+                    String value = part.getValue().trim().replaceAll("\"", ""); // Remove quotes
 
-                        if (key.equals("id")) {
-                            idValue = value;
-                        } else if (key.equals("name")) {
-                            nameValue = value;
-                        } else if (key.equals("type")) {
-                            typeValue = value;
-                        }
+                    if (key.equals("id")) {
+                        idValue = value;
+                    } else if (key.equals("name")) {
+                        nameValue = value;
+                    } else if (key.equals("type")) {
+                        typeValue = value;
                     }
                 }
 
                 // Print based on priority: ID -> Name -> Type
                 if (idValue != null) {
-                    nameDefined = idValue;
+                    nameDefined = pickTarget.getTagName() + "-" + idValue;
                 } else if (nameValue != null) {
-                    nameDefined = nameValue;
+                    nameDefined = pickTarget.getTagName() + "-" + nameValue;
                 } else if (typeValue != null) {
-                    nameDefined = typeValue;
+                    nameDefined = pickTarget.getTagName() + "-" + typeValue;
                 } else {
                     nameDefined = pickTarget.getTagName();
                 }
@@ -7405,10 +4817,11 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 sb.append("Named: " + nameDefined).append("\n");
-                String[] attributes = pickTarget.getAllAttributes().split(",");
                 sb.append("All Attributes Found: ").append("\n");
-                for (String attribute : attributes) {
-                    sb.append("->  ").append(attribute.trim()).append("\n");
+                for (AttributeData attributeData : pickTarget.getAttributeData()) {
+                    sb.append("->  ")
+                            .append(attributeData.getName() + "=" + attributeData.getValue())
+                            .append("\n");
                 }
 
                 iFrameCoords = "";
@@ -9339,14 +6752,14 @@ public class ARScannedElementPane extends ARPane {
 
             for (Map.Entry<String, WebElement> entry : mapAdvanced.entrySet()) {
                 WebElement entryElem = entry.getValue();
-                String xpath = entry.getKey();
+                String xPath = entry.getKey();
                 String attributeValue = entryElem.getAttribute(attributeName);
 
                 if (Strings.isNullOrEmpty(attributeValue)) {
                     attributeValue = "(" + attributeName + ") has no value";
                 }
                 System.out.println("AR Element Creation ->  Tag: " + entryElem.getTagName() + ", " + attributeName
-                        + ": " + attributeValue + ", XPath: " + xpath);
+                        + ": " + attributeValue + ", XPath: " + xPath);
 
                 try {
 
@@ -9374,7 +6787,7 @@ public class ARScannedElementPane extends ARPane {
                     ARLogger.getInstance(ARScannedElementPane.class)
                             .fine(String.format(
                                     "Error attempt to create Advance Element  attribute: %s xPath: %s\nError: %s",
-                                    attributeValue, xpath, ex.getMessage()));
+                                    attributeValue, xPath, ex.getMessage()));
                 }
             }
         } else {
@@ -9396,10 +6809,10 @@ public class ARScannedElementPane extends ARPane {
                                     e.printStackTrace();
                                 }
 
-                                scannedElements1.requestLayout();
-                                scannedElements1.refresh();
-                                scannedElements2.requestLayout();
-                                scannedElements2.refresh();
+                                //                                scannedElements1.requestLayout();
+                                //                                scannedElements1.refresh();
+                                //                                scannedElements2.requestLayout();
+                                //                                scannedElements2.refresh();
                                 bottomPane.requestLayout();
                             });
 

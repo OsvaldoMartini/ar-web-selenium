@@ -3,6 +3,7 @@ package com.allinweb.ch.driver;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementScriptFactory;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -14,6 +15,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import javax.swing.*;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
@@ -34,9 +36,11 @@ public class ARWebDriver {
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
 
     private static final PerformMessage performMessage;
+    private static final PerformPreLoad performPreLoad;
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
+        performPreLoad = PerformPreLoad.getInstance();
     }
 
     public static WebDriver getDriverEdge(EdgeOptions options) {
@@ -95,7 +99,8 @@ public class ARWebDriver {
         return System.lineSeparator(); // Default line separator if none found
     }
 
-    public WebDriver openDriver(String url, String optionsConfig) {
+    public WebDriver openDriver(
+            String url, String optionsConfig, String[] dataArray, boolean searchHiddenFields, int port) {
 
         if (Strings.isNullOrEmpty(url.trim())) {
             ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
@@ -189,8 +194,13 @@ public class ARWebDriver {
         driver.manage().window().maximize();
 
         try {
+            //            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
+            //            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
 
             driver.get(url);
+            //            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
+
+            //            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
 
             // Wait for the page to finish loading
             Thread.sleep(3000);

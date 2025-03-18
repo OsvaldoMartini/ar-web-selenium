@@ -54,39 +54,39 @@ public class ARLicensePane extends ARPane {
                 """
                 LICENZA D'USO DEL SOFTWARE
 
-                Importante - leggere con attenzione: Questo Accordo di Licenza ("Accordo") √® un contratto legale tra te
-                (un individuo o un'entit√† legale) e [Nome della Tua Azienda] ("Licenziante") per il software che accompagna
+                Importante - leggere con attenzione: Questo Accordo di Licenza ("Accordo") Ë un contratto legale tra te
+                (un individuo o un'entit‡ legale) e [Nome della Tua Azienda] ("Licenziante") per il software che accompagna
                 questo accordo, che include software associato e materiale media, stampato, elettronico o online ("Software").
 
                 1. Concessione della licenza:
                    Soggetto ai termini di questo Accordo, il Licenziante concede a te una licenza non esclusiva,
                    non trasferibile per utilizzare il Software per scopi interni secondo le seguenti limitazioni
-                   e in conformit√† con la documentazione fornita.
+                   e in conformit‡ con la documentazione fornita.
 
                 2. Restrizioni:
                    Non sei autorizzato a:
                    - Modificare, tradurre, adattare o derivare opere dal Software.
                    - Ingegnerizzare all'indietro, decompilare, disassemblare o altrimenti tentare di scoprire il codice sorgente del Software.
                    - Rivendere, noleggiare, sub-licenziare, distribuire o altrimenti trasferire il Software senza il previo consenso scritto del Licenziante.
-                   - Rimuovere qualsiasi avviso di diritto d'autore, marchio o altro avviso di propriet√† inclusi nel Software.
+                   - Rimuovere qualsiasi avviso di diritto d'autore, marchio o altro avviso di propriet‡ inclusi nel Software.
 
-                3. Propriet√† del Software:
-                   Il Software √® protetto da leggi sul diritto d'autore e trattati internazionali, cos√¨ come altre leggi e trattati
-                   sulla propriet√† intellettuale. Il Software √® licenziato, non venduto.
+                3. Propriet‡ del Software:
+                   Il Software Ë protetto da leggi sul diritto d'autore e trattati internazionali, cosÏ come altre leggi e trattati
+                   sulla propriet‡ intellettuale. Il Software Ë licenziato, non venduto.
 
                 4. Garanzia Limitata:
-                   Il Licenziante garantisce che il Software funzioner√† sostanzialmente in conformit√† con la documentazione
-                   per un periodo di novanta (90) giorni dalla data del tuo acquisto. Qualsiasi sostituzione del Software sar√†
-                   garantita per il resto del periodo di garanzia originale o per trenta (30) giorni, a seconda di quale sia pi√π lungo.
+                   Il Licenziante garantisce che il Software funzioner‡ sostanzialmente in conformit‡ con la documentazione
+                   per un periodo di novanta (90) giorni dalla data del tuo acquisto. Qualsiasi sostituzione del Software sar‡
+                   garantita per il resto del periodo di garanzia originale o per trenta (30) giorni, a seconda di quale sia pi˘ lungo.
 
-                5. Limitazione di Responsabilit√†:
-                   In nessun caso il Licenziante sar√† responsabile per danni speciali, incidentali, indiretti o consequenziali
-                   risultanti dall'uso o dall'impossibilit√† di usare il Software, anche se il Licenziante √® stato informato
-                   della possibilit√† di tali danni. In nessun caso la responsabilit√† del Licenziante per danni superer√†
+                5. Limitazione di Responsabilit‡:
+                   In nessun caso il Licenziante sar‡ responsabile per danni speciali, incidentali, indiretti o consequenziali
+                   risultanti dall'uso o dall'impossibilit‡ di usare il Software, anche se il Licenziante Ë stato informato
+                   della possibilit‡ di tali danni. In nessun caso la responsabilit‡ del Licenziante per danni superer‡
                    l'importo pagato per acquistare il Software.
 
                 6. Terminazione:
-                   Questo Accordo √® in vigore fino alla sua terminazione. Questo Accordo terminer√† automaticamente senza preavviso
+                   Questo Accordo Ë in vigore fino alla sua terminazione. Questo Accordo terminer‡ automaticamente senza preavviso
                    dal Licenziante se non rispetti qualsiasi termine o condizione di questo Accordo.
 
                 7. Varie:

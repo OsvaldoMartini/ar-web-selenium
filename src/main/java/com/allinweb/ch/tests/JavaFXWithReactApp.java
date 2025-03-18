@@ -1,13 +1,9 @@
 package com.allinweb.ch.tests;
 
+import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.socket.WebSocketStompServer;
 import com.google.gson.Gson;
-import java.io.File;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import javafx.application.Application;
@@ -35,19 +31,17 @@ public class JavaFXWithReactApp extends Application {
     }
 
     private ObservableList<InstructionLoadDTO> blockLoopInstructions;
+    private ObservableList<ElementDTO> elementDTO;
 
     @Override
     public void start(Stage primaryStage) {
-
         blockLoopInstructions = FXCollections.observableArrayList(getBlockLoopInstructions());
+        elementDTO = FXCollections.observableArrayList(ElementDTOGenerator.getElementDTO());
 
         // Create the WebView
         WebView webView = new WebView();
         WebEngine webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
-
-        Gson gson = new Gson();
-        String jsonData = gson.toJson(blockLoopInstructions);
 
         //        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
         //            if (newState == Worker.State.SUCCEEDED) {
@@ -66,13 +60,31 @@ public class JavaFXWithReactApp extends Application {
         // Send the JSON data to React
         //  +-
 
+        Gson gson = new Gson();
+        String jsonData = gson.toJson(blockLoopInstructions);
+        String jsonDataDTO = gson.toJson(elementDTO);
+
         //        Delay the script execution to ensure the page has fully loaded
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
+
+                // "scannerTool", "scannerGrid", "searchTerms"
+                // String sessionIdFromJava = "botJobTasks";
+                String sessionIdFromJavaDTO = "scannerGrid";
+
+                String finalPort = "8181";
                 // After the page has successfully loaded
                 try {
+                    //                    webEngine.executeScript("setTimeout(function() {
+                    // window.receiveDataFromJava(JSON.stringify("
+                    //                            + jsonData + ")) }, 1000)");
+                    //
+                    // webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
+                    //        + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "' ) }, 1000)");
+
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData + ")) }, 1000)");
+                            + jsonDataDTO + "), " + finalPort + ", '" + sessionIdFromJavaDTO + "' ) }, 1000)");
+
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
                 }
@@ -126,7 +138,7 @@ public class JavaFXWithReactApp extends Application {
 
     public void startWebSocketServer() throws Exception {
         // Set up Jetty server to run WebSocket endpoint
-        jettyServer = new Server(8080); // Server listens on port 8080
+        jettyServer = new Server(8181); // Server listens on port 8080
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         jettyServer.setHandler(context);
@@ -752,207 +764,6 @@ public class JavaFXWithReactApp extends Application {
                         0,
                         null,
                         null));
-    }
-
-    public void initializeMainDatabase(String dbUrl, File dbFile) {
-
-        try (Connection conn = DriverManager.getConnection(dbUrl)) {
-            try (Statement stmt = conn.createStatement()) {
-
-                // Create home_banking table
-                String createHomeBankingTableSQL = "CREATE TABLE home_banking ("
-                        + "ID AUTOINCREMENT PRIMARY KEY, "
-                        + "url MEMO, "
-                        + "name TEXT(255), "
-                        + "priority TEXT(255), "
-                        + "options_config MEMO, "
-                        + "username TEXT(255), "
-                        + "password TEXT(255))";
-                stmt.executeUpdate(createHomeBankingTableSQL);
-
-                // Create bot_job table
-                String createBotJobTableSQL = "CREATE TABLE bot_job ("
-                        + "ID AUTOINCREMENT PRIMARY KEY, "
-                        + "name TEXT(255) UNIQUE, "
-                        + "description TEXT(255), "
-                        + "priority TEXT(255), "
-                        + "home_banking_id INTEGER)";
-                stmt.executeUpdate(createBotJobTableSQL);
-
-                // Add foreign key constraint after table creation
-                String addForeignKeySQL = "ALTER TABLE bot_job "
-                        + "ADD CONSTRAINT FK_HomeBanking FOREIGN KEY (home_banking_id) "
-                        + "REFERENCES home_banking(ID) ON DELETE CASCADE";
-                stmt.executeUpdate(addForeignKeySQL);
-
-                // Create block table with a foreign key reference to bot_job
-                String createBlockTableSQL = "CREATE TABLE block ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "block_order_number INTEGER NOT NULL, "
-                        + "name TEXT NOT NULL, "
-                        + "description TEXT, "
-                        + "type_id INTEGER, "
-                        + "export_file TEXT, "
-                        + "active YESNO NOT NULL, "
-                        + "wait INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
-                stmt.executeUpdate(createBlockTableSQL);
-
-                // Create instruction table with foreign key references to block and bot_job
-                String createInstructionTableSQL = "CREATE TABLE instruction ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "instruction_order_number INTEGER NOT NULL, "
-                        + "actions TEXT, "
-                        + "name TEXT, "
-                        + "xpath TEXT(10000), "
-                        + "coordinates TEXT, "
-                        + "force_coordinates YESNO, "
-                        + "iframe_xpath TEXT, "
-                        + "description TEXT, "
-                        + "operation TEXT, "
-                        + "optional YESNO, "
-                        + "block_marked YESNO, "
-                        + "default_value TEXT, "
-                        + "action_custom_max_wait_sec INTEGER, "
-                        + "on_hold_seconds INTEGER, "
-                        + "codified YESNO, "
-                        + "export_to_abr YESNO, "
-                        + "active YESNO NOT NULL, "
-                        + "block_id INTEGER, "
-                        + "variable_id INTEGER, "
-                        + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (block_id) REFERENCES block(ID) ON DELETE CASCADE, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
-                stmt.executeUpdate(createInstructionTableSQL);
-
-                String createReferenceTableSQL = "CREATE TABLE reference ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "reference_type TEXT, "
-                        + "value TEXT, "
-                        + "instruction_id INTEGER NOT NULL, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES instruction(ID) ON DELETE CASCADE, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
-                stmt.executeUpdate(createReferenceTableSQL);
-
-                String createComplexInstructionTableSQL = "CREATE TABLE complex_instruction ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "instruction_id INTEGER, "
-                        + "order_number INTEGER NOT NULL, "
-                        + "instruction TEXT, "
-                        + "way TEXT, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES instruction(ID) ON DELETE CASCADE, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
-                stmt.executeUpdate(createComplexInstructionTableSQL);
-
-                String createVariableTableSQL = "CREATE TABLE variable ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "type TEXT, "
-                        + "name TEXT, "
-                        + "value TEXT, "
-                        + "instruction_id INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES instruction(ID) ON DELETE CASCADE, "
-                        + "FOREIGN KEY (bot_job_id) REFERENCES bot_job(ID) ON DELETE CASCADE)";
-                stmt.executeUpdate(createVariableTableSQL);
-
-                String createConfigurationTableSQL = "CREATE TABLE configuration ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "pathJava TEXT, "
-                        + "logLevel TEXT, "
-                        + "pathDB TEXT, "
-                        + "interactionTimeoutSec TEXT, "
-                        + "pathLog TEXT, "
-                        + "defaultInstructionStopSeconds TEXT, "
-                        + "pathReport TEXT, "
-                        + "browser TEXT, "
-                        + "dataBaseType TEXT, "
-                        + "pageUpdateTimeoutSec TEXT, "
-                        + "pathPriority TEXT, "
-                        + "pathEngine TEXT, "
-                        + "pathExcel TEXT, "
-                        + "pathExport TEXT, "
-                        + "socketPort TEXT, "
-                        + "blockLimit TEXT, "
-                        + "pathJavaFx TEXT)";
-                stmt.executeUpdate(createConfigurationTableSQL);
-
-                String createComponentBlockTableSQL = "CREATE TABLE component_block ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "home_banking_id INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "block_order_number INTEGER NOT NULL, "
-                        + "name TEXT NOT NULL, "
-                        + "description TEXT, "
-                        + "type_id INTEGER, "
-                        + "export_file TEXT, "
-                        + "active YESNO, "
-                        + "wait INTEGER)";
-                stmt.executeUpdate(createComponentBlockTableSQL);
-
-                String createComponentInstructionTableSQL = "CREATE TABLE component_instruction ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "instruction_order_number INTEGER NOT NULL, "
-                        + "actions TEXT, "
-                        + "name TEXT NOT NULL, "
-                        + "path TEXT, "
-                        + "coordinates TEXT, "
-                        + "force_coordinates YESNO, "
-                        + "iframe_xpath TEXT, "
-                        + "description TEXT, "
-                        + "operation TEXT, "
-                        + "optional YESNO, "
-                        + "block_marked YESNO, "
-                        + "default_value TEXT, "
-                        + "action_custom_max_wait_sec INTEGER, "
-                        + "on_hold_seconds INTEGER, "
-                        + "codified YESNO, "
-                        + "export_to_abr YESNO, "
-                        + "active YESNO, "
-                        + "block_id INTEGER, "
-                        + "executed YESNO, "
-                        + "priority TEXT, "
-                        + "variable_id INTEGER, "
-                        + "parent_id INTEGER, "
-                        + "bot_job_id INTEGER)";
-                stmt.executeUpdate(createComponentInstructionTableSQL);
-
-                String createComponentReferenceTableSQL = "CREATE TABLE component_reference ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "reference_type TEXT, "
-                        + "value TEXT, "
-                        + "instruction_id INTEGER NOT NULL, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES component_instruction(ID) ON DELETE CASCADE)";
-                stmt.executeUpdate(createComponentReferenceTableSQL);
-
-                String createComponentVariableTableSQL = "CREATE TABLE component_variable ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "type TEXT, "
-                        + "name TEXT, "
-                        + "value TEXT, "
-                        + "instruction_id INTEGER, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES component_instruction(ID) ON DELETE CASCADE)";
-                stmt.executeUpdate(createComponentVariableTableSQL);
-
-                String createComponentComplexTableSQL = "CREATE TABLE component_complex ("
-                        + "ID INTEGER PRIMARY KEY, "
-                        + "instruction_id INTEGER, "
-                        + "order_number INTEGER NOT NULL, "
-                        + "instruction TEXT, "
-                        + "way TEXT, "
-                        + "bot_job_id INTEGER, "
-                        + "FOREIGN KEY (instruction_id) REFERENCES component_instruction(ID) ON DELETE CASCADE)";
-                stmt.executeUpdate(createComponentComplexTableSQL);
-            }
-            System.out.println(String.format("Database %s has been created!", dbFile.getName()));
-        } catch (SQLException error) {
-            System.out.println("initializeDatabase\nError: " + error.getMessage());
-        }
     }
 
     public static void main(String[] args) {
