@@ -36,7 +36,7 @@ import javafx.scene.layout.*;
 
 public class ARMainPane extends ARPane {
 
-    private static final ARSharedResources dbResource;
+//    private static final ARSharedResources dbResource;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
@@ -53,7 +53,7 @@ public class ARMainPane extends ARPane {
 
     // Static block to initialize
     static {
-        dbResource = ARSharedResources.getInstance();
+//        dbResource = ARSharedResources.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
@@ -110,7 +110,7 @@ public class ARMainPane extends ARPane {
 
         }
 
-        dbResource.setPreviousDB(previousDB);
+//        dbResource.setPreviousDB(previousDB);
         arConfigurationScene.initialize(previousDB);
 
         if (pathDB == null || pathDB.isBlank()) {
