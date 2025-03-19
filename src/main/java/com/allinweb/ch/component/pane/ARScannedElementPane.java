@@ -333,16 +333,10 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public ARScannedElementPane(
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
             ARWebDriver arWebDriver,
             HomeBankingLoadDTO homeBanking,
             BotJobLoadDTO botJobLoadDTO,
             BlockLoadDTO blockLoadDTO) {
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
         this.arWebDriver = arWebDriver;
         this.homeBanking = homeBanking;
 

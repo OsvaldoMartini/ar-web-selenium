@@ -64,16 +64,12 @@ public class ARNewBotJobPane extends ARPane {
             ARViewBotJobScene arViewBotJobScene,
             PerformDataBase performDataBase,
             PerformMessage performMessage,
-            PerformActions performAction,
-            ObservableList<BotJobLoadDTO> botJobList,
-            ObservableList<WebDriver> webDriverList) {
+            ObservableList<BotJobLoadDTO> botJobList) {
         //        this.viewBotJobListView = viewBotJobListView;
         this.arViewBotJobScene = arViewBotJobScene;
         this.performDataBase = performDataBase;
         this.performMessage = performMessage;
-        this.performAction = performAction;
         this.botJobList = botJobList; // FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
-        this.webDriverList = webDriverList;
         //        this.viewBotJobListView.setItems(botJobList);
     }
 
@@ -223,7 +219,7 @@ public class ARNewBotJobPane extends ARPane {
                 //                viewBotJobListView.setItems(botJobList);
                 //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
-                arViewBotJobScene.initialize(performDataBase, performAction, createdBotJob, botJobList, webDriverList);
+                arViewBotJobScene.initialize(createdBotJob, botJobList);
                 arViewBotJobScene.show();
 
                 // Close the current window

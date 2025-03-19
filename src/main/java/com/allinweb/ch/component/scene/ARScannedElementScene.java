@@ -7,9 +7,6 @@ import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.SingletonSupplier;
 import java.time.format.DateTimeFormatter;
 import javafx.stage.Stage;
@@ -21,10 +18,6 @@ public class ARScannedElementScene extends ARScene {
     private static final Double SCENE_HEIGHT = 650D;
     private static final Double SCENE_WIDTH = 1100D;
     private static final String TITLE = "AR Web Factory";
-
-    private PerformDataBase performDataBase;
-    private PerformActions performActions;
-    private PerformMessage performMessage;
 
     private ARWebDriver arWebDriver;
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -53,17 +46,7 @@ public class ARScannedElementScene extends ARScene {
     private String sessionId;
 
     public ARScannedElementScene initialize(
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
-            ARWebDriver arWebDriver,
-            HomeBankingLoadDTO homeBankingLoadDTO,
-            BotJobLoadDTO botJobLoadDTO,
-            BlockLoadDTO blockLoadDTO) {
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
-        this.arWebDriver = arWebDriver;
+            HomeBankingLoadDTO homeBankingLoadDTO, BotJobLoadDTO botJobLoadDTO, BlockLoadDTO blockLoadDTO) {
         this.homeBankingLoadDTO = homeBankingLoadDTO;
         this.botJobLoadDTO = botJobLoadDTO;
         this.blockLoadDTO = blockLoadDTO;
@@ -72,14 +55,9 @@ public class ARScannedElementScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARScannedElementPane(
-                performDataBase,
-                performActions,
-                performMessage,
-                arWebDriver,
-                homeBankingLoadDTO,
-                botJobLoadDTO,
-                blockLoadDTO);
+        arWebDriver = new ARWebDriver(); // Initialize WebDriver
+
+        return new ARScannedElementPane(arWebDriver, homeBankingLoadDTO, botJobLoadDTO, blockLoadDTO);
     }
 
     @Override
