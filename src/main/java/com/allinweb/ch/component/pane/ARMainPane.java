@@ -12,6 +12,7 @@ import com.allinweb.ch.component.scene.ARSaveCloneScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -45,7 +46,7 @@ public class ARMainPane extends ARPane {
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewBotJobScene arNewBotJobScene;
-    //    private static final ARWebDriver arWebDriver;
+        private static final ARWebDriver arWebDriver;
 
     private static String previousDB;
     private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
@@ -65,6 +66,7 @@ public class ARMainPane extends ARPane {
         performActions = PerformActions.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
+        arWebDriver = ARWebDriver.getInstance();
     }
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
