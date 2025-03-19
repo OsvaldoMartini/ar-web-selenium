@@ -27,7 +27,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     private PerformActions performActions;
     private PerformMessage performMessage;
     private ObservableList<BotJobLoadDTO> botJobList;
-    ObservableList<WebDriver> webDriverList;
+    private ObservableList<WebDriver> webDriverList;
 
     public BotJobListCell(
             ARViewBotJobScene arViewBotJobScene,

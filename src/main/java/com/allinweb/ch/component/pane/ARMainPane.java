@@ -46,7 +46,7 @@ public class ARMainPane extends ARPane {
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewBotJobScene arNewBotJobScene;
-        private static final ARWebDriver arWebDriver;
+    private static final ARWebDriver arWebDriver;
 
     private static String previousDB;
     private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
@@ -199,7 +199,13 @@ public class ARMainPane extends ARPane {
         botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ARCellFactory<>(
-                BotJobListCell.class, arViewBotJobScene, performDataBase, performActions, performMessage, botJobList, webDriverList)::call);
+                BotJobListCell.class,
+                arViewBotJobScene,
+                performDataBase,
+                performActions,
+                performMessage,
+                botJobList,
+                webDriverList)::call);
         arNewBotJobScene.initialize(
                 arViewBotJobScene, performDataBase, performActions, performMessage, botJobList, webDriverList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
