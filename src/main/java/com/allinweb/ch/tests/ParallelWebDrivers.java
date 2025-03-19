@@ -10,7 +10,8 @@ public class ParallelWebDrivers {
 
     public static WebDriver getDriver() {
         if (driverThreadLocal.get() == null) {
-            String webDriverPath = "D:\\Projects\\AllinWeb\\ar-web-selenium-archive\\ar-web-selenium-files\\ProgramFiles\\edgedriver-versions\\msedgedriver_64-(134).exe"; // Replace with your path
+            String webDriverPath =
+                    "D:\\Projects\\AllinWeb\\ar-web-selenium-archive\\ar-web-selenium-files\\ProgramFiles\\edgedriver-versions\\msedgedriver_64-(134).exe"; // Replace with your path
             System.setProperty("webdriver.edge.driver", webDriverPath);
             EdgeOptions options = new EdgeOptions();
             driverThreadLocal.set(new EdgeDriver(options));
@@ -26,14 +27,14 @@ public class ParallelWebDrivers {
         }
     }
 
-    public static void main(String[] args) throws InterruptedException{
-        Thread t1 = new Thread(()->{
+    public static void main(String[] args) throws InterruptedException {
+        Thread t1 = new Thread(() -> {
             WebDriver driver = ParallelWebDrivers.getDriver();
             driver.get("https://www.example.com/page1");
             ParallelWebDrivers.quitDriver();
         });
 
-        Thread t2 = new Thread(()->{
+        Thread t2 = new Thread(() -> {
             WebDriver driver = ParallelWebDrivers.getDriver();
             driver.get("https://www.example.com/page2");
             ParallelWebDrivers.quitDriver();

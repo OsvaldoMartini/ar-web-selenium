@@ -182,7 +182,8 @@ public class ARWebDriver {
                         ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
                     }
                     System.setProperty("webdriver.edge.driver", webDriverPath);
-                    String userDataDir = System.getProperty("java.io.tmpdir") + File.separator + "edge-user-data-" + UUID.randomUUID();
+                    String userDataDir = System.getProperty("java.io.tmpdir") + File.separator + "edge-user-data-"
+                            + UUID.randomUUID();
                     EdgeOptions options = new EdgeOptions();
                     options.addArguments("--user-data-dir=" + userDataDir);
                     options = buildOptionsEdge(optionsConfigLines, logFolder);
@@ -379,4 +380,3 @@ public class ARWebDriver {
         }
     }
 }
-                    
