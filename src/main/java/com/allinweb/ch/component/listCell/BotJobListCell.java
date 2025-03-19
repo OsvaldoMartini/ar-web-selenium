@@ -174,7 +174,6 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                 if (mouseEvent.getClickCount() == 2) {
                     arViewBotJobScene.initialize(
                             arWebDriver,
-                            webDriverList,
                             performDataBase,
                             performActions,
                             performMessage,

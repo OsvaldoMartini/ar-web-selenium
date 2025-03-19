@@ -456,6 +456,8 @@ public class ARScannedElementPane extends ARPane {
         if (isBrowserClosed(performActions.getCurrentDriver()) && performActions.getCurrentDriver() != null) {
             performActions.getCurrentDriver().quit();
             performActions.setCurrentDriver(null);
+            currentARWebDriver.getCurrentDriver().quit();
+            currentARWebDriver.setCurrentDriver(null);
         }
 
         String browserType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BROWSER);

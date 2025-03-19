@@ -16,7 +16,6 @@ import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
 import javafx.application.Platform;
-import javafx.collections.ObservableList;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import org.openqa.selenium.WebDriver;

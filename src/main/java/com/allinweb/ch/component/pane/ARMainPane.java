@@ -265,7 +265,6 @@ public class ARMainPane extends ARPane {
 
                         arViewBotJobScene.initialize(
                                 arWebDriver,
-                                webDriverList,
                                 performDataBase,
                                 performActions,
                                 performMessage,

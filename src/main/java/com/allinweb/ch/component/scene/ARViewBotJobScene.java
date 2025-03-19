@@ -28,7 +28,6 @@ public class ARViewBotJobScene extends ARScene {
     protected static final SingletonSupplier<ARViewBotJobScene> instance = () -> new ARViewBotJobScene();
 
     private ObservableList<BotJobLoadDTO> botJobList;
-    private ObservableList<WebDriver> webDriverList;
 
     // Public method to access the singleton instance
     public static ARViewBotJobScene getInstance() {
@@ -45,7 +44,6 @@ public class ARViewBotJobScene extends ARScene {
 
     public void initialize(
             ARWebDriver arWebDriver,
-            ObservableList<WebDriver> webDriverList,
             PerformDataBase performDataBase,
             PerformActions performActions,
             PerformMessage performMessage,
@@ -53,7 +51,6 @@ public class ARViewBotJobScene extends ARScene {
             BotJobLoadDTO botJobLoad,
             ObservableList<BotJobLoadDTO> botJobList) {
         this.arWebDriver = arWebDriver;
-        this.webDriverList = webDriverList;
         this.performDataBase = performDataBase;
         this.performActions = performActions;
         this.performMessage = performMessage;
@@ -96,17 +93,12 @@ public class ARViewBotJobScene extends ARScene {
         threadList.forEach(this::interruptThread);
 
         // Close WebDriver if it's initialized
-        closeWebDrivers();
-    }
-
-    // Method to add WebDriver instances
-    public void addWebDriver(WebDriver driver) {
-        Platform.runLater(() -> webDriverList.add(driver));
+        //        closeWebDrivers();
     }
 
     // Method to close all WebDriver instances
     private void closeWebDrivers() {
-        for (WebDriver driver : webDriverList) {
+        for (WebDriver driver : arWebDriver.getWebDriverList()) {
             try {
                 driver.quit();
                 ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
@@ -114,7 +106,7 @@ public class ARViewBotJobScene extends ARScene {
                 ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
             }
         }
-        Platform.runLater(() -> webDriverList.clear());
+        Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
     }
 
     @Override
