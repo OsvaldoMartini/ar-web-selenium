@@ -14,6 +14,7 @@ import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import javax.swing.*;
@@ -179,8 +180,18 @@ public class ARWebDriver {
                     // Set path to Edge WebDriver executable
                     System.setProperty("webdriver.edge.driver", webDriverPath);
 
+                    String userDataDir = System.getProperty("java.io.tmpdir") + File.separator + "edge-user-data-" + UUID.randomUUID();
+
+                    // Configure EdgeOptions
+                    EdgeOptions options = new EdgeOptions();
+                    options.addArguments("--user-data-dir=" + userDataDir);
+                    //options.addArguments("--headless"); // if you want run it in headless mode.
+
+                    // Initialize EdgeDriver
+                    WebDriver driver = new EdgeDriver(options);
+                    
                     // Configure Edge options
-                    EdgeOptions options = buildOptionsEdge(optionsConfigLines, logFolder);
+                    options = buildOptionsEdge(optionsConfigLines, logFolder);
 
                     if (options != null) {
                         this.currentDriver = getDriverEdge(options);
@@ -261,6 +272,8 @@ public class ARWebDriver {
     private EdgeOptions buildOptionsEdge(String[] optionsConfigLines, String logFolder) {
         EdgeOptions optionsEdge = new EdgeOptions();
         // Options Config
+        optionsEdge.addArguments("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
+                + System.currentTimeMillis());
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
                 ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);
@@ -317,6 +330,9 @@ public class ARWebDriver {
 
     private ChromeOptions buildOptionsChrome(String[] optionsConfigLines, String logFolder) {
         ChromeOptions optionsChrome = new ChromeOptions();
+        optionsChrome.addArguments("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
+                + System.currentTimeMillis());
+
         // Options Config
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {

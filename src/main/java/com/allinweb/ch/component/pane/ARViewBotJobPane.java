@@ -98,11 +98,15 @@ public class ARViewBotJobPane extends ARPane {
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
     private ARWebDriver arWebDriver;
-    private ARScannedElementScene arScannedElementScene;
+    private static final ARScannedElementScene arScannedElementScene;
     private PerformDataBase performDataBase;
     private PerformActions performActions;
     private PerformMessage performMessage;
     private PerformPreLoad performPreLoad;
+
+    static {
+        arScannedElementScene = ARScannedElementScene.getInstance();
+    }
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
     // Define a flag to prevent double clicks

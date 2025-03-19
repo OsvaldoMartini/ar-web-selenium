@@ -336,6 +336,7 @@ public class ARScannedElementPane extends ARPane {
             HomeBankingLoadDTO homeBanking,
             BotJobLoadDTO botJobLoadDTO,
             BlockLoadDTO blockLoadDTO) {
+        this.currentARWebDriver = currentARWebDriver;
         this.performDataBase = performDataBase;
         this.performActions = performActions;
         this.performMessage = performMessage;
