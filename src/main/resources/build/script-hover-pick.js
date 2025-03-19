@@ -614,12 +614,12 @@
   });
 
   // window.cloneTerms = null; // Invalidating the function
-  // })(
-  //   arguments[0],
-  //   arguments[1],
-  //   arguments[2],
-  //   arguments[3],
-  //   arguments[4],
-  //   arguments[5]
-  // );
-})("http://localhost:3000/", "http://localhost:3000/", ["*"], false, 8181, 1);
+})(
+  arguments[0],
+  arguments[1],
+  arguments[2],
+  arguments[3],
+  arguments[4],
+  arguments[5]
+);
+// })("http://localhost:3000/", "http://localhost:3000/", ["*"], false, 8181, 1);
