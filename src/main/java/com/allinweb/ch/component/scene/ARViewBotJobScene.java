@@ -7,8 +7,11 @@ import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
@@ -29,18 +32,27 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     private ARScene currentScene;
+    private ARWebDriver arWebDriver;
     private PerformDataBase performDataBase;
     private PerformActions performActions;
+    private PerformMessage performMessage;
+    private PerformPreLoad performPreLoad;
     private BotJobLoadDTO botJobLoad;
 
     public void initialize(
+            ARWebDriver arWebDriver,
             PerformDataBase performDataBase,
             PerformActions performActions,
+            PerformMessage performMessage,
+            PerformPreLoad performPreLoad,
             BotJobLoadDTO botJobLoad,
             ObservableList<BotJobLoadDTO> botJobList,
             ObservableList<WebDriver> webDriverList) {
+        this.arWebDriver = arWebDriver;
         this.performDataBase = performDataBase;
         this.performActions = performActions;
+        this.performMessage = performMessage;
+        this.performPreLoad = performPreLoad;
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
@@ -106,7 +118,15 @@ public class ARViewBotJobScene extends ARScene {
                             "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
         }
 
-        return new ARViewBotJobPane(this.botLoadJob, this, botJobList);
+        return new ARViewBotJobPane(
+                this,
+                arWebDriver,
+                performDataBase,
+                performActions,
+                performMessage,
+                performPreLoad,
+                this.botLoadJob,
+                botJobList);
     }
 
     @Override

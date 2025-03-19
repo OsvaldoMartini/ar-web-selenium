@@ -4,9 +4,11 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.ARNewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.facade.SingletonSupplier;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
@@ -35,23 +37,28 @@ public class ARNewBotJobScene extends ARScene {
     private static final String TITLE = "New Bot Job";
     //    ListView<BotJobLoadDTO> viewBotJobListView;
     private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
     private PerformDataBase performDataBase;
-    private PerformMessage performMessage;
     private PerformActions performActions;
+    private PerformMessage performMessage;
+    private PerformPreLoad performPreLoad;
     private ObservableList<BotJobLoadDTO> botJobList;
     private ObservableList<WebDriver> webDriverList;
 
     public void initialize(
             ARViewBotJobScene arViewBotJobScene,
+            ARWebDriver arWebDriver,
             PerformDataBase performDataBase,
             PerformActions performActions,
             PerformMessage performMessage,
             ObservableList<BotJobLoadDTO> botJobList,
             ObservableList<WebDriver> webDriverList) {
         this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
         this.performDataBase = performDataBase;
         this.performMessage = performMessage;
         this.performActions = performActions;
+        this.performPreLoad = performPreLoad;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
     }
@@ -60,7 +67,14 @@ public class ARNewBotJobScene extends ARScene {
     public IARPane buildPane() {
         // Create ARNewBotJobPane without passing ListView here
         return new ARNewBotJobPane(
-                arViewBotJobScene, performDataBase, performActions, performMessage, botJobList, webDriverList);
+                arViewBotJobScene,
+                arWebDriver,
+                performDataBase,
+                performActions,
+                performMessage,
+                performPreLoad,
+                botJobList,
+                webDriverList);
     }
 
     @Override

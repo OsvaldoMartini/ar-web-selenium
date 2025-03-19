@@ -4,9 +4,11 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.google.common.base.Strings;
@@ -56,22 +58,28 @@ public class ARNewBotJobPane extends ARPane {
     private Alert alertToShow;
 
     private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
     private PerformDataBase performDataBase;
-    private PerformMessage performMessage;
     private PerformActions performActions;
+    private PerformMessage performMessage;
+    private PerformPreLoad performPreLoad;
 
     public ARNewBotJobPane(
             ARViewBotJobScene arViewBotJobScene,
+            ARWebDriver arWebDriver,
             PerformDataBase performDataBase,
             PerformActions performActions,
             PerformMessage performMessage,
+            PerformPreLoad performPreLoad,
             ObservableList<BotJobLoadDTO> botJobList,
             ObservableList<WebDriver> webDriverList) {
         //        this.viewBotJobListView = viewBotJobListView;
         this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
         this.performDataBase = performDataBase;
         this.performActions = performActions;
         this.performMessage = performMessage;
+        this.performPreLoad = performPreLoad;
         this.botJobList = botJobList; // FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
         this.webDriverList = webDriverList;
         //        this.viewBotJobListView.setItems(botJobList);
@@ -223,7 +231,15 @@ public class ARNewBotJobPane extends ARPane {
                 //                viewBotJobListView.setItems(botJobList);
                 //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
-                arViewBotJobScene.initialize(performDataBase, performActions, createdBotJob, botJobList, webDriverList);
+                arViewBotJobScene.initialize(
+                        arWebDriver,
+                        performDataBase,
+                        performActions,
+                        performMessage,
+                        performPreLoad,
+                        createdBotJob,
+                        botJobList,
+                        webDriverList);
                 arViewBotJobScene.show();
 
                 // Close the current window

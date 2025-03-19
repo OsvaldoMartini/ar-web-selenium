@@ -5,6 +5,7 @@ import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -24,6 +25,7 @@ public class ARViewBotJobListPane extends ARPane {
     private ListView<BotJobLoadDTO> uiBotJobList;
 
     private final ARViewBotJobScene arViewBotJobScene;
+    private final ARWebDriver arWebDriver;
     private final PerformDataBase performDataBase;
     private final PerformActions performActions;
     private final PerformMessage performMessage;
@@ -32,11 +34,13 @@ public class ARViewBotJobListPane extends ARPane {
     // Constructor for Dependency Injection
     public ARViewBotJobListPane(
             ARViewBotJobScene arViewBotJobScene,
+            ARWebDriver arWebDriver,
             PerformDataBase performDataBase,
             PerformActions performActions,
             PerformMessage performMessage,
             ObservableList<WebDriver> webDriverList) {
         this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
         this.performDataBase = performDataBase;
         this.performActions = performActions;
         this.performMessage = performMessage;
@@ -58,6 +62,7 @@ public class ARViewBotJobListPane extends ARPane {
         uiBotJobList.setCellFactory(new ARCellFactory<>(
                 BotJobListCell.class,
                 arViewBotJobScene,
+                arWebDriver,
                 performDataBase,
                 performActions,
                 performMessage,

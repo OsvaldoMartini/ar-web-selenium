@@ -11,7 +11,6 @@ import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.core.ARSharedResources;
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.ARConstants;
@@ -86,10 +85,13 @@ public class PerformActions {
     public List<String> windowHandlesList = new ArrayList<>();
 
     private ARPriorities arPriorities;
-    private ARWebDriver arWebDriver;
+    private WebDriver currentDriver;
+
     private Map<WebElement, List<WebElement>> iframeElementsMap;
+
     public static Wait<WebDriver> waitForPage;
     public static Wait<WebDriver> waitForAction;
+
     private boolean justCalledRefreshPage = false;
     private static JavascriptExecutor jsExecutor;
 
@@ -108,9 +110,8 @@ public class PerformActions {
         // Initialize if necessary
     }
 
-    public void initializePerformActions(ARPriorities arPriorities, ARWebDriver arWebDriver) {
+    public void initialize(ARPriorities arPriorities) {
         this.arPriorities = arPriorities;
-        this.arWebDriver = arWebDriver;
     }
 
     // Public method to access the singleton instance
@@ -159,16 +160,17 @@ public class PerformActions {
             String actions[])
             throws Exception {
 
-        WebDriver originalDriver = arWebDriver.getDriver(); // Save the original WebDriver state
+        WebDriver originalDriver = this.currentDriver; // Save the original WebDriver state
         boolean switchedToIframe = false;
 
         try {
             String xPath = currentInstruction.getXpath().toLowerCase();
             if (currentInstruction.getXpath() != null && xPath.contains("iframe")) {
                 // Locate and switch to the iframe
-                WebElement iframeElement = arWebDriver.getDriver().findElement(By.xpath(xPath));
-                WebDriver driver = arWebDriver.getDriver().switchTo().frame(iframeElement);
-                arWebDriver.setDriver(driver);
+                WebElement iframeElement = this.currentDriver.findElement(By.xpath(xPath));
+                WebDriver driver = this.currentDriver.switchTo().frame(iframeElement);
+
+                setCurrentDriver(driver);
                 switchedToIframe = true;
             }
 
@@ -245,7 +247,7 @@ public class PerformActions {
         } finally {
             // Restore the original WebDriver state
             if (switchedToIframe) {
-                arWebDriver.setDriver(originalDriver);
+                setCurrentDriver(originalDriver);
             }
         }
     }
@@ -364,7 +366,7 @@ public class PerformActions {
         if (criterias != null) {
 
             for (By criteria : criterias) {
-                List<WebElement> foundElementList = arWebDriver.getDriver().findElements(criteria);
+                List<WebElement> foundElementList = this.currentDriver.findElements(criteria);
 
                 if (foundElementList != null && foundElementList.size() > 0) {
                     if (justCalledRefreshPage) {
@@ -387,7 +389,7 @@ public class PerformActions {
                         }
                     } else if (actionCustomMaxWaitSec != null) {
                         try {
-                            new WebDriverWait(arWebDriver.getDriver(), Duration.ofSeconds(actionCustomMaxWaitSec))
+                            new WebDriverWait(this.currentDriver, Duration.ofSeconds(actionCustomMaxWaitSec))
                                     .until(ExpectedConditions.presenceOfElementLocated(criteria));
                         } catch (Exception e) {
                             ARLogger.getInstance(PerformActions.class)
@@ -444,15 +446,15 @@ public class PerformActions {
         //        WebElement elementInsideIframe = null;
         //                if (xPath.toLowerCase().contains("iframe")){
         //                    // Switch to the iframe using ID or name
-        //        //            arWebDriver.getDriver().switchTo().frame("iframeID");
+        //        //            this.currentDriver.switchTo().frame("iframeID");
         //
         //                    // Alternatively, switch to the iframe using a WebElement
         //        //            WebElement iframeElement =
-        //         arWebDriver.getDriver().findElement(By.xpath("//iframe[@name='iframeName']"));
-        //                    WebElement iframeElement = arWebDriver.getDriver().findElement(By.xpath(xPath));
-        //                    arWebDriver.getDriver().switchTo().frame(iframeElement);
+        //         this.currentDriver.findElement(By.xpath("//iframe[@name='iframeName']"));
+        //                    WebElement iframeElement = this.currentDriver.findElement(By.xpath(xPath));
+        //                    this.currentDriver.switchTo().frame(iframeElement);
         //                    // Now, interact with elements inside the iframe
-        //                    elementInsideIframe = arWebDriver.getDriver().findElement(By.id("elementID"));
+        //                    elementInsideIframe = this.currentDriver.findElement(By.id("elementID"));
         //                }
         //
         //                if (elementInsideIframe != null) {
@@ -461,7 +463,7 @@ public class PerformActions {
         //
         //                if (elementInsideIframe != null) {
         //                    // Switch back to the main page
-        //                    arWebDriver.getDriver().switchTo().defaultContent();
+        //                    this.currentDriver.switchTo().defaultContent();
         //                }
 
         String instructionPath = currentInstruction.getXpath();
@@ -591,7 +593,7 @@ public class PerformActions {
                         case jsoup -> {} // System.out.println("Default case");
                     }
 
-                    if (arWebDriver.getDriver() == null) {
+                    if (this.currentDriver == null) {
                         //                        showAlert(
                         //                                Alert.AlertType.ERROR,
                         //                                "AR Web Driver is NULL",
@@ -613,8 +615,7 @@ public class PerformActions {
                     if (criterias != null) {
 
                         for (By criteria : criterias) {
-                            List<WebElement> foundElementList =
-                                    arWebDriver.getDriver().findElements(criteria);
+                            List<WebElement> foundElementList = this.currentDriver.findElements(criteria);
 
                             //                            try {
                             //                                elementFound = scroolUntilFindElement(criteria);
@@ -642,7 +643,7 @@ public class PerformActions {
                                     try {
 
                                         new WebDriverWait(
-                                                        arWebDriver.getDriver(),
+                                                        this.currentDriver,
                                                         Duration.ofSeconds(
                                                                 currentInstruction.getActionCustomMaxWaitSec()))
                                                 .until(ExpectedConditions.presenceOfElementLocated(criteria));
@@ -704,7 +705,7 @@ public class PerformActions {
         String instructionPath = currentInstruction.getXpath();
         String tagName = null;
 
-        arWebDriver.getDriver().switchTo().defaultContent();
+        this.currentDriver.switchTo().defaultContent();
 
         try {
             tagName = removeTrailingSlash(instructionPath);
@@ -763,8 +764,8 @@ public class PerformActions {
         if (!Strings.isNullOrEmpty(currentInstruction.getIFrameXPath())) {
             try {
                 // Locate and switch to the iframe first
-                WebElement iframe = arWebDriver.getDriver().findElement(By.xpath(currentInstruction.getIFrameXPath()));
-                arWebDriver.getDriver().switchTo().frame(iframe);
+                WebElement iframe = this.currentDriver.findElement(By.xpath(currentInstruction.getIFrameXPath()));
+                this.currentDriver.switchTo().frame(iframe);
 
                 System.out.println("Found iFrame XPath: " + currentInstruction.getIFrameXPath());
             } catch (Exception e) {
@@ -862,26 +863,26 @@ public class PerformActions {
 
                         List<WebElement> foundElementList = new ArrayList<>();
                         try {
-                            foundElementList = arWebDriver.getDriver().findElements(criteria);
+                            foundElementList = this.currentDriver.findElements(criteria);
                         } catch (Exception ignore) {
 
                         }
 
                         if (foundElementList.size() == 0) {
                             if (isAttributeID) {
-                                WebElement element = findElementByID(arWebDriver.getDriver(), searchAttributeValue);
+                                WebElement element = findElementByID(this.currentDriver, searchAttributeValue);
                                 if (element != null) {
                                     foundElementList.add(element);
                                 }
                             } else if (isAttributeName) {
-                                WebElement element = findElementsByName(arWebDriver.getDriver(), searchAttributeValue);
+                                WebElement element = findElementsByName(this.currentDriver, searchAttributeValue);
                                 if (element != null) {
                                     foundElementList.add(element);
                                 }
                             } else if (isSearchAttribute) {
                                 String[] parts = searchAttributeValue.split("=");
                                 WebElement element =
-                                        findElementByAttributeParams(arWebDriver.getDriver(), parts[0], parts[1]);
+                                        findElementByAttributeParams(this.currentDriver, parts[0], parts[1]);
                                 if (element != null) {
                                     foundElementList.add(element);
                                 }
@@ -922,7 +923,7 @@ public class PerformActions {
 
                         // Switch back to main content after interacting with iframe (if applicable)
                         if (instructionPath.contains("iframe")) {
-                            arWebDriver.getDriver().switchTo().defaultContent();
+                            this.currentDriver.switchTo().defaultContent();
                         }
                     }
                 }
@@ -1060,7 +1061,7 @@ public class PerformActions {
     }
 
     private void waitPage() {
-        WebDriver driver = arWebDriver.getDriver();
+        WebDriver driver = this.currentDriver;
         if (driver != null) {
             try {
 
@@ -1084,7 +1085,7 @@ public class PerformActions {
     public boolean scrollToElement(boolean byPassNotFound, WebElement element) throws Exception {
         try {
             UtilsMethods.exceptionIfNullWebElement(element);
-            ((JavascriptExecutor) arWebDriver.getDriver()).executeScript("arguments[0].scrollIntoView(true);", element);
+            ((JavascriptExecutor) this.currentDriver).executeScript("arguments[0].scrollIntoView(true);", element);
             return true;
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1111,7 +1112,7 @@ public class PerformActions {
 
         //        try {
         //            waitForAction.until(ExpectedConditions.visibilityOf(element).andThen(e -> {
-        //                ((JavascriptExecutor) arWebDriver.getDriver())
+        //                ((JavascriptExecutor) this.currentDriver)
         //                        .executeScript("arguments[0].scrollIntoView(true);", element);
         //                return waitForAction.until(ExpectedConditions.elementToBeClickable(element));
         //            }));
@@ -1132,7 +1133,7 @@ public class PerformActions {
             return true;
         } catch (ElementClickInterceptedException e) {
             try {
-                JavascriptExecutor jse = (JavascriptExecutor) arWebDriver.getDriver();
+                JavascriptExecutor jse = (JavascriptExecutor) this.currentDriver;
                 jse.executeScript("arguments[0].click()", element);
                 return true;
             } catch (Exception ex) {
@@ -1146,7 +1147,7 @@ public class PerformActions {
     }
 
     public void refreshPage() {
-        arWebDriver.getDriver().navigate().refresh();
+        this.currentDriver.navigate().refresh();
         justCalledRefreshPage = true;
     }
 
@@ -1289,7 +1290,7 @@ public class PerformActions {
             //            selectCountry.selectByVisibleText(data.getValue());
 
             String[] coordArray = new String[] {coordinates, "coordinates"};
-            sequenceOfCommands(element, ARConstants.SELECT, coordArray, data, arWebDriver.getDriver(), pressEnterAfter);
+            sequenceOfCommands(element, ARConstants.SELECT, coordArray, data, this.currentDriver, pressEnterAfter);
 
         } catch (Exception e) {
             ARLogger.getInstance(PerformActions.class)
@@ -1332,7 +1333,7 @@ public class PerformActions {
         String textContext = "";
 
         try {
-            JavascriptExecutor js = (JavascriptExecutor) arWebDriver.getDriver();
+            JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
             textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
         } catch (Exception ex) {
             ARLogger.getInstance(PerformActions.class)
@@ -1439,9 +1440,9 @@ public class PerformActions {
                 }
             }
 
-            backwardButton = arWebDriver.getDriver().findElement(By.xpath(complexActionParts[0]));
-            forwardButton = arWebDriver.getDriver().findElement(By.xpath(complexActionParts[1]));
-            webElementList = arWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+            backwardButton = this.currentDriver.findElement(By.xpath(complexActionParts[0]));
+            forwardButton = this.currentDriver.findElement(By.xpath(complexActionParts[1]));
+            webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
 
             WebElement element;
             WebElement reasonWebElement;
@@ -1452,7 +1453,7 @@ public class PerformActions {
                     try {
                         waitForPage.until(
                                 ExpectedConditions.visibilityOfElementLocated(By.tagName(complexActionParts[2])));
-                        webElementList = arWebDriver.getDriver().findElements(By.tagName(complexActionParts[2]));
+                        webElementList = this.currentDriver.findElements(By.tagName(complexActionParts[2]));
                     } catch (Exception e) {
                         ARLogger.getInstance(PerformActions.class)
                                 .fine(String.format(
@@ -1481,29 +1482,22 @@ public class PerformActions {
                                     ".//button[@test-id='web-banking-payment-core.payment-ctx-action.button']")));
                     clickElement(
                             byPassNotFound,
-                            arWebDriver
-                                    .getDriver()
-                                    .findElement(
-                                            By.xpath(
-                                                    ".//button[@test-id='web-banking-payment-core.payment-ctx-action.payment-action-VIEW']")));
+                            this.currentDriver.findElement(
+                                    By.xpath(
+                                            ".//button[@test-id='web-banking-payment-core.payment-ctx-action.payment-action-VIEW']")));
 
                     Thread.sleep(1000);
                     clickElement(
                             byPassNotFound,
-                            arWebDriver
-                                    .getDriver()
-                                    .findElement(
-                                            By.xpath(
-                                                    ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
+                            this.currentDriver.findElement(By.xpath(
+                                    ".//button[@test-id='web-banking-common.export-to-file.single-file-button']")));
 
                     Thread.sleep(1000);
                     clickElement(
                             byPassNotFound,
-                            arWebDriver
-                                    .getDriver()
-                                    .findElement(
-                                            By.xpath(
-                                                    ".//avq-breadcrumb[@test-id='web-banking-portal.pages.payments-overview.breadcrumb']")));
+                            this.currentDriver.findElement(
+                                    By.xpath(
+                                            ".//avq-breadcrumb[@test-id='web-banking-portal.pages.payments-overview.breadcrumb']")));
                 } catch (Exception e) {
                     System.out.println("Impossible execute operation on this element: " + element.toString());
                 }
@@ -1521,7 +1515,7 @@ public class PerformActions {
     }
 
     public void quit(int status) {
-        arWebDriver.getDriver().quit();
+        this.currentDriver.quit();
         if (status == 0) {
             System.exit(status);
         }
@@ -1556,7 +1550,7 @@ public class PerformActions {
 
     public String pauseEngine(String blockName) {
 
-        //        JavascriptExecutor js = (JavascriptExecutor) arWebDriver.getDriver();
+        //        JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
         //        js.executeScript("alert('This is a custom alert modal!');");
         String message = "PAUSE REQUESTED "
                 + "<br>-------------------------------------------------<br>"
@@ -1974,20 +1968,20 @@ public class PerformActions {
 
     // Update the list of window handles (tabs)
     public void updateWindowHandlesList() {
-        Set<String> windowHandles = arWebDriver.getDriver().getWindowHandles();
+        Set<String> windowHandles = this.currentDriver.getWindowHandles();
         windowHandlesList = new ArrayList<>(windowHandles);
     }
 
     public String getSessionId() {
-        if (arWebDriver.getDriver() instanceof RemoteWebDriver) {
-            return ((RemoteWebDriver) arWebDriver.getDriver()).getSessionId().toString();
+        if (this.currentDriver instanceof RemoteWebDriver) {
+            return ((RemoteWebDriver) this.currentDriver).getSessionId().toString();
         } else {
             throw new IllegalStateException("Driver is not an instance of RemoteWebDriver");
         }
     }
 
     public void alertMessage(String message) {
-        JavascriptExecutor js = (JavascriptExecutor) arWebDriver.getDriver();
+        JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
 
         // Escape the quotes in the JavaScript string
         String script = "let alertBox = document.createElement('div');" + "alertBox.style.position = 'fixed';"
@@ -2008,7 +2002,7 @@ public class PerformActions {
         js.executeScript(script);
 
         // Optional: Handle the alert
-        org.openqa.selenium.Alert alert = arWebDriver.getDriver().switchTo().alert();
+        org.openqa.selenium.Alert alert = this.currentDriver.switchTo().alert();
 
         // Optional: pause for a few seconds to view the alert
         try {
@@ -2327,10 +2321,8 @@ public class PerformActions {
                 double temp2 = Double.parseDouble(coordinates[1]);
                 x = (int) temp1;
                 y = (int) temp2;
-                int maxHeight =
-                        arWebDriver.getDriver().manage().window().getSize().getHeight();
-                int maxWidth =
-                        arWebDriver.getDriver().manage().window().getSize().getWidth();
+                int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
+                int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
                 int offsetY = y - maxHeight;
                 int offsetX = x - maxWidth;
                 xCoord = x > maxWidth ? x - offsetX : x;
@@ -2370,8 +2362,8 @@ public class PerformActions {
         double temp2 = Double.parseDouble(coordinates[1]);
         x = (int) temp1;
         y = (int) temp2;
-        int maxHeight = arWebDriver.getDriver().manage().window().getSize().getHeight();
-        int maxWidth = arWebDriver.getDriver().manage().window().getSize().getWidth();
+        int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
+        int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
         int offsetY = y - maxHeight;
         int offsetX = x - maxWidth;
         xCoord = x > maxWidth ? x - offsetX : x;
@@ -2399,8 +2391,8 @@ public class PerformActions {
             double temp2 = Double.parseDouble(coordinates[1]);
             x = (int) temp1;
             y = (int) temp2;
-            int maxHeight = arWebDriver.getDriver().manage().window().getSize().getHeight();
-            int maxWidth = arWebDriver.getDriver().manage().window().getSize().getWidth();
+            int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
+            int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
             int offsetY = y - maxHeight;
             int offsetX = x - maxWidth;
             xCoord = x > maxWidth ? x - offsetX : x;
@@ -2410,13 +2402,13 @@ public class PerformActions {
                 scrollToCoordinates(x, y);
             } else if (ARConstants.CLICK.equals(action)) {
                 scrollToCoordinates(x, y);
-                //                circleAtCoordinates(x, y, arWebDriver.getDriver());
+                //                circleAtCoordinates(x, y, this.currentDriver);
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
             } else if (ARConstants.INSERT.equals(action)) {
                 scrollToCoordinates(x, y);
-                //                sendInputJS(x, y, data.getValue(),arWebDriver.getDriver());
-                //                circleAtCoordinates(x, y, arWebDriver.getDriver());
+                //                sendInputJS(x, y, data.getValue(),this.currentDriver);
+                //                circleAtCoordinates(x, y, this.currentDriver);
                 onHoldForSeconds(null);
                 //                clickAtCoordinates(xCoord, yCoord);
                 //                onHoldForSeconds(null);
@@ -2427,8 +2419,8 @@ public class PerformActions {
                 }
             } else if (ARConstants.INSERT.equals(action) && forceCLick) {
                 scrollToCoordinates(x, y);
-                //                sendInputJS(x, y, data.getValue(),arWebDriver.getDriver());
-                //                circleAtCoordinates(x, y, arWebDriver.getDriver());
+                //                sendInputJS(x, y, data.getValue(),this.currentDriver);
+                //                circleAtCoordinates(x, y, this.currentDriver);
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
                 onHoldForSeconds(null);
@@ -2446,8 +2438,8 @@ public class PerformActions {
     }
 
     private void scrollToCoordinates(int x, int y) {
-        int maxHeight = arWebDriver.getDriver().manage().window().getSize().getHeight();
-        int maxWidth = arWebDriver.getDriver().manage().window().getSize().getWidth();
+        int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
+        int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
         int offsetY = y - maxHeight;
         int offsetX = x - maxWidth;
         if (offsetX > 0 || offsetY > 0) {
@@ -2461,8 +2453,8 @@ public class PerformActions {
                     + "getScrollableParent(document.elementFromPoint("
                     + (maxWidth / 2) + "," + (maxHeight / 2)
                     + ")).scrollTo(" + Math.max(offsetX, 0) + "," + Math.max(offsetY, 0) + ");" + "return true;";
-            new WebDriverWait(arWebDriver.getDriver(), Duration.ofSeconds(10))
-                    .until((item) -> (Boolean) ((JavascriptExecutor) arWebDriver.getDriver()).executeScript(script));
+            new WebDriverWait(this.currentDriver, Duration.ofSeconds(10))
+                    .until((item) -> (Boolean) ((JavascriptExecutor) this.currentDriver).executeScript(script));
         }
     }
 
@@ -2489,7 +2481,7 @@ public class PerformActions {
                 "window.addEventListener(\"click\", pri);";
         ((JavascriptExecutor)driver).executeScript(script);
          */
-        new Actions(arWebDriver.getDriver()).moveToLocation(x, y).click().perform();
+        new Actions(this.currentDriver).moveToLocation(x, y).click().perform();
     }
 
     public WebElement getElementFromCoordinates(String savedCoordinates) {
@@ -2503,14 +2495,14 @@ public class PerformActions {
             double temp2 = Double.parseDouble(coordinates[1]);
             x = (int) temp1;
             y = (int) temp2;
-            int maxHeight = arWebDriver.getDriver().manage().window().getSize().getHeight();
-            int maxWidth = arWebDriver.getDriver().manage().window().getSize().getWidth();
+            int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
+            int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
             int offsetY = y - maxHeight;
             int offsetX = x - maxWidth;
             xCoord = x > maxWidth ? x - offsetX : x;
             yCoord = y > maxHeight ? y - offsetY : y;
 
-            JavascriptExecutor js = (JavascriptExecutor) arWebDriver.getDriver();
+            JavascriptExecutor js = (JavascriptExecutor) this.currentDriver;
 
             WebElement elementFound = (WebElement)
                     js.executeScript("return document.elementFromPoint(arguments[0], arguments[1]);", xCoord, yCoord);
@@ -2546,14 +2538,11 @@ public class PerformActions {
     }
 
     private void typeCharacters(Pair<String, String> fieldData) {
-        new Actions(arWebDriver.getDriver()).sendKeys(fieldData.getValue()).perform();
+        new Actions(this.currentDriver).sendKeys(fieldData.getValue()).perform();
     }
 
     private void sendEnter(int x, int y) {
-        new Actions(arWebDriver.getDriver())
-                .moveByOffset(x, y)
-                .sendKeys(Keys.ENTER)
-                .perform();
+        new Actions(this.currentDriver).moveByOffset(x, y).sendKeys(Keys.ENTER).perform();
     }
 
     public String sequenceOfCommands(
@@ -2699,7 +2688,7 @@ public class PerformActions {
                             + "\n"
                             + "moveAndClickMouse(arguments[0], arguments[1]);";
 
-            ((JavascriptExecutor) arWebDriver.getDriver()).executeScript(script, xCoord, yCoord);
+            ((JavascriptExecutor) this.currentDriver).executeScript(script, xCoord, yCoord);
 
             if (pressEnterAfter) {
                 sendEnter(xCoord, yCoord);
@@ -2865,19 +2854,18 @@ public class PerformActions {
     public Map<WebElement, List<WebElement>> getIframeElementsMap() {
         iframeElementsMap = new HashMap<>();
 
-        if (arWebDriver.getDriver() != null) {
+        if (this.currentDriver != null) {
             // Get all iframe elements on the page
-            List<WebElement> iframeList = arWebDriver.getDriver().findElements(By.tagName("iframe"));
+            List<WebElement> iframeList = this.currentDriver.findElements(By.tagName("iframe"));
             System.out.println("Number of iframes found: " + iframeList.size());
 
             for (WebElement iframe : iframeList) {
                 try {
                     // Switch to the iframe
-                    arWebDriver.getDriver().switchTo().frame(iframe);
+                    this.currentDriver.switchTo().frame(iframe);
 
                     // Get all elements inside the iframe
-                    List<WebElement> elementsInsideIframe =
-                            arWebDriver.getDriver().findElements(By.xpath("//*"));
+                    List<WebElement> elementsInsideIframe = this.currentDriver.findElements(By.xpath("//*"));
                     iframeElementsMap.put(iframe, elementsInsideIframe);
 
                     System.out.println("Iframe contains " + elementsInsideIframe.size() + " elements");
@@ -2885,11 +2873,11 @@ public class PerformActions {
                     System.out.println("Could not access iframe: " + e.getMessage());
                 } finally {
                     // Switch back to the main page
-                    arWebDriver.getDriver().switchTo().defaultContent();
+                    this.currentDriver.switchTo().defaultContent();
                 }
             }
 
-            iframeInputLocator.initializeIframeInputLocator(iframeElementsMap, arWebDriver.getDriver());
+            iframeInputLocator.initializeIframeInputLocator(iframeElementsMap, this.currentDriver);
         }
         return iframeElementsMap;
     }
@@ -3969,5 +3957,13 @@ public class PerformActions {
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    public void setCurrentDriver(WebDriver driver) {
+        this.currentDriver = driver;
+    }
+
+    public WebDriver getCurrentDriver() {
+        return this.currentDriver;
     }
 }

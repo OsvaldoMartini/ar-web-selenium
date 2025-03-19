@@ -159,7 +159,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private int currentTabIndex = 0; // Track the currently active tab index
-    public ARWebDriver arWebDriver;
+    public WebDriver currentDriver;
     private Set<String> windowHandles;
     private WebElement previousElement = null;
     private WebElement currentElement = null;
@@ -298,12 +298,16 @@ public class ARScannedElementPane extends ARPane {
     private static int reduceSearchCriteria;
     private static ARPropertyManager managerProps;
     private static ARPriorities arPriorities;
-    private static final PerformMessage performMessage;
-    private static final PerformPreLoad performPreLoad;
+
+    private PerformDataBase performDataBase;
+    private PerformActions performActions;
+    private PerformMessage performMessage;
+    private PerformPreLoad performPreLoad;
+    private ARWebDriver currentARWebDriver;
+
     private static final PerformCloneLoad performCloneLoad;
     private static final PerformPickLoad performPickLoad;
-    private static final PerformActions performAction;
-    private static final PerformDataBase performDataBase;
+
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final IframeInputLocator iframeInputLocator;
     private int portSocket = 8080;
@@ -316,28 +320,27 @@ public class ARScannedElementPane extends ARPane {
     // Static block to initialize
     static {
         iframeInputLocator = IframeInputLocator.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performPreLoad = PerformPreLoad.getInstance();
         performCloneLoad = PerformCloneLoad.getInstance();
         performPickLoad = PerformPickLoad.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performAction = PerformActions.getInstance();
         arPriorities = ARPriorities.getInstance();
         managerProps = ARPropertyManager.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     }
 
-    public ARWebDriver getAbrWebDriver() {
-        return arWebDriver;
-    }
-
     public ARScannedElementPane(
+            ARWebDriver currentARWebDriver,
+            PerformDataBase performDataBase,
+            PerformActions performActions,
+            PerformMessage performMessage,
+            PerformPreLoad performPreLoad,
             HomeBankingLoadDTO homeBanking,
             BotJobLoadDTO botJobLoadDTO,
-            BlockLoadDTO blockLoadDTO,
-            ARWebDriver arWebDriver) {
+            BlockLoadDTO blockLoadDTO) {
+        this.performDataBase = performDataBase;
+        this.performActions = performActions;
+        this.performMessage = performMessage;
+        this.performPreLoad = performPreLoad;
         this.homeBanking = homeBanking;
-        this.arWebDriver = arWebDriver;
 
         activeSessions = SimpleWebSocketServer.getAllSessions();
 
@@ -376,14 +379,17 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 // Initialize performAction with arPriorities and arWebDriver
-                performAction.initializePerformActions(arPriorities, arWebDriver);
+
+                performActions.initialize(arPriorities);
+                performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
             }
         }
 
         // Assign instance variables
         this.botJobLoad = botJobLoadDTO;
         this.blockLoad = blockLoadDTO;
-        performAction.initializePerformActions(arPriorities, this.arWebDriver);
+        performActions.initialize(arPriorities);
+        performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
     }
 
     @Override
@@ -442,26 +448,39 @@ public class ARScannedElementPane extends ARPane {
         HBox.setHgrow(this.webView, Priority.ALWAYS);
         VBox.setVgrow(this.webView, Priority.ALWAYS);
 
-        //        if (arWebDriver.getDriver() == null) {
+        //        if (performActions.getCurrentDriver() == null) {
         //            arWebDriver = new ARWebDriver(); // Initialize WebDriver
         //        }
-        if (isBrowserClosed(arWebDriver) && arWebDriver.getDriver() != null) {
-            arWebDriver.getDriver().quit();
-            arWebDriver.setDriver(null);
+
+        if (isBrowserClosed(performActions.getCurrentDriver()) && performActions.getCurrentDriver() != null) {
+            //            performActions.getCurrentDriver().quit();
+            //            arWebDriver.setDriver(null);
         }
 
-        arWebDriver.openDriver(
-                homeBanking.getUrl(), homeBanking.getOptionsConfig(), defaultSearch, searchHiddenFields, portSocket);
+        String browserType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BROWSER);
+        String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+
+        currentARWebDriver.openDriver(
+                browserType,
+                webDriverPath,
+                homeBanking.getUrl(),
+                homeBanking.getOptionsConfig(),
+                defaultSearch,
+                searchHiddenFields,
+                portSocket);
+
+        performActions.initialize(arPriorities);
+        performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
 
         try {
-            performAction.onHoldInSeconds(3);
+            performActions.onHoldInSeconds(3);
         } catch (Exception e) {
             e.printStackTrace();
         }
         // "scannerTool", "scannerGrid", "searchTerms"
         performPreLoad.dynamicLoadElementsDTO(
-                arWebDriver.getDriver(),
-                arWebDriver.getDriver().getCurrentUrl(),
+                performActions.getCurrentDriver(),
+                performActions.getCurrentDriver().getCurrentUrl(),
                 defaultSearch,
                 searchHiddenFields,
                 portSocket,
@@ -469,7 +488,7 @@ public class ARScannedElementPane extends ARPane {
                 "scannerGrid",
                 "searchTerms");
 
-        performAction.getIframeElementsMap();
+        performActions.getIframeElementsMap();
 
         handleWindowHandlesChange();
 
@@ -1027,12 +1046,12 @@ public class ARScannedElementPane extends ARPane {
     // Enable or disable the tab switching buttons based on the number of tabs
     private void updateButtonState() {
         // If more than one tab is open
-        if (performAction.windowHandlesList.size() > 1) {
+        if (performActions.windowHandlesList.size() > 1) {
             // Disable the left button if we are on the first tab
             //            leftButton.setDisable(currentTabIndex == 0);
             //
             //            // Disable the right button if we are on the last tab
-            //            rightButton.setDisable(currentTabIndex == performAction.windowHandlesList.size() - 1);
+            //            rightButton.setDisable(currentTabIndex == performActions.windowHandlesList.size() - 1);
         } else {
             // Disable both buttons if there's only one tab or no tabs
             leftButton.setDisable(true);
@@ -1042,13 +1061,13 @@ public class ARScannedElementPane extends ARPane {
 
     // Switch to the previous tab (left)
     private void switchToLeftTab() {
-        if (arWebDriver.getDriver().getWindowHandles().size() > 1 && currentTabIndex > 0) {
+        if (performActions.getCurrentDriver().getWindowHandles().size() > 1 && currentTabIndex > 0) {
             // Decrease the index to move to the left
             currentTabIndex--;
 
             // Switch to the previous tab
-            arWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
-            updateSceneTitleWithCurrentURL(arWebDriver.getDriver().getCurrentUrl());
+            performActions.getCurrentDriver().switchTo().window(performActions.windowHandlesList.get(currentTabIndex));
+            updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
 
             // Disable the left button if we are at the first tab
             //            leftButton.setDisable(currentTabIndex == 0);
@@ -1060,17 +1079,17 @@ public class ARScannedElementPane extends ARPane {
 
     // Switch to the next tab (right)
     private void switchToRightTab() {
-        if (arWebDriver.getDriver().getWindowHandles().size() > 1
-                && currentTabIndex < performAction.windowHandlesList.size() - 1) {
+        if (performActions.getCurrentDriver().getWindowHandles().size() > 1
+                && currentTabIndex < performActions.windowHandlesList.size() - 1) {
             // Increase the index to move to the right
             currentTabIndex++;
 
             // Switch to the next tab
-            arWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
-            updateSceneTitleWithCurrentURL(arWebDriver.getDriver().getCurrentUrl());
+            performActions.getCurrentDriver().switchTo().window(performActions.windowHandlesList.get(currentTabIndex));
+            updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
 
             // Disable the right button if we are at the last tab
-            //            rightButton.setDisable(currentTabIndex == performAction.windowHandlesList.size() - 1);
+            //            rightButton.setDisable(currentTabIndex == performActions.windowHandlesList.size() - 1);
 
             // Enable the left button since we're no longer on the first tab
             //            leftButton.setDisable(false);
@@ -1079,19 +1098,19 @@ public class ARScannedElementPane extends ARPane {
 
     // Method to handle the scenario where the window handles size changes
     private void handleWindowHandlesChange() {
-        Set<String> currentWindowHandles = arWebDriver.getDriver().getWindowHandles();
+        Set<String> currentWindowHandles = performActions.getCurrentDriver().getWindowHandles();
 
         // If the number of window handles has changed
-        if (currentWindowHandles.size() != performAction.windowHandlesList.size()) {
+        if (currentWindowHandles.size() != performActions.windowHandlesList.size()) {
             // Update the window handles list with the new handles
-            performAction.updateWindowHandlesList();
+            performActions.updateWindowHandlesList();
 
             // Switch to the last window (most recent tab)
-            currentTabIndex = performAction.windowHandlesList.size() - 1; // The last index in the list
-            arWebDriver.getDriver().switchTo().window(performAction.windowHandlesList.get(currentTabIndex));
+            currentTabIndex = performActions.windowHandlesList.size() - 1; // The last index in the list
+            performActions.getCurrentDriver().switchTo().window(performActions.windowHandlesList.get(currentTabIndex));
 
             // Update the scene title with the current URL of the last tab
-            updateSceneTitleWithCurrentURL(arWebDriver.getDriver().getCurrentUrl());
+            updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
         }
     }
 
@@ -1188,18 +1207,19 @@ public class ARScannedElementPane extends ARPane {
             recallJob();
         });
         //        checkPickElement.setOnMouseClicked(e -> {
-        //            arWebDriver.getDriver().switchTo().defaultContent();
+        //            performActions.getCurrentDriver().switchTo().defaultContent();
         //            this.targetSelected = null;
         //            elementsFound.clear();
         //            resultElementSearch = false;
         //
-        //            revertPickInjections(arWebDriver.getDriver());
+        //            revertPickInjections(performActions.getCurrentDriver());
         //
         //            if (checkPickElement.isSelected()) {
         //                String[] dataArrayClone = {"*"};
         //                int finalPort = portSocket;
         //                Platform.runLater(() -> periodicHoverPickThread(
-        //                        arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArrayClone,
+        //                        performActions.getCurrentDriver(), performActions.getCurrentDriver().getCurrentUrl(),
+        // dataArrayClone,
         // finalPort));
         //            }
         //
@@ -1219,24 +1239,24 @@ public class ARScannedElementPane extends ARPane {
         //            });
         //        });
         checkCloneElement.setOnMouseClicked(e -> {
-            arWebDriver.getDriver().switchTo().defaultContent();
+            performActions.getCurrentDriver().switchTo().defaultContent();
             this.targetSelected = null;
             elementsFound.clear();
             resultElementSearch = false;
 
-            revertCloneInjections(arWebDriver.getDriver());
+            revertCloneInjections(performActions.getCurrentDriver());
 
             if (checkCloneElement.isSelected()) {
                 String[] dataArrayClone = {"*"};
                 int finalPort = portSocket;
                 Platform.runLater(() -> periodicPickOneCloneThread(
-                        arWebDriver.getDriver(),
-                        arWebDriver.getDriver().getCurrentUrl(),
+                        performActions.getCurrentDriver(),
+                        performActions.getCurrentDriver().getCurrentUrl(),
                         dataArrayClone,
                         finalPort,
                         homeBanking.getId()));
             } else {
-                revertHoverPickInjections(arWebDriver.getDriver());
+                revertHoverPickInjections(performActions.getCurrentDriver());
             }
 
             Platform.runLater(() -> {
@@ -1313,7 +1333,7 @@ public class ARScannedElementPane extends ARPane {
         refreshInputFieldsButton.setOnAction(e -> refreshInputBtn("Input Web Elements"));
         refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn("Output Web Elements"));
         //        refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn("Others Types of Web Elements"));
-        magicFieldsButton.setOnAction(e -> performAction.createOutputHtml("input", arWebDriver.getDriver()));
+        magicFieldsButton.setOnAction(e -> performActions.createOutputHtml("input", performActions.getCurrentDriver()));
         searchWithIdsButton.setOnAction(e -> refreshWithIdsBtn("Web Elements with Attribute ID"));
         searchWithNamesButton.setOnAction(e -> refreshWithNamesBtn("Web Elements with Attribute Name"));
         searchButtons.setOnAction(e -> refreshSearchButtons("Web Elements without Attributes Name/ID"));
@@ -1340,13 +1360,13 @@ public class ARScannedElementPane extends ARPane {
     private boolean lastBrowserTab() {
         // Get all window handles (all open tabs/windows)
         try {
-            windowHandles = arWebDriver.getDriver().getWindowHandles();
+            windowHandles = performActions.getCurrentDriver().getWindowHandles();
 
             // Convert the window handles set to a list
             List<String> windowHandlesList = new ArrayList<>(windowHandles);
 
             // Switch to the last window (newly opened tab)
-            arWebDriver.getDriver().switchTo().window(windowHandlesList.get(windowHandlesList.size() - 1));
+            performActions.getCurrentDriver().switchTo().window(windowHandlesList.get(windowHandlesList.size() - 1));
 
             return true;
         } catch (Exception e) {
@@ -1448,13 +1468,13 @@ public class ARScannedElementPane extends ARPane {
 
         try {
             // Locate and switch to the iframe first
-            WebElement iframe = arWebDriver.getDriver().findElement(By.xpath(iframeElementDTO.getXPath()));
+            WebElement iframe = performActions.getCurrentDriver().findElement(By.xpath(iframeElementDTO.getXPath()));
 
             // I Need to create a new targetElement
-            TargetElement targetIFrame = performAction.defineSearchReturn(iframeElementDTO, iframe, null);
-            targetIFrame = performAction.defineTargetNameTitles(targetIFrame);
+            TargetElement targetIFrame = performActions.defineSearchReturn(iframeElementDTO, iframe, null);
+            targetIFrame = performActions.defineTargetNameTitles(targetIFrame);
 
-            arWebDriver.getDriver().switchTo().frame(iframe);
+            performActions.getCurrentDriver().switchTo().frame(iframe);
 
             // Adding the Variants for iFrame
             try {
@@ -1504,12 +1524,13 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 try {
-                    WebElement elemFound = arWebDriver.getDriver().findElement(By.xpath(elementChild.getXPath()));
+                    WebElement elemFound =
+                            performActions.getCurrentDriver().findElement(By.xpath(elementChild.getXPath()));
 
                     elementChild.setIFrameXPath(iframeElementDTO.getXPath());
 
-                    TargetElement targetChild = performAction.defineSearchReturn(elementChild, elemFound, null);
-                    targetChild = performAction.defineTargetNameTitles(targetChild);
+                    TargetElement targetChild = performActions.defineSearchReturn(elementChild, elemFound, null);
+                    targetChild = performActions.defineTargetNameTitles(targetChild);
 
                     ARWebElement arWebElement = new ARWebElement(targetChild, botJobLoad.getId());
 
@@ -1569,7 +1590,7 @@ public class ARScannedElementPane extends ARPane {
             //            });
 
             // Close the browser
-            arWebDriver.getDriver().switchTo().defaultContent();
+            performActions.getCurrentDriver().switchTo().defaultContent();
         }
         return false;
     }
@@ -1578,8 +1599,8 @@ public class ARScannedElementPane extends ARPane {
 
         try {
             // Locate and switch to the iframe first
-            WebElement iframe = arWebDriver.getDriver().findElement(By.xpath(iFrameXPath));
-            arWebDriver.getDriver().switchTo().frame(iframe);
+            WebElement iframe = performActions.getCurrentDriver().findElement(By.xpath(iFrameXPath));
+            performActions.getCurrentDriver().switchTo().frame(iframe);
 
             TargetElement targetFound = new TargetElement();
             // Loop through and find elements
@@ -1596,10 +1617,11 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 try {
-                    WebElement element = arWebDriver.getDriver().findElement(By.xpath(elementFound.getXPath()));
+                    WebElement element =
+                            performActions.getCurrentDriver().findElement(By.xpath(elementFound.getXPath()));
                     //                                elements.add(element);
 
-                    targetFound = performAction.defineSearchReturn(elementFound, element, targetFound);
+                    targetFound = performActions.defineSearchReturn(elementFound, element, targetFound);
 
                     ARWebElement arWebElement = new ARWebElement(targetFound, botJobLoad.getId());
                     if (arWebElement != null && arWebElement.getElement() != null) {
@@ -1621,7 +1643,7 @@ public class ARScannedElementPane extends ARPane {
             //            browserNotAttached();
         } finally {
             // Close the browser
-            arWebDriver.getDriver().switchTo().defaultContent();
+            performActions.getCurrentDriver().switchTo().defaultContent();
         }
     }
 
@@ -1642,14 +1664,15 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 try {
-                    WebElement elementFound = arWebDriver.getDriver().findElement(By.xpath(elementDTO.getXPath()));
+                    WebElement elementFound =
+                            performActions.getCurrentDriver().findElement(By.xpath(elementDTO.getXPath()));
                     //                                elements.add(element);
 
                     if (elementFound != null) {
                         // I Need to create a new targetElement
-                        TargetElement targetLocal = performAction.defineSearchReturn(elementDTO, elementFound, null);
+                        TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, elementFound, null);
 
-                        targetLocal = performAction.defineTargetNameTitles(targetLocal);
+                        targetLocal = performActions.defineTargetNameTitles(targetLocal);
 
                         // First  Search for xPath
                         //                        TargetElement targetValidated =
@@ -1709,7 +1732,7 @@ public class ARScannedElementPane extends ARPane {
             //            browserNotAttached();
         } finally {
             // Close the browser
-            arWebDriver.getDriver().switchTo().defaultContent();
+            performActions.getCurrentDriver().switchTo().defaultContent();
         }
         return false;
     }
@@ -1718,11 +1741,11 @@ public class ARScannedElementPane extends ARPane {
 
         xpathTextPrevious = pickTarget.getXPath();
 
-        WebElement elementFound = arWebDriver.getDriver().findElement(By.xpath(pickTarget.getXPath()));
+        WebElement elementFound = performActions.getCurrentDriver().findElement(By.xpath(pickTarget.getXPath()));
 
-        TargetElement targetLocal = performAction.defineSearchReturn(pickTarget, elementFound, null);
+        TargetElement targetLocal = performActions.defineSearchReturn(pickTarget, elementFound, null);
 
-        targetLocal = performAction.defineTargetNameTitles(targetLocal);
+        targetLocal = performActions.defineTargetNameTitles(targetLocal);
 
         // First  Search for xPath
         TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
@@ -1740,7 +1763,7 @@ public class ARScannedElementPane extends ARPane {
             return null;
         }
 
-        //        targetElement = performAction.defineTagType(targetElement);
+        //        targetElement = performActions.defineTagType(targetElement);
 
         defineCheckBoxesClickabe(targetLocal);
 
@@ -1824,8 +1847,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     //    private TargetElement defineTargetTagType(TargetElement target) {
-    //    targetElement = performAction.defineTargetNameTitles(targetElement);
-    //    targetElement performAction.defineTagType(TargetElement targetTagType) {
+    //    targetElement = performActions.defineTargetNameTitles(targetElement);
+    //    targetElement performActions.defineTagType(TargetElement targetTagType) {
     //    defineTagTypeAdvanced
 
     // iFrames
@@ -1990,10 +2013,10 @@ public class ARScannedElementPane extends ARPane {
                 // Try by coordinates
                 try {
                     Pair<String, String> filedData = new Pair("&EMPTY", "&EMPTY");
-                    boolean passed = performAction.executeActionsAtCoordinates(
+                    boolean passed = performActions.executeActionsAtCoordinates(
                             target.getCoords(), filedData, ARConstants.VISUALIZE, false);
                     if (passed) {
-                        elementValid = performAction.getElementFromCoordinates(target.getCoords());
+                        elementValid = performActions.getElementFromCoordinates(target.getCoords());
                         if (elementValid != null && elementValid.getTagName() != null) {
                             target.setElement(elementValid);
                         }
@@ -2008,7 +2031,7 @@ public class ARScannedElementPane extends ARPane {
                 }
             } else if (elementValid == null) {
                 try {
-                    elementValid = arWebDriver.getDriver().findElement(By.xpath(target.getCurrentXPath()));
+                    elementValid = performActions.getCurrentDriver().findElement(By.xpath(target.getCurrentXPath()));
                     if (elementValid != null && elementValid.getTagName() != null) {
                         target.setElement(elementValid);
                         target.setXPathWorkedFirst(
@@ -2021,7 +2044,7 @@ public class ARScannedElementPane extends ARPane {
                 }
             } else if (elementValid == null) {
                 try {
-                    elementValid = arWebDriver.getDriver().findElement(By.xpath(target.getCustomXPath()));
+                    elementValid = performActions.getCurrentDriver().findElement(By.xpath(target.getCustomXPath()));
                     if (elementValid != null && elementValid.getTagName() != null) {
                         target.setElement(elementValid);
                         target.setXPathWorkedFirst(
@@ -2037,7 +2060,7 @@ public class ARScannedElementPane extends ARPane {
                     //            if (searchReturn.getCurrentXPath().startsWith("id(")) {
                     if (!Strings.isNullOrEmpty(target.getAttribId())) {
                         try {
-                            elementValid = arWebDriver.getDriver().findElement(By.id(target.getAttribId()));
+                            elementValid = performActions.getCurrentDriver().findElement(By.id(target.getAttribId()));
                             if (elementValid != null && elementValid.getTagName() != null) {
                                 target.setElement(elementValid);
                                 target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_ID);
@@ -2054,7 +2077,8 @@ public class ARScannedElementPane extends ARPane {
 
                     if (!Strings.isNullOrEmpty(target.getAttribName())) {
                         try {
-                            elementValid = arWebDriver.getDriver().findElement(By.name(target.getAttribName()));
+                            elementValid =
+                                    performActions.getCurrentDriver().findElement(By.name(target.getAttribName()));
                             if (elementValid != null && elementValid.getTagName() != null) {
                                 target.setElement(elementValid);
                                 target.setAttributeType("name");
@@ -2125,7 +2149,7 @@ public class ARScannedElementPane extends ARPane {
     private void handleSearchTermClick(String[] dataArray) {
         //        webElementObservableList1.clear();
 
-        arWebDriver.getDriver().switchTo().defaultContent();
+        performActions.getCurrentDriver().switchTo().defaultContent();
         checkTestAction.setSelected(false);
 
         resultElementSearch = true;
@@ -2134,12 +2158,15 @@ public class ARScannedElementPane extends ARPane {
         xpathTextPrevious = "";
         this.targetSelected = null;
 
-        revertCloneInjections(arWebDriver.getDriver());
-        revertPickInjections(arWebDriver.getDriver());
+        revertCloneInjections(performActions.getCurrentDriver());
+        revertPickInjections(performActions.getCurrentDriver());
 
         int finalPort = portSocket;
         Platform.runLater(() -> periodicSearchThread(
-                arWebDriver.getDriver(), arWebDriver.getDriver().getCurrentUrl(), dataArray, finalPort));
+                performActions.getCurrentDriver(),
+                performActions.getCurrentDriver().getCurrentUrl(),
+                dataArray,
+                finalPort));
     }
 
     private void revertCloneButtons() {
@@ -2279,7 +2306,7 @@ public class ARScannedElementPane extends ARPane {
 
         // Check if Browser is Inactive
         try {
-            windowHandles = arWebDriver.getDriver().getWindowHandles();
+            windowHandles = performActions.getCurrentDriver().getWindowHandles();
         } catch (Exception e) {
             browserNotAttached();
             return false;
@@ -2305,20 +2332,21 @@ public class ARScannedElementPane extends ARPane {
                                         + (criteria != null ? criteria : criteriaMSG));
 
                         if (idAttributeFirst || nameAttributeFirst) {
-                            mapAdvanced = findElementsWithXPath(arWebDriver.getDriver(), elementType);
+                            mapAdvanced = findElementsWithXPath(performActions.getCurrentDriver(), elementType);
                             listARElements = createAdvancedARElement(mapAdvanced, elementType, null);
                         } else if (withoutNameAndId) {
-                            mapAdvanced = findElementsWithoutIdOrName(arWebDriver.getDriver(), elementType);
+                            mapAdvanced = findElementsWithoutIdOrName(performActions.getCurrentDriver(), elementType);
                             listARElements = createAdvancedARElement(mapAdvanced, elementType, null);
                         } else if (preElements != null && preElements.size() > 0) {
                             scannedElementList.addAll(preElements);
                         } else if (criteria != null) {
                             if (criteria.equals(By.xpath("CODE_CRITERIA"))) {
-                                mapAdvanced = findElementsOutputCriteria(arWebDriver.getDriver());
+                                mapAdvanced = findElementsOutputCriteria(performActions.getCurrentDriver());
                                 listARElements =
                                         createAdvancedARElement(mapAdvanced, elementType, WebElementTagNameEnum.OUTPUT);
                             } else {
-                                scannedElementList = arWebDriver.getDriver().findElements(criteria);
+                                scannedElementList =
+                                        performActions.getCurrentDriver().findElements(criteria);
                             }
                         }
                         if (listARElements != null && listARElements.size() > 0) {
@@ -2366,8 +2394,8 @@ public class ARScannedElementPane extends ARPane {
                                     targetElement.setElement(item);
                                     targetElement.setDefinedName(
                                             targetElement.getElement().getTagName());
-                                    targetElement = performAction.defineTargetNameTitles(targetElement);
-                                    targetElement = performAction.defineTagType(targetElement);
+                                    targetElement = performActions.defineTargetNameTitles(targetElement);
+                                    targetElement = performActions.defineTagType(targetElement);
 
                                     // First  Search for xPath
                                     //                                    TargetElement targetValidated =
@@ -2399,7 +2427,7 @@ public class ARScannedElementPane extends ARPane {
                     } catch (EnumConstantNotPresentException ex) {
                         ARLogger.getInstance(ARScannedElementPane.class)
                                 .severe("ENUM Property not Defined of Web Element\n " + ex.getMessage());
-                        performAction.showAlert(
+                        performActions.showAlert(
                                 Alert.AlertType.ERROR,
                                 "ERROR ADD WEB ELEMENT",
                                 "Enum Constant Not Present!",
@@ -2535,7 +2563,7 @@ public class ARScannedElementPane extends ARPane {
 
         // Check if Browser is Inactive
         try {
-            windowHandles = arWebDriver.getDriver().getWindowHandles();
+            windowHandles = performActions.getCurrentDriver().getWindowHandles();
         } catch (Exception e) {
             browserNotAttached();
             return false;
@@ -2547,10 +2575,10 @@ public class ARScannedElementPane extends ARPane {
         CompletableFuture<Void> future = CompletableFuture.runAsync(
                 () -> {
                     // Switch back to the main page before checking the next iframe
-                    arWebDriver.getDriver().switchTo().defaultContent();
+                    performActions.getCurrentDriver().switchTo().defaultContent();
 
                     //                    List<String> allXPath =
-                    // iframeInputLocator.listAllXPaths(arWebDriver.getDriver());
+                    // iframeInputLocator.listAllXPaths(performActions.getCurrentDriver());
                     //                    // Filter the list to keep only elements with tag name "iframe"
                     //                    List<String> onlyIFrames = allXPath.stream()
                     //                            .filter(xpath -> xpath.toLowerCase().contains("iframe"))
@@ -2560,7 +2588,7 @@ public class ARScannedElementPane extends ARPane {
                     //                        System.out.println("iFrame: " + xPATH);
                     //                    }
 
-                    List<WebElement> iframes = arWebDriver.getDriver().findElements(By.tagName("iframe"));
+                    List<WebElement> iframes = performActions.getCurrentDriver().findElements(By.tagName("iframe"));
 
                     //                    Map<WebElement, List<WebElement>> iframeElementsMap = new HashMap<>();
 
@@ -2572,8 +2600,8 @@ public class ARScannedElementPane extends ARPane {
 
                         try {
                             try {
-                                String iFrameTemp =
-                                        iframeInputLocator.getElementXPathIFrame(iframe, arWebDriver.getDriver());
+                                String iFrameTemp = iframeInputLocator.getElementXPathIFrame(
+                                        iframe, performActions.getCurrentDriver());
                                 if (!Strings.isNullOrEmpty(iFrameTemp)) {
                                     iFrameXPathScan = iFrameTemp;
                                 }
@@ -2581,22 +2609,22 @@ public class ARScannedElementPane extends ARPane {
 
                             }
                             // CHANGING THE CONTEXT HERE
-                            arWebDriver.getDriver().switchTo().frame(iframe);
+                            performActions.getCurrentDriver().switchTo().frame(iframe);
 
                             //                            List<String> allInsedeInfo  =
-                            // iframeInputLocator.getIframeElementsInfo(iFrameElement,arWebDriver.getDriver());
+                            // iframeInputLocator.getIframeElementsInfo(iFrameElement,performActions.getCurrentDriver());
 
                             //                            try {
                             //                                String xPathList =
                             // iframeInputLocator.getElementXPathIFrame(
-                            //                                        iFrameElement, arWebDriver.getDriver());
+                            //                                        iFrameElement, performActions.getCurrentDriver());
                             //                                System.out.println("xPathList: " + xPathList);
                             //                            } catch (Exception x) {
                             //                                System.out.println("Error xPathList");
                             //                            }
 
                             List<WebElement> elementsInsideIframe =
-                                    arWebDriver.getDriver().findElements(By.xpath("//*"));
+                                    performActions.getCurrentDriver().findElements(By.xpath("//*"));
 
                             System.out.println(
                                     "Scanned " + elementsInsideIframe.size() + " elements inside an iframe.");
@@ -2611,8 +2639,8 @@ public class ARScannedElementPane extends ARPane {
                                 String xPathElementChild;
                                 // Main XPath
                                 try {
-                                    xPathElementChild =
-                                            iframeInputLocator.getElementXPath(elementChild, arWebDriver.getDriver());
+                                    xPathElementChild = iframeInputLocator.getElementXPath(
+                                            elementChild, performActions.getCurrentDriver());
                                 } catch (Exception error) {
                                     System.out.println("Failed to ge iframe element XPATH: " + error.getMessage());
                                     //                                    performMessage.generalErrorIFrame("Error
@@ -2638,11 +2666,12 @@ public class ARScannedElementPane extends ARPane {
                                 //                                try {
                                 //                                    xPathInsideFrame =
                                 // iframeInputLocator.getElementXPathIFrame(
-                                //                                            elementChild, arWebDriver.getDriver());
+                                //                                            elementChild,
+                                // performActions.getCurrentDriver());
                                 //                                    tagName =
-                                // performAction.removeTrailingSlash(xPathInsideFrame);
+                                // performActions.removeTrailingSlash(xPathInsideFrame);
                                 //                                    tagName =
-                                // performAction.extractTagName(xPathInsideFrame);
+                                // performActions.extractTagName(xPathInsideFrame);
                                 //                                } catch (Exception ignore) {
                                 //                                }
 
@@ -2682,12 +2711,12 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             }
                         } catch (Exception error) {
-                            arWebDriver.getDriver().switchTo().defaultContent();
+                            performActions.getCurrentDriver().switchTo().defaultContent();
                             System.out.println("Failed to scan iframe: " + error.getMessage());
                             performMessage.generalErrorIFrame("Error Scanning iFrames");
                             return;
                         }
-                        arWebDriver.getDriver().switchTo().defaultContent();
+                        performActions.getCurrentDriver().switchTo().defaultContent();
                     }
 
                     if (!foundElements) {
@@ -2777,7 +2806,7 @@ public class ARScannedElementPane extends ARPane {
     //
     //        // Check if Browser is Inactive
     //        try {
-    //            windowHandles = arWebDriver.getDriver().getWindowHandles();
+    //            windowHandles = performActions.getCurrentDriver().getWindowHandles();
     //        } catch (Exception e) {
     //            browserNotAttached();
     //            return;
@@ -2803,7 +2832,7 @@ public class ARScannedElementPane extends ARPane {
         //                                getChildren().addAll(blockAndUrl, boxListViews);
 
         //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
-        //            performAction.highlightElement(jsExecutor, arWebElement.getElement(), null);
+        //            performActions.highlightElement(jsExecutor, arWebElement.getElement(), null);
         //        }
 
         StringBuilder sb = new StringBuilder();
@@ -2812,14 +2841,15 @@ public class ARScannedElementPane extends ARPane {
             this.targetSelected = arWebHover.getTargetElement();
             this.targetSelected.setElement(arWebHover.getElement()); // RETURN THE ELEMENT FOR OTHER PURPOSE
 
-            arWebDriver.getDriver().switchTo().defaultContent();
+            performActions.getCurrentDriver().switchTo().defaultContent();
 
             // iFrame
             if (!Strings.isNullOrEmpty(this.targetSelected.getIFrameXPath())) {
                 try {
-                    WebElement iFrame =
-                            arWebDriver.getDriver().findElement(By.xpath(this.targetSelected.getIFrameXPath()));
-                    arWebDriver.getDriver().switchTo().frame(iFrame);
+                    WebElement iFrame = performActions
+                            .getCurrentDriver()
+                            .findElement(By.xpath(this.targetSelected.getIFrameXPath()));
+                    performActions.getCurrentDriver().switchTo().frame(iFrame);
                 } catch (Exception error) {
                     ARLogger.getInstance(ARScannedElementPane.class)
                             .info("iFrame Element not Located\niFrameXPath"
@@ -2841,7 +2871,7 @@ public class ARScannedElementPane extends ARPane {
                     || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
                     || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
                 nameDefined = (!Strings.isNullOrEmpty(this.targetSelected.getSomeText())
-                        ? performAction.truncateAndNormalize(this.targetSelected.getSomeText(), 30)
+                        ? performActions.truncateAndNormalize(this.targetSelected.getSomeText(), 30)
                         : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
                                 ? this.targetSelected.getAttribId()
                                 : !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
@@ -2855,7 +2885,7 @@ public class ARScannedElementPane extends ARPane {
 
                 String finalNameDefined = nameDefined;
                 Platform.runLater(
-                        () -> defineNameField.setText(performAction.truncateAndNormalize(finalNameDefined, 30)));
+                        () -> defineNameField.setText(performActions.truncateAndNormalize(finalNameDefined, 30)));
 
             } else if (this.targetSelected.getAttributeData().length > 0) {
 
@@ -2897,7 +2927,8 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 String finalSomeText = nameDefined;
-                Platform.runLater(() -> defineNameField.setText(performAction.truncateAndNormalize(finalSomeText, 30)));
+                Platform.runLater(
+                        () -> defineNameField.setText(performActions.truncateAndNormalize(finalSomeText, 30)));
 
             } else if (!Strings.isNullOrEmpty(this.targetSelected.getOriginalTagName())) {
 
@@ -2958,7 +2989,7 @@ public class ARScannedElementPane extends ARPane {
         //                contentPane.requestLayout();
 
         defineCheckBoxesClickabe(this.targetSelected);
-        arWebDriver.getDriver().switchTo().defaultContent();
+        performActions.getCurrentDriver().switchTo().defaultContent();
     }
 
     private void addBehaviourToAbrWebElement(ARWebElement arWebHover) {
@@ -2969,11 +3000,11 @@ public class ARScannedElementPane extends ARPane {
 
                     if (!Strings.isNullOrEmpty(arWebHover.getTargetElement().getIFrameXPath())) {
                         try {
-                            WebElement iFrame = arWebDriver
-                                    .getDriver()
+                            WebElement iFrame = performActions
+                                    .getCurrentDriver()
                                     .findElement(By.xpath(
                                             arWebHover.getTargetElement().getIFrameXPath()));
-                            arWebDriver.getDriver().switchTo().frame(iFrame);
+                            performActions.getCurrentDriver().switchTo().frame(iFrame);
                         } catch (Exception e) {
                             //                            ARLogger.getInstance(ARScannedElementPane.class)
                             //                                    .info("iFrame Element not Located\niFrameXPath"
@@ -2990,13 +3021,13 @@ public class ARScannedElementPane extends ARPane {
                             //                                    0);
                         }
                     } else {
-                        arWebDriver.getDriver().switchTo().defaultContent();
+                        performActions.getCurrentDriver().switchTo().defaultContent();
                     }
 
                     WebElement currentElement = arWebHover.getElement();
 
                     if (currentElement != null) {
-                        performAction.highlightElement(jsExecutor, previousElement, currentElement);
+                        performActions.highlightElement(jsExecutor, previousElement, currentElement);
                         previousElement = currentElement; // Store the new previous element
                     }
 
@@ -3011,7 +3042,7 @@ public class ARScannedElementPane extends ARPane {
                 @Override
                 protected Void call() {
                     if (previousElement != null) {
-                        performAction.highlightElement(jsExecutor, previousElement, null);
+                        performActions.highlightElement(jsExecutor, previousElement, null);
                         previousElement = null; // Reset previous
                     }
                     return null;
@@ -3063,7 +3094,8 @@ public class ARScannedElementPane extends ARPane {
                     return;
                 }
 
-                //                String reTakeXPath = getXPath(arWebDriver.getDriver(), arWebElement.getElement());
+                //                String reTakeXPath = getXPath(performActions.getCurrentDriver(),
+                // arWebElement.getElement());
                 //                arWebElement.getTargetElement().setMainXPath(reTakeXPath);
 
                 // IF SOME REFRESH CHANGED THE ELEMENT IT TRIGGERS THIS EXCEPTION
@@ -3086,11 +3118,11 @@ public class ARScannedElementPane extends ARPane {
 
                         if (!Strings.isNullOrEmpty(arWebHover.getTargetElement().getIFrameXPath())) {
                             try {
-                                WebElement iFrame = arWebDriver
-                                        .getDriver()
+                                WebElement iFrame = performActions
+                                        .getCurrentDriver()
                                         .findElement(By.xpath(
                                                 arWebHover.getTargetElement().getIFrameXPath()));
-                                arWebDriver.getDriver().switchTo().frame(iFrame);
+                                performActions.getCurrentDriver().switchTo().frame(iFrame);
                             } catch (Exception e) {
                                 ARLogger.getInstance(ARScannedElementPane.class)
                                         .info("iFrame Element not Located\niFrameXPath"
@@ -3111,8 +3143,8 @@ public class ARScannedElementPane extends ARPane {
                         // Last check xPat before Adding to the BotJob
                         WebElement elementFinder = null;
                         try {
-                            elementFinder = arWebDriver
-                                    .getDriver()
+                            elementFinder = performActions
+                                    .getCurrentDriver()
                                     .findElement(By.xpath(
                                             arWebHover.getTargetElement().getMainXPath()));
                             arWebHover.setElement(elementFinder);
@@ -3124,7 +3156,7 @@ public class ARScannedElementPane extends ARPane {
                             // Try by coordinates
                             Pair<String, String> filedData = new Pair("martini", "Martini");
                             try {
-                                performAction.executeActionsAtCoordinates(
+                                performActions.executeActionsAtCoordinates(
                                         arWebHover.getSavedReferences().get("coordinates"),
                                         filedData,
                                         ARConstants.CLICK,
@@ -3158,20 +3190,23 @@ public class ARScannedElementPane extends ARPane {
 
                             if (arWebHover.getTargetElement().getIFrameXPath() != null) {
 
-                                arWebDriver.getDriver().switchTo().defaultContent();
+                                performActions.getCurrentDriver().switchTo().defaultContent();
 
                                 try {
-                                    WebElement iFrame = arWebDriver
-                                            .getDriver()
+                                    WebElement iFrame = performActions
+                                            .getCurrentDriver()
                                             .findElement(By.xpath(arWebHover
                                                     .getTargetElement()
                                                     .getIFrameXPath()));
                                     if (iFrame != null) {
 
-                                        arWebDriver.getDriver().switchTo().frame(iFrame);
+                                        performActions
+                                                .getCurrentDriver()
+                                                .switchTo()
+                                                .frame(iFrame);
 
-                                        WebElement elementClicked = arWebDriver
-                                                .getDriver()
+                                        WebElement elementClicked = performActions
+                                                .getCurrentDriver()
                                                 .findElement(By.xpath(arWebHover
                                                         .getTargetElement()
                                                         .getMainXPath()));
@@ -3188,11 +3223,11 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             }
 
-                            arWebDriver.dehighlightElement(arWebHover.getElement());
+                            //                            arWebDriver.dehighlightElement(arWebHover.getElement());
 
                             //                            WebElement elementXPath =
                             //
-                            // arWebDriver.getDriver().findElement(By.xpath(arWebElement.getTargetElement().getMainXPath()));
+                            // performActions.getCurrentDriver().findElement(By.xpath(arWebElement.getTargetElement().getMainXPath()));
                             //                            if (elementXPath != null) {
                             //                                elementXPath.click();
                             //                            }
@@ -3235,38 +3270,38 @@ public class ARScannedElementPane extends ARPane {
                             String[] coordinates = coordinatesList.toArray(new String[0]);
 
                             //                            if (checkTestCoordinates.isSelected()) {
-                            //                                performAction.executeActionsAtCoordinates(
+                            //                                performActions.executeActionsAtCoordinates(
                             //                                        coordinates[1], fieldData, ARConstants.VISUALIZE,
                             // false);
-                            //                                performAction.executeActionsAtCoordinates(
+                            //                                performActions.executeActionsAtCoordinates(
                             //                                        coordinates[0], fieldData, ARConstants.VISUALIZE,
                             // false);
                             //
-                            //                                performAction.executeActionsAtCoordinates(
+                            //                                performActions.executeActionsAtCoordinates(
                             //                                        coordinates[1], fieldData, ARConstants.CLICK,
                             // false);
-                            //                                performAction.executeActionsAtCoordinates(
+                            //                                performActions.executeActionsAtCoordinates(
                             //                                        coordinates[0], fieldData, ARConstants.CLICK,
                             // false);
                             //
-                            //                                performAction.executeActionsAtCoordinates(
+                            //                                performActions.executeActionsAtCoordinates(
                             //                                        coordinates[1], fieldData, ARConstants.INSERT,
                             // false);
-                            //                                performAction.executeActionsAtCoordinates(
+                            //                                performActions.executeActionsAtCoordinates(
                             //                                        coordinates[0], fieldData, ARConstants.INSERT,
                             // false);
                             //
-                            //                                performAction.executeActionsAtCoordinates(
+                            //                                performActions.executeActionsAtCoordinates(
                             //                                        coordinates[1], fieldData, ARConstants.INSERT,
                             // true);
-                            //                                performAction.executeActionsAtCoordinates(
+                            //                                performActions.executeActionsAtCoordinates(
                             //                                        coordinates[0], fieldData, ARConstants.INSERT,
                             // true);
                             //
-                            //                                performAction.moveAndClickAtCoordinates(coordinates[1],
-                            // arWebDriver.getDriver());
-                            //                                performAction.moveAndClickAtCoordinates(coordinates[0],
-                            // arWebDriver.getDriver());
+                            //                                performActions.moveAndClickAtCoordinates(coordinates[1],
+                            // performActions.getCurrentDriver());
+                            //                                performActions.moveAndClickAtCoordinates(coordinates[0],
+                            // performActions.getCurrentDriver());
                             //                            }
 
                             Text actionText1;
@@ -3289,12 +3324,12 @@ public class ARScannedElementPane extends ARPane {
                             actionText1 = new Text("Actions Tested:");
                             actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
-                            String result = performAction.sequenceOfCommands(
+                            String result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.SELECT,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3305,12 +3340,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText2.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.CLICK,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3321,12 +3356,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.GET_VALUE,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3337,12 +3372,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText4.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.CLEAR,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3353,12 +3388,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.INSERT,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3369,12 +3404,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.FOCUS,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
 
@@ -3387,12 +3422,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText7.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.TAB,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
 
@@ -3405,12 +3440,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText8.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.COORD_VISUALIZA,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3421,12 +3456,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText9.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.COORD_CLICK,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
 
@@ -3439,12 +3474,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText10.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.COORD_INSERT,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     false);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3455,12 +3490,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.COORD_INSERT,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     true);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3471,12 +3506,12 @@ public class ARScannedElementPane extends ARPane {
                                 actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                             }
 
-                            result = performAction.sequenceOfCommands(
+                            result = performActions.sequenceOfCommands(
                                     arWebHover.getElement(),
                                     ARConstants.COORD_MOVE_CLICK_RED,
                                     coordinates,
                                     fieldData,
-                                    arWebDriver.getDriver(),
+                                    performActions.getCurrentDriver(),
                                     true);
                             System.out.println(result);
                             actionsTested.append(result + System.lineSeparator());
@@ -3643,7 +3678,7 @@ public class ARScannedElementPane extends ARPane {
                             currentBlockId = performDataBase.createNewBlock(newBlockDetails);
 
                             if (currentBlockId < 0) {
-                                performAction.showAlert(
+                                performActions.showAlert(
                                         Alert.AlertType.ERROR,
                                         "Error Creating new Block",
                                         "Verify the Bot Job Name if have any",
@@ -3956,7 +3991,7 @@ public class ARScannedElementPane extends ARPane {
                         for (String name : names) {
                             try {
                                 List<WebElement> searchingElems =
-                                        arWebDriver.getDriver().findElements((By.xpath(name)));
+                                        performActions.getCurrentDriver().findElements((By.xpath(name)));
                                 uniqueWebElements.addAll(searchingElems);
                                 // Add elements from the first list to the set
                                 for (WebElement element : uniqueWebElements) {
@@ -4059,7 +4094,7 @@ public class ARScannedElementPane extends ARPane {
                             if (name.equalsIgnoreCase("label")) {
                                 try {
                                     List<WebElement> searchingElems =
-                                            arWebDriver.getDriver().findElements((By.tagName(name)));
+                                            performActions.getCurrentDriver().findElements((By.tagName(name)));
                                     uniqueWebElements.addAll(searchingElems);
                                     // Add elements from the first list to the set
                                     for (WebElement element : uniqueWebElements) {
@@ -4070,8 +4105,9 @@ public class ARScannedElementPane extends ARPane {
                                         String forAttribute = element.getAttribute("for");
                                         if (forAttribute != null) {
                                             // Find the associated element using the 'for' attribute value
-                                            WebElement associatedElement =
-                                                    arWebDriver.getDriver().findElement(By.id(forAttribute));
+                                            WebElement associatedElement = performActions
+                                                    .getCurrentDriver()
+                                                    .findElement(By.id(forAttribute));
                                             associatedText = getElementText(associatedElement);
                                         }
                                         if (!Strings.isNullOrEmpty(associatedText)) {
@@ -4085,7 +4121,7 @@ public class ARScannedElementPane extends ARPane {
                             } else if (name.equalsIgnoreCase("input")) {
                                 try {
                                     List<WebElement> searchingElems =
-                                            arWebDriver.getDriver().findElements((By.tagName(name)));
+                                            performActions.getCurrentDriver().findElements((By.tagName(name)));
                                     uniqueWebElements.addAll(searchingElems);
                                     // Add elements from the first list to the set
                                     for (WebElement element : uniqueWebElements) {
@@ -4111,7 +4147,7 @@ public class ARScannedElementPane extends ARPane {
 
                             // JavaScfript Search
                             if (name.equalsIgnoreCase("input")) {
-                                List<WebElement> searchingElems = searchAllInputs(arWebDriver.getDriver());
+                                List<WebElement> searchingElems = searchAllInputs(performActions.getCurrentDriver());
                                 uniqueWebElements.addAll(searchingElems);
                                 if (searchingElems != null && searchingElems.size() > 0) {
                                     finalList.addAll(searchingElems);
@@ -4135,8 +4171,9 @@ public class ARScannedElementPane extends ARPane {
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         for (String name : names) {
                             try {
-                                List<WebElement> searchingElems =
-                                        arWebDriver.getDriver().findElements((By.cssSelector("[" + name + "]")));
+                                List<WebElement> searchingElems = performActions
+                                        .getCurrentDriver()
+                                        .findElements((By.cssSelector("[" + name + "]")));
                                 uniqueWebElements.addAll(searchingElems);
                                 //                                List<WebElement> elements2 = webElements =
                                 // arWebDriver
@@ -4157,8 +4194,9 @@ public class ARScannedElementPane extends ARPane {
                                     String forAttribute = element.getAttribute("for");
                                     if (forAttribute != null) {
                                         // Find the associated element using the 'for' attribute value
-                                        WebElement associatedElement =
-                                                arWebDriver.getDriver().findElement(By.id(forAttribute));
+                                        WebElement associatedElement = performActions
+                                                .getCurrentDriver()
+                                                .findElement(By.id(forAttribute));
                                         associatedText = getElementText(associatedElement);
                                     }
                                     if (!Strings.isNullOrEmpty(associatedText)) {
@@ -4173,7 +4211,7 @@ public class ARScannedElementPane extends ARPane {
                             //                            try {
                             //                                searchingElems =
                             //
-                            // arWebDriver.getDriver().findElements((By.cssSelector("input[" + name + "]")));
+                            // performActions.getCurrentDriver().findElements((By.cssSelector("input[" + name + "]")));
                             //                                //                                List<WebElement>
                             // elements2 = webElements =
                             //                                // arWebDriver
@@ -4199,7 +4237,7 @@ public class ARScannedElementPane extends ARPane {
                             // attribute value
                             //                                        WebElement associatedElement =
                             //
-                            // arWebDriver.getDriver().findElement(By.id(forAttribute));
+                            // performActions.getCurrentDriver().findElement(By.id(forAttribute));
                             //                                        associatedText =
                             // getElementText(associatedElement);
                             //                                    }
@@ -4220,7 +4258,7 @@ public class ARScannedElementPane extends ARPane {
 
                         //                        try {
                         //                            webElements =
-                        // arWebDriver.getDriver().findElements((By.cssSelector("[" +
+                        // performActions.getCurrentDriver().findElements((By.cssSelector("[" +
                         // searchConfig.getName() + "]"));
                         //                            webElements = arWebDriver
                         //                                    .getDriver()
@@ -4251,7 +4289,7 @@ public class ARScannedElementPane extends ARPane {
                         // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
                         try {
                             List<WebElement> searchingElems =
-                                    arWebDriver.getDriver().findElements(new ByChained(locators));
+                                    performActions.getCurrentDriver().findElements(new ByChained(locators));
                             uniqueWebElements.addAll(searchingElems);
                             for (WebElement element : uniqueWebElements) {
                                 String labelText = element.getText();
@@ -4262,7 +4300,7 @@ public class ARScannedElementPane extends ARPane {
                                 if (forAttribute != null) {
                                     // Find the associated element using the 'for' attribute value
                                     WebElement associatedElement =
-                                            arWebDriver.getDriver().findElement(By.id(forAttribute));
+                                            performActions.getCurrentDriver().findElement(By.id(forAttribute));
                                     associatedText = getElementText(associatedElement);
                                 }
                                 if (!Strings.isNullOrEmpty(associatedText)) {
@@ -4281,7 +4319,7 @@ public class ARScannedElementPane extends ARPane {
 
                         //                        try {
                         //                            webElements =
-                        // arWebDriver.getDriver().findElements((By.cssSelector("[" +
+                        // performActions.getCurrentDriver().findElements((By.cssSelector("[" +
                         // searchConfig.getName() + "]"));
                         //                            webElements = arWebDriver
                         //                                    .getDriver()
@@ -4741,10 +4779,10 @@ public class ARScannedElementPane extends ARPane {
                 //                                        ? "-" + pickTarget.getAttribId()
                 //                                        : !Strings.isNullOrEmpty(pickTarget.getSomeText())
                 //                                                ? "-" +
-                // performAction.truncateAndNormalize(pickTarget.getSomeText(), 30)
+                // performActions.truncateAndNormalize(pickTarget.getSomeText(), 30)
                 //                                                : "");
                 nameDefined = (!Strings.isNullOrEmpty(pickTarget.getSomeText())
-                        ? performAction.truncateAndNormalize(pickTarget.getSomeText(), 30)
+                        ? performActions.truncateAndNormalize(pickTarget.getSomeText(), 30)
                         : !Strings.isNullOrEmpty(pickTarget.getAttribId())
                                 ? pickTarget.getAttribId()
                                 : !Strings.isNullOrEmpty(pickTarget.getAttribName()) ? pickTarget.getAttribName() : "");
@@ -4985,8 +5023,8 @@ public class ARScannedElementPane extends ARPane {
     private void recallJob() {
         executeJob();
 
-        if (arWebDriver.getDriver().getWindowHandles().size() != performAction.windowHandlesList.size()) {
-            performAction.updateWindowHandlesList();
+        if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
+            performActions.updateWindowHandlesList();
             updateButtonState();
         }
 
@@ -5016,15 +5054,15 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private boolean executeJob() {
-        if (performAction.waitForPage == null) {
+        if (performActions.waitForPage == null) {
             String updateTimeout =
                     ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
             String interactionTimeout =
                     ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-            performAction.waitForPage =
-                    new WebDriverWait(arWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
-            performAction.waitForAction = new WebDriverWait(
-                    arWebDriver.getDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
+            performActions.waitForPage = new WebDriverWait(
+                    performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
+            performActions.waitForAction = new WebDriverWait(
+                    performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
 
         //        if (repository == null) {
@@ -5159,13 +5197,14 @@ public class ARScannedElementPane extends ARPane {
 
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
 
-        ExcelWriter.ExcelChain writerReport =
-                new ExcelWriter(botJobLoadList.get(0).getName(), arWebDriver.getDriver(), false).withPurpose("report");
+        ExcelWriter.ExcelChain writerReport = new ExcelWriter(
+                        botJobLoadList.get(0).getName(), performActions.getCurrentDriver(), false)
+                .withPurpose("report");
         writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport = null;
         //                new ExcelWriter(blocksLoaded.get(0).getName(),
-        // arWebDriver.getDriver()).withPurpose("export");
+        // performActions.getCurrentDriver()).withPurpose("export");
         boolean excelExportOnceCreation = true;
         //        writerExport.insertReportHead();
 
@@ -5258,7 +5297,7 @@ public class ARScannedElementPane extends ARPane {
                                 Pair<String, String> msgBlock = new Pair(blocLoopKey, "0");
 
                                 // Excel Report and Log
-                                performAction.logAndReport(
+                                performActions.logAndReport(
                                         currentCondition,
                                         true,
                                         true,
@@ -5277,7 +5316,7 @@ public class ARScannedElementPane extends ARPane {
                                         ARConstants.EXIT);
 
                                 // Excel Report and Log
-                                performAction.logAndReport(
+                                performActions.logAndReport(
                                         currentCondition,
                                         true,
                                         true,
@@ -5291,7 +5330,7 @@ public class ARScannedElementPane extends ARPane {
                                         "Stopping App",
                                         String.format("Exit at Block Name: \"%s\"", blockName));
 
-                                performAction.gotoLimitExecution(limit, resultActions);
+                                performActions.gotoLimitExecution(limit, resultActions);
 
                                 continue blockLoop;
                             }
@@ -5306,7 +5345,7 @@ public class ARScannedElementPane extends ARPane {
                             new Pair(String.format("Ignore: \"%s\"", blockLoad.getName()), ARConstants.IGNORE);
 
                     // Excel Report and Log
-                    performAction.logAndReport(
+                    performActions.logAndReport(
                             currentCondition,
                             true,
                             true,
@@ -5328,7 +5367,7 @@ public class ARScannedElementPane extends ARPane {
                     Pair<String, String> msgBlock = new Pair(blockLoad.getName(), ARConstants.EXCEL_BLOCK_HEADER);
 
                     // Block Header Format
-                    performAction.logAndReport(
+                    performActions.logAndReport(
                             currentCondition,
                             true,
                             false,
@@ -5342,14 +5381,14 @@ public class ARScannedElementPane extends ARPane {
                             null,
                             null);
 
-                    performAction.onHoldInSeconds(blockWait);
+                    performActions.onHoldInSeconds(blockWait);
 
                     msgBlock = new Pair(
                             String.format("Default Wait: \"%s\" ->  %d Seconds", blockLoad.getName(), blockWait),
                             ARConstants.HOLD);
 
                     // Excel Report and Log
-                    performAction.logAndReport(
+                    performActions.logAndReport(
                             currentCondition,
                             true,
                             true,
@@ -5370,12 +5409,12 @@ public class ARScannedElementPane extends ARPane {
 
                 // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on current
                 // Block
-                parentIdsForLoop = performAction.getParentIdsForLoop(
+                parentIdsForLoop = performActions.getParentIdsForLoop(
                         blocksLoaded.get(currentBlock).getInstructionLoadDTOS());
 
                 // Step 2: Get all Conditional By parentId for Index Locator on current Block Relocate "IF", "ELSEIF",
                 // "ELSE", and "ENDIF"
-                mapConditional = performAction.getConditionIndexMapByParentId(blockLoad);
+                mapConditional = performActions.getConditionIndexMapByParentId(blockLoad);
 
                 // Step 3: Get all Instructions Ids on current Block
                 int[] instructionIds = blockLoad.getInstructionLoadDTOS().stream()
@@ -5384,7 +5423,7 @@ public class ARScannedElementPane extends ARPane {
 
                 // Step 2: Filter rows where actions = "REFRESH_LOOP" or "LOOP" and collect into the map
 
-                //                mapLoops = performAction.getLoopAndRefreshLoops(
+                //                mapLoops = performActions.getLoopAndRefreshLoops(
                 //                        blocksLoaded.get(currentBlock).getBlockLoopInstructionLoadDTOS());
 
                 //                executionTimes++;
@@ -5424,7 +5463,7 @@ public class ARScannedElementPane extends ARPane {
                                     new Pair(String.format("Ignore: \"%s\"", nameInstruc), ARConstants.IGNORE);
 
                             // Excel Report and Log
-                            performAction.logAndReport(
+                            performActions.logAndReport(
                                     currentCondition,
                                     true,
                                     true,
@@ -5500,7 +5539,7 @@ public class ARScannedElementPane extends ARPane {
                             // Conditions When Pass to any of then
                             if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
                                     || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
-                                int jumpPassed = performAction.checkActionToJump(
+                                int jumpPassed = performActions.checkActionToJump(
                                         actions[0],
                                         progressCondition,
                                         mapConditional,
@@ -5542,7 +5581,7 @@ public class ARScannedElementPane extends ARPane {
                         Pair<String, String> msgInstruction = null;
                         if (actions[0].equalsIgnoreCase(ARConstants.GOTO)) {
                             // <currentId:blockId:blockOrderNumber:bockName>
-                            msgInstruction = performAction.getBlockDetailsById(blocksLoaded, currentInstruction);
+                            msgInstruction = performActions.getBlockDetailsById(blocksLoaded, currentInstruction);
                             if (msgInstruction == null) {
                                 msgInstruction = new Pair("GO TO Block \"Unknown\"", "Unknown");
                                 success = false;
@@ -5563,7 +5602,7 @@ public class ARScannedElementPane extends ARPane {
 
                         } else if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
                             // <currentId:parentId:parentName>
-                            msgInstruction = performAction.getInstructionDetailsById(
+                            msgInstruction = performActions.getInstructionDetailsById(
                                     blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
 
                             if (msgInstruction == null) {
@@ -5578,7 +5617,7 @@ public class ARScannedElementPane extends ARPane {
                                         msgInstruction.getKey(), String.valueOf(mapLoops.get(msgInstruction.getKey())));
                             }
                         } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
-                            msgInstruction = performAction.getInstructionDetailsById(
+                            msgInstruction = performActions.getInstructionDetailsById(
                                     blocksLoaded.get(currentBlock).getInstructionLoadDTOS(), currentInstruction);
                             if (msgInstruction == null) {
                                 msgInstruction = new Pair("Jump To Parent \"Unknown\"", "Unknown");
@@ -5610,7 +5649,7 @@ public class ARScannedElementPane extends ARPane {
                                             : (actions[0].equalsIgnoreCase(ARConstants.INSERT)) ? valueInsert : ""));
                         }
 
-                        resultActions = performAction.actionResultMessage(blockName, actions, msgInstruction);
+                        resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
                         extraMsg = "";
 
@@ -5630,7 +5669,7 @@ public class ARScannedElementPane extends ARPane {
                         }
 
                         if (actions[0].equalsIgnoreCase(ARConstants.LOOP)) {
-                            parentFieldLoop = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            parentFieldLoop = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             if (parentField == null && parentFieldLoop == null) {
                                 parentFieldLoop = "Unknown parent";
                                 parentField = parentFieldLoop;
@@ -5660,7 +5699,7 @@ public class ARScannedElementPane extends ARPane {
                         } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
                             refreshOnly = true;
                         } else if (actions[0].equalsIgnoreCase(ARConstants.REFRESH_LOOP)) {
-                            parentFieldLoop = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            parentFieldLoop = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             if (parentField == null && parentFieldLoop == null) {
                                 parentFieldLoop = "Unknown parent";
                                 parentField = parentFieldLoop;
@@ -5693,15 +5732,15 @@ public class ARScannedElementPane extends ARPane {
 
                             getAction = actions[0].equalsIgnoreCase(ARConstants.GET_VALUE);
 
-                            xPathOperation = performAction.getXPathInstruction(currentInstruction, blockLoad);
-                            parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            xPathOperation = performActions.getXPathInstruction(currentInstruction, blockLoad);
+                            parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
 
                         } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
                             execCheckValue = true;
-                            parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                         } else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
                             excelWriteOperation = true;
-                            parentField = performAction.getInstructionParentField(currentInstruction, blockLoad);
+                            parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                         }
 
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -5716,7 +5755,7 @@ public class ARScannedElementPane extends ARPane {
 
                                     success = false;
 
-                                    resultActions = performAction.blockGotoFailed(resultActions);
+                                    resultActions = performActions.blockGotoFailed(resultActions);
                                 } else {
                                     if (!loopBlockActive.contains(msgInstruction.getKey())) {
                                         loopBlockActive.add(msgInstruction.getKey());
@@ -5753,7 +5792,7 @@ public class ARScannedElementPane extends ARPane {
 
                                             success = false;
 
-                                            resultActions = performAction.blockGotoFailed(resultActions);
+                                            resultActions = performActions.blockGotoFailed(resultActions);
                                         }
 
                                         Pair<String, String> currentPair = new Pair(
@@ -5761,7 +5800,7 @@ public class ARScannedElementPane extends ARPane {
                                                 String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
                                         // Excel Report and Log
-                                        performAction.logAndReport(
+                                        performActions.logAndReport(
                                                 currentCondition,
                                                 true,
                                                 true,
@@ -5807,16 +5846,16 @@ public class ARScannedElementPane extends ARPane {
 
                                         if (refreshLoop) {
 
-                                            String extraLog = performAction.actionResultMessage(
+                                            String extraLog = performActions.actionResultMessage(
                                                     blockName, new String[] {ARConstants.REFRESH_HOLD}, msgInstruction);
 
-                                            performAction.performOtherActions(
+                                            performActions.performOtherActions(
                                                     byPassNotFound,
                                                     currentInstruction,
                                                     new String[] {ARConstants.REFRESH_HOLD});
 
                                             // Excel Report and Log
-                                            performAction.logAndReport(
+                                            performActions.logAndReport(
                                                     currentCondition,
                                                     true,
                                                     true,
@@ -5831,16 +5870,16 @@ public class ARScannedElementPane extends ARPane {
                                                     extraLog);
 
                                             // Refresh For REFRESH_LOOP
-                                            extraLog = performAction.actionResultMessage(
+                                            extraLog = performActions.actionResultMessage(
                                                     blockName, new String[] {ARConstants.REFRESH_ONLY}, msgInstruction);
 
-                                            performAction.performOtherActions(
+                                            performActions.performOtherActions(
                                                     byPassNotFound,
                                                     currentInstruction,
                                                     new String[] {ARConstants.REFRESH_ONLY});
 
                                             // Excel Report and Log
-                                            performAction.logAndReport(
+                                            performActions.logAndReport(
                                                     currentCondition,
                                                     true,
                                                     true,
@@ -5870,7 +5909,7 @@ public class ARScannedElementPane extends ARPane {
                                                 String.valueOf(mapLoops.get(msgInstruction.getKey())));
 
                                         // Excel Report and Log
-                                        performAction.logAndReport(
+                                        performActions.logAndReport(
                                                 currentCondition,
                                                 true,
                                                 true,
@@ -5903,7 +5942,7 @@ public class ARScannedElementPane extends ARPane {
                                     }
 
                                 } else {
-                                    resultActions = performAction.parentValueIsNotDefined(
+                                    resultActions = performActions.parentValueIsNotDefined(
                                             currentInstruction.getName(),
                                             "(" + parentId + ")-" + parentField,
                                             resultActions);
@@ -5913,7 +5952,7 @@ public class ARScannedElementPane extends ARPane {
 
                             } else if (refreshOnly) {
 
-                                performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+                                performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                 resultActions =
                                         "Refresh Current Web Page ->  inside Block :\"" + blockLoad.getName() + "\"";
@@ -5925,7 +5964,7 @@ public class ARScannedElementPane extends ARPane {
                                     || actions[0].equals(ARConstants.SCREEN)
                                     || actions[0].equals(ARConstants.REFRESH_ONLY)) {
 
-                                performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+                                performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                                 if (actions[0].equals(ARConstants.QUIT)) {
                                     stopAll = true;
@@ -5940,7 +5979,7 @@ public class ARScannedElementPane extends ARPane {
                                     && !pauseOperation) {
 
                                 // Extract dataFieldName and dataFieldValue using a separate method
-                                Pair<String, String> fieldData = performAction.extractFieldData(
+                                Pair<String, String> fieldData = performActions.extractFieldData(
                                         dataExcel,
                                         actions,
                                         currentInstruction.getDefaultValue(),
@@ -5949,7 +5988,7 @@ public class ARScannedElementPane extends ARPane {
                                 WebElement webElementFound = null;
                                 try {
                                     webElementFound =
-                                            performAction.searchElement(currentInstruction, this.botJobLoad.getId());
+                                            performActions.searchElement(currentInstruction, this.botJobLoad.getId());
                                 } catch (Exception ex) {
                                     extraMsg = "Element not found. Please try rescanning.!";
                                     success = false;
@@ -5966,7 +6005,7 @@ public class ARScannedElementPane extends ARPane {
                                     if (actions[0].equalsIgnoreCase(ARConstants.VISUALIZE)
                                             || actions[0].equalsIgnoreCase(ARConstants.CLICK)
                                             || actions[0].equalsIgnoreCase(ARConstants.INSERT)) {
-                                        success = performAction.executeActionsAtCoordinates(
+                                        success = performActions.executeActionsAtCoordinates(
                                                 mapSavedLocators.get("coordinates"),
                                                 fieldData,
                                                 actions[0],
@@ -5979,7 +6018,7 @@ public class ARScannedElementPane extends ARPane {
 
                                 if (webElementFound != null && success) {
 
-                                    success = performAction.performWebActions(
+                                    success = performActions.performWebActions(
                                             byPassNotFound,
                                             mapSavedLocators.get("coordinates"),
                                             fieldData,
@@ -6023,21 +6062,21 @@ public class ARScannedElementPane extends ARPane {
                                 }
                                 // Mandatory for GET_VALUE
                                 if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
-                                    resultActions = performAction.parentIdWrongBlock(
+                                    resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
                                     success = false;
                                 } else if (parentField == null) {
-                                    resultActions = performAction.parentIdWrongBlock(
+                                    resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
                                     success = false;
                                 } else if (!mapOperators.containsKey(parentField) && !getAction) {
-                                    resultActions = performAction.getValueIsNotDefined(
+                                    resultActions = performActions.getValueIsNotDefined(
                                             currentInstruction, resultActions, currentCondition);
 
                                     success = false;
                                 } else {
 
-                                    resultActions = performAction.performOperatorActions(
+                                    resultActions = performActions.performOperatorActions(
                                             byPassNotFound,
                                             currentInstruction,
                                             xPathOperation,
@@ -6076,16 +6115,16 @@ public class ARScannedElementPane extends ARPane {
                                 }
 
                                 if (parentField == null) {
-                                    resultActions = performAction.parentIdWrongBlock(
+                                    resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
 
-                                    resultActions = performAction.getValueIsNotDefined(
+                                    resultActions = performActions.getValueIsNotDefined(
                                             currentInstruction, resultActions, currentCondition);
 
                                     success = false;
 
                                 } else if (!mapOperators.containsKey(parentField)) {
-                                    resultActions = performAction.getValueIsNotDefined(
+                                    resultActions = performActions.getValueIsNotDefined(
                                             currentInstruction, resultActions, currentCondition);
 
                                     success = false;
@@ -6131,7 +6170,7 @@ public class ARScannedElementPane extends ARPane {
                                         executedSuccess.add(currentInstruction.getId());
                                         success = true;
                                     } else {
-                                        resultActions = performAction.checkValidationFailed(
+                                        resultActions = performActions.checkValidationFailed(
                                                 parentField,
                                                 mapOperators.get(parentField),
                                                 resultActions,
@@ -6153,13 +6192,13 @@ public class ARScannedElementPane extends ARPane {
 
                                 if (parentField == null) {
 
-                                    resultActions = performAction.parentIdWrongBlock(
+                                    resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
 
                                     success = false;
 
                                 } else if (!mapOperators.containsKey(parentField)) {
-                                    resultActions = performAction.getValueIsNotDefined(
+                                    resultActions = performActions.getValueIsNotDefined(
                                             currentInstruction, resultActions, currentCondition);
 
                                     success = false;
@@ -6172,7 +6211,8 @@ public class ARScannedElementPane extends ARPane {
                                     }
 
                                     if (!Strings.isNullOrEmpty(excelFieldName)) {
-                                        writerExport = new ExcelWriter(excelFieldName, arWebDriver.getDriver(), true)
+                                        writerExport = new ExcelWriter(
+                                                        excelFieldName, performActions.getCurrentDriver(), true)
                                                 .withPurpose("export");
                                     }
 
@@ -6198,7 +6238,7 @@ public class ARScannedElementPane extends ARPane {
 
                                         writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
                                     }
-                                    performAction.onHoldForSeconds(null);
+                                    performActions.onHoldForSeconds(null);
 
                                     if (resultActions != null) {
                                         currentInstruction.setExecuted(true);
@@ -6251,14 +6291,14 @@ public class ARScannedElementPane extends ARPane {
                         if (!jumpGotoError
                                 && !jumpLoopError
                                 && !currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
-                            progressCondition = performAction.updateProgressSuccess(success, currentCondition);
+                            progressCondition = performActions.updateProgressSuccess(success, currentCondition);
                             //                                continue instructionLoop;
                         } else {
                             progressCondition = ARConstants.ConditionStatus.NONE;
                         }
 
                         // Excel Report and Log
-                        performAction.logAndReport(
+                        performActions.logAndReport(
                                 !byPassFlagLoop ? progressCondition : ARConstants.ConditionStatus.BY_PASS,
                                 true,
                                 true,
@@ -6281,7 +6321,7 @@ public class ARScannedElementPane extends ARPane {
                             Pair<String, String> msgBlock = new Pair(resultActions, ARConstants.PAUSE);
 
                             // Excel Report and Log
-                            performAction.logAndReport(
+                            performActions.logAndReport(
                                     currentCondition,
                                     true,
                                     true,
@@ -6322,7 +6362,7 @@ public class ARScannedElementPane extends ARPane {
                         // Conditions When Pass to any of then
                         if (progressCondition.equals(ARConstants.ConditionStatus.IF_PASSED)
                                 || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_PASSED)) {
-                            int jumpPassed = performAction.checkActionToJump(
+                            int jumpPassed = performActions.checkActionToJump(
                                     actions[0], progressCondition, mapConditional, parentBlockCondition, currentIndex);
 
                             // Any Error
@@ -6345,7 +6385,7 @@ public class ARScannedElementPane extends ARPane {
                                 || progressCondition.equals(ARConstants.ConditionStatus.ELSEIF_FAILED)) {
 
                             // Goes to the next ELSEIF IF EXIST (ELSEIF index + 1);
-                            int index = performAction.searchMapConditional(
+                            int index = performActions.searchMapConditional(
                                     mapConditional,
                                     parentBlockCondition,
                                     ARConstants.ConditionStatus.ELSEIF,
@@ -6354,7 +6394,7 @@ public class ARScannedElementPane extends ARPane {
 
                             // Goes to the next ELSE IF ELSEIF  DOES NOT EXIST  (ELSE index + 1);
                             if (index < 0) {
-                                index = performAction.searchMapConditional(
+                                index = performActions.searchMapConditional(
                                         mapConditional,
                                         parentBlockCondition,
                                         ARConstants.ConditionStatus.ELSE,
@@ -6372,7 +6412,7 @@ public class ARScannedElementPane extends ARPane {
 
                         } else if (progressCondition.equals(ARConstants.ConditionStatus.ELSE_FAILED)) {
                             // Goes to the ENDIF (ENDIF index + 1);
-                            int index = performAction.searchMapConditional(
+                            int index = performActions.searchMapConditional(
                                     mapConditional,
                                     parentBlockCondition,
                                     ARConstants.ConditionStatus.ENDIF,
@@ -6409,7 +6449,7 @@ public class ARScannedElementPane extends ARPane {
                                 currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                         if (arr.length > 1) {
                             String dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
-                            performAction.insertRandomName(dataFieldName);
+                            performActions.insertRandomName(dataFieldName);
                         }
                     }
                 }
@@ -6447,7 +6487,7 @@ public class ARScannedElementPane extends ARPane {
                                     ? currentInstruction.getOperation()
                                     : (actions[0].equalsIgnoreCase(ARConstants.INSERT)) ? valueInsert : ""));
 
-                    resultActions = performAction.actionResultMessage(blockName, actions, msgInstruction);
+                    resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
                     try {
 
@@ -6455,7 +6495,7 @@ public class ARScannedElementPane extends ARPane {
                                 || actions[0].equals(ARConstants.QUIT)
                                 || actions[0].equals(ARConstants.SCREEN)
                                 || actions[0].equals(ARConstants.REFRESH_ONLY)) {
-                            performAction.performOtherActions(byPassNotFound, currentInstruction, actions);
+                            performActions.performOtherActions(byPassNotFound, currentInstruction, actions);
 
                             if (actions[0].equals(ARConstants.QUIT)) {
                                 stopAll = true;
@@ -6463,7 +6503,7 @@ public class ARScannedElementPane extends ARPane {
                             }
 
                             // Excel Report and Log
-                            performAction.logAndReport(
+                            performActions.logAndReport(
                                     currentCondition,
                                     true,
                                     true,
@@ -6482,12 +6522,12 @@ public class ARScannedElementPane extends ARPane {
 
                         WebElement webElementFound = null;
                         try {
-                            webElementFound = performAction.searchElement(currentInstruction, this.botJobLoad.getId());
+                            webElementFound = performActions.searchElement(currentInstruction, this.botJobLoad.getId());
                         } catch (Exception ex) {
                             extraMsg = "Element not found. Please try rescanning.!";
                         }
 
-                        success = performAction.performWebActions(
+                        success = performActions.performWebActions(
                                 byPassNotFound,
                                 mapSavedLocators.get("coordinates"),
                                 dataDynamic,
@@ -6509,7 +6549,7 @@ public class ARScannedElementPane extends ARPane {
                         }
 
                         // Excel Report and Log
-                        performAction.logAndReport(
+                        performActions.logAndReport(
                                 currentCondition,
                                 true,
                                 true,
@@ -6528,7 +6568,7 @@ public class ARScannedElementPane extends ARPane {
                         currentInstruction.setExecuted(false);
 
                         // Excel Report and Log
-                        performAction.logAndReport(
+                        performActions.logAndReport(
                                 currentCondition,
                                 true,
                                 true,
@@ -6549,7 +6589,7 @@ public class ARScannedElementPane extends ARPane {
             }
         }
 
-        totalExecutionTime = performAction.getTotalExecutionTime();
+        totalExecutionTime = performActions.getTotalExecutionTime();
 
         if (totalExecutionTime == 0) {
             writerReport.insertTotalExecutionTimes(botJobStartTime, botJobStartTime);
@@ -6724,14 +6764,14 @@ public class ARScannedElementPane extends ARPane {
             fieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
         }
 
-        new ExcelWriter(botJobName, arWebDriver.getDriver(), false)
+        new ExcelWriter(botJobName, performActions.getCurrentDriver(), false)
                 .withPurpose("excel")
                 .insertValueFieldName(parentId + "-" + fieldName, innerHTMLValue);
         return action + " fieldName " + fieldName;
     }
 
     public void quit(int status) {
-        arWebDriver.getDriver().quit();
+        performActions.getCurrentDriver().quit();
         if (status == 0) {
             System.exit(status);
         }
@@ -6768,9 +6808,9 @@ public class ARScannedElementPane extends ARPane {
 
                     ElementDTO elementDTO = new ElementDTO();
 
-                    TargetElement targetLocal = performAction.defineSearchReturn(elementDTO, entryElem, null);
+                    TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, entryElem, null);
 
-                    targetLocal = performAction.defineTargetNameTitles(targetLocal);
+                    targetLocal = performActions.defineTargetNameTitles(targetLocal);
 
                     targetLocal.setElement(entryElem);
 
@@ -7327,9 +7367,9 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    public static boolean isBrowserClosed(ARWebDriver arWebDriver) {
+    public static boolean isBrowserClosed(WebDriver webDriver) {
         try {
-            arWebDriver.getDriver().getTitle(); // Try accessing a property
+            webDriver.getTitle(); // Try accessing a property
             return false; // If no exception, browser is open
         } catch (Exception e) {
             return true; // If exception occurs, browser is closed

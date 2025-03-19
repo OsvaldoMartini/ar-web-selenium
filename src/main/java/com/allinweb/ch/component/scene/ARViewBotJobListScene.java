@@ -3,6 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARViewBotJobListPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -16,6 +17,7 @@ public class ARViewBotJobListScene extends ARScene {
     private static final String TITLE = "Bot Job List";
 
     private final ARViewBotJobScene arViewBotJobScene;
+    private final ARWebDriver arWebDriver;
     private final PerformDataBase performDataBase;
     private final PerformActions performActions;
     private final PerformMessage performMessage;
@@ -23,12 +25,14 @@ public class ARViewBotJobListScene extends ARScene {
 
     public ARViewBotJobListScene(
             ARViewBotJobScene arViewBotJobScene,
+            ARWebDriver arWebDriver,
             PerformDataBase performDataBase,
             PerformActions performActions,
             PerformMessage performMessage,
             ObservableList<WebDriver> webDriverList) {
         super();
         this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
         this.performDataBase = performDataBase;
         this.performActions = performActions;
         this.performMessage = performMessage;
@@ -38,7 +42,7 @@ public class ARViewBotJobListScene extends ARScene {
     @Override
     public IARPane buildPane() {
         return new ARViewBotJobListPane(
-                arViewBotJobScene, performDataBase, performActions, performMessage, webDriverList);
+                arViewBotJobScene, arWebDriver, performDataBase, performActions, performMessage, webDriverList);
     }
 
     @Override

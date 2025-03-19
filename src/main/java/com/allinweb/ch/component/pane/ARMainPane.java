@@ -16,6 +16,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.ConfigUserDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -47,6 +48,7 @@ public class ARMainPane extends ARPane {
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARWebDriver arWebDriver;
+    private static final PerformPreLoad performPreLoad;
 
     private static String previousDB;
     private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
@@ -67,6 +69,7 @@ public class ARMainPane extends ARPane {
         arConfigurationScene = ARConfigurationScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
+        performPreLoad = PerformPreLoad.getInstance();
     }
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
@@ -201,14 +204,24 @@ public class ARMainPane extends ARPane {
         viewBotJobListView.setCellFactory(new ARCellFactory<>(
                 BotJobListCell.class,
                 arViewBotJobScene,
+                arWebDriver,
+                performDataBase,
+                performActions,
+                performMessage,
+                performPreLoad,
+                botJobList,
+                webDriverList)::call);
+        arNewBotJobScene.initialize(
+                arViewBotJobScene,
+                arWebDriver,
                 performDataBase,
                 performActions,
                 performMessage,
                 botJobList,
-                webDriverList)::call);
-        arNewBotJobScene.initialize(
-                arViewBotJobScene, performDataBase, performActions, performMessage, botJobList, webDriverList);
+                webDriverList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
+
+        arWebDriver.initialize(performMessage, performPreLoad);
 
         panelPane = new VBox(buttonPane, header, viewBotJobListView);
         VBox.setMargin(viewBotJobListView, new Insets(0, 10D, 10D, 10D));
@@ -225,7 +238,13 @@ public class ARMainPane extends ARPane {
     public void initUIBehaviour() {
         newBotJobButton.setOnMouseClicked(e -> {
             arNewBotJobScene.initialize(
-                    arViewBotJobScene, performDataBase, performActions, performMessage, botJobList, webDriverList);
+                    arViewBotJobScene,
+                    arWebDriver,
+                    performDataBase,
+                    performActions,
+                    performMessage,
+                    botJobList,
+                    webDriverList);
             arNewBotJobScene.showModal();
             botJobList.clear();
             botJobList.addAll(performDataBase.loadAllBotJobs());
@@ -271,7 +290,14 @@ public class ARMainPane extends ARPane {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
 
                         arViewBotJobScene.initialize(
-                                performDataBase, performActions, selecBotJobDTO, botJobList, webDriverList);
+                                arWebDriver,
+                                performDataBase,
+                                performActions,
+                                performMessage,
+                                performPreLoad,
+                                selecBotJobDTO,
+                                botJobList,
+                                webDriverList);
                         arViewBotJobScene.show();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
