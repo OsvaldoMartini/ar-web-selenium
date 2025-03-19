@@ -4,6 +4,7 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -16,7 +17,10 @@ import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
+import javafx.application.Platform;
 import javafx.collections.ObservableList;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import org.openqa.selenium.WebDriver;
 
 public class ARViewBotJobScene extends ARScene {
@@ -41,21 +45,21 @@ public class ARViewBotJobScene extends ARScene {
 
     public void initialize(
             ARWebDriver arWebDriver,
+            ObservableList<WebDriver> webDriverList,
             PerformDataBase performDataBase,
             PerformActions performActions,
             PerformMessage performMessage,
             PerformPreLoad performPreLoad,
             BotJobLoadDTO botJobLoad,
-            ObservableList<BotJobLoadDTO> botJobList,
-            ObservableList<WebDriver> webDriverList) {
+            ObservableList<BotJobLoadDTO> botJobList) {
         this.arWebDriver = arWebDriver;
+        this.webDriverList = webDriverList;
         this.performDataBase = performDataBase;
         this.performActions = performActions;
         this.performMessage = performMessage;
         this.performPreLoad = performPreLoad;
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
-        this.webDriverList = webDriverList;
 
         this.currentScene = currentScene;
     }
@@ -73,6 +77,45 @@ public class ARViewBotJobScene extends ARScene {
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 1100D;
     private static final String TITLE = "Bot Job Details";
+
+    @Override
+    public void setStageBehaviour(Stage stage) {
+        super.setStageBehaviour(stage); // Call the parent class method
+
+        // Only set the close request handler if it's not already set
+        if (!isCloseHandlerSet) {
+            stage.setOnCloseRequest(this::handleCloseRequest);
+            isCloseHandlerSet = true; // Update the flag to prevent setting it again
+        }
+    }
+
+    private void handleCloseRequest(WindowEvent event) {
+        System.out.println("Handle Close: Exiting Threads and Quitting WebDriver");
+
+        // Interrupt running threads
+        threadList.forEach(this::interruptThread);
+
+        // Close WebDriver if it's initialized
+        closeWebDrivers();
+    }
+
+    // Method to add WebDriver instances
+    public void addWebDriver(WebDriver driver) {
+        Platform.runLater(() -> webDriverList.add(driver));
+    }
+
+    // Method to close all WebDriver instances
+    private void closeWebDrivers() {
+        for (WebDriver driver : webDriverList) {
+            try {
+                driver.quit();
+                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+            } catch (Exception e) {
+                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+            }
+        }
+        Platform.runLater(() -> webDriverList.clear());
+    }
 
     @Override
     public IARPane buildPane() {

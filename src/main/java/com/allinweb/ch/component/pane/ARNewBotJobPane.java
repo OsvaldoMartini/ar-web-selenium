@@ -233,13 +233,13 @@ public class ARNewBotJobPane extends ARPane {
 
                 arViewBotJobScene.initialize(
                         arWebDriver,
+                        webDriverList,
                         performDataBase,
                         performActions,
                         performMessage,
                         performPreLoad,
                         createdBotJob,
-                        botJobList,
-                        webDriverList);
+                        botJobList);
                 arViewBotJobScene.show();
 
                 // Close the current window

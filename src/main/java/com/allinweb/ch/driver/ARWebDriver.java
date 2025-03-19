@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javax.swing.*;
 import lombok.Data;
 import org.openqa.selenium.JavascriptExecutor;
@@ -47,16 +49,24 @@ public class ARWebDriver {
     // Private constructor to prevent instantiation
     public ARWebDriver() {}
 
+    private ObservableList<WebDriver> webDriverList;
     private PerformMessage performMessage;
     private PerformPreLoad performPreLoad;
     private WebDriver currentDriver;
 
-    public void initialize(PerformMessage performMessage, PerformPreLoad performPreLoad) {
+    public void initialize(
+            ObservableList<WebDriver> webDriverList, PerformMessage performMessage, PerformPreLoad performPreLoad) {
+        this.webDriverList = webDriverList;
         this.performMessage = performMessage;
         this.performPreLoad = performPreLoad;
     }
 
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
+
+    // Method to add WebDriver instances
+    public void addWebDriver(WebDriver driver) {
+        Platform.runLater(() -> webDriverList.add(driver));
+    }
 
     public WebDriver getDriverEdge(EdgeOptions options) {
         if (this.currentDriver == null) {
@@ -64,6 +74,7 @@ public class ARWebDriver {
                 if (this.currentDriver == null) {
                     if (options != null) {
                         this.currentDriver = new EdgeDriver(options);
+                        addWebDriver(this.currentDriver);
                     } else {
                         this.currentDriver = new EdgeDriver();
                     }
@@ -79,6 +90,7 @@ public class ARWebDriver {
                 if (this.currentDriver == null) {
                     if (options != null) {
                         this.currentDriver = new FirefoxDriver(options);
+                        addWebDriver(this.currentDriver);
                     } else {
                         this.currentDriver = new FirefoxDriver();
                     }
@@ -94,6 +106,7 @@ public class ARWebDriver {
                 if (this.currentDriver == null) {
                     if (options != null) {
                         this.currentDriver = new ChromeDriver(options);
+                        addWebDriver(this.currentDriver);
                     } else {
                         this.currentDriver = new ChromeDriver();
                     }

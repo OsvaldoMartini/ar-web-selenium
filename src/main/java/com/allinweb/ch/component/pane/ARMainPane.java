@@ -11,13 +11,11 @@ import com.allinweb.ch.component.scene.ARNewBotJobScene;
 import com.allinweb.ch.component.scene.ARSaveCloneScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
-import com.allinweb.ch.persistence.ConfigUserDTO;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -27,7 +25,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -36,9 +33,14 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import lombok.Getter;
 import org.openqa.selenium.WebDriver;
 
 public class ARMainPane extends ARPane {
+
+    private Stage stage; // Add stage variable
+    private boolean isCloseHandlerSet = false;
 
     //    private static final ARSharedResources dbResource;
     private static final PerformDataBase performDataBase;
@@ -52,7 +54,9 @@ public class ARMainPane extends ARPane {
 
     private static String previousDB;
     private ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList();
-    private ObservableList<WebDriver> webDriverList = FXCollections.observableArrayList();
+
+    @Getter
+    private ObservableList<WebDriver> webDriverList;
 
     private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
     private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
@@ -91,7 +95,8 @@ public class ARMainPane extends ARPane {
 
     ListView<BotJobLoadDTO> viewBotJobListView = new ListView<>();
 
-    public ARMainPane() {
+    public ARMainPane(ObservableList<WebDriver> webDriverList) {
+        this.webDriverList = webDriverList;
         String pathDB = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
         String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
         performDataBase.initialize(dataBaseType);
@@ -131,36 +136,6 @@ public class ARMainPane extends ARPane {
                     "Configuration Needed",
                     "Please configure the application before use.",
                     ButtonType.OK);
-        }
-    }
-
-    private void loadConfigDB() {
-
-        ARSharedResources resources = ARSharedResources.getInstance();
-        if (resources != null) {
-            List<ConfigUserDTO> configurationList =
-                    ARSharedResources.getInstance().loadUserConfig();
-            setProperty(ARPropertyEnum.FOLDER_PATH_EXCEL.getValue(), "");
-            setProperty(ARPropertyEnum.FOLDER_PATH_LOG.getValue(), "");
-            setProperty(ARPropertyEnum.FOLDER_PATH_EXPORT.getValue(), "");
-            //            setProperty(ARPropertyEnum.FILE_NAME_EXPORT.getValue(), "");
-            setProperty(
-                    ARPropertyEnum.FOLDER_PATH_JAVA.getValue(),
-                    ARConstants.CURRENT_PATH + ARConstants.DEFAULT_PATH_JAVA);
-            setProperty(
-                    ARPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(),
-                    ARConstants.CURRENT_PATH + ARConstants.DEFAULT_PATH_JAVA_FX);
-            setProperty(ARPropertyEnum.FOLDER_PATH_DB.getValue(), "");
-            setProperty(ARPropertyEnum.FOLDER_PATH_REPORT.getValue(), "");
-            setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.CURRENT_PATH);
-            setProperty(ARPropertyEnum.LOG_LEVEL.getValue(), Level.ALL.getName());
-            setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstants.CHROME);
-            setProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(), "60");
-            setProperty(ARPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(), "60");
-            setProperty(ARPropertyEnum.DEFAULT_INSTRUCTION_STOP_SECONDS.getValue(), "15");
-            setProperty(
-                    ARPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(),
-                    "test-id='web-banking-payment-core.payment-details.external-reference'");
         }
     }
 
@@ -221,7 +196,7 @@ public class ARMainPane extends ARPane {
                 webDriverList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
 
-        arWebDriver.initialize(performMessage, performPreLoad);
+        arWebDriver.initialize(webDriverList, performMessage, performPreLoad);
 
         panelPane = new VBox(buttonPane, header, viewBotJobListView);
         VBox.setMargin(viewBotJobListView, new Insets(0, 10D, 10D, 10D));
@@ -276,7 +251,6 @@ public class ARMainPane extends ARPane {
         infoButton.setOnMouseClicked(e -> new ARInfoScene().showModal());
         exitButton.setOnMouseClicked(e -> {
             //            Platform.exit();
-            Runtime.getRuntime().addShutdownHook(new Thread(this::closeWebDrivers));
             System.exit(0);
         });
 
@@ -291,13 +265,13 @@ public class ARMainPane extends ARPane {
 
                         arViewBotJobScene.initialize(
                                 arWebDriver,
+                                webDriverList,
                                 performDataBase,
                                 performActions,
                                 performMessage,
                                 performPreLoad,
                                 selecBotJobDTO,
-                                botJobList,
-                                webDriverList);
+                                botJobList);
                         arViewBotJobScene.show();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
@@ -450,27 +424,5 @@ public class ARMainPane extends ARPane {
     @Override
     public Pane getPaneReference() {
         return new AnchorPane(panelPane);
-    }
-
-    public ObservableList<WebDriver> getWebDriverList() {
-        return webDriverList;
-    }
-
-    // Method to add WebDriver instances
-    public void addWebDriver(WebDriver driver) {
-        Platform.runLater(() -> webDriverList.add(driver));
-    }
-
-    // Method to close all WebDriver instances
-    private void closeWebDrivers() {
-        for (WebDriver driver : webDriverList) {
-            try {
-                driver.quit();
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
-            } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
-            }
-        }
-        Platform.runLater(() -> webDriverList.clear());
     }
 }

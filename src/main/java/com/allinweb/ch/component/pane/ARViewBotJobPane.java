@@ -73,6 +73,7 @@ import javax.websocket.server.ServerContainer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
+import org.openqa.selenium.WebDriver;
 
 public class ARViewBotJobPane extends ARPane {
 
@@ -97,8 +98,8 @@ public class ARViewBotJobPane extends ARPane {
     private List<BlockLoadDTO> blockLoadList;
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
-    private ARWebDriver arWebDriver;
     private static final ARScannedElementScene arScannedElementScene;
+    private ARWebDriver arWebDriver;
     private PerformDataBase performDataBase;
     private PerformActions performActions;
     private PerformMessage performMessage;

@@ -3,6 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
+import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -12,9 +13,13 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.facade.SingletonSupplier;
+import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
+import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import org.openqa.selenium.WebDriver;
 
 public class ARScannedElementScene extends ARScene {
 
@@ -104,12 +109,26 @@ public class ARScannedElementScene extends ARScene {
                 //                arWebDriver.closeDriver(); // Quit WebDriver
                 arWebDriver.getCurrentDriver().quit(); // Quit WebDriver
                 arWebDriver.setCurrentDriver(null);
-                //                arWebDriver.setDriver(null);
+
+                closeWebDrivers();
                 System.out.println("WebDriver quit successfully.");
             } catch (Exception e) {
                 System.err.println("Error closing WebDriver: " + e.getMessage());
             }
         }
+    }
+
+    // Method to close all WebDriver instances
+    private void closeWebDrivers() {
+        for (WebDriver driver : arWebDriver.getWebDriverList()) {
+            try {
+                driver.quit();
+                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+            } catch (Exception e) {
+                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+            }
+        }
+        Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
     }
 
     @Override
