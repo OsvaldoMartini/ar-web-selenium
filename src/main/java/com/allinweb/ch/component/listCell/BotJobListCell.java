@@ -3,6 +3,7 @@ package com.allinweb.ch.component.listCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
@@ -22,20 +23,23 @@ import org.openqa.selenium.WebDriver;
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
     private ARViewBotJobScene arViewBotJobScene;
-    private PerformMessage performMessage;
     private PerformDataBase performDataBase;
+    private PerformActions performActions;
+    private PerformMessage performMessage;
     private ObservableList<BotJobLoadDTO> botJobList;
     ObservableList<WebDriver> webDriverList;
 
     public BotJobListCell(
-            PerformMessage performMessage,
-            PerformDataBase performDataBase,
             ARViewBotJobScene arViewBotJobScene,
+            PerformDataBase performDataBase,
+            PerformActions performActions,
+            PerformMessage performMessage,
             ObservableList<BotJobLoadDTO> botJobList,
             ObservableList<WebDriver> webDriverList) {
-        this.performMessage = performMessage;
-        this.performDataBase = performDataBase;
         this.arViewBotJobScene = arViewBotJobScene;
+        this.performDataBase = performDataBase;
+        this.performActions = performActions;
+        this.performMessage = performMessage;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
     }
@@ -160,7 +164,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(performDataBase, null, item, botJobList, webDriverList);
+                    arViewBotJobScene.initialize(performDataBase, performActions, item, botJobList, webDriverList);
                     arViewBotJobScene.show();
                 }
             });

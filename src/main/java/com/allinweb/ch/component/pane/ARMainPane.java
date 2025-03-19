@@ -199,7 +199,7 @@ public class ARMainPane extends ARPane {
         botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ARCellFactory<>(
-                BotJobListCell.class, performMessage, performDataBase, arViewBotJobScene, botJobList, webDriverList)::call);
+                BotJobListCell.class, arViewBotJobScene, performDataBase, performActions, performMessage, botJobList, webDriverList)::call);
         arNewBotJobScene.initialize(
                 arViewBotJobScene, performDataBase, performActions, performMessage, botJobList, webDriverList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
