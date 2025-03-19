@@ -14,6 +14,7 @@ import javafx.geometry.HPos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.*;
+import org.openqa.selenium.WebDriver;
 
 public class ARViewBotJobListPane extends ARPane {
 
@@ -24,13 +25,14 @@ public class ARViewBotJobListPane extends ARPane {
     private final ARViewBotJobScene arViewBotJobScene;
     private final PerformDataBase performDataBase;
     private final PerformMessage performMessage;
-
+    private ObservableList<WebDriver> webDriverList;
     // Constructor for Dependency Injection
     public ARViewBotJobListPane(
             ARViewBotJobScene arViewBotJobScene, PerformDataBase performDataBase, PerformMessage performMessage) {
         this.arViewBotJobScene = arViewBotJobScene;
         this.performDataBase = performDataBase;
         this.performMessage = performMessage;
+        this.webDriverList = webDriverList;
         initUIComponents();
     }
 
@@ -46,9 +48,12 @@ public class ARViewBotJobListPane extends ARPane {
 
         // Setting the cell factory correctly
         uiBotJobList.setCellFactory(new ARCellFactory<>(
-                BotJobListCell.class, performMessage, performDataBase, arViewBotJobScene, (ObservableList<
-                                BotJobLoadDTO>)
-                        botJobList)::call);
+                BotJobListCell.class,
+                performMessage,
+                performDataBase,
+                arViewBotJobScene,
+                (ObservableList<BotJobLoadDTO>) botJobList,
+                webDriverList)::call);
 
         // Anchor positioning
         AnchorPane.setTopAnchor(uiBotJobList, ARConstants.SPACE_M * 2);

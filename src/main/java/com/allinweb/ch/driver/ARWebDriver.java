@@ -32,16 +32,27 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 public class ARWebDriver {
 
+    // Static final variable to hold the singleton instance
+    //    protected static final SingletonSupplier<ARWebDriver> instance = () -> new ARWebDriver();
+
+    // Public method to access the singleton instance
+    //    public static ARWebDriver getInstance() {
+    //        return instance.get();
+    //    }
+
+    // Private constructor to prevent instantiation
+    public ARWebDriver() {}
+
+    private PerformMessage performMessage;
+    private PerformPreLoad performPreLoad;
+
+    public void initialize(PerformMessage performMessage, PerformPreLoad performPreLoad) {
+        this.performMessage = performMessage;
+        this.performPreLoad = performPreLoad;
+    }
+
     private static WebDriver driver = null;
     private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
-
-    private static final PerformMessage performMessage;
-    private static final PerformPreLoad performPreLoad;
-    // Static block to initialize
-    static {
-        performMessage = PerformMessage.getInstance();
-        performPreLoad = PerformPreLoad.getInstance();
-    }
 
     public static WebDriver getDriverEdge(EdgeOptions options) {
         if (driver == null) {

@@ -3,6 +3,7 @@ package com.allinweb.ch.component.listCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
@@ -17,23 +18,30 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
+import org.openqa.selenium.WebDriver;
 
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
+    private ARViewBotJobScene arViewBotJobScene;
     private PerformMessage performMessage;
     private PerformDataBase performDataBase;
-    private ARViewBotJobScene arViewBotJobScene;
+    private PerformActions performAction;
     private ObservableList<BotJobLoadDTO> botJobList;
+    private ObservableList<WebDriver> webDriverList;
 
     public BotJobListCell(
+            ARViewBotJobScene arViewBotJobScene,
             PerformMessage performMessage,
             PerformDataBase performDataBase,
-            ARViewBotJobScene arViewBotJobScene,
-            ObservableList<BotJobLoadDTO> botJobList) {
+            PerformActions performAction,
+            ObservableList<BotJobLoadDTO> botJobList,
+            ObservableList<WebDriver> webDriverList) {
+        this.arViewBotJobScene = arViewBotJobScene;
         this.performMessage = performMessage;
         this.performDataBase = performDataBase;
-        this.arViewBotJobScene = arViewBotJobScene;
+        this.performAction = performAction;
         this.botJobList = botJobList;
+        this.webDriverList = webDriverList;
     }
 
     public BotJobListCell() {
@@ -156,7 +164,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(item, botJobList);
+                    arViewBotJobScene.initialize(performDataBase, performAction, item, botJobList, webDriverList);
                     arViewBotJobScene.show();
                 }
             });

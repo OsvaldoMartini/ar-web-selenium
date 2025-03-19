@@ -11,6 +11,8 @@ import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
+import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
@@ -73,6 +75,18 @@ import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainer
 
 public class ARViewBotJobPane extends ARPane {
 
+    //    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private PerformDataBase performDataBase;
+    private PerformActions performActions;
+    private PerformMessage performMessage;
+    private ARWebDriver arWebDriver;
+    private static final ARScannedElementScene arScannedElementScene;
+
+    // Static block to initialize
+    static {
+        arScannedElementScene = ARScannedElementScene.getInstance();
+    }
+
     // Set to hold all active WebSocket sessions
     private static Map<String, Session> activeSessions;
     private int portInitial;
@@ -92,20 +106,6 @@ public class ARViewBotJobPane extends ARPane {
 
     private BlockLoadDTO blockLoad;
     private List<BlockLoadDTO> blockLoadList;
-
-    //    private static final SimpleWebSocketServer simpleWebSocketServer;
-    private static final PerformMessage performMessage;
-    private static final PerformDataBase performDataBase;
-    private static final ARScannedElementScene arScannedElementScene;
-    private String previousDB;
-
-    // Static block to initialize
-    static {
-        //        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        arScannedElementScene = ARScannedElementScene.getInstance();
-    }
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
     // Define a flag to prevent double clicks
@@ -151,7 +151,17 @@ public class ARViewBotJobPane extends ARPane {
     private ARScene arScene;
     private final ObservableList<BotJobLoadDTO> botJobList;
 
-    public ARViewBotJobPane(BotJobLoadDTO botJobLoad, ARScene arScene, ObservableList<BotJobLoadDTO> botJobList) {
+    public ARViewBotJobPane(
+            PerformDataBase performDataBase,
+            PerformActions performActions,
+            PerformMessage performMessage,
+            BotJobLoadDTO botJobLoad,
+            ARScene arScene,
+            ObservableList<BotJobLoadDTO> botJobList) {
+        this.performDataBase = performDataBase;
+        this.performActions = performActions;
+        this.performMessage = performMessage;
+
         this.arScene = arScene;
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
@@ -972,8 +982,14 @@ public class ARViewBotJobPane extends ARPane {
 
                     activeSessions = SimpleWebSocketServer.getAllSessions();
                     // Call the ARScannedElementScene here
-                    ARScannedElementScene scene =
-                            arScannedElementScene.initialize(homeBankingLoadDTO, this.botJobLoad, this.blockLoad);
+                    ARScannedElementScene scene = arScannedElementScene.initialize(
+                            performDataBase,
+                            performActions,
+                            performMessage,
+                            arWebDriver,
+                            homeBankingLoadDTO,
+                            this.botJobLoad,
+                            this.blockLoad);
 
                     scene.show(); // Make sure the scene is shown
                 } catch (Exception ex) {
