@@ -1,12 +1,12 @@
-//package com.allinweb.ch.tests;
+// package com.allinweb.ch.tests;
 //
-//import com.healthmarketscience.jackcess.Database;
-//import com.healthmarketscience.jackcess.Database.FileFormat;
-//import com.healthmarketscience.jackcess.DatabaseBuilder;
-//import java.io.File;
-//import java.io.IOException;
+// import com.healthmarketscience.jackcess.Database;
+// import com.healthmarketscience.jackcess.Database.FileFormat;
+// import com.healthmarketscience.jackcess.DatabaseBuilder;
+// import java.io.File;
+// import java.io.IOException;
 //
-//public class AccessVersionChecker {
+// public class AccessVersionChecker {
 //
 //    public static void main(String[] args) {
 //        String dbPath = "path_to_your_db.accdb";
@@ -41,4 +41,4 @@
 //            System.out.println(e.getMessage());
 //        }
 //    }
-//}
+// }
