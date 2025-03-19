@@ -251,7 +251,7 @@ public class ARMainPane extends ARPane {
         infoButton.setOnMouseClicked(e -> new ARInfoScene().showModal());
         exitButton.setOnMouseClicked(e -> {
             //            Platform.exit();
-            System.exit(0);
+            closeWebDrivers();
         });
 
         editBotJobButton.setOnMouseClicked(e -> {
@@ -348,6 +348,23 @@ public class ARMainPane extends ARPane {
                     return;
                 }
             }
+        });
+    }
+
+    // Method to close all WebDriver instances
+    private void closeWebDrivers() {
+        for (WebDriver driver : arWebDriver.getWebDriverList()) {
+            try {
+                Platform.runLater(() -> arWebDriver.getWebDriverList().remove(driver));
+                Platform.runLater(driver::quit);
+                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+            } catch (Exception e) {
+                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+            }
+        }
+        Platform.runLater(() -> {
+            arWebDriver.getWebDriverList().clear();
+            System.exit(0);
         });
     }
 
