@@ -1,6 +1,6 @@
 package search;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.Assert.assertTrue;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.google.common.base.Strings;
@@ -14,8 +14,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -27,8 +27,8 @@ import org.openqa.selenium.chrome.ChromeOptions;
 
 public class SearchTest {
 
-    private static ChromeOptions options;
-    private static WebDriver driver;
+    private ChromeOptions options;
+    private WebDriver driver;
 
     private static final String BOOKS_DIRECTORY = "./resources/books/";
 
@@ -129,8 +129,8 @@ public class SearchTest {
         }
     }
 
-    @BeforeAll
-    public static void setup() {
+    @Before
+    public void setup() {
         options = new ChromeOptions();
         options.setBinary("C:/Program Files/Google/Chrome/Application/chrome.exe");
         options.setExperimentalOption("useAutomationExtension", false);

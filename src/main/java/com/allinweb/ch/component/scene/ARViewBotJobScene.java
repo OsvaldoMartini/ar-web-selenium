@@ -7,10 +7,8 @@ import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
@@ -22,39 +20,47 @@ public class ARViewBotJobScene extends ARScene {
 
     protected static final SingletonSupplier<ARViewBotJobScene> instance = () -> new ARViewBotJobScene();
 
-    public ARViewBotJobScene() {
-        super();
-    }
+    private ObservableList<BotJobLoadDTO> botJobList;
+    private ObservableList<WebDriver> webDriverList;
 
     // Public method to access the singleton instance
     public static ARViewBotJobScene getInstance() {
         return instance.get();
     }
 
-    private PerformDataBase performDataBase;
-    private PerformActions performAction;
-    private PerformMessage performMessage;
     private ARScene currentScene;
+    private PerformDataBase performDataBase;
+    private PerformActions performActions;
     private BotJobLoadDTO botJobLoad;
 
-    public void initialize(BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
+    public void initialize(
+            PerformDataBase performDataBase,
+            PerformActions performActions,
+            BotJobLoadDTO botJobLoad,
+            ObservableList<BotJobLoadDTO> botJobList,
+            ObservableList<WebDriver> webDriverList) {
+        this.performDataBase = performDataBase;
+        this.performActions = performActions;
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
+        this.webDriverList = webDriverList;
+
         this.currentScene = currentScene;
     }
 
-    private ARWebDriver arWebDriver;
-    private BotJobLoadDTO botLoadJob = null;
+    public ARViewBotJobScene() {
+        super();
+        //        this.botJobLoad = botJobLoad;
+        //        this.currentScene = currentScene;
+    }
 
+    private BotJobLoadDTO botLoadJob = null;
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private HomeBankingLoadDTO homeBankingLoadDTO;
 
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 1100D;
     private static final String TITLE = "Bot Job Details";
-
-    private ObservableList<BotJobLoadDTO> botJobList;
-    private ObservableList<WebDriver> webDriverList;
 
     @Override
     public IARPane buildPane() {

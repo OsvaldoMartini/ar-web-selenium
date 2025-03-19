@@ -21,18 +21,18 @@ import javafx.scene.text.Text;
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
     private ARViewBotJobScene arViewBotJobScene;
-    private PerformDataBase performDataBase;
     private PerformMessage performMessage;
+    private PerformDataBase performDataBase;
     private ObservableList<BotJobLoadDTO> botJobList;
 
     public BotJobListCell(
-            ARViewBotJobScene arViewBotJobScene,
-            PerformDataBase performDataBase,
             PerformMessage performMessage,
+            PerformDataBase performDataBase,
+            ARViewBotJobScene arViewBotJobScene,
             ObservableList<BotJobLoadDTO> botJobList) {
-        this.arViewBotJobScene = arViewBotJobScene;
-        this.performDataBase = performDataBase;
         this.performMessage = performMessage;
+        this.performDataBase = performDataBase;
+        this.arViewBotJobScene = arViewBotJobScene;
         this.botJobList = botJobList;
     }
 
@@ -156,7 +156,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(item, botJobList);
+                    arViewBotJobScene.initialize(performDataBase, null, item, botJobList, null);
                     arViewBotJobScene.show();
                 }
             });

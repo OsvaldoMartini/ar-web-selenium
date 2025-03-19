@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import javafx.concurrent.Task;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 public class Computable_JavaFX_Tasks_Test {
 

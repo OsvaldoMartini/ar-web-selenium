@@ -57,7 +57,7 @@ public class ARScannedElementScene extends ARScene {
     public IARPane buildPane() {
         arWebDriver = new ARWebDriver(); // Initialize WebDriver
 
-        return new ARScannedElementPane(arWebDriver, homeBankingLoadDTO, botJobLoadDTO, blockLoadDTO);
+        return new ARScannedElementPane(homeBankingLoadDTO, botJobLoadDTO, blockLoadDTO, arWebDriver);
     }
 
     @Override
