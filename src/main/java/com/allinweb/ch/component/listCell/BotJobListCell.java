@@ -17,6 +17,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
+import org.openqa.selenium.WebDriver;
 
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
@@ -24,16 +25,19 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     private PerformMessage performMessage;
     private PerformDataBase performDataBase;
     private ObservableList<BotJobLoadDTO> botJobList;
+    ObservableList<WebDriver> webDriverList;
 
     public BotJobListCell(
             PerformMessage performMessage,
             PerformDataBase performDataBase,
             ARViewBotJobScene arViewBotJobScene,
-            ObservableList<BotJobLoadDTO> botJobList) {
+            ObservableList<BotJobLoadDTO> botJobList,
+            ObservableList<WebDriver> webDriverList) {
         this.performMessage = performMessage;
         this.performDataBase = performDataBase;
         this.arViewBotJobScene = arViewBotJobScene;
         this.botJobList = botJobList;
+        this.webDriverList = webDriverList;
     }
 
     public BotJobListCell() {
@@ -156,7 +160,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(performDataBase, null, item, botJobList, null);
+                    arViewBotJobScene.initialize(performDataBase, null, item, botJobList, webDriverList);
                     arViewBotJobScene.show();
                 }
             });
