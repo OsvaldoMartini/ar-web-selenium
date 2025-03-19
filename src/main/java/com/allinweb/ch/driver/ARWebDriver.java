@@ -82,6 +82,20 @@ public class ARWebDriver {
         return getDriver();
     }
 
+    // Modified version that directly manages ThreadLocal within the method
+    public WebDriver getDriverEdgeThreadLocal(EdgeOptions options) {
+        if (getDriver() == null) {
+            WebDriver driver;
+            if (options != null) {
+                driver = new EdgeDriver(options);
+            } else {
+                driver = new EdgeDriver();
+            }
+            setDriver(driver);
+        }
+        return getDriver();
+    }
+
     public WebDriver getDriverFireFox(FirefoxOptions options) {
         if (getDriver() == null) {
             synchronized (ARWebDriver.class) {
