@@ -1,5 +1,6 @@
 package com.allinweb.ch.tests;
 
+import java.util.List;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -7,13 +8,12 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 
-import java.util.List;
-
 public class DynamicWebElementEdge {
 
     public static void main(String[] args) {
         // Set the path to the Edge WebDriver (replace with your actual path)
-        System.setProperty("webdriver.edge.driver",
+        System.setProperty(
+                "webdriver.edge.driver",
                 "D:/Projects/AllinWeb/ar-web-selenium-archive/ar-web-selenium-files/ProgramFiles/edgedriver-versions/msedgedriver_64-(134.0.3124.77).exe");
 
         // Configure Edge Options
@@ -32,11 +32,10 @@ public class DynamicWebElementEdge {
             WebElement existingElement = driver.findElement(By.className("input-field"));
 
             // JavaScript to replace the existing element
-            String newElementJs = "var oldElement = arguments[0];" +
-                    "var newElement = document.createElement('div');" +
-                    "newElement.id = 'new-element';" +
-                    "newElement.innerHTML = 'This is the new element';" +
-                    "oldElement.parentNode.replaceChild(newElement, oldElement);";
+            String newElementJs = "var oldElement = arguments[0];" + "var newElement = document.createElement('div');"
+                    + "newElement.id = 'new-element';"
+                    + "newElement.innerHTML = 'This is the new element';"
+                    + "oldElement.parentNode.replaceChild(newElement, oldElement);";
 
             // Execute JavaScript to replace the element
             ((JavascriptExecutor) driver).executeScript(newElementJs, existingElement);

@@ -102,8 +102,8 @@ public class ARScannedElementScene extends ARScene {
         if (arWebDriver != null) {
             try {
                 //                arWebDriver.closeDriver(); // Quit WebDriver
-                arWebDriver.getDriver().quit(); // Quit WebDriver
-                arWebDriver.setDriver(null);
+                arWebDriver.getCurrentDriver().quit(); // Quit WebDriver
+                arWebDriver.setCurrentDriver(null);
                 //                arWebDriver.setDriver(null);
                 System.out.println("WebDriver quit successfully.");
             } catch (Exception e) {

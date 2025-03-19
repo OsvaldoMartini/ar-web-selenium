@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import javax.swing.*;
 import lombok.Data;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
@@ -35,100 +36,82 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 @Data
 public class ARWebDriver {
 
+    // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<ARWebDriver> instance = () -> new ARWebDriver();
 
+    // Public method to access the singleton instance
     public static ARWebDriver getInstance() {
         return instance.get();
     }
 
+    // Private constructor to prevent instantiation
     public ARWebDriver() {}
 
     private PerformMessage performMessage;
     private PerformPreLoad performPreLoad;
-    private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
-
-    private static ThreadLocal<WebDriver> driverThreadLocal = new ThreadLocal<>();
-
-    public static WebDriver getDriver() {
-        return driverThreadLocal.get();
-    }
-
-    public static void setDriver(WebDriver driver) {
-        driverThreadLocal.set(driver);
-    }
-
-    public static void quitDriver() {
-        WebDriver driver = driverThreadLocal.get();
-        if (driver != null) {
-            driver.quit();
-            driverThreadLocal.remove();
-        }
-    }
+    private WebDriver currentDriver;
 
     public void initialize(PerformMessage performMessage, PerformPreLoad performPreLoad) {
         this.performMessage = performMessage;
         this.performPreLoad = performPreLoad;
     }
 
+    private final WebElementScriptFactory scriptFactory = new WebElementScriptFactory();
+
     public WebDriver getDriverEdge(EdgeOptions options) {
-        if (getDriver() == null) {
+        if (this.currentDriver == null) {
             synchronized (ARWebDriver.class) {
-                if (getDriver() == null) {
-                    WebDriver driver = options != null ? new EdgeDriver(options) : new EdgeDriver();
-                    setDriver(driver);
+                if (this.currentDriver == null) {
+                    if (options != null) {
+                        this.currentDriver = new EdgeDriver(options);
+                    } else {
+                        this.currentDriver = new EdgeDriver();
+                    }
                 }
             }
         }
-        return getDriver();
-    }
-
-    // Modified version that directly manages ThreadLocal within the method
-    public WebDriver getDriverEdgeThreadLocal(EdgeOptions options) {
-        if (getDriver() == null) {
-            WebDriver driver;
-            if (options != null) {
-                driver = new EdgeDriver(options);
-            } else {
-                driver = new EdgeDriver();
-            }
-            setDriver(driver);
-        }
-        return getDriver();
+        return this.currentDriver;
     }
 
     public WebDriver getDriverFireFox(FirefoxOptions options) {
-        if (getDriver() == null) {
+        if (this.currentDriver == null) {
             synchronized (ARWebDriver.class) {
-                if (getDriver() == null) {
-                    WebDriver driver = options != null ? new FirefoxDriver(options) : new FirefoxDriver();
-                    setDriver(driver);
+                if (this.currentDriver == null) {
+                    if (options != null) {
+                        this.currentDriver = new FirefoxDriver(options);
+                    } else {
+                        this.currentDriver = new FirefoxDriver();
+                    }
                 }
             }
         }
-        return getDriver();
+        return this.currentDriver;
     }
 
     public WebDriver getDriverChrome(ChromeOptions options) {
-        if (getDriver() == null) {
+        if (this.currentDriver == null) {
             synchronized (ARWebDriver.class) {
-                if (getDriver() == null) {
-                    WebDriver driver = options != null ? new ChromeDriver(options) : new ChromeDriver();
-                    setDriver(driver);
+                if (this.currentDriver == null) {
+                    if (options != null) {
+                        this.currentDriver = new ChromeDriver(options);
+                    } else {
+                        this.currentDriver = new ChromeDriver();
+                    }
                 }
             }
         }
-        return getDriver();
+        return currentDriver;
     }
 
     public static String identifyLineSeparator(String text) {
         if (text.contains("\r\n")) {
-            return "\r\n";
+            return "\r\n"; // Windows style
         } else if (text.contains("\n")) {
-            return "\n";
+            return "\n"; // Unix/Linux style
         } else if (text.contains("\r")) {
-            return "\r";
+            return "\r"; // Old Mac style
         }
-        return System.lineSeparator();
+        return System.lineSeparator(); // Default line separator if none found
     }
 
     public WebDriver openDriver(
@@ -142,90 +125,130 @@ public class ARWebDriver {
 
         if (Strings.isNullOrEmpty(url.trim())) {
             ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
+
             performMessage.errorMessage("URL IS EMPTY", "URL Web Browser is Empty", null, null, null, 0);
+
             return null;
         }
 
         String lineSeparator = identifyLineSeparator(optionsConfig);
+
+        // Split the text into lines using the detected line separator
         String[] optionsConfigLines = new String[0];
         try {
+
             optionsConfigLines = optionsConfig.split(lineSeparator);
         } catch (Exception ex) {
             ARLogger.getInstance(ARWebDriver.class).severe("Error WebDriver config Options : \n" + ex.getMessage());
         }
 
         ARLogger.getInstance(ARWebDriver.class).fine("Going to call WebDriver for \n" + url);
+
         ARPropertyManager managerProps = ARPropertyManager.getInstance();
 
         if (Strings.isNullOrEmpty(webDriverPath)) {
             ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
         }
 
+        //        if (driver == null) {
         String logFolder = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
         try {
             switch (browserType) {
                 case ARConstants.CHROME -> {
+                    //                        String driverPath = webDriverPath + "\\chrome.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
                     }
+
+                    // "\\_chrome_browser.log");
+
                     System.setProperty("webdriver.chrome.driver", webDriverPath);
+
                     ChromeOptions optionsChrome = buildOptionsChrome(optionsConfigLines, logFolder);
 
                     if (optionsChrome != null) {
-                        getDriverChrome(optionsChrome);
+                        this.currentDriver = getDriverChrome(optionsChrome);
                     } else {
-                        getDriverChrome(null);
+                        this.currentDriver = getDriverChrome(null);
                     }
                 }
                 case ARConstants.EDGE -> {
+                    //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
                     }
+                    // Set path to Edge WebDriver executable
                     System.setProperty("webdriver.edge.driver", webDriverPath);
+
                     String userDataDir = System.getProperty("java.io.tmpdir") + File.separator + "edge-user-data-"
                             + UUID.randomUUID();
-                    EdgeOptions options = new EdgeOptions();
-                    options.addArguments("--user-data-dir=" + userDataDir);
-                    options = buildOptionsEdge(optionsConfigLines, logFolder);
 
-                    if (options != null) {
-                        getDriverEdge(options);
+                    // Configure EdgeOptions
+                    EdgeOptions optionsEdge = new EdgeOptions();
+                    optionsEdge.addArguments("--user-data-dir=" + userDataDir);
+
+                    optionsEdge.addArguments("--remote-allow-origins=*"); // Required for some Edge versions
+                    optionsEdge.addArguments("--start-maximized"); // Opens browser in full-screen
+                    optionsEdge.addArguments("--disable-gpu"); // Fixes potential rendering issues
+                    optionsEdge.addArguments("--no-sandbox"); // Bypass OS security model
+                    optionsEdge.addArguments("--disable-dev-shm-usage"); // Prevents resource exhaustion
+                    // options.addArguments("--headless"); // if you want run it in headless mode.
+
+                    // Configure Edge options
+                    optionsEdge = buildOptionsEdge(optionsConfigLines, logFolder);
+
+                    if (optionsEdge != null) {
+                        this.currentDriver = getDriverEdge(optionsEdge);
                     } else {
-                        getDriverEdge(null);
+                        this.currentDriver = getDriverEdge(null); // or pass options
                     }
                 }
                 case ARConstants.FIREFOX -> {
+                    //                        String driverPath = webDriverPath + "\\geckodriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
                         ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
                     }
                     System.setProperty("webdriver.gecko.driver", webDriverPath);
                     FirefoxOptions options = new FirefoxOptions();
-
+                    //                      options.setBinary(webDriverPath);
+                    //                    driver = new FirefoxDriver(options);
                     if (options != null) {
-                        getDriverFireFox(options);
+                        this.currentDriver = getDriverFireFox(options);
                     } else {
-                        getDriverFireFox(null);
+                        this.currentDriver = getDriverFireFox(null); // or pass options
                     }
                 }
             }
         } catch (Exception error) {
             throw new UnsupportedOperationException(error.getMessage());
         }
+        //        }
 
-        getDriver().manage().window().maximize();
+        this.currentDriver.manage().window().maximize();
 
         try {
-            getDriver().get(url);
+            //            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
+            //            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
+
+            this.currentDriver.get(url);
+            //            performPreLoad.dynamicLoadAlerts(driver, url, dataArray, searchHiddenFields, port);
+
+            //            performPreLoad.dynamicLoadElementsDTO(driver, url, dataArray, searchHiddenFields, port);
+
+            // Wait for the page to finish loading
             Thread.sleep(3000);
-            WebDriverWait wait = new WebDriverWait(getDriver(), Duration.ofSeconds(5));
+            WebDriverWait wait = new WebDriverWait(this.currentDriver, Duration.ofSeconds(5));
             wait.until(webDriver -> ((JavascriptExecutor) webDriver)
                     .executeScript("return document.readyState")
                     .equals("complete"));
 
         } catch (Exception e) {
+
             String errorMessage = e.getMessage();
             ARLogger.getInstance(ARWebDriver.class)
                     .fine("An error has occurred during driver.get(url) Load " + errorMessage);
+
+            // Split the message into chunks of 100 characters
             int maxLength = 100;
             int messageLength = errorMessage.length();
             int parts = (int) Math.ceil((double) messageLength / maxLength);
@@ -236,27 +259,25 @@ public class ARWebDriver {
                 int endIndex = Math.min(startIndex + maxLength, messageLength);
                 messageChunks[i] = errorMessage.substring(startIndex, endIndex);
             }
+
+            // Pass a meaningful message for further actions
             performMessage.errorMessage(
                     "Error Open URL", messageChunks[0], messageChunks[1], messageChunks[2], messageChunks[3], 0);
+
+            // Example: print or log the chunks if needed
             for (String chunk : messageChunks) {
                 ARLogger.getInstance(ARWebDriver.class).fine("Error chunk: " + chunk);
             }
             return null;
         }
-        return getDriver();
+        return this.currentDriver;
     }
 
     private EdgeOptions buildOptionsEdge(String[] optionsConfigLines, String logFolder) {
         EdgeOptions optionsEdge = new EdgeOptions();
+        // Options Config
         optionsEdge.addArguments("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
                 + System.currentTimeMillis());
-
-        optionsEdge.addArguments("--remote-allow-origins=*"); // Required for some Edge versions
-        optionsEdge.addArguments("--start-maximized"); // Opens browser in full-screen
-        optionsEdge.addArguments("--disable-gpu"); // Fixes potential rendering issues
-        optionsEdge.addArguments("--no-sandbox"); // Bypass OS security model
-        optionsEdge.addArguments("--disable-dev-shm-usage"); // Prevents resource exhaustion
-        
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
                 ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);
@@ -267,26 +288,44 @@ public class ARWebDriver {
             String[] config = line.split(":");
             if (config.length > 1) {
                 if (config[0].equalsIgnoreCase("proxy")) {
+
                     if (config.length > 2) {
+                        // Proxy details
+                        //  String proxyAddress = "proxy_address:proxy_port";
                         String proxyAddress = String.format("%s:%s", config[1], config[2]);
+
+                        // Configure proxy settings
                         Proxy proxy = new Proxy();
                         proxy.setHttpProxy(proxyAddress)
                                 .setFtpProxy(proxyAddress)
                                 .setSslProxy(proxyAddress);
+
                         optionsEdge.setProxy(proxy);
                     } else {
                         ARLogger.getInstance(ARWebDriver.class).severe("Error Check Options Config for Proxy is wrong");
                     }
                 } else if (config[0].equalsIgnoreCase("browser_log")) {
+
+                    // Create LoggingPreferences object
                     LoggingPreferences logs = new LoggingPreferences();
-                    logs.enable(LogType.BROWSER, Level.ALL);
-                    String logFilePath = logFolder + "_edge_browser.log";
+                    logs.enable(LogType.BROWSER, Level.ALL); // Enable browser logs
+                    // Set the path where you want to save the log file
+                    String logFilePath = logFolder + "_edge_browser.log"; // Replace with your desired log file path
+                    // Specify the logging preferences
                     logs.enable(LogType.BROWSER, Level.ALL);
                     optionsEdge.setCapability(
                             "ms:edgeOptions",
                             "{verbose: true, loggingPrefs: {" + "\"browser\": \"ALL\", \"driver\": \"ALL\"}}");
                 } else if (config[0].startsWith("arg")) {
                     optionsEdge.addArguments(config[1]);
+                    //                        options.addArguments("--disable-infobars");
+                    //                        options.addArguments("--disable-dev-shm-usage");
+                    //                        options.addArguments("--no-sandbox");
+                    //                        options.addArguments("--remote-debugging-port=9222");
+                    //                        optionsChrome.setExperimentalOption(
+                    //                                "excludeSwitches",
+                    // Collections.singletonList("enable-automation"));
+                    //
                 }
             }
         }
@@ -298,6 +337,7 @@ public class ARWebDriver {
         optionsChrome.addArguments("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
                 + System.currentTimeMillis());
 
+        // Options Config
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
                 ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);
@@ -308,21 +348,38 @@ public class ARWebDriver {
             String[] config = line.split(":");
             if (config.length > 1) {
                 if (config[0].equalsIgnoreCase("proxy")) {
+
                     if (config.length > 2) {
+                        // Proxy details
+                        //  String proxyAddress = "proxy_address:proxy_port";
                         String proxyAddress = String.format("%s:%s", config[1], config[2]);
+
+                        // Configure proxy settings
                         Proxy proxy = new Proxy();
                         proxy.setHttpProxy(proxyAddress)
                                 .setFtpProxy(proxyAddress)
                                 .setSslProxy(proxyAddress);
+
                         optionsChrome.setProxy(proxy);
                     } else {
                         ARLogger.getInstance(ARWebDriver.class).severe("Error Check Options Config for Proxy is wrong");
                     }
                 } else if (config[0].equalsIgnoreCase("browser_log")) {
+
+                    // Create LoggingPreferences object
                     System.setProperty("webdriver.chrome.verboseLogging", "true");
                     System.setProperty("webdriver.chrome.logfile", logFolder + "\\_chrome_browser.log");
                 } else if (config[0].equalsIgnoreCase("argument")) {
+
                     optionsChrome.addArguments(config[1]);
+                    //                        options.addArguments("--disable-infobars");
+                    //                        options.addArguments("--disable-dev-shm-usage");
+                    //                        options.addArguments("--no-sandbox");
+                    //                        options.addArguments("--remote-debugging-port=9222");
+                    //                        optionsChrome.setExperimentalOption(
+                    //                                "excludeSwitches",
+                    // Collections.singletonList("enable-automation"));
+                    //
                 }
             }
         }
@@ -367,23 +424,19 @@ public class ARWebDriver {
     }
 
     private <T> T runScript(String script) {
-        if (getDriver() == null) {
+        if (this.currentDriver == null) {
             throw new ARWebDriverNotStartedException();
         }
-        JavascriptExecutor executor = (JavascriptExecutor) getDriver();
+        JavascriptExecutor executor = (JavascriptExecutor) this.currentDriver;
         return (T) executor.executeScript(script);
-    }
-
-    public WebDriver getDriverInstance() {
-        return getDriver();
     }
 
     public boolean isBrowserClosed(ARWebDriver arWebDriver) {
         try {
-            getDriver().getTitle();
-            return false;
+            this.currentDriver.getTitle(); // Try accessing a property
+            return false; // If no exception, browser is open
         } catch (Exception e) {
-            return true;
+            return true; // If exception occurs, browser is closed
         }
     }
 }

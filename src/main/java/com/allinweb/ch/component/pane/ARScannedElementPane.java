@@ -382,7 +382,7 @@ public class ARScannedElementPane extends ARPane {
                 // Initialize performAction with arPriorities and arWebDriver
 
                 performActions.initialize(arPriorities);
-                performActions.setCurrentDriver(currentARWebDriver.getDriver());
+                performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
             }
         }
 
@@ -390,7 +390,7 @@ public class ARScannedElementPane extends ARPane {
         this.botJobLoad = botJobLoadDTO;
         this.blockLoad = blockLoadDTO;
         performActions.initialize(arPriorities);
-        performActions.setCurrentDriver(currentARWebDriver.getDriver());
+        performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
     }
 
     @Override
@@ -471,7 +471,7 @@ public class ARScannedElementPane extends ARPane {
                 portSocket);
 
         performActions.initialize(arPriorities);
-        performActions.setCurrentDriver(currentARWebDriver.getDriver());
+        performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
 
         try {
             performActions.onHoldInSeconds(3);
