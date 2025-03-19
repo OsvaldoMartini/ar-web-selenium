@@ -250,6 +250,13 @@ public class ARWebDriver {
         EdgeOptions optionsEdge = new EdgeOptions();
         optionsEdge.addArguments("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
                 + System.currentTimeMillis());
+
+        optionsEdge.addArguments("--remote-allow-origins=*"); // Required for some Edge versions
+        optionsEdge.addArguments("--start-maximized"); // Opens browser in full-screen
+        optionsEdge.addArguments("--disable-gpu"); // Fixes potential rendering issues
+        optionsEdge.addArguments("--no-sandbox"); // Bypass OS security model
+        optionsEdge.addArguments("--disable-dev-shm-usage"); // Prevents resource exhaustion
+        
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
                 ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);

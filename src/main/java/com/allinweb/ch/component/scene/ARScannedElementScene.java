@@ -98,18 +98,18 @@ public class ARScannedElementScene extends ARScene {
         // Interrupt running threads
         threadList.forEach(this::interruptThread);
 
-        //        // Close WebDriver if it's initialized
-        //        if (arWebDriver != null) {
-        //            try {
-        //                //                arWebDriver.closeDriver(); // Quit WebDriver
-        //                arWebDriver.getDriver().quit(); // Quit WebDriver
-        //                arWebDriver.setDriver(null);
-        //                //                arWebDriver.setDriver(null);
-        //                System.out.println("WebDriver quit successfully.");
-        //            } catch (Exception e) {
-        //                System.err.println("Error closing WebDriver: " + e.getMessage());
-        //            }
-        //        }
+        // Close WebDriver if it's initialized
+        if (arWebDriver != null) {
+            try {
+                //                arWebDriver.closeDriver(); // Quit WebDriver
+                arWebDriver.getDriver().quit(); // Quit WebDriver
+                arWebDriver.setDriver(null);
+                //                arWebDriver.setDriver(null);
+                System.out.println("WebDriver quit successfully.");
+            } catch (Exception e) {
+                System.err.println("Error closing WebDriver: " + e.getMessage());
+            }
+        }
     }
 
     @Override

@@ -47,6 +47,8 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.HBox;
 import javafx.util.Pair;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.ElementClickInterceptedException;
@@ -85,6 +87,9 @@ public class PerformActions {
     public List<String> windowHandlesList = new ArrayList<>();
 
     private ARPriorities arPriorities;
+
+    @Getter
+    @Setter
     private WebDriver currentDriver;
 
     private Map<WebElement, List<WebElement>> iframeElementsMap;
@@ -3957,13 +3962,5 @@ public class PerformActions {
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
-    }
-
-    public void setCurrentDriver(WebDriver driver) {
-        this.currentDriver = driver;
-    }
-
-    public WebDriver getCurrentDriver() {
-        return this.currentDriver;
     }
 }
