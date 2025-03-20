@@ -610,7 +610,7 @@ public class ARViewBotJobPane extends ARPane {
 
             this.botJobLoadList = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
             jsonData = "[]";
-            if (botJobLoadList.size() > 0) {
+            if (!botJobLoadList.isEmpty()) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }

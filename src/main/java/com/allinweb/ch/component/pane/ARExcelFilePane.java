@@ -305,7 +305,7 @@ public class ARExcelFilePane extends ARPane {
         if ((sessionId != null && sessionId.matches(".*botJobTasks.*"))) {
             botJobLoadList = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
             String jsonData = "[]";
-            if (botJobLoadList.size() > 0) {
+            if (!botJobLoadList.isEmpty()) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
@@ -315,7 +315,7 @@ public class ARExcelFilePane extends ARPane {
         } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
             botJobLoadList = performDataBase.loadComponentsComplete(blockExcelDTO.getHomeBankingId());
             String jsonData = "[]";
-            if (botJobLoadList.size() > 0) {
+            if (!botJobLoadList.isEmpty()) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }

@@ -7,7 +7,6 @@ import com.allinweb.ch.component.model.BlockOrderDetailDTO;
 import com.allinweb.ch.component.model.BlockSplitDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
-import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
@@ -137,14 +136,14 @@ public class SimpleWebSocketServer {
         int homeBankingId = -1;
         try {
             // Parse the incoming message (assuming JSON format)
-            JsonObject jsonMessage = JsonParser.parseString(message).getAsJsonObject();
-            homeBankingId = jsonMessage.has("homeBankingId")
-                    ? Integer.parseInt(jsonMessage.get("homeBankingId").getAsString())
+            JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
+            homeBankingId = jsonObjMSG.has("homeBankingId")
+                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
                     : -1;
 
-            type = jsonMessage.has("type") ? jsonMessage.get("type").getAsString() : "unknown";
+            type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
             String sessionId =
-                    jsonMessage.has("sessionId") ? jsonMessage.get("sessionId").getAsString() : "unknown";
+                    jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
 
             // if Not have Session and does not Exist into the activeSessions
             // Is Going to Handle the Control
@@ -171,18 +170,18 @@ public class SimpleWebSocketServer {
             // Process the message based on its type
             switch (type) {
                 case "broadcast":
-                    String broadcastMessage = jsonMessage.get("body").getAsString();
+                    String broadcastMessage = jsonObjMSG.get("body").getAsString();
                     broadcastMessageToAll(homeBankingId, broadcastMessage);
                     break;
                 case "echo":
                     sendMessageJson(
                             homeBankingId,
                             sessionId,
-                            "Echo: " + jsonMessage.get("body").getAsString(),
+                            "Echo: " + jsonObjMSG.get("body").getAsString(),
                             "sessionId: " + sessionId);
                     break;
                 default:
-                    handleMessageByType(type, jsonMessage, session, sessionId);
+                    handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
             }
         } catch (Exception error) {
@@ -556,13 +555,9 @@ public class SimpleWebSocketServer {
 
     private void middleWareMsg(int homeBankingId, ElementSplitDTO processDTO) {
         if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
-            ElementDTO elementDTO = processDTO.getDetails()[0];
+
             if (processDTO.getType().equals("DETAILS_ELEMENT_DTO")) {
-                sendMessageJson(
-                        homeBankingId,
-                        "scannerReceiver",
-                        "Action type : \"" + "scannerReceiver" + "\"",
-                        "cannot be processed");
+                sendMessageJson("scannerReceiver", gson.toJson(processDTO)); // Sending as details
             }
         }
     }
@@ -630,6 +625,22 @@ public class SimpleWebSocketServer {
             session.getBasicRemote().sendText(message);
         } catch (IOException e) {
             System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
+        }
+    }
+
+    // Method to send a message to a specific session ID
+    public static void sendMessageJson(String sessionId, String message) {
+        activeSessions = SimpleWebSocketServer.getAllSessions();
+        Session session = activeSessions.get(sessionId);
+
+        if (session != null && session.isOpen()) {
+            try {
+                session.getBasicRemote().sendText(message);
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 

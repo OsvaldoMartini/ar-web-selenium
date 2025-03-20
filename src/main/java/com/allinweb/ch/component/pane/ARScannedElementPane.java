@@ -9,6 +9,7 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
+import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
@@ -33,6 +34,7 @@ import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -115,12 +117,41 @@ public class ARScannedElementPane extends ARPane {
     @OnMessage
     public void onMessage(String message) {
         System.out.println("Received: " + message);
+        if (message == null || message.trim().isEmpty() || message.contains("CONNECT")) {
+            // Ignore null or empty messages
+            return;
+        }
 
-        // Updating UI from WebSocket message (MUST be on JavaFX Thread)
-        Platform.runLater(() -> {
-            // Example: Update some UI component (e.g., a Label)
-            // myLabel.setText("Received: " + message);
-        });
+        String type = null;
+        int homeBankingId = -1;
+        try {
+            // Parse the incoming message (assuming JSON format)
+            JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
+            homeBankingId = jsonObjMSG.has("homeBankingId")
+                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
+                    : -1;
+
+            type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
+            String sessionId =
+                    jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
+
+            // Process the message based on its type
+            switch (type) {
+                case "NEW_ELEMENT_DTO":
+                case "SEND_ALL_ELEMENTS_DTO":
+                case "DEL_ELEMENT_DTO":
+                case "DETAILS_ELEMENT_DTO":
+                    // Extract the "body" field from the JsonObject
+                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    homeBankingId = processDTO.getHomeBankingId();
+                    itPrintsElementDTO(processDTO.getDetails()[0]);
+                    break;
+                default:
+                    break;
+            }
+        } catch (Exception error) {
+            System.err.println("Error processing message: " + error.getMessage());
+        }
     }
 
     @OnClose
@@ -481,15 +512,15 @@ public class ARScannedElementPane extends ARPane {
             e.printStackTrace();
         }
         // "scannerTool", "scannerGrid", "searchTerms"
-        performPreLoad.dynamicLoadElementsDTO(
-                performActions.getCurrentDriver(),
-                performActions.getCurrentDriver().getCurrentUrl(),
-                defaultSearch,
-                searchHiddenFields,
-                portSocket,
-                "scannerTool",
-                "scannerGrid",
-                "searchTerms");
+        //        performPreLoad.dynamicLoadElementsDTO(
+        //                performActions.getCurrentDriver(),
+        //                performActions.getCurrentDriver().getCurrentUrl(),
+        //                defaultSearch,
+        //                searchHiddenFields,
+        //                portSocket,
+        //                "scannerTool",
+        //                "scannerGrid",
+        //                "searchTerms");
 
         performActions.getIframeElementsMap();
 
@@ -2859,6 +2890,183 @@ public class ARScannedElementPane extends ARPane {
                                     + arWebHover.getTargetElement().getIFrameXPath()
                                     + "iFrameChild: "
                                     + arWebHover.getTargetElement().getMainXPath());
+                    //                            performMessage.errorMessage(
+                    //                                    "iFrame Element not Located",
+                    //                                    "Cannot able to find the iFrame",
+                    //                                    "iFrame Parent or Child",
+                    //                                    null,
+                    //                                    null,
+                    //                                    0);
+                }
+            }
+
+            defineNameField.setText("");
+            if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
+                    || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
+                    || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
+                nameDefined = (!Strings.isNullOrEmpty(this.targetSelected.getSomeText())
+                        ? performActions.truncateAndNormalize(this.targetSelected.getSomeText(), 30)
+                        : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
+                                ? this.targetSelected.getAttribId()
+                                : !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
+                                        ? this.targetSelected.getAttribName()
+                                        : "");
+
+                if (this.targetSelected.getDefinedName() != null
+                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = this.targetSelected.getDefinedName();
+                }
+
+                String finalNameDefined = nameDefined;
+                Platform.runLater(
+                        () -> defineNameField.setText(performActions.truncateAndNormalize(finalNameDefined, 30)));
+
+            } else if (this.targetSelected.getAttributeData().length > 0) {
+
+                // Split by comma to get key-value pairs
+
+                String idValue = null;
+                String nameValue = null;
+                String typeValue = null;
+
+                // Loop through each key-value pair
+                for (AttributeData attributeData : this.targetSelected.getAttributeData()) {
+
+                    String key = attributeData.getName().trim();
+                    String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
+
+                    if (key.equals("id")) {
+                        idValue = value;
+                    } else if (key.equals("name")) {
+                        nameValue = value;
+                    } else if (key.equals("type")) {
+                        typeValue = value;
+                    }
+                }
+
+                // Print based on priority: ID -> Name -> Type
+                if (idValue != null) {
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + idValue;
+                } else if (nameValue != null) {
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + nameValue;
+                } else if (typeValue != null) {
+                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + typeValue;
+                } else {
+                    nameDefined = this.targetSelected.getOriginalTagName();
+                }
+
+                if (this.targetSelected.getDefinedName() != null
+                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = this.targetSelected.getDefinedName();
+                }
+
+                String finalSomeText = nameDefined;
+                Platform.runLater(
+                        () -> defineNameField.setText(performActions.truncateAndNormalize(finalSomeText, 30)));
+
+            } else if (!Strings.isNullOrEmpty(this.targetSelected.getOriginalTagName())) {
+
+                if (this.targetSelected.getDefinedName() != null
+                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = this.targetSelected.getDefinedName();
+                } else {
+                    nameDefined = this.targetSelected.getOriginalTagName();
+                }
+                String finalSomeText = nameDefined;
+
+                Platform.runLater(() -> defineNameField.setText(finalSomeText));
+            }
+        }
+
+        //                sb.append(this.targetElement.getOriginalTagName() + "-" +
+        // this.targetElement.getSomeText())
+        //                        .append("\n");
+
+        sb.append("TagType: " + this.targetSelected.getTagType()).append("\n");
+        sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
+        sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
+        sb.append("Text: " + this.targetSelected.getSomeText()).append("\n");
+
+        if (!Strings.isNullOrEmpty(this.targetSelected.getCoords())) {
+            sb.append("Coordinates: " + this.targetSelected.getCoords()).append("\n");
+            coordsTextField.setText(this.targetSelected.getCoords());
+        } else {
+            sb.append("Coordinates: EMPTY").append("\n");
+        }
+
+        if (!Strings.isNullOrEmpty(this.targetSelected.getSearchAttributeValue())) {
+            sb.append("Search Attrib: " + this.targetSelected.getSearchAttributeValue())
+                    .append("\n");
+            searchAttribValueField.setText(this.targetSelected.getSearchAttributeValue());
+            searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+        } else {
+            sb.append("Search Attrib: No Defined").append("\n");
+        }
+
+        sb.append("Named: " + nameDefined).append("\n");
+        sb.append("All Attributes Found: ").append("\n");
+        for (AttributeData attribute : this.targetSelected.getAttributeData()) {
+            sb.append("->  ")
+                    .append(attribute.getName().trim() + "="
+                            + attribute.getValue().trim())
+                    .append("\n");
+        }
+
+        Platform.runLater(() -> {
+            countdownTextField.setText(sb.toString());
+            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+        });
+
+        //                textFlowResult.getChildren().clear();
+        //                textFlowResult.getChildren().addAll(countdownTextField);
+        //                textFlowResult.requestLayout();
+        //                contentPane.requestLayout();
+
+        defineCheckBoxesClickabe(this.targetSelected);
+        performActions.getCurrentDriver().switchTo().defaultContent();
+    }
+
+    private void itPrintsElementDTO(ElementDTO elementDTO) {
+
+        //                textFlowResult.getChildren().clear();
+        //                textFlowResult.getChildren().addAll(countdownTextField);
+        //                textFlowResult.requestLayout();
+        //                contentPane.requestLayout();
+
+        //                                boxListViews.requestLayout();
+        //                                verticalBox.requestLayout();
+        //                                getChildren().addAll(blockAndUrl, boxListViews);
+
+        //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
+        //            performActions.highlightElement(jsExecutor, arWebElement.getElement(), null);
+        //        }
+
+        StringBuilder sb = new StringBuilder();
+        String nameDefined = "";
+
+        if (this.targetSelected == null
+                || elementDTO.getIFrameXPath() != this.targetSelected.getIFrameXPath()
+                        && elementDTO.getXPath() != targetSelected.getMainXPath()) {
+
+            if (this.targetSelected == null) {
+                this.targetSelected = extractPickClone(elementDTO);
+            }
+
+            performActions.getCurrentDriver().switchTo().defaultContent();
+
+            // iFrame
+            if (!Strings.isNullOrEmpty(this.targetSelected.getIFrameXPath())) {
+                try {
+                    WebElement iFrame = performActions
+                            .getCurrentDriver()
+                            .findElement(By.xpath(this.targetSelected.getIFrameXPath()));
+                    performActions.getCurrentDriver().switchTo().frame(iFrame);
+                } catch (Exception error) {
+                    ARLogger.getInstance(ARScannedElementPane.class)
+                            .info("iFrame Element not Located\niFrameXPath"
+                                    + this.targetSelected.getIFrameXPath()
+                                    + "iFrameChild: "
+                                    + this.targetSelected.getMainXPath());
                     //                            performMessage.errorMessage(
                     //                                    "iFrame Element not Located",
                     //                                    "Cannot able to find the iFrame",
