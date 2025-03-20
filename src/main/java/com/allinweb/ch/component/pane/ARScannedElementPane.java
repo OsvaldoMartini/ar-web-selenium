@@ -138,19 +138,858 @@ public class ARScannedElementPane extends ARPane {
             // Process the message based on its type
             switch (type) {
                 case "NEW_ELEMENT_DTO":
+                    // Extract the "body" field from the JsonObject
+                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    homeBankingId = processDTO.getHomeBankingId();
+                    this.targetSelected = extractPickClone(processDTO.getDetails()[0]);
+                    insertNewElementDTO(this.targetSelected);
+                    break;
                 case "SEND_ALL_ELEMENTS_DTO":
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
                     // Extract the "body" field from the JsonObject
-                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     homeBankingId = processDTO.getHomeBankingId();
-                    itPrintsElementDTO(processDTO.getDetails()[0]);
+                    this.targetSelected = extractPickClone(processDTO.getDetails()[0]);
+                    itPrintsElementDTO(this.targetSelected);
                     break;
                 default:
                     break;
             }
         } catch (Exception error) {
             System.err.println("Error processing message: " + error.getMessage());
+        }
+    }
+
+    private void insertNewElementDTO(TargetElement targetInsert) {
+        if (targetInsert.getSavedReferences().isEmpty()) {
+
+            Text variableText1Styled = new Text(
+                    String.format("The Instruction \"%s\" don't have any locators!", targetInsert.getDefinedName()));
+
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer.getChildren().add(variableText1Styled);
+
+            performMessage.showAlertCombinedVBOX(
+                    Alert.AlertType.ERROR,
+                    "ERROR ADD WEB ELEMENT",
+                    "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
+                    null,
+                    combinedTextContainer);
+
+            return;
+        }
+
+        // IF SOME REFRESH CHANGED THE ELEMENT IT TRIGGERS THIS EXCEPTION
+        String elemTagName = "No TagName";
+        if (!checkTestAction.isSelected()) {
+            try {
+
+                if (targetInsert.getMainXPath() == null) {
+                    targetInsert.setMainXPath(targetInsert.getSavedReferences().get("currentXPath"));
+                }
+                if (targetInsert.getMainCoordinates() == null) {
+                    targetInsert.setMainCoordinates(
+                            targetInsert.getSavedReferences().get("coordinates"));
+                }
+
+                if (!Strings.isNullOrEmpty(targetInsert.getIFrameXPath())) {
+                    try {
+                        WebElement iFrame =
+                                performActions.getCurrentDriver().findElement(By.xpath(targetInsert.getIFrameXPath()));
+                        performActions.getCurrentDriver().switchTo().frame(iFrame);
+                    } catch (Exception e) {
+                        ARLogger.getInstance(ARScannedElementPane.class)
+                                .info("iFrame Element not Located\niFrameXPath" + targetInsert.getIFrameXPath()
+                                        + "iFrameChild: "
+                                        + targetInsert.getMainXPath());
+                        performMessage.errorMessage(
+                                "iFrame Element not Located",
+                                "Cannot able to find the iFrame",
+                                "iFrame Parent or Child",
+                                null,
+                                null,
+                                0);
+                        return;
+                    }
+                }
+
+                // Last check xPat before Adding to the BotJob
+                WebElement elementFinder = null;
+                try {
+                    elementFinder =
+                            performActions.getCurrentDriver().findElement(By.xpath(targetInsert.getMainXPath()));
+                    targetInsert.setElement(elementFinder);
+                } catch (Exception e) {
+                    System.out.println(e.getMessage());
+                }
+
+                if (elementFinder == null) {
+                    // Try by coordinates
+                    Pair<String, String> filedData = new Pair("martini", "Martini");
+                    try {
+                        performActions.executeActionsAtCoordinates(
+                                targetInsert.getSavedReferences().get("coordinates"),
+                                filedData,
+                                ARConstants.CLICK,
+                                false);
+
+                        // It Means Did Not Failed to Coordinates
+                        // I am Setting here to avoid the Not Found Message
+                        elementFinder = targetInsert.getElement();
+                    } catch (Exception e) {
+                        System.out.println(e.getMessage());
+                    }
+                }
+
+                //                    if (elementFinder != null) {
+                //                        arWebElement.setElement(elementFinder);
+                //                    }
+
+                if (elementFinder != null
+                        && targetInsert.getElement() != null
+                        && targetInsert.getElement().getTagName() != null) {
+                    elemTagName = targetInsert.getElement().getTagName();
+                }
+            } catch (Exception ex) {
+                //                        performMessage.multipleActionsElement("Multiple Actions");
+            }
+        }
+
+        if (checkTestAction.isSelected()) {
+            try {
+                if (targetInsert.getElement() != null) {
+
+                    if (targetInsert.getIFrameXPath() != null) {
+
+                        performActions.getCurrentDriver().switchTo().defaultContent();
+
+                        try {
+                            WebElement iFrame = performActions
+                                    .getCurrentDriver()
+                                    .findElement(By.xpath(targetInsert.getIFrameXPath()));
+                            if (iFrame != null) {
+
+                                performActions.getCurrentDriver().switchTo().frame(iFrame);
+
+                                WebElement elementClicked = performActions
+                                        .getCurrentDriver()
+                                        .findElement(By.xpath(targetInsert.getMainXPath()));
+                            }
+                        } catch (Exception error) {
+                            performMessage.errorMessage(
+                                    "iFrame Element error", "Not possible to locate the element", null, null, null, 0);
+                            return;
+                        }
+                    }
+
+                    //                            arWebDriver.dehighlightElement(targetInsert.getElement());
+
+                    //                            WebElement elementXPath =
+                    //
+                    // performActions.getCurrentDriver().findElement(By.xpath(arWebElement.getTargetElement().getMainXPath()));
+                    //                            if (elementXPath != null) {
+                    //                                elementXPath.click();
+                    //                            }
+
+                    Pair<String, String> fieldData = new Pair<>("Test", testActionsField.getText());
+
+                    String mainCoordenates = targetInsert.getMainCoordinates();
+                    String savedCoordenates = targetInsert.getSavedReferences().get("coordinates");
+                    if (Strings.isNullOrEmpty(mainCoordenates)) {
+                        mainCoordenates = targetInsert.getMainCoordinates();
+                    }
+
+                    if (Strings.isNullOrEmpty(savedCoordenates)) {
+                        savedCoordenates = mainCoordenates;
+                    }
+
+                    String mainCoordinates = targetInsert.getMainCoordinates();
+                    String savedCoordinates = targetInsert.getSavedReferences().get("coordinates");
+
+                    if (Strings.isNullOrEmpty(mainCoordinates)) {
+                        mainCoordinates = targetInsert.getMainCoordinates();
+                    }
+
+                    if (Strings.isNullOrEmpty(savedCoordinates)) {
+                        savedCoordinates = mainCoordinates;
+                    }
+
+                    List<String> coordinatesList = new ArrayList<>();
+                    if (!Strings.isNullOrEmpty(mainCoordinates)) {
+                        coordinatesList.add(mainCoordinates);
+                    }
+                    if (!Strings.isNullOrEmpty(savedCoordinates) && !savedCoordinates.equals(mainCoordinates)) {
+                        coordinatesList.add(savedCoordinates);
+                    }
+
+                    String[] coordinates = coordinatesList.toArray(new String[0]);
+
+                    //                            if (checkTestCoordinates.isSelected()) {
+                    //                                performActions.executeActionsAtCoordinates(
+                    //                                        coordinates[1], fieldData, ARConstants.VISUALIZE,
+                    // false);
+                    //                                performActions.executeActionsAtCoordinates(
+                    //                                        coordinates[0], fieldData, ARConstants.VISUALIZE,
+                    // false);
+                    //
+                    //                                performActions.executeActionsAtCoordinates(
+                    //                                        coordinates[1], fieldData, ARConstants.CLICK,
+                    // false);
+                    //                                performActions.executeActionsAtCoordinates(
+                    //                                        coordinates[0], fieldData, ARConstants.CLICK,
+                    // false);
+                    //
+                    //                                performActions.executeActionsAtCoordinates(
+                    //                                        coordinates[1], fieldData, ARConstants.INSERT,
+                    // false);
+                    //                                performActions.executeActionsAtCoordinates(
+                    //                                        coordinates[0], fieldData, ARConstants.INSERT,
+                    // false);
+                    //
+                    //                                performActions.executeActionsAtCoordinates(
+                    //                                        coordinates[1], fieldData, ARConstants.INSERT,
+                    // true);
+                    //                                performActions.executeActionsAtCoordinates(
+                    //                                        coordinates[0], fieldData, ARConstants.INSERT,
+                    // true);
+                    //
+                    //                                performActions.moveAndClickAtCoordinates(coordinates[1],
+                    // performActions.getCurrentDriver());
+                    //                                performActions.moveAndClickAtCoordinates(coordinates[0],
+                    // performActions.getCurrentDriver());
+                    //                            }
+
+                    Text actionText1;
+                    Text actionText2;
+                    Text actionText3;
+                    Text actionText4;
+                    Text actionText5;
+                    Text actionText6;
+                    Text actionText7;
+                    Text actionText8;
+                    Text actionText9;
+                    Text actionText10;
+                    Text actionText11;
+                    Text actionText12;
+                    Text actionText13;
+
+                    StringBuilder actionsTested = new StringBuilder();
+                    actionsTested.append("Actions Tested:" + System.lineSeparator());
+
+                    actionText1 = new Text("Actions Tested:");
+                    actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
+
+                    String result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.SELECT,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText2 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText2.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText2.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.CLICK,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText3 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.GET_VALUE,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText4 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText4.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText4.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.CLEAR,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText5 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.INSERT,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText6 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText6.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.FOCUS,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+
+                    actionsTested.append(result + System.lineSeparator());
+
+                    actionText7 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText7.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText7.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.TAB,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+
+                    actionsTested.append(result + System.lineSeparator());
+
+                    actionText8 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText8.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText8.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.COORD_VISUALIZA,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText9 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText9.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText9.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.COORD_CLICK,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+
+                    actionsTested.append(result + System.lineSeparator());
+
+                    actionText10 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText10.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText10.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.COORD_INSERT,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText11 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.COORD_INSERT,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            true);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText12 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetInsert.getElement(),
+                            ARConstants.COORD_MOVE_CLICK_RED,
+                            coordinates,
+                            fieldData,
+                            performActions.getCurrentDriver(),
+                            true);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText13 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText13.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    System.out.println(actionsTested.toString());
+
+                    VBox vertical = new VBox();
+                    vertical.getChildren()
+                            .addAll(
+                                    actionText1,
+                                    actionText2,
+                                    actionText3,
+                                    actionText4,
+                                    actionText5,
+                                    actionText6,
+                                    actionText7,
+                                    actionText8,
+                                    actionText9,
+                                    actionText10,
+                                    actionText11,
+                                    actionText12,
+                                    actionText13);
+
+                    Platform.runLater(() -> {
+                        textFlowResult.getChildren().clear();
+                        textFlowResult.getChildren().addAll(vertical);
+
+                        textFlowResult.requestLayout();
+
+                        //                                boxListViews.requestLayout();
+                        //                                verticalBox.requestLayout();
+                        //                                getChildren().addAll(blockAndUrl, boxListViews);
+                        contentPane.requestLayout();
+                        VBox vBoxResult = new VBox();
+                        vBoxResult.getChildren().addAll(textFlowResult);
+                        performMessage.showAlertCombinedVBOX(
+                                Alert.AlertType.INFORMATION,
+                                "Test Actions Results",
+                                "Web Actions Tested:",
+                                null,
+                                vBoxResult);
+
+                        //                                countdownTextField.setText(actionsTested.toString());
+                        //                                countdownTextField.setStyle("-fx-font-size: 12px;
+                        // -fx-text-fill: blue;");
+                    });
+                }
+                //                                arWebElement.getElement().click();
+            } catch (Exception e) {
+                performMessage.couldNotFindElement("No TagName");
+                return;
+            }
+        } else {
+            ARLogger.getInstance(ARScannedElementPane.class)
+                    .info("Double clicked the element: " + targetInsert.getMainXPath());
+
+            String blockName = "Default Block";
+            try {
+                currentBlockId = comboBoxBlocks.getValue().getExtraId();
+                blockName = comboBoxBlocks.getValue().getText();
+
+            } catch (Exception erro) {
+                currentBlockId = -1;
+            }
+
+            if (currentBlockId < 0) {
+
+                Text variableText1Styled = new Text("Select the block you wan to Add New Command!");
+                variableText1Styled.setStyle("-fx-font-size: 16px; -fx-fill: red;");
+
+                VBox combinedTextContainer = new VBox();
+                combinedTextContainer.setSpacing(5); // Add some sp
+
+                combinedTextContainer.getChildren().add(variableText1Styled);
+
+                performMessage.showAlertCombinedVBOX(
+                        Alert.AlertType.ERROR, "Block Not Selected", "Select the Block!", null, combinedTextContainer);
+                return;
+            }
+
+            Text blockNameLabel = new Text("Block : ");
+            blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            Text blockNameText = new Text(blockName);
+            blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
+            Text variableText1Styled = new Text("Web Element Instruction");
+            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+
+            String nameDefined = defineNameField.getText().trim();
+            if (targetInsert.getDefinedName() != null
+                    && !targetInsert.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                nameDefined = targetInsert.getDefinedName();
+            }
+
+            Text variableText2Styled = new Text(nameDefined);
+            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+
+            VBox combinedTextContainer = new VBox();
+            combinedTextContainer.setSpacing(5); // Add some sp
+
+            combinedTextContainer
+                    .getChildren()
+                    .addAll(blockNameLabel, blockNameText, variableText1Styled, variableText2Styled);
+
+            boolean result = performMessage.showAlertCombinedVBOX(
+                    Alert.AlertType.CONFIRMATION,
+                    "Add Instruction to Bot-Job",
+                    "Add the Instruction Selected to the Bot-Job?",
+                    null,
+                    combinedTextContainer);
+
+            if (result) {
+
+                BotJobLoadDTO botJobCheck = performDataBase.loadBotJobById(this.botJobLoad.getId());
+
+                if (botJobCheck == null) {
+
+                    variableText1Styled = new Text(String.format(
+                            "Check if you already have a Bot Job \"%s\" Created!", this.botJobLoad.getName()));
+                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                    combinedTextContainer.getChildren().clear();
+                    combinedTextContainer.getChildren().add(variableText1Styled);
+
+                    performMessage.showAlertCombinedVBOX(
+                            Alert.AlertType.ERROR,
+                            "Bot Job DOES NOT EXIST",
+                            "Verify the Bot Job Name if have any: ",
+                            null,
+                            combinedTextContainer);
+
+                    ARLogger.getInstance(ARScannedElementPane.class)
+                            .severe(String.format(
+                                    "Check if you already have a Bot Job \"%s\" Created!", this.botJobLoad.getName()));
+                    return;
+                }
+
+                // It Prevents Start without blocks
+                this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
+                if (blockLoadList.isEmpty()) {
+
+                    BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+                    newBlockDetails.setBlockName("Default Block");
+                    newBlockDetails.setBlockDescription("  description");
+                    newBlockDetails.setTypeId(1);
+                    newBlockDetails.setActive(true);
+                    newBlockDetails.setWait(3);
+
+                    newBlockDetails.setBotJobId(botJobLoad.getId());
+
+                    currentBlockId = performDataBase.createNewBlock(newBlockDetails);
+
+                    if (currentBlockId < 0) {
+                        performActions.showAlert(
+                                Alert.AlertType.ERROR,
+                                "Error Creating new Block",
+                                "Verify the Bot Job Name if have any",
+                                "Check if you already have a Bot Job Created!");
+
+                        ARLogger.getInstance(Thread.class)
+                                .severe(String.format(
+                                        "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
+                                        botJobLoad.getId()));
+                        return;
+                    } else {
+
+                        //                                setBlockJob(
+                        //
+                        // ARSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
+                        ARLogger.getInstance(Thread.class)
+                                .info(String.format(
+                                        "Created a new Block id %d for bot job Id %d",
+                                        currentBlockId, botJobLoad.getId()));
+                    }
+
+                    Platform.runLater(() -> {
+                        refreshBlocks(true);
+                    });
+                }
+
+                String finalNameWebElement = nameDefined;
+                String finalBlockName = blockName;
+                Task<Void> handleEvent = new Task<>() {
+                    @Override
+                    protected Void call() throws Exception {
+                        ARLogger.getInstance(Task.class).info("THREAD: Started");
+
+                        ARLogger.getInstance(Task.class).fine("THREAD: fetching instruction list from database");
+
+                        //                                ObservableList<InstructionLoadDTO> list =
+                        // ARSharedResources.getInstance()
+                        //                                        .getEntityList(InstructionLoadDTO.class,
+                        // (instr) -> instr.getBlockId()
+                        //                                                .equals(currentBlockId));
+
+                        List<InstructionLoadDTO> listInstr =
+                                performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
+
+                        ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + listInstr.size());
+
+                        String actionReq = checkClickElement.isSelected()
+                                ? ARConstants.CLICK
+                                : checkInputText.isSelected()
+                                        ? ARConstants.INSERT
+                                        : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
+
+                        WebElementTagNameEnum tagType = targetInsert.getTagType();
+
+                        if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
+                            tagType = WebElementTagNameEnum.INPUT_ENTER;
+                        }
+
+                        targetInsert.setSavedReferences(
+                                performActions.defineSavedReferenced(targetInsert, targetInsert.getSavedReferences()));
+
+                        InstructionLoadDTO instruction = performActions.buildNewInstruction(
+                                tagType, actionReq, false, listInstr.size(), targetInsert);
+
+                        if (checkForceCoordText.isSelected()) {
+                            instruction.setForceCoordinates(true);
+                        } else {
+                            instruction.setForceCoordinates(false);
+                        }
+
+                        instruction.setCoordinates(targetInsert.getMainCoordinates());
+                        instruction.setIFrameXPath(targetInsert.getIFrameXPath());
+
+                        instruction.setBlockId(currentBlockId);
+
+                        instruction.setInstructionOrderNumber(listInstr.size() + 1);
+
+                        ARLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
+
+                        Integer currentBotJobId = botJobLoad.getId();
+
+                        // Change the Name on the fly
+                        if (!Strings.isNullOrEmpty(finalNameWebElement)) {
+                            instruction.setName(finalNameWebElement);
+
+                            // Update the action string if it contains "I:"
+                            String actions = instruction.getActions();
+                            String[] parts = actions.split(",");
+
+                            if (actions.startsWith("I:")) {
+                                for (int i = 0; i < parts.length; i++) {
+                                    parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
+                                    if (parts[i].startsWith("I:")) {
+                                        if (parts[i].contains(":E:")) {
+                                            parts[i] = "I:E:" + finalNameWebElement;
+                                        } else {
+                                            parts[i] = "I:" + finalNameWebElement;
+                                        }
+                                        break; // Stop after modifying the first match
+                                    }
+                                }
+
+                                instruction.setActions(parts[0]);
+                            }
+                        }
+
+                        int newId = preFillAddInstruction(
+                                instruction.getName().trim(),
+                                instruction.getDescription().trim(),
+                                instruction.getActions(),
+                                instruction.getOperation(),
+                                instruction.getOnHoldSeconds(),
+                                instruction.getVariableId(),
+                                instruction.getInstructionOrderNumber(),
+                                instruction.getExportToABR(),
+                                instruction.getXpath(),
+                                instruction.getCoordinates(),
+                                instruction.getForceCoordinates(),
+                                instruction.getIFrameXPath(),
+                                currentBotJobId,
+                                currentBlockId);
+
+                        if (newId < 0) {
+
+                            Text variableText1Styled = new Text(String.format(
+                                    "\"Component\" Instruction \"%s\"\nCannot be saved", instruction.getName()));
+                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                            VBox combinedTextContainer = new VBox();
+                            combinedTextContainer.setSpacing(5); // Add some sp
+
+                            combinedTextContainer.getChildren().add(variableText1Styled);
+
+                            performMessage.showAlertCombinedVBOX(
+                                    Alert.AlertType.ERROR,
+                                    "Error Add New \"Component\" Instruction",
+                                    "Not possible to insert new Operation",
+                                    null,
+                                    combinedTextContainer);
+
+                            return null;
+                        }
+
+                        instruction.setId(newId);
+
+                        targetInsert.setInstructionId(instruction.getId());
+                        List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
+                        for (String key : targetInsert.getSavedReferences().keySet()) {
+                            InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+                            reference.setReferenceType(key);
+                            reference.setValue(targetInsert.getSavedReferences().get(key));
+
+                            reference.setBotJobId(currentBotJobId);
+
+                            //
+                            // reference.setBlockLoopInstructionLoadDTO(instruction);
+                            queue.add(reference);
+                        }
+                        try {
+
+                            Platform.runLater(() -> {
+                                boolean saved = performDataBase.insertReferences(queue, instruction.getId());
+                                if (saved) {
+
+                                    //                                            Text blockNameLabel = new
+                                    // Text("Block : ");
+                                    //
+                                    // blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                    //
+                                    //                                            Text blockNameText = new
+                                    // Text(finalBlockName);
+                                    //
+                                    // blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+                                    //
+                                    //                                            Text variableText1Styled =
+                                    //                                                    new Text("The Web
+                                    // Instruction \"" + instruction.getName() + "\"");
+                                    //
+                                    // variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                    //
+                                    //                                            Text variableText2Styled =
+                                    //                                                    new Text("With " +
+                                    // queue.size() + " reference locators");
+                                    //
+                                    // variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                    //
+                                    //                                            Text variableText3Styled = new
+                                    // Text("Has been added successfully!");
+                                    //
+                                    // variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                    //
+                                    //                                            VBox combinedTextContainer =
+                                    // new VBox();
+                                    //
+                                    // combinedTextContainer.setSpacing(5); // Add some sp
+
+                                    //                                            combinedTextContainer
+                                    //                                                    .getChildren()
+                                    //                                                    .addAll(
+                                    //
+                                    // blockNameLabel,
+                                    //                                                            blockNameText,
+                                    //
+                                    // variableText1Styled,
+                                    //
+                                    // variableText2Styled,
+                                    //
+                                    // variableText3Styled);
+
+                                    botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
+                                    String jsonData = "[]";
+                                    if (!botJobLoadList.isEmpty()) {
+                                        List<InstructionLoadDTO> blockLoopInstructions =
+                                                performDataBase.buildJsonViewData(botJobLoadList);
+                                        jsonData = gson.toJson(blockLoopInstructions);
+                                    }
+                                    sendMessageJson(
+                                            homeBanking.getId(),
+                                            "botJobTasks-" + currentBotJobId,
+                                            jsonData,
+                                            "updateInstructions");
+
+                                    //
+                                    // performMessage.showAlertCombinedVBOX(
+                                    //
+                                    // Alert.AlertType.INFORMATION,
+                                    //                                                    "Web Instruction Add",
+                                    //                                                    "Added New \"Web
+                                    // Instruction\" Instruction",
+                                    //                                                    null,
+                                    //
+                                    // combinedTextContainer);
+
+                                } else {
+
+                                    performMessage.errorMessage(
+                                            "Web Instruction Warning",
+                                            "Potential Issue with Web Instruction",
+                                            "The instruction \"" + instruction.getName() + "\" was added with "
+                                                    + queue.size() + " reference locators.",
+                                            "However, the engine may not process this element correctly",
+                                            "due to insufficient identifiable attributes.",
+                                            0);
+                                }
+                            });
+                        } catch (Exception ex) {
+                            ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
+                        }
+                        //                                        });
+                        return null;
+                    }
+                };
+                ARLogger.getInstance(ARScannedElementPane.class).fine("Thread created");
+                ARLogger.getInstance(ARScannedElementPane.class).fine("Before thread execution");
+                new Thread(handleEvent).start();
+                ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
+            }
         }
     }
 
@@ -1803,19 +2642,24 @@ public class ARScannedElementPane extends ARPane {
         targetLocal = performActions.defineTargetNameTitles(targetLocal);
 
         // First  Search for xPath
-        TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
+        if (Strings.isNullOrEmpty(targetLocal.getShadowHost()) && Strings.isNullOrEmpty(targetLocal.getCssSelector())) {
 
-        if (targetValidated.getElement() == null) {
+            TargetElement targetValidated = checkValidateSearchPriorities(targetLocal);
 
-            performMessage.errorMessage(
-                    "I Cannot define this element",
-                    "I will use the Locato \"COORDINATES\"",
-                    "Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
-                    null,
-                    null,
-                    0);
+            if (targetValidated.getElement() == null) {
 
-            return null;
+                performMessage.errorMessage(
+                        "I Cannot define this element",
+                        "I will use the Locato \"COORDINATES\"",
+                        "Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
+                        null,
+                        null,
+                        0);
+
+                return null;
+            }
+        } else {
+            targetLocal.setXPathWorkedFirst(ARConstants.SHADOW_DOM);
         }
 
         //        targetElement = performActions.defineTagType(targetElement);
@@ -3047,7 +3891,7 @@ public class ARScannedElementPane extends ARPane {
         performActions.getCurrentDriver().switchTo().defaultContent();
     }
 
-    private void itPrintsElementDTO(ElementDTO elementDTO) {
+    private void itPrintsElementDTO(TargetElement target) {
 
         //                textFlowResult.getChildren().clear();
         //                textFlowResult.getChildren().addAll(countdownTextField);
@@ -3065,11 +3909,7 @@ public class ARScannedElementPane extends ARPane {
         StringBuilder sb = new StringBuilder();
         String nameDefined = "";
 
-        if (this.targetSelected == null
-                || elementDTO.getIFrameXPath() != this.targetSelected.getIFrameXPath()
-                        && elementDTO.getXPath() != targetSelected.getMainXPath()) {
-
-            this.targetSelected = extractPickClone(elementDTO);
+        if (target.getElement() != null) {
 
             performActions.getCurrentDriver().switchTo().defaultContent();
 
@@ -3181,6 +4021,10 @@ public class ARScannedElementPane extends ARPane {
         sb.append("TagType: " + this.targetSelected.getTagType()).append("\n");
         sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
         sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
+        if (!Strings.isNullOrEmpty(this.targetSelected.getShadowRoot())) {
+            sb.append("ShadowHost: " + this.targetSelected.getShadowHost()).append("\n");
+            sb.append("cssSelector: " + this.targetSelected.getCssSelector()).append("\n");
+        }
         sb.append("Text: " + this.targetSelected.getSomeText()).append("\n");
 
         if (!Strings.isNullOrEmpty(this.targetSelected.getCoords())) {

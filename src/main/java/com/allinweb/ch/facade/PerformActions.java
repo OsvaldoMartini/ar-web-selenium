@@ -55,6 +55,7 @@ import org.openqa.selenium.ElementClickInterceptedException;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -3984,5 +3985,174 @@ public class PerformActions {
 
         }
         return null;
+    }
+
+    public InstructionLoadDTO buildNewInstruction(
+            WebElementTagNameEnum forceTag,
+            String actionReq,
+            boolean identityHover,
+            Integer orderNumber,
+            TargetElement targetBuild) {
+
+        InstructionLoadDTO loop = new InstructionLoadDTO();
+        loop.setActionCustomMaxWaitSec(30);
+        loop.setDescription("loop desc");
+        loop.setCodified(false);
+        loop.setInstructionOrderNumber(orderNumber);
+        loop.setOptional(false);
+        loop.setInstructionActive(true);
+        loop.setXpath(targetBuild.getMainXPath());
+
+        String action = buildAction(forceTag, actionReq, identityHover, targetBuild);
+        loop.setActions(action);
+        loop.setName(targetBuild.getNameLabel());
+        loop.setExportToABR(true);
+
+        return loop;
+    }
+
+    private String buildAction(
+            WebElementTagNameEnum forceTag, String actionReq, boolean identityHover, TargetElement targetBuild) {
+
+        if (identityHover) {
+            return handleIdentityHover(actionReq, forceTag, targetBuild.getNameLabel(), targetBuild.getClickElement());
+        } else {
+            return handleTargetBuildAction(
+                    forceTag, targetBuild, targetBuild.getNameLabel(), targetBuild.getClickElement());
+        }
+    }
+
+    private String handleIdentityHover(
+            String actionReq, WebElementTagNameEnum forceTag, String nameLabel, Boolean clickElement) {
+        return switch (actionReq.toUpperCase()) {
+            case ARConstants.INSERT -> buildInsertAction(forceTag, nameLabel);
+            case ARConstants.OUTPUT -> ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+            case ARConstants.OTHER -> ARConstants.OTHER + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+            case ARConstants.CLICK -> ARConstants.CLICK;
+            default -> clickElement
+                    ? ARConstants.CLICK
+                    : ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+        };
+    }
+
+    private String buildInsertAction(WebElementTagNameEnum forceTag, String nameLabel) {
+        if (forceTag.equals(WebElementTagNameEnum.INPUT_ENTER)) {
+            return ARConstants.INSERT_ENTER + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+        } else {
+            return ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+        }
+    }
+
+    private String handleTargetBuildAction(
+            WebElementTagNameEnum forceTag, TargetElement targetBuild, String nameLabel, boolean clickElement) {
+        if (targetBuild.getTagType() == null) {
+            return clickElement
+                    ? ARConstants.CLICK
+                    : ARConstants.INSERT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+        }
+
+        return switch (targetBuild.getTagType()) {
+            case INPUT -> buildInsertAction(forceTag, nameLabel);
+            case HIDDEN -> ARConstants.INSERT
+                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                    + nameLabel
+                    + ARConstants.ACTION_SPECIFICATIONS_SPLITTER
+                    + ARConstants.HIDDEN;
+            case BUTTON -> ARConstants.CLICK;
+            default -> ARConstants.OUTPUT + ARConstants.ACTION_SPECIFICATIONS_SPLITTER + nameLabel;
+        };
+    }
+
+    public Map<String, String> defineSavedReferenced(
+            TargetElement targetreferences, Map<String, String> savedReferences) {
+        if (targetreferences == null) {
+            return savedReferences; // Return early if targetreferences is null
+        }
+
+        // Handle XPath and attribute cases
+        processXPathAndAttributes(targetreferences, savedReferences);
+
+        // If no match for XPath or attributes, process coordinates or dynamic creation
+        if (savedReferences.isEmpty()) {
+            processDynamicCreation(targetreferences, savedReferences);
+        }
+
+        // Process coordinates
+        processCoordinates(targetreferences, savedReferences);
+
+        return savedReferences;
+    }
+
+    private void processXPathAndAttributes(TargetElement targetreferences, Map<String, String> savedReferences) {
+        String xpathWorkedFirst = targetreferences.getXPathWorkedFirst();
+
+        if (ARConstants.REGULAR_XPATH.equalsIgnoreCase(xpathWorkedFirst)
+                || ARConstants.CUSTOM_XPATH.equalsIgnoreCase(xpathWorkedFirst)) {
+            savedReferences.put("currentXPath", targetreferences.getCurrentXPath());
+            savedReferences.put("customXPath", targetreferences.getCustomXPath());
+            processAttributes(targetreferences, savedReferences);
+        } else if (!Strings.isNullOrEmpty(targetreferences.getMainXPath())) {
+            savedReferences.put("xpath", targetreferences.getCurrentXPath());
+        } else {
+            processAttributes(targetreferences, savedReferences);
+        }
+
+        // Handle any case where XPathWorkedFirst doesn't match the expected values
+        if (savedReferences.isEmpty()
+                && !ARConstants.REGULAR_XPATH.equalsIgnoreCase(xpathWorkedFirst)
+                && !ARConstants.CUSTOM_XPATH.equalsIgnoreCase(xpathWorkedFirst)) {
+            savedReferences.put("error", "Unrecognized XPath case: " + xpathWorkedFirst);
+        }
+    }
+
+    private void processAttributes(TargetElement targetreferences, Map<String, String> savedReferences) {
+        // Process attribute data
+        for (AttributeData attrb : targetreferences.getAttributeData()) {
+            savedReferences.put(attrb.getName().trim(), attrb.getValue().trim());
+        }
+
+        // Handle other attributes individually
+        addAttributeIfNotNull(savedReferences, "attributeID", targetreferences.getAttribId());
+        addAttributeIfNotNull(savedReferences, "attributeName", targetreferences.getAttribName());
+        addAttributeIfNotNull(savedReferences, "searchAttribute", targetreferences.getSearchAttributeValue());
+        addAttributeIfNotNull(savedReferences, "attribute", targetreferences.getAttributeValue());
+    }
+
+    private void addAttributeIfNotNull(Map<String, String> savedReferences, String key, String value) {
+        if (!Strings.isNullOrEmpty(value)) {
+            savedReferences.put(key, value);
+        }
+    }
+
+    private void processDynamicCreation(TargetElement targetreferences, Map<String, String> savedReferences) {
+        // Handle dynamic creation (fallback to XPath extraction)
+        if (targetreferences.getElement() != null) {
+            savedReferences.put("xpath", ARWebUtil.extractWebElementXPath(targetreferences.getElement()));
+        }
+    }
+
+    private void processCoordinates(TargetElement targetreferences, Map<String, String> savedReferences) {
+        try {
+            // Attempt to get coordinates from the element
+            Rectangle coordinates = targetreferences.getElement().getRect();
+            String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                    + (coordinates.getY() + (coordinates.getHeight() / 2));
+            savedReferences.put("coordinates", newCoordinates);
+        } catch (Exception coords) {
+            // Fallback to using coords string if element coordinates are unavailable
+            if (!Strings.isNullOrEmpty(targetreferences.getCoords())) {
+                String[] parts = targetreferences.getCoords().split(",");
+                int x = Integer.parseInt(parts[0]);
+                int y = Integer.parseInt(parts[1]);
+                // Create a Rectangle object (assuming you want to use a width and height)
+                int width = 100; // Replace with actual width if available
+                int height = 100; // Replace with actual height if available
+                Rectangle coordinates = new Rectangle(x, y, width, height);
+
+                String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
+                        + (coordinates.getY() + (coordinates.getHeight() / 2));
+                savedReferences.put("coordinates", newCoordinates);
+            }
+        }
     }
 }

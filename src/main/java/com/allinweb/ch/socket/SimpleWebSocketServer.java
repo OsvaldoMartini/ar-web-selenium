@@ -233,8 +233,9 @@ public class SimpleWebSocketServer {
                 sessionIdToSend = processDTO.getSessionId();
                 //                botJobIdTask = processDTO.getBotJobId();
 
-                middleWareMsg(homeBankingId, processDTO);
-
+                if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
+                    sendMessageJson("scannerReceiver", gson.toJson(processDTO)); // Sending as details
+                }
                 alreadySentMgsSocket = true;
                 break;
             case "RESPONSE_BACK":
@@ -550,15 +551,6 @@ public class SimpleWebSocketServer {
 
             broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
-        }
-    }
-
-    private void middleWareMsg(int homeBankingId, ElementSplitDTO processDTO) {
-        if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
-
-            if (processDTO.getType().equals("DETAILS_ELEMENT_DTO")) {
-                sendMessageJson("scannerReceiver", gson.toJson(processDTO)); // Sending as details
-            }
         }
     }
 

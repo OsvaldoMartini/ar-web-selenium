@@ -3,7 +3,9 @@ package com.allinweb.ch.persistence;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.AttributeData;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,10 +30,10 @@ public class TargetElement {
     String isCoordsOK;
     String iFrameXPath;
     List<String> iFrameElements;
-    private String shadowHost;
-    private String shadowRoot;
-    private String nestedShadow;
-    private String cssSelector;
+    String shadowHost;
+    String shadowRoot;
+    String nestedShadow;
+    String cssSelector;
     String someText;
     String attribId;
     String attribName;
@@ -46,6 +48,9 @@ public class TargetElement {
     Boolean cloned;
     String searchAttributeValue;
     Boolean forceCoordinates;
+    Map<String, String> savedReferences = new HashMap<>();
+    Integer instructionId;
+    Boolean clickElement;
 
     public TargetElement(TargetElement origin) {
         this.nameLabel = origin.nameLabel;
@@ -81,6 +86,9 @@ public class TargetElement {
         this.cloned = origin.cloned;
         this.searchAttributeValue = origin.searchAttributeValue;
         this.forceCoordinates = origin.forceCoordinates;
+        this.savedReferences = origin.savedReferences;
+        this.instructionId = origin.instructionId;
+        this.clickElement = origin.clickElement;
     }
 
     public void reset() {
@@ -99,6 +107,10 @@ public class TargetElement {
         this.isCoordsOK = null;
         this.iFrameXPath = null;
         this.iFrameElements = null;
+        this.shadowHost = null;
+        this.shadowRoot = null;
+        this.nestedShadow = null;
+        this.cssSelector = null;
         this.someText = null;
         this.attribId = null;
         this.attribName = null;
@@ -113,6 +125,9 @@ public class TargetElement {
         this.cloned = false;
         this.searchAttributeValue = null;
         this.forceCoordinates = false;
+        this.savedReferences = new HashMap<>();
+        this.instructionId = null;
+        this.clickElement = false;
     }
 }
 
