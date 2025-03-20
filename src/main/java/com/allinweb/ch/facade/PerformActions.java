@@ -3080,6 +3080,8 @@ public class PerformActions {
 
             targetDefine.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
 
+            defineSavedReferenced(targetDefine);
+
             // W3C 6 Headers
             String[] validHeaders = {"h1", "h2", "h3", "h4", "h5", "h6"};
 
@@ -4063,59 +4065,30 @@ public class PerformActions {
         };
     }
 
-    public Map<String, String> defineSavedReferenced(
-            TargetElement targetreferences, Map<String, String> savedReferences) {
-        if (targetreferences == null) {
-            return savedReferences; // Return early if targetreferences is null
-        }
+    public Map<String, String> defineSavedReferenced(TargetElement targetRefs) {
 
         // Handle XPath and attribute cases
-        processXPathAndAttributes(targetreferences, savedReferences);
+        processXPathAndAttributes(targetRefs, targetRefs.getSavedReferences());
 
         // If no match for XPath or attributes, process coordinates or dynamic creation
-        if (savedReferences.isEmpty()) {
-            processDynamicCreation(targetreferences, savedReferences);
+        if (targetRefs.getSavedReferences().isEmpty()) {
+            processDynamicCreation(targetRefs, targetRefs.getSavedReferences());
         }
 
         // Process coordinates
-        processCoordinates(targetreferences, savedReferences);
+        processCoordinates(targetRefs, targetRefs.getSavedReferences());
 
-        return savedReferences;
+        return targetRefs.getSavedReferences();
     }
 
-    private void processXPathAndAttributes(TargetElement targetreferences, Map<String, String> savedReferences) {
-        String xpathWorkedFirst = targetreferences.getXPathWorkedFirst();
-
-        if (ARConstants.REGULAR_XPATH.equalsIgnoreCase(xpathWorkedFirst)
-                || ARConstants.CUSTOM_XPATH.equalsIgnoreCase(xpathWorkedFirst)) {
-            savedReferences.put("currentXPath", targetreferences.getCurrentXPath());
-            savedReferences.put("customXPath", targetreferences.getCustomXPath());
-            processAttributes(targetreferences, savedReferences);
-        } else if (!Strings.isNullOrEmpty(targetreferences.getMainXPath())) {
-            savedReferences.put("xpath", targetreferences.getCurrentXPath());
-        } else {
-            processAttributes(targetreferences, savedReferences);
-        }
-
-        // Handle any case where XPathWorkedFirst doesn't match the expected values
-        if (savedReferences.isEmpty()
-                && !ARConstants.REGULAR_XPATH.equalsIgnoreCase(xpathWorkedFirst)
-                && !ARConstants.CUSTOM_XPATH.equalsIgnoreCase(xpathWorkedFirst)) {
-            savedReferences.put("error", "Unrecognized XPath case: " + xpathWorkedFirst);
-        }
-    }
-
-    private void processAttributes(TargetElement targetreferences, Map<String, String> savedReferences) {
-        // Process attribute data
-        for (AttributeData attrb : targetreferences.getAttributeData()) {
-            savedReferences.put(attrb.getName().trim(), attrb.getValue().trim());
-        }
-
-        // Handle other attributes individually
-        addAttributeIfNotNull(savedReferences, "attributeID", targetreferences.getAttribId());
-        addAttributeIfNotNull(savedReferences, "attributeName", targetreferences.getAttribName());
-        addAttributeIfNotNull(savedReferences, "searchAttribute", targetreferences.getSearchAttributeValue());
-        addAttributeIfNotNull(savedReferences, "attribute", targetreferences.getAttributeValue());
+    private void processXPathAndAttributes(TargetElement targetRefs, Map<String, String> savedReferences) {
+        addAttributeIfNotNull(savedReferences, "xpath", targetRefs.getMainXPath());
+        addAttributeIfNotNull(savedReferences, "currentXPath", targetRefs.getCurrentXPath());
+        addAttributeIfNotNull(savedReferences, "customXPath", targetRefs.getCustomXPath());
+        addAttributeIfNotNull(savedReferences, "attributeID", targetRefs.getAttribId());
+        addAttributeIfNotNull(savedReferences, "attributeName", targetRefs.getAttribName());
+        addAttributeIfNotNull(savedReferences, "searchAttribute", targetRefs.getSearchAttributeValue());
+        addAttributeIfNotNull(savedReferences, "attribute", targetRefs.getAttributeValue());
     }
 
     private void addAttributeIfNotNull(Map<String, String> savedReferences, String key, String value) {
@@ -4124,24 +4097,24 @@ public class PerformActions {
         }
     }
 
-    private void processDynamicCreation(TargetElement targetreferences, Map<String, String> savedReferences) {
+    private void processDynamicCreation(TargetElement targetRefs, Map<String, String> savedReferences) {
         // Handle dynamic creation (fallback to XPath extraction)
-        if (targetreferences.getElement() != null) {
-            savedReferences.put("xpath", ARWebUtil.extractWebElementXPath(targetreferences.getElement()));
+        if (targetRefs.getElement() != null) {
+            savedReferences.put("xpath", ARWebUtil.extractWebElementXPath(targetRefs.getElement()));
         }
     }
 
-    private void processCoordinates(TargetElement targetreferences, Map<String, String> savedReferences) {
+    private void processCoordinates(TargetElement targetRefs, Map<String, String> savedReferences) {
         try {
             // Attempt to get coordinates from the element
-            Rectangle coordinates = targetreferences.getElement().getRect();
+            Rectangle coordinates = targetRefs.getElement().getRect();
             String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
                     + (coordinates.getY() + (coordinates.getHeight() / 2));
             savedReferences.put("coordinates", newCoordinates);
         } catch (Exception coords) {
             // Fallback to using coords string if element coordinates are unavailable
-            if (!Strings.isNullOrEmpty(targetreferences.getCoords())) {
-                String[] parts = targetreferences.getCoords().split(",");
+            if (!Strings.isNullOrEmpty(targetRefs.getCoords())) {
+                String[] parts = targetRefs.getCoords().split(",");
                 int x = Integer.parseInt(parts[0]);
                 int y = Integer.parseInt(parts[1]);
                 // Create a Rectangle object (assuming you want to use a width and height)
