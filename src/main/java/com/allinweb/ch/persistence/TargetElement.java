@@ -28,6 +28,10 @@ public class TargetElement {
     String isCoordsOK;
     String iFrameXPath;
     List<String> iFrameElements;
+    private String shadowHost;
+    private String shadowRoot;
+    private String nestedShadow;
+    private String cssSelector;
     String someText;
     String attribId;
     String attribName;
@@ -59,6 +63,10 @@ public class TargetElement {
         this.isCoordsOK = origin.isCoordsOK;
         this.iFrameXPath = origin.iFrameXPath;
         this.iFrameElements = origin.iFrameElements;
+        this.shadowHost = origin.shadowHost;
+        this.shadowRoot = origin.shadowRoot;
+        this.nestedShadow = origin.nestedShadow;
+        this.cssSelector = origin.cssSelector;
         this.someText = origin.someText;
         this.attribId = origin.attribId;
         this.attribName = origin.attribName;

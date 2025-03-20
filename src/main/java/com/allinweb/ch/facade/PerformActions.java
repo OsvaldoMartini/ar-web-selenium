@@ -3056,6 +3056,11 @@ public class PerformActions {
             targetDefine.setCurrentXPath(elemenDTO.getXPath());
 
             targetDefine.setIFrameXPath(elemenDTO.getIFrameXPath());
+
+            targetDefine.setShadowHost(elemenDTO.getShadowHost());
+            targetDefine.setShadowRoot(elemenDTO.getShadowRoot());
+            targetDefine.setNestedShadow(elemenDTO.getNestedShadow());
+            targetDefine.setCssSelector(elemenDTO.getCssSelector());
             targetDefine.setAttributeData(elemenDTO.getAttributeData());
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
 
