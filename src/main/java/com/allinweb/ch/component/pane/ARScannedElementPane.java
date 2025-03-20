@@ -227,11 +227,20 @@ public class ARScannedElementPane extends ARPane {
                 // Test Try by coordinates
                 Pair<String, String> filedData = new Pair<>("martini", "Martini");
                 try {
-                    performActions.executeActionsAtCoordinates(
-                            targetInsert.getCoords(), filedData, ARConstants.COORD_MOVE_CLICK_RED, false);
+                    if (checkCloneElement.isSelected()) {
 
-                    performActions.executeActionsAtCoordinates(
-                            targetInsert.getMainCoordinates(), filedData, ARConstants.COORD_MOVE_CLICK_RED, false);
+                        performActions.executeActionsAtCoordinates(
+                                targetInsert.getCoords(), filedData, ARConstants.CLICK, false);
+
+                        performActions.executeActionsAtCoordinates(
+                                targetInsert.getMainCoordinates(), filedData, ARConstants.CLICK, false);
+                    } else {
+                        performActions.executeActionsAtCoordinates(
+                                targetInsert.getCoords(), filedData, ARConstants.COORD_MOVE_CLICK_RED, false);
+
+                        performActions.executeActionsAtCoordinates(
+                                targetInsert.getMainCoordinates(), filedData, ARConstants.COORD_MOVE_CLICK_RED, false);
+                    }
 
                 } catch (Exception e) {
                     System.out.println(e.getMessage());
@@ -292,310 +301,318 @@ public class ARScannedElementPane extends ARPane {
                     .getChildren()
                     .addAll(blockNameLabel, blockNameText, variableText1Styled, variableText2Styled);
 
-            boolean result = performMessage.showAlertCombinedVBOX(
-                    Alert.AlertType.CONFIRMATION,
-                    "Add Instruction to Bot-Job",
-                    "Add the Instruction Selected to the Bot-Job?",
-                    null,
-                    combinedTextContainer);
+            String finalNameDefined = nameDefined;
+            String finalBlockName1 = blockName;
+            Platform.runLater(() -> {
+                boolean result = performMessage.showAlertCombinedVBOX(
+                        Alert.AlertType.CONFIRMATION,
+                        "Add Instruction to Bot-Job",
+                        "Add the Instruction Selected to the Bot-Job?",
+                        null,
+                        combinedTextContainer);
 
-            if (result) {
+                if (result) {
 
-                BotJobLoadDTO botJobCheck = performDataBase.loadBotJobById(this.botJobLoad.getId());
+                    BotJobLoadDTO botJobCheck = performDataBase.loadBotJobById(this.botJobLoad.getId());
 
-                if (botJobCheck == null) {
+                    if (botJobCheck == null) {
 
-                    variableText1Styled = new Text(String.format(
-                            "Check if you already have a Bot Job \"%s\" Created!", this.botJobLoad.getName()));
-                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+                        Text variableText1 = new Text(String.format(
+                                "Check if you already have a Bot Job \"%s\" Created!", this.botJobLoad.getName()));
+                        variableText1.setStyle("-fx-font-size: 18px; -fx-fill: red;");
 
-                    combinedTextContainer.getChildren().clear();
-                    combinedTextContainer.getChildren().add(variableText1Styled);
+                        combinedTextContainer.getChildren().clear();
+                        combinedTextContainer.getChildren().add(variableText1);
 
-                    performMessage.showAlertCombinedVBOX(
-                            Alert.AlertType.ERROR,
-                            "Bot Job DOES NOT EXIST",
-                            "Verify the Bot Job Name if have any: ",
-                            null,
-                            combinedTextContainer);
-
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .severe(String.format(
-                                    "Check if you already have a Bot Job \"%s\" Created!", this.botJobLoad.getName()));
-                    return;
-                }
-
-                // It Prevents Start without blocks
-                this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
-                if (blockLoadList.isEmpty()) {
-
-                    BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-                    newBlockDetails.setBlockName("Default Block");
-                    newBlockDetails.setBlockDescription("  description");
-                    newBlockDetails.setTypeId(1);
-                    newBlockDetails.setActive(true);
-                    newBlockDetails.setWait(3);
-
-                    newBlockDetails.setBotJobId(botJobLoad.getId());
-
-                    currentBlockId = performDataBase.createNewBlock(newBlockDetails);
-
-                    if (currentBlockId < 0) {
-                        performActions.showAlert(
+                        performMessage.showAlertCombinedVBOX(
                                 Alert.AlertType.ERROR,
-                                "Error Creating new Block",
-                                "Verify the Bot Job Name if have any",
-                                "Check if you already have a Bot Job Created!");
+                                "Bot Job DOES NOT EXIST",
+                                "Verify the Bot Job Name if have any: ",
+                                null,
+                                combinedTextContainer);
 
-                        ARLogger.getInstance(Thread.class)
+                        ARLogger.getInstance(ARScannedElementPane.class)
                                 .severe(String.format(
-                                        "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
-                                        botJobLoad.getId()));
+                                        "Check if you already have a Bot Job \"%s\" Created!",
+                                        this.botJobLoad.getName()));
                         return;
-                    } else {
-
-                        //                                setBlockJob(
-                        //
-                        // ARSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
-                        ARLogger.getInstance(Thread.class)
-                                .info(String.format(
-                                        "Created a new Block id %d for bot job Id %d",
-                                        currentBlockId, botJobLoad.getId()));
                     }
 
-                    Platform.runLater(() -> {
-                        refreshBlocks(true);
-                    });
-                }
+                    // It Prevents Start without blocks
+                    this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
+                    if (blockLoadList.isEmpty()) {
 
-                String finalNameWebElement = nameDefined;
-                String finalBlockName = blockName;
-                Task<Void> handleEvent = new Task<>() {
-                    @Override
-                    protected Void call() throws Exception {
-                        ARLogger.getInstance(Task.class).info("THREAD: Started");
+                        BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+                        newBlockDetails.setBlockName("Default Block");
+                        newBlockDetails.setBlockDescription("  description");
+                        newBlockDetails.setTypeId(1);
+                        newBlockDetails.setActive(true);
+                        newBlockDetails.setWait(3);
 
-                        ARLogger.getInstance(Task.class).fine("THREAD: fetching instruction list from database");
+                        newBlockDetails.setBotJobId(botJobLoad.getId());
 
-                        //                                ObservableList<InstructionLoadDTO> list =
-                        // ARSharedResources.getInstance()
-                        //                                        .getEntityList(InstructionLoadDTO.class,
-                        // (instr) -> instr.getBlockId()
-                        //                                                .equals(currentBlockId));
+                        currentBlockId = performDataBase.createNewBlock(newBlockDetails);
 
-                        List<InstructionLoadDTO> listInstr =
-                                performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
-
-                        ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + listInstr.size());
-
-                        String actionReq = checkClickElement.isSelected()
-                                ? ARConstants.CLICK
-                                : checkInputText.isSelected()
-                                        ? ARConstants.INSERT
-                                        : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
-
-                        WebElementTagNameEnum tagType = targetInsert.getTagType();
-
-                        if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
-                            tagType = WebElementTagNameEnum.INPUT_ENTER;
-                        }
-
-                        InstructionLoadDTO instruction = performActions.buildNewInstruction(
-                                tagType, actionReq, false, listInstr.size(), targetInsert);
-
-                        if (checkForceCoordText.isSelected()) {
-                            instruction.setForceCoordinates(true);
-                        } else {
-                            instruction.setForceCoordinates(false);
-                        }
-
-                        instruction.setCoordinates(targetInsert.getMainCoordinates());
-                        instruction.setIFrameXPath(targetInsert.getIFrameXPath());
-
-                        instruction.setBlockId(currentBlockId);
-
-                        instruction.setInstructionOrderNumber(listInstr.size() + 1);
-
-                        ARLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
-
-                        Integer currentBotJobId = botJobLoad.getId();
-
-                        // Change the Name on the fly
-                        if (!Strings.isNullOrEmpty(finalNameWebElement)) {
-                            instruction.setName(finalNameWebElement);
-
-                            // Update the action string if it contains "I:"
-                            String actions = instruction.getActions();
-                            String[] parts = actions.split(",");
-
-                            if (actions.startsWith("I:")) {
-                                for (int i = 0; i < parts.length; i++) {
-                                    parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
-                                    if (parts[i].startsWith("I:")) {
-                                        if (parts[i].contains(":E:")) {
-                                            parts[i] = "I:E:" + finalNameWebElement;
-                                        } else {
-                                            parts[i] = "I:" + finalNameWebElement;
-                                        }
-                                        break; // Stop after modifying the first match
-                                    }
-                                }
-
-                                instruction.setActions(parts[0]);
-                            }
-                        }
-
-                        int newId = preFillAddInstruction(
-                                instruction.getName().trim(),
-                                instruction.getDescription().trim(),
-                                instruction.getActions(),
-                                instruction.getOperation(),
-                                instruction.getOnHoldSeconds(),
-                                instruction.getVariableId(),
-                                instruction.getInstructionOrderNumber(),
-                                instruction.getExportToABR(),
-                                instruction.getXpath(),
-                                instruction.getCoordinates(),
-                                instruction.getForceCoordinates(),
-                                instruction.getIFrameXPath(),
-                                currentBotJobId,
-                                currentBlockId);
-
-                        if (newId < 0) {
-
-                            Text variableText1Styled = new Text(String.format(
-                                    "\"Component\" Instruction \"%s\"\nCannot be saved", instruction.getName()));
-                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                            VBox combinedTextContainer = new VBox();
-                            combinedTextContainer.setSpacing(5); // Add some sp
-
-                            combinedTextContainer.getChildren().add(variableText1Styled);
-
-                            performMessage.showAlertCombinedVBOX(
+                        if (currentBlockId < 0) {
+                            performActions.showAlert(
                                     Alert.AlertType.ERROR,
-                                    "Error Add New \"Component\" Instruction",
-                                    "Not possible to insert new Operation",
-                                    null,
-                                    combinedTextContainer);
+                                    "Error Creating new Block",
+                                    "Verify the Bot Job Name if have any",
+                                    "Check if you already have a Bot Job Created!");
 
+                            ARLogger.getInstance(Thread.class)
+                                    .severe(String.format(
+                                            "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
+                                            botJobLoad.getId()));
+                            return;
+                        } else {
+
+                            //                                setBlockJob(
+                            //
+                            // ARSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
+                            ARLogger.getInstance(Thread.class)
+                                    .info(String.format(
+                                            "Created a new Block id %d for bot job Id %d",
+                                            currentBlockId, botJobLoad.getId()));
+                        }
+
+                        Platform.runLater(() -> {
+                            refreshBlocks(true);
+                        });
+                    }
+
+                    String finalNameWebElement = finalNameDefined;
+                    String finalBlockName = finalBlockName1;
+                    Task<Void> handleEvent = new Task<>() {
+                        @Override
+                        protected Void call() throws Exception {
+                            ARLogger.getInstance(Task.class).info("THREAD: Started");
+
+                            ARLogger.getInstance(Task.class).fine("THREAD: fetching instruction list from database");
+
+                            //                                ObservableList<InstructionLoadDTO> list =
+                            // ARSharedResources.getInstance()
+                            //                                        .getEntityList(InstructionLoadDTO.class,
+                            // (instr) -> instr.getBlockId()
+                            //                                                .equals(currentBlockId));
+
+                            List<InstructionLoadDTO> listInstr =
+                                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
+
+                            ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + listInstr.size());
+
+                            String actionReq = checkClickElement.isSelected()
+                                    ? ARConstants.CLICK
+                                    : checkInputText.isSelected()
+                                            ? ARConstants.INSERT
+                                            : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
+
+                            targetInsert.setClickElement(checkClickElement.isSelected());
+
+                            WebElementTagNameEnum tagType = targetInsert.getTagType();
+
+                            if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
+                                tagType = WebElementTagNameEnum.INPUT_ENTER;
+                            }
+
+                            InstructionLoadDTO instruction = performActions.buildNewInstruction(
+                                    tagType, actionReq, false, listInstr.size(), targetInsert);
+
+                            if (checkForceCoordText.isSelected()) {
+                                instruction.setForceCoordinates(true);
+                            } else {
+                                instruction.setForceCoordinates(false);
+                            }
+
+                            instruction.setCoordinates(targetInsert.getMainCoordinates());
+                            instruction.setIFrameXPath(targetInsert.getIFrameXPath());
+
+                            instruction.setBlockId(currentBlockId);
+
+                            instruction.setInstructionOrderNumber(listInstr.size() + 1);
+
+                            ARLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
+
+                            Integer currentBotJobId = botJobLoad.getId();
+
+                            // Change the Name on the fly
+                            if (!Strings.isNullOrEmpty(finalNameWebElement)) {
+                                instruction.setName(finalNameWebElement);
+
+                                // Update the action string if it contains "I:"
+                                String actions = instruction.getActions();
+                                String[] parts = actions.split(",");
+
+                                if (actions.startsWith("I:")) {
+                                    for (int i = 0; i < parts.length; i++) {
+                                        parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
+                                        if (parts[i].startsWith("I:")) {
+                                            if (parts[i].contains(":E:")) {
+                                                parts[i] = "I:E:" + finalNameWebElement;
+                                            } else {
+                                                parts[i] = "I:" + finalNameWebElement;
+                                            }
+                                            break; // Stop after modifying the first match
+                                        }
+                                    }
+
+                                    instruction.setActions(parts[0]);
+                                }
+                            }
+
+                            int newId = preFillAddInstruction(
+                                    instruction.getName().trim(),
+                                    instruction.getDescription().trim(),
+                                    instruction.getActions(),
+                                    instruction.getOperation(),
+                                    instruction.getOnHoldSeconds(),
+                                    instruction.getVariableId(),
+                                    instruction.getInstructionOrderNumber(),
+                                    instruction.getExportToABR(),
+                                    instruction.getXpath(),
+                                    instruction.getCoordinates(),
+                                    instruction.getForceCoordinates(),
+                                    instruction.getIFrameXPath(),
+                                    currentBotJobId,
+                                    currentBlockId);
+
+                            if (newId < 0) {
+
+                                Text variableText1Styled = new Text(String.format(
+                                        "\"Component\" Instruction \"%s\"\nCannot be saved", instruction.getName()));
+                                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
+
+                                VBox combinedTextContainer = new VBox();
+                                combinedTextContainer.setSpacing(5); // Add some sp
+
+                                combinedTextContainer.getChildren().add(variableText1Styled);
+
+                                performMessage.showAlertCombinedVBOX(
+                                        Alert.AlertType.ERROR,
+                                        "Error Add New \"Component\" Instruction",
+                                        "Not possible to insert new Operation",
+                                        null,
+                                        combinedTextContainer);
+
+                                return null;
+                            }
+
+                            instruction.setId(newId);
+
+                            targetInsert.setInstructionId(instruction.getId());
+                            List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
+                            for (String key : targetInsert.getSavedReferences().keySet()) {
+                                InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
+                                reference.setReferenceType(key);
+                                reference.setValue(
+                                        targetInsert.getSavedReferences().get(key));
+
+                                reference.setBotJobId(currentBotJobId);
+
+                                //
+                                // reference.setBlockLoopInstructionLoadDTO(instruction);
+                                queue.add(reference);
+                            }
+                            try {
+
+                                Platform.runLater(() -> {
+                                    boolean saved = performDataBase.insertReferences(queue, instruction.getId());
+                                    if (saved) {
+
+                                        //                                            Text blockNameLabel = new
+                                        // Text("Block : ");
+                                        //
+                                        // blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                        //
+                                        //                                            Text blockNameText = new
+                                        // Text(finalBlockName);
+                                        //
+                                        // blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
+                                        //
+                                        //                                            Text variableText1Styled =
+                                        //                                                    new Text("The Web
+                                        // Instruction \"" + instruction.getName() + "\"");
+                                        //
+                                        // variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                        //
+                                        //                                            Text variableText2Styled =
+                                        //                                                    new Text("With " +
+                                        // queue.size() + " reference locators");
+                                        //
+                                        // variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                        //
+                                        //                                            Text variableText3Styled = new
+                                        // Text("Has been added successfully!");
+                                        //
+                                        // variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                                        //
+                                        //                                            VBox combinedTextContainer =
+                                        // new VBox();
+                                        //
+                                        // combinedTextContainer.setSpacing(5); // Add some sp
+
+                                        //                                            combinedTextContainer
+                                        //                                                    .getChildren()
+                                        //                                                    .addAll(
+                                        //
+                                        // blockNameLabel,
+                                        //                                                            blockNameText,
+                                        //
+                                        // variableText1Styled,
+                                        //
+                                        // variableText2Styled,
+                                        //
+                                        // variableText3Styled);
+
+                                        botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
+                                        String jsonData = "[]";
+                                        if (!botJobLoadList.isEmpty()) {
+                                            List<InstructionLoadDTO> blockLoopInstructions =
+                                                    performDataBase.buildJsonViewData(botJobLoadList);
+                                            jsonData = gson.toJson(blockLoopInstructions);
+                                        }
+                                        sendMessageJson(
+                                                homeBanking.getId(),
+                                                "botJobTasks-" + currentBotJobId,
+                                                jsonData,
+                                                "updateInstructions");
+
+                                        //
+                                        // performMessage.showAlertCombinedVBOX(
+                                        //
+                                        // Alert.AlertType.INFORMATION,
+                                        //                                                    "Web Instruction Add",
+                                        //                                                    "Added New \"Web
+                                        // Instruction\" Instruction",
+                                        //                                                    null,
+                                        //
+                                        // combinedTextContainer);
+
+                                    } else {
+
+                                        performMessage.errorMessage(
+                                                "Web Instruction Warning",
+                                                "Potential Issue with Web Instruction",
+                                                "The instruction \"" + instruction.getName() + "\" was added with "
+                                                        + queue.size() + " reference locators.",
+                                                "However, the engine may not process this element correctly",
+                                                "due to insufficient identifiable attributes.",
+                                                0);
+                                    }
+                                });
+                            } catch (Exception ex) {
+                                ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
+                            }
+                            //                                        });
                             return null;
                         }
-
-                        instruction.setId(newId);
-
-                        targetInsert.setInstructionId(instruction.getId());
-                        List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
-                        for (String key : targetInsert.getSavedReferences().keySet()) {
-                            InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
-                            reference.setReferenceType(key);
-                            reference.setValue(targetInsert.getSavedReferences().get(key));
-
-                            reference.setBotJobId(currentBotJobId);
-
-                            //
-                            // reference.setBlockLoopInstructionLoadDTO(instruction);
-                            queue.add(reference);
-                        }
-                        try {
-
-                            Platform.runLater(() -> {
-                                boolean saved = performDataBase.insertReferences(queue, instruction.getId());
-                                if (saved) {
-
-                                    //                                            Text blockNameLabel = new
-                                    // Text("Block : ");
-                                    //
-                                    // blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                                    //
-                                    //                                            Text blockNameText = new
-                                    // Text(finalBlockName);
-                                    //
-                                    // blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-                                    //
-                                    //                                            Text variableText1Styled =
-                                    //                                                    new Text("The Web
-                                    // Instruction \"" + instruction.getName() + "\"");
-                                    //
-                                    // variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                                    //
-                                    //                                            Text variableText2Styled =
-                                    //                                                    new Text("With " +
-                                    // queue.size() + " reference locators");
-                                    //
-                                    // variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                                    //
-                                    //                                            Text variableText3Styled = new
-                                    // Text("Has been added successfully!");
-                                    //
-                                    // variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                                    //
-                                    //                                            VBox combinedTextContainer =
-                                    // new VBox();
-                                    //
-                                    // combinedTextContainer.setSpacing(5); // Add some sp
-
-                                    //                                            combinedTextContainer
-                                    //                                                    .getChildren()
-                                    //                                                    .addAll(
-                                    //
-                                    // blockNameLabel,
-                                    //                                                            blockNameText,
-                                    //
-                                    // variableText1Styled,
-                                    //
-                                    // variableText2Styled,
-                                    //
-                                    // variableText3Styled);
-
-                                    botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
-                                    String jsonData = "[]";
-                                    if (!botJobLoadList.isEmpty()) {
-                                        List<InstructionLoadDTO> blockLoopInstructions =
-                                                performDataBase.buildJsonViewData(botJobLoadList);
-                                        jsonData = gson.toJson(blockLoopInstructions);
-                                    }
-                                    sendMessageJson(
-                                            homeBanking.getId(),
-                                            "botJobTasks-" + currentBotJobId,
-                                            jsonData,
-                                            "updateInstructions");
-
-                                    //
-                                    // performMessage.showAlertCombinedVBOX(
-                                    //
-                                    // Alert.AlertType.INFORMATION,
-                                    //                                                    "Web Instruction Add",
-                                    //                                                    "Added New \"Web
-                                    // Instruction\" Instruction",
-                                    //                                                    null,
-                                    //
-                                    // combinedTextContainer);
-
-                                } else {
-
-                                    performMessage.errorMessage(
-                                            "Web Instruction Warning",
-                                            "Potential Issue with Web Instruction",
-                                            "The instruction \"" + instruction.getName() + "\" was added with "
-                                                    + queue.size() + " reference locators.",
-                                            "However, the engine may not process this element correctly",
-                                            "due to insufficient identifiable attributes.",
-                                            0);
-                                }
-                            });
-                        } catch (Exception ex) {
-                            ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
-                        }
-                        //                                        });
-                        return null;
-                    }
-                };
-                ARLogger.getInstance(ARScannedElementPane.class).fine("Thread created");
-                ARLogger.getInstance(ARScannedElementPane.class).fine("Before thread execution");
-                new Thread(handleEvent).start();
-                ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
-            }
+                    };
+                    ARLogger.getInstance(ARScannedElementPane.class).fine("Thread created");
+                    ARLogger.getInstance(ARScannedElementPane.class).fine("Before thread execution");
+                    new Thread(handleEvent).start();
+                    ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
+                }
+            });
         }
     }
 
