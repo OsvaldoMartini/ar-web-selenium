@@ -18,6 +18,10 @@ public class ElementDTO {
     private AttributeData[] attributeData;
     private String customXPath;
     private String iFrameXPath;
+    private String shadowHost;
+    private String shadowRoot;
+    private String nestedShadow;
+    private String cssSelector;
     private String attributeValue;
     private String attributeType;
     private String searchAttributeValue;
@@ -34,6 +38,9 @@ public class ElementDTO {
         this.attributeData = other.attributeData;
         this.customXPath = other.customXPath;
         this.iFrameXPath = other.iFrameXPath;
+        this.shadowHost = other.shadowHost;
+        this.shadowRoot = other.shadowRoot;
+        this.cssSelector = other.cssSelector;
         this.attributeValue = other.attributeValue;
         this.attributeType = other.attributeType;
         this.searchAttributeValue = other.searchAttributeValue;

@@ -55,6 +55,7 @@ import org.openqa.selenium.ElementClickInterceptedException;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
@@ -3026,6 +3027,10 @@ public class PerformActions {
                         null,
                         null,
                         null,
+                        null,
+                        null,
+                        null,
+                        null,
                         null));
             }
         }
@@ -3962,5 +3967,17 @@ public class PerformActions {
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
+    }
+
+    public WebElement findShadowElementByCssSelector(String shadowLocator, String cssSelector) {
+        try {
+            // Find the shadow host
+            WebElement shadowHost = this.currentDriver.findElement(By.cssSelector(shadowLocator));
+            SearchContext shadowRoot = shadowHost.getShadowRoot();
+            return shadowRoot.findElement(By.cssSelector(cssSelector));
+        } catch (Exception e) {
+
+        }
+        return null;
     }
 }

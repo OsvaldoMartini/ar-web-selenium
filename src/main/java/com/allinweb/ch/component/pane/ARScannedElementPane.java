@@ -1771,13 +1771,34 @@ public class ARScannedElementPane extends ARPane {
         return false;
     }
 
-    private TargetElement extractPickClone(ElementDTO pickTarget) {
+    private TargetElement extractPickClone(ElementDTO elementDTO) {
 
-        xpathTextPrevious = pickTarget.getXPath();
+        xpathTextPrevious = elementDTO.getXPath();
 
-        WebElement elementFound = performActions.getCurrentDriver().findElement(By.xpath(pickTarget.getXPath()));
+        WebElement elementFound = null;
+        if (!Strings.isNullOrEmpty(elementDTO.getShadowHost()) || !Strings.isNullOrEmpty(elementDTO.getShadowRoot())) {
+            elementFound = performActions.findShadowElementByCssSelector(
+                    elementDTO.getShadowHost(), elementDTO.getCssSelector());
+        } else if (!Strings.isNullOrEmpty(elementDTO.getIFrameXPath())) {
 
-        TargetElement targetLocal = performActions.defineSearchReturn(pickTarget, elementFound, null);
+            try {
+                WebElement iFrame =
+                        performActions.getCurrentDriver().findElement(By.xpath(elementDTO.getIFrameXPath()));
+
+                performActions.getCurrentDriver().switchTo().frame(iFrame);
+                elementFound = performActions.getCurrentDriver().findElement(By.xpath(elementDTO.getXPath()));
+            } catch (Exception error) {
+                ARLogger.getInstance(ARScannedElementPane.class)
+                        .info("iFrame Element not Located\niFrameXPath"
+                                + elementDTO.getIFrameXPath()
+                                + "iFrameChild: "
+                                + elementDTO.getXPath());
+            }
+        } else {
+            elementFound = performActions.getCurrentDriver().findElement(By.xpath(elementDTO.getXPath()));
+        }
+
+        TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, elementFound, null);
 
         targetLocal = performActions.defineTargetNameTitles(targetLocal);
 
@@ -3048,9 +3069,7 @@ public class ARScannedElementPane extends ARPane {
                 || elementDTO.getIFrameXPath() != this.targetSelected.getIFrameXPath()
                         && elementDTO.getXPath() != targetSelected.getMainXPath()) {
 
-            if (this.targetSelected == null) {
-                this.targetSelected = extractPickClone(elementDTO);
-            }
+            this.targetSelected = extractPickClone(elementDTO);
 
             performActions.getCurrentDriver().switchTo().defaultContent();
 

@@ -88,6 +88,10 @@ public class ElementDTOGenerator {
                     attributeData,
                     "//custom/xpath[" + i + "]",
                     "//iframe/xpath[" + i + "]",
+                    "//shadowHost/xpath[" + i + "]",
+                    "//shadowRoot/xpath[" + i + "]",
+                    "cssSelector_ +" + i,
+                    "nestedShadow_ +" + i,
                     "attribute_value_" + i,
                     "attribute_type_" + i,
                     "search_value_" + i);
