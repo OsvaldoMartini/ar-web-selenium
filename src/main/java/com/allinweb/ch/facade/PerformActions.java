@@ -3121,9 +3121,9 @@ public class PerformActions {
 
             targetDefine.setShadowHost(elemenDTO.getShadowHost());
             targetDefine.setShadowRoot(elemenDTO.getShadowRoot());
+            targetDefine.setCssSelector(elemenDTO.getCssSelector());
             targetDefine.setNestedShadow(elemenDTO.getNestedShadow());
 
-            targetDefine.setCssSelector(elemenDTO.getCssSelector());
             targetDefine.setAttributeData(elemenDTO.getAttributeData());
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
 
