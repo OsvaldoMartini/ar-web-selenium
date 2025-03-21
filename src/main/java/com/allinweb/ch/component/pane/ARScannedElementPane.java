@@ -1011,8 +1011,8 @@ public class ARScannedElementPane extends ARPane {
 
     // UI COMPONENTS
     private HBox topPane;
-    private HBox bottomPane;
-    private HBox bottomPaneTime;
+//    private HBox bottomPane;
+//    private HBox bottomPaneTime;
     private AnchorPane contentPane;
 
     private WebView webView = new WebView();
@@ -1308,8 +1308,8 @@ public class ARScannedElementPane extends ARPane {
 
     private void buildUIComponents() {
         topPane = componentBuilder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-        bottomPane = componentBuilder.createBottomPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-        bottomPaneTime = componentBuilder.createBottomPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
+//        bottomPane = componentBuilder.createBottomPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
+//        bottomPaneTime = componentBuilder.createBottomPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
         contentPane =
                 componentBuilder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
 
@@ -1606,17 +1606,17 @@ public class ARScannedElementPane extends ARPane {
             verticalBox.getChildren().addAll(blockAndUrl, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
-            VBox.setVgrow(bottomPane, Priority.NEVER);
-            VBox.setVgrow(bottomPaneTime, Priority.NEVER);
+//            VBox.setVgrow(bottomPane, Priority.NEVER);
+//            VBox.setVgrow(bottomPaneTime, Priority.NEVER);
 
-            contentPane.getChildren().addAll(topPane, verticalBox, bottomPaneTime, bottomPane);
+            contentPane.getChildren().addAll(topPane, verticalBox);
 
-            AnchorPane.setBottomAnchor(bottomPane, -45.0);
+//            AnchorPane.setBottomAnchor(bottomPane, -45.0);
 
-            AnchorPane.setLeftAnchor(
-                    bottomPane, 0.0); // Optional: Anchors the left edge of bottomPane to the left of the AnchorPane
-            AnchorPane.setRightAnchor(
-                    bottomPane, 0.0); // Optional: Anchors the right edge of bottomPane to the right of the AnchorPane
+//            AnchorPane.setLeftAnchor(
+//                    bottomPane, 0.0); // Optional: Anchors the left edge of bottomPane to the left of the AnchorPane
+//            AnchorPane.setRightAnchor(
+//                    bottomPane, 0.0); // Optional: Anchors the right edge of bottomPane to the right of the AnchorPane
 
             AnchorPane.setTopAnchor(verticalBox, 0.0);
             AnchorPane.setBottomAnchor(verticalBox, 0.0);
@@ -1627,15 +1627,15 @@ public class ARScannedElementPane extends ARPane {
             AnchorPane.setLeftAnchor(topPane, 0.0);
             AnchorPane.setRightAnchor(topPane, 0.0);
 
-            bottomPaneTime.getChildren().addListener((ListChangeListener<Node>) change -> {
-                while (change.next()) {
-                    if (change.wasAdded()) {
-                        for (Node node : change.getAddedSubList()) {
-                            scheduleRemoval(bottomPaneTime, node, 3300); // Schedule removal for the newly added node
-                        }
-                    }
-                }
-            });
+//            bottomPaneTime.getChildren().addListener((ListChangeListener<Node>) change -> {
+//                while (change.next()) {
+//                    if (change.wasAdded()) {
+//                        for (Node node : change.getAddedSubList()) {
+//                            scheduleRemoval(bottomPaneTime, node, 3300); // Schedule removal for the newly added node
+//                        }
+//                    }
+//                }
+//            });
 
         } catch (Exception ex) {
             ARLogger.getInstance(ARScannedElementPane.class).fine("Error using Separator line\n" + ex);
@@ -2175,20 +2175,20 @@ public class ARScannedElementPane extends ARPane {
                 }
             }
 
-            Platform.runLater(() -> {
-                try {
-                    Thread.sleep(2000);
-                    bottomPane.getChildren().clear();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-                //                scannedElements1.requestLayout();
-                //                scannedElements1.refresh();
-                //                scannedElements2.requestLayout();
-                //                scannedElements2.refresh();
-                bottomPane.requestLayout();
-            });
+//            Platform.runLater(() -> {
+//                try {
+//                    Thread.sleep(2000);
+//                    bottomPane.getChildren().clear();
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+//
+//                //                scannedElements1.requestLayout();
+//                //                scannedElements1.refresh();
+//                //                scannedElements2.requestLayout();
+//                //                scannedElements2.refresh();
+//                bottomPane.requestLayout();
+//            });
 
         } catch (Exception e) {
             browserNotAttached();
@@ -2845,23 +2845,23 @@ public class ARScannedElementPane extends ARPane {
         //        }
     }
 
-    private void addProgressBar(int items) {
-        int currentChildrenCount = bottomPane.getChildren().size();
-        if (currentChildrenCount < 20) {
-            // Calculate how many more ProgressBars can be added without exceeding 20
-            int availableSlots = 20 - currentChildrenCount;
-
-            // Determine the number of ProgressBars to add, ensuring it does not exceed available slots
-            int progressBarCountToAdd = Math.min(items, availableSlots);
-
-            Platform.runLater(() -> {
-                for (int x = 0; x < progressBarCountToAdd; x++) {
-                    ProgressBar progressBar = new ProgressBar();
-                    bottomPane.getChildren().add(progressBar);
-                }
-            });
-        }
-    }
+//    private void addProgressBar(int items) {
+//        int currentChildrenCount = bottomPane.getChildren().size();
+//        if (currentChildrenCount < 20) {
+//            // Calculate how many more ProgressBars can be added without exceeding 20
+//            int availableSlots = 20 - currentChildrenCount;
+//
+//            // Determine the number of ProgressBars to add, ensuring it does not exceed available slots
+//            int progressBarCountToAdd = Math.min(items, availableSlots);
+//
+//            Platform.runLater(() -> {
+//                for (int x = 0; x < progressBarCountToAdd; x++) {
+//                    ProgressBar progressBar = new ProgressBar();
+//                    bottomPane.getChildren().add(progressBar);
+//                }
+//            });
+//        }
+//    }
 
     //    private void manageUIScanAttributeNameFirst() {
     //        idAttributeFirst = false;
@@ -3002,7 +3002,7 @@ public class ARScannedElementPane extends ARPane {
 
                         if (scannedElementList != null && scannedElementList.size() > 0) {
                             scannedElementListSize.set(scannedElementList.size());
-                            addProgressBar(scannedElementListSize.get());
+                            //addProgressBar(scannedElementListSize.get());
 
                             ARLogger.getInstance(ARScannedElementPane.class)
                                     .finer("list of scanned elements has " + scannedElementListSize.get()
@@ -3081,12 +3081,12 @@ public class ARScannedElementPane extends ARPane {
 
                     // After Creation of AR Elements - > Update View List
                     if (listARElements != null) {
-                        //                        addProgressBar(listARElements.size());
+                        //                        //addProgressBar(listARElements.size());
                         for (ARWebElement element : listARElements) {
                             Platform.runLater(() -> {
                                 listToAddNewElements.add(element);
                                 if (element.getSavedReferences() != null
-                                        && element.getSavedReferences().size() > 0) {
+                                        && !element.getSavedReferences().isEmpty()) {
                                     String absolutPath =
                                             element.getSavedReferences().get(0);
                                     ARLogger.getInstance(ARScannedElementPane.class)
@@ -3095,25 +3095,25 @@ public class ARScannedElementPane extends ARPane {
                                                     element.getSavedReferences().size(), absolutPath));
 
                                 } else if (element.getSavedReferences() != null
-                                        && element.getSavedReferences().size() == 0) {
+                                        && element.getSavedReferences().isEmpty()) {
                                     ARLogger.getInstance(ARScannedElementPane.class)
                                             .finer("added ARWebElement with NO References!");
                                 }
                             });
                         }
 
-                        if (bottomPane.getChildren().size() > 0) {
-                            int elementsToRemove = Math.min(
-                                    listARElementsSize.get() + scannedElementListSize.get(),
-                                    bottomPane.getChildren().size());
-                            for (int x = 0; x < elementsToRemove; x++) {
-                                bottomPane
-                                        .getChildren()
-                                        .remove(bottomPane
-                                                .getChildren()
-                                                .get(bottomPane.getChildren().size() - 1));
-                            }
-                        }
+//                        if (bottomPane.getChildren().size() > 0) {
+//                            int elementsToRemove = Math.min(
+//                                    listARElementsSize.get() + scannedElementListSize.get(),
+//                                    bottomPane.getChildren().size());
+//                            for (int x = 0; x < elementsToRemove; x++) {
+//                                bottomPane
+//                                        .getChildren()
+//                                        .remove(bottomPane
+//                                                .getChildren()
+//                                                .get(bottomPane.getChildren().size() - 1));
+//                            }
+//                        }
                     }
                 },
                 executorService);
@@ -3125,29 +3125,29 @@ public class ARScannedElementPane extends ARPane {
         // Handle completion of the CompletableFuture to remove the ProgressBar
         future.handle((result, ex) -> {
             if (ex != null) {
-                Platform.runLater(() -> {
-                    if (bottomPane.getChildren().size() > 0) {
-                        int elementsToRemove = Math.min(
-                                listARElementsSize.get() + scannedElementListSize.get(),
-                                bottomPane.getChildren().size());
-
-                        for (int x = 0; x < elementsToRemove; x++) {
-                            bottomPane
-                                    .getChildren()
-                                    .remove(bottomPane
-                                            .getChildren()
-                                            .get(bottomPane.getChildren().size() - 1));
-                        }
-
-                        for (int x = 0; x < bottomPane.getChildren().size(); x++) {
-                            bottomPane
-                                    .getChildren()
-                                    .remove(bottomPane
-                                            .getChildren()
-                                            .get(bottomPane.getChildren().size() - 1));
-                        }
-                    }
-                });
+//                Platform.runLater(() -> {
+//                    if (bottomPane.getChildren().size() > 0) {
+//                        int elementsToRemove = Math.min(
+//                                listARElementsSize.get() + scannedElementListSize.get(),
+//                                bottomPane.getChildren().size());
+//
+//                        for (int x = 0; x < elementsToRemove; x++) {
+//                            bottomPane
+//                                    .getChildren()
+//                                    .remove(bottomPane
+//                                            .getChildren()
+//                                            .get(bottomPane.getChildren().size() - 1));
+//                        }
+//
+//                        for (int x = 0; x < bottomPane.getChildren().size(); x++) {
+//                            bottomPane
+//                                    .getChildren()
+//                                    .remove(bottomPane
+//                                            .getChildren()
+//                                            .get(bottomPane.getChildren().size() - 1));
+//                        }
+//                    }
+//                });
             } else {
                 //                Platform.runLater(() -> {
                 //                    scannedElements1.requestLayout();
@@ -3171,26 +3171,26 @@ public class ARScannedElementPane extends ARPane {
                                 + listARElementsSize.get() + ", scannedElementList="
                                 + scannedElementListSize.get());
 
-                if (bottomPane.getChildren().size() > 0) {
-                    int elementsToRemove = Math.min(
-                            listARElementsSize.get() + scannedElementListSize.get(),
-                            bottomPane.getChildren().size());
-                    for (int x = 0; x < elementsToRemove; x++) {
-                        bottomPane
-                                .getChildren()
-                                .remove(bottomPane
-                                        .getChildren()
-                                        .get(bottomPane.getChildren().size() - 1));
-                    }
-
-                    for (int x = 0; x < bottomPane.getChildren().size(); x++) {
-                        bottomPane
-                                .getChildren()
-                                .remove(bottomPane
-                                        .getChildren()
-                                        .get(bottomPane.getChildren().size() - 1));
-                    }
-                }
+//                if (bottomPane.getChildren().size() > 0) {
+//                    int elementsToRemove = Math.min(
+//                            listARElementsSize.get() + scannedElementListSize.get(),
+//                            bottomPane.getChildren().size());
+//                    for (int x = 0; x < elementsToRemove; x++) {
+//                        bottomPane
+//                                .getChildren()
+//                                .remove(bottomPane
+//                                        .getChildren()
+//                                        .get(bottomPane.getChildren().size() - 1));
+//                    }
+//
+//                    for (int x = 0; x < bottomPane.getChildren().size(); x++) {
+//                        bottomPane
+//                                .getChildren()
+//                                .remove(bottomPane
+//                                        .getChildren()
+//                                        .get(bottomPane.getChildren().size() - 1));
+//                    }
+//                }
             });
         });
 
@@ -7520,16 +7520,16 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void executeAlert(InstructionLoadDTO instruction) {
-        // Execute the countdown in a separate thread
-        if (instruction != null) {
-            Integer instructionSeconds = instruction.getOnHoldSeconds();
-            for (int x = 1; x < instructionSeconds; x++) {
-                ProgressBar progress = new ProgressBar();
-                bottomPaneTime.getChildren().add(progress);
-            }
-        }
-    }
+//    private void executeAlert(InstructionLoadDTO instruction) {
+//        // Execute the countdown in a separate thread
+//        if (instruction != null) {
+//            Integer instructionSeconds = instruction.getOnHoldSeconds();
+//            for (int x = 1; x < instructionSeconds; x++) {
+//                ProgressBar progress = new ProgressBar();
+//                bottomPaneTime.getChildren().add(progress);
+//            }
+//        }
+//    }
 
     private String insertValueFieldNameInExcel(
             String parentId, String innerHTMLValue, String action, String botJobName) {
@@ -7586,9 +7586,9 @@ public class ARScannedElementPane extends ARPane {
 
                 try {
 
-                    if (listARElements.size() < 30) {
-                        addProgressBar(1);
-                    }
+//                    if (listARElements.size() < 30) {
+//                        addProgressBar(1);
+//                    }
 
                     ElementDTO elementDTO = new ElementDTO();
 
@@ -7615,35 +7615,35 @@ public class ARScannedElementPane extends ARPane {
             }
         } else {
             // Add progress bars
-            for (int none = 0; none < 20; none++) {
-                addProgressBar(1);
-            }
+//            for (int none = 0; none < 20; none++) {
+//                addProgressBar(1);
+//            }
 
-            new Thread(() -> {
-                        try {
-                            // Sleep for 3 seconds
-                            Thread.sleep(3000);
-
-                            Platform.runLater(() -> {
-                                try {
-                                    Thread.sleep(2000);
-                                    bottomPane.getChildren().clear();
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-
-                                //                                scannedElements1.requestLayout();
-                                //                                scannedElements1.refresh();
-                                //                                scannedElements2.requestLayout();
-                                //                                scannedElements2.refresh();
-                                bottomPane.requestLayout();
-                            });
-
-                        } catch (InterruptedException e) {
-                            System.out.println(e.getMessage()); // Handle interruption
-                        }
-                    })
-                    .start();
+//            new Thread(() -> {
+//                        try {
+//                            // Sleep for 3 seconds
+//                            Thread.sleep(3000);
+//
+//                            Platform.runLater(() -> {
+//                                try {
+//                                    Thread.sleep(2000);
+//                                    bottomPane.getChildren().clear();
+//                                } catch (InterruptedException e) {
+//                                    e.printStackTrace();
+//                                }
+//
+//                                //                                scannedElements1.requestLayout();
+//                                //                                scannedElements1.refresh();
+//                                //                                scannedElements2.requestLayout();
+//                                //                                scannedElements2.refresh();
+//                                bottomPane.requestLayout();
+//                            });
+//
+//                        } catch (InterruptedException e) {
+//                            System.out.println(e.getMessage()); // Handle interruption
+//                        }
+//                    })
+//                    .start();
         }
         return listARElements;
     }
