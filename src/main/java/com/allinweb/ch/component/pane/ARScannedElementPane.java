@@ -1019,27 +1019,12 @@ public class ARScannedElementPane extends ARPane {
     private WebEngine webEngine;
     private HBox componentBox;
 
-    //    private ObservableList<ARWebElement> webElementObservableList1;
-    //    private ObservableList<ARWebElement> webElementObservableList2;
-    //    private ObservableList<ARWebElement> webElementObservableList3;
-    //    private ObservableList<ARWebElementNew> webElementObservableList4;
-    //    private ListView<ARWebElement> scannedElements1;
-    //    private ListView<ARWebElement> scannedElements2;
-    //    private ListView<ARWebElement> scannedElements3;
-    //    private ListView<ARWebElementNew> scannedElements4;
-
     private Button scanIFrameButton;
     private Button addButtonNewElement;
     private Button configureButton;
     private Button launchBotJobButton;
     private Button recallJobButton;
-    private Button searchWithIdsButton;
-    private Button searchWithNamesButton;
-    private Button searchButtons;
     private Button refreshInputFieldsButton;
-    private Button refreshOutputFieldsButton;
-    //    private Button refreshOtherFieldsButton;
-    private Button magicFieldsButton;
     private Button leftButton;
     private Button rightButton;
     private Button cleanListButton;
@@ -1050,20 +1035,14 @@ public class ARScannedElementPane extends ARPane {
 
     private CheckBox checkTestAction;
     private CheckBox checkJavaScript;
-    //    private CheckBox checkTestCoordinates;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
     private CheckBox checkForceEnterText;
     private CheckBox checkForceCoordText;
 
+    private Label searchTermsLabel;
     private Label defineNameLabel;
-    //    private Label searchAttribNameLabel;
-    private Label searchAttribValueLabel;
-    private Label currentXPathLabel;
-    private Label currentAllAttributesLabel;
-    private Label customXPathLabel;
-    private Label originalTagNameLabel;
     private Label coordsTextFieldLabel;
 
     private Text currentURL;
@@ -1073,14 +1052,11 @@ public class ARScannedElementPane extends ARPane {
     private TextFlow textFlowResult;
     private TextArea countdownTextField;
 
+    private TextField searchTermsField;
     private TextField defineNameField;
+
     private TextField testActionsField;
-    //    private TextField searchAttribNameField;
     private TextField searchAttribValueField;
-    private TextField currentXPathTextField;
-    private TextField allAttributesTextField;
-    private TextField customXPathTextField;
-    private TextField originalTagNameField;
     private TextField coordsTextField;
 
     private Boolean resultElementSearch = false;
@@ -1341,24 +1317,8 @@ public class ARScannedElementPane extends ARPane {
                 "iFrames", ARConstants.SPACE_L, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5));
         addButtonNewElement = componentBuilder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
-
-        searchWithIdsButton = componentBuilder.buildButton(
-                "Defined Identifiers", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-        searchWithNamesButton = componentBuilder.buildButton(
-                "Defined Names", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-        searchButtons = componentBuilder.buildButton(
-                "Buttons", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-
         refreshInputFieldsButton = componentBuilder.buildButton(
-                "Input Fields", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-        refreshOutputFieldsButton = componentBuilder.buildButton(
-                "Output Fields", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-        //        refreshOtherFieldsButton = componentBuilder.buildButton(
-        //                "Other Elements", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new
-        // Insets(5.0D));
-        magicFieldsButton = componentBuilder.buildButton(
-                "", ARConstants.SPACE_ZERO, "/magic2.png", ARConstants.SPACE_M, new Insets(5.0D));
-        magicFieldsButton.setDisable(true);
+                "Scanner Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
@@ -1376,11 +1336,6 @@ public class ARScannedElementPane extends ARPane {
                 );
 
         checkTestAction = new CheckBox("Test Actions");
-        //        checkJavaScript = new CheckBox("JS");
-
-        //        checkTestCoordinates = new CheckBox("Test Coordinates");
-
-        //        checkClickElement.setSelected(true);
         checkClickElement = new CheckBox("For Click");
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
@@ -1393,27 +1348,6 @@ public class ARScannedElementPane extends ARPane {
 
         iFrameText = new Text("");
         iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
-
-        //        webElementObservableList1 = FXCollections.observableArrayList();
-
-        //        scannedElements1 = new ListView<>(webElementObservableList1);
-        //        scannedElements1 = componentBuilder.setAnchorPaneAnchors(scannedElements1, ARConstants.SPACE_ZERO);
-        //        scannedElements1.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
-
-        //        webElementObservableList2 = FXCollections.observableArrayList();
-        //        scannedElements2 = new ListView<>(webElementObservableList2);
-        //        scannedElements2 = componentBuilder.setAnchorPaneAnchors(scannedElements2, ARConstants.SPACE_ZERO);
-        //        scannedElements2.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
-
-        //        webElementObservableList3 = FXCollections.observableArrayList();
-        //        scannedElements3 = new ListView<>(webElementObservableList3);
-        //        scannedElements3 = componentBuilder.setAnchorPaneAnchors(scannedElements3, ARConstants.SPACE_ZERO);
-        //        scannedElements3.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
-
-        //        webElementObservableList4 = FXCollections.observableArrayList();
-        //        scannedElements4 = new ListView<>(webElementObservableList4);
-        //        scannedElements4 = componentBuilder.setAnchorPaneAnchors(scannedElements4, ARConstants.SPACE_ZERO);
-        //        scannedElements4.setCellFactory(new ARCellFactory<>(ARWebElementListCell.class)::call);
 
         configureButton = componentBuilder.buildButton(
                 "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
@@ -1431,45 +1365,23 @@ public class ARScannedElementPane extends ARPane {
 
         checkCloneElement = new CheckBox("PICK ONE ");
 
+        searchTermsLabel = new Label("Search by :");
         defineNameLabel = new Label("DEFINE ELEMENT NAME");
-
-        //        searchAttribNameLabel = new Label("Search Attribute Name");
-        searchAttribValueLabel = new Label("Search Per Attribute");
-
-        currentXPathLabel = new Label("XPath");
-        currentAllAttributesLabel = new Label("All Attributes");
-        customXPathLabel = new Label("Custom XPath");
-        originalTagNameLabel = new Label("Tag Name");
         coordsTextFieldLabel = new Label("Main Coordinates");
+
+        searchTermsField = new TextField();
+        searchTermsField.setPromptText("button,label,input");
 
         defineNameField = new TextField();
         defineNameField.setPromptText("DEFINE A NAME");
 
-        //        searchAttribNameField = new TextField();
-        //        searchAttribNameField.setPromptText("Search Attrib Name");
+        coordsTextFieldLabel = new Label("Main Coordinates");
 
         searchAttribValueField = new TextField();
         searchAttribValueField.setPromptText("Search per Attrib");
 
-        currentXPathTextField = new TextField();
-        currentXPathTextField.setPromptText("XPath");
-        //        iFrameXPathTextField = new TextField();
-        //        iFrameXPathTextField.setPromptText("iFrame XPath");
-        allAttributesTextField = new TextField();
-        allAttributesTextField.setPromptText("All Attributes");
-        customXPathTextField = new TextField();
-        customXPathTextField.setPromptText("Custom XPath");
-        originalTagNameField = new TextField();
-        originalTagNameField.setPromptText("Tag Name");
         coordsTextField = new TextField();
         coordsTextField.setPromptText("Coordinates");
-
-        customXPathLabel.setVisible(false);
-        customXPathTextField.setVisible(false);
-        originalTagNameLabel.setVisible(false);
-        originalTagNameField.setVisible(false);
-        currentAllAttributesLabel.setVisible(false);
-        allAttributesTextField.setVisible(false);
 
         leftButton = componentBuilder.buildButton(
                 "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
@@ -1483,15 +1395,8 @@ public class ARScannedElementPane extends ARPane {
         rightButton.setOnAction(e -> switchToRightTab());
 
         cleanListButton.setOnAction(e -> {
-            //            webElementObservableList1.clear();
-            //            webElementObservableList2.clear();
-            //            webElementObservableList2.clear();
             Platform.runLater(() -> {
                 countdownTextField.setText("Pre-Launch status: Ready");
-                //                textFlowResult.getChildren().clear();
-                //                //                textFlowResult.getChildren().addAll(countdownTextField);
-                //                textFlowResult.requestLayout();
-                //                contentPane.requestLayout();
             });
         });
 
@@ -1556,50 +1461,24 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.setHgap(10); // Set horizontal gap between columns
 
             // Add buttons and checkbox to the GridPane
-            //            gridPaneTop.add(scanIFrameButton, 0, 0);
             gridPaneTop.add(refreshInputFieldsButton, 0, 0);
-            gridPaneTop.add(searchWithIdsButton, 1, 0);
-            gridPaneTop.add(searchWithNamesButton, 2, 0);
-            gridPaneTop.add(searchButtons, 3, 0);
-            gridPaneTop.add(refreshOutputFieldsButton, 4, 0);
-            //            gridPaneTop.add(refreshOtherFieldsButton, 5, 0);
-            gridPaneTop.add(magicFieldsButton, 5, 0);
+            gridPaneTop.add(searchTermsLabel, 3, 0);
+            gridPaneTop.add(searchTermsField, 4, 0);
             gridPaneTop.add(turnOnOffButton, 6, 0);
             gridPaneTop.add(leftButton, 7, 0);
             gridPaneTop.add(rightButton, 8, 0);
-
-            //        gridPaneTop.add(configureButton, 4, 0);
-            //        gridPaneTop.add(launchBotJobButton, 5, 0);
-            //        gridPaneTop.add(checkPickElement, 6, 0);
-            //        gridPaneTop.add(addButtonNewElement, 7, 0);
-            //        gridPaneTop.add(currentXPathTextField, 8, 0);
-
-            HBox boxCoordenates = new HBox();
-            boxCoordenates.setSpacing(5);
-
-            checkClickElement
-                    .prefWidthProperty()
-                    .bind(boxCoordenates.widthProperty().multiply(0.50));
-            //            checkTestCoordinates
-            //                    .prefWidthProperty()
-            //                    .bind(boxCoordenates.widthProperty().multiply(0.50));
-
-            // Add elements to the HBox
-            //            boxCoordenates.getChildren().addAll(checkClickElement, checkCoordinates);
-            boxCoordenates.getChildren().addAll(checkClickElement);
 
             VBox vBoxCheckBox = new VBox();
             vBoxCheckBox
                     .getChildren()
                     .addAll(
-                            boxCoordenates,
+                            checkClickElement,
                             checkInputText,
                             checkOutputText,
                             checkForceEnterText,
                             checkForceCoordText,
                             iFrameText);
             vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
-            //        gridPaneTop.add(vBox, 9, 0);
 
             topPane.getChildren().add(gridPaneTop); // Add gridPaneTop to topPane
 
@@ -1607,23 +1486,6 @@ public class ARScannedElementPane extends ARPane {
             verticalBox.setSpacing(10);
             verticalBox.setPadding(new Insets(10));
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
-
-            // Create a GridPane for the middle section
-            //            GridPane gridPane = new GridPane();
-            //            gridPane.setPadding(new Insets(10));
-            //            gridPane.setHgap(10); // Set horizontal gap between columns
-
-            // Add buttons and checkbox to the GridPane
-            //            gridPane.add(refreshInputFieldsButton, 0, 0);
-            //            gridPane.add(searchWithIdsButton, 1, 0);
-            //            gridPane.add(searchWithNamesButton, 2, 0);
-            //            gridPane.add(searchWithoutIdsAndNamesBtn, 3, 0);
-            //            gridPane.add(refreshOutputFieldsButton, 4, 0);
-            //            gridPane.add(refreshOtherFieldsButton, 5, 0);
-            //        gridPane.add(checkTestAction, 6, 0);
-            //        gridPane.add(originalTagNameField, 7, 0);
-            //        gridPane.add(coordsTextField, 8, 0);
-
             // Create an HBox to hold launchBotJobButton and recallJobButton
             HBox hBoxLaunchButon = new HBox();
             hBoxLaunchButon.setSpacing(10); // Optional: adjust spacing between buttons
@@ -1632,36 +1494,43 @@ public class ARScannedElementPane extends ARPane {
             hBoxLaunchButon.getChildren().addAll(launchBotJobButton);
 
             HBox boxName = new HBox();
+            boxName.setSpacing(5);
+
+            // Ensure the text field expands and takes all available space
+            HBox.setHgrow(defineNameField, Priority.ALWAYS);
+            defineNameField.setMaxWidth(Double.MAX_VALUE); // Allows full width usage
+
+            // Ensure the button has a reasonable width
+            addButtonNewElement.setMinWidth(50); // Adjust as needed
+
             boxName.getChildren().addAll(defineNameField, addButtonNewElement);
 
             HBox boxActions = new HBox();
             boxActions.setSpacing(5);
-            // Set proportional widths for each child
+
+            checkTestAction.setMinWidth(100);
+
             testActionsField = new TextField("0001");
-            checkTestAction.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.70));
-            //            checkJavaScript.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.10));
-            testActionsField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
+
+            HBox.setHgrow(testActionsField, Priority.ALWAYS);
+            testActionsField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
 
             boxActions.getChildren().addAll(checkTestAction, testActionsField);
 
-            HBox boxCorrdinates = new HBox();
-            boxCorrdinates.setSpacing(5);
-            //            checkTestCoordinates
-            //                    .prefWidthProperty()
-            //                    .bind(boxActions.widthProperty().multiply(0.70));
+            HBox boxCoordinates = new HBox();
+            boxCoordinates.setSpacing(5);
 
-            coordsTextField.prefWidthProperty().bind(boxActions.widthProperty().multiply(0.3));
+            // Ensure the label has a reasonable width
+            coordsTextFieldLabel.setMinWidth(120);
 
-            boxCorrdinates.getChildren().addAll(coordsTextFieldLabel, coordsTextField);
+            // Allow the TextField to take up the remaining space
+            HBox.setHgrow(coordsTextField, Priority.ALWAYS);
+            coordsTextField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
 
-            //            coordsTextField
-            //                    .prefWidthProperty()
-            //                    .bind(boxCoordenates.widthProperty().multiply(0.50));
+            boxCoordinates.getChildren().addAll(coordsTextFieldLabel, coordsTextField);
 
             HBox hBoxPickClone = new HBox();
             hBoxPickClone.getChildren().addAll(createSpacerHoriz(), checkCloneElement, createSpacerHoriz());
-
-            //            textFlowResult.getChildren().addAll(countdownTextField);
 
             // Create the VBox for TextFields
             textFieldVBox = new VBox();
@@ -1672,45 +1541,22 @@ public class ARScannedElementPane extends ARPane {
                             hBoxPickClone,
                             defineNameLabel,
                             boxName,
-                            //                            attribIdTextFieldLabel,
-                            //                            attribIdTextField,
-                            //                            attribNameTextFieldLabel,
-                            //                            attribNameTextField,
-                            //                            currentXPathLabel,
-                            //                            currentXPathTextField,
-                            //                            currentAllAttributesLabel,
-                            //                            allAttributesTextField,
-                            //                            customXPathLabel,
-                            //                            customXPathTextField,
-                            //                            originalTagNameLabel,
-                            //                            originalTagNameField,
-                            //                            coordsTextFieldLabel,
-                            //                            coordsTextField,
                             vBoxCheckBox,
                             createCustomSeparator(Color.DARKBLUE, 2),
                             createSpacerVert(),
                             countdownTextField,
-                            //                            textFlowResult,
                             boxActions,
-                            boxCorrdinates,
+                            boxCoordinates,
                             createSpacerVert(),
                             createCustomSeparator(Color.DARKBLUE, 2),
                             hBoxLaunchButon,
                             configureButton);
-
-            customXPathLabel.setVisible(false);
-            customXPathTextField.setVisible(false);
-            originalTagNameLabel.setVisible(false);
-            originalTagNameField.setVisible(false);
-            currentAllAttributesLabel.setVisible(false);
-            allAttributesTextField.setVisible(false);
 
             // Bind button widths to VBox width
             boxActions.maxWidthProperty().bind(textFieldVBox.widthProperty());
 
             // Bind button widths to VBox width
             addButtonNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
-            //            launchBotJobButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
             // Bind the widths of the buttons to percentages of the HBox width
             countdownTextField.maxWidthProperty().bind(textFieldVBox.widthProperty());
             configureButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
@@ -1725,39 +1571,18 @@ public class ARScannedElementPane extends ARPane {
             HBox boxListViews = new HBox();
 
             // Bind the height of ListViews to the height of the HBox
-            //            scannedElements1.prefHeightProperty().bind(boxListViews.heightProperty());
             componentBox.prefHeightProperty().bind(boxListViews.heightProperty());
-            //            scannedElements3.prefHeightProperty().bind(boxListViews.heightProperty());
-            //            scannedElements4.prefHeightProperty().bind(boxListViews.heightProperty());
 
             boxListViews.setSpacing(5);
 
-            // Set Hgrow for each ListView to make them equally distributed
-            //            HBox.setHgrow(scannedElements1, Priority.ALWAYS);
             HBox.setHgrow(componentBox, Priority.ALWAYS);
-            //            HBox.setHgrow(scannedElements3, Priority.ALWAYS);
-            //            HBox.setHgrow(scannedElements4, Priority.ALWAYS);
 
             StackPane stackCurrentURL = new StackPane();
             stackCurrentURL.getChildren().add(currentURL);
             stackCurrentURL.setAlignment(Pos.CENTER);
             HBox currentURLBox = new HBox(stackCurrentURL);
 
-            //            Label labelInput = new Label("Input/IDs/Names(No Ids/Names)/Buttons");
-            //            StackPane stackLabelInput = new StackPane();
-            //            stackLabelInput.getChildren().add(labelInput);
-            //            stackLabelInput.setAlignment(Pos.CENTER);
-            //            VBox elements1VBox = new VBox(stackLabelInput, scannedElements1);
-            //            HBox.setHgrow(elements1VBox, Priority.ALWAYS);
-
-            //            Label labelOutput = new Label("Output Fields Results");
-            //            StackPane stackLabelOutput = new StackPane();
-            //            stackLabelOutput.getChildren().add(labelOutput);
-            //            stackLabelOutput.setAlignment(Pos.CENTER);
-            //            VBox elements2VBox = new VBox(stackLabelOutput, scannedElements2);
-            //            HBox.setHgrow(elements2VBox, Priority.ALWAYS);
-
-            Label labelOthers = new Label("Input/IDs/Names(No Ids/Names)/Buttons and Other Elements Results");
+            Label labelOthers = new Label("Web Elements Found");
             StackPane stackLabelOthers = new StackPane();
             HBox othersBox = new HBox();
             createSpacerHoriz();
@@ -1767,21 +1592,7 @@ public class ARScannedElementPane extends ARPane {
             stackLabelOthers.setAlignment(Pos.CENTER);
             VBox elements2VBox = new VBox(stackLabelOthers, componentBox);
             HBox.setHgrow(elements2VBox, Priority.ALWAYS);
-
-            //            Label labelNew = new Label("New");
-            //            StackPane stackLabelNew = new StackPane();
-            //            HBox newWebElem = new HBox();
-            //            createSpacerHoriz();
-            //            newWebElem.getChildren().addAll(labelNew, createSpacerHoriz());
-            //            stackLabelNew.getChildren().addAll(newWebElem);
-
-            //            stackLabelNew.setAlignment(Pos.CENTER);
-            //            VBox elements4VBox = new VBox(stackLabelNew, scannedElements4);
-
-            //            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, elements3VBox, textFieldVBox);
-            //            boxListViews.getChildren().addAll(elements1VBox, elements2VBox, textFieldVBox);
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
-            //                    .addAll(elements1VBox, elements2VBox, elements3VBox, elements4VBox, textFieldVBox);
 
             VBox.setVgrow(boxListViews, Priority.ALWAYS);
             HBox.setHgrow(boxListViews, Priority.ALWAYS);
@@ -1815,18 +1626,6 @@ public class ARScannedElementPane extends ARPane {
             AnchorPane.setTopAnchor(topPane, 0.0);
             AnchorPane.setLeftAnchor(topPane, 0.0);
             AnchorPane.setRightAnchor(topPane, 0.0);
-
-            //            // Add a listener to the children list of bottomPane
-            //            bottomPane.getChildren().addListener((ListChangeListener<Node>) change -> {
-            //                while (change.next()) {
-            //                    if (change.wasAdded()) {
-            //                        for (Node node : change.getAddedSubList()) {
-            //                            scheduleRemoval(bottomPane, node, 3000); // Schedule removal for the newly
-            // added node
-            //                        }
-            //                    }
-            //                }
-            //            });
 
             bottomPaneTime.getChildren().addListener((ListChangeListener<Node>) change -> {
                 while (change.next()) {
@@ -2142,24 +1941,27 @@ public class ARScannedElementPane extends ARPane {
         });
 
         refreshInputFieldsButton.setOnAction(e -> refreshInputBtn("Input Web Elements"));
-        refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn("Output Web Elements"));
-        //        refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn("Others Types of Web Elements"));
-        magicFieldsButton.setOnAction(e -> performActions.createOutputHtml("input", performActions.getCurrentDriver()));
-        searchWithIdsButton.setOnAction(e -> refreshWithIdsBtn("Web Elements with Attribute ID"));
-        searchWithNamesButton.setOnAction(e -> refreshWithNamesBtn("Web Elements with Attribute Name"));
-        searchButtons.setOnAction(e -> refreshSearchButtons("Web Elements without Attributes Name/ID"));
+        //        refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn("Output Web Elements"));
+        //        //        refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn("Others Types of Web
+        // Elements"));
+        //        magicFieldsButton.setOnAction(e -> performActions.createOutputHtml("input",
+        // performActions.getCurrentDriver()));
+        //        searchWithIdsButton.setOnAction(e -> refreshWithIdsBtn("Web Elements with Attribute ID"));
+        //        searchWithNamesButton.setOnAction(e -> refreshWithNamesBtn("Web Elements with Attribute Name"));
+        //        searchButtons.setOnAction(e -> refreshSearchButtons("Web Elements without Attributes Name/ID"));
 
-        turnOnOffButton.setOnAction(e -> {
-            searchHiddenFields = !searchHiddenFields; // Toggle value
-
-            if (searchHiddenFields) {
-                turnOnOffButton.setText("Search Hidden Fields: ON");
-                turnOnOffButton.setStyle("-fx-background-color: green; -fx-text-fill: white;");
-            } else {
-                turnOnOffButton.setText("Search Hidden Fields: Off");
-                turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
-            }
-        });
+        turnOnOffButton.setVisible(false);
+        //        turnOnOffButton.setOnAction(e -> {
+        //            searchHiddenFields = !searchHiddenFields; // Toggle value
+        //
+        //            if (searchHiddenFields) {
+        //                turnOnOffButton.setText("Search Hidden Fields: ON");
+        //                turnOnOffButton.setStyle("-fx-background-color: green; -fx-text-fill: white;");
+        //            } else {
+        //                turnOnOffButton.setText("Search Hidden Fields: Off");
+        //                turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
+        //            }
+        //        });
 
         //        scannedElements1.getItems().addListener(this::addBehaviourToAddedElements);
         //        scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
@@ -6757,8 +6559,6 @@ public class ARScannedElementPane extends ARPane {
 
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
 
-                        fillUpCurretLocators(currentInstruction);
-
                         try {
                             if (jumpGoto) {
 
@@ -7664,40 +7464,12 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void clearFields() {
-        allAttributesTextField.setText("");
-        currentXPathTextField.setText("");
         iFrameXPath = "";
         iFrameElements = null;
         coordsTextField.setText("");
-        customXPathTextField.setText("");
         countdownTextField.setText("Pre-Launch status: Ready");
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        //        textFlowResult.getChildren().clear();
-        //        textFlowResult.getChildren().addAll(countdownTextField);
-        //        textFlowResult.requestLayout();
         contentPane.requestLayout();
-    }
-
-    private void fillUpCurretLocators(InstructionLoadDTO currentInstruction) {
-        for (InstructionReferenceLoadDTO reference : currentInstruction.getInstructionReferenceLoadDTOList()) {
-            switch (reference.getReferenceType()) {
-                case "allAttributes":
-                    allAttributesTextField.setText(reference.getValue());
-                    break;
-                case "currentXPath":
-                    currentXPathTextField.setText(reference.getValue());
-                    break;
-                case "coords":
-                    coordsTextField.setText(reference.getValue());
-                    break;
-                case "customXPath":
-                    customXPathTextField.setText(reference.getValue());
-                    break;
-                default:
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .fine("Unknown reference type: " + reference.getReferenceType());
-            }
-        }
     }
 
     public static List<InstructionLoadDTO> getUnexecutedInstructions(
