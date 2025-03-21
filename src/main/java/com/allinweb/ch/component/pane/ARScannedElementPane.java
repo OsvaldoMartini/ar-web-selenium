@@ -1022,7 +1022,7 @@ public class ARScannedElementPane extends ARPane {
     private Button configureButton;
     private Button launchBotJobButton;
     private Button recallJobButton;
-    private Button refreshInputFieldsButton;
+    private Button searchWebElementsButton;
     private Button leftButton;
     private Button rightButton;
     private Button cleanListButton;
@@ -1313,7 +1313,7 @@ public class ARScannedElementPane extends ARPane {
                 "iFrames", ARConstants.SPACE_L, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5));
         addButtonNewElement = componentBuilder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
-        refreshInputFieldsButton = componentBuilder.buildButton(
+        searchWebElementsButton = componentBuilder.buildButton(
                 "Scanner Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
@@ -1457,7 +1457,7 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.setHgap(10); // Set horizontal gap between columns
 
             // Add buttons and checkbox to the GridPane
-            gridPaneTop.add(refreshInputFieldsButton, 0, 0);
+            gridPaneTop.add(searchWebElementsButton, 0, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
             gridPaneTop.add(searchTermsField, 4, 0);
             gridPaneTop.add(turnOnOffButton, 6, 0);
@@ -1896,7 +1896,7 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        refreshInputFieldsButton.setOnAction(e -> refreshInputBtn("Input Web Elements"));
+        searchWebElementsButton.setOnAction(e -> searchTermsBtn("Search Web Elements"));
         //        refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn("Output Web Elements"));
         //        //        refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn("Others Types of Web
         // Elements"));
@@ -2680,11 +2680,24 @@ public class ARScannedElementPane extends ARPane {
         revertPickInjections(performActions.getCurrentDriver());
 
         int finalPort = portSocket;
-        Platform.runLater(() -> periodicSearchThread(
+        String socketSessionId = "scannerTool";
+        String destinationId = "scannerGrid-" + homeBanking.getId();
+
+        periodicSearchThread(
                 performActions.getCurrentDriver(),
                 performActions.getCurrentDriver().getCurrentUrl(),
                 dataArray,
-                finalPort));
+                finalPort,
+                socketSessionId,
+                destinationId,
+                "searchTerms",
+                homeBanking.getId());
+
+        //        Platform.runLater(() -> periodicSearchThread(
+        //                performActions.getCurrentDriver(),
+        //                performActions.getCurrentDriver().getCurrentUrl(),
+        //                dataArray,
+        //                finalPort));
     }
 
     private void revertCloneButtons() {
@@ -3124,11 +3137,16 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void refreshInputBtn(String searchType) {
+    private void searchTermsBtn(String searchType) {
         //        webElementObservableList1.clear();
         //        manageUIScanInputs();
-        String[] dataArray = {"input"};
-
+        String[] dataArray = {"input", "button", "a"};
+        //        String[] dataArray = {"with id"};
+        //        String[] dataArray = {"with name"};
+        //        String[] dataArray = {"button"};
+        //        String[] dataArray = {"with text"};
+        //        String[] dataArray = {"input"};
+        //
         handleSearchTermClick(dataArray);
     }
 
@@ -5254,10 +5272,26 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void periodicSearchThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
+    private void periodicSearchThread(
+            WebDriver driver,
+            String currentUrl,
+            String[] dataArray,
+            int port,
+            String sessionId,
+            String destinationId,
+            String operationId,
+            int homeBankingId) {
         // "scannerTool", "scannerGrid", "searchTerms"
         ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
-                driver, currentUrl, dataArray, searchHiddenFields, port, "scannerTool", "scannerGrid", "searchTerms");
+                driver,
+                currentUrl,
+                dataArray,
+                searchHiddenFields,
+                port,
+                sessionId,
+                destinationId,
+                operationId,
+                homeBankingId);
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
