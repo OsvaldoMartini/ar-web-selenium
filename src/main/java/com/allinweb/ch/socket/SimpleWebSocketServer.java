@@ -234,7 +234,7 @@ public class SimpleWebSocketServer {
                 //                botJobIdTask = processDTO.getBotJobId();
 
                 if (processDTO.getDetails() != null && processDTO.getDetails().length > 0) {
-                    sendMessageJson("scannerReceiver", gson.toJson(processDTO)); // Sending as details
+                    sendMessageJson("scannerReceiver-" + homeBankingId, gson.toJson(processDTO)); // Sending as details
                 }
                 alreadySentMgsSocket = true;
                 break;

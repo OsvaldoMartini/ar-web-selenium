@@ -142,6 +142,7 @@ public class ARScannedElementPane extends ARPane {
                     ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     homeBankingId = processDTO.getHomeBankingId();
                     this.targetSelected = extractPickClone(processDTO.getDetails()[0]);
+                    itPrintsElementDTO(this.targetSelected);
                     insertNewElementDTO(this.targetSelected);
                     break;
                 case "SEND_ALL_ELEMENTS_DTO":
@@ -303,12 +304,6 @@ public class ARScannedElementPane extends ARPane {
 
             String finalNameDefined = nameDefined;
             String finalBlockName1 = blockName;
-            //            boolean result = performMessage.showAlertCombinedVBOX(
-            //                    Alert.AlertType.CONFIRMATION,
-            //                    "Add Instruction to Bot-Job",
-            //                    "Add the Instruction Selected to the Bot-Job?",
-            //                    null,
-            //                    combinedTextContainer);
 
             ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                     "Add Instruction to Bot-Job",
@@ -317,8 +312,8 @@ public class ARScannedElementPane extends ARPane {
                     "Web Element Instruction",
                     nameDefined,
                     true,
-                    "Continue",
-                    "Stop All",
+                    "Yes",
+                    "NO",
                     0);
 
             if (!respModal.equals(ARConstants.DialogModal.STOP)) {
@@ -1132,7 +1127,7 @@ public class ARScannedElementPane extends ARPane {
             portSocket = Integer.parseInt(port);
         }
 
-        connectWebSocketClient(portSocket, "scannerReceiver");
+        connectWebSocketClient(portSocket, "scannerReceiver-" + homeBanking.getId());
 
         searchHiddenFields = false;
 
@@ -1391,6 +1386,14 @@ public class ARScannedElementPane extends ARPane {
         rightButton.setOnAction(e -> switchToRightTab());
 
         cleanListButton.setOnAction(e -> {
+            String jsonData = gson.toJson("[]");
+            var processDTO = new ElementSplitDTO();
+            processDTO.setHomeBankingId(homeBanking.getId());
+            processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
+            processDTO.setOperationId("searchTerms");
+            processDTO.setDetails(new ElementDTO[0]);
+            sendMessageJson(homeBanking.getId(), "scannerGrid-" + homeBanking.getId(), gson.toJson(processDTO), null);
+
             Platform.runLater(() -> {
                 countdownTextField.setText("Pre-Launch status: Ready");
             });
