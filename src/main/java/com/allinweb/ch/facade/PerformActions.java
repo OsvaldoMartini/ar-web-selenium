@@ -4064,6 +4064,9 @@ public class PerformActions {
         loop.setOptional(false);
         loop.setInstructionActive(true);
         loop.setXpath(targetBuild.getXPath());
+        loop.setShadowHost(targetBuild.getShadowHost());
+        loop.setShadowRoot(targetBuild.getShadowRoot());
+        loop.setCssSelector(targetBuild.getCssSelector());
 
         String action = buildAction(forceTag, actionReq, identityHover, targetBuild);
         loop.setActions(action);

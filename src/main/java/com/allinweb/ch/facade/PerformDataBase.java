@@ -1320,6 +1320,7 @@ public class PerformDataBase {
                 + " b.description AS block_description, b.type_id, "
                 + " bli.id AS instruction_id, bli.instruction_order_number, "
                 + " bli.actions, bli.name AS instruction_name, bli.xpath, bli.coordinates,  bli.iframe_xpath, "
+                + " bli.shadow_host, bli.shadow_root, bli.css_selector, "
                 + " bli.description AS instruction_description, bli.force_coordinates, "
                 + " bli.optional, bli.block_marked, bli.default_value, bli.action_custom_max_wait_sec, "
                 + " bli.on_hold_seconds, bli.codified, bli.export_to_abr, "
@@ -1450,6 +1451,9 @@ public class PerformDataBase {
                 + "    bli.xpath, \n"
                 + "    bli.coordinates, \n"
                 + "    bli.iframe_xpath, \n"
+                + "    bli.shadow_host, \n"
+                + "    bli.shadow_root, \n"
+                + "    bli.css_selector, \n"
                 + "    bli.description AS instruction_description, \n"
                 + "    bli.force_coordinates, \n"
                 + "    bli.optional, \n"
@@ -3551,7 +3555,7 @@ public class PerformDataBase {
         String query = "SELECT bli.id, bli.action_custom_max_wait_sec, bli.actions, bli.active, bli.block_marked, "
                 + "bli.codified, bli.default_value, bli.description, bli.export_to_abr, bli.instruction_order_number, "
                 + "bli.name, bli.on_hold_seconds, bli.operation, bli.optional, bli.parent_id, bli.xpath, bli.coordinates, "
-                + "bli.iframe_xpath, bli.force_coordinates, bli.variable_id, bli.block_id, blk.block_order_number, bli."
+                + "bli.iframe_xpath,  bli.shadow_host, bli.shadow_root, bli.css_selector, bli.force_coordinates, bli.variable_id, bli.block_id, blk.block_order_number, bli."
                 + idColumn;
 
         query += " FROM " + table1 + " bli "
