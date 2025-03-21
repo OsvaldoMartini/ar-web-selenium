@@ -1011,8 +1011,6 @@ public class ARScannedElementPane extends ARPane {
 
     // UI COMPONENTS
     private HBox topPane;
-//    private HBox bottomPane;
-//    private HBox bottomPaneTime;
     private AnchorPane contentPane;
 
     private WebView webView = new WebView();
@@ -1308,8 +1306,6 @@ public class ARScannedElementPane extends ARPane {
 
     private void buildUIComponents() {
         topPane = componentBuilder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-//        bottomPane = componentBuilder.createBottomPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-//        bottomPaneTime = componentBuilder.createBottomPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
         contentPane =
                 componentBuilder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
 
@@ -1606,17 +1602,7 @@ public class ARScannedElementPane extends ARPane {
             verticalBox.getChildren().addAll(blockAndUrl, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
 
-//            VBox.setVgrow(bottomPane, Priority.NEVER);
-//            VBox.setVgrow(bottomPaneTime, Priority.NEVER);
-
             contentPane.getChildren().addAll(topPane, verticalBox);
-
-//            AnchorPane.setBottomAnchor(bottomPane, -45.0);
-
-//            AnchorPane.setLeftAnchor(
-//                    bottomPane, 0.0); // Optional: Anchors the left edge of bottomPane to the left of the AnchorPane
-//            AnchorPane.setRightAnchor(
-//                    bottomPane, 0.0); // Optional: Anchors the right edge of bottomPane to the right of the AnchorPane
 
             AnchorPane.setTopAnchor(verticalBox, 0.0);
             AnchorPane.setBottomAnchor(verticalBox, 0.0);
@@ -1626,16 +1612,6 @@ public class ARScannedElementPane extends ARPane {
             AnchorPane.setTopAnchor(topPane, 0.0);
             AnchorPane.setLeftAnchor(topPane, 0.0);
             AnchorPane.setRightAnchor(topPane, 0.0);
-
-//            bottomPaneTime.getChildren().addListener((ListChangeListener<Node>) change -> {
-//                while (change.next()) {
-//                    if (change.wasAdded()) {
-//                        for (Node node : change.getAddedSubList()) {
-//                            scheduleRemoval(bottomPaneTime, node, 3300); // Schedule removal for the newly added node
-//                        }
-//                    }
-//                }
-//            });
 
         } catch (Exception ex) {
             ARLogger.getInstance(ARScannedElementPane.class).fine("Error using Separator line\n" + ex);
@@ -1755,25 +1731,6 @@ public class ARScannedElementPane extends ARPane {
         return separator;
     }
 
-    private void scheduleRemoval(HBox bottomPane, Node node, int delayMillis) {
-        executorService = Executors.newCachedThreadPool();
-
-        executorService.execute(() -> {
-            try {
-                TimeUnit.MILLISECONDS.sleep(delayMillis); // Wait for the specified delay
-            } catch (InterruptedException e) {
-                System.out.println(e.getMessage());
-            }
-            Platform.runLater(
-                    () -> bottomPane.getChildren().remove(node)); // Remove the node on the JavaFX Application Thread
-        });
-
-        if (executorService != null) {
-            remainingSeconds = SECONDS;
-            executorService.shutdown();
-        }
-    }
-
     @Override
     public void initUIBehaviour() {
         try {
@@ -1787,7 +1744,6 @@ public class ARScannedElementPane extends ARPane {
             reduceSearchCriteria = 20;
         }
 
-        //        configureButton.setOnMouseClicked(e -> new ARConfigurationScene().show());
         configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
         launchBotJobButton.setOnMouseClicked(e -> {
             //                        loadBotJob(botJob);
@@ -2175,89 +2131,12 @@ public class ARScannedElementPane extends ARPane {
                 }
             }
 
-//            Platform.runLater(() -> {
-//                try {
-//                    Thread.sleep(2000);
-//                    bottomPane.getChildren().clear();
-//                } catch (InterruptedException e) {
-//                    e.printStackTrace();
-//                }
-//
-//                //                scannedElements1.requestLayout();
-//                //                scannedElements1.refresh();
-//                //                scannedElements2.requestLayout();
-//                //                scannedElements2.refresh();
-//                bottomPane.requestLayout();
-//            });
-
         } catch (Exception e) {
             browserNotAttached();
         } finally {
-
-            //            Platform.runLater(() -> {
-            ////                scannedElements1.requestLayout();
-            ////                scannedElements1.refresh();
-            //                //                scannedElements2.requestLayout();
-            //                //                scannedElements2.refresh();
-            //                bottomPane.requestLayout();
-            //            });
-
-            // Close the browser
             performActions.getCurrentDriver().switchTo().defaultContent();
         }
         return false;
-    }
-
-    private void insertNewElement(String iFrameXPath, List<ElementDTO> elementsFound) {
-
-        try {
-            // Locate and switch to the iframe first
-            WebElement iframe = performActions.getCurrentDriver().findElement(By.xpath(iFrameXPath));
-            performActions.getCurrentDriver().switchTo().frame(iframe);
-
-            TargetElement targetFound = new TargetElement();
-            // Loop through and find elements
-            for (ElementDTO elementFound : elementsFound) { // Start from index 1
-
-                if (elementFound.getTagName().equalsIgnoreCase("html")
-                        || elementFound.getTagName().equalsIgnoreCase("body")
-                        || elementFound.getTagName().equalsIgnoreCase("main")
-                        || elementFound.getTagName().equalsIgnoreCase("script")
-                        || elementFound.getTagName().equalsIgnoreCase("meta")
-                        || elementFound.getTagName().equalsIgnoreCase("head")
-                        || elementFound.getTagName().equalsIgnoreCase("style")) {
-                    continue;
-                }
-
-                try {
-                    WebElement element =
-                            performActions.getCurrentDriver().findElement(By.xpath(elementFound.getXPath()));
-                    //                                elements.add(element);
-
-                    targetFound = performActions.defineSearchReturn(elementFound, element, targetFound);
-
-                    ARWebElement arWebElement = new ARWebElement(targetFound, botJobLoad.getId());
-                    if (arWebElement != null && arWebElement.getElement() != null) {
-                        //                        webElementObservableList2.add(arWebElement);
-                        //                        Platform.runLater(() -> {
-                        //                            scannedElements2.refresh();
-                        //                        });
-                    }
-
-                    System.out.println(
-                            "Found element: " + element.getTagName() + " with XPath: " + elementFound.getXPath());
-                } catch (Exception e) {
-                    System.out.println("Element not found for XPath: " + elementFound.getXPath());
-                    performMessage.generalErrorIFrame(elementFound.getTagName());
-                }
-            }
-
-        } catch (Exception e) {
-            //            browserNotAttached();
-        } finally {
-            // Close the browser
-            performActions.getCurrentDriver().switchTo().defaultContent();
-        }
     }
 
     private boolean insertNewElement(List<ElementDTO> elementsDTO) {
@@ -2845,91 +2724,6 @@ public class ARScannedElementPane extends ARPane {
         //        }
     }
 
-//    private void addProgressBar(int items) {
-//        int currentChildrenCount = bottomPane.getChildren().size();
-//        if (currentChildrenCount < 20) {
-//            // Calculate how many more ProgressBars can be added without exceeding 20
-//            int availableSlots = 20 - currentChildrenCount;
-//
-//            // Determine the number of ProgressBars to add, ensuring it does not exceed available slots
-//            int progressBarCountToAdd = Math.min(items, availableSlots);
-//
-//            Platform.runLater(() -> {
-//                for (int x = 0; x < progressBarCountToAdd; x++) {
-//                    ProgressBar progressBar = new ProgressBar();
-//                    bottomPane.getChildren().add(progressBar);
-//                }
-//            });
-//        }
-//    }
-
-    //    private void manageUIScanAttributeNameFirst() {
-    //        idAttributeFirst = false;
-    //        nameAttributeFirst = true;
-    //        withoutNameAndId = false;
-    //        scanARElementsAsync(null, null, null, webElementObservableList1, "name", "UI Scan Attribute Name First");
-    //    }
-
-    //    private boolean manageUIScanIdsFirst() {
-    //        idAttributeFirst = true;
-    //        nameAttributeFirst = false;
-    //        withoutNameAndId = false;
-    //        return scanARElementsAsync(null, null, null, webElementObservableList1, "id", "UI Scan Ids First");
-    //    }
-
-    //    private void manageUIScanInputs() {
-    //        List<WebElementTagNameEnum> inputTags = WebElementTagNameEnum.insertableTags();
-    //        for (WebElementTagNameEnum tag : inputTags) {
-    //            // addProgressBar();
-    //            boolean scanOk = scanARElementsAsync(
-    //                    null,
-    //                    By.tagName(tag.getValue()),
-    //                    ARWebElement::isNotClickable,
-    //                    webElementObservableList1,
-    //                    null,
-    //                    "UI Scan Inputs");
-    //
-    //            if (!scanOk) {
-    //                break;
-    //            }
-    //        }
-    //    }
-
-    //    private void manageUIScanClickable() {
-    //        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
-    //        for (WebElementTagNameEnum tag : clickableTags) {
-    //            // addProgressBar();
-    //            boolean scanOK = scanARElementsAsync(
-    //                    null,
-    //                    By.tagName(tag.getValue()),
-    //                    ARWebElement::isClickable,
-    //                    webElementObservableList2,
-    //                    null,
-    //                    "UI Scan Clickable");
-    //
-    //            if (!scanOK) {
-    //                break;
-    //            }
-    //        }
-    //    }
-
-    //    private void manageUIScanPriorities() {
-    //        Set<WebElement> webElements = managePrioritiesCriteria();
-    //        try {
-    //            if (webElements != null && webElements.size() > 0) {
-    //                // addProgressBar();
-    //                scanARElementsAsync(webElements, null, null, webElementObservableList2, null, "UI Scan By
-    // Priorities");
-    //            }
-    //        } catch (Exception e) {
-    //            System.out.println("Error " + e.getMessage());
-    //        }
-    //    }
-
-    //    private void manageUIScanOutputs() {
-    //        scanARElementsAsync(By.xpath("CODE_CRITERIA"), webElementObservableList2, "UI Scan Outputs");
-    //    }
-
     private void scanARElementsAsync(
             By criteria, ObservableList<ARWebElement> listToAddNewElements, String criteriaMSG) {
         scanARElementsAsync(null, criteria, null, listToAddNewElements, null, criteriaMSG);
@@ -3002,7 +2796,7 @@ public class ARScannedElementPane extends ARPane {
 
                         if (scannedElementList != null && scannedElementList.size() > 0) {
                             scannedElementListSize.set(scannedElementList.size());
-                            //addProgressBar(scannedElementListSize.get());
+                            // addProgressBar(scannedElementListSize.get());
 
                             ARLogger.getInstance(ARScannedElementPane.class)
                                     .finer("list of scanned elements has " + scannedElementListSize.get()
@@ -3044,12 +2838,6 @@ public class ARScannedElementPane extends ARPane {
                                         ARWebElement arWebElement = new ARWebElement(targetElement, botJobLoad.getId());
                                         if (arWebElement != null) {
                                             listARElements.add(arWebElement);
-                                            //                                            Platform.runLater(() -> {
-                                            //
-                                            // scannedElements1.requestLayout();
-                                            //
-                                            // scannedElements1.refresh();
-                                            //                                            });
                                         }
                                     }
                                     targetElement.reset();
@@ -3101,19 +2889,6 @@ public class ARScannedElementPane extends ARPane {
                                 }
                             });
                         }
-
-//                        if (bottomPane.getChildren().size() > 0) {
-//                            int elementsToRemove = Math.min(
-//                                    listARElementsSize.get() + scannedElementListSize.get(),
-//                                    bottomPane.getChildren().size());
-//                            for (int x = 0; x < elementsToRemove; x++) {
-//                                bottomPane
-//                                        .getChildren()
-//                                        .remove(bottomPane
-//                                                .getChildren()
-//                                                .get(bottomPane.getChildren().size() - 1));
-//                            }
-//                        }
                     }
                 },
                 executorService);
@@ -3122,79 +2897,6 @@ public class ARScannedElementPane extends ARPane {
             executorService.shutdown();
         }
 
-        // Handle completion of the CompletableFuture to remove the ProgressBar
-        future.handle((result, ex) -> {
-            if (ex != null) {
-//                Platform.runLater(() -> {
-//                    if (bottomPane.getChildren().size() > 0) {
-//                        int elementsToRemove = Math.min(
-//                                listARElementsSize.get() + scannedElementListSize.get(),
-//                                bottomPane.getChildren().size());
-//
-//                        for (int x = 0; x < elementsToRemove; x++) {
-//                            bottomPane
-//                                    .getChildren()
-//                                    .remove(bottomPane
-//                                            .getChildren()
-//                                            .get(bottomPane.getChildren().size() - 1));
-//                        }
-//
-//                        for (int x = 0; x < bottomPane.getChildren().size(); x++) {
-//                            bottomPane
-//                                    .getChildren()
-//                                    .remove(bottomPane
-//                                            .getChildren()
-//                                            .get(bottomPane.getChildren().size() - 1));
-//                        }
-//                    }
-//                });
-            } else {
-                //                Platform.runLater(() -> {
-                //                    scannedElements1.requestLayout();
-                //                    scannedElements1.refresh();
-                //                });
-            }
-            return result;
-        });
-
-        // Force complete the future exceptionally on error
-        future.exceptionally(ex -> {
-            future.completeExceptionally(ex);
-            return null;
-        });
-
-        // Handle completion of the CompletableFuture to remove the ProgressBar
-        future.thenRun(() -> {
-            Platform.runLater(() -> {
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .fine("thenRun executed. Sizes: " + "listARElements="
-                                + listARElementsSize.get() + ", scannedElementList="
-                                + scannedElementListSize.get());
-
-//                if (bottomPane.getChildren().size() > 0) {
-//                    int elementsToRemove = Math.min(
-//                            listARElementsSize.get() + scannedElementListSize.get(),
-//                            bottomPane.getChildren().size());
-//                    for (int x = 0; x < elementsToRemove; x++) {
-//                        bottomPane
-//                                .getChildren()
-//                                .remove(bottomPane
-//                                        .getChildren()
-//                                        .get(bottomPane.getChildren().size() - 1));
-//                    }
-//
-//                    for (int x = 0; x < bottomPane.getChildren().size(); x++) {
-//                        bottomPane
-//                                .getChildren()
-//                                .remove(bottomPane
-//                                        .getChildren()
-//                                        .get(bottomPane.getChildren().size() - 1));
-//                    }
-//                }
-            });
-        });
-
-        //        new Thread(workingTask).start();
         return true;
     }
 
@@ -7520,17 +7222,6 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-//    private void executeAlert(InstructionLoadDTO instruction) {
-//        // Execute the countdown in a separate thread
-//        if (instruction != null) {
-//            Integer instructionSeconds = instruction.getOnHoldSeconds();
-//            for (int x = 1; x < instructionSeconds; x++) {
-//                ProgressBar progress = new ProgressBar();
-//                bottomPaneTime.getChildren().add(progress);
-//            }
-//        }
-//    }
-
     private String insertValueFieldNameInExcel(
             String parentId, String innerHTMLValue, String action, String botJobName) {
         //        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
@@ -7586,10 +7277,6 @@ public class ARScannedElementPane extends ARPane {
 
                 try {
 
-//                    if (listARElements.size() < 30) {
-//                        addProgressBar(1);
-//                    }
-
                     ElementDTO elementDTO = new ElementDTO();
 
                     TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, entryElem, null);
@@ -7613,37 +7300,6 @@ public class ARScannedElementPane extends ARPane {
                                     attributeValue, xPath, ex.getMessage()));
                 }
             }
-        } else {
-            // Add progress bars
-//            for (int none = 0; none < 20; none++) {
-//                addProgressBar(1);
-//            }
-
-//            new Thread(() -> {
-//                        try {
-//                            // Sleep for 3 seconds
-//                            Thread.sleep(3000);
-//
-//                            Platform.runLater(() -> {
-//                                try {
-//                                    Thread.sleep(2000);
-//                                    bottomPane.getChildren().clear();
-//                                } catch (InterruptedException e) {
-//                                    e.printStackTrace();
-//                                }
-//
-//                                //                                scannedElements1.requestLayout();
-//                                //                                scannedElements1.refresh();
-//                                //                                scannedElements2.requestLayout();
-//                                //                                scannedElements2.refresh();
-//                                bottomPane.requestLayout();
-//                            });
-//
-//                        } catch (InterruptedException e) {
-//                            System.out.println(e.getMessage()); // Handle interruption
-//                        }
-//                    })
-//                    .start();
         }
         return listARElements;
     }
