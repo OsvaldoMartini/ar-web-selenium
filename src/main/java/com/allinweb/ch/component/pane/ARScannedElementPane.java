@@ -138,9 +138,9 @@ public class ARScannedElementPane extends ARPane {
                     // Extract the "body" field from the JsonObject
                     ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     homeBankingId = processDTO.getHomeBankingId();
-                    this.targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO(this.targetSelected);
-                    insertNewElementDTO(this.targetSelected);
+                    targetSelected = extractPickClone(processDTO.getDetails()[0]);
+                    itPrintsElementDTO(targetSelected);
+                    insertNewElementDTO(targetSelected);
                     break;
                 case "SEND_ALL_ELEMENTS_DTO":
                 case "DEL_ELEMENT_DTO":
@@ -148,8 +148,8 @@ public class ARScannedElementPane extends ARPane {
                     // Extract the "body" field from the JsonObject
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     homeBankingId = processDTO.getHomeBankingId();
-                    this.targetSelected = extractPickClone(processDTO.getDetails()[0]);
-                    itPrintsElementDTO(this.targetSelected);
+                    targetSelected = extractPickClone(processDTO.getDetails()[0]);
+                    itPrintsElementDTO(targetSelected);
                     break;
                 default:
                     break;
@@ -421,11 +421,7 @@ public class ARScannedElementPane extends ARPane {
                         InstructionLoadDTO instruction = performActions.buildNewInstruction(
                                 tagType, actionReq, false, listInstr.size(), targetInsert);
 
-                        if (checkForceCoordText.isSelected()) {
-                            instruction.setForceCoordinates(true);
-                        } else {
-                            instruction.setForceCoordinates(false);
-                        }
+                        instruction.setForceCoordinates(checkForceCoordText.isSelected());
 
                         instruction.setCoordinates(targetInsert.getMainCoordinates());
                         instruction.setIFrameXPath(targetInsert.getIFrameXPath());
@@ -873,7 +869,7 @@ public class ARScannedElementPane extends ARPane {
                     actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 }
 
-                System.out.println(actionsTested.toString());
+                System.out.println(actionsTested);
 
                 VBox vertical = new VBox();
                 vertical.getChildren()
@@ -919,7 +915,6 @@ public class ARScannedElementPane extends ARPane {
             //                                arWebElement.getElement().click();
         } catch (Exception e) {
             performMessage.couldNotFindElement("No TagName");
-            return;
         }
     }
 
@@ -961,8 +956,8 @@ public class ARScannedElementPane extends ARPane {
     private int currentTabIndex = 0; // Track the currently active tab index
     public WebDriver currentDriver;
     private Set<String> windowHandles;
-    private WebElement previousElement = null;
-    private WebElement currentElement = null;
+    private final WebElement previousElement = null;
+    private final WebElement currentElement = null;
 
     private Session session;
     private static final ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
@@ -986,7 +981,7 @@ public class ARScannedElementPane extends ARPane {
     private DatabaseUserDTO databaseUserDto;
 
     private BotJobLoadDTO botJobLoad;
-    private BlockLoadDTO blockLoad;
+    private final BlockLoadDTO blockLoad;
 
     private int currentBlockId;
 
@@ -994,10 +989,10 @@ public class ARScannedElementPane extends ARPane {
 
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-    private HomeBankingLoadDTO homeBanking;
+    private final HomeBankingLoadDTO homeBanking;
 
     private ComboBox<ComboBoxVars> comboBoxBlocks;
-    private ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
+    private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
 
     Button refreshBlocksButton;
 
@@ -1005,7 +1000,7 @@ public class ARScannedElementPane extends ARPane {
     private HBox topPane;
     private AnchorPane contentPane;
 
-    private WebView webView = new WebView();
+    private final WebView webView = new WebView();
     private WebEngine webEngine;
     private HBox componentBox;
 
@@ -1061,7 +1056,7 @@ public class ARScannedElementPane extends ARPane {
     private String[] iFrameElements;
     private static String[] lstAllPaths;
     private String iFrameCoords;
-    private List<ElementDTO> elementsFound = new ArrayList<>();
+    private final List<ElementDTO> elementsFound = new ArrayList<>();
 
     List<InstructionLoadDTO> instructionsExecuted = new ArrayList<>();
     List<Integer> executedSuccess = new ArrayList<>();
@@ -1069,14 +1064,14 @@ public class ARScannedElementPane extends ARPane {
 
     // Very important sequence on initiation
     private static int reduceSearchCriteria;
-    private static ARPropertyManager managerProps;
-    private static ARPriorities arPriorities;
+    private static final ARPropertyManager managerProps;
+    private static final ARPriorities arPriorities;
 
-    private PerformDataBase performDataBase;
-    private PerformActions performActions;
-    private PerformMessage performMessage;
-    private PerformPreLoad performPreLoad;
-    private ARWebDriver currentARWebDriver;
+    private final PerformDataBase performDataBase;
+    private final PerformActions performActions;
+    private final PerformMessage performMessage;
+    private final PerformPreLoad performPreLoad;
+    private final ARWebDriver currentARWebDriver;
 
     private static final PerformCloneLoad performCloneLoad;
     private static final PerformPickLoad performPickLoad;
@@ -1086,8 +1081,8 @@ public class ARScannedElementPane extends ARPane {
     private int portSocket = 8080;
     private String sessionId;
 
-    private String[] defaultSearch;
-    private boolean searchHiddenFields;
+    private final String[] defaultSearch;
+    private final boolean searchHiddenFields;
     private String xpathTextPrevious;
 
     // Static block to initialize
@@ -1144,12 +1139,12 @@ public class ARScannedElementPane extends ARPane {
                     String searchConfig = homeBanking.getSearchConfig();
 
                     if (priorityValue != null) {
-                        arPriorities.loadPrioritiesFromString(priorityValue);
+                        ARPriorities.loadPrioritiesFromString(priorityValue);
                     } else {
                         arPriorities.loadPriorities();
                     }
 
-                    arPriorities.loadSearchElementsConfig(searchConfig);
+                    ARPriorities.loadSearchElementsConfig(searchConfig);
                 }
 
                 // Initialize performAction with arPriorities and arWebDriver
@@ -1217,7 +1212,7 @@ public class ARScannedElementPane extends ARPane {
                 this.botJobLoad.getId(),
                 this.botJobLoad.getName());
 
-        componentBox = new HBox(new Node[] {this.webView});
+        componentBox = new HBox(this.webView);
 
         HBox.setHgrow(this.webView, Priority.ALWAYS);
         VBox.setVgrow(this.webView, Priority.ALWAYS);
@@ -1773,7 +1768,7 @@ public class ARScannedElementPane extends ARPane {
 
         checkCloneElement.setOnMouseClicked(e -> {
             performActions.getCurrentDriver().switchTo().defaultContent();
-            this.targetSelected = null;
+            targetSelected = null;
             resultElementSearch = false;
 
             revertCloneInjections(performActions.getCurrentDriver());
@@ -1830,13 +1825,13 @@ public class ARScannedElementPane extends ARPane {
         scanIFrameButton.setOnAction(e -> manageUIScanIFrames("Scan iFrames and Nested Web Elements"));
 
         cloneToNewElement.setOnAction(e -> {
-            if (this.targetSelected.getElement() != null) {
-                cloneElementDTO(this.targetSelected);
+            if (targetSelected != null && targetSelected.getElement() != null) {
+                cloneElementDTO(targetSelected);
             } else {
 
                 performMessage.showCustomModalDialogDragWin11(
                         "Select a Web Element to Clone",
-                        "Click on the desired Web Element below to clone it.",
+                        "Click on the row of the Web Element to clone it.",
                         null,
                         null,
                         null,
@@ -1844,8 +1839,6 @@ public class ARScannedElementPane extends ARPane {
                         "OK",
                         null,
                         0);
-
-                return;
             }
         });
 
@@ -1895,14 +1888,18 @@ public class ARScannedElementPane extends ARPane {
 
             ElementDTO elementDTO = performActions.convertTargetToElementDTO(targetToClone);
 
+            elementDTO.setSomeText(defineNameField.getText().trim());
             if (checkInputText.isSelected()) {
                 elementDTO.setTypeElement(WebElementTagNameEnum.INPUT.getValue().toLowerCase());
+                elementDTO.setTagName(WebElementTagNameEnum.INPUT.getValue().toLowerCase());
             } else if (checkClickElement.isSelected()) {
                 elementDTO.setTypeElement(
                         WebElementTagNameEnum.BUTTON.getValue().toLowerCase());
+                elementDTO.setTagName(WebElementTagNameEnum.BUTTON.getValue().toLowerCase());
             } else if (checkOutputText.isSelected()) {
                 elementDTO.setTypeElement(
                         WebElementTagNameEnum.OUTPUT.getValue().toLowerCase());
+                elementDTO.setTagName(WebElementTagNameEnum.LABEL.getValue().toLowerCase());
             }
 
             var processDTO = new ElementSplitDTO();
@@ -2320,7 +2317,7 @@ public class ARScannedElementPane extends ARPane {
 
         elementsFound.clear();
         xpathTextPrevious = "";
-        this.targetSelected = null;
+        targetSelected = null;
 
         revertCloneInjections(performActions.getCurrentDriver());
         revertPickInjections(performActions.getCurrentDriver());
@@ -2612,18 +2609,17 @@ public class ARScannedElementPane extends ARPane {
             performActions.getCurrentDriver().switchTo().defaultContent();
 
             // iFrame
-            if (!Strings.isNullOrEmpty(this.targetSelected.getIFrameXPath())) {
+            if (!Strings.isNullOrEmpty(targetSelected.getIFrameXPath())) {
                 try {
-                    WebElement iFrame = performActions
-                            .getCurrentDriver()
-                            .findElement(By.xpath(this.targetSelected.getIFrameXPath()));
+                    WebElement iFrame =
+                            performActions.getCurrentDriver().findElement(By.xpath(targetSelected.getIFrameXPath()));
                     performActions.getCurrentDriver().switchTo().frame(iFrame);
                 } catch (Exception error) {
                     ARLogger.getInstance(ARScannedElementPane.class)
                             .info("iFrame Element not Located\niFrameXPath"
-                                    + this.targetSelected.getIFrameXPath()
+                                    + targetSelected.getIFrameXPath()
                                     + "iFrameChild: "
-                                    + this.targetSelected.getMainXPath());
+                                    + targetSelected.getMainXPath());
                     //                            performMessage.errorMessage(
                     //                                    "iFrame Element not Located",
                     //                                    "Cannot able to find the iFrame",
@@ -2635,27 +2631,27 @@ public class ARScannedElementPane extends ARPane {
             }
 
             defineNameField.setText("");
-            if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                    || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
-                    || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
-                nameDefined = (!Strings.isNullOrEmpty(this.targetSelected.getSomeText())
-                        ? performActions.truncateAndNormalize(this.targetSelected.getSomeText(), 30)
-                        : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                                ? this.targetSelected.getAttribId()
-                                : !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
-                                        ? this.targetSelected.getAttribName()
+            if (!Strings.isNullOrEmpty(targetSelected.getAttribId())
+                    || !Strings.isNullOrEmpty(targetSelected.getAttribName())
+                    || !Strings.isNullOrEmpty(targetSelected.getSomeText())) {
+                nameDefined = (!Strings.isNullOrEmpty(targetSelected.getSomeText())
+                        ? PerformActions.truncateAndNormalize(targetSelected.getSomeText(), 30)
+                        : !Strings.isNullOrEmpty(targetSelected.getAttribId())
+                                ? targetSelected.getAttribId()
+                                : !Strings.isNullOrEmpty(targetSelected.getAttribName())
+                                        ? targetSelected.getAttribName()
                                         : "");
 
-                if (this.targetSelected.getDefinedName() != null
-                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = this.targetSelected.getDefinedName();
+                if (targetSelected.getDefinedName() != null
+                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = targetSelected.getDefinedName();
                 }
 
                 String finalNameDefined = nameDefined;
                 Platform.runLater(
-                        () -> defineNameField.setText(performActions.truncateAndNormalize(finalNameDefined, 30)));
+                        () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalNameDefined, 30)));
 
-            } else if (this.targetSelected.getAttributeData().length > 0) {
+            } else if (targetSelected.getAttributeData().length > 0) {
 
                 // Split by comma to get key-value pairs
 
@@ -2664,7 +2660,7 @@ public class ARScannedElementPane extends ARPane {
                 String typeValue = null;
 
                 // Loop through each key-value pair
-                for (AttributeData attributeData : this.targetSelected.getAttributeData()) {
+                for (AttributeData attributeData : targetSelected.getAttributeData()) {
 
                     String key = attributeData.getName().trim();
                     String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
@@ -2680,31 +2676,31 @@ public class ARScannedElementPane extends ARPane {
 
                 // Print based on priority: ID -> Name -> Type
                 if (idValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + idValue;
+                    nameDefined = targetSelected.getOriginalTagName() + "-" + idValue;
                 } else if (nameValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + nameValue;
+                    nameDefined = targetSelected.getOriginalTagName() + "-" + nameValue;
                 } else if (typeValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + typeValue;
+                    nameDefined = targetSelected.getOriginalTagName() + "-" + typeValue;
                 } else {
-                    nameDefined = this.targetSelected.getOriginalTagName();
+                    nameDefined = targetSelected.getOriginalTagName();
                 }
 
-                if (this.targetSelected.getDefinedName() != null
-                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = this.targetSelected.getDefinedName();
+                if (targetSelected.getDefinedName() != null
+                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = targetSelected.getDefinedName();
                 }
 
                 String finalSomeText = nameDefined;
                 Platform.runLater(
-                        () -> defineNameField.setText(performActions.truncateAndNormalize(finalSomeText, 30)));
+                        () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 30)));
 
-            } else if (!Strings.isNullOrEmpty(this.targetSelected.getOriginalTagName())) {
+            } else if (!Strings.isNullOrEmpty(targetSelected.getOriginalTagName())) {
 
-                if (this.targetSelected.getDefinedName() != null
-                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = this.targetSelected.getDefinedName();
+                if (targetSelected.getDefinedName() != null
+                        && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
+                    nameDefined = targetSelected.getDefinedName();
                 } else {
-                    nameDefined = this.targetSelected.getOriginalTagName();
+                    nameDefined = targetSelected.getOriginalTagName();
                 }
                 String finalSomeText = nameDefined;
 
@@ -2716,26 +2712,26 @@ public class ARScannedElementPane extends ARPane {
         // this.targetElement.getSomeText())
         //                        .append("\n");
 
-        sb.append("TagType: " + this.targetSelected.getTagType()).append("\n");
-        sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
-        sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
-        if (!Strings.isNullOrEmpty(this.targetSelected.getShadowRoot())) {
-            sb.append("ShadowHost: " + this.targetSelected.getShadowHost()).append("\n");
-            sb.append("cssSelector: " + this.targetSelected.getCssSelector()).append("\n");
+        sb.append("TagType: " + targetSelected.getTagType()).append("\n");
+        sb.append("ID: " + targetSelected.getAttribId()).append("\n");
+        sb.append("Name: " + targetSelected.getAttribName()).append("\n");
+        if (!Strings.isNullOrEmpty(targetSelected.getShadowRoot())) {
+            sb.append("ShadowHost: " + targetSelected.getShadowHost()).append("\n");
+            sb.append("cssSelector: " + targetSelected.getCssSelector()).append("\n");
         }
-        sb.append("Text: " + this.targetSelected.getSomeText()).append("\n");
+        sb.append("Text: " + targetSelected.getSomeText()).append("\n");
 
-        if (!Strings.isNullOrEmpty(this.targetSelected.getCoords())) {
-            sb.append("Coordinates: " + this.targetSelected.getCoords()).append("\n");
-            coordsTextField.setText(this.targetSelected.getCoords());
+        if (!Strings.isNullOrEmpty(targetSelected.getCoords())) {
+            sb.append("Coordinates: " + targetSelected.getCoords()).append("\n");
+            coordsTextField.setText(targetSelected.getCoords());
         } else {
             sb.append("Coordinates: EMPTY").append("\n");
         }
 
-        if (!Strings.isNullOrEmpty(this.targetSelected.getSearchAttributeValue())) {
-            sb.append("Search Attrib: " + this.targetSelected.getSearchAttributeValue())
+        if (!Strings.isNullOrEmpty(targetSelected.getSearchAttributeValue())) {
+            sb.append("Search Attrib: " + targetSelected.getSearchAttributeValue())
                     .append("\n");
-            searchAttribValueField.setText(this.targetSelected.getSearchAttributeValue());
+            searchAttribValueField.setText(targetSelected.getSearchAttributeValue());
             searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
         } else {
             sb.append("Search Attrib: No Defined").append("\n");
@@ -2743,7 +2739,7 @@ public class ARScannedElementPane extends ARPane {
 
         sb.append("Named: " + nameDefined).append("\n");
         sb.append("All Attributes Found: ").append("\n");
-        for (AttributeData attribute : this.targetSelected.getAttributeData()) {
+        for (AttributeData attribute : targetSelected.getAttributeData()) {
             sb.append("->  ")
                     .append(attribute.getName().trim() + "="
                             + attribute.getValue().trim())
@@ -2760,7 +2756,7 @@ public class ARScannedElementPane extends ARPane {
         //                textFlowResult.requestLayout();
         //                contentPane.requestLayout();
 
-        defineCheckBoxesClickabe(this.targetSelected);
+        defineCheckBoxesClickabe(targetSelected);
         performActions.getCurrentDriver().switchTo().defaultContent();
     }
 
@@ -2768,14 +2764,14 @@ public class ARScannedElementPane extends ARPane {
 
         // Gets Always the Latest info form DB
         databaseUserDto = loadUserData(homeBanking.getId());
-        arPriorities.loadSearchElementsConfig(databaseUserDto.getSearchConfig());
+        ARPriorities.loadSearchElementsConfig(databaseUserDto.getSearchConfig());
 
         Set<WebElement> elementsResponse = new HashSet<>();
-        if (arPriorities.getSearchConfigList() == null) {
+        if (ARPriorities.getSearchConfigList() == null) {
             System.out.println("Is going to Search using \"searchConfigTemplate\"!  Please Add to the DB");
             return null;
         }
-        if (arPriorities.getSearchConfigList().size() > 0) {
+        if (ARPriorities.getSearchConfigList().size() > 0) {
 
             // Fetch the HTML content of the page
             Document docJSoup = null;
@@ -2783,13 +2779,12 @@ public class ARScannedElementPane extends ARPane {
             Set<WebElementWrapper> uniqueWrapperElements = new HashSet<>();
             List<WebElement> finalList = new ArrayList<>();
             Set<WebElement> uniqueWebElements = new HashSet<>();
-            for (com.allinweb.ch.util.SearchConfig searchConfig : arPriorities.getSearchConfigList()) {
+            for (com.allinweb.ch.util.SearchConfig searchConfig : ARPriorities.getSearchConfigList()) {
                 PriorityTypeEnum priorityTypeEnum = null;
                 try {
-                    priorityTypeEnum = PriorityTypeEnum.getPriorityType(
-                            searchConfig.getSearchType().toString());
+                    priorityTypeEnum = PriorityTypeEnum.getPriorityType(searchConfig.getSearchType());
                 } catch (Exception e) {
-                    System.out.println(String.format("The ENUM: was not defined!"));
+                    System.out.println("The ENUM: was not defined!");
                     continue;
                 }
                 if (priorityTypeEnum == null) {
@@ -2817,7 +2812,7 @@ public class ARScannedElementPane extends ARPane {
                                     }
                                 }
                             } catch (Exception e) {
-                                System.out.println(String.format("WebDriver cannot read this format: %s", name));
+                                System.out.printf("WebDriver cannot read this format: %s%n", name);
                             }
                             try {
                                 elementJSoup = docJSoup.select(name);
@@ -2841,7 +2836,7 @@ public class ARScannedElementPane extends ARPane {
                                                     svg.selectFirst("use").attr("xlink:href");
                                             System.out.println("Found SVG with href: " + svgHref
                                                     + " inside anchor with href: " + href);
-                                            text = svgHref.toString();
+                                            text = svgHref;
                                         } else if (svg != null) {
                                             System.out.println(
                                                     "Found anchor with href: " + href + " containing nested SVG.");
@@ -2874,13 +2869,12 @@ public class ARScannedElementPane extends ARPane {
                                         if (uniqueWrapperElements.add(wrapper)) {
                                             finalList.add(wrapper.getWebElement());
                                         }
-                                        ;
                                     } else {
                                         finalList.add(bestMatch.getWebElement());
                                     }
                                 }
                             } catch (Exception e) {
-                                System.out.println(String.format("Jsoup cannot read this format: %s", name));
+                                System.out.printf("Jsoup cannot read this format: %s%n", name);
                             }
 
                             //                                // Convert unique wrappers back to a list of
@@ -2929,7 +2923,7 @@ public class ARScannedElementPane extends ARPane {
                                         finalList.add(element);
                                     }
                                 } catch (Exception e) {
-                                    System.out.println(String.format("WebDriver cannot read this format: %s", name));
+                                    System.out.printf("WebDriver cannot read this format: %s%n", name);
                                 }
                             } else if (name.equalsIgnoreCase("input")) {
                                 try {
@@ -2949,12 +2943,11 @@ public class ARScannedElementPane extends ARPane {
                                                 System.out.println("Placeholder: " + placeholder);
                                             }
                                         } catch (Exception e) {
-                                            System.out.println(
-                                                    String.format("WebDriver cannot read this format: %s", name));
+                                            System.out.printf("WebDriver cannot read this format: %s%n", name);
                                         }
                                     }
                                 } catch (Exception e) {
-                                    System.out.println(String.format("WebDriver cannot read this format: %s", name));
+                                    System.out.printf("WebDriver cannot read this format: %s%n", name);
                                 }
                             }
 
@@ -3018,7 +3011,7 @@ public class ARScannedElementPane extends ARPane {
                                     finalList.add(element);
                                 }
                             } catch (Exception e) {
-                                System.out.println(String.format("WebDriver cannot read this format: %s", name));
+                                System.out.printf("WebDriver cannot read this format: %s%n", name);
                             }
 
                             //                            try {
@@ -3386,7 +3379,7 @@ public class ARScannedElementPane extends ARPane {
     private void buildPriorityReferences(List<ARWebElement> elements) {
         Map<String, String> references = new HashMap<>();
         for (ARWebElement arElement : elements) {
-            for (com.allinweb.ch.util.Priority priority : arPriorities.getAllPriorityList()) {
+            for (com.allinweb.ch.util.Priority priority : ARPriorities.getAllPriorityList()) {
                 switch (priority.getPriorityType()) {
                     case attribute -> {
                         String attributeValue = arElement
@@ -3611,7 +3604,7 @@ public class ARScannedElementPane extends ARPane {
                 // performActions.truncateAndNormalize(pickTarget.getSomeText(), 30)
                 //                                                : "");
                 nameDefined = (!Strings.isNullOrEmpty(pickTarget.getSomeText())
-                        ? performActions.truncateAndNormalize(pickTarget.getSomeText(), 30)
+                        ? PerformActions.truncateAndNormalize(pickTarget.getSomeText(), 30)
                         : !Strings.isNullOrEmpty(pickTarget.getAttribId())
                                 ? pickTarget.getAttribId()
                                 : !Strings.isNullOrEmpty(pickTarget.getAttribName()) ? pickTarget.getAttribName() : "");
@@ -3883,14 +3876,14 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private boolean executeJob() {
-        if (performActions.waitForPage == null) {
+        if (PerformActions.waitForPage == null) {
             String updateTimeout =
                     ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
             String interactionTimeout =
                     ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-            performActions.waitForPage = new WebDriverWait(
+            PerformActions.waitForPage = new WebDriverWait(
                     performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
-            performActions.waitForAction = new WebDriverWait(
+            PerformActions.waitForAction = new WebDriverWait(
                     performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
 
@@ -5276,7 +5269,7 @@ public class ARScannedElementPane extends ARPane {
                                 currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
                         if (arr.length > 1) {
                             String dataFieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
-                            performActions.insertRandomName(dataFieldName);
+                            PerformActions.insertRandomName(dataFieldName);
                         }
                     }
                 }
@@ -5735,9 +5728,8 @@ public class ARScannedElementPane extends ARPane {
 
             Object iframeElementsObject = resultMap.get("allWithText");
 
-            if (iframeElementsObject instanceof List<?>) {
+            if (iframeElementsObject instanceof List<?> iframeElementsList) {
                 // Convert List to String[]
-                List<?> iframeElementsList = (List<?>) iframeElementsObject;
                 lstAllPaths = iframeElementsList.toArray(new String[0]);
             } else if (iframeElementsObject instanceof Object[]) {
                 // If it's an array, check if it's an array of Strings
