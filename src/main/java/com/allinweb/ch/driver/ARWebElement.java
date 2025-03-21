@@ -170,7 +170,7 @@ public class ARWebElement {
                 ARLogger.getInstance(Thread.class).finer("Reloaded arPriorities.loadPrioritiesFromString()");
             }
 
-            if (targetElement.getMainXPath() == null && arPriorities.getJobId() != null) {
+            if (targetElement.getXPath() == null && arPriorities.getJobId() != null) {
                 for (Priority priority : arPriorities.getAllPriorityList()) {
                     try {
                         switch (priority.getPriorityType()) {
@@ -214,11 +214,11 @@ public class ARWebElement {
                                 }
                             }
                             case xpath, ByXPath -> {
-                                if (Strings.isNullOrEmpty(targetElement.getMainXPath())) {
-                                    targetElement.setMainXPath(ARWebUtil.extractWebElementXPath(element));
-                                    savedReferences.put(priority.getName().get(0), targetElement.getMainXPath());
+                                if (Strings.isNullOrEmpty(targetElement.getXPath())) {
+                                    targetElement.setXPath(ARWebUtil.extractWebElementXPath(element));
+                                    savedReferences.put(priority.getName().get(0), targetElement.getXPath());
                                 } else {
-                                    savedReferences.put(priority.getName().get(0), targetElement.getMainXPath());
+                                    savedReferences.put(priority.getName().get(0), targetElement.getXPath());
                                 }
                             }
                             case coordinates -> {
@@ -227,11 +227,11 @@ public class ARWebElement {
                                         + (coord.getY() + (coord.getHeight() / 2));
                                 savedReferences.put(priority.getName().get(0), coordTemp);
 
-                                if (Strings.isNullOrEmpty(targetElement.getMainCoordinates())) {
-                                    targetElement.setMainCoordinates(coordTemp);
+                                if (Strings.isNullOrEmpty(targetElement.getCoordinates())) {
+                                    targetElement.setCoordinates(coordTemp);
                                 }
-                                if (Strings.isNullOrEmpty(targetElement.getCoords())) {
-                                    targetElement.setCoords(coordTemp);
+                                if (Strings.isNullOrEmpty(targetElement.getCoordinates())) {
+                                    targetElement.setCoordinates(coordTemp);
                                 }
                             }
                         }
@@ -276,7 +276,7 @@ public class ARWebElement {
                     if (!Strings.isNullOrEmpty(targetElement.getSearchAttributeValue())) {
                         savedReferences.put("searchAttribute", targetElement.getSearchAttributeValue());
                     }
-                } else if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getMainXPath())) {
+                } else if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getXPath())) {
                     savedReferences.put("xpath", targetElement.getCurrentXPath());
                 } else if (!Strings.isNullOrEmpty(targetElement.getAttribId())) {
                     savedReferences.put("attributeID", targetElement.getAttribId());
@@ -304,8 +304,8 @@ public class ARWebElement {
                                     + (coordinates.getY() + (coordinates.getHeight() / 2)));
                 } catch (Exception coords) {
                     // Split the string into X and Y values
-                    if (Strings.isNullOrEmpty(targetElement.getCoords())) {
-                        String[] parts = targetElement.getCoords().split(",");
+                    if (Strings.isNullOrEmpty(targetElement.getCoordinates())) {
+                        String[] parts = targetElement.getCoordinates().split(",");
                         int x = Integer.parseInt(parts[0]);
                         int y = Integer.parseInt(parts[1]);
 
@@ -648,7 +648,7 @@ public class ARWebElement {
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
         loop.setInstructionActive(true);
-        loop.setXpath(targetElement.getMainXPath());
+        loop.setXpath(targetElement.getXPath());
         String action;
         // TODO: Make a better thing than this
         if (isIdElement.get()) {

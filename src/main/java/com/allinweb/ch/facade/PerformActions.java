@@ -5,6 +5,7 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.AttributeData;
+import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
@@ -3046,11 +3047,11 @@ public class PerformActions {
         ElementDTO elementDTO = new ElementDTO();
 
         elementDTO.setTagName(targetElement.getOriginalTagName());
-        elementDTO.setXPath(targetElement.getMainXPath());
+        elementDTO.setXPath(targetElement.getXPath());
         elementDTO.setSomeText(targetElement.getSomeText());
         elementDTO.setAttribId(targetElement.getAttribId());
         elementDTO.setAttribName(targetElement.getAttribName());
-        elementDTO.setCoords(targetElement.getCoords());
+        elementDTO.setCoordinates(targetElement.getCoordinates());
         elementDTO.setAttributeData(targetElement.getAttributeData());
         elementDTO.setCustomXPath(targetElement.getCustomXPath());
         elementDTO.setIFrameXPath(targetElement.getIFrameXPath());
@@ -3100,22 +3101,20 @@ public class PerformActions {
         return elementDTO;
     }
 
-    public TargetElement defineSearchReturn(ElementDTO elemenDTO, WebElement element, TargetElement targetDefine) {
+    public TargetElement defineSearchReturn(ElementDTO elemenDTO, TargetElement targetDefine) {
         if (targetDefine == null || targetDefine.getElement() == null) {
             if (targetDefine == null) {
                 targetDefine = new TargetElement();
             }
-
-            targetDefine.setElement(element);
 
             // Reset Previous Values
             targetDefine.setAttribId(elemenDTO.getAttribId());
             targetDefine.setAttribName(elemenDTO.getAttribName());
             targetDefine.setOriginalTagName(elemenDTO.getTagName());
             targetDefine.setSomeText(elemenDTO.getSomeText());
-            targetDefine.setCoords(elemenDTO.getCoords());
+            targetDefine.setCoordinates(elemenDTO.getCoordinates());
 
-            targetDefine.setMainXPath(elemenDTO.getXPath());
+            targetDefine.setXPath(elemenDTO.getXPath());
             targetDefine.setCurrentXPath(elemenDTO.getXPath());
 
             targetDefine.setIFrameXPath(elemenDTO.getIFrameXPath());
@@ -3141,8 +3140,6 @@ public class PerformActions {
             targetDefine.setIFrameElements(null);
 
             targetDefine.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
-
-            defineSavedReferenced(targetDefine);
 
             // W3C 6 Headers
             String[] validHeaders = {"h1", "h2", "h3", "h4", "h5", "h6"};
@@ -3325,7 +3322,7 @@ public class PerformActions {
             }
 
         } catch (Exception e) {
-            ARLogger.getInstance(PerformActions.class).fine("Error defineTargetNameTitles");
+            ARLogger.getInstance(PerformActions.class).fine("Error define Target Name Titles");
         }
         return target;
     }
@@ -3348,8 +3345,8 @@ public class PerformActions {
             System.out.println("Custom xPath: " + targetTagType.getCustomXPath());
             System.out.println("iFrame xPath: " + targetTagType.getIFrameXPath());
 
-            if (targetTagType.getCoords() != null) {
-                String[] coords = targetTagType.getCoords().split(",");
+            if (targetTagType.getCoordinates() != null) {
+                String[] coords = targetTagType.getCoordinates().split(",");
                 if (coords.length == 2) {
                     String coordLeft = coords[0].trim();
                     String coordRight = coords[1].trim();
@@ -4065,7 +4062,7 @@ public class PerformActions {
         loop.setInstructionOrderNumber(orderNumber);
         loop.setOptional(false);
         loop.setInstructionActive(true);
-        loop.setXpath(targetBuild.getMainXPath());
+        loop.setXpath(targetBuild.getXPath());
 
         String action = buildAction(forceTag, actionReq, identityHover, targetBuild);
         loop.setActions(action);
@@ -4144,7 +4141,7 @@ public class PerformActions {
     }
 
     private void processXPathAndAttributes(TargetElement targetRefs, Map<String, String> savedReferences) {
-        addAttributeIfNotNull(savedReferences, "xpath", targetRefs.getMainXPath());
+        addAttributeIfNotNull(savedReferences, "xpath", targetRefs.getXPath());
         addAttributeIfNotNull(savedReferences, "currentXPath", targetRefs.getCurrentXPath());
         addAttributeIfNotNull(savedReferences, "customXPath", targetRefs.getCustomXPath());
         addAttributeIfNotNull(savedReferences, "attributeID", targetRefs.getAttribId());
@@ -4167,27 +4164,77 @@ public class PerformActions {
     }
 
     private void processCoordinates(TargetElement targetRefs, Map<String, String> savedReferences) {
+
+        savedReferences.put("js_coordinates", targetRefs.getCoordinates());
+
         try {
             // Attempt to get coordinates from the element
             Rectangle coordinates = targetRefs.getElement().getRect();
-            String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                    + (coordinates.getY() + (coordinates.getHeight() / 2));
+
+            // Compute new coordinates based on element's dimensions
+            String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2.0)) + ","
+                    + (coordinates.getY() + (coordinates.getHeight() / 2.0));
+
+            // webdriver
             savedReferences.put("coordinates", newCoordinates);
         } catch (Exception coords) {
-            // Fallback to using coords string if element coordinates are unavailable
-            if (!Strings.isNullOrEmpty(targetRefs.getCoords())) {
-                String[] parts = targetRefs.getCoords().split(",");
-                int x = Integer.parseInt(parts[0]);
-                int y = Integer.parseInt(parts[1]);
-                // Create a Rectangle object (assuming you want to use a width and height)
-                int width = 100; // Replace with actual width if available
-                int height = 100; // Replace with actual height if available
-                Rectangle coordinates = new Rectangle(x, y, width, height);
+            System.err.println("Invalid coordinates from WebDriver Selenium");
+        }
 
-                String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                        + (coordinates.getY() + (coordinates.getHeight() / 2));
-                savedReferences.put("coordinates", newCoordinates);
+        String[] parts = targetRefs.getCoordinates().split(",");
+
+        try {
+            // Parse coordinates as doubles
+            double x = Double.parseDouble(parts[0].trim());
+            double y = Double.parseDouble(parts[1].trim());
+
+            int width = 100; // Replace with actual width if available
+            int height = 100; // Replace with actual height if available
+
+            // Create a Rectangle with rounded integer values
+            Rectangle coordinates = new Rectangle((int) Math.round(x), (int) Math.round(y), width, height);
+
+            // Compute new coordinates using double precision
+            String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2.0)) + ","
+                    + (coordinates.getY() + (coordinates.getHeight() / 2.0));
+
+            // Computed
+            savedReferences.put("cp_coordinates", newCoordinates);
+        } catch (NumberFormatException e) {
+            System.err.println("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
+        }
+    }
+
+    public int createBlockIfNone(String blockName, int botJobId) {
+
+        // It Prevents Start without blocks
+        List<BlockLoadDTO> blockLoadList = performDataBase.loadBlocksByBotJobId(botJobId);
+        if (blockLoadList.isEmpty()) {
+
+            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+            newBlockDetails.setBlockName(blockName);
+            newBlockDetails.setBlockDescription("  description");
+            newBlockDetails.setTypeId(1);
+            newBlockDetails.setActive(true);
+            newBlockDetails.setWait(3);
+
+            newBlockDetails.setBotJobId(botJobId);
+
+            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
+
+            if (newBlockId < 0) {
+                performMessage.errorMessage(
+                        "Error Creating new Block",
+                        "Verify the Bot Job Name if have any",
+                        "Check if you already have a Bot Job Created!",
+                        null,
+                        null,
+                        0);
+                return -1;
+            } else {
+                return newBlockId;
             }
         }
+        return -1;
     }
 }

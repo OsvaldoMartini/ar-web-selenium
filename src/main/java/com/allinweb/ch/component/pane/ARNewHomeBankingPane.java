@@ -190,7 +190,9 @@ public class ARNewHomeBankingPane extends ARPane {
             priorities.append("3,attributeName,attributeName" + System.lineSeparator());
             priorities.append("4,searchAttribute,searchAttribute" + System.lineSeparator());
             priorities.append("5,coordinates,coordinates" + System.lineSeparator());
-            priorities.append("6,attribute,test-id" + System.lineSeparator());
+            priorities.append("6,js_coordinates,js_coordinates" + System.lineSeparator());
+            priorities.append("7,cp_coordinates,cp_coordinates" + System.lineSeparator());
+            priorities.append("8,attribute,test-id" + System.lineSeparator());
             //            priorMissing.append("7,attributes,allAttributes" + System.lineSeparator());
             priorityField.setText(priorities.toString());
 

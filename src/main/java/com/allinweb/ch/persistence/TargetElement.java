@@ -20,14 +20,9 @@ public class TargetElement {
     String currentXPath;
     AttributeData[] attributeData;
     String customXPath;
-    String coords;
-    String mainXPath;
-    String mainCoordinates;
+    String coordinates;
+    String XPath;
     String xPathWorkedFirst;
-    String isCurrentXPathOK;
-    String isAllAttributesOK;
-    String isCustomXPathOK;
-    String isCoordsOK;
     String iFrameXPath;
     List<String> iFrameElements;
     String shadowHost;
@@ -58,14 +53,9 @@ public class TargetElement {
         this.currentXPath = origin.currentXPath;
         this.attributeData = origin.attributeData;
         this.customXPath = origin.customXPath;
-        this.coords = origin.coords;
-        this.mainXPath = origin.mainXPath;
-        this.mainCoordinates = origin.mainCoordinates;
+        this.coordinates = origin.coordinates;
+        this.XPath = origin.XPath;
         this.xPathWorkedFirst = origin.xPathWorkedFirst;
-        this.isCurrentXPathOK = origin.isCurrentXPathOK;
-        this.isAllAttributesOK = origin.isAllAttributesOK;
-        this.isCustomXPathOK = origin.isCustomXPathOK;
-        this.isCoordsOK = origin.isCoordsOK;
         this.iFrameXPath = origin.iFrameXPath;
         this.iFrameElements = origin.iFrameElements;
         this.shadowHost = origin.shadowHost;
@@ -97,14 +87,9 @@ public class TargetElement {
         this.currentXPath = null;
         this.attributeData = null;
         this.customXPath = null;
-        this.coords = null;
-        this.mainXPath = null;
-        this.mainCoordinates = null;
+        this.coordinates = null;
+        this.XPath = null;
         this.xPathWorkedFirst = null;
-        this.isCurrentXPathOK = null;
-        this.isAllAttributesOK = null;
-        this.isCustomXPathOK = null;
-        this.isCoordsOK = null;
         this.iFrameXPath = null;
         this.iFrameElements = null;
         this.shadowHost = null;
@@ -130,150 +115,3 @@ public class TargetElement {
         this.clickElement = false;
     }
 }
-
-/*
-    targetElement = performAction.defineTargetNameTitles(targetElement);
-    // First  Search for xPath
-    TargetElement targetValidated = checkValidateSearchPriorities(targetElement);
-
-    if (targetValidated.getElement() == null) {
-
-                performMessage.errorMessage(
-                "I Cannot defene this element",
-                "I will use the Locato \"COORDINATES\"",
-                "Try to get it again -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"",
-                null,
-                null,
-                0);
-
-                return null;
-                }
-
-    targetElement = defineTagType(targetElement);
-    //iFrames
-    private TargetElement defineTagTypeAdvanced( WebElement elementChild, String iFrameXPathScan, String xPathElementChild, TargetElement targetIFrames) {
-
-*/
-
-//                    try {
-//                            if (targetElement.getDefinedName() == null) {
-//                            performMessage.couldNotFindElement("No TagName");
-//                            }
-//                            } catch (Exception e) {
-//                            performMessage.couldNotFindElement("No TagName");
-//                            return;
-//                            }
-
-//
-//
-//
-//
-//
-//        if (targetElement != null
-//                && targetElement.getTagType().equals(WebElementTagNameEnum.OUTPUT)
-//                && !Strings.isNullOrEmpty(targetElement.getDefinedName())) {
-//                if (!Strings.isNullOrEmpty(innerHTMLValue)
-//                && innerHTMLValue.equalsIgnoreCase(targetElement.getSomeText())) {
-//                nameLabel.setText(targetElement.getDefinedName().trim() + "-(" + innerHTMLValue.trim() + ")");
-//                } else if (!Strings.isNullOrEmpty(targetElement.getSomeText())) {
-//                nameLabel.setText(targetElement.getDefinedName().trim() + "-("
-//                + targetElement.getSomeText().trim() + ")");
-//                } else if (!Strings.isNullOrEmpty(targetElement.getAttributeValue())) {
-//                nameLabel.setText(targetElement.getDefinedName().trim() + "-("
-//                + targetElement.getAttributeValue().trim() + ")");
-//                } else {
-//                nameLabel.setText(targetElement.getDefinedName().trim());
-//                }
-//                nameField.setText(targetElement.getDefinedName().trim());
-//                } else if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getDefinedName())) {
-//                nameLabel.setText(targetElement.getDefinedName().trim());
-//                nameField.setText(targetElement.getDefinedName().trim());
-//                } else if (targetElement != null && !Strings.isNullOrEmpty(targetElement.getAttributeValue())) {
-//                nameLabel.setText(targetElement.getAttributeValue().trim());
-//                nameField.setText(targetElement.getAttributeValue().trim());
-//                } else if (isOption && hasValue) {
-//                nameLabel.setText(valueAttributeValue.trim());
-//                nameField.setText(valueAttributeValue.trim());
-//                } else if (hasFormControlName) {
-//                nameLabel.setText(formControlNameAttributeValue.trim());
-//                nameField.setText(formControlNameAttributeValue.trim());
-//                } else if (hasTestId) {
-//                nameLabel.setText(testIdAttributeValue.trim());
-//                nameField.setText(testIdAttributeValue.trim());
-//                } else if (hasName) {
-//                nameLabel.setText(nameAttributeValue.trim());
-//                nameField.setText(nameAttributeValue.trim());
-//                } else if (hasAriaLabel) {
-//                nameLabel.setText(ariaLabelValue.trim());
-//                nameField.setText(ariaLabelValue.trim());
-//                } else if (isAnchor && hasInnerHTML && !hasInnerHTMLTag) {
-//                nameLabel.setText(innerHTMLValue.trim());
-//                nameField.setText(innerHTMLValue.trim());
-//                } else if (hasId) {
-//                nameLabel.setText(idAttributeValue.trim());
-//                nameField.setText(idAttributeValue.trim());
-//                } else if (hasHRefFile) {
-//                nameLabel.setText(valueHRefFile + " File".trim());
-//                nameField.setText(valueHRefFile + " File".trim());
-//                } else if (hasParagraph) {
-//                nameLabel.setText(textLabel.trim());
-//                nameField.setText(this.tagNameDefined.trim());
-//                } else if (hasButton) {
-//                nameLabel.setText(textLabel.trim());
-//                nameField.setText(this.tagNameDefined.trim());
-//                } else if (hasSpan) {
-//                nameLabel.setText(textLabel.trim());
-//                nameField.setText(this.tagNameDefined.trim());
-//                } else if (hasDiv) {
-//                nameLabel.setText(textLabel.trim());
-//                nameField.setText(this.tagNameDefined.trim());
-//                } else if (hasLabel) {
-//                nameLabel.setText(textLabel.trim());
-//                nameField.setText(this.tagNameDefined.trim());
-//                } else if (this.tagNameDefined.equalsIgnoreCase("input")
-//                || this.tagNameDefined.equalsIgnoreCase("button")
-//                || this.tagNameDefined.equalsIgnoreCase("output")) {
-//                nameLabel.setText(textLabel.trim());
-//                nameField.setText(this.tagNameDefined.trim());
-//                } else if (!Strings.isNullOrEmpty(element.getText())) {
-//                nameLabel.setText(element.getText().trim());
-//                nameField.setText(this.tagNameDefined.trim());
-//                } else {
-//                nameLabel.setText(ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
-//                nameField.setText(ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
-//                }
-//                try {
-//
-//                String extRef = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_EXT_REFERENCE);
-//                if (extRef != null) {
-//                String extRefSub = extRef.substring(extRef.indexOf("'") + 1, extRef.length() - 1);
-//                // isIdElement.setValue(hasTestId &&
-//                //
-// testIdAttributeValue.equalsIgnoreCase("web-banking-payment-core.payment-details.external-reference"));
-//                isIdElement.setValue(hasTestId && testIdAttributeValue.equalsIgnoreCase(extRefSub));
-//                }
-//                } catch (Exception ex) {
-//                throw ex;
-//                }
-//
-//                // Identify if the element is an INPUT, BUTTON, or LABEL
-//                nameFieldTitle = nameField.getText();
-//
-//                boolean isElementHidden = false;
-//                try {
-//                isElementHidden = element.getAttribute("type") != null
-//                && element.getAttribute("type").equalsIgnoreCase("hidden");
-//                } catch (Exception ignored) {
-//                }
-//
-//                boolean isInput = false;
-//                boolean isButton = false;
-//                boolean isLabel = false;
-//
-//                try {
-//                isInput = this.tagNameDefined.equalsIgnoreCase("INPUT") && element.getAttribute("type") != null;
-//                isButton = this.tagNameDefined.equalsIgnoreCase("BUTTON");
-//                isLabel = this.tagNameDefined.equalsIgnoreCase("LABEL") && !Strings.isNullOrEmpty(element.getText());
-//                } catch (Exception ignore) {
-//
-//                }

@@ -1241,7 +1241,7 @@ public class PerformPreLoad {
                         }));
                         const attribId = element.id || "";
                         const attribName = element.name || "";
-                        const coords = `${element.getBoundingClientRect().left.toFixed(2)},${element
+                        const coordinates = `${element.getBoundingClientRect().left.toFixed(2)},${element
                           .getBoundingClientRect()
                           .top.toFixed(2)}`;
                         const someText = getSomeText(tagName, attributeData, element);
@@ -1253,7 +1253,7 @@ public class PerformPreLoad {
                           customXPath: "",
                           attribId,
                           attribName,
-                          coords,
+                          coordinates,
                           someText,
                         };
                       };
@@ -1286,8 +1286,8 @@ public class PerformPreLoad {
                       const elementInfoString = function elementInfoString(element, identity) {
                         return `${element.tagName.toLowerCase()};xpath:${identity.xpath};text:${
                           identity.someText
-                        };attribId:${identity.attribId};attribName:${identity.attribName};coords:${
-                          identity.coords
+                        };attribId:${identity.attribId};attribName:${identity.attribName};coordinates:${
+                          identity.coordinates
                         };attributeData:${identity.attributeData};customXPath:${
                           identity.customXPath
                         };`;
@@ -1301,7 +1301,7 @@ public class PerformPreLoad {
                           someText: identity.someText ?? "",
                           attribId: identity.attribId ?? "",
                           attribName: identity.attribName ?? "",
-                          coords: identity.coords ?? "",
+                          coordinates: identity.coordinates ?? "",
                           attributeData: identity.attributeData ?? "",
                           customXPath: identity.customXPath ?? "",
                           iFrameXPath: identity.iFrameXPath ?? "",
@@ -1577,5 +1577,6 @@ public class PerformPreLoad {
                     // })(["input", "button", "a"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["*"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["button"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
-                    """;
+
+            """;
 }
