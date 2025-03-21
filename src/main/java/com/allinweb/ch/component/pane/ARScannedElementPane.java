@@ -2,7 +2,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
-import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.model.AttributeData;
 import com.allinweb.ch.component.model.BlockLoadDTO;
@@ -190,7 +189,7 @@ public class ARScannedElementPane extends ARPane {
             for (ElementDTO elementDTO : processDTO.getDetails()) {
                 TargetElement targetEach = extractPickClone(elementDTO);
 
-                WebElement elementFound = findWebElement(targetEach);
+                WebElement elementFound = performActions.findWebElement(targetEach);
                 targetEach.setElement(elementFound);
                 // 3 Different Coordinates
                 // Original from JavaScript
@@ -202,53 +201,6 @@ public class ARScannedElementPane extends ARPane {
                 nextOrder++;
             }
         }
-    }
-
-    private WebElement findWebElement(TargetElement targetValidate) {
-
-        WebElement elementFound = null;
-
-        try {
-
-            if (!Strings.isNullOrEmpty(targetValidate.getShadowHost())
-                    || !Strings.isNullOrEmpty(targetValidate.getShadowRoot())) {
-                elementFound = performActions.findShadowElementByCssSelector(
-                        targetValidate.getShadowHost(), targetValidate.getCssSelector());
-            } else if (!Strings.isNullOrEmpty(targetValidate.getIFrameXPath())) {
-
-                try {
-                    WebElement iFrame =
-                            performActions.getCurrentDriver().findElement(By.xpath(targetValidate.getIFrameXPath()));
-
-                    performActions.getCurrentDriver().switchTo().frame(iFrame);
-                    elementFound = performActions.getCurrentDriver().findElement(By.xpath(targetValidate.getXPath()));
-                } catch (Exception error) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .info("iFrame Element not Located\niFrameXPath"
-                                    + targetValidate.getIFrameXPath()
-                                    + "iFrameChild: "
-                                    + targetValidate.getXPath());
-                }
-            } else {
-                elementFound = performActions.getCurrentDriver().findElement(By.xpath(targetValidate.getXPath()));
-            }
-
-        } catch (Exception e) {
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .info("iFrame Element not Located\niFrameXPath" + targetValidate.getIFrameXPath()
-                            + "iFrameChild: "
-                            + targetValidate.getXPath());
-            performMessage.errorMessage(
-                    "iFrame Element not Located",
-                    "Cannot able to find the iFrame",
-                    "iFrame Parent or Child",
-                    null,
-                    null,
-                    0);
-            return null;
-        }
-
-        return elementFound;
     }
 
     private void preTestCoordinates(TargetElement targetPreTest) {
@@ -350,6 +302,9 @@ public class ARScannedElementPane extends ARPane {
 
                 instruction.setCoordinates(targetInsert.getCoordinates());
                 instruction.setIFrameXPath(targetInsert.getIFrameXPath());
+                instruction.setShadowHost(targetInsert.getShadowHost());
+                instruction.setShadowRoot(targetInsert.getShadowRoot());
+                instruction.setCssSelector(targetInsert.getCssSelector());
 
                 instruction.setBlockId(currentBlockId);
 
@@ -393,6 +348,9 @@ public class ARScannedElementPane extends ARPane {
                         instruction.getCoordinates(),
                         instruction.getForceCoordinates(),
                         instruction.getIFrameXPath(),
+                        instruction.getShadowHost(),
+                        instruction.getShadowRoot(),
+                        instruction.getCssSelector(),
                         currentBotJobId,
                         currentBlockId);
 
@@ -569,13 +527,10 @@ public class ARScannedElementPane extends ARPane {
                 actionText1 = new Text("Actions Tested:");
                 actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
 
+                WebDriver driverTestActions = performActions.getCurrentDriver();
+
                 String result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.SELECT,
-                        coordinates,
-                        fieldData,
-                        performActions.getCurrentDriver(),
-                        false);
+                        targetTest.getElement(), ARConstants.SELECT, coordinates, fieldData, driverTestActions, false);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
                 actionText2 = new Text(result);
@@ -586,12 +541,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.CLICK,
-                        coordinates,
-                        fieldData,
-                        performActions.getCurrentDriver(),
-                        false);
+                        targetTest.getElement(), ARConstants.CLICK, coordinates, fieldData, driverTestActions, false);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
                 actionText3 = new Text(result);
@@ -606,7 +556,7 @@ public class ARScannedElementPane extends ARPane {
                         ARConstants.GET_VALUE,
                         coordinates,
                         fieldData,
-                        performActions.getCurrentDriver(),
+                        driverTestActions,
                         false);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
@@ -618,12 +568,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.CLEAR,
-                        coordinates,
-                        fieldData,
-                        performActions.getCurrentDriver(),
-                        false);
+                        targetTest.getElement(), ARConstants.CLEAR, coordinates, fieldData, driverTestActions, false);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
                 actionText5 = new Text(result);
@@ -634,12 +579,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.INSERT,
-                        coordinates,
-                        fieldData,
-                        performActions.getCurrentDriver(),
-                        false);
+                        targetTest.getElement(), ARConstants.INSERT, coordinates, fieldData, driverTestActions, false);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
                 actionText6 = new Text(result);
@@ -650,12 +590,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.FOCUS,
-                        coordinates,
-                        fieldData,
-                        performActions.getCurrentDriver(),
-                        false);
+                        targetTest.getElement(), ARConstants.FOCUS, coordinates, fieldData, driverTestActions, false);
                 System.out.println(result);
 
                 actionsTested.append(result + System.lineSeparator());
@@ -668,12 +603,7 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.TAB,
-                        coordinates,
-                        fieldData,
-                        performActions.getCurrentDriver(),
-                        false);
+                        targetTest.getElement(), ARConstants.TAB, coordinates, fieldData, driverTestActions, false);
                 System.out.println(result);
 
                 actionsTested.append(result + System.lineSeparator());
@@ -690,7 +620,7 @@ public class ARScannedElementPane extends ARPane {
                         ARConstants.COORD_VISUALIZA,
                         coordinates,
                         fieldData,
-                        performActions.getCurrentDriver(),
+                        driverTestActions,
                         false);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
@@ -706,7 +636,7 @@ public class ARScannedElementPane extends ARPane {
                         ARConstants.COORD_CLICK,
                         coordinates,
                         fieldData,
-                        performActions.getCurrentDriver(),
+                        driverTestActions,
                         false);
                 System.out.println(result);
 
@@ -724,7 +654,7 @@ public class ARScannedElementPane extends ARPane {
                         ARConstants.COORD_INSERT,
                         coordinates,
                         fieldData,
-                        performActions.getCurrentDriver(),
+                        driverTestActions,
                         false);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
@@ -740,7 +670,7 @@ public class ARScannedElementPane extends ARPane {
                         ARConstants.COORD_INSERT,
                         coordinates,
                         fieldData,
-                        performActions.getCurrentDriver(),
+                        driverTestActions,
                         true);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
@@ -756,7 +686,7 @@ public class ARScannedElementPane extends ARPane {
                         ARConstants.COORD_MOVE_CLICK_RED,
                         coordinates,
                         fieldData,
-                        performActions.getCurrentDriver(),
+                        driverTestActions,
                         true);
                 System.out.println(result);
                 actionsTested.append(result + System.lineSeparator());
@@ -917,7 +847,7 @@ public class ARScannedElementPane extends ARPane {
 
     private CheckBox checkCloneElement;
 
-    private CheckBox checkTestAction;
+    private Label testActionLabel;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
@@ -1216,7 +1146,8 @@ public class ARScannedElementPane extends ARPane {
                 new Insets(2.0) // Reduced padding
                 );
 
-        checkTestAction = new CheckBox("Test Actions");
+        testActionLabel = new Label("Test Actions :");
+
         checkClickElement = new CheckBox("For Click");
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
@@ -1396,14 +1327,14 @@ public class ARScannedElementPane extends ARPane {
             HBox boxActions = new HBox();
             boxActions.setSpacing(5);
 
-            checkTestAction.setMinWidth(100);
+            testActionLabel.setMinWidth(100);
 
             testActionsField = new TextField("0001");
 
             HBox.setHgrow(testActionsField, Priority.ALWAYS);
             testActionsField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
 
-            boxActions.getChildren().addAll(checkTestAction, testActionsField);
+            boxActions.getChildren().addAll(testActionLabel, testActionsField);
 
             HBox boxCoordinates = new HBox();
             boxCoordinates.setSpacing(5);
@@ -1689,12 +1620,6 @@ public class ARScannedElementPane extends ARPane {
                 launchBotJobButton.setDisable(checkCloneElement.isSelected());
                 recallJobButton.setDisable(checkCloneElement.isSelected());
 
-                checkTestAction.setDisable(checkCloneElement.isSelected());
-                checkTestAction.setSelected(false);
-
-                //                checkPickElement.setDisable(checkCloneElement.isSelected());
-                //                checkPickElement.setSelected(false);
-
                 if (!checkCloneElement.isSelected()) {
                     defineNameField.clear();
                 }
@@ -1816,7 +1741,7 @@ public class ARScannedElementPane extends ARPane {
 
         TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, null);
 
-        WebElement elementFound = findWebElement(targetLocal);
+        WebElement elementFound = performActions.findWebElement(targetLocal);
         targetLocal.setElement(elementFound);
         // 3 Different Coordinates // Original from JavaScript  // WebDriver Selenium ElementFound
         // FallBack React Computed
@@ -1933,160 +1858,6 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    // iFrames
-    private TargetElement defineTagTypeAdvanced(
-            WebElement elementChild, String iFrameXPathScan, String xPathElementChild, TargetElement targetIFrames) {
-        try {
-
-            String tagName = elementChild.getTagName().toLowerCase();
-            String retrievedValue = "";
-
-            switch (tagName.toLowerCase()) {
-                    // Handle form elements and text inputs
-                case "input":
-                    targetIFrames.setTagType(WebElementTagNameEnum.INPUT);
-                    targetIFrames.setIconType(WebElementIcon.INSERT);
-                    elementChild.sendKeys("abc123");
-                    retrievedValue = elementChild.getAttribute("value");
-                    String placeholder = elementChild.getAttribute("placeholder");
-                    if ((retrievedValue == null || retrievedValue.isEmpty())
-                            && placeholder != null
-                            && !placeholder.isEmpty()) {
-                        retrievedValue = placeholder; // Use placeholder if value is empty
-                    }
-                    break;
-
-                case "textarea":
-                    targetIFrames.setTagType(WebElementTagNameEnum.TEXT_AREA);
-                    targetIFrames.setIconType(WebElementIcon.INSERT);
-                    retrievedValue = elementChild.getAttribute("value");
-                    placeholder = elementChild.getAttribute("placeholder");
-                    if ((retrievedValue == null || retrievedValue.isEmpty())
-                            && placeholder != null
-                            && !placeholder.isEmpty()) {
-                        retrievedValue = placeholder; // Use placeholder if value is empty
-                    }
-                    break;
-
-                    // Handle button, form, select, option, and material elements
-                case "button":
-                    targetIFrames.setTagType(WebElementTagNameEnum.BUTTON);
-                    targetIFrames.setIconType(WebElementIcon.CLICK);
-                    break;
-                case "form":
-                    targetIFrames.setTagType(WebElementTagNameEnum.FORM);
-                    targetIFrames.setIconType(WebElementIcon.TEXT);
-                    break;
-                case "select":
-                    targetIFrames.setTagType(WebElementTagNameEnum.SELECT);
-                    targetIFrames.setIconType(WebElementIcon.CLICK);
-                    break;
-                case "option":
-                    targetIFrames.setTagType(WebElementTagNameEnum.OPTION);
-                    targetIFrames.setIconType(WebElementIcon.CLICK);
-                    break;
-                case "mat-select":
-                    targetIFrames.setTagType(WebElementTagNameEnum.MAT_SELECT);
-                    targetIFrames.setIconType(WebElementIcon.CLICK);
-                    break;
-                case "mat-option":
-                    targetIFrames.setTagType(WebElementTagNameEnum.MAT_OPTION);
-                    targetIFrames.setIconType(WebElementIcon.CLICK);
-                    break;
-                case "mat-expansion-panel":
-                    targetIFrames.setTagType(WebElementTagNameEnum.MAT_EXPANSION_PANEL);
-                    targetIFrames.setIconType(WebElementIcon.CLICK);
-                    break;
-
-                    // Handle text container elements (div, span, etc.)
-                case "div":
-                case "span":
-                case "section":
-                case "article":
-                case "aside":
-                case "header":
-                case "footer":
-                    targetIFrames.setTagType(WebElementTagNameEnum.DIV);
-                    targetIFrames.setIconType(WebElementIcon.OUTPUT);
-                    retrievedValue = elementChild.getText(); // Retrieve the text content
-                    break;
-
-                    // Handle heading tags (h1-h6)
-                case "h1":
-                case "h2":
-                case "h3":
-                case "h4":
-                case "h5":
-                case "h6":
-                    targetIFrames.setTagType(WebElementTagNameEnum.OUTPUT);
-                    targetIFrames.setIconType(WebElementIcon.OUTPUT);
-                    retrievedValue = elementChild.getText(); // Retrieve heading text
-                    break;
-
-                    // Handle anchor tags (links)
-                case "a":
-                    targetIFrames.setTagType(WebElementTagNameEnum.ANCHOR);
-                    targetIFrames.setIconType(WebElementIcon.CLICK);
-                    retrievedValue = elementChild.getText(); // Retrieve link text
-                    break;
-
-                    // Handle other cases (default)
-                default:
-                    targetIFrames.setTagType(WebElementTagNameEnum.ALL);
-                    targetIFrames.setIconType(WebElementIcon.TEXT);
-                    break;
-            }
-
-            // If you need to handle `retrievedValue` further or return it, do so here:
-            if (retrievedValue != null && !retrievedValue.isEmpty()) {
-                // Perform any further actions with the `retrievedValue`, e.g., logging or
-                // storing.
-            }
-
-            targetIFrames.setElement(elementChild);
-            targetIFrames.setIFrameXPath(iFrameXPathScan);
-            targetIFrames.setDefinedName(tagName);
-            targetIFrames.setOriginalTagName(tagName);
-            targetIFrames.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
-
-            targetIFrames.setXPath(xPathElementChild);
-            targetIFrames.setAttributeData(new AttributeData[0]); // TO DO
-            targetIFrames.setCurrentXPath(xPathElementChild);
-            targetIFrames.setAttributeValue(retrievedValue);
-
-            if (tagName.equalsIgnoreCase(WebElementTagNameEnum.BUTTON.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.DIV.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.MAT_SELECT.getValue())) {
-                targetIFrames.setTagType(WebElementTagNameEnum.BUTTON);
-                targetIFrames.setIconType(WebElementIcon.CLICK);
-            } else if (tagName.equalsIgnoreCase(WebElementTagNameEnum.INPUT.getValue())
-                    || tagName.equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
-                targetIFrames.setTagType(WebElementTagNameEnum.INPUT);
-                targetIFrames.setIconType(WebElementIcon.INSERT);
-            } else {
-                targetIFrames.setTagType(WebElementTagNameEnum.ALL);
-                targetIFrames.setIconType(WebElementIcon.TEXT);
-            }
-
-            if (targetIFrames.getDefinedName() != null) {
-                ARWebElement arWebElement = new ARWebElement(targetIFrames, botJobLoad.getId());
-                if (arWebElement != null && arWebElement.getElement() != null) {
-                    //                    webElementObservableList1.add(arWebElement);
-                    //                    Platform.runLater(() -> scannedElements1.refresh());
-                }
-                System.out.println("Found element: " + tagName + " with XPath: " + "xpath ???");
-            }
-            return targetIFrames;
-
-        } catch (Exception error) {
-            System.out.println("Element not found for XPath: " + "xpath ???");
-            performMessage.generalErrorIFrame("xpath ???");
-        }
-        return null;
-    }
-
     private TargetElement checkValidateSearchPriorities(TargetElement target) {
         WebElement elementValid = null;
         if (!Strings.isNullOrEmpty(target.getCurrentXPath())) {
@@ -2196,7 +1967,6 @@ public class ARScannedElementPane extends ARPane {
         //        webElementObservableList1.clear();
 
         performActions.getCurrentDriver().switchTo().defaultContent();
-        checkTestAction.setSelected(false);
 
         resultElementSearch = true;
 
@@ -2230,7 +2000,6 @@ public class ARScannedElementPane extends ARPane {
 
     private void revertCloneButtons() {
         Platform.runLater(() -> {
-            checkTestAction.setDisable(true);
             launchBotJobButton.setDisable(true);
             recallJobButton.setDisable(true);
 
@@ -5601,6 +5370,9 @@ public class ARScannedElementPane extends ARPane {
             String coordinates,
             boolean forceCoordinates,
             String iFrameXPath,
+            String shadowHost,
+            String shadowRoot,
+            String cssSelector,
             Integer currentBotJobId,
             Integer currentBlockId) {
 
@@ -5610,6 +5382,10 @@ public class ARScannedElementPane extends ARPane {
         InstructionLoadDTO.setCoordinates(coordinates);
         InstructionLoadDTO.setForceCoordinates(forceCoordinates);
         InstructionLoadDTO.setIFrameXPath(iFrameXPath);
+        InstructionLoadDTO.setShadowHost(shadowHost);
+        InstructionLoadDTO.setShadowRoot(shadowRoot);
+        InstructionLoadDTO.setCssSelector(cssSelector);
+
         InstructionLoadDTO.setName(name);
 
         InstructionLoadDTO.setCodified(false);

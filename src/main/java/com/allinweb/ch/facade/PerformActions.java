@@ -11,6 +11,7 @@ import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -85,6 +86,7 @@ public class PerformActions {
         iframeInputLocator = IframeInputLocator.getInstance();
     }
 
+    @Getter
     long totalExecutionTime = 0;
 
     public List<String> windowHandlesList = new ArrayList<>();
@@ -134,14 +136,6 @@ public class PerformActions {
             instructionElement = locateElement(instruction, botJobId);
         }
         return instructionElement;
-    }
-
-    public long getTotalExecutionTime() {
-        return totalExecutionTime;
-    }
-
-    public void setTotalExecutionTime(long totalExecutionTime) {
-        this.totalExecutionTime = totalExecutionTime;
     }
 
     public WebElement getElementAtCoordinates(int x, int y, WebDriver driver) {
@@ -728,7 +722,7 @@ public class PerformActions {
         List<InstructionReferenceLoadDTO> instructionReferenceList =
                 currentInstruction.getInstructionReferenceLoadDTOList();
 
-        if (instructionReferenceList.size() == 0) {
+        if (instructionReferenceList.isEmpty()) {
             ARLogger.getInstance(PerformActions.class)
                     .warning("####    Not XPath to Be Located!   ####"
                             + "\n####    Remove and Re-Scan the Failed Field Again   ####");
@@ -781,6 +775,12 @@ public class PerformActions {
                 //                performMessage.generalErrorIFrame(currentInstruction.getName());
                 return null;
             }
+        }
+
+        if (!Strings.isNullOrEmpty(currentInstruction.getShadowHost())
+                || !Strings.isNullOrEmpty(currentInstruction.getShadowRoot())) {
+            elementFound = findShadowElementByCssSelector(
+                    currentInstruction.getShadowHost(), currentInstruction.getCssSelector());
         }
 
         for (com.allinweb.ch.util.Priority priority : arPriorities.getAllPriorityList()) {
@@ -3122,6 +3122,7 @@ public class PerformActions {
             targetDefine.setShadowHost(elemenDTO.getShadowHost());
             targetDefine.setShadowRoot(elemenDTO.getShadowRoot());
             targetDefine.setNestedShadow(elemenDTO.getNestedShadow());
+
             targetDefine.setCssSelector(elemenDTO.getCssSelector());
             targetDefine.setAttributeData(elemenDTO.getAttributeData());
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
@@ -4236,5 +4237,50 @@ public class PerformActions {
             }
         }
         return -1;
+    }
+
+    public WebElement findWebElement(TargetElement targetFind) {
+
+        WebElement elementFound = null;
+
+        try {
+
+            if (!Strings.isNullOrEmpty(targetFind.getShadowHost())
+                    || !Strings.isNullOrEmpty(targetFind.getShadowRoot())) {
+                elementFound = findShadowElementByCssSelector(targetFind.getShadowHost(), targetFind.getCssSelector());
+            } else if (!Strings.isNullOrEmpty(targetFind.getIFrameXPath())) {
+
+                try {
+                    WebElement iFrame = getCurrentDriver().findElement(By.xpath(targetFind.getIFrameXPath()));
+
+                    getCurrentDriver().switchTo().frame(iFrame);
+                    elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
+                } catch (Exception error) {
+                    ARLogger.getInstance(ARScannedElementPane.class)
+                            .info("iFrame Element not Located\niFrameXPath"
+                                    + targetFind.getIFrameXPath()
+                                    + "iFrameChild: "
+                                    + targetFind.getXPath());
+                }
+            } else {
+                elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
+            }
+
+        } catch (Exception e) {
+            ARLogger.getInstance(ARScannedElementPane.class)
+                    .info("iFrame Element not Located\niFrameXPath" + targetFind.getIFrameXPath()
+                            + "iFrameChild: "
+                            + targetFind.getXPath());
+            performMessage.errorMessage(
+                    "iFrame Element not Located",
+                    "Cannot able to find the iFrame",
+                    "iFrame Parent or Child",
+                    null,
+                    null,
+                    0);
+            return null;
+        }
+
+        return elementFound;
     }
 }

@@ -544,6 +544,15 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
             String iframeXPath = !Strings.isNullOrEmpty(InstructionLoadDTO.getIFrameXPath())
                     ? "'" + InstructionLoadDTO.getIFrameXPath() + "'"
                     : "";
+            String shadowHost = !Strings.isNullOrEmpty(InstructionLoadDTO.getShadowHost())
+                    ? "'" + InstructionLoadDTO.getShadowHost() + "'"
+                    : "";
+            String shadowRoot = !Strings.isNullOrEmpty(InstructionLoadDTO.getShadowRoot())
+                    ? "'" + InstructionLoadDTO.getShadowRoot() + "'"
+                    : "";
+            String cssSelector = !Strings.isNullOrEmpty(InstructionLoadDTO.getCssSelector())
+                    ? "'" + InstructionLoadDTO.getCssSelector() + "'"
+                    : "";
 
             // Build the SQL insert query
 
@@ -564,6 +573,9 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     + "path, "
                     + "coordinates, "
                     + "iframe_xpath, "
+                    + "shadow_host, "
+                    + "shadow_root, "
+                    + "css_selector, "
                     + "variable_id, "
                     + "block_id, "
                     + "bot_job_id, "
@@ -586,6 +598,9 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     + ", " + pathValue
                     + ", " + coordinates
                     + ", " + iframeXPath
+                    + ", " + shadowHost
+                    + ", " + shadowRoot
+                    + ", " + cssSelector
                     + ", " + InstructionLoadDTO.getVariableId()
                     + ", " + InstructionLoadDTO.getBlockId()
                     + ", " + InstructionLoadDTO.getBotJobId()

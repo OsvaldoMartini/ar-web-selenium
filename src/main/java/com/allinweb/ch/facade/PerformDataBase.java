@@ -1392,6 +1392,9 @@ public class PerformDataBase {
                     instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+                    instruction.setShadowHost(rs.getString("shadow_host"));
+                    instruction.setShadowRoot(rs.getString("shadow_root"));
+                    instruction.setCssSelector(rs.getString("css_selector"));
                     instruction.setDescription(rs.getString("instruction_description"));
                     instruction.setOptional(rs.getBoolean("optional"));
                     instruction.setBlockMarked(rs.getBoolean("block_marked"));
@@ -1526,6 +1529,9 @@ public class PerformDataBase {
                     instruction.setCoordinates(rs.getString("coordinates"));
                     instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                     instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+                    instruction.setShadowHost(rs.getString("shadow_host"));
+                    instruction.setShadowRoot(rs.getString("shadow_root"));
+                    instruction.setCssSelector(rs.getString("css_selector"));
                     instruction.setDescription(rs.getString("instruction_description"));
                     instruction.setOptional(rs.getBoolean("optional"));
                     instruction.setBlockMarked(rs.getBoolean("block_marked"));
@@ -1637,6 +1643,10 @@ public class PerformDataBase {
     //                    instruction.setCoordinates(rs.getString("coordinates"));
     //                    instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
     //                    instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+    //                    instruction.setShadowHost(rs.getString("shadow_host"));
+    //                    instruction.setShadowRoot(rs.getString("shadow_root"));
+    //                    instruction.setCssSelector(rs.getString("css_selector"));
+
     //                    instruction.setDescription(rs.getString("instruction_description"));
     //                    instruction.setOptional(rs.getBoolean("optional"));
     //                    instruction.setBlockMarked(rs.getBoolean("block_marked"));
@@ -2002,6 +2012,9 @@ public class PerformDataBase {
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+                instruction.setShadowHost(rs.getString("shadow_host"));
+                instruction.setShadowRoot(rs.getString("shadow_root"));
+                instruction.setCssSelector(rs.getString("css_selector"));
                 instruction.setDescription(rs.getString("description"));
                 instruction.setOptional(rs.getBoolean("optional"));
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
@@ -2055,6 +2068,9 @@ public class PerformDataBase {
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+                instruction.setShadowHost(rs.getString("shadow_host"));
+                instruction.setShadowRoot(rs.getString("shadow_root"));
+                instruction.setCssSelector(rs.getString("css_selector"));
                 instruction.setDescription(rs.getString("description"));
                 instruction.setOptional(rs.getBoolean("optional"));
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
@@ -2632,6 +2648,9 @@ public class PerformDataBase {
             // Add non-boolean fields
             addColumnValue.accept("coordinates", InstructionLoadDTO.getCoordinates());
             addColumnValue.accept("iframe_xpath", InstructionLoadDTO.getIFrameXPath());
+            addColumnValue.accept("shadow_host", InstructionLoadDTO.getShadowHost());
+            addColumnValue.accept("shadow_root", InstructionLoadDTO.getShadowRoot());
+            addColumnValue.accept("css_selector", InstructionLoadDTO.getCssSelector());
             addColumnValue.accept("xpath", InstructionLoadDTO.getXpath());
             addColumnValue.accept("action_custom_max_wait_sec", InstructionLoadDTO.getActionCustomMaxWaitSec());
             addColumnValue.accept("actions", InstructionLoadDTO.getActions());
@@ -3590,6 +3609,9 @@ public class PerformDataBase {
                 InstructionLoadDTO.setCoordinates(rs.getString("coordinates"));
                 InstructionLoadDTO.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 InstructionLoadDTO.setIFrameXPath(rs.getString("iframe_xpath"));
+                InstructionLoadDTO.setShadowHost(rs.getString("shadow_host"));
+                InstructionLoadDTO.setShadowRoot(rs.getString("shadow_root"));
+                InstructionLoadDTO.setCssSelector(rs.getString("css_selector"));
                 InstructionLoadDTO.setVariableId(rs.getInt("variable_id"));
                 InstructionLoadDTO.setBlockId(rs.getInt("block_id"));
                 InstructionLoadDTO.setBlockOrderNumber(rs.getInt("block_order_number"));
@@ -4347,7 +4369,7 @@ public class PerformDataBase {
         String blockLoopInstructionInsertQuery = "INSERT INTO " + targetTable
                 + " (id, action_custom_max_wait_sec, actions, active, block_marked, codified, "
                 + "default_value, description, export_to_abr, instruction_order_number, name, on_hold_seconds, operation, optional, "
-                + "parent_id, xpath, coordinates, force_coordinates, iframe_xpath, variable_id, block_id";
+                + "parent_id, xpath, coordinates, force_coordinates, iframe_xpath, variable_id, block_id, shadow_host, shadow_root, css_selector";
 
         if (targetTable.equalsIgnoreCase("instruction")) {
             blockLoopInstructionInsertQuery += ", bot_job_id";
@@ -4355,7 +4377,8 @@ public class PerformDataBase {
             blockLoopInstructionInsertQuery += ", home_banking_id";
         }
 
-        blockLoopInstructionInsertQuery += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
+        blockLoopInstructionInsertQuery +=
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
 
         if (targetTable.equalsIgnoreCase("instruction") || targetTable.equalsIgnoreCase("component_instruction")) {
             blockLoopInstructionInsertQuery += ", ?";
@@ -4432,7 +4455,11 @@ public class PerformDataBase {
 
                 blockLoopStmt.setInt(21, instruction.getBlockId());
 
-                int paramIndex = 22;
+                blockLoopStmt.setString(22, instruction.getShadowHost());
+                blockLoopStmt.setString(23, instruction.getShadowRoot());
+                blockLoopStmt.setString(24, instruction.getCssSelector());
+
+                int paramIndex = 25;
                 if (targetTable.equalsIgnoreCase("instruction")) {
                     blockLoopStmt.setInt(paramIndex, instruction.getBotJobId());
                 } else if (targetTable.equalsIgnoreCase("component_instruction")) {
@@ -4935,6 +4962,9 @@ public class PerformDataBase {
                         + "coordinates TEXT, "
                         + "force_coordinates YESNO, "
                         + "iframe_xpath MEMO, "
+                        + "shadow_host MEMO, "
+                        + "shadow_root MEMO, "
+                        + "css_selector MEMO, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional YESNO, "
@@ -5045,6 +5075,9 @@ public class PerformDataBase {
                         + "coordinates TEXT, "
                         + "force_coordinates YESNO, "
                         + "iframe_xpath MEMO, "
+                        + "shadow_host MEMO, "
+                        + "shadow_root MEMO, "
+                        + "css_selector MEMO, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional YESNO, "
@@ -5199,6 +5232,9 @@ public class PerformDataBase {
                         + "coordinates TEXT, "
                         + "force_coordinates INTEGER, "
                         + "iframe_xpath TEXT, "
+                        + "shadow_host TEXT, "
+                        + "shadow_root TEXT, "
+                        + "css_selector TEXT, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional INTEGER, "
@@ -5274,6 +5310,9 @@ public class PerformDataBase {
                         + "coordinates TEXT, "
                         + "force_coordinates INTEGER, "
                         + "iframe_xpath TEXT, "
+                        + "shadow_host TEXT, "
+                        + "shadow_root TEXT, "
+                        + "css_selector TEXT, "
                         + "description TEXT, "
                         + "operation TEXT, "
                         + "optional INTEGER, "

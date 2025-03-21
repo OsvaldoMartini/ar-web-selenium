@@ -22,6 +22,9 @@ public class InstructionLoadDTO {
     private String coordinates;
     private Boolean forceCoordinates;
     private String iFrameXPath;
+    private String shadowHost;
+    private String shadowRoot;
+    private String cssSelector;
     private String description;
     private Boolean optional;
     private Boolean blockMarked;
