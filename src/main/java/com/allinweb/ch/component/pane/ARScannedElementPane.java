@@ -59,11 +59,9 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -71,7 +69,6 @@ import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -311,7 +308,7 @@ public class ARScannedElementPane extends ARPane {
                     "Block : " + blockName,
                     "Web Element Instruction",
                     nameDefined,
-                    true,
+                    false,
                     "Yes",
                     "NO",
                     0);
@@ -1013,7 +1010,7 @@ public class ARScannedElementPane extends ARPane {
     private HBox componentBox;
 
     private Button scanIFrameButton;
-    private Button addButtonNewElement;
+    private Button cloneToNewElement;
     private Button configureButton;
     private Button launchBotJobButton;
     private Button recallJobButton;
@@ -1027,7 +1024,6 @@ public class ARScannedElementPane extends ARPane {
     private CheckBox checkCloneElement;
 
     private CheckBox checkTestAction;
-    private CheckBox checkJavaScript;
     private CheckBox checkClickElement;
     private CheckBox checkInputText;
     private CheckBox checkOutputText;
@@ -1306,7 +1302,7 @@ public class ARScannedElementPane extends ARPane {
 
         scanIFrameButton = componentBuilder.buildButton(
                 "iFrames", ARConstants.SPACE_L, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5));
-        addButtonNewElement = componentBuilder.buildButton(
+        cloneToNewElement = componentBuilder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
         searchWebElementsButton = componentBuilder.buildButton(
                 "Scanner Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
@@ -1386,7 +1382,6 @@ public class ARScannedElementPane extends ARPane {
         rightButton.setOnAction(e -> switchToRightTab());
 
         cleanListButton.setOnAction(e -> {
-            String jsonData = gson.toJson("[]");
             var processDTO = new ElementSplitDTO();
             processDTO.setHomeBankingId(homeBanking.getId());
             processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
@@ -1500,9 +1495,9 @@ public class ARScannedElementPane extends ARPane {
             defineNameField.setMaxWidth(Double.MAX_VALUE); // Allows full width usage
 
             // Ensure the button has a reasonable width
-            addButtonNewElement.setMinWidth(50); // Adjust as needed
+            cloneToNewElement.setMinWidth(50); // Adjust as needed
 
-            boxName.getChildren().addAll(defineNameField, addButtonNewElement);
+            boxName.getChildren().addAll(defineNameField, cloneToNewElement);
 
             HBox boxActions = new HBox();
             boxActions.setSpacing(5);
@@ -1555,7 +1550,7 @@ public class ARScannedElementPane extends ARPane {
             boxActions.maxWidthProperty().bind(textFieldVBox.widthProperty());
 
             // Bind button widths to VBox width
-            addButtonNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
+            cloneToNewElement.maxWidthProperty().bind(textFieldVBox.widthProperty());
             // Bind the widths of the buttons to percentages of the HBox width
             countdownTextField.maxWidthProperty().bind(textFieldVBox.widthProperty());
             configureButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
@@ -1775,42 +1770,10 @@ public class ARScannedElementPane extends ARPane {
             // loadBotJob(botJob);
             recallJob();
         });
-        //        checkPickElement.setOnMouseClicked(e -> {
-        //            performActions.getCurrentDriver().switchTo().defaultContent();
-        //            this.targetSelected = null;
-        //            elementsFound.clear();
-        //            resultElementSearch = false;
-        //
-        //            revertPickInjections(performActions.getCurrentDriver());
-        //
-        //            if (checkPickElement.isSelected()) {
-        //                String[] dataArrayClone = {"*"};
-        //                int finalPort = portSocket;
-        //                Platform.runLater(() -> periodicHoverPickThread(
-        //                        performActions.getCurrentDriver(), performActions.getCurrentDriver().getCurrentUrl(),
-        // dataArrayClone,
-        // finalPort));
-        //            }
-        //
-        //            Platform.runLater(() -> {
-        //                launchBotJobButton.setDisable(checkPickElement.isSelected());
-        //                recallJobButton.setDisable(checkPickElement.isSelected());
-        //
-        //                checkTestAction.setDisable(checkPickElement.isSelected());
-        //                checkTestAction.setSelected(false);
-        //
-        //                checkCloneElement.setDisable(checkPickElement.isSelected());
-        //                checkCloneElement.setSelected(false);
-        //
-        //                if (!checkPickElement.isSelected()) {
-        //                    defineNameField.clear();
-        //                }
-        //            });
-        //        });
+
         checkCloneElement.setOnMouseClicked(e -> {
             performActions.getCurrentDriver().switchTo().defaultContent();
             this.targetSelected = null;
-            elementsFound.clear();
             resultElementSearch = false;
 
             revertCloneInjections(performActions.getCurrentDriver());
@@ -1866,67 +1829,28 @@ public class ARScannedElementPane extends ARPane {
 
         scanIFrameButton.setOnAction(e -> manageUIScanIFrames("Scan iFrames and Nested Web Elements"));
 
-        addButtonNewElement.setOnAction(e -> {
-            if (elementsFound.size() == 0 && this.targetSelected.getElement() != null) {
-                insertNewElement();
+        cloneToNewElement.setOnAction(e -> {
+            if (this.targetSelected.getElement() != null) {
+                cloneElementDTO(this.targetSelected);
             } else {
-                if (elementsFound.size() > 0) {
-                    //                    webElementObservableList2.clear();
 
-                    Optional<ElementDTO> iframeElement = elementsFound.stream()
-                            .filter(element -> "clicked-iFrame".equalsIgnoreCase(element.getTypeElement()))
-                            //                                || "clicked".equalsIgnoreCase(element.getTypeElement())
-                            //                                ||
-                            // "tagName-found".equalsIgnoreCase(element.getTypeElement()))
-                            .findFirst(); // Get the first matching ElementDTO
+                performMessage.showCustomModalDialogDragWin11(
+                        "Select a Web Element to Clone",
+                        "Click on the desired Web Element below to clone it.",
+                        null,
+                        null,
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        0);
 
-                    if (iframeElement.isPresent()) {
-                        insertNewElement(iframeElement.get(), elementsFound);
-                    } else {
-                        insertNewElement(elementsFound);
-                    }
-                    this.targetSelected.setElement(null);
-
-                } else {
-                    performMessage.errorMessage(
-                            "Not Web Element to be Detected!",
-                            "Release -> Checkbox -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \" again!",
-                            "\"Refresh\" the Page -> <CTRL + F5>",
-                            "Try  \"HOVER PICK  ELEMENT\" or \"PICK ONE \" again!",
-                            null,
-                            0);
-                }
+                return;
             }
         });
 
         searchWebElementsButton.setOnAction(e -> searchTermsBtn("Search Web Elements"));
-        //        refreshOutputFieldsButton.setOnAction(e -> refreshOutputBtn("Output Web Elements"));
-        //        //        refreshOtherFieldsButton.setOnAction(e -> refreshOtherElemBtn("Others Types of Web
-        // Elements"));
-        //        magicFieldsButton.setOnAction(e -> performActions.createOutputHtml("input",
-        // performActions.getCurrentDriver()));
-        //        searchWithIdsButton.setOnAction(e -> refreshWithIdsBtn("Web Elements with Attribute ID"));
-        //        searchWithNamesButton.setOnAction(e -> refreshWithNamesBtn("Web Elements with Attribute Name"));
-        //        searchButtons.setOnAction(e -> refreshSearchButtons("Web Elements without Attributes Name/ID"));
-
         turnOnOffButton.setVisible(false);
-        //        turnOnOffButton.setOnAction(e -> {
-        //            searchHiddenFields = !searchHiddenFields; // Toggle value
-        //
-        //            if (searchHiddenFields) {
-        //                turnOnOffButton.setText("Search Hidden Fields: ON");
-        //                turnOnOffButton.setStyle("-fx-background-color: green; -fx-text-fill: white;");
-        //            } else {
-        //                turnOnOffButton.setText("Search Hidden Fields: Off");
-        //                turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
-        //            }
-        //        });
-
-        //        scannedElements1.getItems().addListener(this::addBehaviourToAddedElements);
-        //        scannedElements2.getItems().addListener(this::addBehaviourToAddedElements);
-        //        scannedElements3.getItems().addListener(this::addBehaviourToAddedElements);
-
-        //        manageUIScan();
     }
 
     private boolean lastBrowserTab() {
@@ -1949,287 +1873,47 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void insertNewElement() {
+    private void cloneElementDTO(TargetElement targetToClone) {
 
         if (Strings.isNullOrEmpty(defineNameField.getText().trim())) {
 
-            Text variableText1Styled = new Text("Web Element \"NAME\" must be defined!");
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            combinedTextContainer.getChildren().add(variableText1Styled);
-
-            performMessage.showAlertCombinedVBOX(
-                    Alert.AlertType.ERROR, "MANDATORY FIELD", "Define the Element Name", null, combinedTextContainer);
+            performMessage.showCustomModalDialogDragWin11(
+                    "MANDATORY FIELD",
+                    "Define the Element Name",
+                    "Web Element \"NAME\" must be defined!",
+                    null,
+                    null,
+                    true,
+                    "OK",
+                    null,
+                    0);
 
             return;
         }
 
-        if (this.targetSelected != null) {
+        if (targetToClone != null) {
 
-            TargetElement cloneTarget = new TargetElement(this.targetSelected);
+            ElementDTO elementDTO = performActions.convertTargetToElementDTO(targetToClone);
 
-            //            if (checkCloneElement.isSelected()) {
-            cloneTarget.setCloned(true);
             if (checkInputText.isSelected()) {
-                cloneTarget.setTagType(WebElementTagNameEnum.INPUT);
-                cloneTarget.setIconType(WebElementIcon.INSERT);
+                elementDTO.setTypeElement(WebElementTagNameEnum.INPUT.getValue().toLowerCase());
             } else if (checkClickElement.isSelected()) {
-                cloneTarget.setTagType(WebElementTagNameEnum.BUTTON);
-                cloneTarget.setIconType(WebElementIcon.CLICK);
+                elementDTO.setTypeElement(
+                        WebElementTagNameEnum.BUTTON.getValue().toLowerCase());
             } else if (checkOutputText.isSelected()) {
-                cloneTarget.setTagType(WebElementTagNameEnum.OUTPUT);
-                cloneTarget.setIconType(WebElementIcon.OUTPUT);
-            }
-            //            }
-
-            if (defineNameField.getText().trim() != cloneTarget.getDefinedName()) {
-                cloneTarget.setDefinedName(defineNameField.getText().trim());
-                cloneTarget.setNameLabel(defineNameField.getText().trim());
-                cloneTarget.setNameField(defineNameField.getText().trim());
+                elementDTO.setTypeElement(
+                        WebElementTagNameEnum.OUTPUT.getValue().toLowerCase());
             }
 
-            //            if (!Strings.isNullOrEmpty(searchAttribNameField.getText().trim())) {
-            //                cloneTarget.setAttribSearchName(searchAttribNameField.getText().trim());
-            //            }
-
-            if (!Strings.isNullOrEmpty(searchAttribValueField.getText().trim())) {
-                cloneTarget.setSearchAttributeValue(
-                        searchAttribValueField.getText().trim());
-            }
-
-            try {
-                if (cloneTarget.getElement() != null) {
-
-                    ARWebElement arWebElement = new ARWebElement(cloneTarget, botJobLoad.getId());
-                    if (arWebElement != null && arWebElement.getElement() != null) {
-                        //                        webElementObservableList2.add(arWebElement);
-                        //                        Platform.runLater(() -> {
-                        //                            scannedElements2.refresh();
-                        //                        });
-                    }
-
-                } else {
-                    ARLogger.getInstance(ARScannedElementPane.class).severe("Could not find the Web Element!");
-                    performMessage.errorMessage(
-                            "Not Web Element to be Detected!",
-                            "Release -> Checkbox -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"   again!",
-                            "\"Refresh\" the Page -> <CTRL + F5>",
-                            "Try  \"HOVER PICK  ELEMENT\" or \"PICK ONE \"   again!",
-                            null,
-                            0);
-                }
-
-            } catch (Exception ex) {
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .severe("Error Attempt to create a Dynamic Element\n" + ex.getMessage());
-                performMessage.errorMessage(
-                        "\"Error Attempt to create a Dynamic Element!",
-                        "Release -> Checkbox -> \"HOVER PICK  ELEMENT\" or \"PICK ONE \"   again!",
-                        "\"Refresh\" the Page -> <CTRL + F5>",
-                        "Try  \"HOVER PICK  ELEMENT\" or \"PICK ONE \"   again!",
-                        null,
-                        0);
-            }
+            var processDTO = new ElementSplitDTO();
+            processDTO.setHomeBankingId(homeBanking.getId());
+            processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
+            processDTO.setOperationId("searchTerms");
+            ElementDTO[] detailsArray = new ElementDTO[1];
+            detailsArray[0] = elementDTO;
+            processDTO.setDetails(detailsArray);
+            sendMessageJson(homeBanking.getId(), "scannerGrid-" + homeBanking.getId(), gson.toJson(processDTO), null);
         }
-    }
-
-    private boolean insertNewElement(ElementDTO iframeElementDTO, List<ElementDTO> elementsFound) {
-
-        try {
-            // Locate and switch to the iframe first
-            WebElement iframe = performActions.getCurrentDriver().findElement(By.xpath(iframeElementDTO.getXPath()));
-
-            // I Need to create a new targetElement
-            TargetElement targetIFrame = performActions.defineSearchReturn(iframeElementDTO, iframe, null);
-            targetIFrame = performActions.defineTargetNameTitles(targetIFrame);
-
-            performActions.getCurrentDriver().switchTo().frame(iframe);
-
-            // Adding the Variants for iFrame
-            try {
-
-                //                targetIFrame.setElement(iframe);
-                targetIFrame.setIFrameXPath(iframeElementDTO.getXPath());
-                targetIFrame.setDefinedName("iFrame");
-                targetIFrame.setOriginalTagName("iFrame");
-                //                targetIFrame.setXPathWorkedFirst(ARConstants.REGULAR_XPATH);
-                //                targetIFrame.setMainXPath(iframeElement.getXPath());
-                //                targetIFrame.setCurrentXPath(iframeElement.getXPath());
-                //                targetIFrame.setAllAttributes(iframeElement.getAllAttributes());
-                targetIFrame.setAttributeValue("iFrame");
-                targetIFrame.setMainCoordinates(iframeElementDTO.getCoords());
-                targetIFrame.setCoords(iframeElementDTO.getCoords());
-                //                targetLocal.setTagType(WebElementTagNameEnum.BUTTON);
-                //                targetLocal.setIconType(WebElementIcon.CLICK);
-
-                ARWebElement arWebElement = new ARWebElement(targetIFrame, botJobLoad.getId());
-                if (arWebElement != null && arWebElement.getElement() != null) {
-                    //                    webElementObservableList2.add(arWebElement);
-                    //                    Platform.runLater(() -> scannedElements2.refresh());
-                }
-
-                System.out.println("IFrame Element as Button: " + targetIFrame.getDefinedName());
-            } catch (Exception e) {
-                System.out.println("IFrame was Not Added as Button" + targetIFrame.getDefinedName());
-            }
-
-            // Loop through and find elements
-            //            addProgressBar(elementsFound.size());
-
-            for (ElementDTO elementChild : elementsFound) { // Start from index 1
-
-                if (elementChild.getTypeElement().equalsIgnoreCase("clicked-iFrame")) {
-                    continue;
-                }
-
-                if (elementChild.getTagName().equalsIgnoreCase("html")
-                        || elementChild.getTagName().equalsIgnoreCase("body")
-                        || elementChild.getTagName().equalsIgnoreCase("main")
-                        || elementChild.getTagName().equalsIgnoreCase("script")
-                        || elementChild.getTagName().equalsIgnoreCase("meta")
-                        || elementChild.getTagName().equalsIgnoreCase("head")
-                        || elementChild.getTagName().equalsIgnoreCase("style")) {
-                    continue;
-                }
-
-                try {
-                    WebElement elemFound =
-                            performActions.getCurrentDriver().findElement(By.xpath(elementChild.getXPath()));
-
-                    elementChild.setIFrameXPath(iframeElementDTO.getXPath());
-
-                    TargetElement targetChild = performActions.defineSearchReturn(elementChild, elemFound, null);
-                    targetChild = performActions.defineTargetNameTitles(targetChild);
-
-                    ARWebElement arWebElement = new ARWebElement(targetChild, botJobLoad.getId());
-
-                    if (arWebElement != null && arWebElement.getElement() != null) {
-                        //                        webElementObservableList2.add(arWebElement);
-                        //                        Platform.runLater(() -> {
-                        //                            scannedElements2.refresh();
-                        //                        });
-                    }
-
-                    System.out.println(
-                            "Found element: " + elemFound.getTagName() + " with XPath: " + elementChild.getXPath());
-                } catch (Exception e) {
-                    System.out.println("Element not found for XPath: " + elementChild.getXPath());
-                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                            "Fail Searching IFrame Elements",
-                            "Error: Attempt identify IFrame elements",
-                            "\"iFrame Web Elements\"",
-                            "Action: Search iFrame Elements!",
-                            null,
-                            true,
-                            "Continue",
-                            "stop all",
-                            0);
-                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                        return true;
-                    }
-                    //                    performMessage.generalErrorIFrame(elementChild.getXPath());
-                }
-            }
-
-        } catch (Exception e) {
-            browserNotAttached();
-        } finally {
-            performActions.getCurrentDriver().switchTo().defaultContent();
-        }
-        return false;
-    }
-
-    private boolean insertNewElement(List<ElementDTO> elementsDTO) {
-
-        try {
-            // Loop through and find elements
-            for (ElementDTO elementDTO : elementsDTO) { // Start from index 1
-                WebElement elementSearched = null;
-                if (elementDTO.getTagName().equalsIgnoreCase("html")
-                        || elementDTO.getTagName().equalsIgnoreCase("body")
-                        || elementDTO.getTagName().equalsIgnoreCase("main")
-                        || elementDTO.getTagName().equalsIgnoreCase("script")
-                        || elementDTO.getTagName().equalsIgnoreCase("meta")
-                        || elementDTO.getTagName().equalsIgnoreCase("head")
-                        || elementDTO.getTagName().equalsIgnoreCase("style")) {
-                    continue;
-                }
-
-                try {
-                    WebElement elementFound =
-                            performActions.getCurrentDriver().findElement(By.xpath(elementDTO.getXPath()));
-                    //                                elements.add(element);
-
-                    if (elementFound != null) {
-                        // I Need to create a new targetElement
-                        TargetElement targetLocal = performActions.defineSearchReturn(elementDTO, elementFound, null);
-
-                        targetLocal = performActions.defineTargetNameTitles(targetLocal);
-
-                        // First  Search for xPath
-                        //                        TargetElement targetValidated =
-                        // checkValidateSearchPriorities(targetLocal);
-
-                        if (!elementDTO.getTagName().equalsIgnoreCase("clicked")) {
-
-                            ARWebElement arWebElement = new ARWebElement(targetLocal, botJobLoad.getId());
-                            targetLocal.setElement(null);
-
-                            if (arWebElement != null && arWebElement.getElement() != null) {
-                                if (resultElementSearch) {
-                                    //                                    webElementObservableList1.add(arWebElement);
-                                    //                                    Platform.runLater(() -> {
-                                    //                                        scannedElements1.refresh();
-                                    //                                    });
-                                } else {
-                                    //                                    webElementObservableList2.add(arWebElement);
-                                    //                                    Platform.runLater(() -> {
-                                    //                                        scannedElements2.refresh();
-                                    //                                    });
-                                }
-                            }
-
-                            System.out.println("Found element: " + elementFound.getTagName() + " with XPath: "
-                                    + elementDTO.getXPath());
-
-                        } else {
-                            defineCheckBoxesClickabe(targetLocal);
-                        }
-                    }
-
-                } catch (Exception e) {
-                    xpathTextPrevious = ""; // Allows clicking in the same element again
-                    System.out.println("Element not found for XPath: " + elementDTO.getXPath());
-                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                            "Error selecting Web Element",
-                            "Mandatory Value not Defined",
-                            "Not able defining the Name/Label for the New AR Element",
-                            null,
-                            null,
-                            true,
-                            "Continue",
-                            "stop all",
-                            0);
-
-                    if (respModal.equals(ARConstants.DialogModal.STOP)) {
-                        elementsDTO.clear();
-                        return true;
-                    }
-                }
-            }
-
-            elementsDTO.clear();
-
-        } catch (Exception e) {
-            //            browserNotAttached();
-        } finally {
-            // Close the browser
-            performActions.getCurrentDriver().switchTo().defaultContent();
-        }
-        return false;
     }
 
     private TargetElement extractPickClone(ElementDTO elementDTO) {
@@ -2366,11 +2050,6 @@ public class ARScannedElementPane extends ARPane {
             });
         }
     }
-
-    //    private TargetElement defineTargetTagType(TargetElement target) {
-    //    targetElement = performActions.defineTargetNameTitles(targetElement);
-    //    targetElement performActions.defineTagType(TargetElement targetTagType) {
-    //    defineTagTypeAdvanced
 
     // iFrames
     private TargetElement defineTagTypeAdvanced(
@@ -2620,15 +2299,6 @@ public class ARScannedElementPane extends ARPane {
         return target;
     }
 
-    //
-    //    Maybe Pre Test the Action
-    //
-    //    String isCurrentXPathOK;
-    //    String isAllAttributesOK;
-    //    String isCustomXPathOK;
-    //    String isCoordsOK;
-    //    TO MAKE  PRE TEST    private WebElement checkBestAction() {
-
     private boolean isClickable(WebElement element) {
         List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
         boolean isClickableTag =
@@ -2638,33 +2308,6 @@ public class ARScannedElementPane extends ARPane {
                 .anyMatch(v -> v.getValue().equals(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
         boolean isInputTag = element.getTagName().equals(WebElementTagNameEnum.INPUT.getValue());
         return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
-    }
-
-    private void refreshSearchButtons(String searchType) {
-        //        webElementObservableList1.clear();
-        //        manageUIScanWithoutNameAndId();
-
-        String[] dataArray = {"button"};
-
-        handleSearchTermClick(dataArray);
-    }
-
-    private void refreshWithNamesBtn(String searchType) {
-        //        webElementObservableList1.clear();
-        //        manageUIScanAttributeNameFirst();
-
-        String[] dataArray = {"with name"};
-
-        handleSearchTermClick(dataArray);
-    }
-
-    private void refreshWithIdsBtn(String searchType) {
-        //        webElementObservableList1.clear();
-        //        manageUIScanIdsFirst();
-
-        String[] dataArray = {"with id"};
-
-        handleSearchTermClick(dataArray);
     }
 
     private void handleSearchTermClick(String[] dataArray) {
@@ -2916,213 +2559,6 @@ public class ARScannedElementPane extends ARPane {
         return true;
     }
 
-    public boolean scanIframesAndElements(ObservableList<ARWebElement> listToAddNewElements, String searchDesc) {
-
-        // Check if Browser is Inactive
-        try {
-            windowHandles = performActions.getCurrentDriver().getWindowHandles();
-        } catch (Exception e) {
-            browserNotAttached();
-            return false;
-        }
-
-        executorService = Executors.newCachedThreadPool();
-        AtomicInteger totalElementsSize = new AtomicInteger(0);
-
-        CompletableFuture<Void> future = CompletableFuture.runAsync(
-                () -> {
-                    // Switch back to the main page before checking the next iframe
-                    performActions.getCurrentDriver().switchTo().defaultContent();
-
-                    //                    List<String> allXPath =
-                    // iframeInputLocator.listAllXPaths(performActions.getCurrentDriver());
-                    //                    // Filter the list to keep only elements with tag name "iframe"
-                    //                    List<String> onlyIFrames = allXPath.stream()
-                    //                            .filter(xpath -> xpath.toLowerCase().contains("iframe"))
-                    //                            .collect(Collectors.toList());
-                    //
-                    //                    for (String xPATH : onlyIFrames) {
-                    //                        System.out.println("iFrame: " + xPATH);
-                    //                    }
-
-                    List<WebElement> iframes = performActions.getCurrentDriver().findElements(By.tagName("iframe"));
-
-                    //                    Map<WebElement, List<WebElement>> iframeElementsMap = new HashMap<>();
-
-                    //                    for (String iFrameScan : onlyIFrames) {
-                    boolean foundElements = false;
-                    String iFrameXPathScan = "";
-                    for (WebElement iframe : iframes) {
-                        foundElements = true;
-
-                        try {
-                            try {
-                                String iFrameTemp = iframeInputLocator.getElementXPathIFrame(
-                                        iframe, performActions.getCurrentDriver());
-                                if (!Strings.isNullOrEmpty(iFrameTemp)) {
-                                    iFrameXPathScan = iFrameTemp;
-                                }
-                            } catch (Exception ignore) {
-
-                            }
-                            // CHANGING THE CONTEXT HERE
-                            performActions.getCurrentDriver().switchTo().frame(iframe);
-
-                            //                            List<String> allInsedeInfo  =
-                            // iframeInputLocator.getIframeElementsInfo(iFrameElement,performActions.getCurrentDriver());
-
-                            //                            try {
-                            //                                String xPathList =
-                            // iframeInputLocator.getElementXPathIFrame(
-                            //                                        iFrameElement, performActions.getCurrentDriver());
-                            //                                System.out.println("xPathList: " + xPathList);
-                            //                            } catch (Exception x) {
-                            //                                System.out.println("Error xPathList");
-                            //                            }
-
-                            List<WebElement> elementsInsideIframe =
-                                    performActions.getCurrentDriver().findElements(By.xpath("//*"));
-
-                            System.out.println(
-                                    "Scanned " + elementsInsideIframe.size() + " elements inside an iframe.");
-
-                            TargetElement targetIFrames = new TargetElement();
-
-                            for (WebElement elementChild : elementsInsideIframe) {
-
-                                targetIFrames.setTagType(WebElementTagNameEnum.ALL); // Default to ALL
-                                targetIFrames.setIconType(WebElementIcon.TEXT);
-
-                                String xPathElementChild;
-                                // Main XPath
-                                try {
-                                    xPathElementChild = iframeInputLocator.getElementXPath(
-                                            elementChild, performActions.getCurrentDriver());
-                                } catch (Exception error) {
-                                    System.out.println("Failed to ge iframe element XPATH: " + error.getMessage());
-                                    //                                    performMessage.generalErrorIFrame("Error
-                                    // Scanning iFrames");
-                                    continue;
-                                }
-
-                                // Main Coordinates
-                                try {
-                                    Rectangle coord = elementChild.getRect();
-                                    String coordTemp = (coord.getX() + (coord.getWidth() / 2)) + ","
-                                            + (coord.getY() + (coord.getHeight() / 2));
-                                    targetIFrames.setMainCoordinates(coordTemp);
-                                } catch (Exception error) {
-                                    System.out.println(
-                                            "Failed to get iframe element Coordinates: " + error.getMessage());
-                                    //                                    performMessage.generalErrorIFrame("Error
-                                    // Scanning iFrames");
-                                    continue;
-                                }
-
-                                //                                String tagName = null;
-                                //                                try {
-                                //                                    xPathInsideFrame =
-                                // iframeInputLocator.getElementXPathIFrame(
-                                //                                            elementChild,
-                                // performActions.getCurrentDriver());
-                                //                                    tagName =
-                                // performActions.removeTrailingSlash(xPathInsideFrame);
-                                //                                    tagName =
-                                // performActions.extractTagName(xPathInsideFrame);
-                                //                                } catch (Exception ignore) {
-                                //                                }
-
-                                try {
-                                    String tagName = elementChild.getTagName().toLowerCase();
-
-                                    if (tagName.equalsIgnoreCase("html")
-                                            || tagName.equalsIgnoreCase("script")
-                                            || tagName.equalsIgnoreCase("meta")
-                                            || tagName.equalsIgnoreCase("head")
-                                            || tagName.equalsIgnoreCase("body")) {
-                                        continue;
-                                    }
-                                } catch (Exception ignore) {
-                                    continue;
-                                }
-
-                                targetIFrames = defineTagTypeAdvanced(
-                                        elementChild, iFrameXPathScan, xPathElementChild, targetIFrames);
-
-                                try {
-                                    if (targetIFrames.getDefinedName() != null) {
-                                        ARWebElement arWebElement = new ARWebElement(targetIFrames, botJobLoad.getId());
-                                        if (arWebElement != null && arWebElement.getElement() != null) {
-                                            //
-                                            // webElementObservableList1.add(arWebElement);
-                                            //                                            Platform.runLater(() ->
-                                            // scannedElements1.refresh());
-                                            //                                            System.out.println("Found
-                                            // element: " + targetIFrames.getDefinedName());
-                                        }
-                                    }
-
-                                } catch (Exception error) {
-                                    System.out.println("Element not found for XPath: " + "xpath ???");
-                                    performMessage.generalErrorIFrame("xpath ???");
-                                }
-                            }
-                        } catch (Exception error) {
-                            performActions.getCurrentDriver().switchTo().defaultContent();
-                            System.out.println("Failed to scan iframe: " + error.getMessage());
-                            performMessage.generalErrorIFrame("Error Scanning iFrames");
-                            return;
-                        }
-                        performActions.getCurrentDriver().switchTo().defaultContent();
-                    }
-
-                    if (!foundElements) {
-
-                        Platform.runLater(() -> {
-                            // Styled text elements
-                            Text titleMessage = new Text("I did not find any Web Elements in this Page!");
-                            titleMessage.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                            // Styled text elements
-                            Text titleSearch = new Text("Search Type:");
-                            titleSearch.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                            // Styled text elements
-                            Text titleDescr = new Text(searchDesc);
-                            titleDescr.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                            // Create a container for the message
-                            VBox messageContainer = new VBox(5); // Adds spacing of 5px
-
-                            // Add relevant elements to the container
-                            messageContainer.getChildren().addAll(titleMessage, titleSearch, titleDescr);
-
-                            performMessage.showAlertCombinedVBOX(
-                                    Alert.AlertType.INFORMATION,
-                                    "Scanning Elements",
-                                    "No Web Elements Found!",
-                                    null,
-                                    messageContainer);
-                        });
-                    }
-                },
-                executorService);
-
-        executorService.shutdown();
-
-        future.handle((result, ex) -> {
-            if (ex != null) {
-                Platform.runLater(() -> System.out.println("Error scanning iframes: " + ex.getMessage()));
-            } else {
-                Platform.runLater(
-                        () -> System.out.println("Scanning complete. Total elements: " + totalElementsSize.get()));
-            }
-            return result;
-        });
-
-        return true;
-    }
-
     private void shutDownExecutorService() {
         executorService.shutdown();
         try {
@@ -3151,207 +2587,6 @@ public class ARScannedElementPane extends ARPane {
         //        String[] dataArray = {"input"};
         //
         handleSearchTermClick(dataArray);
-    }
-
-    private void refreshOutputBtn(String searchType) {
-        //        webElementObservableList2.clear();
-        //        manageUIScanClickable();
-        //        manageUIScanOutputs();
-
-        String[] dataArray = {"allWithText"};
-
-        handleSearchTermClick(dataArray);
-    }
-
-    //    private void refreshOtherElemBtn(String searchType) {
-    //        webElementObservableList2.clear();
-    //
-    //        // Check if Browser is Inactive
-    //        try {
-    //            windowHandles = performActions.getCurrentDriver().getWindowHandles();
-    //        } catch (Exception e) {
-    //            browserNotAttached();
-    //            return;
-    //        }
-    //        manageUIScanPriorities();
-    //    }
-
-    private void addBehaviourToAddedElements(ListChangeListener.Change<? extends ARWebElement> change) {
-        while (change.next()) {
-            change.getAddedSubList().forEach(this::addBehaviourToAbrWebElement);
-        }
-    }
-
-    private void itPrintsElementDate(ARWebElement arWebHover) {
-
-        //                textFlowResult.getChildren().clear();
-        //                textFlowResult.getChildren().addAll(countdownTextField);
-        //                textFlowResult.requestLayout();
-        //                contentPane.requestLayout();
-
-        //                                boxListViews.requestLayout();
-        //                                verticalBox.requestLayout();
-        //                                getChildren().addAll(blockAndUrl, boxListViews);
-
-        //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
-        //            performActions.highlightElement(jsExecutor, arWebElement.getElement(), null);
-        //        }
-
-        StringBuilder sb = new StringBuilder();
-        String nameDefined = "";
-        if (arWebHover.getTargetElement() != null) {
-            this.targetSelected = arWebHover.getTargetElement();
-            this.targetSelected.setElement(arWebHover.getElement()); // RETURN THE ELEMENT FOR OTHER PURPOSE
-
-            performActions.getCurrentDriver().switchTo().defaultContent();
-
-            // iFrame
-            if (!Strings.isNullOrEmpty(this.targetSelected.getIFrameXPath())) {
-                try {
-                    WebElement iFrame = performActions
-                            .getCurrentDriver()
-                            .findElement(By.xpath(this.targetSelected.getIFrameXPath()));
-                    performActions.getCurrentDriver().switchTo().frame(iFrame);
-                } catch (Exception error) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .info("iFrame Element not Located\niFrameXPath"
-                                    + arWebHover.getTargetElement().getIFrameXPath()
-                                    + "iFrameChild: "
-                                    + arWebHover.getTargetElement().getMainXPath());
-                    //                            performMessage.errorMessage(
-                    //                                    "iFrame Element not Located",
-                    //                                    "Cannot able to find the iFrame",
-                    //                                    "iFrame Parent or Child",
-                    //                                    null,
-                    //                                    null,
-                    //                                    0);
-                }
-            }
-
-            defineNameField.setText("");
-            if (!Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                    || !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
-                    || !Strings.isNullOrEmpty(this.targetSelected.getSomeText())) {
-                nameDefined = (!Strings.isNullOrEmpty(this.targetSelected.getSomeText())
-                        ? performActions.truncateAndNormalize(this.targetSelected.getSomeText(), 30)
-                        : !Strings.isNullOrEmpty(this.targetSelected.getAttribId())
-                                ? this.targetSelected.getAttribId()
-                                : !Strings.isNullOrEmpty(this.targetSelected.getAttribName())
-                                        ? this.targetSelected.getAttribName()
-                                        : "");
-
-                if (this.targetSelected.getDefinedName() != null
-                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = this.targetSelected.getDefinedName();
-                }
-
-                String finalNameDefined = nameDefined;
-                Platform.runLater(
-                        () -> defineNameField.setText(performActions.truncateAndNormalize(finalNameDefined, 30)));
-
-            } else if (this.targetSelected.getAttributeData().length > 0) {
-
-                // Split by comma to get key-value pairs
-
-                String idValue = null;
-                String nameValue = null;
-                String typeValue = null;
-
-                // Loop through each key-value pair
-                for (AttributeData attributeData : this.targetSelected.getAttributeData()) {
-
-                    String key = attributeData.getName().trim();
-                    String value = attributeData.getValue().trim().replaceAll("\"", ""); // Remove quotes
-
-                    if (key.equals("id")) {
-                        idValue = value;
-                    } else if (key.equals("name")) {
-                        nameValue = value;
-                    } else if (key.equals("type")) {
-                        typeValue = value;
-                    }
-                }
-
-                // Print based on priority: ID -> Name -> Type
-                if (idValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + idValue;
-                } else if (nameValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + nameValue;
-                } else if (typeValue != null) {
-                    nameDefined = this.targetSelected.getOriginalTagName() + "-" + typeValue;
-                } else {
-                    nameDefined = this.targetSelected.getOriginalTagName();
-                }
-
-                if (this.targetSelected.getDefinedName() != null
-                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = this.targetSelected.getDefinedName();
-                }
-
-                String finalSomeText = nameDefined;
-                Platform.runLater(
-                        () -> defineNameField.setText(performActions.truncateAndNormalize(finalSomeText, 30)));
-
-            } else if (!Strings.isNullOrEmpty(this.targetSelected.getOriginalTagName())) {
-
-                if (this.targetSelected.getDefinedName() != null
-                        && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                    nameDefined = this.targetSelected.getDefinedName();
-                } else {
-                    nameDefined = this.targetSelected.getOriginalTagName();
-                }
-                String finalSomeText = nameDefined;
-
-                Platform.runLater(() -> defineNameField.setText(finalSomeText));
-            }
-        }
-
-        //                sb.append(this.targetElement.getOriginalTagName() + "-" +
-        // this.targetElement.getSomeText())
-        //                        .append("\n");
-
-        sb.append("TagType: " + this.targetSelected.getTagType()).append("\n");
-        sb.append("ID: " + this.targetSelected.getAttribId()).append("\n");
-        sb.append("Name: " + this.targetSelected.getAttribName()).append("\n");
-        sb.append("Text: " + this.targetSelected.getSomeText()).append("\n");
-
-        if (!Strings.isNullOrEmpty(this.targetSelected.getCoords())) {
-            sb.append("Coordinates: " + this.targetSelected.getCoords()).append("\n");
-            coordsTextField.setText(this.targetSelected.getCoords());
-        } else {
-            sb.append("Coordinates: EMPTY").append("\n");
-        }
-
-        if (!Strings.isNullOrEmpty(this.targetSelected.getSearchAttributeValue())) {
-            sb.append("Search Attrib: " + this.targetSelected.getSearchAttributeValue())
-                    .append("\n");
-            searchAttribValueField.setText(this.targetSelected.getSearchAttributeValue());
-            searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        } else {
-            sb.append("Search Attrib: No Defined").append("\n");
-        }
-
-        sb.append("Named: " + nameDefined).append("\n");
-        sb.append("All Attributes Found: ").append("\n");
-        for (AttributeData attribute : this.targetSelected.getAttributeData()) {
-            sb.append("->  ")
-                    .append(attribute.getName().trim() + "="
-                            + attribute.getValue().trim())
-                    .append("\n");
-        }
-
-        Platform.runLater(() -> {
-            countdownTextField.setText(sb.toString());
-            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        });
-
-        //                textFlowResult.getChildren().clear();
-        //                textFlowResult.getChildren().addAll(countdownTextField);
-        //                textFlowResult.requestLayout();
-        //                contentPane.requestLayout();
-
-        defineCheckBoxesClickabe(this.targetSelected);
-        performActions.getCurrentDriver().switchTo().defaultContent();
     }
 
     private void itPrintsElementDTO(TargetElement target) {
@@ -3527,965 +2762,6 @@ public class ARScannedElementPane extends ARPane {
 
         defineCheckBoxesClickabe(this.targetSelected);
         performActions.getCurrentDriver().switchTo().defaultContent();
-    }
-
-    private void addBehaviourToAbrWebElement(ARWebElement arWebHover) {
-        EventHandler<MouseEvent> mouseEnteredHandler = mouseEvent -> {
-            Task<Void> handleEvent = new Task<>() {
-                @Override
-                protected Void call() {
-
-                    if (!Strings.isNullOrEmpty(arWebHover.getTargetElement().getIFrameXPath())) {
-                        try {
-                            WebElement iFrame = performActions
-                                    .getCurrentDriver()
-                                    .findElement(By.xpath(
-                                            arWebHover.getTargetElement().getIFrameXPath()));
-                            performActions.getCurrentDriver().switchTo().frame(iFrame);
-                        } catch (Exception e) {
-                            //                            ARLogger.getInstance(ARScannedElementPane.class)
-                            //                                    .info("iFrame Element not Located\niFrameXPath"
-                            //                                            +
-                            // arWebHover.getTargetElement().getIFrameXPath()
-                            //                                            +"iFrameChild: " +
-                            // arWebHover.getTargetElement().getMainXPath());
-                            //                            performMessage.errorMessage(
-                            //                                    "iFrame Element not Located",
-                            //                                    "Cannot able to find the iFrame",
-                            //                                    "iFrame Parent or Child",
-                            //                                    null,
-                            //                                    null,
-                            //                                    0);
-                        }
-                    } else {
-                        performActions.getCurrentDriver().switchTo().defaultContent();
-                    }
-
-                    WebElement currentElement = arWebHover.getElement();
-
-                    if (currentElement != null) {
-                        performActions.highlightElement(jsExecutor, previousElement, currentElement);
-                        previousElement = currentElement; // Store the new previous element
-                    }
-
-                    return null;
-                }
-            };
-            new Thread(handleEvent).start();
-        };
-
-        EventHandler<MouseEvent> mouseExitedHandler = mouseEvent -> {
-            Task<Void> handleEvent = new Task<>() {
-                @Override
-                protected Void call() {
-                    if (previousElement != null) {
-                        performActions.highlightElement(jsExecutor, previousElement, null);
-                        previousElement = null; // Reset previous
-                    }
-                    return null;
-                }
-            };
-            new Thread(handleEvent).start();
-        };
-
-        //        scannedElements2.getSelectionModel().selectedIndexProperty().addListener((obs, oldIndex, newIndex) ->
-        // {
-        //            if (newIndex.intValue() == -1) {
-        //                return; // No selection, do nothing
-        //            }
-        //
-        //            if (newIndex.intValue() > oldIndex.intValue()) {
-        //                itPrintsElementDate(arWebHover);
-        ////                System.out.println("Moved Down to: " +
-        // scannedElements2.getSelectionModel().getSelectedItem());
-        //            } else if (newIndex.intValue() < oldIndex.intValue()) {
-        //                itPrintsElementDate(arWebHover);
-        ////                System.out.println("Moved Up to: " +
-        // scannedElements2.getSelectionModel().getSelectedItem());
-        //            }
-        //        });
-
-        EventHandler<MouseEvent> mouseClickedHandler = mouseEvent -> {
-            if (mouseEvent.getClickCount() == 2) {
-                // Double clicked the element
-                if (arWebHover.getSavedReferences().size() == 0) {
-
-                    Text variableText1Styled = new Text(String.format(
-                            "The Instruction \"%s\" don't have any locators!",
-                            arWebHover.getElement().getText()));
-
-                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                    VBox combinedTextContainer = new VBox();
-                    combinedTextContainer.setSpacing(5); // Add some sp
-
-                    combinedTextContainer.getChildren().add(variableText1Styled);
-
-                    performMessage.showAlertCombinedVBOX(
-                            Alert.AlertType.ERROR,
-                            "ERROR ADD WEB ELEMENT",
-                            "Instructions CANNOT BE ADDED WITHOUT LOCATORS!",
-                            null,
-                            combinedTextContainer);
-
-                    return;
-                }
-
-                //                String reTakeXPath = getXPath(performActions.getCurrentDriver(),
-                // arWebElement.getElement());
-                //                arWebElement.getTargetElement().setMainXPath(reTakeXPath);
-
-                // IF SOME REFRESH CHANGED THE ELEMENT IT TRIGGERS THIS EXCEPTION
-                String elemTagName = "No TagName";
-                if (!checkTestAction.isSelected()) {
-                    try {
-
-                        if (arWebHover.getTargetElement().getMainXPath() == null) {
-                            arWebHover
-                                    .getTargetElement()
-                                    .setMainXPath(
-                                            arWebHover.getSavedReferences().get("currentXPath"));
-                        }
-                        if (arWebHover.getTargetElement().getMainCoordinates() == null) {
-                            arWebHover
-                                    .getTargetElement()
-                                    .setMainCoordinates(
-                                            arWebHover.getSavedReferences().get("coordinates"));
-                        }
-
-                        if (!Strings.isNullOrEmpty(arWebHover.getTargetElement().getIFrameXPath())) {
-                            try {
-                                WebElement iFrame = performActions
-                                        .getCurrentDriver()
-                                        .findElement(By.xpath(
-                                                arWebHover.getTargetElement().getIFrameXPath()));
-                                performActions.getCurrentDriver().switchTo().frame(iFrame);
-                            } catch (Exception e) {
-                                ARLogger.getInstance(ARScannedElementPane.class)
-                                        .info("iFrame Element not Located\niFrameXPath"
-                                                + arWebHover.getTargetElement().getIFrameXPath()
-                                                + "iFrameChild: "
-                                                + arWebHover.getTargetElement().getMainXPath());
-                                performMessage.errorMessage(
-                                        "iFrame Element not Located",
-                                        "Cannot able to find the iFrame",
-                                        "iFrame Parent or Child",
-                                        null,
-                                        null,
-                                        0);
-                                return;
-                            }
-                        }
-
-                        // Last check xPat before Adding to the BotJob
-                        WebElement elementFinder = null;
-                        try {
-                            elementFinder = performActions
-                                    .getCurrentDriver()
-                                    .findElement(By.xpath(
-                                            arWebHover.getTargetElement().getMainXPath()));
-                            arWebHover.setElement(elementFinder);
-                        } catch (Exception e) {
-                            System.out.println(e.getMessage());
-                        }
-
-                        if (elementFinder == null) {
-                            // Try by coordinates
-                            Pair<String, String> filedData = new Pair("martini", "Martini");
-                            try {
-                                performActions.executeActionsAtCoordinates(
-                                        arWebHover.getSavedReferences().get("coordinates"),
-                                        filedData,
-                                        ARConstants.CLICK,
-                                        false);
-
-                                // It Means Did Not Failed to Coordinates
-                                // I am Setting here to avoid the Not Found Message
-                                elementFinder = arWebHover.getElement();
-                            } catch (Exception e) {
-                                System.out.println(e.getMessage());
-                            }
-                        }
-
-                        //                    if (elementFinder != null) {
-                        //                        arWebElement.setElement(elementFinder);
-                        //                    }
-
-                        if (elementFinder != null
-                                && arWebHover.getElement() != null
-                                && arWebHover.getElement().getTagName() != null) {
-                            elemTagName = arWebHover.getElement().getTagName();
-                        }
-                    } catch (Exception ex) {
-                        //                        performMessage.multipleActionsElement("Multiple Actions");
-                    }
-                }
-
-                if (checkTestAction.isSelected()) {
-                    try {
-                        if (arWebHover.getElement() != null) {
-
-                            if (arWebHover.getTargetElement().getIFrameXPath() != null) {
-
-                                performActions.getCurrentDriver().switchTo().defaultContent();
-
-                                try {
-                                    WebElement iFrame = performActions
-                                            .getCurrentDriver()
-                                            .findElement(By.xpath(arWebHover
-                                                    .getTargetElement()
-                                                    .getIFrameXPath()));
-                                    if (iFrame != null) {
-
-                                        performActions
-                                                .getCurrentDriver()
-                                                .switchTo()
-                                                .frame(iFrame);
-
-                                        WebElement elementClicked = performActions
-                                                .getCurrentDriver()
-                                                .findElement(By.xpath(arWebHover
-                                                        .getTargetElement()
-                                                        .getMainXPath()));
-                                    }
-                                } catch (Exception error) {
-                                    performMessage.errorMessage(
-                                            "iFrame Element error",
-                                            "Not possible to locate the element",
-                                            null,
-                                            null,
-                                            null,
-                                            0);
-                                    return;
-                                }
-                            }
-
-                            //                            arWebDriver.dehighlightElement(arWebHover.getElement());
-
-                            //                            WebElement elementXPath =
-                            //
-                            // performActions.getCurrentDriver().findElement(By.xpath(arWebElement.getTargetElement().getMainXPath()));
-                            //                            if (elementXPath != null) {
-                            //                                elementXPath.click();
-                            //                            }
-
-                            Pair<String, String> fieldData = new Pair<>("Test", testActionsField.getText());
-
-                            String mainCoordenates =
-                                    arWebHover.getTargetElement().getMainCoordinates();
-                            String savedCoordenates =
-                                    arWebHover.getSavedReferences().get("coordinates");
-                            if (Strings.isNullOrEmpty(mainCoordenates)) {
-                                mainCoordenates = arWebHover.getTargetElement().getMainCoordinates();
-                            }
-
-                            if (Strings.isNullOrEmpty(savedCoordenates)) {
-                                savedCoordenates = mainCoordenates;
-                            }
-
-                            String mainCoordinates =
-                                    arWebHover.getTargetElement().getMainCoordinates();
-                            String savedCoordinates =
-                                    arWebHover.getSavedReferences().get("coordinates");
-
-                            if (Strings.isNullOrEmpty(mainCoordinates)) {
-                                mainCoordinates = arWebHover.getTargetElement().getMainCoordinates();
-                            }
-
-                            if (Strings.isNullOrEmpty(savedCoordinates)) {
-                                savedCoordinates = mainCoordinates;
-                            }
-
-                            List<String> coordinatesList = new ArrayList<>();
-                            if (!Strings.isNullOrEmpty(mainCoordinates)) {
-                                coordinatesList.add(mainCoordinates);
-                            }
-                            if (!Strings.isNullOrEmpty(savedCoordinates) && !savedCoordinates.equals(mainCoordinates)) {
-                                coordinatesList.add(savedCoordinates);
-                            }
-
-                            String[] coordinates = coordinatesList.toArray(new String[0]);
-
-                            //                            if (checkTestCoordinates.isSelected()) {
-                            //                                performActions.executeActionsAtCoordinates(
-                            //                                        coordinates[1], fieldData, ARConstants.VISUALIZE,
-                            // false);
-                            //                                performActions.executeActionsAtCoordinates(
-                            //                                        coordinates[0], fieldData, ARConstants.VISUALIZE,
-                            // false);
-                            //
-                            //                                performActions.executeActionsAtCoordinates(
-                            //                                        coordinates[1], fieldData, ARConstants.CLICK,
-                            // false);
-                            //                                performActions.executeActionsAtCoordinates(
-                            //                                        coordinates[0], fieldData, ARConstants.CLICK,
-                            // false);
-                            //
-                            //                                performActions.executeActionsAtCoordinates(
-                            //                                        coordinates[1], fieldData, ARConstants.INSERT,
-                            // false);
-                            //                                performActions.executeActionsAtCoordinates(
-                            //                                        coordinates[0], fieldData, ARConstants.INSERT,
-                            // false);
-                            //
-                            //                                performActions.executeActionsAtCoordinates(
-                            //                                        coordinates[1], fieldData, ARConstants.INSERT,
-                            // true);
-                            //                                performActions.executeActionsAtCoordinates(
-                            //                                        coordinates[0], fieldData, ARConstants.INSERT,
-                            // true);
-                            //
-                            //                                performActions.moveAndClickAtCoordinates(coordinates[1],
-                            // performActions.getCurrentDriver());
-                            //                                performActions.moveAndClickAtCoordinates(coordinates[0],
-                            // performActions.getCurrentDriver());
-                            //                            }
-
-                            Text actionText1;
-                            Text actionText2;
-                            Text actionText3;
-                            Text actionText4;
-                            Text actionText5;
-                            Text actionText6;
-                            Text actionText7;
-                            Text actionText8;
-                            Text actionText9;
-                            Text actionText10;
-                            Text actionText11;
-                            Text actionText12;
-                            Text actionText13;
-
-                            StringBuilder actionsTested = new StringBuilder();
-                            actionsTested.append("Actions Tested:" + System.lineSeparator());
-
-                            actionText1 = new Text("Actions Tested:");
-                            actionText1.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
-
-                            String result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.SELECT,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText2 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText2.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText2.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.CLICK,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText3 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.GET_VALUE,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText4 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText4.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText4.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.CLEAR,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText5 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.INSERT,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText6 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText6.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.FOCUS,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-
-                            actionsTested.append(result + System.lineSeparator());
-
-                            actionText7 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText7.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText7.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.TAB,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-
-                            actionsTested.append(result + System.lineSeparator());
-
-                            actionText8 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText8.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText8.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.COORD_VISUALIZA,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText9 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText9.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText9.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.COORD_CLICK,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-
-                            actionsTested.append(result + System.lineSeparator());
-
-                            actionText10 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText10.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText10.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.COORD_INSERT,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    false);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText11 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.COORD_INSERT,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    true);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText12 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            result = performActions.sequenceOfCommands(
-                                    arWebHover.getElement(),
-                                    ARConstants.COORD_MOVE_CLICK_RED,
-                                    coordinates,
-                                    fieldData,
-                                    performActions.getCurrentDriver(),
-                                    true);
-                            System.out.println(result);
-                            actionsTested.append(result + System.lineSeparator());
-                            actionText13 = new Text(result);
-                            if (result.contains("Failed")) {
-                                actionText13.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                            } else {
-                                actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                            }
-
-                            System.out.println(actionsTested.toString());
-
-                            VBox vertical = new VBox();
-                            vertical.getChildren()
-                                    .addAll(
-                                            actionText1,
-                                            actionText2,
-                                            actionText3,
-                                            actionText4,
-                                            actionText5,
-                                            actionText6,
-                                            actionText7,
-                                            actionText8,
-                                            actionText9,
-                                            actionText10,
-                                            actionText11,
-                                            actionText12,
-                                            actionText13);
-
-                            Platform.runLater(() -> {
-                                textFlowResult.getChildren().clear();
-                                textFlowResult.getChildren().addAll(vertical);
-
-                                textFlowResult.requestLayout();
-
-                                //                                boxListViews.requestLayout();
-                                //                                verticalBox.requestLayout();
-                                //                                getChildren().addAll(blockAndUrl, boxListViews);
-                                contentPane.requestLayout();
-                                VBox vBoxResult = new VBox();
-                                vBoxResult.getChildren().addAll(textFlowResult);
-                                performMessage.showAlertCombinedVBOX(
-                                        Alert.AlertType.INFORMATION,
-                                        "Test Actions Results",
-                                        "Web Actions Tested:",
-                                        null,
-                                        vBoxResult);
-
-                                //                                countdownTextField.setText(actionsTested.toString());
-                                //                                countdownTextField.setStyle("-fx-font-size: 12px;
-                                // -fx-text-fill: blue;");
-                            });
-                        }
-                        //                                arWebElement.getElement().click();
-                    } catch (Exception e) {
-                        performMessage.couldNotFindElement("No TagName");
-                        return;
-                    }
-                } else {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .info("Double clicked the element: "
-                                    + arWebHover.getTargetElement().getMainXPath());
-
-                    String blockName = "Default Block";
-                    try {
-                        currentBlockId = comboBoxBlocks.getValue().getExtraId();
-                        blockName = comboBoxBlocks.getValue().getText();
-
-                    } catch (Exception erro) {
-                        currentBlockId = -1;
-                    }
-
-                    if (currentBlockId < 0) {
-
-                        Text variableText1Styled = new Text("Select the block you wan to Add New Command!");
-                        variableText1Styled.setStyle("-fx-font-size: 16px; -fx-fill: red;");
-
-                        VBox combinedTextContainer = new VBox();
-                        combinedTextContainer.setSpacing(5); // Add some sp
-
-                        combinedTextContainer.getChildren().add(variableText1Styled);
-
-                        performMessage.showAlertCombinedVBOX(
-                                Alert.AlertType.ERROR,
-                                "Block Not Selected",
-                                "Select the Block!",
-                                null,
-                                combinedTextContainer);
-                        return;
-                    }
-
-                    Text blockNameLabel = new Text("Block : ");
-                    blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                    Text blockNameText = new Text(blockName);
-                    blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-
-                    Text variableText1Styled = new Text("Web Element Instruction");
-                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                    String nameDefined = defineNameField.getText().trim();
-                    if (this.targetSelected.getDefinedName() != null
-                            && !this.targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
-                        nameDefined = this.targetSelected.getDefinedName();
-                    }
-
-                    Text variableText2Styled = new Text(nameDefined);
-                    variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-
-                    VBox combinedTextContainer = new VBox();
-                    combinedTextContainer.setSpacing(5); // Add some sp
-
-                    combinedTextContainer
-                            .getChildren()
-                            .addAll(blockNameLabel, blockNameText, variableText1Styled, variableText2Styled);
-
-                    boolean result = performMessage.showAlertCombinedVBOX(
-                            Alert.AlertType.CONFIRMATION,
-                            "Add Instruction to Bot-Job",
-                            "Add the Instruction Selected to the Bot-Job?",
-                            null,
-                            combinedTextContainer);
-
-                    if (result) {
-
-                        BotJobLoadDTO botJobCheck = performDataBase.loadBotJobById(this.botJobLoad.getId());
-
-                        if (botJobCheck == null) {
-
-                            variableText1Styled = new Text(String.format(
-                                    "Check if you already have a Bot Job \"%\" Created!", this.botJobLoad.getName()));
-                            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                            combinedTextContainer.getChildren().clear();
-                            combinedTextContainer.getChildren().add(variableText1Styled);
-
-                            performMessage.showAlertCombinedVBOX(
-                                    Alert.AlertType.ERROR,
-                                    "Bot Job DOES NOT EXIST",
-                                    "Verify the Bot Job Name if have any: ",
-                                    null,
-                                    combinedTextContainer);
-
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .severe(String.format(
-                                            "Check if you already have a Bot Job \"%\" Created!",
-                                            this.botJobLoad.getName()));
-                            return;
-                        }
-
-                        // It Prevents Start without blocks
-                        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
-                        if (blockLoadList.isEmpty()) {
-
-                            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-                            newBlockDetails.setBlockName("Default Block");
-                            newBlockDetails.setBlockDescription("  description");
-                            newBlockDetails.setTypeId(1);
-                            newBlockDetails.setActive(true);
-                            newBlockDetails.setWait(3);
-
-                            newBlockDetails.setBotJobId(botJobLoad.getId());
-
-                            currentBlockId = performDataBase.createNewBlock(newBlockDetails);
-
-                            if (currentBlockId < 0) {
-                                performActions.showAlert(
-                                        Alert.AlertType.ERROR,
-                                        "Error Creating new Block",
-                                        "Verify the Bot Job Name if have any",
-                                        "Check if you already have a Bot Job Created!");
-
-                                ARLogger.getInstance(Thread.class)
-                                        .severe(String.format(
-                                                "Error Creating a new Block for bot job Id %d\nCheck if you already have a Bot Job Created!",
-                                                botJobLoad.getId()));
-                                return;
-                            } else {
-
-                                //                                setBlockJob(
-                                //
-                                // ARSharedResources.getInstance().getEntityById(BlockDTO.class, currentBlockId));
-                                ARLogger.getInstance(Thread.class)
-                                        .info(String.format(
-                                                "Created a new Block id %d for bot job Id %d",
-                                                currentBlockId, botJobLoad.getId()));
-                            }
-
-                            Platform.runLater(() -> {
-                                refreshBlocks(true);
-                            });
-                        }
-
-                        String finalNameWebElement = nameDefined;
-                        String finalBlockName = blockName;
-                        Task<Void> handleEvent = new Task<>() {
-                            @Override
-                            protected Void call() throws Exception {
-                                ARLogger.getInstance(Task.class).info("THREAD: Started");
-
-                                ARLogger.getInstance(Task.class)
-                                        .fine("THREAD: fetching instruction list from database");
-
-                                //                                ObservableList<InstructionLoadDTO> list =
-                                // ARSharedResources.getInstance()
-                                //                                        .getEntityList(InstructionLoadDTO.class,
-                                // (instr) -> instr.getBlockId()
-                                //                                                .equals(currentBlockId));
-
-                                List<InstructionLoadDTO> listInstr =
-                                        performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
-
-                                ARLogger.getInstance(Task.class)
-                                        .finer("THREAD: instruction list size " + listInstr.size());
-
-                                String actionReq = checkClickElement.isSelected()
-                                        ? ARConstants.CLICK
-                                        : checkInputText.isSelected()
-                                                ? ARConstants.INSERT
-                                                : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
-
-                                WebElementTagNameEnum tagType =
-                                        arWebHover.getTargetElement().getTagType();
-
-                                if (checkForceEnterText.isSelected() && tagType.equals(WebElementTagNameEnum.INPUT)) {
-                                    tagType = WebElementTagNameEnum.INPUT_ENTER;
-                                }
-
-                                InstructionLoadDTO instruction =
-                                        arWebHover.buildNewInstruction(tagType, actionReq, false, listInstr.size());
-
-                                if (checkForceCoordText.isSelected()) {
-                                    instruction.setForceCoordinates(true);
-                                } else {
-                                    instruction.setForceCoordinates(false);
-                                }
-
-                                instruction.setCoordinates(
-                                        arWebHover.getTargetElement().getMainCoordinates());
-                                instruction.setIFrameXPath(
-                                        arWebHover.getTargetElement().getIFrameXPath());
-
-                                instruction.setBlockId(currentBlockId);
-
-                                instruction.setInstructionOrderNumber(listInstr.size() + 1);
-
-                                ARLogger.getInstance(Task.class).fine("THREAD: adding instruction to database");
-
-                                Integer currentBotJobId = botJobLoad.getId();
-
-                                // Change the Name on the fly
-                                if (!Strings.isNullOrEmpty(finalNameWebElement)) {
-                                    instruction.setName(finalNameWebElement);
-
-                                    // Update the action string if it contains "I:"
-                                    String actions = instruction.getActions();
-                                    String[] parts = actions.split(",");
-
-                                    if (actions.startsWith("I:")) {
-                                        for (int i = 0; i < parts.length; i++) {
-                                            parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
-                                            if (parts[i].startsWith("I:")) {
-                                                if (parts[i].contains(":E:")) {
-                                                    parts[i] = "I:E:" + finalNameWebElement;
-                                                } else {
-                                                    parts[i] = "I:" + finalNameWebElement;
-                                                }
-                                                break; // Stop after modifying the first match
-                                            }
-                                        }
-
-                                        instruction.setActions(parts[0]);
-                                    }
-                                }
-
-                                int newId = preFillAddInstruction(
-                                        instruction.getName().trim(),
-                                        instruction.getDescription().trim(),
-                                        instruction.getActions(),
-                                        instruction.getOperation(),
-                                        instruction.getOnHoldSeconds(),
-                                        instruction.getVariableId(),
-                                        instruction.getInstructionOrderNumber(),
-                                        instruction.getExportToABR(),
-                                        instruction.getXpath(),
-                                        instruction.getCoordinates(),
-                                        instruction.getForceCoordinates(),
-                                        instruction.getIFrameXPath(),
-                                        currentBotJobId,
-                                        currentBlockId);
-
-                                if (newId < 0) {
-
-                                    Text variableText1Styled = new Text(String.format(
-                                            "\"Component\" Instruction \"%s\"\nCannot be saved",
-                                            instruction.getName()));
-                                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                                    VBox combinedTextContainer = new VBox();
-                                    combinedTextContainer.setSpacing(5); // Add some sp
-
-                                    combinedTextContainer.getChildren().add(variableText1Styled);
-
-                                    performMessage.showAlertCombinedVBOX(
-                                            Alert.AlertType.ERROR,
-                                            "Error Add New \"Component\" Instruction",
-                                            "Not possible to insert new Operation",
-                                            null,
-                                            combinedTextContainer);
-
-                                    return null;
-                                }
-
-                                instruction.setId(newId);
-
-                                arWebHover.setInstructionId(instruction.getId());
-                                List<InstructionReferenceLoadDTO> queue = new ArrayList<>();
-                                for (String key :
-                                        arWebHover.getSavedReferences().keySet()) {
-                                    InstructionReferenceLoadDTO reference = new InstructionReferenceLoadDTO();
-                                    reference.setReferenceType(key);
-                                    reference.setValue(
-                                            arWebHover.getSavedReferences().get(key));
-
-                                    reference.setBotJobId(currentBotJobId);
-
-                                    //
-                                    // reference.setBlockLoopInstructionLoadDTO(instruction);
-                                    queue.add(reference);
-                                }
-                                try {
-
-                                    Platform.runLater(() -> {
-                                        boolean saved = performDataBase.insertReferences(queue, instruction.getId());
-                                        if (saved) {
-
-                                            //                                            Text blockNameLabel = new
-                                            // Text("Block : ");
-                                            //
-                                            // blockNameLabel.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                                            //
-                                            //                                            Text blockNameText = new
-                                            // Text(finalBlockName);
-                                            //
-                                            // blockNameText.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-                                            //
-                                            //                                            Text variableText1Styled =
-                                            //                                                    new Text("The Web
-                                            // Instruction \"" + instruction.getName() + "\"");
-                                            //
-                                            // variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                                            //
-                                            //                                            Text variableText2Styled =
-                                            //                                                    new Text("With " +
-                                            // queue.size() + " reference locators");
-                                            //
-                                            // variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                                            //
-                                            //                                            Text variableText3Styled = new
-                                            // Text("Has been added successfully!");
-                                            //
-                                            // variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                                            //
-                                            //                                            VBox combinedTextContainer =
-                                            // new VBox();
-                                            //
-                                            // combinedTextContainer.setSpacing(5); // Add some sp
-
-                                            //                                            combinedTextContainer
-                                            //                                                    .getChildren()
-                                            //                                                    .addAll(
-                                            //
-                                            // blockNameLabel,
-                                            //                                                            blockNameText,
-                                            //
-                                            // variableText1Styled,
-                                            //
-                                            // variableText2Styled,
-                                            //
-                                            // variableText3Styled);
-
-                                            botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
-                                            String jsonData = "[]";
-                                            if (botJobLoadList.size() > 0) {
-                                                List<InstructionLoadDTO> blockLoopInstructions =
-                                                        performDataBase.buildJsonViewData(botJobLoadList);
-                                                jsonData = gson.toJson(blockLoopInstructions);
-                                            }
-                                            sendMessageJson(
-                                                    homeBanking.getId(),
-                                                    "botJobTasks-" + currentBotJobId,
-                                                    jsonData,
-                                                    "updateInstructions");
-
-                                            //
-                                            // performMessage.showAlertCombinedVBOX(
-                                            //
-                                            // Alert.AlertType.INFORMATION,
-                                            //                                                    "Web Instruction Add",
-                                            //                                                    "Added New \"Web
-                                            // Instruction\" Instruction",
-                                            //                                                    null,
-                                            //
-                                            // combinedTextContainer);
-
-                                        } else {
-
-                                            performMessage.errorMessage(
-                                                    "Web Instruction Warning",
-                                                    "Potential Issue with Web Instruction",
-                                                    "The instruction \"" + instruction.getName() + "\" was added with "
-                                                            + queue.size() + " reference locators.",
-                                                    "However, the engine may not process this element correctly",
-                                                    "due to insufficient identifiable attributes.",
-                                                    0);
-                                        }
-                                    });
-                                } catch (Exception ex) {
-                                    ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
-                                }
-                                //                                        });
-                                return null;
-                            }
-                        };
-                        ARLogger.getInstance(ARScannedElementPane.class).fine("Thread created");
-                        ARLogger.getInstance(ARScannedElementPane.class).fine("Before thread execution");
-                        new Thread(handleEvent).start();
-                        ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
-                    }
-                }
-            } else if (mouseEvent.getClickCount() == 1) {
-                itPrintsElementDate(arWebHover);
-            }
-        };
-        arWebHover.addEventHandler(MouseEvent.MOUSE_ENTERED, mouseEnteredHandler);
-        arWebHover.addEventHandler(MouseEvent.MOUSE_EXITED, mouseExitedHandler);
-        arWebHover.addEventHandler(MouseEvent.MOUSE_CLICKED, mouseClickedHandler);
     }
 
     private Set<WebElement> managePrioritiesCriteria() {

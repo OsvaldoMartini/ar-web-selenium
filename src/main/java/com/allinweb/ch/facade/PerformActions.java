@@ -3038,6 +3038,68 @@ public class PerformActions {
         return elements;
     }
 
+    public ElementDTO convertTargetToElementDTO(TargetElement targetElement) {
+        if (targetElement == null) {
+            return null;
+        }
+
+        ElementDTO elementDTO = new ElementDTO();
+
+        elementDTO.setTagName(targetElement.getOriginalTagName());
+        elementDTO.setXPath(targetElement.getMainXPath());
+        elementDTO.setSomeText(targetElement.getSomeText());
+        elementDTO.setAttribId(targetElement.getAttribId());
+        elementDTO.setAttribName(targetElement.getAttribName());
+        elementDTO.setCoords(targetElement.getCoords());
+        elementDTO.setAttributeData(targetElement.getAttributeData());
+        elementDTO.setCustomXPath(targetElement.getCustomXPath());
+        elementDTO.setIFrameXPath(targetElement.getIFrameXPath());
+        elementDTO.setShadowHost(targetElement.getShadowHost());
+        elementDTO.setShadowRoot(targetElement.getShadowRoot());
+        elementDTO.setNestedShadow(targetElement.getNestedShadow());
+        elementDTO.setCssSelector(targetElement.getCssSelector());
+        elementDTO.setAttributeValue(targetElement.getAttributeValue());
+        elementDTO.setAttributeType(targetElement.getAttributeType());
+        elementDTO.setSearchAttributeValue(null); // Assuming this is not directly available in TargetElement
+
+        // Determine typeElement based on tagType
+        if (targetElement.getTagType() != null) {
+            switch (targetElement.getTagType()) {
+                case BUTTON:
+                case ANCHOR:
+                case OPTION:
+                case MAT_SELECT:
+                    elementDTO.setTypeElement(
+                            "button"); // or "link", "option", depending on how you want to represent these
+                    break;
+                case INPUT:
+                case TEXT_AREA:
+                    elementDTO.setTypeElement("input");
+                    break;
+                case OUTPUT:
+                case PARAGRAPH:
+                case HEADER:
+                case LABEL:
+                case FOR_LABEL:
+                case DIV:
+                case STRONG:
+                case SPAN:
+                    elementDTO.setTypeElement("output");
+                    break;
+                case IFRAME:
+                    elementDTO.setTypeElement("iframe");
+                    break;
+                default:
+                    elementDTO.setTypeElement(targetElement.getOriginalTagName()); // Default to tag name
+                    break;
+            }
+        } else {
+            elementDTO.setTypeElement(targetElement.getOriginalTagName()); // Default to tag name if tagType is null
+        }
+
+        return elementDTO;
+    }
+
     public TargetElement defineSearchReturn(ElementDTO elemenDTO, WebElement element, TargetElement targetDefine) {
         if (targetDefine == null || targetDefine.getElement() == null) {
             if (targetDefine == null) {
