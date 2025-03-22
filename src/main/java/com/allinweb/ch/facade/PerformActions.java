@@ -3334,7 +3334,21 @@ public class PerformActions {
         target.setNameLabel(nameLabelText == null ? "" : nameLabelText.trim().replaceAll("\\s+", " "));
         target.setNameField(nameFieldText == null ? "" : nameFieldText.trim().replaceAll("\\s+", " "));
 
-        target.setDefinedName(target.getNameField());
+        String nameDefinedPriority = target.getNameLabel();
+        if (!Strings.isNullOrEmpty(target.getAttribId())
+                || !Strings.isNullOrEmpty(target.getAttribName())
+                || !Strings.isNullOrEmpty(target.getSomeText())) {
+            nameDefinedPriority = (!Strings.isNullOrEmpty(target.getSomeText())
+                    ? PerformActions.truncateAndNormalize(target.getSomeText(), 30)
+                    : !Strings.isNullOrEmpty(target.getAttribId())
+                            ? target.getAttribId()
+                            : !Strings.isNullOrEmpty(target.getAttribName())
+                                    ? target.getAttribName()
+                                    : nameDefinedPriority);
+        }
+
+        target.setDefinedName(nameDefinedPriority);
+
         return target;
     }
 

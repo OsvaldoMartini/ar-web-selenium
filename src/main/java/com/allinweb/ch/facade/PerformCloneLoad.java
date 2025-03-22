@@ -50,15 +50,16 @@ public class PerformCloneLoad {
         try {
             jsExecutor = (JavascriptExecutor) driver;
             jsExecutor.executeScript(
-                    jsPickOneCloneInject, currentUrl, currentUrl, dataList, searchHiddenFields, port, homeBankingId);
+                    jsHoverPickInject, currentUrl, currentUrl, dataList, searchHiddenFields, port, homeBankingId);
             return null;
         } catch (Exception error) {
             return new ErrorMessage("Error running Scanner", "Dynamic Load ElementsDTO error", error.getMessage());
         }
     }
 
-    private String jsPickOneCloneInject =
+    private String jsHoverPickInject =
             """
+                    // HOVER PICK IN USE (SENDER: scannerTool) -> scannerGrid
                     (function (
                       targetOriginURL,
                       trustedOriginURL,
@@ -218,7 +219,13 @@ public class PerformCloneLoad {
                           }
                         }
                         const xPath = getMartiniXPath(element);
-                        const tagName = element.tagName.toLowerCase();
+
+                        let tagName = element.tagName.toLowerCase();
+                        const tagNameTemp = identifyElementTypeFromXPath(tagName, xPath);
+                        if (tagNameTemp !== tagName) {
+                          tagName = tagNameTemp;
+                        }
+
                         const attributeData = Array.from(element.attributes).map((attr) => ({
                           name: attr.name,
                           value: attr.value,
@@ -241,120 +248,88 @@ public class PerformCloneLoad {
                           someText,
                         };
                       };
+
+                      // Function to check if an element is hidden (using computed styles and attributes)
+                      const isHidden = (el) => {
+                        const style = window.getComputedStyle(el);
+                        return (
+                          style.display === "none" ||
+                          style.visibility === "hidden" ||
+                          el.hasAttribute("aria-hidden")
+                        );
+                      };
+
                       function getVisibleText(tagName, attributeData, element) {
-                        let textSet = new Set();
                         let textResult = "";
 
-                        if (element) {
-                          // Check computed styles to filter out hidden elements
-                          const isHidden = (el) => {
-                            const style = window.getComputedStyle(el);
-                            return (
-                              style.display === "none" ||
-                              style.visibility === "hidden" ||
-                              el.hasAttribute("aria-hidden")
-                            );
-                          };
-
-                          if (!isHidden(element)) {
-                            const extractedText = extractVisibleTextFromHTML(element);
-                            textResult = [
-                              ...extractedText.titles,
-                              ...extractedText.text,
-                              ...extractedText.labels,
-                            ]
-                              .map((text) => text.trim())
-                              .filter(Boolean)
-                              .join("; ");
-                          }
+                        if (element && !isHidden(element)) {
+                          const extractedText = extractVisibleTextFromHTML(element);
+                          textResult = [
+                            ...extractedText.titles,
+                            ...extractedText.text,
+                            ...extractedText.labels,
+                          ]
+                            .map((text) => text.trim())
+                            .filter(Boolean)
+                            .join("; ");
                         }
 
-                        // Extract attribute-based text (only meaningful ones)
-                        attributeData.forEach(({ name, value }) => {
-                          const trimmedValue = value.trim();
-                          if (!trimmedValue) return;
+                        // Define priority order for attributes
+                        const attributePriority = [
+                          "aria-label",
+                          "aria-labelledby",
+                          "aria-describedby",
+                          "placeholder",
+                          "label",
+                          "name",
+                          "title",
+                          "alt",
+                          "for",
+                          "data-label",
+                          "data-name",
+                          "data-title",
+                          "id",
+                          "data-testid",
+                        ];
 
-                          if (["placeholder", "label", "name", "title", "id"].includes(name)) {
-                            textSet.add(trimmedValue);
-                          }
+                        let firstMeaningfulText = "";
 
-                          // Extract text from `srcdoc` if available
-                          if (name === "srcdoc") {
-                            try {
-                              const doc = new DOMParser().parseFromString(value, "text/html");
-                              const extractedText = extractVisibleTextFromHTML(doc.body);
-                              [
-                                ...extractedText.titles,
-                                ...extractedText.text,
-                                ...extractedText.labels,
-                              ].forEach((text) => textSet.add(text.trim()));
-                            } catch (e) {
-                              console.warn("Error parsing srcdoc:", e);
+                        // Function to get attribute text with priority
+                        const getAttributeText = (name, value) => {
+                          if (name === "aria-labelledby" || name === "aria-describedby") {
+                            const referencedElement = document.getElementById(value);
+                            if (referencedElement && !isHidden(referencedElement)) {
+                              return referencedElement.textContent.trim();
                             }
                           }
-                        });
-
-                        // Add extracted visible text to the set (removing duplicates)
-                        textResult
-                          .split(";")
-                          .map((text) => text.trim())
-                          .filter(Boolean)
-                          .forEach((text) => textSet.add(text));
-
-                        // Return unique, clean, and visible text
-                        return Array.from(textSet).join("; ");
-                      }
-
-                      const getMartiniXPath = function getMartiniXPath(element) {
-                        if (element === document.body) return "/html/body";
-                        let ix = 0;
-                        const siblings = element.parentNode ? element.parentNode.childNodes : [];
-                        for (let i = 0; i < siblings.length; i++) {
-                          let sibling = siblings[i];
-                          if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
-                            if (sibling === element) {
-                              return (
-                                getMartiniXPath(element.parentNode) +
-                                "/" +
-                                element.tagName.toLowerCase() +
-                                "[" +
-                                (ix + 1) +
-                                "]"
-                              );
-                            }
-                            ix++;
-                          }
-                        }
-                        return "";
-                      };
-
-                      const elementDTO = function elementDTO(typeElement, identity) {
-                        return {
-                          typeElement: typeElement,
-                          tagName: identity.tagName ?? "No Tag Name Detected",
-                          xPath: identity.xPath ?? "",
-                          someText: identity.someText ?? "",
-                          attribId: identity.attribId ?? "",
-                          attribName: identity.attribName ?? "",
-                          coordinates: identity.coordinates ?? "",
-                          attributeData: identity.attributeData ?? "",
-                          customXPath: identity.customXPath ?? "",
-                          iFrameXPath: identity.iFrameXPath ?? "",
-                          shadowHost: identity.shadowHost ?? "",
-                          shadowRoot: identity.shadowRoot ?? "",
-                          nestedShadow: identity.nestedShadow ?? "",
-                          cssSelector: identity.cssSelector ?? "",
-                          attributeValue: identity.attributeValue ?? "",
-                          attributeType: identity.attributeType ?? "",
-                          searchAttributeValue: identity.searchAttributeValue ?? "",
+                          return value.trim();
                         };
-                      };
 
-                      function limitMapCharacters(elementInfoMap) {
-                        elementInfoMap.forEach((value, key) => {
-                          let modifiedValue = value;
-                          window.allElementInfo.push(modifiedValue);
-                        });
+                        // Check element's text first
+                        if (textResult && !/^\\..*\\{.*\\}$/.test(textResult)) {
+                          firstMeaningfulText = textResult;
+                        } else {
+                          // Directly prioritize title before checking others
+                          const titleAttr = attributeData.find(({ name }) => name === "title");
+                          if (titleAttr) {
+                            firstMeaningfulText = getAttributeText(titleAttr.name, titleAttr.value);
+                          }
+
+                          if (!firstMeaningfulText) {
+                            for (const attr of attributePriority) {
+                              const foundAttr = attributeData.find(({ name }) => name === attr);
+                              if (foundAttr) {
+                                firstMeaningfulText = getAttributeText(
+                                  foundAttr.name,
+                                  foundAttr.value
+                                );
+                                if (firstMeaningfulText) break; // Stop at first meaningful attribute
+                              }
+                            }
+                          }
+                        }
+
+                        return firstMeaningfulText; // Return the most meaningful text
                       }
 
                       function extractVisibleTextFromHTML(element) {
@@ -378,9 +353,21 @@ public class PerformCloneLoad {
                           );
                         };
 
+                        // Function to filter out technical patterns
+                        const isTechnicalPattern = (word) => {
+                          return word.includes("_") || word.includes("--") || word.includes("-");
+                        };
+
                         // Extract visible text content from an element
                         if (element.textContent?.trim() && isVisible(element)) {
-                          result.text.add(element.textContent.trim());
+                          // Ignore text content that looks like CSS rules and words with technical patterns
+                          const textContent = element.textContent.trim();
+                          const words = textContent.split(/\\s+/);
+                          const filteredWords = words.filter((word) => !isTechnicalPattern(word));
+                          const filteredText = filteredWords.join(" ").trim();
+                          if (filteredText) {
+                            result.text.add(filteredText);
+                          }
                         }
 
                         // Extract text from labels (including associated input fields)
@@ -396,8 +383,21 @@ public class PerformCloneLoad {
                             if (inputElement && isVisible(inputElement)) {
                               const value = inputElement.value?.trim();
                               const placeholder = inputElement.placeholder?.trim();
-                              if (value) result.text.add(value);
-                              else if (placeholder) result.text.add(placeholder);
+                              if (value) {
+                                const words = value.split(/\\s+/);
+                                const filteredWords = words.filter(
+                                  (word) => !isTechnicalPattern(word)
+                                );
+                                const filteredText = filteredWords.join(" ").trim();
+                                if (filteredText) result.text.add(filteredText);
+                              } else if (placeholder) {
+                                const words = placeholder.split(/\\s+/);
+                                const filteredWords = words.filter(
+                                  (word) => !isTechnicalPattern(word)
+                                );
+                                const filteredText = filteredWords.join(" ").trim();
+                                if (filteredText) result.text.add(filteredText);
+                              }
                             }
                           }
                         });
@@ -423,7 +423,15 @@ public class PerformCloneLoad {
                         visibleTextElements.forEach((tag) => {
                           element.querySelectorAll(tag).forEach((child) => {
                             if (isVisible(child) && child.textContent?.trim()) {
-                              result.text.add(child.textContent.trim());
+                              const textContent = child.textContent.trim();
+                              const words = textContent.split(/\\s+/);
+                              const filteredWords = words.filter(
+                                (word) => !isTechnicalPattern(word)
+                              );
+                              const filteredText = filteredWords.join(" ").trim();
+                              if (filteredText) {
+                                result.text.add(filteredText);
+                              }
                             }
                           });
                         });
@@ -431,7 +439,13 @@ public class PerformCloneLoad {
                         // Extract visible link text
                         element.querySelectorAll("a").forEach((link) => {
                           if (isVisible(link) && link.textContent?.trim()) {
-                            result.text.add(link.textContent.trim());
+                            const textContent = link.textContent.trim();
+                            const words = textContent.split(/\\s+/);
+                            const filteredWords = words.filter((word) => !isTechnicalPattern(word));
+                            const filteredText = filteredWords.join(" ").trim();
+                            if (filteredText) {
+                              result.text.add(filteredText);
+                            }
                           }
                         });
 
@@ -463,6 +477,103 @@ public class PerformCloneLoad {
                           labels: Array.from(result.labels),
                           titles: Array.from(result.titles),
                         };
+                      }
+                      const getMartiniXPath = function getMartiniXPath(element) {
+                        if (element === document.body) return "/html/body";
+                        let ix = 0;
+                        const siblings = element.parentNode ? element.parentNode.childNodes : [];
+                        for (let i = 0; i < siblings.length; i++) {
+                          let sibling = siblings[i];
+                          if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
+                            if (sibling === element) {
+                              return (
+                                getMartiniXPath(element.parentNode) +
+                                "/" +
+                                element.tagName.toLowerCase() +
+                                "[" +
+                                (ix + 1) +
+                                "]"
+                              );
+                            }
+                            ix++;
+                          }
+                        }
+                        return "";
+                      };
+
+                      function identifyElementTypeFromXPath(tagName, xpath) {
+                        if (typeof xpath !== "string" || xpath.trim() === "") {
+                          return "unknown";
+                        }
+
+                        const parts = xpath.split("/").filter((part) => part.trim() !== "");
+
+                        for (let i = parts.length - 1; i >= 0; i--) {
+                          const part = parts[i];
+
+                          const tagMatch = part.match(/^([a-zA-Z-]+)(?:\\[\\d+\\])?/);
+                          if (!tagMatch) continue;
+
+                          const tag = tagMatch[1].toLowerCase();
+
+                          if (tag === "a") {
+                            return "a"; // Link
+                          }
+
+                          if (tag === "input") {
+                            const typeMatch = part.match(/@type=["']?([^"'\\]]+)["']?/);
+                            const type = typeMatch ? typeMatch[1].toLowerCase() : "";
+
+                            if (["button", "submit", "reset"].includes(type)) {
+                              return "button";
+                            }
+                            return "input";
+                          }
+
+                          if (tag === "button") {
+                            return "button";
+                          }
+
+                          // Detect if it's an Angular Material expansion panel (likely a button)
+                          if (
+                            tag.includes("expansion-panel-header") ||
+                            tag.includes("sidenav") ||
+                            tag.includes("nav")
+                          ) {
+                            return "button";
+                          }
+                        }
+
+                        return tagName; // Default to the given tagName if no match
+                      }
+
+                      const elementDTO = function elementDTO(typeElement, identity) {
+                        return {
+                          typeElement: typeElement,
+                          tagName: identity.tagName ?? "No Tag Name Detected",
+                          xPath: identity.xPath ?? "",
+                          someText: identity.someText ?? "",
+                          attribId: identity.attribId ?? "",
+                          attribName: identity.attribName ?? "",
+                          coordinates: identity.coordinates ?? "",
+                          attributeData: identity.attributeData ?? "",
+                          customXPath: identity.customXPath ?? "",
+                          iFrameXPath: identity.iFrameXPath ?? "",
+                          shadowHost: identity.shadowHost ?? "",
+                          shadowRoot: identity.shadowRoot ?? "",
+                          nestedShadow: identity.nestedShadow ?? "",
+                          cssSelector: identity.cssSelector ?? "",
+                          attributeValue: identity.attributeValue ?? "",
+                          attributeType: identity.attributeType ?? "",
+                          searchAttributeValue: identity.searchAttributeValue ?? "",
+                        };
+                      };
+
+                      function limitMapCharacters(elementInfoMap) {
+                        elementInfoMap.forEach((value, key) => {
+                          let modifiedValue = value;
+                          window.allElementInfo.push(modifiedValue);
+                        });
                       }
 
                       // Add event listener for mouse movement to update coordinates
@@ -591,6 +702,7 @@ public class PerformCloneLoad {
                             });
                           } else {
                             // Commom Elementes
+                            pushElement(clickedElement, null, null);
                           }
                         }
 
@@ -737,6 +849,5 @@ public class PerformCloneLoad {
                       arguments[5]
                     );
                     // })("https://www.vpbank.com/", "https://www.vpbank.com/", ["*"], false, 8181, 3);
-
             """;
 }

@@ -55,7 +55,7 @@ public class PerformPreLoad {
             jsExecutor = (JavascriptExecutor) driver;
             // "scannerTool", "scannerGrid", "searchTerms"
             jsExecutor.executeScript(
-                    jsCodeInject,
+                    jsSearchInUse,
                     dataList,
                     searchHiddenFields,
                     port,
@@ -712,9 +712,9 @@ public class PerformPreLoad {
             // })(["div"], false);
             """;
 
-    private String jsCodeInject =
+    private String jsSearchInUse =
             """
-                    // (SENDER: scannerTool) -> scannerGrid
+                    // SEARCH IN USE (SENDER: scannerTool) -> scannerGrid
                     (function (
                       searchTerms,
                       hiddenFields,
@@ -727,6 +727,7 @@ public class PerformPreLoad {
                       let attempts = 0;
                       let maxAttempts = 100;
                       let wSocket = null;
+                      const originalStyles = new Map();
                       let pageFullyLoaded = false;
                       window.elementInfoMap = new Map();
                       // window.searchTerms = ["button", "input", "a", "select"];
@@ -898,6 +899,7 @@ public class PerformPreLoad {
                           const elementIdentity = getElementIdentity(element);
                           if (elementIdentity) {
                             filterSearchTerms(
+                              element,
                               "tagName-Found",
                               elementIdentity.xPath,
                               elementIdentity,
@@ -908,6 +910,7 @@ public class PerformPreLoad {
                       };
 
                       function filterSearchTerms(
+                        element,
                         typeDTO,
                         referXPath,
                         elementIdentity,
@@ -919,11 +922,40 @@ public class PerformPreLoad {
                             !searchTerms.includes("with name") &&
                             !searchTerms.includes("with text"))
                         ) {
-                          // If no search terms, directly add the element
-                          window.elementInfoMap.set(
-                            referXPath,
-                            elementDTO(typeDTO, elementIdentity)
-                          );
+                          // Check if the clicked element has a shadow root
+                          let shadowHost = element;
+
+                          // Locate the shadow host element if it has a shadow root
+                          while (shadowHost && !shadowHost.shadowRoot) {
+                            shadowHost = shadowHost.parentElement; // Traverse upwards in the DOM
+                          }
+
+                          if (shadowHost && shadowHost.shadowRoot) {
+                            // Access the Shadow DOM
+                            const shadowRoot = shadowHost.shadowRoot;
+
+                            // Find all clickable elements inside the Shadow DOM
+                            let clickableElements = findClickableElements(shadowRoot);
+
+                            // If clickable elements are found, perform your action (e.g., highlight them)
+                            clickableElements.forEach((element) => {
+                              pushElement(
+                                element,
+                                elementIdentity,
+                                referXPath,
+                                typeDTO,
+                                shadowHost,
+                                shadowRoot
+                              );
+                            });
+                          } else {
+                            // If no search terms, directly add the element
+                            pushElement(element, elementIdentity, referXPath, typeDTO, null, null);
+                          }
+                          // window.elementInfoMap.set(
+                          //   referXPath,
+                          //   elementDTO(typeDTO, elementIdentity)
+                          // );
                           return;
                         }
                         // Iterate through search terms and apply corresponding checks
@@ -949,10 +981,47 @@ public class PerformPreLoad {
 
                           // If a match is found, set the element in the map
                           if (matches) {
-                            window.elementInfoMap.set(
-                              referXPath,
-                              elementDTO(typeDTO, elementIdentity)
-                            );
+                            // Check if the clicked element has a shadow root
+                            let shadowHost = element;
+
+                            // Locate the shadow host element if it has a shadow root
+                            while (shadowHost && !shadowHost.shadowRoot) {
+                              shadowHost = shadowHost.parentElement; // Traverse upwards in the DOM
+                            }
+
+                            if (shadowHost && shadowHost.shadowRoot) {
+                              // Access the Shadow DOM
+                              const shadowRoot = shadowHost.shadowRoot;
+
+                              // Find all clickable elements inside the Shadow DOM
+                              let clickableElements = findClickableElements(shadowRoot);
+
+                              // If clickable elements are found, perform your action (e.g., highlight them)
+                              clickableElements.forEach((element) => {
+                                pushElement(
+                                  element,
+                                  elementIdentity,
+                                  referXPath,
+                                  typeDTO,
+                                  shadowHost,
+                                  shadowRoot
+                                );
+                              });
+                            } else {
+                              // If no search terms, directly add the element
+                              pushElement(
+                                element,
+                                elementIdentity,
+                                referXPath,
+                                typeDTO,
+                                null,
+                                null
+                              );
+                            }
+                            // window.elementInfoMap.set(
+                            //   referXPath,
+                            //   elementDTO(typeDTO, elementIdentity)
+                            // );
                           }
                         });
                       }
@@ -1048,6 +1117,7 @@ public class PerformPreLoad {
                               const elementIdentity = getElementIdentity(iframe);
                               if (elementIdentity) {
                                 filterSearchTerms(
+                                  iframe,
                                   "iFrame-Found",
                                   elementIdentity.xPath,
                                   elementIdentity,
@@ -1080,6 +1150,7 @@ public class PerformPreLoad {
                                     if (elementIdentity) {
                                       elementIdentity.iFrameXPath = xPathIFrame;
                                       filterSearchTerms(
+                                        element,
                                         "iFrame-Child",
                                         `${xPathIFrame}${elementIdentity?.xPath}`,
                                         elementIdentity,
@@ -1115,6 +1186,7 @@ public class PerformPreLoad {
                                   if (elementIdentity) {
                                     elementIdentity.iFrameXPath = xPathIFrame;
                                     filterSearchTerms(
+                                      elementInsideIframe,
                                       "iFrame-Child",
                                       `${xPathIFrame}${elementIdentity?.xPath}`,
                                       elementIdentity,
@@ -1133,6 +1205,7 @@ public class PerformPreLoad {
                                 if (elementIdentity) {
                                   elementIdentity.iFrameXPath = xPathIFrame;
                                   filterSearchTerms(
+                                    element,
                                     "iFrame-Child",
                                     `${xPathIFrame}${elementIdentity?.xPath}`,
                                     elementIdentity,
@@ -1174,6 +1247,7 @@ public class PerformPreLoad {
                             if (elementIdentity) {
                               elementIdentity.iFrameXPath = xPathIFrame;
                               filterSearchTerms(
+                                elementInsideIframe,
                                 "iFrame-Child",
                                 `${xPathIFrame}${elementIdentity?.xPath}`,
                                 elementIdentity,
@@ -1219,6 +1293,77 @@ public class PerformPreLoad {
                         }
                       };
 
+                      function pushElement(
+                        element,
+                        elementIdentityTemp,
+                        referXPath,
+                        typeDTO,
+                        shadowHost,
+                        shadowRoot
+                      ) {
+                        let shadowHostSelector = "";
+                        let elementCssSelector = "";
+                        let shadowPath = [];
+
+                        function buildCssSelector(el) {
+                          if (!el) return "";
+                          let selector = el.tagName.toLowerCase();
+                          if (el.id) selector += `#${el.id}`;
+                          if (el.className) selector += `.${el.className.replace(/\\s+/g, ".")}`;
+                          return selector;
+                        }
+
+                        // Traverse shadow hosts if nested shadow DOM exists
+                        let currentHost = shadowHost;
+                        while (currentHost) {
+                          shadowPath.unshift(buildCssSelector(currentHost));
+                          currentHost =
+                            currentHost.parentNode instanceof ShadowRoot
+                              ? currentHost.parentNode.host
+                              : null;
+                        }
+
+                        if (shadowHost) {
+                          shadowHostSelector = buildCssSelector(shadowHost);
+                        }
+
+                        if (element) {
+                          elementCssSelector = buildCssSelector(element);
+                        }
+
+                        // Construct the natural CSS selector for nested Shadow DOM
+                        let cssSelector = elementCssSelector;
+
+                        // Build nested CSS selector, if shadowPath is not empty.
+                        if (shadowPath.length > 0) {
+                          cssSelector = shadowPath.reduceRight((acc, hostSelector) => {
+                            return `${hostSelector} ${acc}`;
+                          }, elementCssSelector);
+                        }
+
+                        const elementIdentity = {
+                          ...elementIdentityTemp,
+                          shadowHost: shadowHostSelector,
+                          shadowRoot: shadowRoot ? true : false,
+                          nestedShadow: shadowPath.length > 1, // Detects if multiple shadow roots are involved
+                          cssSelector: elementCssSelector, // cssSelector shadowRoot
+                        };
+
+                        // Store tagName and other details in the Map
+                        if (elementIdentity) {
+                          if (!originalStyles.has(element)) {
+                            // Store the original outline before changing it
+                            originalStyles.set(element, element.style.outline);
+                          }
+                          element.style.outline = "3px solid red";
+
+                          window.elementInfoMap.set(
+                            referXPath, // Keep Distinction iFrameXPath / child / etc...
+                            elementDTO(typeDTO, elementIdentity)
+                          );
+                        }
+                      }
+
                       const getElementIdentity = function getElementIdentity(element) {
                         if (!hiddenFields) {
                           if (
@@ -1234,17 +1379,23 @@ public class PerformPreLoad {
                           }
                         }
                         const xPath = getMartiniXPath(element);
-                        const tagName = element.tagName.toLowerCase();
+
+                        let tagName = element.tagName.toLowerCase();
+                        const tagNameTemp = identifyElementTypeFromXPath(tagName, xPath);
+                        if (tagNameTemp !== tagName) {
+                          tagName = tagNameTemp;
+                        }
+
                         const attributeData = Array.from(element.attributes).map((attr) => ({
                           name: attr.name,
                           value: attr.value,
                         }));
                         const attribId = element.id || "";
                         const attribName = element.name || "";
-                        const coordinates = `${element.getBoundingClientRect().left.toFixed(2)},${element
+                        const coordinates = `${element
                           .getBoundingClientRect()
-                          .top.toFixed(2)}`;
-                        const someText = getSomeText(tagName, attributeData, element);
+                          .left.toFixed(2)},${element.getBoundingClientRect().top.toFixed(2)}`;
+                        const someText = getVisibleText(tagName, attributeData, element);
 
                         return {
                           xPath,
@@ -1258,6 +1409,235 @@ public class PerformPreLoad {
                         };
                       };
 
+                      // Function to check if an element is hidden (using computed styles and attributes)
+                      const isHidden = (el) => {
+                        const style = window.getComputedStyle(el);
+                        return (
+                          style.display === "none" ||
+                          style.visibility === "hidden" ||
+                          el.hasAttribute("aria-hidden")
+                        );
+                      };
+
+                      function getVisibleText(tagName, attributeData, element) {
+                        let textResult = "";
+
+                        if (element && !isHidden(element)) {
+                          const extractedText = extractVisibleTextFromHTML(element);
+                          textResult = [
+                            ...extractedText.titles,
+                            ...extractedText.text,
+                            ...extractedText.labels,
+                          ]
+                            .map((text) => text.trim())
+                            .filter(Boolean)
+                            .join("; ");
+                        }
+
+                        // Define priority order for attributes
+                        const attributePriority = [
+                          "aria-label",
+                          "aria-labelledby",
+                          "aria-describedby",
+                          "placeholder",
+                          "label",
+                          "name",
+                          "title",
+                          "alt",
+                          "for",
+                          "data-label",
+                          "data-name",
+                          "data-title",
+                          "id",
+                          "data-testid",
+                        ];
+
+                        let firstMeaningfulText = "";
+
+                        // Function to get attribute text with priority
+                        const getAttributeText = (name, value) => {
+                          if (name === "aria-labelledby" || name === "aria-describedby") {
+                            const referencedElement = document.getElementById(value);
+                            if (referencedElement && !isHidden(referencedElement)) {
+                              return referencedElement.textContent.trim();
+                            }
+                          }
+                          return value.trim();
+                        };
+
+                        // Check element's text first
+                        if (textResult && !/^\\..*\\{.*\\}$/.test(textResult)) {
+                          firstMeaningfulText = textResult;
+                        } else {
+                          // Directly prioritize title before checking others
+                          const titleAttr = attributeData.find(({ name }) => name === "title");
+                          if (titleAttr) {
+                            firstMeaningfulText = getAttributeText(titleAttr.name, titleAttr.value);
+                          }
+
+                          if (!firstMeaningfulText) {
+                            for (const attr of attributePriority) {
+                              const foundAttr = attributeData.find(({ name }) => name === attr);
+                              if (foundAttr) {
+                                firstMeaningfulText = getAttributeText(
+                                  foundAttr.name,
+                                  foundAttr.value
+                                );
+                                if (firstMeaningfulText) break; // Stop at first meaningful attribute
+                              }
+                            }
+                          }
+                        }
+
+                        return firstMeaningfulText; // Return the most meaningful text
+                      }
+
+                      function extractVisibleTextFromHTML(element) {
+                        if (!element) {
+                          return { text: [], labels: [], titles: [] };
+                        }
+
+                        const result = {
+                          text: new Set(),
+                          labels: new Set(),
+                          titles: new Set(),
+                        };
+
+                        // Utility function to check if an element is visible
+                        const isVisible = (el) => {
+                          const style = window.getComputedStyle(el);
+                          return !(
+                            style.display === "none" ||
+                            style.visibility === "hidden" ||
+                            el.hasAttribute("aria-hidden")
+                          );
+                        };
+
+                        // Function to filter out technical patterns
+                        const isTechnicalPattern = (word) => {
+                          return word.includes("_") || word.includes("--") || word.includes("-");
+                        };
+
+                        // Extract visible text content from an element
+                        if (element.textContent?.trim() && isVisible(element)) {
+                          // Ignore text content that looks like CSS rules and words with technical patterns
+                          const textContent = element.textContent.trim();
+                          const words = textContent.split(/\\s+/);
+                          const filteredWords = words.filter((word) => !isTechnicalPattern(word));
+                          const filteredText = filteredWords.join(" ").trim();
+                          if (filteredText) {
+                            result.text.add(filteredText);
+                          }
+                        }
+
+                        // Extract text from labels (including associated input fields)
+                        element.querySelectorAll("label").forEach((label) => {
+                          if (isVisible(label) && label.textContent?.trim()) {
+                            result.labels.add(label.textContent.trim());
+                          }
+
+                          // Handle labels associated with form elements
+                          const forAttr = label.getAttribute("for");
+                          if (forAttr) {
+                            const inputElement = document.getElementById(forAttr);
+                            if (inputElement && isVisible(inputElement)) {
+                              const value = inputElement.value?.trim();
+                              const placeholder = inputElement.placeholder?.trim();
+                              if (value) {
+                                const words = value.split(/\\s+/);
+                                const filteredWords = words.filter(
+                                  (word) => !isTechnicalPattern(word)
+                                );
+                                const filteredText = filteredWords.join(" ").trim();
+                                if (filteredText) result.text.add(filteredText);
+                              } else if (placeholder) {
+                                const words = placeholder.split(/\\s+/);
+                                const filteredWords = words.filter(
+                                  (word) => !isTechnicalPattern(word)
+                                );
+                                const filteredText = filteredWords.join(" ").trim();
+                                if (filteredText) result.text.add(filteredText);
+                              }
+                            }
+                          }
+                        });
+
+                        // Extract text from common inline and block elements
+                        const visibleTextElements = [
+                          "p",
+                          "h1",
+                          "h2",
+                          "h3",
+                          "h4",
+                          "h5",
+                          "h6",
+                          "li",
+                          "span",
+                          "div",
+                          "strong",
+                          "em",
+                          "b",
+                          "i",
+                          "blockquote",
+                        ];
+                        visibleTextElements.forEach((tag) => {
+                          element.querySelectorAll(tag).forEach((child) => {
+                            if (isVisible(child) && child.textContent?.trim()) {
+                              const textContent = child.textContent.trim();
+                              const words = textContent.split(/\\s+/);
+                              const filteredWords = words.filter(
+                                (word) => !isTechnicalPattern(word)
+                              );
+                              const filteredText = filteredWords.join(" ").trim();
+                              if (filteredText) {
+                                result.text.add(filteredText);
+                              }
+                            }
+                          });
+                        });
+
+                        // Extract visible link text
+                        element.querySelectorAll("a").forEach((link) => {
+                          if (isVisible(link) && link.textContent?.trim()) {
+                            const textContent = link.textContent.trim();
+                            const words = textContent.split(/\\s+/);
+                            const filteredWords = words.filter((word) => !isTechnicalPattern(word));
+                            const filteredText = filteredWords.join(" ").trim();
+                            if (filteredText) {
+                              result.text.add(filteredText);
+                            }
+                          }
+                        });
+
+                        // Extract titles from iframes if accessible
+                        element.querySelectorAll("iframe").forEach((iframe) => {
+                          if (iframe.hasAttribute("title")) {
+                            const title = iframe.getAttribute("title")?.trim();
+                            if (title) result.titles.add(title);
+                          }
+
+                          try {
+                            const iframeDoc =
+                              iframe.contentDocument ||
+                              new DOMParser().parseFromString(iframe.srcdoc || "", "text/html");
+                            if (iframeDoc.body) {
+                              const extractedText = extractVisibleTextFromHTML(iframeDoc.body);
+                              extractedText.titles.forEach((title) => result.titles.add(title));
+                              extractedText.text.forEach((text) => result.text.add(text));
+                              extractedText.labels.forEach((label) => result.labels.add(label));
+                            }
+                          } catch (e) {
+                            console.warn("Could not access iframe content", e);
+                          }
+                        });
+
+                        // Return arrays instead of Sets
+                        return {
+                          text: Array.from(result.text),
+                          labels: Array.from(result.labels),
+                          titles: Array.from(result.titles),
+                        };
+                      }
                       // Helper function to generate a unique XPath for an element
                       const getMartiniXPath = function getMartiniXPath(element) {
                         if (element === document.body) return "/html/body";
@@ -1282,16 +1662,51 @@ public class PerformPreLoad {
                         return "";
                       };
 
-                      // Helper function to generate element information string
-                      const elementInfoString = function elementInfoString(element, identity) {
-                        return `${element.tagName.toLowerCase()};xpath:${identity.xpath};text:${
-                          identity.someText
-                        };attribId:${identity.attribId};attribName:${identity.attribName};coordinates:${
-                          identity.coordinates
-                        };attributeData:${identity.attributeData};customXPath:${
-                          identity.customXPath
-                        };`;
-                      };
+                      function identifyElementTypeFromXPath(tagName, xpath) {
+                        if (typeof xpath !== "string" || xpath.trim() === "") {
+                          return "unknown";
+                        }
+
+                        const parts = xpath.split("/").filter((part) => part.trim() !== "");
+
+                        for (let i = parts.length - 1; i >= 0; i--) {
+                          const part = parts[i];
+
+                          const tagMatch = part.match(/^([a-zA-Z-]+)(?:\\[\\d+\\])?/);
+                          if (!tagMatch) continue;
+
+                          const tag = tagMatch[1].toLowerCase();
+
+                          if (tag === "a") {
+                            return "a"; // Link
+                          }
+
+                          if (tag === "input") {
+                            const typeMatch = part.match(/@type=["']?([^"'\\]]+)["']?/);
+                            const type = typeMatch ? typeMatch[1].toLowerCase() : "";
+
+                            if (["button", "submit", "reset"].includes(type)) {
+                              return "button";
+                            }
+                            return "input";
+                          }
+
+                          if (tag === "button") {
+                            return "button";
+                          }
+
+                          // Detect if it's an Angular Material expansion panel (likely a button)
+                          if (
+                            tag.includes("expansion-panel-header") ||
+                            tag.includes("sidenav") ||
+                            tag.includes("nav")
+                          ) {
+                            return "button";
+                          }
+                        }
+
+                        return tagName; // Default to the given tagName if no match
+                      }
 
                       const elementDTO = function elementDTO(typeElement, identity) {
                         return {
@@ -1305,6 +1720,10 @@ public class PerformPreLoad {
                           attributeData: identity.attributeData ?? "",
                           customXPath: identity.customXPath ?? "",
                           iFrameXPath: identity.iFrameXPath ?? "",
+                          shadowHost: identity.shadowHost ?? "",
+                          shadowRoot: identity.shadowRoot ?? "",
+                          nestedShadow: identity.nestedShadow ?? "",
+                          cssSelector: identity.cssSelector ?? "",
                           attributeValue: identity.attributeValue ?? "",
                           attributeType: identity.attributeType ?? "",
                           searchAttributeValue: identity.searchAttributeValue ?? "",
@@ -1316,204 +1735,6 @@ public class PerformPreLoad {
                           let modifiedValue = value;
                           window.allElementInfo.push(modifiedValue);
                         });
-                      }
-
-                      function getSomeText(tagName, attributeData, element) {
-                        let textSet = new Set();
-                        let textResult = "";
-
-                        if (["input", "textarea", "select", "button"].includes(tagName)) {
-                          const extractedText = extractTextFromHTML(element || "");
-                          textResult = [
-                            ...extractedText.titles,
-                            ...extractedText.text,
-                            ...extractedText.labels,
-                          ]
-                            .join("; ")
-                            .trim();
-                        } else if (["option", "label", "a"].includes(tagName)) {
-                          const extractedText = extractTextFromHTML(element || "");
-                          textResult = [
-                            ...extractedText.titles,
-                            ...extractedText.text,
-                            ...extractedText.labels,
-                          ]
-                            .join("; ")
-                            .trim();
-                        } else if (!["html", "body", "script"].includes(tagName)) {
-                          const extractedText = extractTextFromHTML(element || "");
-                          textResult = [
-                            ...extractedText.titles,
-                            ...extractedText.text,
-                            ...extractedText.labels,
-                          ]
-                            .join("; ")
-                            .trim();
-                        }
-
-                        // Now, extract text from attributes AFTER processing the element
-                        attributeData.forEach((attr) => {
-                          const trimmedValue = attr.value.trim();
-
-                          if (trimmedValue) {
-                            // Process only if value is not empty
-                            if (
-                              attr.name === "placeholder" ||
-                              attr.name === "label" ||
-                              attr.name === "name" ||
-                              attr.name === "title" ||
-                              attr.name === "id"
-                            ) {
-                              textSet.add(trimmedValue);
-                            }
-                          }
-                        });
-
-                        // Continue processing srcdoc separately
-                        attributeData.forEach((attr) => {
-                          if (attr.name === "srcdoc") {
-                            try {
-                              const doc = new DOMParser().parseFromString(attr.value, "text/html");
-                              const extractedText = extractTextFromHTML(doc.body);
-                              [
-                                ...extractedText.titles,
-                                ...extractedText.text,
-                                ...extractedText.labels,
-                              ].forEach((text) => textSet.add(text.trim()));
-                            } catch (e) {
-                              console.warn("Error parsing srcdoc:", e);
-                            }
-                          }
-                        });
-
-                        // Add the extracted text from the element to the set to avoid duplicates
-                        textResult
-                          .split(";")
-                          .map((text) => text.trim())
-                          .filter(Boolean)
-                          .forEach((text) => textSet.add(text));
-
-                        // Return a clean, unique, and deduplicated string
-                        return Array.from(textSet).join("; ");
-                      }
-
-                      function extractTextFromHTML(element) {
-                        // If element is invalid or empty, return an empty result
-                        if (!element || element === " ") {
-                          return {
-                            text: [],
-                            labels: [],
-                            titles: [],
-                          };
-                        }
-                        const result = {
-                          text: new Set(), // Using Set to avoid duplicate text
-                          labels: new Set(), // Using Set to avoid duplicate labels
-                          titles: new Set(), // Using Set to avoid duplicate titles
-                        };
-
-                        // Extract text content directly from the element (in case it has no children)
-                        if (element.textContent) {
-                          let elementText = element.textContent.trim();
-                          if (elementText) {
-                            result.text.add(elementText); // Using .add() instead of .push() for Set
-                          }
-                        }
-
-                        // Extract label text from input placeholders and other form-related data
-                        element.querySelectorAll("label").forEach((label) => {
-                          if (label.textContent) {
-                            let labelText = label.textContent.trim();
-                            if (labelText) {
-                              result.labels.add(labelText); // Using .add() for Set to ensure uniqueness
-                            }
-                          }
-
-                          // Handle associated input fields (if the label has a 'for' attribute)
-                          let forAttribute = label.getAttribute("for");
-                          if (forAttribute) {
-                            let associatedInput = element.querySelector(`#${forAttribute}`);
-                            if (associatedInput) {
-                              // Check if it's an input field or textarea and extract value or placeholder
-                              let inputValue = associatedInput.value?.trim();
-                              let inputPlaceholder = associatedInput.placeholder?.trim();
-                              if (inputValue) {
-                                result.text.add(inputValue); // Using .add() for Set to ensure uniqueness
-                              } else if (inputPlaceholder) {
-                                result.text.add(inputPlaceholder); // Fallback to placeholder
-                              }
-                            }
-                          }
-                        });
-
-                        // Extract text from common block and inline elements
-                        const textExtractors = [
-                          "p",
-                          "h1",
-                          "h2",
-                          "h3",
-                          "h4",
-                          "h5",
-                          "h6",
-                          "li",
-                          "span",
-                          "div",
-                          "strong",
-                          "em",
-                          "b",
-                          "i",
-                          "blockquote",
-                        ];
-
-                        textExtractors.forEach((tagName) => {
-                          element.querySelectorAll(tagName).forEach((childElement) => {
-                            if (childElement.textContent) {
-                              let elemText = childElement.textContent.trim();
-                              if (elemText) {
-                                result.text.add(elemText); // Using .add() for Set to ensure uniqueness
-                              }
-                            }
-                          });
-                        });
-
-                        // Extract text from <a> tags (links)
-                        element.querySelectorAll("a").forEach((link) => {
-                          if (link.textContent) {
-                            let linkText = link.textContent.trim();
-                            if (linkText) {
-                              result.text.add(linkText); // Using .add() for Set to ensure uniqueness
-                            }
-                          }
-                        });
-
-                        // Extract iframe titles and nested content
-                        element.querySelectorAll("iframe").forEach((iframe) => {
-                          if (iframe.getAttribute("title")) {
-                            let title = iframe.getAttribute("title")?.trim();
-                            if (title) {
-                              result.titles.add(title); // Using .add() for Set to ensure uniqueness
-                            }
-                          }
-
-                          try {
-                            let iframeDoc =
-                              iframe.contentDocument ||
-                              new DOMParser().parseFromString(iframe.srcdoc || "", "text/html");
-                            let iframeContent = extractTextFromHTML(iframeDoc); // Here we assume iframeDoc is an element.
-                            iframeContent.titles.forEach((title) => result.titles.add(title));
-                            iframeContent.text.forEach((text) => result.text.add(text));
-                            iframeContent.labels.forEach((label) => result.labels.add(label));
-                          } catch (e) {
-                            console.warn("Could not access iframe content", e);
-                          }
-                        });
-
-                        // Convert Sets to arrays before returning to maintain previous structure
-                        return {
-                          text: Array.from(result.text),
-                          labels: Array.from(result.labels),
-                          titles: Array.from(result.titles),
-                        };
                       }
 
                       // Event listener to handle incoming messages from iframes
@@ -1559,6 +1780,23 @@ public class PerformPreLoad {
                       }
 
                       connectWebSocket();
+
+                      window.revertSearchInjections = function () {
+                        // Remove the tooltip from the page and delete the reference after 5 seconds
+                        setTimeout(() => {
+                          restoreOriginalStyles();
+                          window.allElementInfo = [];
+                        }, 1000);
+                      };
+
+                      // Function to restore the original outline
+                      function restoreOriginalStyles() {
+                        originalStyles.forEach((originalStyle, element) => {
+                          element.style.outline = originalStyle; // Restore original outline
+                        });
+                        originalStyles.clear(); // Clear the stored styles
+                      }
+
                       // startCollectingElements(window.searchTerms);
                       // init("Initiate");
                       // window.initSearchTerms = null; // Invalidating the function
@@ -1574,9 +1812,16 @@ public class PerformPreLoad {
 
                     // })([], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["with name"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
-                    // })(["input", "button", "a"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
+                    // })(
+                    //   ["input", "button", "a", "select"],
+                    //   false,
+                    //   8181,
+                    //   "scannerTool",
+                    //   "scannerGrid-3",
+                    //   "searchTerms",
+                    //   3
+                    // );
                     // })(["*"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["button"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
-
-            """;
+                    """;
 }

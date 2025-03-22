@@ -2046,6 +2046,21 @@ public class ARScannedElementPane extends ARPane {
         }
 
         handleSearchTermClick(dataArray);
+
+        try {
+            Thread.sleep(2000);
+            revertSearchTermsInjections(performActions.getCurrentDriver());
+        } catch (Exception e) {
+
+        }
+    }
+
+    private void revertSearchTermsInjections(WebDriver driver) {
+        try {
+            jsExecutor = (JavascriptExecutor) driver;
+            jsExecutor.executeScript("window.revertSearchInjections();");
+        } catch (Exception ignore) {
+        }
     }
 
     private void itPrintsElementDTO(TargetElement target) {
