@@ -22,6 +22,7 @@ public class InstructionLoadDTO {
     private String coordinates;
     private Boolean forceCoordinates;
     private String iFrameXPath;
+    private String tagName;
     private String shadowHost;
     private String shadowRoot;
     private String cssSelector;
@@ -92,5 +93,6 @@ public class InstructionLoadDTO {
         this.parentId = parentId;
         this.operation = operation;
         this.exportFile = exportFile;
+        this.tagName = tagName;
     }
 }

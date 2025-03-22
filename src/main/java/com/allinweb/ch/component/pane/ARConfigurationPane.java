@@ -244,8 +244,6 @@ public class ARConfigurationPane extends ARPane {
         pathLogButton = createPathButton();
         sizeLogLabel = new Label("Max Size Log");
         sizeLog = createPathTextField(ARPropertyEnum.MAX_LOG_SIZE);
-        reduceSearchLabel = new Label("Limit Max Search");
-        reduceSearch = createPathTextField(ARPropertyEnum.REDUCE_SEARCH_CRITERIA);
 
         GridPane gridPaneLog = new GridPane();
         //        gridPaneLog.setVgap(10);
@@ -255,25 +253,20 @@ public class ARConfigurationPane extends ARPane {
         col1.setPercentWidth(65);
 
         ColumnConstraints col2 = new ColumnConstraints();
-        col2.setPercentWidth(15);
+        col2.setPercentWidth(30);
 
         ColumnConstraints col3 = new ColumnConstraints();
-        col3.setPercentWidth(15);
+        col3.setPercentWidth(5);
 
-        ColumnConstraints col4 = new ColumnConstraints();
-        col4.setPercentWidth(5);
-
-        gridPaneLog.getColumnConstraints().addAll(col1, col2, col3, col4);
+        gridPaneLog.getColumnConstraints().addAll(col1, col2, col3);
 
         // Add labels in the first row
         gridPaneLog.add(pathLogLabel, 0, 0);
         gridPaneLog.add(sizeLogLabel, 1, 0);
-        gridPaneLog.add(reduceSearchLabel, 2, 0);
 
         // Add text fields in the second row
         gridPaneLog.add(pathLog, 0, 1);
         gridPaneLog.add(sizeLog, 1, 1);
-        gridPaneLog.add(reduceSearch, 2, 1);
 
         // Add button in the second row, third column
         gridPaneLog.add(pathLogButton, 3, 1);

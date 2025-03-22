@@ -174,6 +174,10 @@ public class ARScannedElementPane extends ARPane {
 
             int nextOrder = listInstr.size() + 1;
 
+            if (!Strings.isNullOrEmpty(defineNameField.getText().trim())) {
+                targetInsertOne.setDefinedName(defineNameField.getText().trim());
+            }
+
             insertNewElementDTO(currentBlockId, nextOrder, targetInsertOne);
         }
     }
@@ -269,13 +273,6 @@ public class ARScannedElementPane extends ARPane {
             targetInsert.setCoordinates(targetInsert.getSavedReferences().get("coordinates"));
         }
 
-        String nameDefined = defineNameField.getText().trim();
-        if (targetInsert.getDefinedName() != null
-                && !targetInsert.getDefinedName().equalsIgnoreCase(nameDefined)) {
-            nameDefined = targetInsert.getDefinedName();
-        }
-
-        String finalNameWebElement = nameDefined;
         Task<Void> handleEvent = new Task<>() {
             @Override
             protected Void call() throws Exception {
@@ -302,6 +299,8 @@ public class ARScannedElementPane extends ARPane {
 
                 instruction.setCoordinates(targetInsert.getCoordinates());
                 instruction.setIFrameXPath(targetInsert.getIFrameXPath());
+
+                instruction.setTagName(targetInsert.getTagName());
                 instruction.setShadowHost(targetInsert.getShadowHost());
                 instruction.setShadowRoot(targetInsert.getShadowRoot());
                 instruction.setCssSelector(targetInsert.getCssSelector());
@@ -311,28 +310,26 @@ public class ARScannedElementPane extends ARPane {
                 Integer currentBotJobId = botJobLoad.getId();
 
                 // Change the Name on the fly
-                if (!Strings.isNullOrEmpty(finalNameWebElement)) {
-                    instruction.setName(finalNameWebElement);
+                instruction.setName(targetInsert.getDefinedName());
 
-                    // Update the action string if it contains "I:"
-                    String actions = instruction.getActions();
-                    String[] parts = actions.split(",");
+                // Update the action string if it contains "I:"
+                String actions = instruction.getActions();
+                String[] parts = actions.split(",");
 
-                    if (actions.startsWith("I:")) {
-                        for (int i = 0; i < parts.length; i++) {
-                            parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
-                            if (parts[i].startsWith("I:")) {
-                                if (parts[i].contains(":E:")) {
-                                    parts[i] = "I:E:" + finalNameWebElement;
-                                } else {
-                                    parts[i] = "I:" + finalNameWebElement;
-                                }
-                                break; // Stop after modifying the first match
+                if (actions.startsWith("I:")) {
+                    for (int i = 0; i < parts.length; i++) {
+                        parts[i] = parts[i].trim(); // Ensure no leading/trailing spaces
+                        if (parts[i].startsWith("I:")) {
+                            if (parts[i].contains(":E:")) {
+                                parts[i] = "I:E:" + targetInsert.getDefinedName();
+                            } else {
+                                parts[i] = "I:" + targetInsert.getDefinedName();
                             }
+                            break;
                         }
-
-                        instruction.setActions(parts[0]);
                     }
+
+                    instruction.setActions(parts[0]);
                 }
 
                 int newId = preFillAddInstruction(
@@ -348,6 +345,7 @@ public class ARScannedElementPane extends ARPane {
                         instruction.getCoordinates(),
                         instruction.getForceCoordinates(),
                         instruction.getIFrameXPath(),
+                        instruction.getTagName(),
                         instruction.getShadowHost(),
                         instruction.getShadowRoot(),
                         instruction.getCssSelector(),
@@ -1819,9 +1817,9 @@ public class ARScannedElementPane extends ARPane {
             }
         }
 
-        Boolean inputContains = targetCheck.getOriginalTagName().toLowerCase().contains("input");
+        Boolean inputContains = targetCheck.getTagName().toLowerCase().contains("input");
 
-        Boolean selectContains = targetCheck.getOriginalTagName().toLowerCase().contains("select");
+        Boolean selectContains = targetCheck.getTagName().toLowerCase().contains("select");
 
         if (targetCheck.getCloned() == null) {
 
@@ -2142,13 +2140,13 @@ public class ARScannedElementPane extends ARPane {
 
                 // Print based on priority: ID -> Name -> Type
                 if (idValue != null) {
-                    nameDefined = targetSelected.getOriginalTagName() + "-" + idValue;
+                    nameDefined = targetSelected.getTagName() + "-" + idValue;
                 } else if (nameValue != null) {
-                    nameDefined = targetSelected.getOriginalTagName() + "-" + nameValue;
+                    nameDefined = targetSelected.getTagName() + "-" + nameValue;
                 } else if (typeValue != null) {
-                    nameDefined = targetSelected.getOriginalTagName() + "-" + typeValue;
+                    nameDefined = targetSelected.getTagName() + "-" + typeValue;
                 } else {
-                    nameDefined = targetSelected.getOriginalTagName();
+                    nameDefined = targetSelected.getTagName();
                 }
 
                 if (targetSelected.getDefinedName() != null
@@ -2160,13 +2158,13 @@ public class ARScannedElementPane extends ARPane {
                 Platform.runLater(
                         () -> defineNameField.setText(PerformActions.truncateAndNormalize(finalSomeText, 30)));
 
-            } else if (!Strings.isNullOrEmpty(targetSelected.getOriginalTagName())) {
+            } else if (!Strings.isNullOrEmpty(targetSelected.getTagName())) {
 
                 if (targetSelected.getDefinedName() != null
                         && !targetSelected.getDefinedName().equalsIgnoreCase(nameDefined)) {
                     nameDefined = targetSelected.getDefinedName();
                 } else {
-                    nameDefined = targetSelected.getOriginalTagName();
+                    nameDefined = targetSelected.getTagName();
                 }
                 String finalSomeText = nameDefined;
 
@@ -5383,54 +5381,57 @@ public class ARScannedElementPane extends ARPane {
             String coordinates,
             boolean forceCoordinates,
             String iFrameXPath,
+            String tagName,
             String shadowHost,
             String shadowRoot,
             String cssSelector,
             Integer currentBotJobId,
             Integer currentBlockId) {
 
-        InstructionLoadDTO InstructionLoadDTO = new InstructionLoadDTO();
+        InstructionLoadDTO instructionLoadDTO = new InstructionLoadDTO();
 
-        InstructionLoadDTO.setXpath(xPath);
-        InstructionLoadDTO.setCoordinates(coordinates);
-        InstructionLoadDTO.setForceCoordinates(forceCoordinates);
-        InstructionLoadDTO.setIFrameXPath(iFrameXPath);
-        InstructionLoadDTO.setShadowHost(shadowHost);
-        InstructionLoadDTO.setShadowRoot(shadowRoot);
-        InstructionLoadDTO.setCssSelector(cssSelector);
+        instructionLoadDTO.setXpath(xPath);
+        instructionLoadDTO.setCoordinates(coordinates);
+        instructionLoadDTO.setForceCoordinates(forceCoordinates);
+        instructionLoadDTO.setIFrameXPath(iFrameXPath);
 
-        InstructionLoadDTO.setName(name);
+        instructionLoadDTO.setTagName(tagName);
+        instructionLoadDTO.setShadowHost(shadowHost);
+        instructionLoadDTO.setShadowRoot(shadowRoot);
+        instructionLoadDTO.setCssSelector(cssSelector);
 
-        InstructionLoadDTO.setCodified(false);
+        instructionLoadDTO.setName(name);
 
-        InstructionLoadDTO.setInstructionOrderNumber(instructionOrderNumber);
+        instructionLoadDTO.setCodified(false);
 
-        InstructionLoadDTO.setOptional(false);
+        instructionLoadDTO.setInstructionOrderNumber(instructionOrderNumber);
+
+        instructionLoadDTO.setOptional(false);
 
         //        InstructionLoadDTO.setOperation(operation);
-        InstructionLoadDTO.setActions(actions);
-        InstructionLoadDTO.setDescription(description);
+        instructionLoadDTO.setActions(actions);
+        instructionLoadDTO.setDescription(description);
 
-        InstructionLoadDTO.setVariableId(varId);
+        instructionLoadDTO.setVariableId(varId);
 
-        InstructionLoadDTO.setActionCustomMaxWaitSec(30);
-        InstructionLoadDTO.setOnHoldSeconds(onHold);
+        instructionLoadDTO.setActionCustomMaxWaitSec(30);
+        instructionLoadDTO.setOnHoldSeconds(onHold);
         //        InstructionLoadDTO.setBlock(savedBlockDTO);
-        InstructionLoadDTO.setExportToABR(exportToAR);
-        InstructionLoadDTO.setInstructionActive(true);
+        instructionLoadDTO.setExportToABR(exportToAR);
+        instructionLoadDTO.setInstructionActive(true);
 
         // Wrap the persistence in a try-catch block
         int newId = -1;
 
         try {
-            newId = performDataBase.insertInstruction(InstructionLoadDTO, currentBotJobId, currentBlockId);
+            newId = performDataBase.insertInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
 
         } catch (Exception e) {
 
             ARLogger.getInstance(ARScannedElementPane.class)
                     .severe(String.format(
                             "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                            InstructionLoadDTO.getName(), e.getMessage()));
+                            instructionLoadDTO.getName(), e.getMessage()));
 
             return -1;
         }

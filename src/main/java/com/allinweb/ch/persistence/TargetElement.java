@@ -34,7 +34,7 @@ public class TargetElement {
     String attribName;
     String attributeType;
     String attributeValue;
-    String originalTagName;
+    String tagName;
     String definedName;
     WebElementTagNameEnum tagType;
     WebElementIcon iconType;
@@ -67,7 +67,7 @@ public class TargetElement {
         this.attribName = origin.attribName;
         this.attributeType = origin.attributeType;
         this.attributeValue = origin.attributeValue;
-        this.originalTagName = origin.originalTagName;
+        this.tagName = origin.tagName;
         this.definedName = origin.definedName;
         this.tagType = origin.tagType;
         this.iconType = origin.iconType;
@@ -101,7 +101,7 @@ public class TargetElement {
         this.attribName = null;
         this.attributeType = null;
         this.attributeValue = null;
-        this.originalTagName = null;
+        this.tagName = null;
         this.definedName = null;
         this.tagType = null;
         this.iconType = null;

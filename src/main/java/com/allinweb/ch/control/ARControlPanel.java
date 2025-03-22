@@ -6,6 +6,8 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.licence.LicenseManager;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyManager;
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.util.Arrays;
 import java.util.List;
 import javafx.application.Application;
@@ -32,6 +34,14 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
+        try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
+            int availablePort = serverSocket.getLocalPort();
+            System.out.println("Available port: " + availablePort);
+        } catch (IOException e) {
+
+            System.out.println("Fixed Port : " + 54525);
+        }
+
         List<String> arguments = Arrays.asList(args);
         if (arguments.contains("-c")) {
             int configurationValueIndex = arguments.indexOf("-c") + 1;

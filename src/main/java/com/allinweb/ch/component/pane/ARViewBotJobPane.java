@@ -1200,9 +1200,12 @@ public class ARViewBotJobPane extends ARPane {
                 instruction.setCoordinates(rs.getString("coordinates"));
                 instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
                 instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+
+                instruction.setTagName(rs.getString("tag_name"));
                 instruction.setShadowHost(rs.getString("shadow_host"));
                 instruction.setShadowRoot(rs.getString("shadow_root"));
                 instruction.setCssSelector(rs.getString("css_selector"));
+
                 instruction.setDescription(rs.getString("description"));
                 instruction.setOptional(rs.getBoolean("optional"));
                 instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));

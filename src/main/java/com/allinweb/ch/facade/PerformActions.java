@@ -3046,7 +3046,7 @@ public class PerformActions {
 
         ElementDTO elementDTO = new ElementDTO();
 
-        elementDTO.setTagName(targetElement.getOriginalTagName());
+        elementDTO.setTagName(targetElement.getTagName());
         elementDTO.setXPath(targetElement.getXPath());
         elementDTO.setSomeText(targetElement.getSomeText());
         elementDTO.setAttribId(targetElement.getAttribId());
@@ -3055,10 +3055,13 @@ public class PerformActions {
         elementDTO.setAttributeData(targetElement.getAttributeData());
         elementDTO.setCustomXPath(targetElement.getCustomXPath());
         elementDTO.setIFrameXPath(targetElement.getIFrameXPath());
+
+        elementDTO.setTagName(targetElement.getTagName());
         elementDTO.setShadowHost(targetElement.getShadowHost());
         elementDTO.setShadowRoot(targetElement.getShadowRoot());
         elementDTO.setNestedShadow(targetElement.getNestedShadow());
         elementDTO.setCssSelector(targetElement.getCssSelector());
+
         elementDTO.setAttributeValue(targetElement.getAttributeValue());
         elementDTO.setAttributeType(targetElement.getAttributeType());
         elementDTO.setSearchAttributeValue(null); // Assuming this is not directly available in TargetElement
@@ -3091,11 +3094,11 @@ public class PerformActions {
                     elementDTO.setTypeElement("iframe");
                     break;
                 default:
-                    elementDTO.setTypeElement(targetElement.getOriginalTagName()); // Default to tag name
+                    elementDTO.setTypeElement(targetElement.getTagName()); // Default to tag name
                     break;
             }
         } else {
-            elementDTO.setTypeElement(targetElement.getOriginalTagName()); // Default to tag name if tagType is null
+            elementDTO.setTypeElement(targetElement.getTagName()); // Default to tag name if tagType is null
         }
 
         return elementDTO;
@@ -3110,7 +3113,7 @@ public class PerformActions {
             // Reset Previous Values
             targetDefine.setAttribId(elemenDTO.getAttribId());
             targetDefine.setAttribName(elemenDTO.getAttribName());
-            targetDefine.setOriginalTagName(elemenDTO.getTagName());
+            targetDefine.setTagName(elemenDTO.getTagName());
             targetDefine.setSomeText(elemenDTO.getSomeText());
             targetDefine.setCoordinates(elemenDTO.getCoordinates());
 
@@ -3119,6 +3122,7 @@ public class PerformActions {
 
             targetDefine.setIFrameXPath(elemenDTO.getIFrameXPath());
 
+            targetDefine.setTagName(elemenDTO.getTagName());
             targetDefine.setShadowHost(elemenDTO.getShadowHost());
             targetDefine.setShadowRoot(elemenDTO.getShadowRoot());
             targetDefine.setCssSelector(elemenDTO.getCssSelector());
@@ -3196,13 +3200,12 @@ public class PerformActions {
     public TargetElement defineTargetNameTitles(TargetElement target) {
 
         try {
-            String tagNameDefined =
-                    target.getDefinedName() != null ? target.getDefinedName() : target.getOriginalTagName();
+            String tagNameDefined = target.getDefinedName() != null ? target.getDefinedName() : target.getTagName();
             WebElement targetElem = target.getElement();
 
             // Check element tag names
-            boolean isAnchor = target.getOriginalTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
-            boolean isOption = target.getOriginalTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
+            boolean isAnchor = target.getTagName().equalsIgnoreCase(WebElementTagNameEnum.ANCHOR.getValue());
+            boolean isOption = target.getTagName().equalsIgnoreCase(WebElementTagNameEnum.OPTION.getValue());
 
             // Extract various attributes
 
@@ -3233,7 +3236,7 @@ public class PerformActions {
             String textLabel = targetElem.getText();
 
             // Determine boolean conditions
-            boolean hasButton = target.getOriginalTagName().equalsIgnoreCase("button")
+            boolean hasButton = target.getTagName().equalsIgnoreCase("button")
                     && isClickable(targetElem, tagNameDefined)
                     && !textLabel.isBlank();
             boolean hasAriaLabel = isValidString(ariaLabelValue);
@@ -3245,12 +3248,12 @@ public class PerformActions {
             boolean hasId = isValidString(idAttributeValue) && !hasButton;
             boolean hasValue = isValidString(valueAttributeValue);
             boolean hasHRefFile = isValidString(valueHRefFile);
-            boolean hasParagraph = !Strings.isNullOrEmpty(textLabel)
-                    && target.getOriginalTagName().equalsIgnoreCase("p");
-            boolean hasSpan = !Strings.isNullOrEmpty(textLabel)
-                    && target.getOriginalTagName().equalsIgnoreCase("span");
-            boolean hasDiv = !Strings.isNullOrEmpty(textLabel)
-                    && target.getOriginalTagName().equalsIgnoreCase("div");
+            boolean hasParagraph =
+                    !Strings.isNullOrEmpty(textLabel) && target.getTagName().equalsIgnoreCase("p");
+            boolean hasSpan =
+                    !Strings.isNullOrEmpty(textLabel) && target.getTagName().equalsIgnoreCase("span");
+            boolean hasDiv =
+                    !Strings.isNullOrEmpty(textLabel) && target.getTagName().equalsIgnoreCase("div");
 
             boolean isLabel = !Strings.isNullOrEmpty(labelAttributeValue);
             boolean isForLabel = !Strings.isNullOrEmpty(forLabelAttributeValue);
@@ -3309,7 +3312,7 @@ public class PerformActions {
             } else if (!Strings.isNullOrEmpty(titleAttributeValue)) {
                 target = setElementText(target, titleAttributeValue, titleAttributeValue);
             } else if (!Strings.isNullOrEmpty(tagNameDefined) && tagNameDefined.equalsIgnoreCase("iFrame")) {
-                target = setElementText(target, target.getOriginalTagName(), tagNameDefined);
+                target = setElementText(target, target.getTagName(), tagNameDefined);
             } else {
                 //                if (tagNameDefined.equalsIgnoreCase("input")) {
                 //                    target.setTagType(WebElementTagNameEnum.INPUT);
@@ -3318,8 +3321,7 @@ public class PerformActions {
                 //                } else  if (tagNameDefined.equalsIgnoreCase("input")) {
                 //                    target.setTagType(WebElementTagNameEnum.OUTPUT);
                 //                }
-                target = setElementText(
-                        target, target.getOriginalTagName(), ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
+                target = setElementText(target, target.getTagName(), ARConstants.DEFAULT_VALUE_NO_IDENTIFICATION);
             }
 
         } catch (Exception e) {
@@ -3338,7 +3340,7 @@ public class PerformActions {
 
         try {
             System.out.println("Defined Name: " + targetTagType.getDefinedName());
-            System.out.println("Tag Name: " + targetTagType.getOriginalTagName());
+            System.out.println("Tag Name: " + targetTagType.getTagName());
             System.out.println("Id: " + targetTagType.getAttribId());
             System.out.println("Name: " + targetTagType.getAttribName());
             System.out.println("xPath: " + targetTagType.getCurrentXPath());
@@ -4064,6 +4066,8 @@ public class PerformActions {
         loop.setOptional(false);
         loop.setInstructionActive(true);
         loop.setXpath(targetBuild.getXPath());
+
+        loop.setTagName(targetBuild.getTagName());
         loop.setShadowHost(targetBuild.getShadowHost());
         loop.setShadowRoot(targetBuild.getShadowRoot());
         loop.setCssSelector(targetBuild.getCssSelector());

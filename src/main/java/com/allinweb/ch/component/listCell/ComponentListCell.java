@@ -544,6 +544,9 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
             String iframeXPath = !Strings.isNullOrEmpty(InstructionLoadDTO.getIFrameXPath())
                     ? "'" + InstructionLoadDTO.getIFrameXPath() + "'"
                     : "";
+            String tagName = !Strings.isNullOrEmpty(InstructionLoadDTO.getTagName())
+                    ? "'" + InstructionLoadDTO.getTagName() + "'"
+                    : "";
             String shadowHost = !Strings.isNullOrEmpty(InstructionLoadDTO.getShadowHost())
                     ? "'" + InstructionLoadDTO.getShadowHost() + "'"
                     : "";
@@ -573,6 +576,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     + "path, "
                     + "coordinates, "
                     + "iframe_xpath, "
+                    + "tag_name, "
                     + "shadow_host, "
                     + "shadow_root, "
                     + "css_selector, "
@@ -598,6 +602,7 @@ public class ComponentListCell extends ListCell<ComponentBlockDTO> {
                     + ", " + pathValue
                     + ", " + coordinates
                     + ", " + iframeXPath
+                    + ", " + tagName
                     + ", " + shadowHost
                     + ", " + shadowRoot
                     + ", " + cssSelector
