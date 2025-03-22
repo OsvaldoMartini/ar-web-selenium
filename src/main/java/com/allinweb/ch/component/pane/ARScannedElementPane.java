@@ -844,6 +844,7 @@ public class ARScannedElementPane extends ARPane {
     private Button cleanListButton;
     private Button turnOnOffButton;
     private Button includeAllSelected;
+    private Button searchButton;
 
     private CheckBox checkCloneElement;
 
@@ -1182,7 +1183,8 @@ public class ARScannedElementPane extends ARPane {
         coordsTextFieldLabel = new Label("Main Coordinates");
 
         searchTermsField = new TextField();
-        searchTermsField.setPromptText("button,label,input");
+        searchTermsField.setPromptText("button, label, input, with id, with text");
+        searchTermsField.setPrefWidth(300);
 
         defineNameField = new TextField();
         defineNameField.setPromptText("DEFINE A NAME");
@@ -1199,6 +1201,8 @@ public class ARScannedElementPane extends ARPane {
                 "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
         rightButton = componentBuilder.buildButton(
                 "Next", ARConstants.SPACE_M, ARConstants.ICON_RIGHT, ARConstants.SPACE_M, new Insets(5.0D));
+        searchButton = componentBuilder.buildButton(
+                "", ARConstants.SPACE_M, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5.0D));
 
         leftButton.setDisable(true);
         rightButton.setDisable(true);
@@ -1283,6 +1287,7 @@ public class ARScannedElementPane extends ARPane {
             gridPaneTop.add(searchWebElementsButton, 0, 0);
             gridPaneTop.add(searchTermsLabel, 3, 0);
             gridPaneTop.add(searchTermsField, 4, 0);
+            gridPaneTop.add(searchButton, 5, 0);
             gridPaneTop.add(turnOnOffButton, 6, 0);
             gridPaneTop.add(leftButton, 7, 0);
             gridPaneTop.add(rightButton, 8, 0);
@@ -1664,7 +1669,10 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        searchWebElementsButton.setOnAction(e -> searchTermsBtn("Search Web Elements"));
+        searchWebElementsButton.setOnAction(e -> searchTermsBtn(null));
+
+        searchButton.setOnAction(e -> searchTermsBtn(searchTermsField.getText().trim()));
+
         turnOnOffButton.setVisible(false);
     }
 
@@ -2026,16 +2034,21 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void searchTermsBtn(String searchType) {
-        //        webElementObservableList1.clear();
-        //        manageUIScanInputs();
-        String[] dataArray = {"input", "button", "a"};
+    private void searchTermsBtn(String searchTerms) {
+        String[] dataArray;
+
         //        String[] dataArray = {"with id"};
         //        String[] dataArray = {"with name"};
-        //        String[] dataArray = {"button"};
         //        String[] dataArray = {"with text"};
+        //        String[] dataArray = {"button"};
         //        String[] dataArray = {"input"};
-        //
+
+        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
+            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
+        } else {
+            dataArray = new String[] {"input", "button", "a", "select"}; // Default values
+        }
+
         handleSearchTermClick(dataArray);
     }
 
