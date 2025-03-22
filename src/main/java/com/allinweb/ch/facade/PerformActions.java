@@ -3123,6 +3123,7 @@ public class PerformActions {
             targetDefine.setIFrameXPath(elemenDTO.getIFrameXPath());
 
             targetDefine.setTagName(elemenDTO.getTagName());
+
             targetDefine.setShadowHost(elemenDTO.getShadowHost());
             targetDefine.setShadowRoot(elemenDTO.getShadowRoot());
             targetDefine.setCssSelector(elemenDTO.getCssSelector());
@@ -3131,7 +3132,6 @@ public class PerformActions {
             targetDefine.setAttributeData(elemenDTO.getAttributeData());
             targetDefine.setCustomXPath(elemenDTO.getCustomXPath());
 
-            targetDefine.setDefinedName(null);
             if (!Strings.isNullOrEmpty(elemenDTO.getAttribId())) {
                 targetDefine.setAttributeType("id");
                 targetDefine.setAttributeValue(elemenDTO.getAttribId());
@@ -3197,7 +3197,7 @@ public class PerformActions {
     }
 
     // TODO MORE INTELLIGENT  LOGIC
-    public TargetElement defineTargetNameTitles(TargetElement target) {
+    public TargetElement defineNameTitles(TargetElement target) {
 
         try {
             String tagNameDefined = target.getDefinedName() != null ? target.getDefinedName() : target.getTagName();
@@ -3331,8 +3331,10 @@ public class PerformActions {
     }
 
     private TargetElement setElementText(TargetElement target, String nameLabelText, String nameFieldText) {
-        target.setNameLabel(nameLabelText);
-        target.setNameField(nameFieldText);
+        target.setNameLabel(nameLabelText == null ? "" : nameLabelText.trim().replaceAll("\\s+", " "));
+        target.setNameField(nameFieldText == null ? "" : nameFieldText.trim().replaceAll("\\s+", " "));
+
+        target.setDefinedName(target.getNameField());
         return target;
     }
 

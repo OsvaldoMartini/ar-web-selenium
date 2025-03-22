@@ -167,14 +167,17 @@ public class ARScannedElementPane extends ARPane {
         validateBlockDB("Default Block", this.botJobLoad.getId());
         if (currentBlockId > 0) {
 
-            preTestCoordinates(targetInsertOne);
+            //            preTestCoordinates(targetInsertOne);
 
             List<InstructionLoadDTO> listInstr =
                     performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
 
             int nextOrder = listInstr.size() + 1;
 
-            if (!Strings.isNullOrEmpty(defineNameField.getText().trim())) {
+            if (!Strings.isNullOrEmpty(defineNameField.getText().trim())
+                    && !targetInsertOne
+                            .getDefinedName()
+                            .equalsIgnoreCase(defineNameField.getText().trim())) {
                 targetInsertOne.setDefinedName(defineNameField.getText().trim());
             }
 
@@ -1753,12 +1756,7 @@ public class ARScannedElementPane extends ARPane {
         // FallBack React Computed
         performActions.defineSavedReferenced(targetLocal);
 
-        targetLocal = performActions.defineTargetNameTitles(targetLocal);
-
-        if (!targetLocal.getSomeText().equalsIgnoreCase(elementDTO.getSomeText())) {
-            targetLocal.setNameLabel(elementDTO.getSomeText());
-            targetLocal.setNameField(elementDTO.getTagName());
-        }
+        targetLocal = performActions.defineNameTitles(targetLocal);
 
         // First  Search for ShadowRoot
         if (Strings.isNullOrEmpty(targetLocal.getShadowHost()) && Strings.isNullOrEmpty(targetLocal.getCssSelector())) {

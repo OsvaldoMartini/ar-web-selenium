@@ -75,7 +75,8 @@ public class InstructionLoadDTO {
             String actions,
             Integer parentId,
             String operation,
-            String exportFile) {
+            String exportFile,
+            String tagName) {
         this.homeBankingId = homeBankingId;
         this.botJobId = botJobId;
         this.botJobName = botJobName;

@@ -4684,7 +4684,8 @@ public class PerformDataBase {
                                 loopInstLoad.getActions(),
                                 loopInstLoad.getParentId(),
                                 loopInstLoad.getOperation(),
-                                itemBlock.getExportFile())))
+                                itemBlock.getExportFile(),
+                                loopInstLoad.getTagName())))
                 .collect(Collectors.toList());
 
         // Step 1: Filter rows where actions = "REFRESH_LOOP" and collect their parent IDs
