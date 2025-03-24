@@ -778,7 +778,7 @@ public class PerformActions {
         }
 
         if (!Strings.isNullOrEmpty(currentInstruction.getShadowHost())
-                || !Strings.isNullOrEmpty(currentInstruction.getShadowRoot())) {
+                && !Strings.isNullOrEmpty(currentInstruction.getCssSelector())) {
             elementFound = findShadowElementByCssSelector(
                     currentInstruction.getShadowHost(), currentInstruction.getCssSelector());
         }
@@ -4269,7 +4269,7 @@ public class PerformActions {
         try {
 
             if (!Strings.isNullOrEmpty(targetFind.getShadowHost())
-                    || !Strings.isNullOrEmpty(targetFind.getShadowRoot())) {
+                    && !Strings.isNullOrEmpty(targetFind.getCssSelector())) {
                 elementFound = findShadowElementByCssSelector(targetFind.getShadowHost(), targetFind.getCssSelector());
             } else if (!Strings.isNullOrEmpty(targetFind.getIFrameXPath())) {
 
