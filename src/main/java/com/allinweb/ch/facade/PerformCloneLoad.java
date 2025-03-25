@@ -83,24 +83,24 @@ public class PerformCloneLoad {
                       coordinatesElement.style.zIndex = Number.MAX_SAFE_INTEGER; // Set zIndex to the maximum allowed value
                       coordinatesElement.style.cursor = "pointer"; // Set cursor to hand (pointer)
                       coordinatesElement.textContent = "X: 0nbsp;&nbsp;&nbsp;&nbsp;Y: 0";
-
+                    
                       // Append the coordinates div to the body
                       document.body.appendChild(coordinatesElement);
-
+                    
                       window.elementInfoMap = new Map();
                       window.allElementInfo = [];
-
+                    
                       // Track the last hovered element to remove the border from it
                       let lastHoveredElement = null;
-
+                    
                       function connectWebSocket() {
                         try {
                           wSocket = new WebSocket(`ws://localhost:${socketPort}/websocket`);
-
+                    
                           wSocket.onopen = () => {
                             console.log("WebSocket connected");
                             attempts = 0; // Reset attempts on successful connection
-
+                    
                             try {
                               const subscriptionMessage = {
                                 type: "echo",
@@ -110,28 +110,28 @@ public class PerformCloneLoad {
                             } catch (sendError) {
                               console.error("Failed to send subscription message:", sendError);
                             }
-
+                    
                             // Call startCollectingElements AFTER WebSocket is open
                             sendingData();
                           };
-
+                    
                           wSocket.onmessage = (event) => {
                             let receivedMessage = event.data;
-
+                    
                             if (receivedMessage.endsWith("\\u0000")) {
                               receivedMessage = receivedMessage.slice(0, -1);
                             }
-
+                    
                             if (receivedMessage) {
                               try {
                                 const parsedObject = JSON.parse(receivedMessage);
                                 console.log("WebSocket message received:", parsedObject);
-
+                    
                                 // Process parsedObject.body and parsedObject.footer here
                                 if (parsedObject.body.includes("data_updated")) {
                                   //Handle data update
                                 }
-
+                    
                                 if (
                                   parsedObject.body.includes("cannot be processed") ||
                                   (parsedObject.footer &&
@@ -144,14 +144,14 @@ public class PerformCloneLoad {
                               }
                             }
                           };
-
+                    
                           wSocket.onerror = (error) => {
                             console.error("WebSocket error:", error);
                           };
-
+                    
                           wSocket.onclose = () => {
                             console.log("WebSocket connection closed");
-
+                    
                             if (attempts < 100) {
                               attempts++;
                               console.log(`Reconnecting attempt ${attempts}...`);
@@ -164,7 +164,7 @@ public class PerformCloneLoad {
                           console.error("Failed to initialize WebSocket:", initError);
                         }
                       }
-
+                    
                       // Optionally, expose a cleanup function
                       window.cleanupWebSocket = () => {
                         try {
@@ -176,22 +176,22 @@ public class PerformCloneLoad {
                           console.error("Error during WebSocket cleanup:", cleanupError);
                         }
                       };
-
+                    
                       function sendingData() {
                         window.allElementInfo = [];
                         limitMapCharacters(window.elementInfoMap);
                         console.log("All element info stored in Map:", window.allElementInfo);
-
+                    
                         if (wSocket && wSocket.readyState) {
                           console.log("WebSocket readyState:", wSocket.readyState);
                         }
-
+                    
                         if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                           if (window.allElementInfo.length > 0) {
                             const message = {
                               type: "SEARCH_TOOL",
                               sessionId: `scannerGrid-${homeBankingId}`,
-                              operationId: "searchTerms",
+                              operationId: "addPickOne",
                               homeBankingId: homeBankingId,
                               details: window.allElementInfo, // Send allElementInfo
                             };
@@ -203,7 +203,7 @@ public class PerformCloneLoad {
                           console.warn("WebSocket is not open. Cannot send message.");
                         }
                       }
-
+                    
                       const getElementIdentity = function getElementIdentity(element) {
                         if (!hiddenFields) {
                           if (
@@ -219,13 +219,13 @@ public class PerformCloneLoad {
                           }
                         }
                         const xPath = getMartiniXPath(element);
-
+                    
                         let tagName = element.tagName.toLowerCase();
                         const tagNameTemp = identifyElementTypeFromXPath(tagName, xPath);
                         if (tagNameTemp !== tagName) {
                           tagName = tagNameTemp;
                         }
-
+                    
                         const attributeData = Array.from(element.attributes).map((attr) => ({
                           name: attr.name,
                           value: attr.value,
@@ -236,7 +236,7 @@ public class PerformCloneLoad {
                           .getBoundingClientRect()
                           .left.toFixed(2)},${element.getBoundingClientRect().top.toFixed(2)}`;
                         const someText = getVisibleText(tagName, attributeData, element);
-
+                    
                         return {
                           xPath,
                           tagName,
@@ -248,7 +248,7 @@ public class PerformCloneLoad {
                           someText,
                         };
                       };
-
+                    
                       // Function to check if an element is hidden (using computed styles and attributes)
                       const isHidden = (el) => {
                         const style = window.getComputedStyle(el);
@@ -258,10 +258,10 @@ public class PerformCloneLoad {
                           el.hasAttribute("aria-hidden")
                         );
                       };
-
+                    
                       function getVisibleText(tagName, attributeData, element) {
                         let textResult = "";
-
+                    
                         if (element && !isHidden(element)) {
                           const extractedText = extractVisibleTextFromHTML(element);
                           textResult = [
@@ -273,7 +273,7 @@ public class PerformCloneLoad {
                             .filter(Boolean)
                             .join("; ");
                         }
-
+                    
                         // Define priority order for attributes
                         const attributePriority = [
                           "aria-label",
@@ -291,9 +291,9 @@ public class PerformCloneLoad {
                           "id",
                           "data-testid",
                         ];
-
+                    
                         let firstMeaningfulText = "";
-
+                    
                         // Function to get attribute text with priority
                         const getAttributeText = (name, value) => {
                           if (name === "aria-labelledby" || name === "aria-describedby") {
@@ -304,7 +304,7 @@ public class PerformCloneLoad {
                           }
                           return value.trim();
                         };
-
+                    
                         // Check element's text first
                         if (textResult && !/^\\..*\\{.*\\}$/.test(textResult)) {
                           firstMeaningfulText = textResult;
@@ -314,7 +314,7 @@ public class PerformCloneLoad {
                           if (titleAttr) {
                             firstMeaningfulText = getAttributeText(titleAttr.name, titleAttr.value);
                           }
-
+                    
                           if (!firstMeaningfulText) {
                             for (const attr of attributePriority) {
                               const foundAttr = attributeData.find(({ name }) => name === attr);
@@ -328,21 +328,21 @@ public class PerformCloneLoad {
                             }
                           }
                         }
-
+                    
                         return firstMeaningfulText; // Return the most meaningful text
                       }
-
+                    
                       function extractVisibleTextFromHTML(element) {
                         if (!element) {
                           return { text: [], labels: [], titles: [] };
                         }
-
+                    
                         const result = {
                           text: new Set(),
                           labels: new Set(),
                           titles: new Set(),
                         };
-
+                    
                         // Utility function to check if an element is visible
                         const isVisible = (el) => {
                           const style = window.getComputedStyle(el);
@@ -352,12 +352,12 @@ public class PerformCloneLoad {
                             el.hasAttribute("aria-hidden")
                           );
                         };
-
+                    
                         // Function to filter out technical patterns
                         const isTechnicalPattern = (word) => {
                           return word.includes("_") || word.includes("--") || word.includes("-");
                         };
-
+                    
                         // Extract visible text content from an element
                         if (element.textContent?.trim() && isVisible(element)) {
                           // Ignore text content that looks like CSS rules and words with technical patterns
@@ -369,13 +369,13 @@ public class PerformCloneLoad {
                             result.text.add(filteredText);
                           }
                         }
-
+                    
                         // Extract text from labels (including associated input fields)
                         element.querySelectorAll("label").forEach((label) => {
                           if (isVisible(label) && label.textContent?.trim()) {
                             result.labels.add(label.textContent.trim());
                           }
-
+                    
                           // Handle labels associated with form elements
                           const forAttr = label.getAttribute("for");
                           if (forAttr) {
@@ -401,7 +401,7 @@ public class PerformCloneLoad {
                             }
                           }
                         });
-
+                    
                         // Extract text from common inline and block elements
                         const visibleTextElements = [
                           "p",
@@ -435,7 +435,7 @@ public class PerformCloneLoad {
                             }
                           });
                         });
-
+                    
                         // Extract visible link text
                         element.querySelectorAll("a").forEach((link) => {
                           if (isVisible(link) && link.textContent?.trim()) {
@@ -448,14 +448,14 @@ public class PerformCloneLoad {
                             }
                           }
                         });
-
+                    
                         // Extract titles from iframes if accessible
                         element.querySelectorAll("iframe").forEach((iframe) => {
                           if (iframe.hasAttribute("title")) {
                             const title = iframe.getAttribute("title")?.trim();
                             if (title) result.titles.add(title);
                           }
-
+                    
                           try {
                             const iframeDoc =
                               iframe.contentDocument ||
@@ -470,7 +470,7 @@ public class PerformCloneLoad {
                             console.warn("Could not access iframe content", e);
                           }
                         });
-
+                    
                         // Return arrays instead of Sets
                         return {
                           text: Array.from(result.text),
@@ -500,40 +500,40 @@ public class PerformCloneLoad {
                         }
                         return "";
                       };
-
+                    
                       function identifyElementTypeFromXPath(tagName, xpath) {
                         if (typeof xpath !== "string" || xpath.trim() === "") {
                           return "unknown";
                         }
-
+                    
                         const parts = xpath.split("/").filter((part) => part.trim() !== "");
-
+                    
                         for (let i = parts.length - 1; i >= 0; i--) {
                           const part = parts[i];
-
+                    
                           const tagMatch = part.match(/^([a-zA-Z-]+)(?:\\[\\d+\\])?/);
                           if (!tagMatch) continue;
-
+                    
                           const tag = tagMatch[1].toLowerCase();
-
+                    
                           if (tag === "a") {
                             return "a"; // Link
                           }
-
+                    
                           if (tag === "input") {
                             const typeMatch = part.match(/@type=["']?([^"'\\]]+)["']?/);
                             const type = typeMatch ? typeMatch[1].toLowerCase() : "";
-
+                    
                             if (["button", "submit", "reset"].includes(type)) {
                               return "button";
                             }
                             return "input";
                           }
-
+                    
                           if (tag === "button") {
                             return "button";
                           }
-
+                    
                           // Detect if it's an Angular Material expansion panel (likely a button)
                           if (
                             tag.includes("expansion-panel-header") ||
@@ -543,10 +543,10 @@ public class PerformCloneLoad {
                             return "button";
                           }
                         }
-
+                    
                         return tagName; // Default to the given tagName if no match
                       }
-
+                    
                       const elementDTO = function elementDTO(typeElement, identity) {
                         return {
                           typeElement: typeElement,
@@ -568,91 +568,91 @@ public class PerformCloneLoad {
                           searchAttributeValue: identity.searchAttributeValue ?? "",
                         };
                       };
-
+                    
                       function limitMapCharacters(elementInfoMap) {
                         elementInfoMap.forEach((value, key) => {
                           let modifiedValue = value;
                           window.allElementInfo.push(modifiedValue);
                         });
                       }
-
+                    
                       // Add event listener for mouse movement to update coordinates
                       function showMartiniTooltip(event) {
                         const x = event.clientX; // X position
                         const y = event.clientY; // Y position
-
+                    
                         // Get the dimensions of the coordinatesElement
                         const elementWidth = coordinatesElement.offsetWidth;
                         const elementHeight = coordinatesElement.offsetHeight;
-
+                    
                         // Update the coordinates display
                         coordinatesElement.innerHTML = `X: ${x}&nbsp;&nbsp;&nbsp;&nbsp;Y: ${y}`;
-
+                    
                         // Update the position of coordinatesElement to follow the cursor
                         // Position the element such that the cursor is at the center of the element
                         coordinatesElement.style.left = `${x - elementWidth / 2}px`; // Center the element on the X axis
                         coordinatesElement.style.top = `${y - elementHeight / 2}px`; // Center the element on the Y axis
-
+                    
                         // Find the element directly under the mouse cursor
                         const elementBelowTooltip = document.elementFromPoint(x, y);
-
+                    
                         // Highlight the hovered element
                         if (lastHoveredElement !== elementBelowTooltip) {
                           // Remove highlight from the previous element if any
                           if (lastHoveredElement) {
                             lastHoveredElement.style.outline = ""; // Remove the previous highlight
                           }
-
+                    
                           // Add a border to highlight the current element
                           if (elementBelowTooltip && elementBelowTooltip !== coordinatesElement) {
                             elementBelowTooltip.style.outline = "3px solid red"; // Highlight the element
                           }
-
+                    
                           lastHoveredElement = elementBelowTooltip; // Update the last hovered element
                         }
                       }
-
+                    
                       function handleMartiniClick(event) {
                         event.preventDefault(); // Prevent the default click action
                         event.stopPropagation(); // Prevent the event from propagating upwards
                         coordinatesElement.style.display = "none";
-
+                    
                         // Get the coordinates of the click
                         const clickX = event.clientX;
                         const clickY = event.clientY;
-
+                    
                         // Get the element at the clicked position
                         const clickedElement = document.elementFromPoint(clickX, clickY);
-
+                    
                         coordinatesElement.style.display = "block";
-
+                    
                         // Highlight the clicked element (optional)
                         if (clickedElement) {
                           clickedElement.style.outline = "3px solid blue"; // Optionally highlight the element with a blue border
                         }
-
+                    
                         // If the element below the tooltip is an iframe
                         if (clickedElement && clickedElement.tagName.toLowerCase() === "iframe") {
                           // Get the document inside the iframe
                           var iframeDocument =
                             clickedElement.contentDocument || clickedElement.contentWindow.document;
-
+                    
                           // If the iframe document is valid
                           if (iframeDocument) {
                             // Initialize an array to store the iframe element information
                             window.allElementInfo = [];
-
+                    
                             const elementIdentity = getElementIdentity(clickedElement);
-
+                    
                             xPathIFrame = elementIdentity.xPath;
-
+                    
                             if (elementIdentity) {
                               window.elementInfoMap.set(
                                 elementIdentity.xPath,
                                 elementDTO("clicked-iFrame", elementIdentity)
                               );
                             }
-
+                    
                             // Get all elements inside the iframe and log their details
                             var iframeElements = iframeDocument.querySelectorAll("*");
                             iframeElements.forEach(function (elementInsideIframe) {
@@ -672,30 +672,30 @@ public class PerformCloneLoad {
                           }
                         } else {
                           var tagName = clickedElement.tagName.toLowerCase();
-
+                    
                           if (["html", "body", "main"].includes(tagName)) {
                             return; // Don't proceed if it's one of these elements
                           }
-
+                    
                           window.elementInfoMap.clear();
-
+                    
                           console.log("Clicked element:", clickedElement);
-
+                    
                           // Check if the clicked element has a shadow root
                           let shadowHost = clickedElement;
-
+                    
                           // Locate the shadow host element if it has a shadow root
                           while (shadowHost && !shadowHost.shadowRoot) {
                             shadowHost = shadowHost.parentElement; // Traverse upwards in the DOM
                           }
-
+                    
                           if (shadowHost && shadowHost.shadowRoot) {
                             // Access the Shadow DOM
                             const shadowRoot = shadowHost.shadowRoot;
-
+                    
                             // Find all clickable elements inside the Shadow DOM
                             let clickableElements = findClickableElements(shadowRoot);
-
+                    
                             // If clickable elements are found, perform your action (e.g., highlight them)
                             clickableElements.forEach((element) => {
                               pushElement(element, shadowHost, shadowRoot);
@@ -705,25 +705,25 @@ public class PerformCloneLoad {
                             pushElement(clickedElement, null, null);
                           }
                         }
-
+                    
                         sendingData();
-
+                    
                         // window.revertCloneInjections();
-
+                    
                         // Remove the tooltip from the page and delete the reference after 5 seconds
                         setTimeout(() => {
                           window.allElementInfo = [];
                           window.elementInfoMap.clear();
                         }, 1000);
                       }
-
+                    
                       function pushElement(element, shadowHost, shadowRoot) {
                         const elementIdentityTemp = getElementIdentity(element);
-
+                    
                         let shadowHostSelector = "";
                         let elementCssSelector = "";
                         let shadowPath = [];
-
+                    
                         function buildCssSelector(el) {
                           if (!el) return "";
                           let selector = el.tagName.toLowerCase();
@@ -731,7 +731,7 @@ public class PerformCloneLoad {
                           if (el.className) selector += `.${el.className.replace(/\\s+/g, ".")}`;
                           return selector;
                         }
-
+                    
                         // Traverse shadow hosts if nested shadow DOM exists
                         let currentHost = shadowHost;
                         while (currentHost) {
@@ -741,25 +741,25 @@ public class PerformCloneLoad {
                               ? currentHost.parentNode.host
                               : null;
                         }
-
+                    
                         if (shadowHost) {
                           shadowHostSelector = buildCssSelector(shadowHost);
                         }
-
+                    
                         if (element) {
                           elementCssSelector = buildCssSelector(element);
                         }
-
+                    
                         // Construct the natural CSS selector for nested Shadow DOM
                         let cssSelector = elementCssSelector;
-
+                    
                         // Build nested CSS selector, if shadowPath is not empty.
                         if (shadowPath.length > 0) {
                           cssSelector = shadowPath.reduceRight((acc, hostSelector) => {
                             return `${hostSelector} ${acc}`;
                           }, elementCssSelector);
                         }
-
+                    
                         const elementIdentity = {
                           ...elementIdentityTemp,
                           shadowHost: shadowHostSelector,
@@ -767,7 +767,7 @@ public class PerformCloneLoad {
                           nestedShadow: shadowPath.length > 1, // Detects if multiple shadow roots are involved
                           cssSelector: elementCssSelector, // cssSelector shadowRoot
                         };
-
+                    
                         // Store tagName and other details in the Map
                         if (elementIdentity) {
                           if (!originalStyles.has(element)) {
@@ -775,14 +775,14 @@ public class PerformCloneLoad {
                             originalStyles.set(element, element.style.outline);
                           }
                           element.style.outline = "3px solid red";
-
+                    
                           window.elementInfoMap.set(
                             elementIdentity.xPath,
                             elementDTO("clicked", elementIdentity)
                           );
                         }
                       }
-
+                    
                       // Function to find clickable elements (buttons, links, etc.)
                       function findClickableElements(root) {
                         const clickableSelectors = ["button", "a"]; // Add other clickable elements if needed
@@ -792,14 +792,14 @@ public class PerformCloneLoad {
                         });
                         return clickableElements;
                       }
-
+                    
                       connectWebSocket();
-
+                    
                       window.revertHoverPickInjections = function () {
                         document.removeEventListener("mousemove", showMartiniTooltip);
                         document.removeEventListener("click", handleMartiniClick);
                         console.log("revertHoverPickInjections");
-
+                    
                         // Remove the tooltip from the page and delete the reference after 5 seconds
                         setTimeout(() => {
                           removeElements();
@@ -807,7 +807,7 @@ public class PerformCloneLoad {
                           window.allElementInfo = [];
                         }, 1000);
                       };
-
+                    
                       // Function to restore the original outline
                       function restoreOriginalStyles() {
                         originalStyles.forEach((originalStyle, element) => {
@@ -815,30 +815,30 @@ public class PerformCloneLoad {
                         });
                         originalStyles.clear(); // Clear the stored styles
                       }
-
+                    
                       function removeElements() {
                         // Remove highlight from the previous element if any
                         if (lastHoveredElement) {
                           lastHoveredElement.style.outline = ""; // Remove the previous highlight
                         }
-
+                    
                         if (coordinatesElement) {
                           coordinatesElement.remove(); // Completely remove the tooltip from the DOM
                           coordinatesElement = null; // Clear the reference to free memory
                           console.log("coordinatesElement completely removed.");
                         }
                       }
-
+                    
                       document.addEventListener("mousemove", showMartiniTooltip);
                       document.addEventListener("click", handleMartiniClick);
-
+                    
                       window.postMessage({ type: "myMessage", data: "some data" }, targetOriginURL);
-
+                    
                       window.addEventListener("message", function (event) {
                         if (event.origin !== trustedOriginURL) return; // check the origin
                         console.log(event.data);
                       });
-
+                    
                       // window.cloneTerms = null; // Invalidating the function
                     })(
                       arguments[0],

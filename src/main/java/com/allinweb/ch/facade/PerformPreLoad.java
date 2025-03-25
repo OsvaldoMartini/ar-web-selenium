@@ -727,6 +727,7 @@ public class PerformPreLoad {
                       let attempts = 0;
                       let maxAttempts = 100;
                       let wSocket = null;
+                      let alreadySent = false;
                       const originalStyles = new Map();
                       let pageFullyLoaded = false;
                       window.elementInfoMap = new Map();
@@ -812,7 +813,9 @@ public class PerformPreLoad {
                             if (attempts < maxAttempts) {
                               attempts++;
                               console.log(`Reconnecting attempt ${attempts}...`);
-                              connectWebSocket(); // Retry connection
+                              if (!alreadySent) {
+                                connectWebSocket(); // Retry connection
+                              }
                             } else {
                               console.log(
                                 `${maxAttempts} Attempts to Reconnect with the WebSocket.`
@@ -857,56 +860,202 @@ public class PerformPreLoad {
                         pageFullyLoaded = true;
                       }
 
+                      const findUniqueAndOneRepeated = (sortedList) => {
+                        const wordFrequency = new Map();
+                        const wordToItems = new Map();
+
+                        sortedList.forEach((item) => {
+                          const someText = item.elementIdentity.someText;
+                          if (someText) {
+                            someText.split(/[\\s,;]+/).forEach((word) => {
+                              const trimmedWord = word.trim();
+                              wordFrequency.set(
+                                trimmedWord,
+                                (wordFrequency.get(trimmedWord) || 0) + 1
+                              );
+                              if (!wordToItems.has(trimmedWord)) {
+                                wordToItems.set(trimmedWord, new Set());
+                              }
+                              wordToItems.get(trimmedWord).add(item);
+                            });
+                          }
+                        });
+
+                        const repeatedWords = Array.from(wordFrequency.entries())
+                          .filter(([_, count]) => count > 1)
+                          .map(([word]) => word);
+
+                        const result = [];
+                        const addedItems = new Set(); // Track items already added
+
+                        // Add one of each repeated item
+                        repeatedWords.forEach((word) => {
+                          if (wordToItems.has(word)) {
+                            const items = Array.from(wordToItems.get(word));
+                            if (items.length > 0) {
+                              // Add only if not already added
+                              if (!addedItems.has(items[0])) {
+                                result.push(items[0]);
+                                addedItems.add(items[0]);
+                              }
+                            }
+                          }
+                        });
+
+                        // Add non-repeated items
+                        sortedList.forEach((item) => {
+                          const someText = item.elementIdentity.someText;
+                          if (someText) {
+                            const words = someText.split(/[\\s,;]+/).map((word) => word.trim());
+                            const isRepeated = words.some((word) => repeatedWords.includes(word));
+                            if (!isRepeated && !addedItems.has(item)) {
+                              result.push(item);
+                              addedItems.add(item);
+                            }
+                          } else if (!addedItems.has(item)) {
+                            result.push(item);
+                            addedItems.add(item);
+                          }
+                        });
+
+                        return result;
+                      };
+
                       // Function to collect general elements based on search terms
                       const collectElements = function collectElements(
                         doc,
                         searchTerms,
                         collectionFound
                       ) {
-                        // Collect elements from the current document using the provided search terms
+                        const foundElements = new Map(); // Store elements with their metadata
+
+                        // Collect all elements from the page
+                        doc.querySelectorAll("*").forEach((el) => {
+                          if (el.tagName.toLowerCase() !== "iframe") {
+                            const elementIdentity = getElementIdentity(el);
+                            if (elementIdentity) {
+                              const tagName = el.tagName.toLowerCase();
+                              const xpath = elementIdentity.xPath;
+                              const elementType = identifyElementTypeFromXPath(tagName, xpath);
+
+                              // Store in a Map to avoid duplicates, using element as key
+                              foundElements.set(el, {
+                                tagName,
+                                xpath,
+                                elementType,
+                                elementIdentity,
+                              });
+                            }
+                          }
+                        });
+
+                        // If search terms exist, refine the selection
                         if (searchTerms.length > 0) {
                           searchTerms.forEach((selector) => {
-                            // If search term includes "with id", filter only elements that have an "id" attribute
                             if (selector.includes("with id")) {
-                              collectionFound.push(...Array.from(doc.querySelectorAll("[id]")));
-                            } // If search term includes "with id", filter only elements that have an "id" attribute
-                            else if (selector.includes("with name")) {
-                              foundElements = Array.from(doc.querySelectorAll("[name]"));
-                              collectionFound.push(...Array.from(doc.querySelectorAll("[name]")));
+                              doc.querySelectorAll("[id]").forEach((el) => addToFoundElements(el));
+                            } else if (selector.includes("with name")) {
+                              doc
+                                .querySelectorAll("[name]")
+                                .forEach((el) => addToFoundElements(el));
+                            } else if (selector.includes("with role")) {
+                              doc
+                                .querySelectorAll("[role]")
+                                .forEach((el) => addToFoundElements(el));
                             } else {
-                              collectionFound.push(...Array.from(doc.querySelectorAll(selector)));
+                              doc
+                                .querySelectorAll(selector)
+                                .forEach((el) => addToFoundElements(el));
                             }
                           });
-                        } else {
-                          // Collect all elements except iframes
-                          collectionFound.push(
-                            ...Array.from(doc.querySelectorAll("*")).filter(
-                              (el) => el.tagName.toLowerCase() !== "iframe"
-                            )
-                          );
                         }
 
-                        // After collecting, process element identities for the parent document
-                        collectionFound.forEach((element) => {
+                        // Convert Map to an array and push to collectionFound
+                        foundElements.forEach((metadata, element) => {
+                          collectionFound.push({ element, ...metadata });
+                        });
+
+                        console.log("sortedList", collectionFound);
+                        // Define the order
+                        const order = ["input", "button", "a", "select", "label", "span", "div"];
+
+                        // Create the final list based on the specified order
+                        const sortedList = order.reduce((acc, type) => {
+                          const filteredElements = collectionFound.filter((item) => {
+                            // For "label", "span", and "div", check if someText is not empty
+                            if (["label", "span", "div"].includes(type)) {
+                              return (
+                                item.elementType === type &&
+                                item.elementIdentity.someText?.trim() !== ""
+                              );
+                            }
+                            // For other types, no need to check someText
+                            return item.elementType === type;
+                          });
+
+                          return [...acc, ...filteredElements];
+                        }, []);
+
+                        const noRepeatedItems = findUniqueAndOneRepeated(sortedList);
+                        console.log("noRepeatedItems", noRepeatedItems); // Output the items with repetitions
+
+                        // Create the final list based on the specified order
+                        const sortedFinal = order.reduce((acc, type) => {
+                          const filteredElements = noRepeatedItems.filter((item) => {
+                            // For "label", "span", and "div", check if someText is not empty
+                            if (["label", "span", "div"].includes(type)) {
+                              return (
+                                item.elementType === type &&
+                                item.elementIdentity.someText?.trim() !== ""
+                              );
+                            }
+                            // For other types, no need to check someText
+                            return item.elementType === type;
+                          });
+
+                          return [...acc, ...filteredElements];
+                        }, []);
+
+                        // Process each collected element
+                        console.log("sortedList", sortedFinal);
+                        sortedFinal.forEach(({ element, tagName, xpath, elementIdentity }) => {
                           if (
                             ["html", "body", "main", "script", "meta", "head", "style"].includes(
-                              element.tagName.toLowerCase()
+                              tagName
                             )
                           ) {
                             return;
                           }
 
-                          const elementIdentity = getElementIdentity(element);
-                          if (elementIdentity) {
-                            filterSearchTerms(
-                              element,
-                              "tagName-Found",
-                              elementIdentity.xPath,
-                              elementIdentity,
-                              searchTerms
-                            );
-                          }
+                          // console.log("tagName-Found:", tagName);
+                          filterSearchTerms(
+                            element,
+                            "tagName-Found", // typeDTO
+                            xpath, // referXPath
+                            elementIdentity, // Now passing the correct structure
+                            searchTerms
+                          );
                         });
+
+                        /**
+                         * Helper function to add elements to foundElements
+                         */
+                        function addToFoundElements(el) {
+                          if (!foundElements.has(el)) {
+                            const elementIdentity = getElementIdentity(el);
+                            if (elementIdentity) {
+                              const tagName = el.tagName.toLowerCase();
+                              const xpath = elementIdentity.xPath;
+                              const elementType = identifyElementTypeFromXPath(tagName, xpath);
+                              foundElements.set(el, {
+                                tagName,
+                                xpath,
+                                elementType,
+                                elementIdentity,
+                              });
+                            }
+                          }
+                        }
                       };
 
                       function filterSearchTerms(
@@ -1024,6 +1173,16 @@ public class PerformPreLoad {
                             // );
                           }
                         });
+                      }
+
+                      // Function to find clickable elements (buttons, links, etc.)
+                      function findClickableElements(root) {
+                        const clickableSelectors = ["button", "a"]; // Add other clickable elements if needed
+                        const clickableElements = [];
+                        clickableSelectors.forEach((selector) => {
+                          clickableElements.push(...root.querySelectorAll(selector));
+                        });
+                        return clickableElements;
                       }
 
                       function fetchAndParseIframeContent(iframe) {
@@ -1271,27 +1430,59 @@ public class PerformPreLoad {
                         // Then, collect general elements based on search terms
                         collectElements(document, searchTerms, collectionFound, elementInfoMap);
 
+                        // window.allElementInfo = [];
+                        // limitMapCharacters(window.elementInfoMap);
+                        // console.log("All element info stored in Map:", window.allElementInfo);
+                        // window.elementInfoMap.clear();
+
+                        if (wSocket && wSocket.readyState) {
+                          console.log("WebSocket readyState:", wSocket.readyState);
+                        }
+
+                        console.log("sendingData");
+                        sendingData();
+
+                        // if (wSocket && wSocket.readyState === WebSocket.OPEN) {
+                        //   const message = {
+                        //     type: "SEARCH_TOOL",
+                        //     sessionId: window.destination,
+                        //     operationId: window.operationId,
+                        //     homeBankingId: window.homeBankingId,
+                        //     details: window.allElementInfo, // Send allElementInfo
+                        //   };
+                        //   wSocket.send(JSON.stringify(message));
+                        //   console.log("Sent SEARCH_TOOL:", message);
+                        // }
+                      };
+
+                      function sendingData() {
                         window.allElementInfo = [];
                         limitMapCharacters(window.elementInfoMap);
                         console.log("All element info stored in Map:", window.allElementInfo);
-                        window.elementInfoMap.clear();
 
                         if (wSocket && wSocket.readyState) {
                           console.log("WebSocket readyState:", wSocket.readyState);
                         }
 
                         if (wSocket && wSocket.readyState === WebSocket.OPEN) {
-                          const message = {
-                            type: "SEARCH_TOOL",
-                            sessionId: window.destination,
-                            operationId: window.operationId,
-                            homeBankingId: window.homeBankingId,
-                            details: window.allElementInfo, // Send allElementInfo
-                          };
-                          wSocket.send(JSON.stringify(message));
-                          console.log("Sent SEARCH_TOOL:", message);
+                          if (window.allElementInfo.length > 0) {
+                            const message = {
+                              type: "SEARCH_TOOL",
+                              sessionId: `scannerGrid-${homeBankingId}`,
+                              operationId: "searchTerms",
+                              homeBankingId: homeBankingId,
+                              details: window.allElementInfo, // Send allElementInfo
+                            };
+                            wSocket.send(JSON.stringify(message));
+                            console.log("Sent SEARCH_TOOL:", message);
+                            alreadySent = true;
+                            window.allElementInfo = [];
+                            window.elementInfoMap.clear();
+                          }
+                        } else {
+                          console.warn("WebSocket is not open. Cannot send message.");
                         }
-                      };
+                      }
 
                       function pushElement(
                         element,
@@ -1307,9 +1498,16 @@ public class PerformPreLoad {
 
                         function buildCssSelector(el) {
                           if (!el) return "";
+
                           let selector = el.tagName.toLowerCase();
+
                           if (el.id) selector += `#${el.id}`;
-                          if (el.className) selector += `.${el.className.replace(/\\s+/g, ".")}`;
+
+                          // Ensure className is treated as a string
+                          if (el.className && typeof el.className === "string") {
+                            selector += `.${el.className.replace(/\\s+/g, ".")}`;
+                          }
+
                           return selector;
                         }
 
@@ -1357,11 +1555,29 @@ public class PerformPreLoad {
                           }
                           element.style.outline = "3px solid red";
 
+                          // if (isInteractiveElement(element)) {
+                          // if (isInteractiveElement(element)) {
+                          if (["html", "body", "main"].includes(element.tagName.toLowerCase())) {
+                            return; // Don't proceed if it's one of these elements
+                          }
                           window.elementInfoMap.set(
                             referXPath, // Keep Distinction iFrameXPath / child / etc...
                             elementDTO(typeDTO, elementIdentity)
                           );
+                          // }
                         }
+                      }
+
+                      function filterElementByType(collectionFound) {
+                        // Define the types of elements we are interested in
+                        const validElementTypes = ["button", "a", "input"];
+
+                        // Filter the collection based on elementType and return only the elementIdentity
+                        const filteredElements = collectionFound
+                          .filter((item) => validElementTypes.includes(item.elementType)) // Filter by element type
+                          .map((item) => item.elementIdentity); // Map to return only the elementIdentity
+
+                        return filteredElements;
                       }
 
                       const getElementIdentity = function getElementIdentity(element) {
@@ -1703,9 +1919,164 @@ public class PerformPreLoad {
                           ) {
                             return "button";
                           }
+
+                          if (tag === "select" || tag === "option") {
+                            return "select"; // or option
+                          }
+
+                          if (tag === "textarea") {
+                            return "textarea";
+                          }
+
+                          // Framework specific detection from isInteractiveElement function.
+                          if (
+                            tag.includes("mat-button") ||
+                            tag.includes("mat-raised-button") ||
+                            tag.includes("mat-icon-button") ||
+                            tag.includes("mat-menu-item") ||
+                            tag.includes("mat-select") ||
+                            tag.includes("mat-option") ||
+                            tag.includes("matinput")
+                          ) {
+                            return "button"; // or select, input, option.
+                          }
+
+                          if (
+                            tag.includes("data-testid") ||
+                            tag.includes("aria-label") ||
+                            part.includes("@role='button'") ||
+                            part.includes("@role='textbox'") ||
+                            part.includes("react-button") ||
+                            part.includes("react-link") ||
+                            part.includes("react-input")
+                          ) {
+                            if (part.includes("react-input")) {
+                              return "input";
+                            } else if (part.includes("react-link")) {
+                              return "a";
+                            } else {
+                              return "button";
+                            }
+                          }
+
+                          if (
+                            part.includes("mdc-button") ||
+                            part.includes("mdc-text-field") ||
+                            part.includes("mdc-list-item")
+                          ) {
+                            if (part.includes("mdc-text-field")) {
+                              return "input";
+                            } else {
+                              return "button";
+                            }
+                          }
+
+                          if (
+                            part.includes("el-button") ||
+                            part.includes("el-input__inner") ||
+                            part.includes("el-select-dropdown__item")
+                          ) {
+                            if (part.includes("el-input__inner")) {
+                              return "input";
+                            } else if (part.includes("el-select-dropdown__item")) {
+                              return "select";
+                            } else {
+                              return "button";
+                            }
+                          }
                         }
 
                         return tagName; // Default to the given tagName if no match
+                      }
+
+                      function isInteractiveElement(element) {
+                        if (!element || element.nodeType !== Node.ELEMENT_NODE) {
+                          return false; // Not a valid element
+                        }
+
+                        const tagName = element.tagName.toLowerCase();
+                        const type = element.getAttribute("type")?.toLowerCase();
+
+                        // Check for standard interactive elements
+                        if (
+                          tagName === "button" ||
+                          tagName === "a" ||
+                          tagName === "select" ||
+                          tagName === "option"
+                        ) {
+                          return true;
+                        }
+
+                        // Check for input elements
+                        if (tagName === "input" || tagName === "textarea") {
+                          if (
+                            !type ||
+                            [
+                              "text",
+                              "password",
+                              "email",
+                              "number",
+                              "search",
+                              "tel",
+                              "url",
+                            ].includes(type)
+                          ) {
+                            return true;
+                          }
+                        }
+
+                        // Framework-specific checks
+                        if (
+                          isAngularMaterialElement(element) ||
+                          isReactElement(element) ||
+                          isGenericMaterialElement(element) ||
+                          isElementUIElement(element)
+                        ) {
+                          return true;
+                        }
+
+                        return false;
+                      }
+
+                      function isAngularMaterialElement(element) {
+                        return (
+                          element.hasAttribute("mat-button") ||
+                          element.hasAttribute("mat-raised-button") ||
+                          element.hasAttribute("mat-icon-button") ||
+                          element.hasAttribute("mat-menu-item") ||
+                          element.hasAttribute("mat-select") ||
+                          element.hasAttribute("mat-option") ||
+                          element.hasAttribute("matInput")
+                        );
+                      }
+
+                      function isReactElement(element) {
+                        // Check for React's data-testid, aria-label, and role attributes, or classnames
+                        return (
+                          element.hasAttribute("data-testid") ||
+                          element.hasAttribute("aria-label") ||
+                          element.getAttribute("role") === "button" ||
+                          element.getAttribute("role") === "textbox" ||
+                          element.classList.contains("react-button") ||
+                          element.classList.contains("react-link") ||
+                          element.classList.contains("react-input")
+                        );
+                      }
+
+                      function isGenericMaterialElement(element) {
+                        return (
+                          element.classList.contains("mdc-button") ||
+                          element.classList.contains("mdc-text-field") ||
+                          element.classList.contains("mdc-list-item")
+                        );
+                      }
+
+                      function isElementUIElement(element) {
+                        return (
+                          element.classList.contains("el-button") ||
+                          element.classList.contains("el-input__inner") ||
+                          element.classList.contains("el-select-dropdown__item")
+                        );
                       }
 
                       const elementDTO = function elementDTO(typeElement, identity) {
@@ -1731,12 +2102,16 @@ public class PerformPreLoad {
                       };
 
                       function limitMapCharacters(elementInfoMap) {
+                        // Check the length of allElementInfo before adding new elements
+                        console.log("limitMapCharacters");
                         elementInfoMap.forEach((value, key) => {
+                          // Only add elements if there are fewer than 20 elements in the array
+                          // if (window.allElementInfo.length < 30) {
                           let modifiedValue = value;
                           window.allElementInfo.push(modifiedValue);
+                          // }
                         });
                       }
-
                       // Event listener to handle incoming messages from iframes
                       window.addEventListener("message", function (event) {
                         if (event.origin !== window.trustedOriginURL) {
@@ -1823,5 +2198,6 @@ public class PerformPreLoad {
                     // );
                     // })(["*"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["button"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
-                    """;
+
+            """;
 }
