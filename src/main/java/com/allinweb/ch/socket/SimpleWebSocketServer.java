@@ -28,6 +28,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -130,6 +131,20 @@ public class SimpleWebSocketServer {
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT")) {
             // Ignore null or empty messages
             return;
+        }
+
+        try {
+            // Decode from Base64
+            byte[] decodedBytes = Base64.getDecoder().decode(message);
+            message = new String(decodedBytes, "UTF-8");
+
+            System.out.println("Decoded Received Data: " + message);
+
+            // Process the message as needed...
+        } catch (IllegalArgumentException e) {
+            System.err.println("Invalid Base64 message received: " + message);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         String type = null;
