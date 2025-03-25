@@ -860,202 +860,62 @@ public class PerformPreLoad {
                         pageFullyLoaded = true;
                       }
 
-                      const findUniqueAndOneRepeated = (sortedList) => {
-                        const wordFrequency = new Map();
-                        const wordToItems = new Map();
-
-                        sortedList.forEach((item) => {
-                          const someText = item.elementIdentity.someText;
-                          if (someText) {
-                            someText.split(/[\\s,;]+/).forEach((word) => {
-                              const trimmedWord = word.trim();
-                              wordFrequency.set(
-                                trimmedWord,
-                                (wordFrequency.get(trimmedWord) || 0) + 1
-                              );
-                              if (!wordToItems.has(trimmedWord)) {
-                                wordToItems.set(trimmedWord, new Set());
-                              }
-                              wordToItems.get(trimmedWord).add(item);
-                            });
-                          }
-                        });
-
-                        const repeatedWords = Array.from(wordFrequency.entries())
-                          .filter(([_, count]) => count > 1)
-                          .map(([word]) => word);
-
-                        const result = [];
-                        const addedItems = new Set(); // Track items already added
-
-                        // Add one of each repeated item
-                        repeatedWords.forEach((word) => {
-                          if (wordToItems.has(word)) {
-                            const items = Array.from(wordToItems.get(word));
-                            if (items.length > 0) {
-                              // Add only if not already added
-                              if (!addedItems.has(items[0])) {
-                                result.push(items[0]);
-                                addedItems.add(items[0]);
-                              }
-                            }
-                          }
-                        });
-
-                        // Add non-repeated items
-                        sortedList.forEach((item) => {
-                          const someText = item.elementIdentity.someText;
-                          if (someText) {
-                            const words = someText.split(/[\\s,;]+/).map((word) => word.trim());
-                            const isRepeated = words.some((word) => repeatedWords.includes(word));
-                            if (!isRepeated && !addedItems.has(item)) {
-                              result.push(item);
-                              addedItems.add(item);
-                            }
-                          } else if (!addedItems.has(item)) {
-                            result.push(item);
-                            addedItems.add(item);
-                          }
-                        });
-
-                        return result;
-                      };
-
                       // Function to collect general elements based on search terms
                       const collectElements = function collectElements(
                         doc,
                         searchTerms,
                         collectionFound
                       ) {
-                        const foundElements = new Map(); // Store elements with their metadata
-
-                        // Collect all elements from the page
-                        doc.querySelectorAll("*").forEach((el) => {
-                          if (el.tagName.toLowerCase() !== "iframe") {
-                            const elementIdentity = getElementIdentity(el);
-                            if (elementIdentity) {
-                              const tagName = el.tagName.toLowerCase();
-                              const xpath = elementIdentity.xPath;
-                              const elementType = identifyElementTypeFromXPath(tagName, xpath);
-
-                              // Store in a Map to avoid duplicates, using element as key
-                              foundElements.set(el, {
-                                tagName,
-                                xpath,
-                                elementType,
-                                elementIdentity,
-                              });
-                            }
-                          }
-                        });
-
-                        // If search terms exist, refine the selection
+                        // Collect elements from the current document using the provided search terms
                         if (searchTerms.length > 0) {
                           searchTerms.forEach((selector) => {
+                            // If search term includes "with id", filter only elements that have an "id" attribute
                             if (selector.includes("with id")) {
-                              doc.querySelectorAll("[id]").forEach((el) => addToFoundElements(el));
-                            } else if (selector.includes("with name")) {
-                              doc
-                                .querySelectorAll("[name]")
-                                .forEach((el) => addToFoundElements(el));
-                            } else if (selector.includes("with role")) {
-                              doc
-                                .querySelectorAll("[role]")
-                                .forEach((el) => addToFoundElements(el));
+                              collectionFound.push(...Array.from(doc.querySelectorAll("[id]")));
+                            }
+                            // If search term includes "with name", filter only elements that have a "name" attribute
+                            else if (selector.includes("with name")) {
+                              collectionFound.push(...Array.from(doc.querySelectorAll("[name]")));
+                            }
+                            // If search term includes "with test-id", filter only elements that have a "test-id" attribute
+                            else if (selector.includes("with test-id")) {
+                              collectionFound.push(
+                                ...Array.from(doc.querySelectorAll("[test-id]"))
+                              );
                             } else {
-                              doc
-                                .querySelectorAll(selector)
-                                .forEach((el) => addToFoundElements(el));
+                              collectionFound.push(...Array.from(doc.querySelectorAll(selector)));
                             }
                           });
+                        } else {
+                          // Collect all elements except iframes
+                          collectionFound.push(
+                            ...Array.from(doc.querySelectorAll("*")).filter(
+                              (el) => el.tagName.toLowerCase() !== "iframe"
+                            )
+                          );
                         }
 
-                        // Convert Map to an array and push to collectionFound
-                        foundElements.forEach((metadata, element) => {
-                          collectionFound.push({ element, ...metadata });
-                        });
-
-                        console.log("sortedList", collectionFound);
-                        // Define the order
-                        const order = ["input", "button", "a", "select", "label", "span", "div"];
-
-                        // Create the final list based on the specified order
-                        const sortedList = order.reduce((acc, type) => {
-                          const filteredElements = collectionFound.filter((item) => {
-                            // For "label", "span", and "div", check if someText is not empty
-                            if (["label", "span", "div"].includes(type)) {
-                              return (
-                                item.elementType === type &&
-                                item.elementIdentity.someText?.trim() !== ""
-                              );
-                            }
-                            // For other types, no need to check someText
-                            return item.elementType === type;
-                          });
-
-                          return [...acc, ...filteredElements];
-                        }, []);
-
-                        const noRepeatedItems = findUniqueAndOneRepeated(sortedList);
-                        console.log("noRepeatedItems", noRepeatedItems); // Output the items with repetitions
-
-                        // Create the final list based on the specified order
-                        const sortedFinal = order.reduce((acc, type) => {
-                          const filteredElements = noRepeatedItems.filter((item) => {
-                            // For "label", "span", and "div", check if someText is not empty
-                            if (["label", "span", "div"].includes(type)) {
-                              return (
-                                item.elementType === type &&
-                                item.elementIdentity.someText?.trim() !== ""
-                              );
-                            }
-                            // For other types, no need to check someText
-                            return item.elementType === type;
-                          });
-
-                          return [...acc, ...filteredElements];
-                        }, []);
-
-                        // Process each collected element
-                        console.log("sortedList", sortedFinal);
-                        sortedFinal.forEach(({ element, tagName, xpath, elementIdentity }) => {
+                        // After collecting, process element identities for the parent document
+                        collectionFound.forEach((element) => {
                           if (
                             ["html", "body", "main", "script", "meta", "head", "style"].includes(
-                              tagName
+                              element.tagName.toLowerCase()
                             )
                           ) {
                             return;
                           }
 
-                          // console.log("tagName-Found:", tagName);
-                          filterSearchTerms(
-                            element,
-                            "tagName-Found", // typeDTO
-                            xpath, // referXPath
-                            elementIdentity, // Now passing the correct structure
-                            searchTerms
-                          );
-                        });
-
-                        /**
-                         * Helper function to add elements to foundElements
-                         */
-                        function addToFoundElements(el) {
-                          if (!foundElements.has(el)) {
-                            const elementIdentity = getElementIdentity(el);
-                            if (elementIdentity) {
-                              const tagName = el.tagName.toLowerCase();
-                              const xpath = elementIdentity.xPath;
-                              const elementType = identifyElementTypeFromXPath(tagName, xpath);
-                              foundElements.set(el, {
-                                tagName,
-                                xpath,
-                                elementType,
-                                elementIdentity,
-                              });
-                            }
+                          const elementIdentity = getElementIdentity(element);
+                          if (elementIdentity) {
+                            filterSearchTerms(
+                              element,
+                              "tagName-Found",
+                              elementIdentity.xPath,
+                              elementIdentity,
+                              searchTerms
+                            );
                           }
-                        }
+                        });
                       };
 
                       function filterSearchTerms(
@@ -1069,7 +929,8 @@ public class PerformPreLoad {
                           searchTerms.length === 0 ||
                           (!searchTerms.includes("with id") &&
                             !searchTerms.includes("with name") &&
-                            !searchTerms.includes("with text"))
+                            !searchTerms.includes("with text") &&
+                            !searchTerms.includes("with test-id"))
                         ) {
                           // Check if the clicked element has a shadow root
                           let shadowHost = element;
@@ -1233,17 +1094,17 @@ public class PerformPreLoad {
                             "No description"
                           }; ${iframeDetails}`
                         );
-                        // // Store the iframe details in the elementInfoMap
-                        // elementInfoMap.set(
-                        //   xPathIFrame,
-                        //   `xpath:${xPathIFrame};text:${
-                        //     iframe.src ||
-                        //     iframe.title ||
-                        //     iframe.id ||
-                        //     iframe.name ||
-                        //     "No description"
-                        //   };${iframeDetails}`
-                        // );
+                        // Store the iframe details in the elementInfoMap
+                        elementInfoMap.set(
+                          xPathIFrame,
+                          `xpath:${xPathIFrame};text:${
+                            iframe.src ||
+                            iframe.title ||
+                            iframe.id ||
+                            iframe.name ||
+                            "No description"
+                          };${iframeDetails}`
+                        );
                       };
 
                       // Function to collect iframe elements recursively
@@ -1430,59 +1291,69 @@ public class PerformPreLoad {
                         // Then, collect general elements based on search terms
                         collectElements(document, searchTerms, collectionFound, elementInfoMap);
 
-                        // window.allElementInfo = [];
-                        // limitMapCharacters(window.elementInfoMap);
-                        // console.log("All element info stored in Map:", window.allElementInfo);
-                        // window.elementInfoMap.clear();
-
-                        if (wSocket && wSocket.readyState) {
-                          console.log("WebSocket readyState:", wSocket.readyState);
-                        }
-
-                        console.log("sendingData");
-                        sendingData();
-
-                        // if (wSocket && wSocket.readyState === WebSocket.OPEN) {
-                        //   const message = {
-                        //     type: "SEARCH_TOOL",
-                        //     sessionId: window.destination,
-                        //     operationId: window.operationId,
-                        //     homeBankingId: window.homeBankingId,
-                        //     details: window.allElementInfo, // Send allElementInfo
-                        //   };
-                        //   wSocket.send(JSON.stringify(message));
-                        //   console.log("Sent SEARCH_TOOL:", message);
-                        // }
-                      };
-
-                      function sendingData() {
                         window.allElementInfo = [];
-                        limitMapCharacters(window.elementInfoMap);
+
+                        collectionFound = getResultMap(window.elementInfoMap);
+                        console.log("All Collection Found :", collectionFound);
+
+                        const sameXPathFound = processElementsWithXPath(collectionFound);
+                        console.log("processElementsWithXPath", sameXPathFound);
+
+                        const noRepeatedItems = findUniqueAndOneRepeated(sameXPathFound);
+                        console.log("noRepeatedItems", noRepeatedItems); // Output the items with repetitions
+
+                        // Define the order
+                        const order = ["input", "button", "a", "select", "label", "span", "div"];
+
+                        // Create the final list based on the specified order
+                        const sortedList = order.reduce((acc, type) => {
+                          const filteredElements = collectionFound.filter((item) => {
+                            // For "label", "span", and "div", check if someText is not empty
+                            if (["label", "span", "div"].includes(type)) {
+                              return item.tagName === type && item.someText?.trim() !== "";
+                            }
+                            // For other types, no need to check someText
+                            return item.tagName === type;
+                          });
+
+                          return [...acc, ...filteredElements];
+                        }, []);
+
+                        console.log("sortedList", sortedList);
+
+                        limitMapSize(sortedList);
                         console.log("All element info stored in Map:", window.allElementInfo);
+                        window.elementInfoMap.clear();
 
                         if (wSocket && wSocket.readyState) {
                           console.log("WebSocket readyState:", wSocket.readyState);
                         }
 
                         if (wSocket && wSocket.readyState === WebSocket.OPEN) {
-                          if (window.allElementInfo.length > 0) {
-                            const message = {
-                              type: "SEARCH_TOOL",
-                              sessionId: `scannerGrid-${homeBankingId}`,
-                              operationId: "searchTerms",
-                              homeBankingId: homeBankingId,
-                              details: window.allElementInfo, // Send allElementInfo
-                            };
-                            wSocket.send(JSON.stringify(message));
-                            console.log("Sent SEARCH_TOOL:", message);
-                            alreadySent = true;
-                            window.allElementInfo = [];
-                            window.elementInfoMap.clear();
-                          }
-                        } else {
-                          console.warn("WebSocket is not open. Cannot send message.");
+                          const message = {
+                            type: "SEARCH_TOOL",
+                            sessionId: window.destination,
+                            operationId: window.operationId,
+                            homeBankingId: window.homeBankingId,
+                            details: window.allElementInfo, // Send allElementInfo
+                          };
+
+                          // Convert the JSON message to a buffer
+                          const base64Message = btoa(
+                            unescape(encodeURIComponent(JSON.stringify(message)))
+                          );
+                          // Convert the buffer to a Base64 string
+                          wSocket.send(base64Message);
+                          // wSocket.send(JSON.stringify(message));
+                          console.log("Sent SEARCH_TOOL:", message);
+                          console.log("Sent ENCODED Length:", base64Message.length);
+                          console.log("Sent ENCODED:", base64Message);
+
+                          alreadySent = true;
+                          window.allElementInfo = [];
+                          window.elementInfoMap.clear();
                         }
-                      }
+                      };
 
                       function pushElement(
                         element,
@@ -1555,29 +1426,11 @@ public class PerformPreLoad {
                           }
                           element.style.outline = "3px solid red";
 
-                          // if (isInteractiveElement(element)) {
-                          // if (isInteractiveElement(element)) {
-                          if (["html", "body", "main"].includes(element.tagName.toLowerCase())) {
-                            return; // Don't proceed if it's one of these elements
-                          }
                           window.elementInfoMap.set(
                             referXPath, // Keep Distinction iFrameXPath / child / etc...
                             elementDTO(typeDTO, elementIdentity)
                           );
-                          // }
                         }
-                      }
-
-                      function filterElementByType(collectionFound) {
-                        // Define the types of elements we are interested in
-                        const validElementTypes = ["button", "a", "input"];
-
-                        // Filter the collection based on elementType and return only the elementIdentity
-                        const filteredElements = collectionFound
-                          .filter((item) => validElementTypes.includes(item.elementType)) // Filter by element type
-                          .map((item) => item.elementIdentity); // Map to return only the elementIdentity
-
-                        return filteredElements;
                       }
 
                       const getElementIdentity = function getElementIdentity(element) {
@@ -1989,96 +1842,6 @@ public class PerformPreLoad {
                         return tagName; // Default to the given tagName if no match
                       }
 
-                      function isInteractiveElement(element) {
-                        if (!element || element.nodeType !== Node.ELEMENT_NODE) {
-                          return false; // Not a valid element
-                        }
-
-                        const tagName = element.tagName.toLowerCase();
-                        const type = element.getAttribute("type")?.toLowerCase();
-
-                        // Check for standard interactive elements
-                        if (
-                          tagName === "button" ||
-                          tagName === "a" ||
-                          tagName === "select" ||
-                          tagName === "option"
-                        ) {
-                          return true;
-                        }
-
-                        // Check for input elements
-                        if (tagName === "input" || tagName === "textarea") {
-                          if (
-                            !type ||
-                            [
-                              "text",
-                              "password",
-                              "email",
-                              "number",
-                              "search",
-                              "tel",
-                              "url",
-                            ].includes(type)
-                          ) {
-                            return true;
-                          }
-                        }
-
-                        // Framework-specific checks
-                        if (
-                          isAngularMaterialElement(element) ||
-                          isReactElement(element) ||
-                          isGenericMaterialElement(element) ||
-                          isElementUIElement(element)
-                        ) {
-                          return true;
-                        }
-
-                        return false;
-                      }
-
-                      function isAngularMaterialElement(element) {
-                        return (
-                          element.hasAttribute("mat-button") ||
-                          element.hasAttribute("mat-raised-button") ||
-                          element.hasAttribute("mat-icon-button") ||
-                          element.hasAttribute("mat-menu-item") ||
-                          element.hasAttribute("mat-select") ||
-                          element.hasAttribute("mat-option") ||
-                          element.hasAttribute("matInput")
-                        );
-                      }
-
-                      function isReactElement(element) {
-                        // Check for React's data-testid, aria-label, and role attributes, or classnames
-                        return (
-                          element.hasAttribute("data-testid") ||
-                          element.hasAttribute("aria-label") ||
-                          element.getAttribute("role") === "button" ||
-                          element.getAttribute("role") === "textbox" ||
-                          element.classList.contains("react-button") ||
-                          element.classList.contains("react-link") ||
-                          element.classList.contains("react-input")
-                        );
-                      }
-
-                      function isGenericMaterialElement(element) {
-                        return (
-                          element.classList.contains("mdc-button") ||
-                          element.classList.contains("mdc-text-field") ||
-                          element.classList.contains("mdc-list-item")
-                        );
-                      }
-
-                      function isElementUIElement(element) {
-                        return (
-                          element.classList.contains("el-button") ||
-                          element.classList.contains("el-input__inner") ||
-                          element.classList.contains("el-select-dropdown__item")
-                        );
-                      }
-
                       const elementDTO = function elementDTO(typeElement, identity) {
                         return {
                           typeElement: typeElement,
@@ -2101,17 +1864,287 @@ public class PerformPreLoad {
                         };
                       };
 
+                      function getResultMap(elementInfoMap) {
+                        let collectionMap = [];
+                        elementInfoMap.forEach((value, key) => {
+                          let modifiedValue = value;
+                          collectionMap.push(modifiedValue);
+                        });
+                        return collectionMap;
+                      }
+
+                      const processElementsWithXPath = (elementsList) => {
+                        const groupedElements = new Map();
+
+                        // Helper function to parse XPath into an array of tags and indices
+                        const parseXPath = (xPath) => {
+                          return xPath
+                            .split("/")
+                            .filter((part) => part)
+                            .map((part) => {
+                              const match = part.match(/([a-zA-Z]+)(?:\\[(\\d+)\\])?/);
+                              if (match) {
+                                return {
+                                  tagName: match[1],
+                                  index: match[2] ? parseInt(match[2]) : null,
+                                };
+                              }
+                              return null;
+                            })
+                            .filter((item) => item !== null);
+                        };
+
+                        // Helper function to determine if two XPaths belong to the same component
+                        const areSameComponent = (xpath1, xpath2) => {
+                          const path1 = parseXPath(xpath1);
+                          const path2 = parseXPath(xpath2);
+
+                          if (path1.length === 0 || path2.length === 0) {
+                            return false;
+                          }
+
+                          // Check if the paths have the same base part (up to the "a" tag)
+                          let commonLength = 0;
+                          for (let i = 0; i < Math.min(path1.length, path2.length); i++) {
+                            if (
+                              path1[i].tagName === path2[i].tagName &&
+                              path1[i].index === path2[i].index
+                            ) {
+                              if (path1[i].tagName === "a") {
+                                commonLength = i + 1;
+                                break;
+                              }
+                            } else {
+                              break;
+                            }
+                          }
+
+                          if (commonLength === 0) {
+                            return false;
+                          }
+
+                          return path1.slice(0, commonLength).every((item, index) => {
+                            return (
+                              item.tagName === path2[index].tagName &&
+                              item.index === path2[index].index
+                            );
+                          });
+                        };
+
+                        elementsList.forEach((element) => {
+                          if (element.xPath && element.coordinates) {
+                            let foundGroup = false;
+                            for (const [key, group] of groupedElements) {
+                              if (
+                                areSameComponent(element.xPath, key) &&
+                                element.coordinates === group[0].coordinates
+                              ) {
+                                group.push(element);
+                                foundGroup = true;
+                                break;
+                              }
+                            }
+                            if (!foundGroup) {
+                              groupedElements.set(element.xPath, [element]);
+                            }
+                          }
+                        });
+
+                        const filteredResult = [];
+
+                        groupedElements.forEach((group) => {
+                          if (group.length > 1) {
+                            // Find the element with the "highest" coordinates (assuming higher means further down/right)
+                            let highestCoordinateElement = group[0];
+                            group.forEach((element) => {
+                              const [x, y] = element.coordinates.split(",").map(parseFloat);
+                              const [highestX, highestY] = highestCoordinateElement.coordinates
+                                .split(",")
+                                .map(parseFloat);
+                              if (y > highestY || (y === highestY && x > highestX)) {
+                                highestCoordinateElement = element;
+                              }
+                            });
+                            filteredResult.push(highestCoordinateElement);
+                          } else {
+                            filteredResult.push(group[0]);
+                          }
+                        });
+
+                        return filteredResult;
+                      };
+
+                      const findUniqueAndOneRepeated = (elementsList) => {
+                        const wordFrequency = new Map();
+                        const wordToItems = new Map();
+                        const coordinatesMap = new Map();
+
+                        elementsList.forEach((element) => {
+                          if (
+                            element.tagName.toLowerCase() !== "span" &&
+                            element.tagName.toLowerCase() !== "div" &&
+                            element.tagName.toLowerCase() !== "button"
+                          ) {
+                            return; // Ignore elements that are not <span>, <div>, or button
+                          }
+
+                          const someText = element.someText?.trim();
+                          if (someText) {
+                            someText.split(/[\\s,;]+/).forEach((word) => {
+                              const trimmedWord = word.trim();
+                              if (trimmedWord) {
+                                wordFrequency.set(
+                                  trimmedWord,
+                                  (wordFrequency.get(trimmedWord) || 0) + 1
+                                );
+
+                                if (!wordToItems.has(trimmedWord)) {
+                                  wordToItems.set(trimmedWord, new Set());
+                                }
+                                wordToItems.get(trimmedWord).add(element);
+                              }
+                            });
+                          }
+
+                          // Store elements by their coordinates
+                          if (element.coordinates) {
+                            if (!coordinatesMap.has(element.coordinates)) {
+                              coordinatesMap.set(element.coordinates, []);
+                            }
+                            coordinatesMap.get(element.coordinates).push(element);
+                          }
+                        });
+
+                        // Resolve elements with same coordinates, prioritizing "aria-label"
+                        coordinatesMap.forEach((elements) => {
+                          let priorityElement = elements.find((el) =>
+                            el.attributeData?.some((attr) => attr.name === "aria-label")
+                          );
+                          if (priorityElement) {
+                            const ariaLabelAttr = priorityElement.attributeData.find(
+                              (attr) => attr.name === "aria-label"
+                            );
+                            if (ariaLabelAttr) {
+                              elements.forEach((el) => {
+                                if (el.someText !== ariaLabelAttr.value) {
+                                  el.someText = ariaLabelAttr.value; // Override someText with aria-label
+                                }
+                              });
+                            }
+                          }
+                        });
+
+                        const repeatedWords = Array.from(wordFrequency.entries())
+                          .filter(([_, count]) => count > 1)
+                          .map(([word]) => word);
+
+                        const result = [];
+                        const addedElements = new Set();
+
+                        // Helper function to check if an element has a specific attribute
+                        const hasAttribute = (element, attributeName) => {
+                          return element.attributeData?.some((attr) => attr.name === attributeName);
+                        };
+
+                        // Add one occurrence of each repeated word's element, prioritizing "aria-label" over "test-id"
+                        repeatedWords.forEach((word) => {
+                          if (wordToItems.has(word)) {
+                            let items = Array.from(wordToItems.get(word));
+
+                            // Prioritize elements: first by "aria-label", then by "test-id"
+                            items.sort(
+                              (a, b) =>
+                                hasAttribute(b, "aria-label") - hasAttribute(a, "aria-label") ||
+                                hasAttribute(b, "test-id") - hasAttribute(a, "test-id")
+                            );
+
+                            if (!addedElements.has(items[0])) {
+                              result.push(items[0]);
+                              addedElements.add(items[0]);
+                            }
+                          }
+                        });
+
+                        // Add elements with unique words
+                        elementsList.forEach((element) => {
+                          if (!addedElements.has(element)) {
+                            const someText = element.someText?.trim();
+                            if (someText) {
+                              const words = someText.split(/[\\s,;]+/).map((word) => word.trim());
+                              const isRepeated = words.some((word) => repeatedWords.includes(word));
+                              if (!isRepeated) {
+                                result.push(element);
+                                addedElements.add(element);
+                              }
+                            }
+                          }
+                        });
+
+                        // filter coordinate duplicates, keeping the first with aria-label or greatest attributeData size
+                        const uniqueCoords = new Map();
+                        const filteredResult = [];
+
+                        result.forEach((el) => {
+                          if (el.coordinates) {
+                            if (!uniqueCoords.has(el.coordinates)) {
+                              uniqueCoords.set(el.coordinates, el);
+                              filteredResult.push(el);
+                            } else {
+                              const existingEl = uniqueCoords.get(el.coordinates);
+                              if (
+                                !hasAttribute(existingEl, "aria-label") &&
+                                hasAttribute(el, "aria-label")
+                              ) {
+                                uniqueCoords.set(el.coordinates, el);
+                                filteredResult[filteredResult.indexOf(existingEl)] = el;
+                              } else if (el.attributeData && existingEl.attributeData) {
+                                if (el.attributeData.length > existingEl.attributeData.length) {
+                                  uniqueCoords.set(el.coordinates, el);
+                                  filteredResult[filteredResult.indexOf(existingEl)] = el;
+                                }
+                              }
+                            }
+                          } else {
+                            filteredResult.push(el);
+                          }
+                        });
+
+                        // Add the elements that did not match the initial filter
+                        elementsList.forEach((element) => {
+                          if (
+                            element.tagName.toLowerCase() !== "span" &&
+                            element.tagName.toLowerCase() !== "div" &&
+                            element.tagName.toLowerCase() !== "button"
+                          ) {
+                            filteredResult.push(element);
+                          }
+                        });
+
+                        return filteredResult;
+                      };
+
+                      function limitMapSize(sortedList) {
+                        // Check the length of allElementInfo before adding new elements
+                        console.log("limitMapSize");
+                        sortedList.forEach((item) => {
+                          if (window.allElementInfo.length < 35) {
+                            window.allElementInfo.push(item);
+                          }
+                        });
+                      }
+
                       function limitMapCharacters(elementInfoMap) {
                         // Check the length of allElementInfo before adding new elements
                         console.log("limitMapCharacters");
                         elementInfoMap.forEach((value, key) => {
                           // Only add elements if there are fewer than 20 elements in the array
-                          // if (window.allElementInfo.length < 30) {
-                          let modifiedValue = value;
-                          window.allElementInfo.push(modifiedValue);
-                          // }
+                          if (window.allElementInfo.length < 30) {
+                            let modifiedValue = value;
+                            window.allElementInfo.push(modifiedValue);
+                          }
                         });
                       }
+
                       // Event listener to handle incoming messages from iframes
                       window.addEventListener("message", function (event) {
                         if (event.origin !== window.trustedOriginURL) {
@@ -2184,17 +2217,26 @@ public class PerformPreLoad {
                       arguments[5],
                       arguments[6]
                     );
+                    // })(["*"], false, 8282, "scannerTool", "scannerGrid-2", "searchTerms", 2);
 
-                    // })([], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["with name"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
+                    // })(
+                    //   ["with test-id"],
+                    //   false,
+                    //   8282,
+                    //   "scannerTool",
+                    //   "scannerGrid-2",
+                    //   "searchTerms",
+                    //   2
+                    // );
                     // })(
                     //   ["input", "button", "a", "select"],
                     //   false,
-                    //   8181,
+                    //   8282,
                     //   "scannerTool",
-                    //   "scannerGrid-3",
+                    //   "scannerGrid-2",
                     //   "searchTerms",
-                    //   3
+                    //   2
                     // );
                     // })(["*"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["button"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
