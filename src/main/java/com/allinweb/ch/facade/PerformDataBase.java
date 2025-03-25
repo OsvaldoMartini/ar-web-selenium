@@ -214,9 +214,13 @@ public class PerformDataBase {
                 if (!POSTGRES_DB) {
                     String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
                     String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
+                    ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
                     conn = DriverManager.getConnection(dbUrl);
                 } else {
                     String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
+                    String userDB = USERNAME + " - " + PASSWORD;
+                    ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
+                    ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB);
                     conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
                 }
             }
