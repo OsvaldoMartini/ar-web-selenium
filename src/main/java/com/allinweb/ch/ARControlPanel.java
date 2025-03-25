@@ -1,4 +1,4 @@
-package com.allinweb.ch.control;
+package com.allinweb.ch;
 
 import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;

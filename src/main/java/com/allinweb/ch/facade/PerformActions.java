@@ -4289,15 +4289,12 @@ public class PerformActions {
                 elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
             }
 
-        } catch (Exception e) {
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .info("iFrame Element not Located\niFrameXPath" + targetFind.getIFrameXPath()
-                            + "iFrameChild: "
-                            + targetFind.getXPath());
+        } catch (Exception error) {
+            ARLogger.getInstance(ARScannedElementPane.class).info("Element not Located: " + targetFind.getXPath());
             performMessage.errorMessage(
-                    "iFrame Element not Located",
-                    "Cannot able to find the iFrame",
-                    "iFrame Parent or Child",
+                    "Element not Located",
+                    "Cannot able to find the ",
+                    "Verify the Correct Browser Version",
                     null,
                     null,
                     0);
