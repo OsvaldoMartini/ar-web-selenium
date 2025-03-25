@@ -552,21 +552,21 @@ public class ARScannedElementPane extends ARPane {
                     actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 }
 
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.GET_VALUE,
-                        coordinates,
-                        fieldData,
-                        driverTestActions,
-                        false);
-                System.out.println(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText4 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText4.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText4.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
+                //                result = performActions.sequenceOfCommands(
+                //                        targetTest.getElement(),
+                //                        ARConstants.GET_VALUE,
+                //                        coordinates,
+                //                        fieldData,
+                //                        driverTestActions,
+                //                        false);
+                //                System.out.println(result);
+                //                actionsTested.append(result + System.lineSeparator());
+                //                actionText4 = new Text(result);
+                //                if (result.contains("Failed")) {
+                //                    actionText4.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                //                } else {
+                //                    actionText4.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                //                }
 
                 result = performActions.sequenceOfCommands(
                         targetTest.getElement(), ARConstants.CLEAR, coordinates, fieldData, driverTestActions, false);
@@ -590,47 +590,49 @@ public class ARScannedElementPane extends ARPane {
                     actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 }
 
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(), ARConstants.FOCUS, coordinates, fieldData, driverTestActions, false);
-                System.out.println(result);
+                //                result = performActions.sequenceOfCommands(
+                //                        targetTest.getElement(), ARConstants.FOCUS, coordinates, fieldData,
+                // driverTestActions, false);
+                //                System.out.println(result);
+                //
+                //                actionsTested.append(result + System.lineSeparator());
+                //
+                //                actionText7 = new Text(result);
+                //                if (result.contains("Failed")) {
+                //                    actionText7.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                //                } else {
+                //                    actionText7.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                //                }
+                //
+                //                result = performActions.sequenceOfCommands(
+                //                        targetTest.getElement(), ARConstants.TAB, coordinates, fieldData,
+                // driverTestActions, false);
+                //                System.out.println(result);
+                //
+                //                actionsTested.append(result + System.lineSeparator());
+                //
+                //                actionText8 = new Text(result);
+                //                if (result.contains("Failed")) {
+                //                    actionText8.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                //                } else {
+                //                    actionText8.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                //                }
 
-                actionsTested.append(result + System.lineSeparator());
-
-                actionText7 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText7.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText7.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
-
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(), ARConstants.TAB, coordinates, fieldData, driverTestActions, false);
-                System.out.println(result);
-
-                actionsTested.append(result + System.lineSeparator());
-
-                actionText8 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText8.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText8.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
-
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.COORD_VISUALIZA,
-                        coordinates,
-                        fieldData,
-                        driverTestActions,
-                        false);
-                System.out.println(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText9 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText9.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText9.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
+                //                result = performActions.sequenceOfCommands(
+                //                        targetTest.getElement(),
+                //                        ARConstants.COORD_VISUALIZA,
+                //                        coordinates,
+                //                        fieldData,
+                //                        driverTestActions,
+                //                        false);
+                //                System.out.println(result);
+                //                actionsTested.append(result + System.lineSeparator());
+                //                actionText9 = new Text(result);
+                //                if (result.contains("Failed")) {
+                //                    actionText9.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                //                } else {
+                //                    actionText9.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                //                }
 
                 result = performActions.sequenceOfCommands(
                         targetTest.getElement(),
@@ -666,21 +668,21 @@ public class ARScannedElementPane extends ARPane {
                     actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 }
 
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.COORD_INSERT,
-                        coordinates,
-                        fieldData,
-                        driverTestActions,
-                        true);
-                System.out.println(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText12 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
+                //                result = performActions.sequenceOfCommands(
+                //                        targetTest.getElement(),
+                //                        ARConstants.COORD_INSERT,
+                //                        coordinates,
+                //                        fieldData,
+                //                        driverTestActions,
+                //                        true);
+                //                System.out.println(result);
+                //                actionsTested.append(result + System.lineSeparator());
+                //                actionText12 = new Text(result);
+                //                if (result.contains("Failed")) {
+                //                    actionText12.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                //                } else {
+                //                    actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                //                }
 
                 result = performActions.sequenceOfCommands(
                         targetTest.getElement(),
@@ -700,46 +702,48 @@ public class ARScannedElementPane extends ARPane {
 
                 System.out.println(actionsTested);
 
-                VBox vertical = new VBox();
-                vertical.getChildren()
-                        .addAll(
-                                actionText1,
-                                actionText2,
-                                actionText3,
-                                actionText4,
-                                actionText5,
-                                actionText6,
-                                actionText7,
-                                actionText8,
-                                actionText9,
-                                actionText10,
-                                actionText11,
-                                actionText12,
-                                actionText13);
+                //                VBox vertical = new VBox();
+                //                vertical.getChildren()
+                //                        .addAll(
+                //                                actionText1,
+                //                                actionText2,
+                //                                actionText3,
+                //                                actionText4,
+                //                                actionText5,
+                //                                actionText6,
+                //                                actionText7,
+                //                                actionText8,
+                //                                actionText9,
+                //                                actionText10,
+                //                                actionText11,
+                //                                actionText12,
+                //                                actionText13);
 
-                Platform.runLater(() -> {
-                    textFlowResult.getChildren().clear();
-                    textFlowResult.getChildren().addAll(vertical);
-
-                    textFlowResult.requestLayout();
-
-                    //                                boxListViews.requestLayout();
-                    //                                verticalBox.requestLayout();
-                    //                                getChildren().addAll(blockAndUrl, boxListViews);
-                    contentPane.requestLayout();
-                    VBox vBoxResult = new VBox();
-                    vBoxResult.getChildren().addAll(textFlowResult);
-                    performMessage.showAlertCombinedVBOX(
-                            Alert.AlertType.INFORMATION,
-                            "Test Actions Results",
-                            "Web Actions Tested:",
-                            null,
-                            vBoxResult);
-
-                    //                                countdownTextField.setText(actionsTested.toString());
-                    //                                countdownTextField.setStyle("-fx-font-size: 12px;
-                    // -fx-text-fill: blue;");
-                });
+                //                Platform.runLater(() -> {
+                //                    textFlowResult.getChildren().clear();
+                //                    textFlowResult.getChildren().addAll(vertical);
+                //
+                //                    textFlowResult.requestLayout();
+                //
+                //                    //                                boxListViews.requestLayout();
+                //                    //                                verticalBox.requestLayout();
+                //                    //                                getChildren().addAll(blockAndUrl, boxListViews);
+                //                    contentPane.requestLayout();
+                //                    VBox vBoxResult = new VBox();
+                //                    vBoxResult.getChildren().addAll(textFlowResult);
+                //                    performMessage.showAlertCombinedVBOX(
+                //                            Alert.AlertType.INFORMATION,
+                //                            "Test Actions Results",
+                //                            "Web Actions Tested:",
+                //                            null,
+                //                            vBoxResult);
+                //
+                //                    //
+                // countdownTextField.setText(actionsTested.toString());
+                //                    //                                countdownTextField.setStyle("-fx-font-size:
+                // 12px;
+                //                    // -fx-text-fill: blue;");
+                //                });
             }
             //                                arWebElement.getElement().click();
         } catch (Exception e) {
@@ -1957,14 +1961,21 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private boolean isClickable(WebElement element) {
-        List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
-        boolean isClickableTag =
-                clickableTags.stream().anyMatch(t -> t.getValue().equals(element.getTagName()));
-        List<WebElementAttributeTypeValueEnum> clickableValues = WebElementAttributeTypeValueEnum.getClickableValues();
-        boolean isClickableValue = clickableValues.stream()
-                .anyMatch(v -> v.getValue().equals(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
-        boolean isInputTag = element.getTagName().equals(WebElementTagNameEnum.INPUT.getValue());
-        return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
+        try {
+            List<WebElementTagNameEnum> clickableTags = WebElementTagNameEnum.clickableTags();
+            boolean isClickableTag =
+                    clickableTags.stream().anyMatch(t -> t.getValue().equals(element.getTagName()));
+            List<WebElementAttributeTypeValueEnum> clickableValues =
+                    WebElementAttributeTypeValueEnum.getClickableValues();
+            boolean isClickableValue = clickableValues.stream()
+                    .anyMatch(v -> v.getValue().equals(element.getAttribute(WebElementAttributeEnum.TYPE.getValue())));
+            boolean isInputTag = element.getTagName().equals(WebElementTagNameEnum.INPUT.getValue());
+            return (isClickableTag && !isInputTag) || (isInputTag && isClickableValue && isClickableTag);
+
+        } catch (Exception ignore) {
+        }
+        return false;
+        // Signal for Force Click or Not from the Target Definitions
     }
 
     private void handleSearchTermClick(String[] dataArray) {
@@ -2082,30 +2093,6 @@ public class ARScannedElementPane extends ARPane {
         String nameDefined = "";
 
         if (target.getElement() != null) {
-
-            performActions.getCurrentDriver().switchTo().defaultContent();
-
-            // iFrame
-            if (!Strings.isNullOrEmpty(targetSelected.getIFrameXPath())) {
-                try {
-                    WebElement iFrame =
-                            performActions.getCurrentDriver().findElement(By.xpath(targetSelected.getIFrameXPath()));
-                    performActions.getCurrentDriver().switchTo().frame(iFrame);
-                } catch (Exception error) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .info("iFrame Element not Located\niFrameXPath"
-                                    + targetSelected.getIFrameXPath()
-                                    + "iFrameChild: "
-                                    + targetSelected.getXPath());
-                    //                            performMessage.errorMessage(
-                    //                                    "iFrame Element not Located",
-                    //                                    "Cannot able to find the iFrame",
-                    //                                    "iFrame Parent or Child",
-                    //                                    null,
-                    //                                    null,
-                    //                                    0);
-                }
-            }
 
             defineNameField.setText("");
             if (!Strings.isNullOrEmpty(targetSelected.getAttribId())
