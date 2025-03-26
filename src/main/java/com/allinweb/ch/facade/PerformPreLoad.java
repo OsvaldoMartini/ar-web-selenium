@@ -763,7 +763,16 @@ public class PerformPreLoad {
                                 operationId: "test echo",
                                 body: "subscribe",
                               };
-                              wSocket.send(JSON.stringify(subscriptionMessage));
+                              // Convert the JSON message to a buffer
+                              const base64Message = btoa(
+                                unescape(encodeURIComponent(JSON.stringify(subscriptionMessage)))
+                              );
+                              // Convert the buffer to a Base64 string
+                              wSocket.send(base64Message);
+                              // wSocket.send(JSON.stringify(message));
+                              console.log("Sent SEARCH_TOOL:", message);
+                              console.log("Sent ENCODED Length:", base64Message.length);
+                              console.log("Sent ENCODED:", base64Message);
                             } catch (sendError) {
                               console.error("Failed to send subscription message:", sendError);
                             }
