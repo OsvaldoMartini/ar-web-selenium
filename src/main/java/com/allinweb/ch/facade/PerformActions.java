@@ -11,8 +11,6 @@ import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
-import com.allinweb.ch.component.pane.ARScannedElementPane;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.persistence.TargetElement;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.ARConstants;
@@ -279,10 +277,10 @@ public class PerformActions {
 
                 Optional<ButtonType> quitResult = alert.showAndWait();
                 if (quitResult.isPresent() && quitResult.get().equals(ButtonType.YES)) {
-                    ARSharedResources.getInstance().cacheEntitiesFromDB();
+                    //                    ARSharedResources.getInstance().cacheEntitiesFromDB();
                     quit(1);
                 } else {
-                    ARSharedResources.getInstance().cacheEntitiesFromDB();
+                    //                    ARSharedResources.getInstance().cacheEntitiesFromDB();
                 }
                 break;
                 //                    case ARConstants.EXTRACT:
@@ -4039,7 +4037,7 @@ public class PerformActions {
                 + "  function checkEdgeTrackingPrevention() {\n"
                 + "    if (navigator.userAgent.includes(\"Edg\")) {\n"
                 + "      console.log(\n"
-                + "        \"Edge Tracking Prevention may be blocking iframes. Go to Edge Settings → Privacy, Search, and Services → Set Tracking Prevention to 'Basic' and refresh the page.\"\n"
+                + "        \"Edge Tracking Prevention may be blocking iframes. Go to Edge Settings -> Privacy, Search, and Services -> Set Tracking Prevention to 'Basic' and refresh the page.\"\n"
                 + "      );\n"
                 + "    }\n"
                 + "  }\n"
@@ -4303,7 +4301,7 @@ public class PerformActions {
                     getCurrentDriver().switchTo().frame(iFrame);
                     elementFound = getCurrentDriver().findElement(By.xpath(targetFind.getXPath()));
                 } catch (Exception error) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
+                    ARLogger.getInstance(PerformActions.class)
                             .info("iFrame Element not Located\niFrameXPath"
                                     + targetFind.getIFrameXPath()
                                     + "iFrameChild: "
@@ -4314,7 +4312,7 @@ public class PerformActions {
             }
 
         } catch (Exception error) {
-            ARLogger.getInstance(ARScannedElementPane.class).info("Element not Located: " + targetFind.getXPath());
+            ARLogger.getInstance(PerformActions.class).info("Element not Located: " + targetFind.getXPath());
             //            performMessage.errorMessage(
             //                    "Element not Located",
             //                    "Cannot able to find the ",
