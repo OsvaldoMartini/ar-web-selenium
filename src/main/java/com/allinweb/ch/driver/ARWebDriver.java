@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javax.swing.*;
 import lombok.Data;
@@ -65,7 +64,7 @@ public class ARWebDriver {
 
     // Method to add WebDriver instances
     public void addWebDriver(WebDriver driver) {
-        Platform.runLater(() -> webDriverList.add(driver));
+        webDriverList.add(driver);
     }
 
     public WebDriver getDriverEdge(EdgeOptions options) {
@@ -182,8 +181,10 @@ public class ARWebDriver {
 
                     if (optionsChrome != null) {
                         this.currentDriver = getDriverChrome(optionsChrome);
+                        this.currentDriver.get("about:blank");
                     } else {
                         this.currentDriver = getDriverChrome(null);
+                        this.currentDriver.get("about:blank");
                     }
                 }
                 case ARConstants.EDGE -> {
@@ -214,8 +215,10 @@ public class ARWebDriver {
 
                     if (optionsEdge != null) {
                         this.currentDriver = getDriverEdge(optionsEdge);
+                        this.currentDriver.get("about:blank");
                     } else {
                         this.currentDriver = getDriverEdge(null); // or pass options
+                        this.currentDriver.get("about:blank");
                     }
                 }
                 case ARConstants.FIREFOX -> {
@@ -229,8 +232,10 @@ public class ARWebDriver {
                     //                    driver = new FirefoxDriver(options);
                     if (options != null) {
                         this.currentDriver = getDriverFireFox(options);
+                        this.currentDriver.get("about:blank");
                     } else {
                         this.currentDriver = getDriverFireFox(null); // or pass options
+                        this.currentDriver.get("about:blank");
                     }
                 }
             }
