@@ -13,6 +13,8 @@ public class ARPropertyManager {
 
     private static volatile ARPropertyManager instance;
 
+    @Getter
+    @Setter
     private Properties properties = new Properties();
 
     @Getter
@@ -117,7 +119,8 @@ public class ARPropertyManager {
     public void setProperty(String propertyName, String value) {
         this.properties.setProperty(propertyName, value);
         try (FileOutputStream output = new FileOutputStream(configurationFileName)) {
-            this.properties.store(output, "added property: " + propertyName + " with value: " + value);
+            //            this.properties.store(output, "added property: " + propertyName + " with value: " + value);
+            this.properties.store(output, null);
         } catch (FileNotFoundException e) {
             JOptionPane.showMessageDialog(
                     null,

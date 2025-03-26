@@ -43,11 +43,11 @@ public class ARControlPanel extends Application {
         if (arguments.contains("-c")) {
             int configurationValueIndex = arguments.indexOf("-c") + 1;
             String configurationValue = arguments.get(configurationValueIndex);
-            arPropertyManager.setConfigurationFileName(configurationValue);
+            ARPropertyManager.setConfigurationFileName(configurationValue);
             arPropertyManager.loadProperties();
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
         } else {
-            arPropertyManager.setConfigurationFileName(configurationFileName);
+            ARPropertyManager.setConfigurationFileName(configurationFileName);
             arPropertyManager.loadProperties();
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
         }

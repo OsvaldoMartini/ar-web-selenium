@@ -277,10 +277,10 @@ public class PerformActions {
 
                 Optional<ButtonType> quitResult = alert.showAndWait();
                 if (quitResult.isPresent() && quitResult.get().equals(ButtonType.YES)) {
-                    //                    ARSharedResources.getInstance().cacheEntitiesFromDB();
+                    //                    getInstance().cacheEntitiesFromDB();
                     quit(1);
                 } else {
-                    //                    ARSharedResources.getInstance().cacheEntitiesFromDB();
+                    //                    getInstance().cacheEntitiesFromDB();
                 }
                 break;
                 //                    case ARConstants.EXTRACT:

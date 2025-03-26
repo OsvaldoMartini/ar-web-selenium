@@ -75,7 +75,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
 public class ARViewBotJobPane extends ARPane {
-
     // Set to hold all active WebSocket sessions
     private static Map<String, Session> activeSessions;
     private int portInitial;
@@ -675,6 +674,27 @@ public class ARViewBotJobPane extends ARPane {
             this.botJobList.addAll(performDataBase.loadAllBotJobs());
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
+            List<String> missingProperties =
+                    checkProperties(ARPropertyManager.getInstance().getProperties());
+
+            if (!missingProperties.isEmpty()) {
+
+                int totalMissing = missingProperties.size();
+                int partSize = (int) Math.ceil((double) totalMissing / 3); // Divide into 3 parts
+
+                String part1 = String.join(", ", missingProperties.subList(0, Math.min(partSize, totalMissing)));
+                String part2 = totalMissing > partSize
+                        ? String.join(", ", missingProperties.subList(partSize, Math.min(2 * partSize, totalMissing)))
+                        : "";
+                String part3 = totalMissing > 2 * partSize
+                        ? String.join(", ", missingProperties.subList(2 * partSize, totalMissing))
+                        : "";
+
+                performMessage.errorMessage(
+                        "I cannot Execute Web Scanner", "Missing required properties: ", part1, part2, part3, 0);
+                return;
+            }
+
             if (!isScannerButtonClicked) { // Check if the button action was not already triggered
                 isScannerButtonClicked = true; // Set the flag to prevent further clicks
 
@@ -1345,4 +1365,31 @@ public class ARViewBotJobPane extends ARPane {
     //
     //        this.componentList.setItems(componentBlockDTOS);
     //    }
+
+    public List<String> checkProperties(Properties properties) {
+        String[] requiredProperties = {
+            "data_base",
+            "path_excel",
+            "path_log",
+            "path_java",
+            "path_java_fx",
+            "path_db",
+            "path_report",
+            "path_priority",
+            "path_engine",
+            "path_web_driver",
+            "log_level",
+            "browser"
+        };
+
+        List<String> missingPropertiesList = new ArrayList<>();
+
+        for (String propertyName : requiredProperties) {
+            if (!properties.containsKey(propertyName)) {
+                missingPropertiesList.add(propertyName);
+            }
+        }
+
+        return missingPropertiesList;
+    }
 }
