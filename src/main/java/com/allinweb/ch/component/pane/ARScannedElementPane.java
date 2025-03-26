@@ -16,7 +16,6 @@ import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.driver.ARWebElement;
 import com.allinweb.ch.facade.IframeInputLocator;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformCloneLoad;
@@ -922,11 +921,11 @@ public class ARScannedElementPane extends ARPane {
 
     // Static block to initialize
     static {
+        managerProps = ARPropertyManager.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
         performCloneLoad = PerformCloneLoad.getInstance();
         performPickLoad = PerformPickLoad.getInstance();
         arPriorities = ARPriorities.getInstance();
-        managerProps = ARPropertyManager.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     }
 
@@ -957,7 +956,7 @@ public class ARScannedElementPane extends ARPane {
 
         searchHiddenFields = false;
 
-        defaultSearch = new String[] {"input", "button", "a", "select"};
+        defaultSearch = new String[] {"input", "button", "a", "select", "label"};
 
         ARLogger.getInstance(ARWebDriver.class).fine("Calling ARScannedElementPane");
 
@@ -1063,7 +1062,7 @@ public class ARScannedElementPane extends ARPane {
             currentARWebDriver.setCurrentDriver(null);
         }
 
-        String browserType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BROWSER);
+        String browserType = managerProps.getProperty(ARPropertyEnum.BROWSER);
         String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
 
         currentARWebDriver.openDriver(
@@ -1566,17 +1565,6 @@ public class ARScannedElementPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
-        try {
-            reduceSearchCriteria =
-                    !Strings.isNullOrEmpty(managerProps.getProperty(ARPropertyEnum.REDUCE_SEARCH_CRITERIA))
-                            ? Integer.parseInt(managerProps.getProperty(ARPropertyEnum.MAX_LOG_SIZE))
-                            : 20;
-        } catch (Exception ex) {
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .fine("REDUCE_SEARCH_CRITERIA is Empty -> Setting REDUCE_SEARCH_CRITERIA to Max 20elements");
-            reduceSearchCriteria = 20;
-        }
-
         configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
         launchBotJobButton.setOnMouseClicked(e -> {
             //                        loadBotJob(botJob);
@@ -2053,7 +2041,7 @@ public class ARScannedElementPane extends ARPane {
         if (searchTerms != null && !searchTerms.trim().isEmpty()) {
             dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
         } else {
-            dataArray = new String[] {"input", "button", "a", "select"}; // Default values
+            dataArray = new String[] {"input", "button", "a", "select", "label"}; // Default values
         }
 
         handleSearchTermClick(dataArray);
@@ -2839,126 +2827,6 @@ public class ARScannedElementPane extends ARPane {
     //            System.err.println("Error writing to file: " + e.getMessage());
     //        }
     //    }
-
-    private void buildPriorityReferences(List<ARWebElement> elements) {
-        Map<String, String> references = new HashMap<>();
-        for (ARWebElement arElement : elements) {
-            for (com.allinweb.ch.util.Priority priority : ARPriorities.getAllPriorityList()) {
-                switch (priority.getPriorityType()) {
-                    case attribute -> {
-                        String attributeValue = arElement
-                                .getElement()
-                                .getAttribute(priority.getName().get(0));
-                        if (attributeValue != null && !attributeValue.isBlank()) {
-                            references.put(priority.getName().get(0), attributeValue);
-                        }
-                    }
-                    case xpath -> references.put(
-                            priority.getName().get(0), ARWebUtil.extractWebElementXPath(arElement.getElement()));
-
-                    case coordinates -> {
-                        Rectangle coordinates = arElement.getElement().getRect();
-                        references.put(
-                                priority.getName().get(0),
-                                (coordinates.getX() + (coordinates.getWidth() / 2)) + ","
-                                        + (coordinates.getY() + (coordinates.getHeight() / 2)));
-                    }
-                }
-            }
-            arElement.getSavedReferences().putAll(references);
-            references.clear();
-        }
-    }
-
-    private void injectJavaScript(WebDriver driver) {
-        // The JavaScript code to be injected
-        try {
-            // Navigate to the target page
-            //            driver.get("https://www.ca-nextbank.ch/en/contact");
-
-            // The JavaScript code to be injected
-            //            String jsCode = "const hint = document.createElement('div');" + "hint.id = 'hint';"
-            //                    + "hint.className = 'hint';"
-            //                    + "document.body.appendChild(hint);"
-            //                    + "const style = document.createElement('style');"
-            //                    + "style.innerHTML = ` .hint {"
-            //                    + "  position: absolute;"
-            //                    + "  background-color: #f9f9f9;"
-            //                    + "  border: 1px solid #ccc;"
-            //                    + "  padding: 5px;"
-            //                    + "  border-radius: 3px;"
-            //                    + "  display: none;"
-            //                    + "  z-index: 1000;"
-            //                    + "} `;"
-            //                    + "document.head.appendChild(style);"
-            //                    + "document.body.addEventListener('mouseover', function(event) {"
-            //                    + "  const target = event.target;"
-            //                    + "  let hintText = `Tag: ${target.tagName.toLowerCase()}`;"
-            //                    + "  if (target.type) {"
-            //                    + "    hintText += `, Type: ${target.type}`;"
-            //                    + "  }"
-            //                    + "  if (target.innerText) {"
-            //                    + "    hintText += `, Text: ${target.innerText}`;"
-            //                    + "  }"
-            //                    + "  hint.innerText = hintText;"
-            //                    + "  hint.style.display = 'block';"
-            //                    + "  hint.style.left = event.pageX + 'px';"
-            //                    + "  hint.style.top = event.pageY + 'px';"
-            //                    + "});"
-            //                    + "document.body.addEventListener('mousemove', function(event) {"
-            //                    + "  hint.style.left = event.pageX + 'px';"
-            //                    + "  hint.style.top = event.pageY + 'px';"
-            //                    + "});"
-            //                    + "document.body.addEventListener('mouseout', function() {"
-            //                    + "  hint.style.display = 'none';"
-            //                    + "});";
-
-            // JavaScript code to add and remove tooltip functionality
-            String jsCode = "(function() {" + "    var tooltip = document.createElement('div');"
-                    + "    tooltip.style.position = 'absolute';"
-                    + "    tooltip.style.backgroundColor = 'black';"
-                    + "    tooltip.style.color = 'white';"
-                    + "    tooltip.style.padding = '5px';"
-                    + "    tooltip.style.borderRadius = '3px';"
-                    + "    tooltip.style.display = 'none';"
-                    + "    tooltip.style.zIndex = '1000';"
-                    + "    document.body.appendChild(tooltip);"
-                    + "    function showTooltip(event) {"
-                    + "        var tagName = event.target.tagName.toLowerCase();"
-                    + "        tooltip.textContent = tagName;"
-                    + "        tooltip.style.left = event.pageX + 'px';"
-                    + "        tooltip.style.top = (event.pageY + 15) + 'px';"
-                    + "        tooltip.style.display = 'block';"
-                    + "    }"
-                    + "    function hideTooltip() {"
-                    + "        tooltip.style.display = 'none';"
-                    + "    }"
-                    + "    var mouseOverListener = showTooltip;"
-                    + "    var mouseOutListener = hideTooltip;"
-                    + "    window.addTooltipListeners = function() {"
-                    + "        document.addEventListener('mouseover', mouseOverListener);"
-                    + "        document.addEventListener('mouseout', mouseOutListener);"
-                    + "    };"
-                    + "    window.removeTooltipListeners = function() {"
-                    + "        document.removeEventListener('mouseover', mouseOverListener);"
-                    + "        document.removeEventListener('mouseout', mouseOutListener);"
-                    + "        tooltip.style.display = 'none';"
-                    + "    };"
-                    + "    addTooltipListeners();"
-                    + "})();";
-
-            // Inject the JavaScript code into the page
-            ((JavascriptExecutor) driver).executeScript(jsCode);
-
-            // Allow some time to see the effect
-            Thread.sleep(10000); // Sleep for 10 seconds to observe the result
-        } catch (InterruptedException e) {
-            System.out.println(e.getMessage());
-        } finally {
-            // Close the browser
-            driver.quit();
-        }
-    }
 
     private void periodicPickOneCloneThread(
             WebDriver driver, String currentUrl, String[] dataArray, int port, int homeBankingId) {

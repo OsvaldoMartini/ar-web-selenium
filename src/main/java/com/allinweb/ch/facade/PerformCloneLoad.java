@@ -213,8 +213,6 @@ public class PerformCloneLoad {
                             console.log("Sent SEARCH_TOOL:", message);
                             console.log("Sent ENCODED Length:", base64Message.length);
                             console.log("Sent ENCODED:", base64Message);
-
-                            console.log("Sent SEARCH_TOOL:", message);
                             window.elementInfoMap.clear();
                           }
                         } else {
@@ -866,6 +864,14 @@ public class PerformCloneLoad {
                       arguments[4],
                       arguments[5]
                     );
-                    // })("https://www.vpbank.com/", "https://www.vpbank.com/", ["*"], false, 8282, 1);
-                    """;
+                    // })(
+                    //   "https://www.vpbank.com/",
+                    //   "https://www.vpbank.com/",
+                    //   ["*"],
+                    //   false,
+                    //   63760,
+                    //   1
+                    // );
+
+            """;
 }

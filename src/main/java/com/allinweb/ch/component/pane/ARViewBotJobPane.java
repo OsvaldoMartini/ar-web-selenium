@@ -179,7 +179,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void initUIComponents() {
-        portInitial = 8080;
+        portInitial = 54525;
 
         String portSocket = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
         if (portSocket != null) {

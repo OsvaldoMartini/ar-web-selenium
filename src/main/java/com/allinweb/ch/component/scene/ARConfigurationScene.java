@@ -16,7 +16,6 @@ public class ARConfigurationScene extends ARScene {
     private static final String TITLE = "Configuration";
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<ARConfigurationScene> instance = () -> new ARConfigurationScene();
-    private String previousDB;
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     // Private constructor to prevent instantiation
 
@@ -32,7 +31,7 @@ public class ARConfigurationScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARConfigurationPane(previousDB);
+        return new ARConfigurationPane();
     }
 
     @Override
@@ -62,7 +61,5 @@ public class ARConfigurationScene extends ARScene {
         }
     }
 
-    public void initialize(String previousDB) {
-        this.previousDB = previousDB;
-    }
+    public void initialize() {}
 }

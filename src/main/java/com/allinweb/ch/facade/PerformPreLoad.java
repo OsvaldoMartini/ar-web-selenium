@@ -739,23 +739,23 @@ public class PerformPreLoad {
                       window.operationId = operationId;
                       window.homeBankingId = homeBankingId;
                       // var elementInfoSubmit = new Map();
-
+                    
                       function connectWebSocket() {
                         if (attempts >= maxAttempts) {
                           console.error("Reached maximum reconnection attempts. Stopping.");
                           return;
                         }
-
+                    
                         try {
                           console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
                           wSocket = new WebSocket(
                             `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
                           );
-
+                    
                           wSocket.onopen = () => {
                             console.log(`WebSocket connected for session: ${window.sessionId}`);
                             attempts = 0; // Reset attempts on successful connection
-
+                    
                             try {
                               const subscriptionMessage = {
                                 type: "echo",
@@ -770,34 +770,34 @@ public class PerformPreLoad {
                               // Convert the buffer to a Base64 string
                               wSocket.send(base64Message);
                               // wSocket.send(JSON.stringify(message));
-                              console.log("Sent SEARCH_TOOL:", message);
+                              console.log("Sent SEARCH_TOOL:", subscriptionMessage);
                               console.log("Sent ENCODED Length:", base64Message.length);
                               console.log("Sent ENCODED:", base64Message);
                             } catch (sendError) {
                               console.error("Failed to send subscription message:", sendError);
                             }
-
+                    
                             // Call startCollectingElements AFTER WebSocket is open
                             startCollectingElements(window.searchTerms);
                           };
-
+                    
                           wSocket.onmessage = (event) => {
                             let receivedMessage = event.data;
-
+                    
                             if (receivedMessage.endsWith("\\u0000")) {
                               receivedMessage = receivedMessage.slice(0, -1);
                             }
-
+                    
                             if (receivedMessage) {
                               try {
                                 const parsedObject = JSON.parse(receivedMessage);
                                 console.log("WebSocket message received:", parsedObject);
-
+                    
                                 // Process parsedObject.body and parsedObject.footer here
                                 if (parsedObject.body.includes("data_updated")) {
                                   //Handle data update
                                 }
-
+                    
                                 if (
                                   parsedObject.body.includes("cannot be processed") ||
                                   (parsedObject.footer &&
@@ -810,15 +810,15 @@ public class PerformPreLoad {
                               }
                             }
                           };
-
+                    
                           wSocket.onerror = (error) => {
                             console.error("WebSocket error:", error);
                             // connectWebSocket(); // Retry connection
                           };
-
+                    
                           wSocket.onclose = () => {
                             console.log("WebSocket connection closed");
-
+                    
                             if (attempts < maxAttempts) {
                               attempts++;
                               console.log(`Reconnecting attempt ${attempts}...`);
@@ -835,7 +835,7 @@ public class PerformPreLoad {
                           console.error("Failed to initialize WebSocket:", initError);
                         }
                       }
-
+                    
                       // Optionally, expose a cleanup function
                       window.cleanupWebSocket = () => {
                         try {
@@ -847,7 +847,7 @@ public class PerformPreLoad {
                           console.error("Error during WebSocket cleanup:", cleanupError);
                         }
                       };
-
+                    
                       function init(eventName) {
                         if (pageFullyLoaded) {
                           console.log("Event Name", eventName);
@@ -868,7 +868,7 @@ public class PerformPreLoad {
                         }
                         pageFullyLoaded = true;
                       }
-
+                    
                       // Function to collect general elements based on search terms
                       const collectElements = function collectElements(
                         doc,
@@ -903,7 +903,7 @@ public class PerformPreLoad {
                             )
                           );
                         }
-
+                    
                         // After collecting, process element identities for the parent document
                         collectionFound.forEach((element) => {
                           if (
@@ -913,7 +913,7 @@ public class PerformPreLoad {
                           ) {
                             return;
                           }
-
+                    
                           const elementIdentity = getElementIdentity(element);
                           if (elementIdentity) {
                             filterSearchTerms(
@@ -926,7 +926,7 @@ public class PerformPreLoad {
                           }
                         });
                       };
-
+                    
                       function filterSearchTerms(
                         element,
                         typeDTO,
@@ -943,19 +943,19 @@ public class PerformPreLoad {
                         ) {
                           // Check if the clicked element has a shadow root
                           let shadowHost = element;
-
+                    
                           // Locate the shadow host element if it has a shadow root
                           while (shadowHost && !shadowHost.shadowRoot) {
                             shadowHost = shadowHost.parentElement; // Traverse upwards in the DOM
                           }
-
+                    
                           if (shadowHost && shadowHost.shadowRoot) {
                             // Access the Shadow DOM
                             const shadowRoot = shadowHost.shadowRoot;
-
+                    
                             // Find all clickable elements inside the Shadow DOM
                             let clickableElements = findClickableElements(shadowRoot);
-
+                    
                             // If clickable elements are found, perform your action (e.g., highlight them)
                             clickableElements.forEach((element) => {
                               pushElement(
@@ -980,7 +980,7 @@ public class PerformPreLoad {
                         // Iterate through search terms and apply corresponding checks
                         searchTerms.forEach((term) => {
                           let matches = false;
-
+                    
                           if (
                             term.includes("with id") &&
                             elementIdentity.attributeData.some((attr) => attr.name === "id")
@@ -997,24 +997,24 @@ public class PerformPreLoad {
                           ) {
                             matches = true;
                           }
-
+                    
                           // If a match is found, set the element in the map
                           if (matches) {
                             // Check if the clicked element has a shadow root
                             let shadowHost = element;
-
+                    
                             // Locate the shadow host element if it has a shadow root
                             while (shadowHost && !shadowHost.shadowRoot) {
                               shadowHost = shadowHost.parentElement; // Traverse upwards in the DOM
                             }
-
+                    
                             if (shadowHost && shadowHost.shadowRoot) {
                               // Access the Shadow DOM
                               const shadowRoot = shadowHost.shadowRoot;
-
+                    
                               // Find all clickable elements inside the Shadow DOM
                               let clickableElements = findClickableElements(shadowRoot);
-
+                    
                               // If clickable elements are found, perform your action (e.g., highlight them)
                               clickableElements.forEach((element) => {
                                 pushElement(
@@ -1044,7 +1044,7 @@ public class PerformPreLoad {
                           }
                         });
                       }
-
+                    
                       // Function to find clickable elements (buttons, links, etc.)
                       function findClickableElements(root) {
                         const clickableSelectors = ["button", "a"]; // Add other clickable elements if needed
@@ -1054,46 +1054,46 @@ public class PerformPreLoad {
                         });
                         return clickableElements;
                       }
-
+                    
                       function fetchAndParseIframeContent(iframe) {
                         if (!iframe.src) return null;
-
+                    
                         const xhr = new XMLHttpRequest();
                         xhr.open("GET", iframe.src, false); // 'false' makes the request synchronous
-
+                    
                         try {
                           xhr.send();
-
+                    
                           if (xhr.status !== 200) {
                             console.error("Error fetching the iframe content:", xhr.status);
                             return null;
                           }
-
+                    
                           const htmlContent = xhr.responseText;
-
+                    
                           // Parse the HTML content
                           const parser = new DOMParser();
                           const parsedDocument = parser.parseFromString(htmlContent, "text/html");
-
+                    
                           // Get all elements inside the parsed document
                           const srcElements = parsedDocument.querySelectorAll("*");
                           console.log(`srcElements Total: <${srcElements.length}>`);
-
+                    
                           // srcElements.forEach((element) => {
                           //   console.log(`Element: <${element.tagName}>`);
                           //   console.log("Text Content:", element.textContent.trim());
                           // });
-
+                    
                           return srcElements; // Return the NodeList
                         } catch (error) {
                           console.error("Error fetching the iframe content:", error);
                           return null;
                         }
                       }
-
+                    
                       const iFrameDetails = function iFrameDetails(iframe, xPathIFrame, childSize) {
                         const iframeDetails = `Elements inside iframe: ${childSize}`;
-
+                    
                         console.log(
                           `iFrame Found: ${
                             iframe.src ||
@@ -1115,7 +1115,7 @@ public class PerformPreLoad {
                           };${iframeDetails}`
                         );
                       };
-
+                    
                       // Function to collect iframe elements recursively
                       const collectIframeElements = function collectIframeElements(
                         doc,
@@ -1126,7 +1126,7 @@ public class PerformPreLoad {
                           try {
                             let iframeDocument =
                               iframe.contentDocument || iframe.contentWindow.document;
-
+                    
                             try {
                               console.log(
                                 "Iframe origin:",
@@ -1136,13 +1136,13 @@ public class PerformPreLoad {
                             } catch (e) {
                               console.warn("Cross-origin access denied for iframe:", iframe.src);
                             }
-
+                    
                             if (iframe) {
                               let iframeParsed = null;
                               let srcDocElements = null;
-
+                    
                               const xPathIFrame = getMartiniXPath(iframe); // Get the XPath of the iframe
-
+                    
                               const elementIdentity = getElementIdentity(iframe);
                               if (elementIdentity) {
                                 filterSearchTerms(
@@ -1153,23 +1153,23 @@ public class PerformPreLoad {
                                   searchTerms
                                 );
                               }
-
+                    
                               const parser = new DOMParser();
-
+                    
                               if (iframe.srcdoc) {
                                 iframeParsed = parser.parseFromString(iframe.srcdoc, "text/html");
-
+                    
                                 // Select all elements inside the parsed document
                                 srcDocElements = iframeParsed.querySelectorAll("*");
                               }
-
+                    
                               if (iframe.src) {
                                 const srcElements = fetchAndParseIframeContent(iframe);
                                 if (srcElements) {
                                   // console.log("Fetched Elements:", srcElements);
-
+                    
                                   iFrameDetails(iframe, xPathIFrame, srcElements.length);
-
+                    
                                   srcElements.forEach(function (element) {
                                     const elementIdentity = getElementIdentity(element);
                                     // console.log(
@@ -1189,7 +1189,7 @@ public class PerformPreLoad {
                                   });
                                 }
                               }
-
+                    
                               // Collect all elements inside the iframe
                               if (!iframe.src) {
                                 iFrameDetails(
@@ -1202,12 +1202,12 @@ public class PerformPreLoad {
                                     : 0
                                 );
                               }
-
+                    
                               iframeDocument
                                 .querySelectorAll("*")
                                 .forEach(function (elementInsideIframe) {
                                   const elementIdentity = getElementIdentity(elementInsideIframe);
-
+                    
                                   // console.log(
                                   //   "elementIdentity.xPath",
                                   //   `${xPathIFrame}${elementIdentity?.xPath}`
@@ -1223,7 +1223,7 @@ public class PerformPreLoad {
                                     );
                                   }
                                 });
-
+                    
                               // Loop through all the elements and extract their properties
                               srcDocElements?.forEach(function (element) {
                                 const elementIdentity = getElementIdentity(element);
@@ -1242,12 +1242,12 @@ public class PerformPreLoad {
                                   );
                                 }
                               });
-
+                    
                               // Process iframe content depending on the presence of srcdoc
                               if (iframeParsed) {
                                 processIframeElements(iframeParsed, xPathIFrame);
                               }
-
+                    
                               // If the iframe contains nested iframes, recursively collect them
                               collectIframeElements(iframeDocument, collectionFound, true);
                             } else {
@@ -1261,14 +1261,14 @@ public class PerformPreLoad {
                           }
                         });
                       };
-
+                    
                       const processIframeElements = function (iframeDocument, xPathIFrame) {
                         // Collect all elements inside the iframe
                         iframeDocument
                           .querySelectorAll("*")
                           .forEach(function (elementInsideIframe) {
                             const elementIdentity = getElementIdentity(elementInsideIframe);
-
+                    
                             // console.log(
                             //   "elementIdentity.xPath",
                             //   `${xPathIFrame}${elementIdentity?.xPath}`
@@ -1285,7 +1285,7 @@ public class PerformPreLoad {
                             }
                           });
                       };
-
+                    
                       // Function to initialize the collection process
                       const startCollectingElements = function startCollectingElements(
                         searchTerms
@@ -1293,30 +1293,30 @@ public class PerformPreLoad {
                         // const searchTerms = ["button", "input", "a", "div"]; // Define elements to search for
                         window.elementInfoMap = new Map(); // Initialize the map to store element information
                         let collectionFound = [];
-
+                    
                         // First, collect iframe elements
                         collectIframeElements(document, collectionFound, elementInfoMap);
-
+                    
                         // Then, collect general elements based on search terms
                         collectElements(document, searchTerms, collectionFound, elementInfoMap);
-
+                    
                         window.allElementInfo = [];
-
+                    
                         collectionFound = getResultMap(window.elementInfoMap);
                         console.log("All Collection Found :", collectionFound);
-
+                    
                         const sameXPathFound = processElementsWithXPath(collectionFound);
                         console.log("processElementsWithXPath", sameXPathFound);
-
+                    
                         const noRepeatedItems = findUniqueAndOneRepeated(sameXPathFound);
                         console.log("noRepeatedItems", noRepeatedItems); // Output the items with repetitions
-
+                    
                         // Define the order
                         const order = ["input", "button", "a", "select", "label", "span", "div"];
-
+                    
                         // Create the final list based on the specified order
                         const sortedList = order.reduce((acc, type) => {
-                          const filteredElements = collectionFound.filter((item) => {
+                          const filteredElements = noRepeatedItems.filter((item) => {
                             // For "label", "span", and "div", check if someText is not empty
                             if (["label", "span", "div"].includes(type)) {
                               return item.tagName === type && item.someText?.trim() !== "";
@@ -1324,20 +1324,20 @@ public class PerformPreLoad {
                             // For other types, no need to check someText
                             return item.tagName === type;
                           });
-
+                    
                           return [...acc, ...filteredElements];
                         }, []);
-
+                    
                         console.log("sortedList", sortedList);
-
+                    
                         limitMapSize(sortedList);
                         console.log("All element info stored in Map:", window.allElementInfo);
                         window.elementInfoMap.clear();
-
+                    
                         if (wSocket && wSocket.readyState) {
                           console.log("WebSocket readyState:", wSocket.readyState);
                         }
-
+                    
                         if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                           const message = {
                             type: "SEARCH_TOOL",
@@ -1346,7 +1346,7 @@ public class PerformPreLoad {
                             homeBankingId: window.homeBankingId,
                             details: window.allElementInfo, // Send allElementInfo
                           };
-
+                    
                           // Convert the JSON message to a buffer
                           const base64Message = btoa(
                             unescape(encodeURIComponent(JSON.stringify(message)))
@@ -1357,13 +1357,13 @@ public class PerformPreLoad {
                           console.log("Sent SEARCH_TOOL:", message);
                           console.log("Sent ENCODED Length:", base64Message.length);
                           console.log("Sent ENCODED:", base64Message);
-
+                    
                           alreadySent = true;
                           window.allElementInfo = [];
                           window.elementInfoMap.clear();
                         }
                       };
-
+                    
                       function pushElement(
                         element,
                         elementIdentityTemp,
@@ -1375,22 +1375,22 @@ public class PerformPreLoad {
                         let shadowHostSelector = "";
                         let elementCssSelector = "";
                         let shadowPath = [];
-
+                    
                         function buildCssSelector(el) {
                           if (!el) return "";
-
+                    
                           let selector = el.tagName.toLowerCase();
-
+                    
                           if (el.id) selector += `#${el.id}`;
-
+                    
                           // Ensure className is treated as a string
                           if (el.className && typeof el.className === "string") {
                             selector += `.${el.className.replace(/\\s+/g, ".")}`;
                           }
-
+                    
                           return selector;
                         }
-
+                    
                         // Traverse shadow hosts if nested shadow DOM exists
                         let currentHost = shadowHost;
                         while (currentHost) {
@@ -1400,25 +1400,25 @@ public class PerformPreLoad {
                               ? currentHost.parentNode.host
                               : null;
                         }
-
+                    
                         if (shadowHost) {
                           shadowHostSelector = buildCssSelector(shadowHost);
                         }
-
+                    
                         if (element) {
                           elementCssSelector = buildCssSelector(element);
                         }
-
+                    
                         // Construct the natural CSS selector for nested Shadow DOM
                         let cssSelector = elementCssSelector;
-
+                    
                         // Build nested CSS selector, if shadowPath is not empty.
                         if (shadowPath.length > 0) {
                           cssSelector = shadowPath.reduceRight((acc, hostSelector) => {
                             return `${hostSelector} ${acc}`;
                           }, elementCssSelector);
                         }
-
+                    
                         const elementIdentity = {
                           ...elementIdentityTemp,
                           shadowHost: shadowHostSelector,
@@ -1426,7 +1426,7 @@ public class PerformPreLoad {
                           nestedShadow: shadowPath.length > 1, // Detects if multiple shadow roots are involved
                           cssSelector: elementCssSelector, // cssSelector shadowRoot
                         };
-
+                    
                         // Store tagName and other details in the Map
                         if (elementIdentity) {
                           if (!originalStyles.has(element)) {
@@ -1434,14 +1434,14 @@ public class PerformPreLoad {
                             originalStyles.set(element, element.style.outline);
                           }
                           element.style.outline = "3px solid red";
-
+                    
                           window.elementInfoMap.set(
                             referXPath, // Keep Distinction iFrameXPath / child / etc...
                             elementDTO(typeDTO, elementIdentity)
                           );
                         }
                       }
-
+                    
                       const getElementIdentity = function getElementIdentity(element) {
                         if (!hiddenFields) {
                           if (
@@ -1457,13 +1457,13 @@ public class PerformPreLoad {
                           }
                         }
                         const xPath = getMartiniXPath(element);
-
+                    
                         let tagName = element.tagName.toLowerCase();
                         const tagNameTemp = identifyElementTypeFromXPath(tagName, xPath);
                         if (tagNameTemp !== tagName) {
                           tagName = tagNameTemp;
                         }
-
+                    
                         const attributeData = Array.from(element.attributes).map((attr) => ({
                           name: attr.name,
                           value: attr.value,
@@ -1474,7 +1474,7 @@ public class PerformPreLoad {
                           .getBoundingClientRect()
                           .left.toFixed(2)},${element.getBoundingClientRect().top.toFixed(2)}`;
                         const someText = getVisibleText(tagName, attributeData, element);
-
+                    
                         return {
                           xPath,
                           tagName,
@@ -1486,7 +1486,7 @@ public class PerformPreLoad {
                           someText,
                         };
                       };
-
+                    
                       // Function to check if an element is hidden (using computed styles and attributes)
                       const isHidden = (el) => {
                         const style = window.getComputedStyle(el);
@@ -1496,10 +1496,10 @@ public class PerformPreLoad {
                           el.hasAttribute("aria-hidden")
                         );
                       };
-
+                    
                       function getVisibleText(tagName, attributeData, element) {
                         let textResult = "";
-
+                    
                         if (element && !isHidden(element)) {
                           const extractedText = extractVisibleTextFromHTML(element);
                           textResult = [
@@ -1511,7 +1511,7 @@ public class PerformPreLoad {
                             .filter(Boolean)
                             .join("; ");
                         }
-
+                    
                         // Define priority order for attributes
                         const attributePriority = [
                           "aria-label",
@@ -1529,9 +1529,9 @@ public class PerformPreLoad {
                           "id",
                           "data-testid",
                         ];
-
+                    
                         let firstMeaningfulText = "";
-
+                    
                         // Function to get attribute text with priority
                         const getAttributeText = (name, value) => {
                           if (name === "aria-labelledby" || name === "aria-describedby") {
@@ -1542,7 +1542,7 @@ public class PerformPreLoad {
                           }
                           return value.trim();
                         };
-
+                    
                         // Check element's text first
                         if (textResult && !/^\\..*\\{.*\\}$/.test(textResult)) {
                           firstMeaningfulText = textResult;
@@ -1552,7 +1552,7 @@ public class PerformPreLoad {
                           if (titleAttr) {
                             firstMeaningfulText = getAttributeText(titleAttr.name, titleAttr.value);
                           }
-
+                    
                           if (!firstMeaningfulText) {
                             for (const attr of attributePriority) {
                               const foundAttr = attributeData.find(({ name }) => name === attr);
@@ -1566,21 +1566,21 @@ public class PerformPreLoad {
                             }
                           }
                         }
-
+                    
                         return firstMeaningfulText; // Return the most meaningful text
                       }
-
+                    
                       function extractVisibleTextFromHTML(element) {
                         if (!element) {
                           return { text: [], labels: [], titles: [] };
                         }
-
+                    
                         const result = {
                           text: new Set(),
                           labels: new Set(),
                           titles: new Set(),
                         };
-
+                    
                         // Utility function to check if an element is visible
                         const isVisible = (el) => {
                           const style = window.getComputedStyle(el);
@@ -1590,12 +1590,12 @@ public class PerformPreLoad {
                             el.hasAttribute("aria-hidden")
                           );
                         };
-
+                    
                         // Function to filter out technical patterns
                         const isTechnicalPattern = (word) => {
                           return word.includes("_") || word.includes("--") || word.includes("-");
                         };
-
+                    
                         // Extract visible text content from an element
                         if (element.textContent?.trim() && isVisible(element)) {
                           // Ignore text content that looks like CSS rules and words with technical patterns
@@ -1607,13 +1607,13 @@ public class PerformPreLoad {
                             result.text.add(filteredText);
                           }
                         }
-
+                    
                         // Extract text from labels (including associated input fields)
                         element.querySelectorAll("label").forEach((label) => {
                           if (isVisible(label) && label.textContent?.trim()) {
                             result.labels.add(label.textContent.trim());
                           }
-
+                    
                           // Handle labels associated with form elements
                           const forAttr = label.getAttribute("for");
                           if (forAttr) {
@@ -1639,7 +1639,7 @@ public class PerformPreLoad {
                             }
                           }
                         });
-
+                    
                         // Extract text from common inline and block elements
                         const visibleTextElements = [
                           "p",
@@ -1673,7 +1673,7 @@ public class PerformPreLoad {
                             }
                           });
                         });
-
+                    
                         // Extract visible link text
                         element.querySelectorAll("a").forEach((link) => {
                           if (isVisible(link) && link.textContent?.trim()) {
@@ -1686,14 +1686,14 @@ public class PerformPreLoad {
                             }
                           }
                         });
-
+                    
                         // Extract titles from iframes if accessible
                         element.querySelectorAll("iframe").forEach((iframe) => {
                           if (iframe.hasAttribute("title")) {
                             const title = iframe.getAttribute("title")?.trim();
                             if (title) result.titles.add(title);
                           }
-
+                    
                           try {
                             const iframeDoc =
                               iframe.contentDocument ||
@@ -1708,7 +1708,7 @@ public class PerformPreLoad {
                             console.warn("Could not access iframe content", e);
                           }
                         });
-
+                    
                         // Return arrays instead of Sets
                         return {
                           text: Array.from(result.text),
@@ -1739,40 +1739,40 @@ public class PerformPreLoad {
                         }
                         return "";
                       };
-
+                    
                       function identifyElementTypeFromXPath(tagName, xpath) {
                         if (typeof xpath !== "string" || xpath.trim() === "") {
                           return "unknown";
                         }
-
+                    
                         const parts = xpath.split("/").filter((part) => part.trim() !== "");
-
+                    
                         for (let i = parts.length - 1; i >= 0; i--) {
                           const part = parts[i];
-
+                    
                           const tagMatch = part.match(/^([a-zA-Z-]+)(?:\\[\\d+\\])?/);
                           if (!tagMatch) continue;
-
+                    
                           const tag = tagMatch[1].toLowerCase();
-
+                    
                           if (tag === "a") {
                             return "a"; // Link
                           }
-
+                    
                           if (tag === "input") {
                             const typeMatch = part.match(/@type=["']?([^"'\\]]+)["']?/);
                             const type = typeMatch ? typeMatch[1].toLowerCase() : "";
-
+                    
                             if (["button", "submit", "reset"].includes(type)) {
                               return "button";
                             }
                             return "input";
                           }
-
+                    
                           if (tag === "button") {
                             return "button";
                           }
-
+                    
                           // Detect if it's an Angular Material expansion panel (likely a button)
                           if (
                             tag.includes("expansion-panel-header") ||
@@ -1781,15 +1781,15 @@ public class PerformPreLoad {
                           ) {
                             return "button";
                           }
-
+                    
                           if (tag === "select" || tag === "option") {
                             return "select"; // or option
                           }
-
+                    
                           if (tag === "textarea") {
                             return "textarea";
                           }
-
+                    
                           // Framework specific detection from isInteractiveElement function.
                           if (
                             tag.includes("mat-button") ||
@@ -1802,7 +1802,7 @@ public class PerformPreLoad {
                           ) {
                             return "button"; // or select, input, option.
                           }
-
+                    
                           if (
                             tag.includes("data-testid") ||
                             tag.includes("aria-label") ||
@@ -1820,7 +1820,7 @@ public class PerformPreLoad {
                               return "button";
                             }
                           }
-
+                    
                           if (
                             part.includes("mdc-button") ||
                             part.includes("mdc-text-field") ||
@@ -1832,7 +1832,7 @@ public class PerformPreLoad {
                               return "button";
                             }
                           }
-
+                    
                           if (
                             part.includes("el-button") ||
                             part.includes("el-input__inner") ||
@@ -1847,10 +1847,10 @@ public class PerformPreLoad {
                             }
                           }
                         }
-
+                    
                         return tagName; // Default to the given tagName if no match
                       }
-
+                    
                       const elementDTO = function elementDTO(typeElement, identity) {
                         return {
                           typeElement: typeElement,
@@ -1872,7 +1872,7 @@ public class PerformPreLoad {
                           searchAttributeValue: identity.searchAttributeValue ?? "",
                         };
                       };
-
+                    
                       function getResultMap(elementInfoMap) {
                         let collectionMap = [];
                         elementInfoMap.forEach((value, key) => {
@@ -1881,10 +1881,10 @@ public class PerformPreLoad {
                         });
                         return collectionMap;
                       }
-
+                    
                       const processElementsWithXPath = (elementsList) => {
                         const groupedElements = new Map();
-
+                    
                         // Helper function to parse XPath into an array of tags and indices
                         const parseXPath = (xPath) => {
                           return xPath
@@ -1902,16 +1902,16 @@ public class PerformPreLoad {
                             })
                             .filter((item) => item !== null);
                         };
-
+                    
                         // Helper function to determine if two XPaths belong to the same component
                         const areSameComponent = (xpath1, xpath2) => {
                           const path1 = parseXPath(xpath1);
                           const path2 = parseXPath(xpath2);
-
+                    
                           if (path1.length === 0 || path2.length === 0) {
                             return false;
                           }
-
+                    
                           // Check if the paths have the same base part (up to the "a" tag)
                           let commonLength = 0;
                           for (let i = 0; i < Math.min(path1.length, path2.length); i++) {
@@ -1927,11 +1927,11 @@ public class PerformPreLoad {
                               break;
                             }
                           }
-
+                    
                           if (commonLength === 0) {
                             return false;
                           }
-
+                    
                           return path1.slice(0, commonLength).every((item, index) => {
                             return (
                               item.tagName === path2[index].tagName &&
@@ -1939,7 +1939,7 @@ public class PerformPreLoad {
                             );
                           });
                         };
-
+                    
                         elementsList.forEach((element) => {
                           if (element.xPath && element.coordinates) {
                             let foundGroup = false;
@@ -1958,9 +1958,9 @@ public class PerformPreLoad {
                             }
                           }
                         });
-
+                    
                         const filteredResult = [];
-
+                    
                         groupedElements.forEach((group) => {
                           if (group.length > 1) {
                             // Find the element with the "highest" coordinates (assuming higher means further down/right)
@@ -1979,15 +1979,15 @@ public class PerformPreLoad {
                             filteredResult.push(group[0]);
                           }
                         });
-
+                    
                         return filteredResult;
                       };
-
+                    
                       const findUniqueAndOneRepeated = (elementsList) => {
                         const wordFrequency = new Map();
                         const wordToItems = new Map();
                         const coordinatesMap = new Map();
-
+                    
                         elementsList.forEach((element) => {
                           if (
                             element.tagName.toLowerCase() !== "span" &&
@@ -1996,7 +1996,7 @@ public class PerformPreLoad {
                           ) {
                             return; // Ignore elements that are not <span>, <div>, or button
                           }
-
+                    
                           const someText = element.someText?.trim();
                           if (someText) {
                             someText.split(/[\\s,;]+/).forEach((word) => {
@@ -2006,7 +2006,7 @@ public class PerformPreLoad {
                                   trimmedWord,
                                   (wordFrequency.get(trimmedWord) || 0) + 1
                                 );
-
+                    
                                 if (!wordToItems.has(trimmedWord)) {
                                   wordToItems.set(trimmedWord, new Set());
                                 }
@@ -2014,7 +2014,7 @@ public class PerformPreLoad {
                               }
                             });
                           }
-
+                    
                           // Store elements by their coordinates
                           if (element.coordinates) {
                             if (!coordinatesMap.has(element.coordinates)) {
@@ -2023,7 +2023,7 @@ public class PerformPreLoad {
                             coordinatesMap.get(element.coordinates).push(element);
                           }
                         });
-
+                    
                         // Resolve elements with same coordinates, prioritizing "aria-label"
                         coordinatesMap.forEach((elements) => {
                           let priorityElement = elements.find((el) =>
@@ -2042,38 +2042,38 @@ public class PerformPreLoad {
                             }
                           }
                         });
-
+                    
                         const repeatedWords = Array.from(wordFrequency.entries())
                           .filter(([_, count]) => count > 1)
                           .map(([word]) => word);
-
+                    
                         const result = [];
                         const addedElements = new Set();
-
+                    
                         // Helper function to check if an element has a specific attribute
                         const hasAttribute = (element, attributeName) => {
                           return element.attributeData?.some((attr) => attr.name === attributeName);
                         };
-
+                    
                         // Add one occurrence of each repeated word's element, prioritizing "aria-label" over "test-id"
                         repeatedWords.forEach((word) => {
                           if (wordToItems.has(word)) {
                             let items = Array.from(wordToItems.get(word));
-
+                    
                             // Prioritize elements: first by "aria-label", then by "test-id"
                             items.sort(
                               (a, b) =>
                                 hasAttribute(b, "aria-label") - hasAttribute(a, "aria-label") ||
                                 hasAttribute(b, "test-id") - hasAttribute(a, "test-id")
                             );
-
+                    
                             if (!addedElements.has(items[0])) {
                               result.push(items[0]);
                               addedElements.add(items[0]);
                             }
                           }
                         });
-
+                    
                         // Add elements with unique words
                         elementsList.forEach((element) => {
                           if (!addedElements.has(element)) {
@@ -2088,11 +2088,11 @@ public class PerformPreLoad {
                             }
                           }
                         });
-
+                    
                         // filter coordinate duplicates, keeping the first with aria-label or greatest attributeData size
                         const uniqueCoords = new Map();
                         const filteredResult = [];
-
+                    
                         result.forEach((el) => {
                           if (el.coordinates) {
                             if (!uniqueCoords.has(el.coordinates)) {
@@ -2117,7 +2117,7 @@ public class PerformPreLoad {
                             filteredResult.push(el);
                           }
                         });
-
+                    
                         // Add the elements that did not match the initial filter
                         elementsList.forEach((element) => {
                           if (
@@ -2128,10 +2128,10 @@ public class PerformPreLoad {
                             filteredResult.push(element);
                           }
                         });
-
+                    
                         return filteredResult;
                       };
-
+                    
                       function limitMapSize(sortedList) {
                         // Check the length of allElementInfo before adding new elements
                         console.log("limitMapSize");
@@ -2141,7 +2141,7 @@ public class PerformPreLoad {
                           }
                         });
                       }
-
+                    
                       function limitMapCharacters(elementInfoMap) {
                         // Check the length of allElementInfo before adding new elements
                         console.log("limitMapCharacters");
@@ -2153,21 +2153,21 @@ public class PerformPreLoad {
                           }
                         });
                       }
-
+                    
                       // Event listener to handle incoming messages from iframes
                       window.addEventListener("message", function (event) {
                         if (event.origin !== window.trustedOriginURL) {
                           return; // Ignore messages from untrusted origins
                         }
-
+                    
                         console.log("Received message data:", event.data);
-
+                    
                         if (event.data.type === "elementsData") {
                           const elementData = event.data.data; // Process received element data
                           console.log("Element data from parent:", elementData);
                         }
                       });
-
+                    
                       function checkEdgeTrackingPrevention() {
                         if (navigator.userAgent.includes("Edg")) {
                           console.log(
@@ -2175,9 +2175,9 @@ public class PerformPreLoad {
                           );
                         }
                       }
-
+                    
                       checkEdgeTrackingPrevention();
-
+                    
                       // MOVE EVENT LISTENERS OUTSIDE
                       if (
                         document.readyState === "complete" ||
@@ -2195,9 +2195,9 @@ public class PerformPreLoad {
                         });
                         window.attachEvent?.("onload", () => init("onload"));
                       }
-
+                    
                       connectWebSocket();
-
+                    
                       window.revertSearchInjections = function () {
                         // Remove the tooltip from the page and delete the reference after 5 seconds
                         setTimeout(() => {
@@ -2205,7 +2205,7 @@ public class PerformPreLoad {
                           window.allElementInfo = [];
                         }, 1000);
                       };
-
+                    
                       // Function to restore the original outline
                       function restoreOriginalStyles() {
                         originalStyles.forEach((originalStyle, element) => {
@@ -2213,7 +2213,7 @@ public class PerformPreLoad {
                         });
                         originalStyles.clear(); // Clear the stored styles
                       }
-
+                    
                       // startCollectingElements(window.searchTerms);
                       // init("Initiate");
                       // window.initSearchTerms = null; // Invalidating the function
@@ -2227,7 +2227,7 @@ public class PerformPreLoad {
                       arguments[6]
                     );
                     // })(["*"], false, 8282, "scannerTool", "scannerGrid-2", "searchTerms", 2);
-
+                    
                     // })(["with name"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(
                     //   ["with test-id"],
@@ -2239,9 +2239,9 @@ public class PerformPreLoad {
                     //   2
                     // );
                     // })(
-                    //   ["input", "button", "a", "select"],
+                    //   ["input", "button", "a", "select", "label"],
                     //   false,
-                    //   8282,
+                    //   58919,
                     //   "scannerTool",
                     //   "scannerGrid-2",
                     //   "searchTerms",
@@ -2249,6 +2249,6 @@ public class PerformPreLoad {
                     // );
                     // })(["*"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
                     // })(["button"], false, 8181, "scannerTool", "scannerGrid", "searchTerms", 3);
-
+                    
             """;
 }

@@ -127,7 +127,7 @@ public class ARMainPane extends ARPane {
         }
 
         //        dbResource.setPreviousDB(previousDB);
-        arConfigurationScene.initialize(previousDB);
+        arConfigurationScene.initialize();
 
         if (pathDB == null || pathDB.isBlank()) {
             arConfigurationScene.show();

@@ -156,5 +156,4 @@ every Pane/Scene. More explanation can be found on the ARPane base class.
 
 ### Contacts
 
-* Alessandro Rosmarino (Developer)
-* Massimo Morandi (Manager)
+* Osvaldo Martini (PM / Leader Developer)

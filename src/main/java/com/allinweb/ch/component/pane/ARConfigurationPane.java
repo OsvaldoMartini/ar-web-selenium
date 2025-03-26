@@ -50,11 +50,8 @@ public class ARConfigurationPane extends ARPane {
     private Timeline timeline;
     private ExecutorService executorService;
     private Alert alertToShow;
-    private String previousDB;
 
-    public ARConfigurationPane(String previousDB) {
-        this.previousDB = previousDB;
-    }
+    public ARConfigurationPane() {}
 
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final PerformMessage performMessage;
@@ -80,7 +77,7 @@ public class ARConfigurationPane extends ARPane {
     Label pathJavaLabel;
     Label pathDBLabel;
     Label databaseLabel;
-    Label socketPortLabel;
+    //    Label socketPortLabel;
     //    Label blockLimitLabel;
     Label pathReportLabel;
     Label pathPriorityLabel;
@@ -242,34 +239,26 @@ public class ARConfigurationPane extends ARPane {
         pathLogLabel = new Label("Log Path:");
         pathLog = createPathTextField(ARPropertyEnum.FOLDER_PATH_LOG);
         pathLogButton = createPathButton();
-        sizeLogLabel = new Label("Max Size Log");
-        sizeLog = createPathTextField(ARPropertyEnum.MAX_LOG_SIZE);
 
         GridPane gridPaneLog = new GridPane();
         //        gridPaneLog.setVgap(10);
         gridPaneLog.setHgap(10);
         // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
         ColumnConstraints col1 = new ColumnConstraints();
-        col1.setPercentWidth(65);
+        col1.setPercentWidth(95);
 
         ColumnConstraints col2 = new ColumnConstraints();
-        col2.setPercentWidth(30);
-
-        ColumnConstraints col3 = new ColumnConstraints();
-        col3.setPercentWidth(5);
-
-        gridPaneLog.getColumnConstraints().addAll(col1, col2, col3);
+        col2.setPercentWidth(5);
+        gridPaneLog.getColumnConstraints().addAll(col1, col2);
 
         // Add labels in the first row
         gridPaneLog.add(pathLogLabel, 0, 0);
-        gridPaneLog.add(sizeLogLabel, 1, 0);
 
         // Add text fields in the second row
         gridPaneLog.add(pathLog, 0, 1);
-        gridPaneLog.add(sizeLog, 1, 1);
 
         // Add button in the second row, third column
-        gridPaneLog.add(pathLogButton, 3, 1);
+        gridPaneLog.add(pathLogButton, 1, 1);
 
         // Set margin for pathLogButton to create spacing from right border
         GridPane.setMargin(pathLogButton, new Insets(0, 0, 0, 5));
@@ -279,48 +268,34 @@ public class ARConfigurationPane extends ARPane {
         pathDB = createPathTextField(ARPropertyEnum.FOLDER_PATH_DB);
         pathDBButton = createPathButton();
 
-        socketPortLabel = new Label("Socket Port");
-        socketPort = createPathTextField(ARPropertyEnum.PORT_SOCKET);
-        String portSocket = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
-        if (Strings.isNullOrEmpty(portSocket)) {
-            socketPort.setText("8080");
-        }
-
-        //        blockLimitLabel = new Label("Block Exec. Limit");
-        //        blockLimit = createPathTextField(ARPropertyEnum.BLOCK_EXEC_LIMIT);
-        //        String processReach = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BLOCK_EXEC_LIMIT);
-        //        if (Strings.isNullOrEmpty(processReach)) {
-        //            blockLimit.setText("50");
-        //        }
-
         GridPane gridPaneDB = new GridPane();
         gridPaneDB.setHgap(10);
 
         // Set column constraints for pathDB (80%), dbType (15%), socketPort (15%) and pathDBButton (5%)
         ColumnConstraints col1DB = new ColumnConstraints();
-        col1DB.setPercentWidth(65);
+        col1DB.setPercentWidth(95);
 
         ColumnConstraints col2DB = new ColumnConstraints();
-        col2DB.setPercentWidth(30);
+        col2DB.setPercentWidth(5);
+        //
+        //        ColumnConstraints col3DB = new ColumnConstraints();
+        //        col3DB.setPercentWidth(5);
 
-        ColumnConstraints col3DB = new ColumnConstraints();
-        col3DB.setPercentWidth(5);
-
-        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB, col3DB);
+        gridPaneDB.getColumnConstraints().addAll(col1DB, col2DB);
 
         // Add labels in the first row
         gridPaneDB.add(pathDBLabel, 0, 0);
-        gridPaneDB.add(socketPortLabel, 1, 0);
+        //        gridPaneDB.add(socketPortLabel, 1, 0);
         //        gridPaneDB.add(blockLimitLabel, 2, 0);
 
         // Add text fields in the second row
         gridPaneDB.add(pathDB, 0, 1);
         //        gridPaneDB.add(databaseChoiceBox, 1, 1);
-        gridPaneDB.add(socketPort, 1, 1);
+        //        gridPaneDB.add(socketPort, 1, 1);
         //        gridPaneDB.add(blockLimit, 2, 1);
 
         // Add button in the second row, third column
-        gridPaneDB.add(pathDBButton, 2, 1);
+        gridPaneDB.add(pathDBButton, 1, 1);
 
         // Set margin for pathDBButton to create spacing from right border
         GridPane.setMargin(pathDBButton, new Insets(0, 0, 0, 5));
@@ -629,26 +604,11 @@ public class ARConfigurationPane extends ARPane {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Log Path must be filed!", ButtonType.OK);
             validfields = false;
         }
-        if (Strings.isNullOrEmpty(sizeLog.getText())) {
-            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Max Size Log must be filed!", ButtonType.OK);
-            validfields = false;
-        }
 
         if (Strings.isNullOrEmpty(pathJava.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Java Path must be filed!", ButtonType.OK);
             validfields = false;
         }
-
-        if (Strings.isNullOrEmpty(socketPort.getText())) {
-            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Socket Port must be filed!", ButtonType.OK);
-            validfields = false;
-        }
-
-        //        if (Strings.isNullOrEmpty(blockLimit.getText())) {
-        //            new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Process Limit must be filed!",
-        // ButtonType.OK);
-        //            validfields = false;
-        //        }
 
         if (Strings.isNullOrEmpty(pathDB.getText())) {
             new ARAlertScene(Alert.AlertType.ERROR, "Field Blank", "Database Path must be filed!", ButtonType.OK);
@@ -687,32 +647,18 @@ public class ARConfigurationPane extends ARPane {
             ARPropertyManager.getInstance().setProperty(ARPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.FOLDER_PATH_EXCEL.getValue(), pathExcel.getText());
-            //            ARPropertyManager.getInstance()
-            //                    .setProperty(ARPropertyEnum.FOLDER_PATH_EXPORT.getValue(), pathExport.getText());
-            //            ARPropertyManager.getInstance()
-            //                    .setProperty(ARPropertyEnum.FILE_NAME_EXPORT.getValue(), fileExport.getText());
+
             ARPropertyManager.getInstance().setProperty(ARPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(), pathJavaFX.getText());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
             ARPropertyManager.getInstance().setProperty(ARPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY.getValue(), pathPriority.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.FOLDER_PATH_REPORT.getValue(), pathReport.getText());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.MAX_LOG_SIZE.getValue(), sizeLog.getText());
             ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), pathEngine.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), socketPort.getText());
-            //            ARPropertyManager.getInstance()
-            //                    .setProperty(ARPropertyEnum.BLOCK_EXEC_LIMIT.getValue(), blockLimit.getText());
-            ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.REDUCE_SEARCH_CRITERIA.getValue(), reduceSearch.getText());
-
-            /*ARPropertyManager.getInstance().setProperty(
-            ARPropertyEnum.WEBDRIVER_EXT_REFERENCE.getValue(), pathExtRef.getText()); */
-            // ARSharedResources.getInstance().changeDbConnection();
 
             homeBankingList.clear();
             homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());

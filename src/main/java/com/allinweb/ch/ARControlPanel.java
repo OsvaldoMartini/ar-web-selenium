@@ -4,7 +4,9 @@ import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.licence.LicenseManager;
+import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -20,9 +22,12 @@ import javafx.stage.Stage;
 public class ARControlPanel extends Application {
 
     private static final PerformMessage performMessage;
+    private static final ARPropertyManager arPropertyManager;
+    private static String configurationFileName = ARConstants.CURRENT_PATH + ARConstants.FILE_NAME_CONFIGURATION;
 
     static {
         performMessage = PerformMessage.getInstance();
+        arPropertyManager = ARPropertyManager.getInstance();
     }
 
     private static boolean isEnabledLicence = false;
@@ -34,19 +39,27 @@ public class ARControlPanel extends Application {
     }
 
     public static void main(String[] args) {
-        try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
-            int availablePort = serverSocket.getLocalPort();
-            System.out.println("Available port: " + availablePort);
-        } catch (IOException e) {
-
-            System.out.println("Fixed Port : " + 54525);
-        }
-
         List<String> arguments = Arrays.asList(args);
         if (arguments.contains("-c")) {
             int configurationValueIndex = arguments.indexOf("-c") + 1;
             String configurationValue = arguments.get(configurationValueIndex);
-            ARPropertyManager.setConfigurationFileName(configurationValue);
+            arPropertyManager.setConfigurationFileName(configurationValue);
+            arPropertyManager.loadProperties();
+            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
+        } else {
+            arPropertyManager.setConfigurationFileName(configurationFileName);
+            arPropertyManager.loadProperties();
+            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
+        }
+
+        try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
+            int availablePort = serverSocket.getLocalPort();
+            System.out.println("Available port: " + availablePort);
+            ARPropertyManager.getInstance()
+                    .setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(availablePort));
+        } catch (IOException e) {
+            System.out.println("Fixed Port : " + 54525);
+            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(54525));
         }
 
         if (isEnabledLicence) {

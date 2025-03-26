@@ -4,19 +4,22 @@ import java.io.*;
 import java.util.Properties;
 import java.util.logging.Level;
 import javax.swing.*;
+import lombok.Getter;
+import lombok.Setter;
 
 public class ARPropertyManager {
 
     private static final String lock = "locked";
-    private static String configurationFileName = ARConstants.CURRENT_PATH + ARConstants.FILE_NAME_CONFIGURATION;
 
     private static volatile ARPropertyManager instance;
 
     private Properties properties = new Properties();
 
-    private ARPropertyManager() {
-        loadProperties();
-    }
+    @Getter
+    @Setter
+    private static String configurationFileName;
+
+    private ARPropertyManager() {}
 
     /***
      * This method both manages the retrieving of the ARPropertyManager instance and
@@ -36,12 +39,7 @@ public class ARPropertyManager {
         return instance;
     }
 
-    /***
-     * This method loads the file in memory and sets the properties read by the file into the
-     * properties variable, making all the properties defined in the file available in the
-     * application.
-     */
-    private void loadProperties() {
+    public void loadProperties() {
         File configurationFile = new File(configurationFileName);
         try (FileInputStream conf = new FileInputStream(configurationFile)) {
             this.properties.load(conf);
@@ -72,8 +70,7 @@ public class ARPropertyManager {
                         ARPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(),
                         ARConstants.CURRENT_PATH + ARConstants.DEFAULT_PATH_JAVA_FX);
                 setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "Access");
-                setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "8080");
-                setProperty(ARPropertyEnum.BLOCK_EXEC_LIMIT.getValue(), "20");
+                setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), "54525");
                 setProperty(ARPropertyEnum.FOLDER_PATH_DB.getValue(), "");
                 setProperty(ARPropertyEnum.FOLDER_PATH_REPORT.getValue(), "");
                 setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), ARConstants.CURRENT_PATH);
@@ -135,13 +132,5 @@ public class ARPropertyManager {
                     "Configuration file cannot be read\nError:\n" + e.getMessage(),
                     JOptionPane.ERROR_MESSAGE);
         }
-    }
-
-    public static void setConfigurationFileName(String configurationPath) {
-        ARPropertyManager.configurationFileName = configurationPath;
-    }
-
-    public static String getConfigurationFileName() {
-        return ARPropertyManager.configurationFileName;
     }
 }
