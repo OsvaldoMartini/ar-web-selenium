@@ -127,7 +127,7 @@ public class ARNewBotJobPane extends ARPane {
         labelHomeBanking = new Label("Url:");
 
         //        ObservableList<HomeBankingDTO> homeBankingUrlList =
-        //                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+        //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
         homeBankingList.clear();
         homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());

@@ -9,11 +9,9 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
@@ -21,7 +19,6 @@ import com.google.common.base.Strings;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -181,7 +178,7 @@ public class ARConfigurationPane extends ARPane {
         //        homeBankingActionGroup.getButtons().addAll(addHomeBankingButton);
 
         //        ObservableList<HomeBankingDTO> homeBankingList =
-        //                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+        //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
         homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());
         homeBankingListView = new ListView<>(homeBankingList);
@@ -687,8 +684,8 @@ public class ARConfigurationPane extends ARPane {
 
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.YES) {
-            if (deleteAllJobDetails(dataBaseType)) {
-                // ARSharedResources.getInstance().changeDbConnection();
+            if (performDataBase.deleteAllJobDetails(dataBaseType)) {
+                // PerformDataBase..changeDbConnection();
                 new ARAlertScene(
                         Alert.AlertType.INFORMATION,
                         "All Job Details has been deleted!",
@@ -696,7 +693,7 @@ public class ARConfigurationPane extends ARPane {
                         ButtonType.OK);
 
             } else {
-                // ARSharedResources.getInstance().changeDbConnection();
+                // PerformDataBase..changeDbConnection();
                 new ARAlertScene(
                         Alert.AlertType.ERROR,
                         "\"" + dataBaseType + "\" Problems\nNot possible  to delete All Job Details!",
@@ -710,69 +707,6 @@ public class ARConfigurationPane extends ARPane {
                         ButtonType.OK);
             }
         }
-    }
-
-    private boolean deleteAllJobDetails(String dataBaseType) {
-        // Build the SQL delete statement
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
-
-            // Execute each statement individually
-            stmt.executeUpdate("DELETE FROM job_run_report;");
-            stmt.executeUpdate("DELETE FROM variable;");
-            stmt.executeUpdate("DELETE FROM reference;");
-            stmt.executeUpdate("DELETE FROM instruction;");
-            stmt.executeUpdate("DELETE FROM block;");
-            stmt.executeUpdate("DELETE FROM bot_job;");
-
-            stmt.executeUpdate("DELETE FROM component_reference;");
-            stmt.executeUpdate("DELETE FROM component_instruction;");
-            stmt.executeUpdate("DELETE FROM component_block;");
-
-            // Drop sequences if they exist
-            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
-                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
-            }
-            ARLogger.getInstance(ARConfigurationPane.class)
-                    .info("All Rows DELETED for:\n"
-                            + "ExcelReportDTO;\n"
-                            + "Variables;\n"
-                            + "Instructions References;\n"
-                            + "Instructions;\n"
-                            + "Blocks;\n"
-                            + "Bot Jobs;\n"
-                            + "Saved Components;\n"
-                            + "Sequences dropped.");
-
-            return true;
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARConfigurationPane.class)
-                    .severe(dataBaseType + " Problems:\n"
-                            + "Not Possible delete the  Rows was for these tables:\n"
-                            + "ExcelReportDTO;\n"
-                            + "Variables;\n"
-                            + "Instructions References;\n"
-                            + "Instructions;\n"
-                            + "Blocks;\n"
-                            + "Bot Jobs;\n"
-                            + "Saved Components;\n"
-                            + "Sequences Not dropped\n"
-                            + e.getMessage());
-        }
-        return false;
     }
 
     private TextField createPathTextField(ARPropertyEnum property) {

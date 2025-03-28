@@ -112,9 +112,9 @@ public class ARViewBotJobScene extends ARScene {
     @Override
     public IARPane buildPane() {
 
-        //        ARSharedResources.getInstance().cacheEntitiesFromDB();
+        //        PerformDataBase..cacheEntitiesFromDB();
 
-        //        BotJobDTO botJobDTO = ARSharedResources.getInstance().getEntityById(BotJobDTO.class, this.botJobId);
+        //        BotJobDTO botJobDTO = PerformDataBase..getEntityById(BotJobDTO.class, this.botJobId);
 
         boolean updBotJobStatus = performDataBase.updateBotStatus();
         if (!updBotJobStatus) {
@@ -198,7 +198,7 @@ public class ARViewBotJobScene extends ARScene {
     //                + " where bot_job_id = " + botJobId
     //                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
     //
-    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+    //        try (Statement stmt = PerformDataBase.getConnection().createStatement();
     //                ResultSet rs = stmt.executeQuery(query)) {
     //
     //            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
@@ -299,7 +299,7 @@ public class ARViewBotJobScene extends ARScene {
     //                + " where bot_job_id = " + botJobId
     //                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
     //
-    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+    //        try (Statement stmt = PerformDataBase.getConnection().createStatement();
     //                ResultSet rs = stmt.executeQuery(query)) {
     //
     //            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();

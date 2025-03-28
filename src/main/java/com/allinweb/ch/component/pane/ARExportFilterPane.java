@@ -57,7 +57,7 @@ public class ARExportFilterPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        //        ObservableList<BlockLoopInstructionLoadDTO> exportedList = ARSharedResources.getInstance()
+        //        ObservableList<BlockLoopInstructionLoadDTO> exportedList = PerformDataBase.
         //                .getEntityList(
         //                        BlockLoopInstructionLoadDTO.class,
         //                        (exp) -> exp.getExportToAR()
@@ -65,7 +65,7 @@ public class ARExportFilterPane extends ARPane {
         //                                && exp.getBlock().getBotJobDTO().getId() == this.botJobLoad.getId());
         //
         //
-        //        ObservableList<BlockLoopInstructionLoadDTO> filteredList = ARSharedResources.getInstance()
+        //        ObservableList<BlockLoopInstructionLoadDTO> filteredList = PerformDataBase.
         //                .getEntityList(
         //                        BlockLoopInstructionLoadDTO.class,
         //                        (exp) -> !exp.getExportToAR()
@@ -151,7 +151,7 @@ public class ARExportFilterPane extends ARPane {
             filteredFieldList.getSelectionModel().getSelectedItems().forEach(instruction -> {
                 instruction.setExportToABR(true);
                 performDataBase.updateExportAR(instruction);
-                //                ARSharedResources.getInstance().updateEntity(instruction,
+                //                PerformDataBase..updateEntity(instruction,
                 // BlockLoopInstructionLoadDTO.class);
             });
         });
@@ -160,7 +160,7 @@ public class ARExportFilterPane extends ARPane {
             exportedFieldList.getSelectionModel().getSelectedItems().forEach(instruction -> {
                 instruction.setExportToABR(false);
                 performDataBase.updateExportAR(instruction);
-                //                ARSharedResources.getInstance().updateEntity(instruction,
+                //                PerformDataBase..updateEntity(instruction,
                 // BlockLoopInstructionLoadDTO.class);
             });
         });

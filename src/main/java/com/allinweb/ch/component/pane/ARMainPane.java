@@ -65,7 +65,7 @@ public class ARMainPane extends ARPane {
 
     // Static block to initialize
     static {
-        //        dbResource = ARSharedResources.getInstance();
+        //        dbResource = PerformDataBase.;
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
@@ -173,7 +173,7 @@ public class ARMainPane extends ARPane {
         initHeader();
 
         //        ObservableList<BotJobLoadDTO> botJobList =
-        // ARSharedResources.getInstance().getEntityList(BotJobDTO.class);
+        // PerformDataBase..getEntityList(BotJobDTO.class);
         botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ARCellFactory<>(

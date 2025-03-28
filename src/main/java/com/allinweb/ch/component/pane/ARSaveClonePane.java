@@ -223,7 +223,7 @@ public class ARSaveClonePane extends ARPane {
 
     //    private void clearBotJob(BotJobDTO botJob) {
     //        Queue<BlockDTO> blocks = new LinkedList<>(botJob.getBlocks());
-    //        ARSharedResources.getInstance().removeAllEntity(blocks, BlockDTO.class);
+    //        PerformDataBase..removeAllEntity(blocks, BlockDTO.class);
     //    }
 
     private boolean duplicateExcelFile(String originalFilePath, String newFilePath) {

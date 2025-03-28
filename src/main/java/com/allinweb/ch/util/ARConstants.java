@@ -52,8 +52,6 @@ public class ARConstants {
     public static final String DEFAULT_PATH_REPORT = "\\report";
     public static final String DEFAULT_PATH_JAVA_FX = "\\javaFX";
 
-    public static final String DEFAULT_FILENAME_FOR_AR = "_filtered_for_AR";
-
     public static final String DEFAULT_VALUE_NO_IDENTIFICATION = "No significant identification found";
     public static final String TO_IGNORE = "TO IGNORE";
 

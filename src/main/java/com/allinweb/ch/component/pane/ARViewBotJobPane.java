@@ -10,7 +10,6 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -31,7 +30,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.*;
@@ -385,7 +383,7 @@ public class ARViewBotJobPane extends ARPane {
         StackPane botJobDescriptionGroup =
                 new StackPane(new Node[] {this.botJobDescriptionLabel, this.botJobDescriptionTextField});
 
-        //        this.blockDTOObservableList = FXCollections.observableArrayList(ARSharedResources.getInstance()
+        //        this.blockDTOObservableList = FXCollections.observableArrayList(PerformDataBase.
         //                .getEntityList(BlockDTO.class, blockDTO -> blockDTO.getBotJob().getId() ==
         // this.botJobLoad.getId()));
 
@@ -498,7 +496,7 @@ public class ARViewBotJobPane extends ARPane {
     private void createExcelDataFile(BotJobLoadDTO botJobLoad, List<BotJobLoadDTO> botJobList) {
 
         // Retrieve the updated BotJobDTO
-        //        BotJobDTO botJobUpdated = (BotJobDTO) ARSharedResources.getInstance().getEntityById(BotJobDTO.class,
+        //        BotJobDTO botJobUpdated = (BotJobDTO) PerformDataBase..getEntityById(BotJobDTO.class,
         // botJobId);
 
         if (botJobLoad != null) {
@@ -645,9 +643,9 @@ public class ARViewBotJobPane extends ARPane {
             boolean botJobUpdate = performDataBase.updateBotJobNme(
                     this.botJobLoad.getId(), botJobNameTextField.getText(), botJobDescriptionTextField.getText());
 
-            //            ARSharedResources.getInstance().updateEntity(this.botJobLoad, BotJobDTO.class);
+            //            PerformDataBase..updateEntity(this.botJobLoad, BotJobDTO.class);
 
-            // ARSharedResources.getInstance().changeDbConnection();
+            // PerformDataBase..changeDbConnection();
 
             Text variableText1Styled = new Text(String.format("Bot Job \"%s\" Updated", this.botJobLoad.getName()));
             variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
@@ -709,13 +707,13 @@ public class ARViewBotJobPane extends ARPane {
 
         this.generateExcelButton.setOnMouseClicked((e) -> {
             // Cache entities from the database
-            //            ARSharedResources.getInstance().changeDbConnection(previousDB);
+            //            PerformDataBase..changeDbConnection(previousDB);
 
             this.botJobLoadList = performDataBase.loadBotJobAndBlocks(this.botJobLoad.getId());
 
             // Retrieve the updated BotJobDTO
             //            BotJobDTO botJobUpdated = (BotJobDTO)
-            //                    ARSharedResources.getInstance().getEntityById(BotJobDTO.class,
+            //                    PerformDataBase..getEntityById(BotJobDTO.class,
             // this.botJobLoad.getId());
 
             //            List<BlockLoadDTO> blockList = this.botJobLoad.getBlockLoadDTOList();
@@ -1131,18 +1129,6 @@ public class ARViewBotJobPane extends ARPane {
                 Insets.EMPTY,
                 Background.fill(Color.TRANSPARENT));
 
-        //                ObservableList<ComponentBlockDTO> componentBlockDTO =
-        //                        ARSharedResources.getInstance().getEntityList(ComponentBlockDTO.class);
-
-        //                this.componentList = new ListView<ComponentBlockDTO>(componentBlockDTO);
-
-        //                componentList.setCellFactory(new ARCellFactory<>(ComponentListCell.class)::call);
-        //                this.componentList.setMaxHeight(Double.MAX_VALUE);
-        //                this.componentList.setPrefHeight(900.0D);
-        //                this.componentList.setUserData(this);
-        //                this.componentList.getUserData();
-        //                VBox.setVgrow(componentList, Priority.ALWAYS);
-
         Label componentTitleLabel = new Label("Components");
         componentTitleLabel.setPadding(new Insets(5.0D));
         componentTitleLabel.setFont(
@@ -1158,14 +1144,14 @@ public class ARViewBotJobPane extends ARPane {
             //            ObservableList<ComponentBlockDTO> componentBlockDTOS;
             if (!newValue.equals("")) {
                 System.out.println(newValue + " Text");
-                //                componentBlockDTOS = ARSharedResources.getInstance()
+                //                componentBlockDTOS = PerformDataBase.
                 //                        .getEntityList(ComponentBlockDTO.class, (savedBlock) -> {
                 //                            return
                 // savedBlock.getName().toLowerCase().contains(newValue.toLowerCase());
                 //                        });
             } else {
                 //                componentBlockDTOS =
-                // ARSharedResources.getInstance().getEntityList(ComponentBlockDTO.class);
+                // PerformDataBase..getEntityList(ComponentBlockDTO.class);
             }
 
             //            this.componentList.setItems(componentBlockDTOS);
@@ -1193,63 +1179,6 @@ public class ARViewBotJobPane extends ARPane {
         return this.botJobLoad;
     }
 
-    public List<InstructionLoadDTO> getInstructionsByBlockId(int botJobId, int blockId) {
-        // List to store the fetched instructions
-        List<InstructionLoadDTO> instructions = new ArrayList<>();
-
-        // Build the SQL query statement
-        String querySQL =
-                "SELECT * FROM instruction WHERE block_id = " + blockId + " order by instruction_order_number ASC";
-
-        // Execute the query and process the result set
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(querySQL)) {
-
-            while (rs.next()) {
-                // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionLoadDTO instruction = new InstructionLoadDTO();
-                instruction.setInstructionId(rs.getInt("id"));
-                instruction.setInstructionName(rs.getString("name"));
-                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instruction.setBlockId(rs.getInt("block_id"));
-                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
-                instruction.setBotJobId(botJobId);
-
-                instruction.setActions(rs.getString("actions"));
-                instruction.setXpath(rs.getString("xpath"));
-                instruction.setCoordinates(rs.getString("coordinates"));
-                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
-
-                instruction.setTagName(rs.getString("tag_name"));
-                instruction.setShadowHost(rs.getString("shadow_host"));
-                instruction.setShadowRoot(rs.getString("shadow_root"));
-                instruction.setCssSelector(rs.getString("css_selector"));
-
-                instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getBoolean("optional"));
-                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
-                instruction.setInstructionActive(rs.getBoolean("active"));
-
-                // Add the instruction to the list
-                instructions.add(instruction);
-            }
-
-            ARLogger.getInstance(ARViewBotJobPane.class)
-                    .info(String.format("Fetched %d instructions for Block ID %d:", instructions.size(), blockId));
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class)
-                    .severe(String.format(
-                            "Error fetching instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
-        }
-
-        return instructions;
-    }
-
     public boolean reorderInstructions(List<InstructionLoadDTO> rowList) {
         int orderNumber = 1;
 
@@ -1260,7 +1189,7 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         // Build the SQL update statement
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
             // Loop through each instruction in the rowList
             for (InstructionLoadDTO instruction : rowList) {
                 // Increment the instructionOrderNumber by 1 for each instruction

@@ -13,6 +13,7 @@ import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
+import com.allinweb.ch.component.pane.ARConfigurationPane;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -228,7 +229,7 @@ public class PerformDataBase {
             ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
         }
 
-        //        ARSharedResources.getInstance().changeDbConnection(previousDB);
+        //        changeDbConnection(previousDB);
 
         return conn;
     }
@@ -5417,6 +5418,239 @@ public class PerformDataBase {
         } catch (SQLException error) {
             System.out.println(error.getMessage());
             return new ErrorMessage("Error Duplicating Variables", "Block Insertion Failure", error.getMessage());
+        }
+    }
+
+    public boolean deleteAllJobDetails(String dataBaseType) {
+        // Build the SQL delete statement
+        try (Statement stmt = getConnection().createStatement()) {
+
+            // Execute each statement individually
+            stmt.executeUpdate("DELETE FROM job_run_report;");
+            stmt.executeUpdate("DELETE FROM variable;");
+            stmt.executeUpdate("DELETE FROM reference;");
+            stmt.executeUpdate("DELETE FROM instruction;");
+            stmt.executeUpdate("DELETE FROM block;");
+            stmt.executeUpdate("DELETE FROM bot_job;");
+
+            stmt.executeUpdate("DELETE FROM component_reference;");
+            stmt.executeUpdate("DELETE FROM component_instruction;");
+            stmt.executeUpdate("DELETE FROM component_block;");
+
+            // Drop sequences if they exist
+            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockLoopInstructionSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"blockSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"botJobSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"variableSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"instructionReferenceSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"excelReportSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedInstructionReferenceSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockLoopInstructionSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"complexInstructionSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"configurationSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"homeBankingSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"savedBlockSeq\";");
+                stmt.executeUpdate("DROP SEQUENCE IF EXISTS \"idgen\";");
+            }
+            ARLogger.getInstance(ARConfigurationPane.class)
+                    .info("All Rows DELETED for:\n"
+                            + "ExcelReportDTO;\n"
+                            + "Variables;\n"
+                            + "Instructions References;\n"
+                            + "Instructions;\n"
+                            + "Blocks;\n"
+                            + "Bot Jobs;\n"
+                            + "Saved Components;\n"
+                            + "Sequences dropped.");
+
+            return true;
+
+        } catch (SQLException e) {
+            ARLogger.getInstance(ARConfigurationPane.class)
+                    .severe(dataBaseType + " Problems:\n"
+                            + "Not Possible delete the  Rows was for these tables:\n"
+                            + "ExcelReportDTO;\n"
+                            + "Variables;\n"
+                            + "Instructions References;\n"
+                            + "Instructions;\n"
+                            + "Blocks;\n"
+                            + "Bot Jobs;\n"
+                            + "Saved Components;\n"
+                            + "Sequences Not dropped\n"
+                            + e.getMessage());
+        }
+        return false;
+    }
+
+    public void loadUserData(RowMoveDTO rowMoveDTO, int instructionId) {
+        variablesList.clear();
+        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
+                + " FROM variable vars "
+                + " left join instruction blk on blk.variable_id = vars.id "
+                + " where vars.bot_job_id = " + rowMoveDTO.getBotJobId()
+                + " and  instruction_id = " + instructionId
+                + " group by vars.id, vars.type, vars.Name, vars.value ";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                int id = rs.getInt("ID");
+                String type = rs.getString("type");
+                String name = rs.getString("name");
+                String value = rs.getString("value");
+                String usedVars = rs.getString("UsedVars");
+                variablesList.add(
+                        new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
+            }
+        } catch (SQLException e) {
+            //            performMessage.errorMessage(
+            //                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null,
+            // 0);
+
+            return;
+        }
+        //        jobUserList.clear();
+        //        loadBotJobData();
+    }
+
+    private Integer loadNextIdData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            //            performMessage.errorMessage(
+            //                    "Error loading Next Id Data", "Could Not Load the Next Id Data", null, null, null, 0);
+        }
+        return null;
+    }
+
+    public void saveUserData(VariableUserDTO user) {
+        // Generate a Unique-ID
+        Integer hashCode = loadNextIdData() + 1;
+        //        AlterSeq(hashCode);
+        //        Integer hashCode = generateID();
+
+        String insertSQL = "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id) VALUES ( "
+                + hashCode + ","
+                + "'" + user.getType() + "', "
+                + "'" + user.getName() + "', "
+                + "'" + user.getValue() + "', "
+                + "'" + user.getBotJobId() + "', "
+                + "'" + user.getInstructionId() + "')";
+        try (Statement stmt = getConnection().createStatement()) {
+            stmt.executeUpdate(insertSQL);
+            System.out.println("Data saved successfully.");
+        } catch (SQLException e) {
+            //            performMessage.errorMessage(
+            //                    "Error Inserting new Variable",
+            //                    String.format("The '%s' cannot be inserted!", user.getName()),
+            //                    e.getMessage(),
+            //                    null,
+            //                    null,
+            //                    0);
+
+            return;
+        }
+    }
+
+    public void updateUserData(Integer userId, VariableUserDTO user) {
+        //        try {
+        String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
+                + " type = '" + user.getType() + "', "
+                + " value = '" + user.getValue() + "' "
+                + " WHERE ID = " + userId;
+        try (Statement stmt = getConnection().createStatement()) {
+            int rowsAffected = stmt.executeUpdate(updateSQL);
+            if (rowsAffected > 0) {
+                System.out.println("Data updated successfully.");
+            } else {
+                System.out.println("No matching record found to update.");
+            }
+        } catch (SQLException e) {
+            //            performMessage.errorMessage(
+            //                    "MAX CHARACTERS LIMIT FOR ACCESS",
+            //                    String.format("The '%s' cannot be updated.", user.getName()),
+            //                    e.getMessage(),
+            //                    null,
+            //                    null,
+            //                    0);
+
+            return;
+        }
+        //        } catch (NumberFormatException e) {
+        //            System.out.println("Invalid ID format.");
+        //        }
+    }
+
+    public void deleteUserData(String Id) {
+        try {
+            int variableId = Integer.parseInt(Id);
+            String deleteSQL = "DELETE FROM variable WHERE ID = " + variableId;
+            try (Statement stmt = getConnection().createStatement()) {
+                int rowsAffected = stmt.executeUpdate(deleteSQL);
+                if (rowsAffected > 0) {
+                    System.out.println("Data deleted successfully.");
+                } else {
+                    System.out.println("No matching record found to delete.");
+                }
+            } catch (SQLException e) {
+                //                performMessage.errorMessage(
+                //                        "Error Deleting",
+                //                        String.format("Cannot be deleted id: '%s'", Id),
+                //                        e.getMessage(),
+                //                        null,
+                //                        null,
+                //                        0);
+            }
+        } catch (NumberFormatException e) {
+            //            performMessage.errorMessage(
+            //                    "Invalid ID format.", String.format("The id: '%s' is in invalid format!", Id), null,
+            // null, null, 0);
+        }
+    }
+
+    private Integer loadNexIdData() {
+        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
+        String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                return rs.getInt("max_id");
+            }
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return null;
+    }
+
+    private void loadJobVariables(RowMoveDTO rowMoveDTO, int instructionId) {
+        variablesList.clear();
+        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
+                + " FROM variable vars "
+                + " left join instruction blk on blk.variable_id = vars.id "
+                + " where vars.bot_job_id = " + rowMoveDTO.getBotJobId()
+                + " and  instruction_id = " + instructionId
+                + " group by vars.id, vars.type, vars.Name, vars.value ";
+        try (Statement stmt = getConnection().createStatement();
+                ResultSet rs = stmt.executeQuery(selectSQL)) {
+            while (rs.next()) {
+                Integer id = rs.getInt("ID");
+                String type = rs.getString("type");
+                String name = rs.getString("name");
+                String value = rs.getString("value");
+                String usedVars = rs.getString("UsedVars");
+                variablesList.add(
+                        new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
+            }
+        } catch (SQLException e) {
+            //            performMessage.errorMessage(
+            //                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null,
+            // 0);
         }
     }
 }

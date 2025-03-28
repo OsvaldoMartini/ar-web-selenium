@@ -8,7 +8,6 @@ import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARElementValueScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
@@ -22,9 +21,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -259,7 +256,8 @@ public class ARNewCommandPane extends ARPane {
         }
 
         if (this.webPageItems != null && this.webPageItems.size() > 0) {
-            loadJobVariables(webPageItems.get(0).getVarId());
+            variablesItems.clear();
+            performDataBase.loadJobVariables(webPageItems.get(0).getVarId());
         }
 
         this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
@@ -1484,7 +1482,7 @@ public class ARNewCommandPane extends ARPane {
                         this.rowMoveDTO);
             }
 
-            //            ARSharedResources.getInstance().changeDbConnection(previousDB);
+            //            PerformDataBase..changeDbConnection(previousDB);
         });
 
         // Add a listener to print the ID when the selection changes
@@ -1493,7 +1491,8 @@ public class ARNewCommandPane extends ARPane {
             public void changed(
                     ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars newValue) {
                 if (newValue != null) {
-                    loadJobVariables(newValue.getVarId());
+                    variablesItems.clear();
+                    performDataBase.loadJobVariables(newValue.getVarId());
                     reloadComboVars();
                     comboBoxVars.getSelectionModel().selectFirst();
                     if (comboBoxVars.getValue() != null) {
@@ -1540,7 +1539,8 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxWebPage.getValue().getValue(),
                         comboBoxInstruc.getValue().getValue());
                 elementValueScene.showModal();
-                loadJobVariables(comboBoxWebPage.getValue().getVarId());
+                variablesItems.clear();
+                performDataBase.loadJobVariables(comboBoxWebPage.getValue().getVarId());
                 reloadComboVars();
                 // Set ComboBox to first item
                 comboBoxVars.getSelectionModel().selectFirst();
@@ -1561,7 +1561,8 @@ public class ARNewCommandPane extends ARPane {
                 elementValueScene.showModal();
             }
 
-            loadJobVariables(comboBoxWebPage.getValue().getVarId());
+            variablesItems.clear();
+            performDataBase.loadJobVariables(comboBoxWebPage.getValue().getVarId());
             reloadComboVars();
             // Set ComboBox to first item
             comboBoxVars.getSelectionModel().selectFirst();
@@ -1909,46 +1910,6 @@ public class ARNewCommandPane extends ARPane {
         return false;
     }
 
-    private Integer loadNexIdData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return null;
-    }
-
-    private void loadJobVariables(int instructionId) {
-        variablesItems.clear();
-        variablesList.clear();
-        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
-                + " FROM variable vars "
-                + " left join instruction blk on blk.variable_id = vars.id "
-                + " where vars.bot_job_id = " + rowMoveDTO.getBotJobId()
-                + " and  instruction_id = " + instructionId
-                + " group by vars.id, vars.type, vars.Name, vars.value ";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                Integer id = rs.getInt("ID");
-                String type = rs.getString("type");
-                String name = rs.getString("name");
-                String value = rs.getString("value");
-                String usedVars = rs.getString("UsedVars");
-                variablesList.add(
-                        new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
-            }
-        } catch (SQLException e) {
-            performMessage.errorMessage(
-                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null, 0);
-        }
-    }
-
     private void loadBlockItems(List<BlockLoadDTO> blockLoadDTOList, int blockToAvoid) {
         blocksItems.clear();
         if (blockLoadDTOList.size() > 1) {
@@ -1974,80 +1935,6 @@ public class ARNewCommandPane extends ARPane {
                     block.getName().trim(),
                     block.getBlockOrderNumber(),
                     block.getId()));
-        }
-    }
-
-    private void saveUserData(VariableUserDTO user) {
-        // Generate a Unique-ID
-        Integer hashCode = loadNexIdData() + 1;
-        //        AlterSeq(hashCode);
-        //        Integer hashCode = generateID();
-
-        String insertSQL = "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id) VALUES ( "
-                + hashCode + ","
-                + "'" + user.getType() + "', "
-                + "'" + user.getName() + "', "
-                + "'" + user.getValue() + "', "
-                + "'" + user.getBotJobId() + "', "
-                + "'" + user.getInstructionId() + "')";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            System.out.println("Data saved successfully.");
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
-    private void updateUserData(String id, VariableUserDTO user) {
-        try {
-            int userId = Integer.parseInt(id);
-
-            String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
-                    + " type = '" + user.getType() + "', "
-                    + " value = '" + user.getValue() + "' "
-                    + " WHERE ID = " + userId;
-            try (Statement stmt =
-                    ARSharedResources.getInstance().getConnection().createStatement()) {
-                int rowsAffected = stmt.executeUpdate(updateSQL);
-                if (rowsAffected > 0) {
-                    System.out.println("Data updated successfully.");
-                } else {
-                    System.out.println("No matching record found to update.");
-                }
-            } catch (SQLException e) {
-                performMessage.errorMessage(
-                        "Error",
-                        "MAX CHARACTERS LIMIT FOR ACCESS",
-                        String.format(
-                                "This '%s' \n cannot be updated with same name.\nError: %s",
-                                user.getName(), e.getMessage()),
-                        null,
-                        null,
-                        0);
-                return;
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid ID format.");
-        }
-    }
-
-    private void deleteUserData(String Id) {
-        try {
-            int variableId = Integer.parseInt(Id);
-            String deleteSQL = "DELETE FROM variable WHERE ID = " + variableId;
-            try (Statement stmt =
-                    ARSharedResources.getInstance().getConnection().createStatement()) {
-                int rowsAffected = stmt.executeUpdate(deleteSQL);
-                if (rowsAffected > 0) {
-                    System.out.println("Data updated successfully.");
-                } else {
-                    System.out.println("No matching record found to update.");
-                }
-            } catch (SQLException e) {
-                System.out.println(e.getMessage());
-            }
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid ID format.");
         }
     }
 
@@ -2370,7 +2257,7 @@ public class ARNewCommandPane extends ARPane {
     //                    instruction.setActionCustomMaxWaitSec(30);
     //                    instruction.setOnHoldSeconds(onHold);
     //                    if (finalMatchingBlocks != null) {
-    //                        instruction.setBlock(ARSharedResources.getInstance()
+    //                        instruction.setBlock(PerformDataBase.
     //                                .getEntityById(
     //                                        BlockDTO.class,
     //                                        finalMatchingBlocks.get(0).getId()));
@@ -2380,7 +2267,7 @@ public class ARNewCommandPane extends ARPane {
     //
     //                    // Wrap the persistence in a try-catch block
     //                    try {
-    //                        ARSharedResources.getInstance().addEntity(instruction, BlockLoopInstructionLoadDTO.class);
+    //                        PerformDataBase..addEntity(instruction, BlockLoopInstructionLoadDTO.class);
     //                    } catch (Exception e) {
     //                        performAction.showAlert(
     //                                Alert.AlertType.ERROR,
@@ -2427,7 +2314,7 @@ public class ARNewCommandPane extends ARPane {
     //    private Integer loadNextIdInstructionData() {
     //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
     //        String selectSQL = "SELECT MAX(ID) AS max_id FROM instruction";
-    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+    //        try (Statement stmt = PerformDataBase.getConnection().createStatement();
     //                ResultSet rs = stmt.executeQuery(selectSQL)) {
     //            while (rs.next()) {
     //                return rs.getInt("max_id");

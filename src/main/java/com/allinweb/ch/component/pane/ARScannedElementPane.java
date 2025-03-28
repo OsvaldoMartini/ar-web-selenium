@@ -14,7 +14,6 @@ import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.IframeInputLocator;
 import com.allinweb.ch.facade.PerformActions;
@@ -824,6 +823,12 @@ public class ARScannedElementPane extends ARPane {
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private final HomeBankingLoadDTO homeBanking;
 
+    private String jsonData;
+    private int finalPort;
+    private String sessionIdFromJava;
+    private int botJobId;
+    private String botJobName;
+
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
 
@@ -912,8 +917,7 @@ public class ARScannedElementPane extends ARPane {
 
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final IframeInputLocator iframeInputLocator;
-    private int portSocket = 8080;
-    private String sessionId;
+    private int portSocket = 54525;
 
     private final String[] defaultSearch;
     private final boolean searchHiddenFields;
@@ -1029,19 +1033,20 @@ public class ARScannedElementPane extends ARPane {
         webEngine = webView.getEngine();
         webEngine.javaScriptEnabledProperty().set(true);
 
-        String jsonData = "[]";
+        jsonData = "[]";
 
         // sessionIdFromJava
-        sessionId = "scannerGrid-"
+        sessionIdFromJava = "scannerGrid-"
                 + this.homeBanking
                         .getId(); // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
+
         // Default
         // session
         buildWebView(
                 webEngine,
                 jsonData,
                 portSocket,
-                sessionId,
+                sessionIdFromJava,
                 homeBanking.getId(),
                 this.botJobLoad.getId(),
                 this.botJobLoad.getName());
@@ -1134,7 +1139,7 @@ public class ARScannedElementPane extends ARPane {
         cloneToNewElement = componentBuilder.buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
         searchWebElementsButton = componentBuilder.buildButton(
-                "Scanner Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
+                "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
@@ -1215,16 +1220,22 @@ public class ARScannedElementPane extends ARPane {
         rightButton.setOnAction(e -> switchToRightTab());
 
         cleanListButton.setOnAction(e -> {
-            var processDTO = new ElementSplitDTO();
-            processDTO.setHomeBankingId(homeBanking.getId());
-            processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
-            processDTO.setOperationId("searchTerms");
-            processDTO.setDetails(new ElementDTO[0]);
-            sendMessageJson(homeBanking.getId(), "scannerGrid-" + homeBanking.getId(), gson.toJson(processDTO), null);
+            if (webEngine != null) {
+                webEngine.reload();
+            }
 
-            Platform.runLater(() -> {
-                countdownTextField.setText("Pre-Launch status: Ready");
-            });
+            //            Platform.runLater(() -> {
+            //                var processDTO = new ElementSplitDTO();
+            //                processDTO.setHomeBankingId(homeBanking.getId());
+            //                processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
+            //                processDTO.setOperationId("searchTerms");
+            //                processDTO.setDetails(new ElementDTO[0]);
+            //                sendMessageJson(
+            //                        homeBanking.getId(), "scannerGrid-" + homeBanking.getId(),
+            // gson.toJson(processDTO), null);
+            //
+            //                countdownTextField.setText("Pre-Launch status: Ready");
+            //            });
         });
 
         currentURL = new Text("");
@@ -2030,28 +2041,28 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void searchTermsBtn(String searchTerms) {
-        String[] dataArray;
+            String[] dataArray;
 
-        //        String[] dataArray = {"with id"};
-        //        String[] dataArray = {"with name"};
-        //        String[] dataArray = {"with text"};
-        //        String[] dataArray = {"button"};
-        //        String[] dataArray = {"input"};
+            //        String[] dataArray = {"with id"};
+            //        String[] dataArray = {"with name"};
+            //        String[] dataArray = {"with text"};
+            //        String[] dataArray = {"button"};
+            //        String[] dataArray = {"input"};
 
-        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
-            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
-        } else {
-            dataArray = new String[] {"input", "button", "a", "select", "label"}; // Default values
-        }
+            if (searchTerms != null && !searchTerms.trim().isEmpty()) {
+                dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
+            } else {
+                dataArray = new String[] {"input", "button", "a", "select", "label"}; // Default values
+            }
 
-        handleSearchTermClick(dataArray);
+            handleSearchTermClick(dataArray);
 
-        try {
-            Thread.sleep(2000);
-            revertSearchTermsInjections(performActions.getCurrentDriver());
-        } catch (Exception e) {
+            try {
+                Thread.sleep(2000);
+                revertSearchTermsInjections(performActions.getCurrentDriver());
+            } catch (Exception e) {
 
-        }
+            }
     }
 
     private void revertSearchTermsInjections(WebDriver driver) {
@@ -3151,7 +3162,7 @@ public class ARScannedElementPane extends ARPane {
                         + "                         left join bot_job bot on bot.active = 1 and bot.home_banking_id = bank.id "
                         + " WHERE bank.id = " + bankId
                         + "                         group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = PerformDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
@@ -3220,7 +3231,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         //        if (repository == null) {
-        //            repository = new Repository(ARSharedResources.getInstance().getSession());
+        //            repository = new Repository(PerformDataBase..getSession());
         //        }
         try {
             baseLogFile = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
@@ -3343,7 +3354,7 @@ public class ARScannedElementPane extends ARPane {
         int botJobId = blocksLoaded.get(0).getBotJobId();
 
         // Original BotJobDTO
-        //        BotJobDTO selectedJob = ARSharedResources.getInstance().getEntityById(BotJobDTO.class, botJobId);
+        //        BotJobDTO selectedJob = PerformDataBase..getEntityById(BotJobDTO.class, botJobId);
 
         String baseLogString = blocksLoaded.get(0).getBotJobName()
                 + ARConstants.FIELDS_SEPARATOR
@@ -4792,12 +4803,12 @@ public class ARScannedElementPane extends ARPane {
                     + resultActions;
 
             performMessage.errorMessage(
-                    "Failed to locate the element after 10 attempts.",
-                    "Try to use \"Force Coordinates\".",
+                    "Failed finding element (5 attempts).",
+                    "Use \"Force Coordinates\" in some cases.",
                     "Last Execution:",
                     resultActions,
                     null,
-                    300);
+                    350);
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
         return true;
@@ -5191,7 +5202,7 @@ public class ARScannedElementPane extends ARPane {
     //                + 1 + ", " // type_id
     //                + blockDTO.getBotJobDTO().getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
     //
-    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
+    //        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
     //            stmt.executeUpdate(insertSQL);
     //            ARLogger.getInstance(ARScannedElementPane.class).info("Block data saved successfully id: " +
     // nextId);
@@ -5205,7 +5216,7 @@ public class ARScannedElementPane extends ARPane {
     private Integer loadNextIdBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = PerformDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");

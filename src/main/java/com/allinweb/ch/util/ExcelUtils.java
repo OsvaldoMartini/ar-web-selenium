@@ -20,7 +20,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.layout.VBox;
@@ -75,7 +74,6 @@ public class ExcelUtils {
                         ButtonType.OK);
             }
         }
-        generateFilteredExcelFile(botJobLoad, extractedData);
     }
 
     private void generateUnfilteredCSVFile(BotJobDTO botJob) {
@@ -96,7 +94,7 @@ public class ExcelUtils {
                 bufferedWriter.write(firstRow);
                 bufferedWriter.newLine();
 
-                //                List<InstructionLoadDTO> instructionList = ARSharedResources.getInstance()
+                //                List<InstructionLoadDTO> instructionList = PerformDataBase.
                 //                        .getEntityList(
                 //                                InstructionLoadDTO.class,
                 //
@@ -288,45 +286,6 @@ public class ExcelUtils {
         // Write the workbook to the file
         writeExcelWorkbookOnDisk(workbook, file);
         return file;
-    }
-
-    private void generateFilteredExcelFile(BotJobLoadDTO botJobLoadDTO, ExtractedData extractedData) {
-        String fileName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJobLoadDTO.getName() + ARConstants.DEFAULT_FILENAME_FOR_AR + ARConstants.FILE_FORMAT_EXCEL;
-
-        File file = new File(fileName);
-        try {
-            file.createNewFile();
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-        }
-
-        Set<String> fieldSet = new HashSet<>();
-        if (botJobLoadDTO.getBlockLoadDTOList().size() > 0) {
-            fieldSet = botJobLoadDTO.getBlockLoadDTOList().stream()
-                    .map(BlockLoadDTO::getInstructionLoadDTOS)
-                    .reduce((identity, accumulated) -> {
-                        accumulated.addAll(identity);
-                        return accumulated;
-                    })
-                    .get()
-                    .stream()
-                    .filter(InstructionLoadDTO::getExportToABR)
-                    .map(InstructionLoadDTO::getActions)
-                    .filter(action -> action.contains(ARConstants.INSERT))
-                    .map(action -> action.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)[1])
-                    .collect(Collectors.toSet());
-        }
-
-        XSSFWorkbook workbook = new XSSFWorkbook();
-        XSSFSheet spreadsheet = workbook.createSheet();
-        Row instructionFieldRow = spreadsheet.createRow(FIRST_ROW);
-        int i = 0;
-        for (String field : fieldSet) {
-            Cell cell = instructionFieldRow.createCell(i++, CellType.STRING);
-            cell.setCellValue(field);
-        }
-        writeExcelWorkbookOnDisk(workbook, file);
     }
 
     private void writeExcelWorkbookOnDisk(Workbook workbook, File file) {

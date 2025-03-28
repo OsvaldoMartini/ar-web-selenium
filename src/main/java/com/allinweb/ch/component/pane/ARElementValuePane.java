@@ -4,13 +4,11 @@ import com.allinweb.ch.component.model.BankingDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.core.ARSharedResources;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 import javafx.collections.FXCollections;
@@ -50,9 +48,11 @@ public class ARElementValuePane extends ARPane {
     Button updateButton;
     Button deleteButton;
 
+    private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     // Static block to initialize
     static {
+        performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
     }
 
@@ -73,7 +73,7 @@ public class ARElementValuePane extends ARPane {
     @Override
     public void initUIComponents() {
 
-        loadUserData();
+        performDataBase.loadUserData(rowMoveDTO, instructionId);
 
         // Create labels
         Label idLabel = new Label("ID:");
@@ -163,8 +163,8 @@ public class ARElementValuePane extends ARPane {
                 return;
             }
 
-            saveUserData(user);
-            loadUserData();
+            performDataBase.saveUserData(user);
+            performDataBase.loadUserData(rowMoveDTO, instructionId);
         });
 
         // Create update button
@@ -178,8 +178,8 @@ public class ARElementValuePane extends ARPane {
 
             VariableUserDTO user = new VariableUserDTO(
                     id, selectedType, nameField.getText(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
-            updateUserData(id, user);
-            loadUserData();
+            performDataBase.updateUserData(id, user);
+            performDataBase.loadUserData(rowMoveDTO, instructionId);
         });
         updateButton.setDisable(true);
 
@@ -199,8 +199,8 @@ public class ARElementValuePane extends ARPane {
                 return;
             }
 
-            deleteUserData(id);
-            loadUserData();
+            performDataBase.deleteUserData(id);
+            performDataBase.loadUserData(rowMoveDTO, instructionId);
         });
         deleteButton.setDisable(true);
 
@@ -321,12 +321,12 @@ public class ARElementValuePane extends ARPane {
 
     //    private List<BankingDTO> loadFromDB() {
     //
-    //        ARSharedResources.getInstance().refreshEntity(null, HomeBankingDTO.class);
+    //        PerformDataBase..refreshEntity(null, HomeBankingDTO.class);
     //
     //        List<BankingDTO> dtoList = new ArrayList<>();
     //
     //        List<HomeBankingDTO> listHomeBankingDTO =
-    //                ARSharedResources.getInstance().getEntityList(HomeBankingDTO.class);
+    //                PerformDataBase..getEntityList(HomeBankingDTO.class);
     //
     //        // Iterate through the result set and populate the DTO list
     //        for (HomeBankingDTO homeBankingDTO : listHomeBankingDTO) {
@@ -379,135 +379,6 @@ public class ARElementValuePane extends ARPane {
             }
         }
         return false;
-    }
-
-    private void loadUserData() {
-        variablesList.clear();
-        String selectSQL = " SELECT vars.id, vars.type, vars.name, vars.value, COUNT(blk.variable_id) UsedVars "
-                + " FROM variable vars "
-                + " left join instruction blk on blk.variable_id = vars.id "
-                + " where vars.bot_job_id = " + rowMoveDTO.getBotJobId()
-                + " and  instruction_id = " + instructionId
-                + " group by vars.id, vars.type, vars.Name, vars.value ";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                int id = rs.getInt("ID");
-                String type = rs.getString("type");
-                String name = rs.getString("name");
-                String value = rs.getString("value");
-                String usedVars = rs.getString("UsedVars");
-                variablesList.add(
-                        new VariableUserDTO(id, type, name, value, rowMoveDTO.getBotJobId(), instructionId, usedVars));
-            }
-        } catch (SQLException e) {
-            performMessage.errorMessage(
-                    "Error loading Variables", "Could Not Load the Variables", e.getMessage(), null, null, 0);
-
-            return;
-        }
-        //        jobUserList.clear();
-        //        loadBotJobData();
-    }
-
-    private Integer loadNextIdData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM variable";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            performMessage.errorMessage(
-                    "Error loading Next Id Data", "Could Not Load the Next Id Data", null, null, null, 0);
-        }
-        return null;
-    }
-
-    private void saveUserData(VariableUserDTO user) {
-        // Generate a Unique-ID
-        Integer hashCode = loadNextIdData() + 1;
-        //        AlterSeq(hashCode);
-        //        Integer hashCode = generateID();
-
-        String insertSQL = "INSERT INTO variable (ID, type, Name, Value, bot_job_id, instruction_id) VALUES ( "
-                + hashCode + ","
-                + "'" + user.getType() + "', "
-                + "'" + user.getName() + "', "
-                + "'" + user.getValue() + "', "
-                + "'" + user.getBotJobId() + "', "
-                + "'" + user.getInstructionId() + "')";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            System.out.println("Data saved successfully.");
-        } catch (SQLException e) {
-            performMessage.errorMessage(
-                    "Error Inserting new Variable",
-                    String.format("The '%s' cannot be inserted!", user.getName()),
-                    e.getMessage(),
-                    null,
-                    null,
-                    0);
-
-            return;
-        }
-    }
-
-    private void updateUserData(Integer userId, VariableUserDTO user) {
-        //        try {
-        String updateSQL = "UPDATE variable SET Name = '" + user.getName() + "', "
-                + " type = '" + user.getType() + "', "
-                + " value = '" + user.getValue() + "' "
-                + " WHERE ID = " + userId;
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
-            int rowsAffected = stmt.executeUpdate(updateSQL);
-            if (rowsAffected > 0) {
-                System.out.println("Data updated successfully.");
-            } else {
-                System.out.println("No matching record found to update.");
-            }
-        } catch (SQLException e) {
-            performMessage.errorMessage(
-                    "MAX CHARACTERS LIMIT FOR ACCESS",
-                    String.format("The '%s' cannot be updated.", user.getName()),
-                    e.getMessage(),
-                    null,
-                    null,
-                    0);
-
-            return;
-        }
-        //        } catch (NumberFormatException e) {
-        //            System.out.println("Invalid ID format.");
-        //        }
-    }
-
-    private void deleteUserData(String Id) {
-        try {
-            int variableId = Integer.parseInt(Id);
-            String deleteSQL = "DELETE FROM variable WHERE ID = " + variableId;
-            try (Statement stmt =
-                    ARSharedResources.getInstance().getConnection().createStatement()) {
-                int rowsAffected = stmt.executeUpdate(deleteSQL);
-                if (rowsAffected > 0) {
-                    System.out.println("Data deleted successfully.");
-                } else {
-                    System.out.println("No matching record found to delete.");
-                }
-            } catch (SQLException e) {
-                performMessage.errorMessage(
-                        "Error Deleting",
-                        String.format("Cannot be deleted id: '%s'", Id),
-                        e.getMessage(),
-                        null,
-                        null,
-                        0);
-            }
-        } catch (NumberFormatException e) {
-            performMessage.errorMessage(
-                    "Invalid ID format.", String.format("The id: '%s' is in invalid format!", Id), null, null, null, 0);
-        }
     }
 
     @Override

@@ -6,7 +6,6 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.core.ARSharedResources;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -186,7 +185,7 @@ public class ARSaveComponentPane extends ARPane {
     public void initUIBehaviour() {
 
         saveNewComponentButton.setOnMouseClicked(e -> {
-            //            ARSharedResources.getInstance().cacheEntitiesFromDB();
+            //            PerformDataBase..cacheEntitiesFromDB();
 
             if (nameTextField.getText() != null
                     && !nameTextField.getText().trim().isEmpty()
@@ -300,7 +299,7 @@ public class ARSaveComponentPane extends ARPane {
                     //
                     //                    if (savedCurrentBlockId > 0) {
                     //                        //
-                    // ARSharedResources.getInstance().cacheEntitiesFromDB();
+                    // PerformDataBase..cacheEntitiesFromDB();
                     //
                     //                        ARLogger.getInstance(Thread.class)
                     //                                .info(String.format(
@@ -367,7 +366,7 @@ public class ARSaveComponentPane extends ARPane {
                     //                    }
                     //
                     //                    if (savedInstStatus) {
-                    //                        ARSharedResources.getInstance().cacheEntitiesFromDB();
+                    //                        PerformDataBase..cacheEntitiesFromDB();
                     //                    } else {
                     //                        return;
                     //                    }
@@ -513,7 +512,7 @@ public class ARSaveComponentPane extends ARPane {
                     warningMSG("Error creating a new componen! Please try again.");
                 }
 
-                //                ARSharedResources.getInstance().changeDbConnection(previousDB);
+                //                PerformDataBase..changeDbConnection(previousDB);
 
                 //                Close();
             } else {
@@ -584,7 +583,7 @@ public class ARSaveComponentPane extends ARPane {
     //    private boolean insertComponentReferences(ComponentReferenceDTO referenceDTO, int instructionId) {
     //
     //        // Generate a Unique-ID for the block
-    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
+    //        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
     //
     //            // Fetch instructionId from savedBlockLoopInstructionLoadDTO
     //
@@ -624,7 +623,7 @@ public class ARSaveComponentPane extends ARPane {
     //    private Integer loadNextIdBReferenceData() {
     //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
     //        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_reference";
-    //        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+    //        try (Statement stmt = PerformDataBase.getConnection().createStatement();
     //                ResultSet rs = stmt.executeQuery(selectSQL)) {
     //            while (rs.next()) {
     //                return rs.getInt("max_id");
@@ -660,7 +659,7 @@ public class ARSaveComponentPane extends ARPane {
                         + (blockDTO.getActive() ? 1 : 0) + ", " // active
                         + ")";
 
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement()) {
+        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             ARLogger.getInstance(ARViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
             return nextId;
@@ -673,7 +672,7 @@ public class ARSaveComponentPane extends ARPane {
     private Integer loadNextIdSavedBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block";
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = PerformDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -687,7 +686,7 @@ public class ARSaveComponentPane extends ARPane {
     private Integer loadNextSavedBlockOrderNumber(int botJobId) {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block where bot_job_id = " + botJobId;
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = PerformDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -707,7 +706,7 @@ public class ARSaveComponentPane extends ARPane {
                 + " order by instruction_order_number ASC";
 
         // Execute the query and process the result set
-        try (Statement stmt = ARSharedResources.getInstance().getConnection().createStatement();
+        try (Statement stmt = PerformDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(querySQL)) {
 
             while (rs.next()) {
