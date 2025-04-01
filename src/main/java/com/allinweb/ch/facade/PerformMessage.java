@@ -99,7 +99,7 @@ public class PerformMessage {
         // Create a JDialog as a custom message dialog
         JDialog dialog = new JDialog();
         dialog.setTitle(title);
-        dialog.setSize(300, 150);
+        dialog.setSize(400, 150);
         dialog.setLocationRelativeTo(null); // Center on screen
         dialog.setUndecorated(true); // Remove the default border
 
@@ -208,15 +208,15 @@ public class PerformMessage {
         // Create a JDialog as a custom modal message dialog
         JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
         if (height > 0) {
-            dialog.setSize(350, height);
+            dialog.setSize(450, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 210);
+            dialog.setSize(450, 210);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 250);
+            dialog.setSize(450, 250);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 280);
+            dialog.setSize(450, 280);
         } else {
-            dialog.setSize(380, 150);
+            dialog.setSize(450, 150);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen
@@ -393,15 +393,15 @@ public class PerformMessage {
 
         // Set dialog size dynamically
         if (height > 0) {
-            dialog.setSize(380, height);
+            dialog.setSize(450, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 240);
+            dialog.setSize(450, 240);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 280);
+            dialog.setSize(450, 280);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 320);
+            dialog.setSize(450, 320);
         } else {
-            dialog.setSize(380, 200);
+            dialog.setSize(450, 200);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen
@@ -574,15 +574,15 @@ public class PerformMessage {
 
         // Set dialog size dynamically
         if (height > 0) {
-            dialog.setSize(380, height);
+            dialog.setSize(450, height);
         } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(380, 270);
+            dialog.setSize(450, 270);
         } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(380, 310);
+            dialog.setSize(450, 310);
         } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(380, 380);
+            dialog.setSize(450, 380);
         } else {
-            dialog.setSize(380, 210);
+            dialog.setSize(450, 210);
         }
 
         dialog.setLocationRelativeTo(null); // Center on screen

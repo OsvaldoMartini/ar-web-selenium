@@ -3414,6 +3414,8 @@ public class ARScannedElementPane extends ARPane {
         ARConstants.DialogModal respModal;
 
         int exportIndex = 1;
+        boolean webElementWork = false;
+
         if (extractedData.getNumberOfDataRows() > 0) {
 
             // Execute All Blocks starting from executeSpecificBlock if Defined
@@ -3595,6 +3597,7 @@ public class ARScannedElementPane extends ARPane {
 
                 for (int i = 0; success && i < extractedData.getNumberOfDataRows() && !stopAll; i++) {
                     mapExport.clear();
+
                     //                    writerReport.insertBlockSeparation(blockLoad.getName());
 
                     dataExcel = extractedData.getRowFieldValues(i);
@@ -3605,6 +3608,7 @@ public class ARScannedElementPane extends ARPane {
                     while (currentIndex < instructionIds.length && !stopAll) {
                         // Resets the success
                         success = true;
+                        webElementWork = false;
 
                         long currentInstructionStartTime = System.nanoTime();
 
@@ -4135,6 +4139,8 @@ public class ARScannedElementPane extends ARPane {
                                     && !excelWriteOperation
                                     && !pauseOperation) {
 
+                                webElementWork = true;
+
                                 // Extract dataFieldName and dataFieldValue using a separate method
                                 Pair<String, String> fieldData = performActions.extractFieldData(
                                         dataExcel,
@@ -4291,6 +4297,8 @@ public class ARScannedElementPane extends ARPane {
                                     resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
                                             + String.join(" ", operations);
                                     boolean isOperationValid = false;
+                                    String invalidValues = null;
+
                                     if (operations[1].equalsIgnoreCase("=")) {
                                         isOperationValid = mapOperators
                                                 .get(parentField)
@@ -4298,15 +4306,32 @@ public class ARScannedElementPane extends ARPane {
                                                 .equalsIgnoreCase(operations[2]);
 
                                     } else if (operations[1].equalsIgnoreCase(">")) {
-                                        isOperationValid = mapOperators
-                                                .get(parentField)
-                                                .trim()
-                                                .equalsIgnoreCase(operations[2]);
+                                        int resp = handleGreaterThan(
+                                                mapOperators.get(parentField).trim(), operations[2]);
+                                        if (resp == 1) {
+                                            isOperationValid = true;
+                                        } else if (resp == 0) {
+                                            isOperationValid = false;
+                                        } else {
+                                            isOperationValid = false;
+                                            invalidValues = "Invalid Numbers";
+                                        }
                                     } else if (operations[1].equalsIgnoreCase("!=")) {
                                         isOperationValid = !mapOperators
                                                 .get(parentField)
                                                 .trim()
                                                 .equalsIgnoreCase(operations[2]);
+                                    } else if (operations[1].equalsIgnoreCase("<")) {
+                                        int resp = handleLessThan(
+                                                mapOperators.get(parentField).trim(), operations[2]);
+                                        if (resp == 1) {
+                                            isOperationValid = true;
+                                        } else if (resp == 0) {
+                                            isOperationValid = false;
+                                        } else {
+                                            isOperationValid = false;
+                                            invalidValues = "Invalid Numbers";
+                                        }
                                     }
 
                                     if (isOperationValid) {
@@ -4328,6 +4353,7 @@ public class ARScannedElementPane extends ARPane {
                                         success = true;
                                     } else {
                                         resultActions = performActions.checkValidationFailed(
+                                                invalidValues,
                                                 parentField,
                                                 mapOperators.get(parentField),
                                                 resultActions,
@@ -4785,13 +4811,19 @@ public class ARScannedElementPane extends ARPane {
                     + ARConstants.FIELDS_SEPARATOR
                     + resultActions;
 
-            performMessage.errorMessage(
-                    "Failed finding element (5 attempts).",
-                    "Use \"Force Coordinates\" in some cases.",
-                    "Last Execution:",
-                    resultActions,
-                    null,
-                    350);
+            if (webElementWork) {
+                performMessage.errorMessage(
+                        "Failed finding element (5 attempts).",
+                        "Use \"Force Coordinates\" in some cases.",
+                        "Last Execution:",
+                        resultActions,
+                        null,
+                        350);
+            } else {
+
+                performMessage.errorMessage(
+                        "Process Execution Terminated", "Last Execution:", resultActions, null, null, 350);
+            }
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
         return true;
@@ -5426,5 +5458,27 @@ public class ARScannedElementPane extends ARPane {
 
         performMessage.showAlertCombinedVBOX(
                 Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
+    }
+
+    private int handleGreaterThan(String value1, String value2) {
+        try {
+            double num1 = Double.parseDouble(value1);
+            double num2 = Double.parseDouble(value2);
+            return num1 > num2 ? 1 : 0;
+        } catch (NumberFormatException e) {
+            // Handle non-numeric values (e.g., log an error, return false)
+            return -1; // Or throw an exception
+        }
+    }
+
+    private int handleLessThan(String value1, String value2) {
+        try {
+            double num1 = Double.parseDouble(value1);
+            double num2 = Double.parseDouble(value2);
+            return num1 < num2 ? 1 : 0;
+        } catch (NumberFormatException e) {
+            // Handle non-numeric values
+            return -1; // Or throw an exception
+        }
     }
 }
