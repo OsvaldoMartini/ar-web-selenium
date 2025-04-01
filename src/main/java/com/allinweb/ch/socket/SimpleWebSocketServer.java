@@ -112,10 +112,10 @@ public class SimpleWebSocketServer {
             if (!Strings.isNullOrEmpty(sessionId)) {
                 addSession(sessionId, session);
             } else {
-                addSession(generateCustomSessionId(session), session);
+                //                addSession(generateCustomSessionId(session), session);
             }
         } catch (Exception noSessionId) {
-            addSession(generateCustomSessionId(session), session);
+            //            addSession(generateCustomSessionId(session), session);
         }
 
         if (sessionId != null) {
@@ -174,11 +174,11 @@ public class SimpleWebSocketServer {
                             }
                         }
                     } else {
-                        addSession(generateCustomSessionId(session), session);
+                        //                        addSession(generateCustomSessionId(session), session);
                     }
 
                 } catch (Exception noSessionId) {
-                    addSession(generateCustomSessionId(session), session);
+                    //                    addSession(generateCustomSessionId(session), session);
                 }
             }
 
@@ -757,7 +757,7 @@ public class SimpleWebSocketServer {
                 });
             } else {
 
-                if (rowMoveDTO.getUpdatedRows().size() > 0) {
+                if (!rowMoveDTO.getUpdatedRows().isEmpty()) {
 
                     int parentId = rowMoveDTO.getUpdatedRows().get(0).getParentId();
                     try {
@@ -774,6 +774,8 @@ public class SimpleWebSocketServer {
                                 parentId,
                                 rowMoveDTO,
                                 botJobLoad,
+                                false,
+                                false,
                                 false);
 
                     } catch (Exception e) {

@@ -134,6 +134,7 @@ public class ARConstants {
     public static final String ICON_TICK = "/tick.png";
     public static final String ICON_EQUAL = "/equal.png";
     public static final String ICON_GREATER = "/greater.png";
+    public static final String ICON_LESS = "/less.png";
     public static final String ICON_DIFFERENT = "/different.png";
 
     // ACTION CODES

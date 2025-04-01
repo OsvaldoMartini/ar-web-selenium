@@ -391,6 +391,8 @@ public class WebSocketStompServer {
                                 parentId,
                                 rowMoveDTO,
                                 botJobLoad,
+                                false,
+                                false,
                                 false);
 
                     } catch (Exception e) {

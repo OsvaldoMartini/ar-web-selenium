@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.Set;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
@@ -294,11 +292,13 @@ public class ExcelUtils {
             workbook.write(fileOutputStream);
             fileOutputStream.close();
         } catch (IOException e) {
-            new ARAlertScene(
-                    Alert.AlertType.ERROR,
+            performMessage.errorMessage(
                     "Excel file generation failed",
-                    "There was a problem with the excel file generation. Reason: " + e,
-                    ButtonType.OK);
+                    "There was a problem with the excel file generation.",
+                    "Reason: " + e.getMessage(),
+                    null,
+                    null,
+                    0);
         }
     }
 
@@ -307,56 +307,20 @@ public class ExcelUtils {
         String excelFolderPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
         String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ARConstants.FILE_FORMAT_EXCEL);
 
-        //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
-
         // Create a File object
         File fileCheck = new File(fileName);
         if (fileCheck.exists() && !fileCheck.isDirectory()) {
 
             File file = new File(fileName);
 
-            // Assuming blocksLoaded is your List<BlockLoadDTO>
-            //            List<String> allActions = blocksLoaded.stream()
-            //                    .flatMap(
-            //                            blockLoadDTO -> blockLoadDTO
-            //                                    .getBlockLoopInstructionLoadDTOS()
-            //                                    .stream()) // Flatten the stream of BlockLoopInstructionLoadDTO
-            //                    .map(BlockLoopInstructionLoadDTO::getActions) // Extract the actions
-            //                    .collect(Collectors.toList()); // Collect all actions into a List
-
             ExcelReader excelReader = new ExcelReader();
             ExtractedData extractedData = null;
             try {
                 extractedData = excelReader.extractData(fileName, allActions);
             } catch (Exception e) {
-
-                Text variableText1Styled = new Text("Verify the Possible Errors:");
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                Text variableText2Styled = new Text("1. Excel File is OPEN");
-                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                Text variableText3Styled = new Text("2. Column Names Different from INPUT names");
-                variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                Text variableText4Styled = new Text("3. INPUTS names Not In Excel File");
-                variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                VBox combinedTextContainer = new VBox();
-                combinedTextContainer.setSpacing(5); // Add some sp
-
-                combinedTextContainer
-                        .getChildren()
-                        .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
-
-                performMessage.showAlertCombinedVBOX(
-                        Alert.AlertType.ERROR,
-                        "Excel File Error",
-                        "Check All Excel Columns and Values!",
-                        null,
-                        combinedTextContainer);
+                performMessage.errorMessage(
+                        "Excel File Error", "Check All Excel Columns and Values!", null, null, null, 0);
                 return null;
-                //            Platform.exit();
             }
 
             return extractedData;

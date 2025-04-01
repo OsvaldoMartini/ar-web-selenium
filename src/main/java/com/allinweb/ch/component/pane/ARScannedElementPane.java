@@ -250,16 +250,16 @@ public class ARScannedElementPane extends ARPane {
 
             if (currentBlockId < 0) {
 
-                Text variableText1Styled = new Text("Select the block you wan to Add New Command!");
-                variableText1Styled.setStyle("-fx-font-size: 16px; -fx-fill: red;");
-
-                VBox combinedTextContainer = new VBox();
-                combinedTextContainer.setSpacing(5); // Add some sp
-
-                combinedTextContainer.getChildren().add(variableText1Styled);
-
-                Platform.runLater(() -> performMessage.showAlertCombinedVBOX(
-                        Alert.AlertType.ERROR, "Block Not Selected", "Select the Block!", null, combinedTextContainer));
+                performMessage.showCustomModalDialogDragWin11(
+                        this.botJobLoad.getName(),
+                        "Select the block to Add New Command!",
+                        null,
+                        null,
+                        null,
+                        true,
+                        "OK",
+                        null,
+                        300);
             }
         }
     }
@@ -351,7 +351,8 @@ public class ARScannedElementPane extends ARPane {
                         instruction.getShadowRoot(),
                         instruction.getCssSelector(),
                         currentBotJobId,
-                        currentBlockId);
+                        currentBlockId,
+                        false);
 
                 if (newId < 0) {
 
@@ -824,10 +825,7 @@ public class ARScannedElementPane extends ARPane {
     private final HomeBankingLoadDTO homeBanking;
 
     private String jsonData;
-    private int finalPort;
     private String sessionIdFromJava;
-    private int botJobId;
-    private String botJobName;
 
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
@@ -883,10 +881,6 @@ public class ARScannedElementPane extends ARPane {
     private TextField coordsTextField;
 
     private Boolean resultElementSearch = false;
-
-    private Boolean idAttributeFirst = false;
-    private Boolean nameAttributeFirst = false;
-    private Boolean withoutNameAndId = false;
 
     private Map<String, String> mapOperators;
     private Map<String, String> mapExport;
@@ -2041,28 +2035,28 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void searchTermsBtn(String searchTerms) {
-            String[] dataArray;
+        String[] dataArray;
 
-            //        String[] dataArray = {"with id"};
-            //        String[] dataArray = {"with name"};
-            //        String[] dataArray = {"with text"};
-            //        String[] dataArray = {"button"};
-            //        String[] dataArray = {"input"};
+        //        String[] dataArray = {"with id"};
+        //        String[] dataArray = {"with name"};
+        //        String[] dataArray = {"with text"};
+        //        String[] dataArray = {"button"};
+        //        String[] dataArray = {"input"};
 
-            if (searchTerms != null && !searchTerms.trim().isEmpty()) {
-                dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
-            } else {
-                dataArray = new String[] {"input", "button", "a", "select", "label"}; // Default values
-            }
+        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
+            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
+        } else {
+            dataArray = new String[] {"input", "button", "a", "select", "label"}; // Default values
+        }
 
-            handleSearchTermClick(dataArray);
+        handleSearchTermClick(dataArray);
 
-            try {
-                Thread.sleep(2000);
-                revertSearchTermsInjections(performActions.getCurrentDriver());
-            } catch (Exception e) {
+        try {
+            Thread.sleep(2000);
+            revertSearchTermsInjections(performActions.getCurrentDriver());
+        } catch (Exception e) {
 
-            }
+        }
     }
 
     private void revertSearchTermsInjections(WebDriver driver) {
@@ -3426,7 +3420,7 @@ public class ARScannedElementPane extends ARPane {
             int currentBlock = (executeSpecificBlock > -1) ? executeSpecificBlock - 1 : 0;
 
             blockLoop:
-            while (currentBlock <= blocksLoaded.size() - 1 && blocksLoaded.size() > 0 && !stopAll) {
+            while (currentBlock <= blocksLoaded.size() - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                 long blockStartTime = System.nanoTime();
 
                 currentCondition = ARConstants.ConditionStatus.NONE;
@@ -4762,21 +4756,6 @@ public class ARScannedElementPane extends ARPane {
 
         // PRINT END BASE LOG//
 
-        Text variableText1Styled = new Text("Bot-Job Finished - successfully");
-        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text variableText2Styled = new Text(botJobName);
-        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text variableText3Styled = new Text("Last Execution:");
-        variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text variableText4Styled = new Text(resultActions);
-        variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-
-        VBox combinedTextContainer = new VBox();
-        combinedTextContainer.setSpacing(5); // Add some sp
-
         if (success) {
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstants.FIELDS_SEPARATOR
@@ -4784,12 +4763,16 @@ public class ARScannedElementPane extends ARPane {
                     + ARConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
 
-            combinedTextContainer
-                    .getChildren()
-                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled, variableText4Styled);
-
-            performMessage.showAlertCombinedVBOX(
-                    Alert.AlertType.INFORMATION, "Success", "Execution Finished", null, combinedTextContainer);
+            performMessage.showCustomModalDialogDragWin11(
+                    "Bot-Job Finished - successfully",
+                    botJobName,
+                    "Last Execution:",
+                    resultActions,
+                    null,
+                    false,
+                    "OK",
+                    null,
+                    300);
 
         } else {
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
@@ -5265,7 +5248,8 @@ public class ARScannedElementPane extends ARPane {
             String shadowRoot,
             String cssSelector,
             Integer currentBotJobId,
-            Integer currentBlockId) {
+            Integer currentBlockId,
+            boolean updateRow) {
 
         InstructionLoadDTO instructionLoadDTO = new InstructionLoadDTO();
 
@@ -5303,7 +5287,11 @@ public class ARScannedElementPane extends ARPane {
         int newId = -1;
 
         try {
-            newId = performDataBase.insertInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
+            if (!updateRow) {
+                newId = performDataBase.insertInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
+            } else {
+                newId = performDataBase.updateInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
+            }
 
         } catch (Exception e) {
 
@@ -5320,16 +5308,17 @@ public class ARScannedElementPane extends ARPane {
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         blocksItems.clear();
         if (blockLoadDTOList.size() > 0) {
-            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1));
+            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, null));
         } else {
-            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1));
+            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, null));
         }
         for (BlockLoadDTO block : blockLoadDTOList) {
             blocksItems.add(new ComboBoxVars(
                     block.getBlockOrderNumber() + "# " + block.getName(),
                     block.getName(),
                     block.getBlockOrderNumber(),
-                    block.getId()));
+                    block.getId(),
+                    null));
         }
     }
 

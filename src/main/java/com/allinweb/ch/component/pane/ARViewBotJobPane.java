@@ -118,7 +118,6 @@ public class ARViewBotJobPane extends ARPane {
     Button printBotJobButton;
     Button openExcelFileButton;
     Button generateExcelButton;
-    Button openExcelFilterPanelButton;
     Button closeBotJobButton;
 
     Label botJobNameLabel;
@@ -171,7 +170,8 @@ public class ARViewBotJobPane extends ARPane {
         variablesList = FXCollections.observableArrayList();
         webPageItems = FXCollections.observableArrayList();
 
-        Platform.runLater(() -> this.variablesList = performDataBase.loadJobVariables(this.botJobLoad.getId()));
+        Platform.runLater(
+                () -> this.variablesList = performDataBase.loadAllVariblesByCriteria(this.botJobLoad.getId(), -1));
         Platform.runLater(() -> this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId()));
     }
 
@@ -191,15 +191,9 @@ public class ARViewBotJobPane extends ARPane {
                     } catch (Exception e) {
                         ARLogger.getInstance(ARViewBotJobPane.class).fine("Port already in Use: " + finalPort);
 
-                        Alert alert = new Alert(AlertType.ERROR);
-                        alert.setTitle("Port Error");
-                        alert.setHeaderText("Change the Port configuration\"");
-                        alert.setContentText(String.format("Port %d already in Use!", finalPort));
-                        alert.showAndWait();
-
-                        //                        Stage stage = (Stage) ((Button) .getSource()).getScene().getWindow();
-                        //                        stage.close();
-                        return;
+                        //                        performMessage.errorMessage(
+                        //                                "Port Error", "Port %d already in Use!",
+                        // String.valueOf(finalPort), null, null, 350);
                     }
                 })
                 .start();
@@ -303,8 +297,6 @@ public class ARViewBotJobPane extends ARPane {
                 "Excel File", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(5.0D));
         this.generateExcelButton = builder.buildButton(
                 "Generate", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(5.0D));
-        this.openExcelFilterPanelButton = builder.buildButton(
-                "Filter", ARConstants.SPACE_ZERO, ARConstants.ICON_LIST, ARConstants.SPACE_M, new Insets(5.0D));
         this.closeBotJobButton = builder.buildButton(
                 "Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5.0D));
 
@@ -348,11 +340,8 @@ public class ARViewBotJobPane extends ARPane {
         generateExcelButton.setPrefWidth(buttonWidth);
         leftGridPane.add(generateExcelButton, 3, 1);
 
-        openExcelFilterPanelButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(openExcelFilterPanelButton, 4, 1);
-
         closeBotJobButton.setPrefWidth(buttonWidth);
-        leftGridPane.add(closeBotJobButton, 5, 1);
+        leftGridPane.add(closeBotJobButton, 4, 1);
 
         // Center the buttons
         for (Node node : leftGridPane.getChildren()) {
@@ -826,9 +815,6 @@ public class ARViewBotJobPane extends ARPane {
                             combinedTextContainer);
                 }
             }
-        });
-        this.openExcelFilterPanelButton.setOnMouseClicked((e) -> {
-            (new ARExportFilterScene(this.botJobLoad)).show();
         });
         this.launchBotJobButton.setOnMouseClicked((e) -> {
             ARPropertyManager managerProps = ARPropertyManager.getInstance();

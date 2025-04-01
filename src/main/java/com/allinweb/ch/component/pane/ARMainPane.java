@@ -99,7 +99,7 @@ public class ARMainPane extends ARPane {
         this.webDriverList = webDriverList;
         String pathDB = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
         String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-        performDataBase.initialize(dataBaseType);
+        performDataBase.initialize(performMessage, dataBaseType);
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;

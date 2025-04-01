@@ -490,6 +490,70 @@ public class PerformMessage {
         return status[0];
     }
 
+    public List<String> distributeMsg(List<String> lstOrigin) {
+        List<String> result = new ArrayList<>(3); // Initialize with capacity 3
+
+        if (lstOrigin == null || lstOrigin.isEmpty()) {
+            result.add(null);
+            result.add(null);
+            result.add(null);
+            return result;
+        }
+
+        int listSize = lstOrigin.size();
+
+        if (listSize <= 3) {
+            // Distribute evenly among 1-3 messages
+            for (int i = 0; i < listSize; i++) {
+                result.add(lstOrigin.get(i));
+            }
+            while (result.size() < 3) {
+                result.add(null);
+            }
+        } else if (listSize <= 6) {
+            // Distribute evenly among 2-3 messages
+            String msg1 = "";
+            String msg2 = "";
+            String msg3 = "";
+
+            for (int i = 0; i < listSize; i++) {
+                if (i < 2) {
+                    msg1 += lstOrigin.get(i) + "\n";
+                } else if (i < 4) {
+                    msg2 += lstOrigin.get(i) + "\n";
+                } else {
+                    msg3 += lstOrigin.get(i) + "\n";
+                }
+            }
+            result.add(msg1);
+            result.add(msg2);
+            result.add(msg3);
+
+        } else {
+            // Distribute evenly among 3 messages
+            String msg1 = "";
+            String msg2 = "";
+            String msg3 = "";
+
+            int itemsPerMessage = listSize / 3;
+            int remainingItems = listSize % 3;
+
+            for (int i = 0; i < listSize; i++) {
+                if (i < itemsPerMessage + remainingItems) {
+                    msg1 += lstOrigin.get(i) + "\n";
+                } else if (i < (itemsPerMessage * 2) + remainingItems) {
+                    msg2 += lstOrigin.get(i) + "\n";
+                } else {
+                    msg3 += lstOrigin.get(i) + "\n";
+                }
+            }
+            result.add(msg1);
+            result.add(msg2);
+            result.add(msg3);
+        }
+        return result;
+    }
+
     /**
      * Creates a styled button with Windows 11 theme
      */

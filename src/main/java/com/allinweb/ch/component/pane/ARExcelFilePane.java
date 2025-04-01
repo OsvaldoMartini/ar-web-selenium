@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -33,7 +32,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -258,17 +256,8 @@ public class ARExcelFilePane extends ARPane {
             String fileName = fileExport.getText().trim(); // Get the trimmed input
 
             if (Strings.isNullOrEmpty(fileName)) {
+                performMessage.errorMessage("File Name  Is Empty!", "Type  the File Name!", null, null, null, 0);
 
-                Text variableText1Styled = new Text("File Name  Is Empty!");
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                VBox combinedTextContainer = new VBox();
-                combinedTextContainer.setSpacing(5); // Add some sp
-
-                combinedTextContainer.getChildren().add(variableText1Styled);
-
-                performMessage.showAlertCombinedVBOX(
-                        Alert.AlertType.ERROR, "Excel File Name", "Type  the File Name!", null, combinedTextContainer);
                 return;
             }
 
@@ -320,24 +309,16 @@ public class ARExcelFilePane extends ARPane {
                     blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
         }
 
-        Text variableText1Styled = new Text(String.format("Export File \"%s\" Updated", exportFile));
-        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        if (!updateBlock) {
-            variableText1Styled = new Text(String.format("Export File \"%s\" NOT Updated!", exportFile));
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-        }
-
-        VBox combinedTextContainer = new VBox();
-        combinedTextContainer.setSpacing(5); // Add some sp
-
-        combinedTextContainer.getChildren().add(variableText1Styled);
-        performMessage.showAlertCombinedVBOX(
-                updateBlock ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
-                "Update Bot-Job",
+        performMessage.showCustomModalDialogDragWin11(
+                "Export File: ",
+                exportFile,
                 updateBlock ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!\"",
                 null,
-                combinedTextContainer);
+                null,
+                false,
+                "OK",
+                null,
+                300);
     }
 
     private TextField createPathTextField(ARPropertyEnum property) {

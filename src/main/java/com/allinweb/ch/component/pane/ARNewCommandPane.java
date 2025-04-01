@@ -69,7 +69,6 @@ public class ARNewCommandPane extends ARPane {
     private final ARComponentBuilder componentBuilder = new ARComponentBuilder();
 
     // Postgres
-    private static boolean POSTGRES_DB = false;
     private Connection conn = null;
 
     private static final int SECONDS = 3; // Total seconds for the countdown
@@ -142,6 +141,8 @@ public class ARNewCommandPane extends ARPane {
     double comboLoopsWidth = 80;
     boolean variablesDisable = false;
 
+    boolean blockIdChanged = false;
+
     Button addNewInstructionButton;
     Button cancelButton;
 
@@ -165,6 +166,7 @@ public class ARNewCommandPane extends ARPane {
 
     private ComboBox<ComboBoxVars> comboBoxWebPage;
     private ObservableList<ComboBoxVars> webPageItems;
+    private ObservableList<ComboBoxVars> filteredPageItems = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxVars> comboBoxAllBlocks;
     private ObservableList<ComboBoxVars> allBlocksItems = FXCollections.observableArrayList();
@@ -188,13 +190,18 @@ public class ARNewCommandPane extends ARPane {
         this.webPageItems = webPageItems;
         this.sessionId = sessionId;
 
-        if (webPageItems.size() == 0) {
+        // Initial
+        this.filteredPageItems.addAll(webPageItems.stream()
+                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
+                .toList());
+
+        if (filteredPageItems.isEmpty()) {
             variablesDisable = true;
         }
 
         String operationType = rowMoveDTO.getType();
         String firstAction = "";
-        if (rowMoveDTO.getUpdatedRows().size() > 0) {
+        if (!rowMoveDTO.getUpdatedRows().isEmpty()) {
             firstAction = rowMoveDTO.getUpdatedRows().get(0).getActions();
         } else {
             firstAction = rowMoveDTO.getType();
@@ -203,6 +210,8 @@ public class ARNewCommandPane extends ARPane {
         // Initialize itemsInstructions list conditionally
         try {
             itemsInstructions = FXCollections.observableArrayList();
+            //            itemsInstructions.add(
+            //                    new ComboBoxImage("Select", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE));
             itemsInstructions.add(
                     new ComboBoxImage("setValue", new Image(ARConstants.ICON_SET_VALUE_BTN), ARConstants.SET_VALUE));
             itemsInstructions.add(
@@ -211,7 +220,7 @@ public class ARNewCommandPane extends ARPane {
                     new ComboBoxImage("Check", new Image(ARConstants.ICON_CHECK), ARConstants.CHECK_VALUE));
 
             // Add "IF" only if it does not meet the exclusion conditions
-            if (!rowMoveDTO.getIsBetween()) {
+            if (rowMoveDTO.getIsBetween() != null && !rowMoveDTO.getIsBetween()) {
 
                 itemsInstructions.add(new ComboBoxImage("IF", new Image(ARConstants.ICON_IF_ELSE), ARConstants.IF));
             }
@@ -236,6 +245,7 @@ public class ARNewCommandPane extends ARPane {
             operatorsItems = FXCollections.observableArrayList(
                     new ComboBoxOperator("Equals", new Image(ARConstants.ICON_EQUAL), "="),
                     new ComboBoxOperator("Greater", new Image(ARConstants.ICON_GREATER), ">"),
+                    new ComboBoxOperator("Less", new Image(ARConstants.ICON_LESS), "<"),
                     new ComboBoxOperator("!=", new Image(ARConstants.ICON_DIFFERENT), "!="));
         } catch (Exception ex) {
             ARLogger.getInstance(ARNewCommandPane.class)
@@ -251,18 +261,19 @@ public class ARNewCommandPane extends ARPane {
                     new ComboBoxOperator("No Operators", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE));
         }
 
-        if (webPageItems.size() == 0) {
-            webPageItems.add(new ComboBoxVars("No Web Fields", ARConstants.NO_VALUE, -1, -1));
+        if (filteredPageItems.isEmpty()) {
+            filteredPageItems.add(new ComboBoxVars("No Web Fields", ARConstants.NO_VALUE, -1, -1, null));
         }
 
-        if (this.webPageItems != null && this.webPageItems.size() > 0) {
+        if (this.filteredPageItems != null && !this.filteredPageItems.isEmpty()) {
             variablesItems.clear();
-            performDataBase.loadJobVariables(webPageItems.get(0).getVarId());
+            this.variablesList = performDataBase.loadAllVariblesByCriteria(
+                    this.botJobLoad.getId(), filteredPageItems.get(0).getVarId());
         }
 
         this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
 
-        if (this.blockLoadList != null && this.blockLoadList.size() > 0) {
+        if (this.blockLoadList != null && !this.blockLoadList.isEmpty()) {
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
             loadBlockItems(blockLoadList, rowMoveDTO.getBlockId());
             //            }
@@ -271,7 +282,7 @@ public class ARNewCommandPane extends ARPane {
             loadAllBlockItems(blockLoadList);
             //            }
         } else {
-            allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1));
+            allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, null));
         }
     }
 
@@ -374,13 +385,13 @@ public class ARNewCommandPane extends ARPane {
 
         textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
 
-        timesItems.add(new ComboBoxVars("5s", "5", -1, -1));
-        timesItems.add(new ComboBoxVars("10s", "10", -1, -1));
-        timesItems.add(new ComboBoxVars("20s", "20", -1, -1));
-        timesItems.add(new ComboBoxVars("30s", "30", -1, -1));
-        timesItems.add(new ComboBoxVars("40s", "40", -1, -1));
-        timesItems.add(new ComboBoxVars("50s", "50", -1, -1));
-        timesItems.add(new ComboBoxVars("60s", "60", -1, -1));
+        timesItems.add(new ComboBoxVars("5s", "5", -1, -1, null));
+        timesItems.add(new ComboBoxVars("10s", "10", -1, -1, null));
+        timesItems.add(new ComboBoxVars("20s", "20", -1, -1, null));
+        timesItems.add(new ComboBoxVars("30s", "30", -1, -1, null));
+        timesItems.add(new ComboBoxVars("40s", "40", -1, -1, null));
+        timesItems.add(new ComboBoxVars("50s", "50", -1, -1, null));
+        timesItems.add(new ComboBoxVars("60s", "60", -1, -1, null));
 
         comboBoxTimes = new ComboBox<>(timesItems);
         comboBoxTimes.setPrefWidth(50);
@@ -419,10 +430,10 @@ public class ARNewCommandPane extends ARPane {
         });
         comboBoxTimes.getSelectionModel().selectFirst();
 
-        loopsItems.add(new ComboBoxVars("5 x", "5", -1, -1));
-        loopsItems.add(new ComboBoxVars("10 x", "10", -1, -1));
-        loopsItems.add(new ComboBoxVars("20 x", "20", -1, -1));
-        loopsItems.add(new ComboBoxVars("30 x", "30", -1, -1));
+        loopsItems.add(new ComboBoxVars("5 x", "5", -1, -1, null));
+        loopsItems.add(new ComboBoxVars("10 x", "10", -1, -1, null));
+        loopsItems.add(new ComboBoxVars("20 x", "20", -1, -1, null));
+        loopsItems.add(new ComboBoxVars("30 x", "30", -1, -1, null));
         comboBoxLoops = new ComboBox<>(loopsItems);
         comboBoxLoops.setPrefWidth(60);
         // Set cell factory to display images and text
@@ -591,7 +602,7 @@ public class ARNewCommandPane extends ARPane {
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
         if (blocksItems.size() == 0) {
-            blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1));
+            blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1, null));
         }
         comboBoxBlocks.setPrefWidth(buttonWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
@@ -629,7 +640,7 @@ public class ARNewCommandPane extends ARPane {
         });
         comboBoxBlocks.getSelectionModel().selectFirst();
 
-        comboBoxWebPage = new ComboBox<>(webPageItems);
+        comboBoxWebPage = new ComboBox<>(filteredPageItems);
         comboBoxWebPage.setPrefWidth(50);
         comboBoxWebPage.setButtonCell(new ListCell<>() {
             @Override
@@ -912,6 +923,11 @@ public class ARNewCommandPane extends ARPane {
             if (newValue != null) {
                 // Set the visibility of comboBoxOperator based on the selected value
                 if (ARConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())) {
+                    //                    filteredPageItems.clear();
+                    //                    this.filteredPageItems.addAll(webPageItems.stream()
+                    //                            .filter(item -> "input".equals(item.getTagType()))
+                    //                            .toList());
+
                     defineTextFlow(comboBoxInstruc.getValue().getValue());
 
                     textFlow.setVisible(true);
@@ -1326,7 +1342,9 @@ public class ARNewCommandPane extends ARPane {
 
             if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.IF)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
-                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_LOOP)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.LOOP)) {
                 if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
                     performMessage.errorMessage(
                             "Variables Not Defined!",
@@ -1362,7 +1380,7 @@ public class ARNewCommandPane extends ARPane {
                             .orElse(null);
 
                     performMessage.errorMessage(
-                            "Error: Web Field Outside of Scope",
+                            "Web Field Outside of Scope",
                             "Selected Block: " + comboBoxAllBlocks.getValue().getText(),
                             "The Web Field belongs to Block: " + outsideBlock,
                             "Referencing Web Fields outside of their designated block is not allowed.",
@@ -1492,7 +1510,7 @@ public class ARNewCommandPane extends ARPane {
                     ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars newValue) {
                 if (newValue != null) {
                     variablesItems.clear();
-                    performDataBase.loadJobVariables(newValue.getVarId());
+                    variablesList = performDataBase.loadAllVariblesByCriteria(botJobLoad.getId(), newValue.getVarId());
                     reloadComboVars();
                     comboBoxVars.getSelectionModel().selectFirst();
                     if (comboBoxVars.getValue() != null) {
@@ -1502,31 +1520,13 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        // Add a listener to print the ID when the selection changes
-        //        comboBoxAllBlocks.getSelectionModel().selectedItemProperty().addListener(new
-        // ChangeListener<ComboBoxVars>() {
-        //            @Override
-        //            public void changed(
-        //                    ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars
-        // newValue) {
-        //                if (newValue != null) {
-        //                    loadJobVariables(newValue.getVarId());
-        //                    reloadComboVars();
-        //                    comboBoxVars.getSelectionModel().selectFirst();
-        //                    if (comboBoxVars.getValue() != null) {
-        //                        defineTextFlow(comboBoxInstruc.getValue().getValue());
-        //                    }
-        //                }
-        //            }
-        //        });
-
         cancelButton.setOnMouseClicked((e) -> {
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
         });
 
         variableButton.setOnAction(e -> {
-            if (this.rowMoveDTO != null && rowMoveDTO.getUpdatedRows().size() > 0) {
+            if (this.rowMoveDTO != null && !rowMoveDTO.getUpdatedRows().isEmpty()) {
                 ARLogger.getInstance(ARNewCommandPane.class)
                         .info("creating variable for instruction Name "
                                 + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
@@ -1540,7 +1540,8 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxInstruc.getValue().getValue());
                 elementValueScene.showModal();
                 variablesItems.clear();
-                performDataBase.loadJobVariables(comboBoxWebPage.getValue().getVarId());
+                this.variablesList = performDataBase.loadAllVariblesByCriteria(
+                        this.botJobLoad.getId(), comboBoxWebPage.getValue().getVarId());
                 reloadComboVars();
                 // Set ComboBox to first item
                 comboBoxVars.getSelectionModel().selectFirst();
@@ -1562,7 +1563,8 @@ public class ARNewCommandPane extends ARPane {
             }
 
             variablesItems.clear();
-            performDataBase.loadJobVariables(comboBoxWebPage.getValue().getVarId());
+            this.variablesList = performDataBase.loadAllVariblesByCriteria(
+                    this.botJobLoad.getId(), comboBoxWebPage.getValue().getVarId());
             reloadComboVars();
             // Set ComboBox to first item
             comboBoxVars.getSelectionModel().selectFirst();
@@ -1882,11 +1884,12 @@ public class ARNewCommandPane extends ARPane {
                             variable.getType().substring(0, 1) + variable.getName(),
                             variable.getValue(),
                             variable.getId(),
-                            variable.getInstructionId()))
+                            variable.getInstructionId(),
+                            null))
                     .collect(Collectors.toList());
             variablesItems.addAll(variablesNames);
         } else {
-            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1));
+            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, null));
         }
     }
 
@@ -1919,7 +1922,8 @@ public class ARNewCommandPane extends ARPane {
                             block.getBlockOrderNumber() + "# " + block.getName(),
                             block.getName(),
                             block.getBlockOrderNumber(),
-                            block.getId()));
+                            block.getId(),
+                            null));
             }
         }
     }
@@ -1927,14 +1931,15 @@ public class ARNewCommandPane extends ARPane {
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         allBlocksItems.clear();
         if (blockLoadDTOList.size() > 1) {
-            allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1));
+            allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1, null));
         }
         for (BlockLoadDTO block : blockLoadDTOList) {
             allBlocksItems.add(new ComboBoxVars(
                     block.getBlockOrderNumber() + "# " + block.getName().trim(),
                     block.getName().trim(),
                     block.getBlockOrderNumber(),
-                    block.getId()));
+                    block.getId(),
+                    null));
         }
     }
 
@@ -1989,8 +1994,14 @@ public class ARNewCommandPane extends ARPane {
             Integer instructionId,
             RowMoveDTO rowMoveDTO) {
 
-        int blockId = comboBoxAllBlocks.getValue().getExtraId();
+        Integer blockId = comboBoxAllBlocks.getValue().getExtraId();
         String blockName = comboBoxAllBlocks.getValue().getText();
+
+        if (!rowMoveDTO.getBlockId().equals(blockId)) {
+            blockIdChanged = true;
+        } else {
+            blockIdChanged = false;
+        }
         rowMoveDTO.setBlockId(blockId);
         rowMoveDTO.setBlockName(blockName);
         if (blockId < 0) {
@@ -2033,59 +2044,59 @@ public class ARNewCommandPane extends ARPane {
             variableText3.setText("");
         }
 
-        // Create individual text elements with the necessary styling
-        Text regularTextCopy1 = new Text(regularText1.getText());
-        regularTextCopy1.setStyle(regularText1.getStyle());
-        regularTextCopy1.setVisible(regularText1.isVisible());
-
-        Text regularTextCopy2 = new Text(regularText2.getText());
-        regularTextCopy2.setStyle(regularText2.getStyle());
-        regularTextCopy2.setVisible(regularText2.isVisible());
-
-        Text regularTextCopy3 = new Text(regularText3.getText());
-        regularTextCopy3.setStyle(regularText3.getStyle());
-        regularTextCopy3.setVisible(regularText3.isVisible());
-
-        Text regularTextCopy4 = new Text(regularText4.getText());
-        regularTextCopy4.setStyle(regularText4.getStyle());
-        regularTextCopy4.setVisible(regularText4.isVisible());
-
-        Text variableText1Copy = new Text(variableText1.getText());
-        variableText1Copy.setStyle(variableText1.getStyle());
-        variableText1Copy.setVisible(variableText1.isVisible());
-
-        Text variableText2Copy = new Text(variableText2.getText());
-        variableText2Copy.setStyle(variableText2.getStyle());
-        variableText2Copy.setVisible(variableText2.isVisible());
-
-        Text variableText3Copy = new Text(variableText3.getText());
-        variableText3Copy.setStyle(variableText3.getStyle());
-        variableText3Copy.setVisible(variableText3.isVisible());
-
-        if (regularTextCopy1.getText().trim().length() == 0) {
-            regularTextCopy1.setText("");
-        }
-        if (regularTextCopy2.getText().trim().length() == 0) {
-            regularTextCopy2.setText("");
-        }
-
-        if (regularTextCopy3.getText().trim().length() == 0) {
-            regularTextCopy3.setText("");
-        }
-        if (regularTextCopy4.getText().trim().length() == 0) {
-            regularTextCopy4.setText("");
-        }
-
-        if (variableText1Copy.getText().trim().length() == 0) {
-            variableText1Copy.setText("");
-        }
-        if (variableText2Copy.getText().trim().length() == 0) {
-            variableText2Copy.setText("");
-        }
-
-        if (variableText3Copy.getText().trim().length() == 0) {
-            variableText3Copy.setText("");
-        }
+        //        // Create individual text elements with the necessary styling
+        //        Text regularTextCopy1 = new Text(regularText1.getText());
+        //        regularTextCopy1.setStyle(regularText1.getStyle());
+        //        regularTextCopy1.setVisible(regularText1.isVisible());
+        //
+        //        Text regularTextCopy2 = new Text(regularText2.getText());
+        //        regularTextCopy2.setStyle(regularText2.getStyle());
+        //        regularTextCopy2.setVisible(regularText2.isVisible());
+        //
+        //        Text regularTextCopy3 = new Text(regularText3.getText());
+        //        regularTextCopy3.setStyle(regularText3.getStyle());
+        //        regularTextCopy3.setVisible(regularText3.isVisible());
+        //
+        //        Text regularTextCopy4 = new Text(regularText4.getText());
+        //        regularTextCopy4.setStyle(regularText4.getStyle());
+        //        regularTextCopy4.setVisible(regularText4.isVisible());
+        //
+        //        Text variableText1Copy = new Text(variableText1.getText());
+        //        variableText1Copy.setStyle(variableText1.getStyle());
+        //        variableText1Copy.setVisible(variableText1.isVisible());
+        //
+        //        Text variableText2Copy = new Text(variableText2.getText());
+        //        variableText2Copy.setStyle(variableText2.getStyle());
+        //        variableText2Copy.setVisible(variableText2.isVisible());
+        //
+        //        Text variableText3Copy = new Text(variableText3.getText());
+        //        variableText3Copy.setStyle(variableText3.getStyle());
+        //        variableText3Copy.setVisible(variableText3.isVisible());
+        //
+        //        if (regularTextCopy1.getText().trim().length() == 0) {
+        //            regularTextCopy1.setText("");
+        //        }
+        //        if (regularTextCopy2.getText().trim().length() == 0) {
+        //            regularTextCopy2.setText("");
+        //        }
+        //
+        //        if (regularTextCopy3.getText().trim().length() == 0) {
+        //            regularTextCopy3.setText("");
+        //        }
+        //        if (regularTextCopy4.getText().trim().length() == 0) {
+        //            regularTextCopy4.setText("");
+        //        }
+        //
+        //        if (variableText1Copy.getText().trim().length() == 0) {
+        //            variableText1Copy.setText("");
+        //        }
+        //        if (variableText2Copy.getText().trim().length() == 0) {
+        //            variableText2Copy.setText("");
+        //        }
+        //
+        //        if (variableText3Copy.getText().trim().length() == 0) {
+        //            variableText3Copy.setText("");
+        //        }
 
         //        // Create an HBox to hold the individual text elements
         //        HBox combinedTextContainer = new HBox();
@@ -2127,64 +2138,65 @@ public class ARNewCommandPane extends ARPane {
         //                combinedTextContainer);
 
         //        if (alertResponse) {
-        if (true) {
+        //        if (true) {
 
-            // Handle loop outside Platform.runLater to ensure multiple iterations
-            int endifCount = actions.equalsIgnoreCase(ARConstants.IF) ? 3 : 1;
+        // Handle loop outside Platform.runLater to ensure multiple iterations
+        int endifCount = actions.equalsIgnoreCase(ARConstants.IF) ? 3 : 1;
 
-            // Run the loop for adding multiple instructions
-            String nextAction = null;
-            int parentId = 0;
-            for (int added = endifCount; added >= 1; added--) {
+        // Run the loop for adding multiple instructions
+        String nextAction = null;
+        int parentId = 0;
+        for (int added = endifCount; added >= 1; added--) {
 
-                boolean isShowAlert = added == 1;
+            boolean isShowAlert = added == 1;
 
-                // Run the instruction add in a separate Task
-                int newRowId = performDataBase.preFillInstruction(
-                        nextAction == null ? name : nextAction,
-                        nextAction == null ? description : nextAction,
-                        nextAction == null ? actions : nextAction,
-                        nextAction == null ? operation : nextAction,
-                        onHold,
-                        varId,
-                        instructionId,
-                        nextAction == null ? -1 : parentId,
-                        rowMoveDTO,
-                        botJobLoad,
-                        isShowAlert);
+            // Run the instruction add in a separate Task
+            int newRowId = performDataBase.preFillInstruction(
+                    nextAction == null ? name : nextAction,
+                    nextAction == null ? description : nextAction,
+                    nextAction == null ? actions : nextAction,
+                    nextAction == null ? operation : nextAction,
+                    onHold,
+                    varId,
+                    instructionId,
+                    nextAction == null ? -1 : parentId,
+                    rowMoveDTO,
+                    botJobLoad,
+                    isShowAlert,
+                    rowMoveDTO.getType().equals("EDIT_OPERATION"),
+                    blockIdChanged);
 
-                if (newRowId > 0) {
+            if (newRowId > 0) {
 
-                    this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
-                    String jsonData = "[]";
-                    if (botJobLoadList.size() > 0) {
-                        List<InstructionLoadDTO> blockLoopInstructions =
-                                performDataBase.buildJsonViewData(botJobLoadList);
-                        jsonData = gson.toJson(blockLoopInstructions);
-                    }
-                    sendMessageJson(rowMoveDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
-
-                    showAlertTimer(
-                            Alert.AlertType.INFORMATION,
-                            "Add Instruction",
-                            "Instruction Added",
-                            "Instruction \"" + name + "\" has been added successfully");
-                } else {
-                    showAlertTimer(
-                            Alert.AlertType.ERROR,
-                            "Error",
-                            "Error Add New Instruction",
-                            "Not possible to insert new Operation:  \"" + name + "\"");
+                this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
+                String jsonData = "[]";
+                if (botJobLoadList.size() > 0) {
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                    jsonData = gson.toJson(blockLoopInstructions);
                 }
+                sendMessageJson(rowMoveDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
-                if (Strings.isNullOrEmpty(nextAction)) {
-                    nextAction = ARConstants.ELSE;
-                    parentId = newRowId;
-                } else if (!Strings.isNullOrEmpty(nextAction) && nextAction.equals(ARConstants.ELSE)) {
-                    nextAction = ARConstants.ENDIF;
-                }
+                //                    showAlertTimer(
+                //                            Alert.AlertType.INFORMATION,
+                //                            "Add Instruction",
+                //                            "Instruction Added",
+                //                            "Instruction \"" + name + "\" has been added successfully");
+            } else {
+                //                    showAlertTimer(
+                //                            Alert.AlertType.ERROR,
+                //                            "Error",
+                //                            "Error Add New Instruction",
+                //                            "Not possible to insert new Operation:  \"" + name + "\"");
+            }
+
+            if (Strings.isNullOrEmpty(nextAction)) {
+                nextAction = ARConstants.ELSE;
+                parentId = newRowId;
+            } else if (!Strings.isNullOrEmpty(nextAction) && nextAction.equals(ARConstants.ELSE)) {
+                nextAction = ARConstants.ENDIF;
             }
         }
+        //        }
         defineTextFlow(comboBoxInstruc.getValue().getValue());
     }
 

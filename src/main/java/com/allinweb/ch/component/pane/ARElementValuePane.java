@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.model.BankingDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
@@ -9,7 +8,6 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.List;
 import java.util.Optional;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -22,7 +20,6 @@ import javafx.scene.layout.*;
 public class ARElementValuePane extends ARPane {
 
     // Postgres
-    private static boolean POSTGRES_DB = false;
     private Connection conn = null;
 
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
@@ -32,9 +29,6 @@ public class ARElementValuePane extends ARPane {
     private String instructionName;
     private String varName;
     private String instructionType;
-
-    private List<BankingDTO> dtoList;
-    private int currentIndex = 0;
 
     private Pane mainPane;
 
@@ -73,7 +67,7 @@ public class ARElementValuePane extends ARPane {
     @Override
     public void initUIComponents() {
 
-        performDataBase.loadUserData(rowMoveDTO, instructionId);
+        this.variablesList = performDataBase.loadAllVariblesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
 
         // Create labels
         Label idLabel = new Label("ID:");
@@ -155,16 +149,14 @@ public class ARElementValuePane extends ARPane {
             }
 
             if (nameField.getText().trim().isEmpty() || selectedType.isEmpty()) {
-                showAlert(
-                        Alert.AlertType.ERROR,
-                        "Error",
-                        "Name and Type Cannot be Empty",
-                        "Name and Type Cannot be Empty");
+                performMessage.errorMessage(
+                        "Name and Type Cannot be Empty", "Name and Type Cannot be Empty", null, null, null, 0);
                 return;
             }
 
             performDataBase.saveUserData(user);
-            performDataBase.loadUserData(rowMoveDTO, instructionId);
+            this.variablesList.clear();
+            this.variablesList = performDataBase.loadAllVariblesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
         });
 
         // Create update button
@@ -179,7 +171,7 @@ public class ARElementValuePane extends ARPane {
             VariableUserDTO user = new VariableUserDTO(
                     id, selectedType, nameField.getText(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
             performDataBase.updateUserData(id, user);
-            performDataBase.loadUserData(rowMoveDTO, instructionId);
+            this.variablesList = performDataBase.loadAllVariblesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
         });
         updateButton.setDisable(true);
 
@@ -200,7 +192,7 @@ public class ARElementValuePane extends ARPane {
             }
 
             performDataBase.deleteUserData(id);
-            performDataBase.loadUserData(rowMoveDTO, instructionId);
+            this.variablesList = performDataBase.loadAllVariblesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
         });
         deleteButton.setDisable(true);
 
