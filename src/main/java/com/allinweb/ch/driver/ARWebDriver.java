@@ -12,6 +12,7 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -48,7 +49,7 @@ public class ARWebDriver {
     // Private constructor to prevent instantiation
     public ARWebDriver() {}
 
-    private ObservableList<WebDriver> webDriverList;
+    private List<WebDriver> webDriverList = new ArrayList<>();
     private PerformMessage performMessage;
     private PerformPreLoad performPreLoad;
     private WebDriver currentDriver;

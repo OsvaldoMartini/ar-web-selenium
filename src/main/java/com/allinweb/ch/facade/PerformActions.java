@@ -1861,35 +1861,39 @@ public class PerformActions {
             boolean byPassFlagLoop) {
 
         if (conditionStatus.equals(ARConstants.ConditionStatus.NONE) && !byPassFlagLoop) {
-            //            showAlert(
-            //                    Alert.AlertType.ERROR,
-            //                    "Validation Error",
-            //                    "Check Validation Error",
-            //                    "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
-            //                            + expected + "\" Length: ("
-            //                            + expected.length()
-            //                            + ")" + "\n --------------------- "
-            //                            + "\nThe Variable \""
-            //                            + operations[0] + "\" holds value \"" + operations[2] + "\""
-            //                            + "\nCurrent Web Field \"" + parent + "\" value: \""
-            //                            + expected + "\" Length: (" + expected.length()
-            //                            + ")" + "\nExpected value: "
-            //                            + operations[2]
-            //                            + " Length: ("
-            //                            + operations[2].length()
-            //                            + ")");
 
-            String msg1 = "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
-                    + expected + "\" Length: ("
-                    + expected.length()
-                    + ")";
+            String msg1;
+            if (operations[1].equals(">")) {
+                msg1 = "The Value of: \"" + expected + "\" is not <span style='color:#000080; font-weight: bold;'>( "
+                        + operations[1] + " )</span> \"" + operations[2] + "\"";
+            } else if (operations[1].equals("<")) {
+                msg1 = "The Value of: \"" + operations[2]
+                        + "\" is not <span style='color:#000080; font-weight: bold;'>( &lt; )</span> \"" + expected
+                        + "\"";
+            } else {
+                msg1 = "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
+                        + expected + "\" Length: ("
+                        + expected.length()
+                        + ")";
+            }
 
             String msg2 = "The Variable \"" + operations[0] + "\" holds value \"" + operations[2] + "\"";
 
-            String msg3 = "Current Web Field \"" + parent + "\" value: \""
-                    + expected + "\" Length: (" + expected.length()
-                    + ")";
-            String msg4 = "\nExpected value: " + operations[2] + " Length: (" + operations[2].length() + ")";
+            String msg3;
+            if (operations[1].equals(">") || operations[1].equals("<")) {
+                msg3 = "Current Web Field \"" + parent + "\" value: \"" + expected + "\"";
+            } else {
+                msg3 = "Current Web Field \"" + parent + "\" value: \""
+                        + expected + "\" Length: (" + expected.length()
+                        + ")";
+            }
+
+            String msg4;
+            if (operations[1].equals(">") || operations[1].equals("<")) {
+                msg4 = "Expected value: " + operations[2];
+            } else {
+                msg4 = "Expected value: " + operations[2] + " Length: (" + operations[2].length() + ")";
+            }
 
             if (Strings.isNullOrEmpty(invalidValues)) {
                 invalidValues = "Check Validation Value Error";
@@ -2336,7 +2340,7 @@ public class PerformActions {
     public void executeActionsAtInstructionCoordinates(InstructionLoadDTO currentInstruction, Pair<String, String> data)
             throws Exception {
 
-        List<com.allinweb.ch.util.Priority> priorityList = ARPriorities.getAllPriorityList();
+        List<com.allinweb.ch.util.Priority> priorityList = arPriorities.getAllPriorityList();
         Optional<com.allinweb.ch.util.Priority> priority = priorityList.stream()
                 .filter(p -> p.getPriorityType().equals(PriorityTypeEnum.coordinates))
                 .findFirst();

@@ -240,7 +240,7 @@ public class ARScannedElementPane extends ARPane {
             currentBlockName = blockName;
         } else {
             try {
-                currentBlockId = comboBoxBlocks.getValue().getExtraId();
+                currentBlockId = comboBoxBlocks.getValue().getBlockId();
                 currentBlockName = comboBoxBlocks.getValue().getText();
 
             } catch (Exception error) {
@@ -1305,9 +1305,11 @@ public class ARScannedElementPane extends ARPane {
             vBoxCheckBox
                     .getChildren()
                     .addAll(
+                            createSpacerVert(),
                             checkClickElement,
                             checkInputText,
                             checkOutputText,
+                            createCustomSeparator(Color.DARKBLUE, 2),
                             checkForceEnterText,
                             checkForceCoordText,
                             iFrameText);
@@ -3379,22 +3381,12 @@ public class ARScannedElementPane extends ARPane {
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String resultActions = "No instruction executed yet";
-        boolean showAlert = true;
-        String extraMsg = "";
-        short status = (short) ExcelReportStatusEnum.ERROR.ordinal();
         Map<String, String> dataExcel = null;
 
         clearFields();
 
-        //        ExcelReportDTO report = new ExcelReportDTO();
-        //        report.setOrder((short) blocksLoaded.get(0).getId());
-        //        report.setStartDate(LocalDateTime.now());
-        //        report.setBatchJobId(selectedJob.getId());
-        //        report.setBotJobDTO(selectedJob);
-        //        report.setStatus((short) ExcelReportStatusEnum.NOT_RUN.ordinal());
-
         // Execute All Blocks starting from executeSpecificBlock if Defined
-        int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
+        int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
 
         mapOperators = new HashMap<>();
         mapExport = new LinkedHashMap<>();
@@ -3814,16 +3806,14 @@ public class ARScannedElementPane extends ARPane {
 
                         resultActions = performActions.actionResultMessage(blockName, actions, msgInstruction);
 
-                        extraMsg = "";
-
                         if (actions[0].equalsIgnoreCase(ARConstants.PAUSE)) {
                             pauseOperation = true;
 
                             respModal = performMessage.showCustomModalDialogDragWin11(
                                     "PAUSE BOT JOB",
-                                    String.format("PAUSE BOT JOB at Block Name:\"%s\"", blockLoad.getName()),
+                                    "PAUSED at Block Name",
+                                    blockLoad.getName(),
                                     " Please click OK to continue!",
-                                    null,
                                     null,
                                     false,
                                     "Continue",
@@ -4153,7 +4143,8 @@ public class ARScannedElementPane extends ARPane {
                                     webElementFound =
                                             performActions.searchElement(currentInstruction, this.botJobLoad.getId());
                                 } catch (Exception ex) {
-                                    extraMsg = "Element not found. Please try rescanning.!";
+                                    //                                    extraMsg = "Element not found. Please try
+                                    // rescanning.!";
                                     success = false;
                                 }
 
@@ -4202,7 +4193,7 @@ public class ARScannedElementPane extends ARPane {
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
                                 if (resultActions.contains("Error:") || webElementFound == null || !success) {
-                                    resultActions = "Failed " + resultActions;
+                                    resultActions = "Failed: " + resultActions;
                                     success = false;
                                 } else if (resultActions != null && success) {
                                     currentInstruction.setExecuted(true);
@@ -4294,8 +4285,8 @@ public class ARScannedElementPane extends ARPane {
                                 } else {
                                     //                                    fieldName = parentField;
 
-                                    resultActions = "CHECK_VALUE for (Parent: " + parentField + ")"
-                                            + String.join(" ", operations);
+                                    resultActions =
+                                            "CHECK_VALUE for (" + parentField + ")" + String.join(" ", operations);
                                     boolean isOperationValid = false;
                                     String invalidValues = null;
 
@@ -4707,7 +4698,7 @@ public class ARScannedElementPane extends ARPane {
                         try {
                             webElementFound = performActions.searchElement(currentInstruction, this.botJobLoad.getId());
                         } catch (Exception ex) {
-                            extraMsg = "Element not found. Please try rescanning.!";
+                            //                            extraMsg = "Element not found. Please try rescanning.!";
                         }
 
                         success = performActions.performWebActions(
@@ -5340,9 +5331,9 @@ public class ARScannedElementPane extends ARPane {
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         blocksItems.clear();
         if (blockLoadDTOList.size() > 0) {
-            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, null));
+            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, -1, -1, null));
         } else {
-            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, null));
+            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null));
         }
         for (BlockLoadDTO block : blockLoadDTOList) {
             blocksItems.add(new ComboBoxVars(
@@ -5350,6 +5341,8 @@ public class ARScannedElementPane extends ARPane {
                     block.getName(),
                     block.getBlockOrderNumber(),
                     block.getId(),
+                    -1,
+                    -1,
                     null));
         }
     }

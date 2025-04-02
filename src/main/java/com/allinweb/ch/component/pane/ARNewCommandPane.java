@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -30,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -63,6 +66,18 @@ public class ARNewCommandPane extends ARPane {
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
+
+    private List<String> allowedActions = Arrays.asList(
+            WebElementIcon.SET_VALUE.getValue(),
+            WebElementIcon.GET_VALUE.getValue(),
+            WebElementIcon.CHECK_VALUE.getValue(),
+            WebElementIcon.GOTO.getValue(),
+            WebElementIcon.EXTRACT_FIELD.getValue(),
+            WebElementIcon.REFRESH_ONLY.getValue(),
+            WebElementIcon.LOOP.getValue(),
+            WebElementIcon.REFRESH_LOOP.getValue());
+
+    private boolean firstLoad = false;
 
     private final Gson gson = new Gson();
 
@@ -153,6 +168,8 @@ public class ARNewCommandPane extends ARPane {
     private ComboBox<ComboBoxImage> comboBoxInstruc;
     private ObservableList<ComboBoxImage> itemsInstructions = FXCollections.observableArrayList();
 
+    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
+
     private ComboBox<ComboBoxVars> comboBoxVars;
     private ObservableList<ComboBoxVars> variablesItems = FXCollections.observableArrayList();
 
@@ -162,10 +179,7 @@ public class ARNewCommandPane extends ARPane {
     private ComboBox<ComboBoxVars> comboBoxLoops;
     private ObservableList<ComboBoxVars> loopsItems = FXCollections.observableArrayList();
 
-    private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
-
-    private ComboBox<ComboBoxVars> comboBoxWebPage;
-    private ObservableList<ComboBoxVars> webPageItems;
+    private ComboBox<ComboBoxVars> comboBoxWebFields;
     private ObservableList<ComboBoxVars> filteredPageItems = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxVars> comboBoxAllBlocks;
@@ -187,7 +201,6 @@ public class ARNewCommandPane extends ARPane {
 
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
-        this.webPageItems = webPageItems;
         this.sessionId = sessionId;
 
         // Initial
@@ -199,25 +212,17 @@ public class ARNewCommandPane extends ARPane {
             variablesDisable = true;
         }
 
-        String operationType = rowMoveDTO.getType();
-        String firstAction = "";
-        if (!rowMoveDTO.getUpdatedRows().isEmpty()) {
-            firstAction = rowMoveDTO.getUpdatedRows().get(0).getActions();
-        } else {
-            firstAction = rowMoveDTO.getType();
-        }
-
         // Initialize itemsInstructions list conditionally
         try {
             itemsInstructions = FXCollections.observableArrayList();
             //            itemsInstructions.add(
             //                    new ComboBoxImage("Select", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE));
             itemsInstructions.add(
-                    new ComboBoxImage("setValue", new Image(ARConstants.ICON_SET_VALUE_BTN), ARConstants.SET_VALUE));
+                    new ComboBoxImage("SetValue", new Image(ARConstants.ICON_SET_VALUE_BTN), ARConstants.SET_VALUE));
             itemsInstructions.add(
-                    new ComboBoxImage("getValue", new Image(ARConstants.ICON_GET_VALUE_BTN), ARConstants.GET_VALUE));
+                    new ComboBoxImage("GetValue", new Image(ARConstants.ICON_GET_VALUE_BTN), ARConstants.GET_VALUE));
             itemsInstructions.add(
-                    new ComboBoxImage("Check", new Image(ARConstants.ICON_CHECK), ARConstants.CHECK_VALUE));
+                    new ComboBoxImage("CheckValue", new Image(ARConstants.ICON_CHECK), ARConstants.CHECK_VALUE));
 
             // Add "IF" only if it does not meet the exclusion conditions
             if (rowMoveDTO.getIsBetween() != null && !rowMoveDTO.getIsBetween()) {
@@ -262,13 +267,13 @@ public class ARNewCommandPane extends ARPane {
         }
 
         if (filteredPageItems.isEmpty()) {
-            filteredPageItems.add(new ComboBoxVars("No Web Fields", ARConstants.NO_VALUE, -1, -1, null));
+            filteredPageItems.add(new ComboBoxVars("No Web Fields", ARConstants.NO_VALUE, -1, -1, -1, -1, null));
         }
 
-        if (this.filteredPageItems != null && !this.filteredPageItems.isEmpty()) {
+        if (this.filteredPageItems != null && this.filteredPageItems.size() > 0) {
             variablesItems.clear();
             this.variablesList = performDataBase.loadAllVariblesByCriteria(
-                    this.botJobLoad.getId(), filteredPageItems.get(0).getVarId());
+                    this.botJobLoad.getId(), filteredPageItems.get(0).getInstructionId());
         }
 
         this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
@@ -282,7 +287,7 @@ public class ARNewCommandPane extends ARPane {
             loadAllBlockItems(blockLoadList);
             //            }
         } else {
-            allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, null));
+            allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null));
         }
     }
 
@@ -320,6 +325,39 @@ public class ARNewCommandPane extends ARPane {
                 alertToShow.close(); // Close the alert dialog
             }
         }));
+
+        addNewInstructionButton = componentBuilder.buildButton("OK", ARConstants.SPACE_L, Insets.EMPTY);
+        addNewInstructionButton.getStyleClass().add("ok-button");
+
+        cancelButton = componentBuilder.buildButton("Close", ARConstants.SPACE_L, Insets.EMPTY);
+        cancelButton.getStyleClass().add("cancel-button");
+
+        variableButton = componentBuilder.buildButton(
+                "Variables", ARConstants.SPACE_L, ARConstants.ICON_VARIABLES, ARConstants.SPACE_M, Insets.EMPTY);
+
+        variableButton.setDisable(variablesDisable);
+
+        addPauseButton = componentBuilder.buildButton(
+                "", ARConstants.SPACE_L, ARConstants.ICON_PAUSE, ARConstants.SPACE_M, new Insets(5));
+        addWaitButton30 = componentBuilder.buildButton(
+                "30s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
+
+        addWaitButton15 = componentBuilder.buildButton(
+                "15s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
+
+        addWaitButton5 = componentBuilder.buildButton(
+                "5s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
+
+        addWaitButton2 = componentBuilder.buildButton(
+                "2s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
+
+        addCloseActionButton = componentBuilder.buildButton(
+                "Add Close Browser", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5));
+        addScreenButton = componentBuilder.buildButton(
+                "Add Screenshot", ARConstants.SPACE_L, ARConstants.ICON_SCREEN, ARConstants.SPACE_M, new Insets(5));
+
+        // Create a new HBox for the new buttons
+        buttonBox = new HBox(10); // 10 is the spacing between buttons
 
         // Create labels
         commandLabel = new Label("Command:");
@@ -385,13 +423,13 @@ public class ARNewCommandPane extends ARPane {
 
         textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
 
-        timesItems.add(new ComboBoxVars("5s", "5", -1, -1, null));
-        timesItems.add(new ComboBoxVars("10s", "10", -1, -1, null));
-        timesItems.add(new ComboBoxVars("20s", "20", -1, -1, null));
-        timesItems.add(new ComboBoxVars("30s", "30", -1, -1, null));
-        timesItems.add(new ComboBoxVars("40s", "40", -1, -1, null));
-        timesItems.add(new ComboBoxVars("50s", "50", -1, -1, null));
-        timesItems.add(new ComboBoxVars("60s", "60", -1, -1, null));
+        timesItems.add(new ComboBoxVars("5s", "5", -1, -1, -1, -1, null));
+        timesItems.add(new ComboBoxVars("10s", "10", -1, -1, -1, -1, null));
+        timesItems.add(new ComboBoxVars("20s", "20", -1, -1, -1, -1, null));
+        timesItems.add(new ComboBoxVars("30s", "30", -1, -1, -1, -1, null));
+        timesItems.add(new ComboBoxVars("40s", "40", -1, -1, -1, -1, null));
+        timesItems.add(new ComboBoxVars("50s", "50", -1, -1, -1, -1, null));
+        timesItems.add(new ComboBoxVars("60s", "60", -1, -1, -1, -1, null));
 
         comboBoxTimes = new ComboBox<>(timesItems);
         comboBoxTimes.setPrefWidth(50);
@@ -428,12 +466,11 @@ public class ARNewCommandPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxTimes.getSelectionModel().selectFirst();
 
-        loopsItems.add(new ComboBoxVars("5 x", "5", -1, -1, null));
-        loopsItems.add(new ComboBoxVars("10 x", "10", -1, -1, null));
-        loopsItems.add(new ComboBoxVars("20 x", "20", -1, -1, null));
-        loopsItems.add(new ComboBoxVars("30 x", "30", -1, -1, null));
+        loopsItems.add(new ComboBoxVars("5 x", "5", -1, -1, -1, -1, null));
+        loopsItems.add(new ComboBoxVars("10 x", "10", -1, -1, -1, -1, null));
+        loopsItems.add(new ComboBoxVars("20 x", "20", -1, -1, -1, -1, null));
+        loopsItems.add(new ComboBoxVars("30 x", "30", -1, -1, -1, -1, null));
         comboBoxLoops = new ComboBox<>(loopsItems);
         comboBoxLoops.setPrefWidth(60);
         // Set cell factory to display images and text
@@ -469,7 +506,6 @@ public class ARNewCommandPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxLoops.getSelectionModel().selectFirst();
 
         comboBoxInstruc = new ComboBox<>(itemsInstructions);
         comboBoxInstruc.setPrefWidth(120); // Set preferred width of ComboBox
@@ -515,7 +551,6 @@ public class ARNewCommandPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxInstruc.getSelectionModel().selectFirst();
 
         comboBoxOperator = new ComboBox<>(operatorsItems);
         comboBoxOperator.setPrefWidth(50);
@@ -562,8 +597,6 @@ public class ARNewCommandPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxOperator.getSelectionModel().selectFirst();
-        reloadComboVars();
 
         comboBoxVars = new ComboBox<>(variablesItems);
         comboBoxVars.setButtonCell(new ListCell<>() {
@@ -598,11 +631,10 @@ public class ARNewCommandPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxVars.getSelectionModel().selectFirst();
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
         if (blocksItems.size() == 0) {
-            blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1, null));
+            blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1, -1, -1, null));
         }
         comboBoxBlocks.setPrefWidth(buttonWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
@@ -640,9 +672,9 @@ public class ARNewCommandPane extends ARPane {
         });
         comboBoxBlocks.getSelectionModel().selectFirst();
 
-        comboBoxWebPage = new ComboBox<>(filteredPageItems);
-        comboBoxWebPage.setPrefWidth(50);
-        comboBoxWebPage.setButtonCell(new ListCell<>() {
+        comboBoxWebFields = new ComboBox<>(filteredPageItems);
+        comboBoxWebFields.setPrefWidth(50);
+        comboBoxWebFields.setButtonCell(new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxVars item, boolean empty) {
                 super.updateItem(item, empty);
@@ -656,7 +688,7 @@ public class ARNewCommandPane extends ARPane {
                 }
             }
         });
-        comboBoxWebPage.setCellFactory(param -> new ListCell<>() {
+        comboBoxWebFields.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(ComboBoxVars item, boolean empty) {
                 super.updateItem(item, empty);
@@ -674,7 +706,6 @@ public class ARNewCommandPane extends ARPane {
                 setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
             }
         });
-        comboBoxWebPage.getSelectionModel().selectFirst();
 
         comboBoxAllBlocks = new ComboBox<>(allBlocksItems);
         comboBoxAllBlocks.setPrefWidth(50);
@@ -717,7 +748,7 @@ public class ARNewCommandPane extends ARPane {
 
             // Iterate through items in comboBoxAllBlocks
             for (ComboBoxVars item : comboBoxAllBlocks.getItems()) {
-                if (item.getExtraId() != null && item.getExtraId() == targetBlockId) {
+                if (item.getBlockId() != null && item.getBlockId() == targetBlockId) {
                     comboBoxAllBlocks.getSelectionModel().select(item); // Select the matching item
                 }
             }
@@ -726,40 +757,41 @@ public class ARNewCommandPane extends ARPane {
             comboBoxAllBlocks.getSelectionModel().selectFirst();
         }
 
-        defineTextFlow(comboBoxInstruc.getValue().getValue());
+        if (rowMoveDTO.getType().equals("EDIT_OPERATION")) {
+            String actions = rowMoveDTO.getUpdatedRows().get(0).getInstructionName();
+            String[] operations = rowMoveDTO.getUpdatedRows().get(0).getOperation() != null
+                    ? rowMoveDTO
+                            .getUpdatedRows()
+                            .get(0)
+                            .getOperation()
+                            .split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                    : null;
 
-        addNewInstructionButton = componentBuilder.buildButton("OK", ARConstants.SPACE_L, Insets.EMPTY);
-        addNewInstructionButton.getStyleClass().add("ok-button");
+            if (allowedActions.contains(actions)) {
+                firstLoad = true;
+                setSelectedIndexByValue(actions, operations);
+            } else {
+                comboBoxInstruc.getSelectionModel().selectFirst();
+                comboBoxWebFields.getSelectionModel().selectFirst();
+                //            reloadComboVars();
+                comboBoxVars.getSelectionModel().selectFirst();
+                comboBoxOperator.getSelectionModel().selectFirst();
+                comboBoxTimes.getSelectionModel().selectFirst();
+                comboBoxLoops.getSelectionModel().selectFirst();
+                recallMessages(comboBoxInstruc.getValue().getValue());
+            }
+        } else {
+            comboBoxInstruc.getSelectionModel().selectFirst();
+            comboBoxWebFields.getSelectionModel().selectFirst();
+            //            reloadComboVars();
+            comboBoxVars.getSelectionModel().selectFirst();
+            comboBoxOperator.getSelectionModel().selectFirst();
+            comboBoxTimes.getSelectionModel().selectFirst();
+            comboBoxLoops.getSelectionModel().selectFirst();
+            recallMessages(comboBoxInstruc.getValue().getValue());
+        }
 
-        cancelButton = componentBuilder.buildButton("Close", ARConstants.SPACE_L, Insets.EMPTY);
-        cancelButton.getStyleClass().add("cancel-button");
-
-        variableButton = componentBuilder.buildButton(
-                "Variables", ARConstants.SPACE_L, ARConstants.ICON_VARIABLES, ARConstants.SPACE_M, Insets.EMPTY);
-
-        variableButton.setDisable(variablesDisable);
-
-        addPauseButton = componentBuilder.buildButton(
-                "", ARConstants.SPACE_L, ARConstants.ICON_PAUSE, ARConstants.SPACE_M, new Insets(5));
-        addWaitButton30 = componentBuilder.buildButton(
-                "30s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
-
-        addWaitButton15 = componentBuilder.buildButton(
-                "15s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
-
-        addWaitButton5 = componentBuilder.buildButton(
-                "5s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
-
-        addWaitButton2 = componentBuilder.buildButton(
-                "2s", ARConstants.SPACE_L, ARConstants.ICON_WAIT, ARConstants.SPACE_M, new Insets(5));
-
-        addCloseActionButton = componentBuilder.buildButton(
-                "Add Close Browser", ARConstants.SPACE_L, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(5));
-        addScreenButton = componentBuilder.buildButton(
-                "Add Screenshot", ARConstants.SPACE_L, ARConstants.ICON_SCREEN, ARConstants.SPACE_M, new Insets(5));
-
-        // Create a new HBox for the new buttons
-        buttonBox = new HBox(10); // 10 is the spacing between buttons
+        //        defineTextFlow(comboBoxInstruc.getValue().getValue());
 
         buttonBox
                 .getChildren()
@@ -784,7 +816,7 @@ public class ARNewCommandPane extends ARPane {
 
         comboBoxInstruc.setPrefWidth(buttonWidth);
         comboBoxVars.setPrefWidth(buttonWidth);
-        comboBoxWebPage.setPrefWidth(buttonWidth);
+        comboBoxWebFields.setPrefWidth(buttonWidth);
         comboBoxAllBlocks.setPrefWidth(buttonWidth);
 
         // Handle the visibility of comboBoxBlocks
@@ -809,7 +841,7 @@ public class ARNewCommandPane extends ARPane {
 
         commandBox = new VBox(commandLabel, comboBoxInstruc);
         varsBox = new VBox(botJobVarsLabel, comboBoxVars);
-        webFieldsBox = new VBox(webPageLabel, comboBoxWebPage);
+        webFieldsBox = new VBox(webPageLabel, comboBoxWebFields);
         addNewsBox = new VBox(addNewsLabel, comboBoxAllBlocks);
         blocksBox = new VBox(blocksLabel, comboBoxBlocks);
 
@@ -918,425 +950,6 @@ public class ARNewCommandPane extends ARPane {
         comboBoxTimes.setVisible(false);
         comboBoxLoops.setVisible(false);
 
-        // Add a listener to comboBoxInstruc to handle selection changes
-        comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                // Set the visibility of comboBoxOperator based on the selected value
-                if (ARConstants.CHECK_VALUE.equalsIgnoreCase(newValue.getValue())) {
-                    //                    filteredPageItems.clear();
-                    //                    this.filteredPageItems.addAll(webPageItems.stream()
-                    //                            .filter(item -> "input".equals(item.getTagType()))
-                    //                            .toList());
-
-                    defineTextFlow(comboBoxInstruc.getValue().getValue());
-
-                    textFlow.setVisible(true);
-                    //                    textFlow.setPrefWidth(buttonWidth + 100);
-
-                    //                    botJobVarsLabel.setText("Bot-Job Variable");
-                    botJobVarsLabel.setVisible(true);
-                    webPageLabel.setVisible(true);
-                    comboBoxOperator.setVisible(true);
-                    comboBoxWebPage.setVisible(true);
-                    comboBoxAllBlocks.setVisible(true);
-
-                    variableButton.setVisible(true);
-
-                    comboBoxVars.setVisible(true);
-                    comboBoxVars.setPrefWidth(buttonWidth);
-                    comboBoxBlocks.setVisible(false);
-                    comboBoxTimes.setVisible(false);
-                    comboBoxLoops.setVisible(false);
-
-                    try {
-                        variableButtonRow.getChildren().clear();
-                        vboxAll.getChildren().clear();
-
-                        // labelRow.getChildren().clear();
-                        // labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
-                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
-
-                        comboBoxesRow.getChildren().clear();
-                        comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
-
-                        variableButtonRow = new HBox(10, variableButton, comboBoxOperator, textFlow);
-
-                        vboxAll.getChildren()
-                                .addAll(
-                                        operationSelected,
-                                        // labelRow, // Web Page Label row
-                                        comboBoxesRow, // ComboBoxes row
-                                        variableButtonRow, // Variable Button row
-                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
-                                        addNewsBox,
-                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
-                                        );
-
-                        // labelRow.requestLayout();
-                        vboxAll.requestLayout();
-                        mainPane.requestLayout();
-
-                    } catch (Exception ex) {
-                        System.out.println(ex.getMessage());
-                    }
-
-                } else if (ARConstants.GOTO.equalsIgnoreCase(newValue.getValue())) {
-                    defineTextFlow(comboBoxInstruc.getValue().getValue());
-
-                    textFlow.setVisible(true);
-                    //                    textFlow.setPrefWidth(buttonWidth + 100);
-
-                    //                    botJobVarsLabel.setText("Block Destination");
-                    botJobVarsLabel.setVisible(true);
-                    webPageLabel.setVisible(false);
-                    comboBoxOperator.setVisible(false);
-                    comboBoxWebPage.setVisible(false);
-                    comboBoxAllBlocks.setVisible(true);
-
-                    variableButton.setVisible(false);
-
-                    comboBoxVars.setVisible(false);
-                    comboBoxBlocks.setVisible(true);
-                    comboBoxBlocks.setPrefWidth(buttonWidth);
-                    comboBoxTimes.setVisible(false);
-                    comboBoxLoops.setVisible(true);
-
-                    try {
-                        variableButtonRow.getChildren().clear();
-                        vboxAll.getChildren().clear();
-
-                        // labelRow.getChildren().clear();
-                        // labelRow.getChildren().addAll(commandLabel);
-                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
-
-                        comboBoxesRow.getChildren().clear();
-                        comboBoxesRow.getChildren().addAll(commandBox, blocksBox);
-
-                        variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
-
-                        vboxAll.getChildren()
-                                .addAll(
-                                        operationSelected,
-                                        // labelRow, // Web Page Label row
-                                        comboBoxesRow, // ComboBoxes row
-                                        variableButtonRow, // Variable Button row
-                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
-                                        addNewsBox,
-                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
-                                        );
-
-                        // labelRow.requestLayout();
-                        vboxAll.requestLayout();
-                        mainPane.requestLayout();
-
-                    } catch (Exception ex) {
-                        System.out.println(ex.getMessage());
-                    }
-
-                } else if (ARConstants.REFRESH_ONLY.equalsIgnoreCase(newValue.getValue())) {
-                    defineTextFlow(comboBoxInstruc.getValue().getValue());
-
-                    textFlow.setVisible(true);
-                    //                    textFlow.setPrefWidth(buttonWidth + 100);
-
-                    botJobVarsLabel.setVisible(false);
-                    webPageLabel.setVisible(false);
-                    comboBoxBlocks.setVisible(false);
-                    comboBoxOperator.setVisible(false);
-                    comboBoxWebPage.setVisible(false);
-                    comboBoxAllBlocks.setVisible(true);
-
-                    variableButton.setVisible(false);
-                    comboBoxVars.setVisible(false);
-                    comboBoxTimes.setVisible(false);
-                    comboBoxLoops.setVisible(false);
-
-                    try {
-                        variableButtonRow.getChildren().clear();
-                        vboxAll.getChildren().clear();
-
-                        // labelRow.getChildren().clear();
-                        // labelRow.getChildren().addAll(commandLabel);
-                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
-
-                        comboBoxesRow.getChildren().clear();
-                        comboBoxesRow.getChildren().addAll(commandBox);
-
-                        variableButtonRow = new HBox(10, blankText, textFlow);
-
-                        vboxAll.getChildren()
-                                .addAll(
-                                        operationSelected,
-                                        // labelRow, // Web Page Label row
-                                        comboBoxesRow, // ComboBoxes row
-                                        variableButtonRow, // Variable Button row
-                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
-                                        addNewsBox,
-                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
-                                        );
-
-                        // labelRow.requestLayout();
-                        vboxAll.requestLayout();
-                        mainPane.requestLayout();
-
-                    } catch (Exception ex) {
-                        System.out.println(ex.getMessage());
-                    }
-
-                } else if (ARConstants.LOOP.equalsIgnoreCase(newValue.getValue())) {
-                    defineTextFlow(comboBoxInstruc.getValue().getValue());
-
-                    textFlow.setVisible(true);
-                    //                    textFlow.setPrefWidth(buttonWidth + 100);
-
-                    //                    botJobVarsLabel.setText("Bot-Job Variable");
-                    botJobVarsLabel.setVisible(false);
-                    webPageLabel.setVisible(true);
-                    comboBoxOperator.setVisible(false);
-                    comboBoxWebPage.setVisible(true);
-                    comboBoxAllBlocks.setVisible(true);
-
-                    variableButton.setVisible(false);
-
-                    comboBoxVars.setVisible(false);
-                    comboBoxVars.setPrefWidth(buttonWidth);
-                    comboBoxBlocks.setVisible(false);
-
-                    comboBoxTimes.setVisible(false);
-                    comboBoxLoops.setVisible(true);
-
-                    try {
-                        variableButtonRow.getChildren().clear();
-                        vboxAll.getChildren().clear();
-
-                        // labelRow.getChildren().clear();
-                        // labelRow.getChildren().addAll(commandLabel, webPageLabel);
-                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
-
-                        comboBoxesRow.getChildren().clear();
-                        comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
-
-                        variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
-
-                        vboxAll.getChildren()
-                                .addAll(
-                                        operationSelected,
-                                        // labelRow, // Web Page Label row
-                                        comboBoxesRow, // ComboBoxes row
-                                        variableButtonRow, // Variable Button row
-                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
-                                        addNewsBox,
-                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
-                                        );
-
-                        // labelRow.requestLayout();
-                        vboxAll.requestLayout();
-                        mainPane.requestLayout();
-
-                    } catch (Exception ex) {
-                        System.out.println(ex.getMessage());
-                    }
-
-                } else if (ARConstants.REFRESH_LOOP.equalsIgnoreCase(newValue.getValue())) {
-                    defineTextFlow(comboBoxInstruc.getValue().getValue());
-
-                    textFlow.setVisible(true);
-                    //                    textFlow.setPrefWidth(buttonWidth + 100);
-
-                    //                    botJobVarsLabel.setText("Bot-Job Variable");
-                    botJobVarsLabel.setVisible(false);
-                    webPageLabel.setVisible(true);
-                    comboBoxOperator.setVisible(false);
-                    comboBoxWebPage.setVisible(true);
-                    comboBoxAllBlocks.setVisible(true);
-
-                    variableButton.setVisible(false);
-
-                    comboBoxVars.setVisible(false);
-                    comboBoxVars.setPrefWidth(buttonWidth);
-                    comboBoxBlocks.setVisible(false);
-
-                    comboBoxTimes.setVisible(true);
-                    comboBoxLoops.setVisible(true);
-
-                    try {
-                        variableButtonRow.getChildren().clear();
-                        vboxAll.getChildren().clear();
-
-                        // labelRow.getChildren().clear();
-                        // labelRow.getChildren().addAll(commandLabel, webPageLabel);
-                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
-
-                        comboBoxesRow.getChildren().clear();
-                        comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
-
-                        variableButtonRow =
-                                new HBox(10, blankText, timesText, comboBoxTimes, loopText, comboBoxLoops, textFlow);
-
-                        vboxAll.getChildren()
-                                .addAll(
-                                        operationSelected,
-                                        // labelRow, // Web Page Label row
-                                        comboBoxesRow, // ComboBoxes row
-                                        variableButtonRow, // Variable Button row
-                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
-                                        addNewsBox,
-                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
-                                        );
-
-                        // labelRow.requestLayout();
-                        vboxAll.requestLayout();
-                        mainPane.requestLayout();
-
-                    } catch (Exception ex) {
-                        System.out.println(ex.getMessage());
-                    }
-
-                } else if (ARConstants.IF.equalsIgnoreCase(newValue.getValue())) {
-                    defineTextFlow(comboBoxInstruc.getValue().getValue());
-
-                    textFlow.setVisible(true);
-                    //                    textFlow.setPrefWidth(buttonWidth + 100);
-
-                    botJobVarsLabel.setVisible(false);
-                    webPageLabel.setVisible(false);
-                    comboBoxBlocks.setVisible(false);
-                    comboBoxOperator.setVisible(false);
-                    comboBoxWebPage.setVisible(false);
-                    comboBoxAllBlocks.setVisible(true);
-                    variableButton.setVisible(false);
-                    comboBoxVars.setVisible(false);
-                    comboBoxTimes.setVisible(false);
-                    comboBoxLoops.setVisible(false);
-
-                    try {
-                        variableButtonRow.getChildren().clear();
-                        vboxAll.getChildren().clear();
-
-                        // labelRow.getChildren().clear();
-                        // labelRow.getChildren().addAll(commandLabel);
-                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
-
-                        comboBoxesRow.getChildren().clear();
-                        comboBoxesRow.getChildren().addAll(commandBox);
-
-                        variableButtonRow = new HBox(10, blankText, textFlow);
-
-                        vboxAll.getChildren()
-                                .addAll(
-                                        operationSelected,
-                                        // labelRow, // Web Page Label row
-                                        comboBoxesRow, // ComboBoxes row
-                                        variableButtonRow, // Variable Button row
-                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
-                                        addNewsBox,
-                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
-                                        );
-
-                        // labelRow.requestLayout();
-                        vboxAll.requestLayout();
-                        mainPane.requestLayout();
-
-                    } catch (Exception ex) {
-                        System.out.println(ex.getMessage());
-                    }
-
-                } else {
-                    defineTextFlow(newValue.getValue());
-
-                    textFlow.setVisible(true);
-                    //                    textFlow.setPrefWidth(buttonWidth);
-
-                    //                    botJobVarsLabel.setText("Bot-Job Variable");
-                    botJobVarsLabel.setVisible(true);
-                    webPageLabel.setVisible(true);
-                    comboBoxOperator.setVisible(false);
-                    comboBoxWebPage.setVisible(true);
-                    comboBoxAllBlocks.setVisible(true);
-                    variableButton.setVisible(true);
-
-                    comboBoxVars.setVisible(true);
-                    comboBoxVars.setPrefWidth(buttonWidth);
-                    comboBoxBlocks.setVisible(false);
-
-                    comboBoxTimes.setVisible(false);
-                    comboBoxLoops.setVisible(false);
-
-                    try {
-                        variableButtonRow.getChildren().clear();
-                        vboxAll.getChildren().clear();
-
-                        // labelRow.getChildren().clear();
-                        // labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
-                        // labelRow.setAlignment(Pos.BASELINE_LEFT);
-
-                        comboBoxesRow.getChildren().clear();
-                        comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
-
-                        variableButtonRow = new HBox(10, variableButton, textFlow);
-
-                        vboxAll.getChildren()
-                                .addAll(
-                                        operationSelected,
-                                        // labelRow, // Web Page Label row
-                                        comboBoxesRow, // ComboBoxes row
-                                        variableButtonRow, // Variable Button row
-                                        buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
-                                        addNewsBox,
-                                        instructionButtonsRow // Add Instruction and Cancel Buttons row
-                                        );
-
-                        // labelRow.requestLayout();
-                        vboxAll.requestLayout();
-                        mainPane.requestLayout();
-
-                    } catch (Exception ex) {
-                        System.out.println(ex.getMessage());
-                    }
-                }
-            }
-        });
-
-        // Add a listener to comboBoxVars to handle selection changes
-        comboBoxVars.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                // Set the visibility of comboBoxOperator based on the selected value
-                defineTextFlow(comboBoxInstruc.getValue().getValue());
-            }
-        });
-
-        // Add a listener to comboBoxBlocks to handle selection changes
-        comboBoxBlocks.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                // Set the visibility of comboBoxOperator based on the selected value
-                defineTextFlow(comboBoxInstruc.getValue().getValue());
-            }
-        });
-
-        // Add a listener to comboBoxVars to handle selection changes
-        comboBoxOperator.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                // Set the visibility of comboBoxOperator based on the selected value
-                defineTextFlow(comboBoxInstruc.getValue().getValue());
-            }
-        });
-
-        // Add a listener to comboBoxVars to handle selection changes
-        comboBoxTimes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                // Set the visibility of comboBoxOperator based on the selected value
-                defineTextFlow(comboBoxInstruc.getValue().getValue());
-            }
-        });
-
-        // Add a listener to comboBoxVars to handle selection changes
-        comboBoxLoops.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                // Set the visibility of comboBoxOperator based on the selected value
-                defineTextFlow(comboBoxInstruc.getValue().getValue());
-            }
-        });
-
         this.addNewInstructionButton.setOnMouseClicked((e) -> {
             // Check if the current selected index is greater than the first index
 
@@ -1350,7 +963,7 @@ public class ARNewCommandPane extends ARPane {
                             "Variables Not Defined!",
                             "No variables have been created!",
                             "Please define a variable for: \""
-                                    + comboBoxWebPage.getValue().getText() + "\".",
+                                    + comboBoxWebFields.getValue().getText() + "\".",
                             null,
                             null,
                             0);
@@ -1366,15 +979,15 @@ public class ARNewCommandPane extends ARPane {
 
                     return;
                 } else if (comboBoxAllBlocks.getValue() != null
-                        && comboBoxWebPage.getValue() != null
+                        && comboBoxWebFields.getValue() != null
                         && !comboBoxAllBlocks
                                 .getValue()
-                                .getExtraId()
-                                .equals(comboBoxWebPage.getValue().getExtraId())) {
+                                .getBlockId()
+                                .equals(comboBoxWebFields.getValue().getBlockId())) {
 
                     String outsideBlock = allBlocksItems.stream()
-                            .filter(f -> f.getExtraId()
-                                    .equals(comboBoxWebPage.getValue().getExtraId()))
+                            .filter(f -> f.getBlockId()
+                                    .equals(comboBoxWebFields.getValue().getBlockId()))
                             .map(ComboBoxVars::getText)
                             .findFirst()
                             .orElse(null);
@@ -1393,7 +1006,7 @@ public class ARNewCommandPane extends ARPane {
 
             if (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
                     && blocksItems.size() == 1
-                    && (comboBoxBlocks.getValue().getExtraId() == -1)) {
+                    && (comboBoxBlocks.getValue().getBlockId() == -1)) {
 
                 performMessage.errorMessage(
                         "Error", "No Blocks Defined", "It must have ate least Two Blocks defined ", null, null, 0);
@@ -1401,7 +1014,7 @@ public class ARNewCommandPane extends ARPane {
                 return;
             }
 
-            if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("setValue")) {
+            if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("SetValue")) {
                 String setValueTo =
                         Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
                                 ? "EMPTY"
@@ -1412,36 +1025,40 @@ public class ARNewCommandPane extends ARPane {
                         "SetValue",
                         ARConstants.SET_VALUE,
                         1,
-                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":" + setValueTo,
+                        //                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":" +
+                        // setValueTo,
+                        comboBoxWebFields.getValue().getValue().toLowerCase() + ":" + setValueTo,
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getExtraId(),
+                        comboBoxVars.getValue().getParentId(),
                         this.rowMoveDTO);
-            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("getValue")) {
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("GetValue")) {
                 insertNewInstruction(
                         "GetValue",
                         "GetValue",
                         ARConstants.GET_VALUE,
                         1,
-                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
+                        //                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"+
+                        // comboBoxVars.getValue().getText().toUpperCase(),
+                        comboBoxWebFields.getValue().getValue() + ":"
                                 + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getExtraId(),
+                        comboBoxVars.getValue().getParentId(),
                         this.rowMoveDTO);
-            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("check")) {
+            } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("CheckValue")) {
                 String checkValueFor =
                         Strings.isNullOrEmpty(comboBoxVars.getValue().getValue())
                                 ? "EMPTY"
                                 : comboBoxVars.getValue().getValue();
 
                 insertNewInstruction(
-                        "Check",
+                        "CheckValue",
                         "Check Value",
                         ARConstants.CHECK_VALUE,
                         1,
                         comboBoxVars.getValue().getText().toLowerCase() + ":"
                                 + comboBoxOperator.getValue().getOperator() + ":" + checkValueFor,
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getExtraId(),
+                        comboBoxVars.getValue().getParentId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("excelWrite")) {
                 insertNewInstruction(
@@ -1449,10 +1066,12 @@ public class ARNewCommandPane extends ARPane {
                         "ExcelWrite",
                         ARConstants.EXTRACT_FIELD,
                         2,
-                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"
+                        //                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"+
+                        // comboBoxVars.getValue().getText().toUpperCase(),
+                        comboBoxVars.getValue().getValue().toLowerCase() + ":"
                                 + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
-                        comboBoxVars.getValue().getExtraId(),
+                        comboBoxVars.getValue().getParentId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh")) {
                 insertNewInstruction(
@@ -1465,7 +1084,7 @@ public class ARNewCommandPane extends ARPane {
                         2,
                         comboBoxLoops.getValue().getValue(),
                         null,
-                        comboBoxWebPage.getValue().getVarId(),
+                        comboBoxWebFields.getValue().getInstructionId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("Refresh Loop")) {
                 insertNewInstruction(
@@ -1476,7 +1095,7 @@ public class ARNewCommandPane extends ARPane {
                         comboBoxTimes.getValue().getValue() + ":"
                                 + comboBoxLoops.getValue().getValue(),
                         null,
-                        comboBoxWebPage.getValue().getVarId(),
+                        comboBoxWebFields.getValue().getInstructionId(),
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("GO TO")) {
                 insertNewInstruction(
@@ -1486,7 +1105,7 @@ public class ARNewCommandPane extends ARPane {
                         1,
                         comboBoxLoops.getValue().getValue(),
                         null, // Block Order Number as VarId
-                        comboBoxBlocks.getValue().getExtraId(), // BLOCK ID as Parent Id
+                        comboBoxBlocks.getValue().getBlockId(), // BLOCK ID as Parent Id
                         this.rowMoveDTO);
             } else if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("IF")) {
                 insertNewInstruction(
@@ -1504,17 +1123,15 @@ public class ARNewCommandPane extends ARPane {
         });
 
         // Add a listener to print the ID when the selection changes
-        comboBoxWebPage.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<ComboBoxVars>() {
+        comboBoxWebFields.getSelectionModel().selectedItemProperty().addListener(new ChangeListener<ComboBoxVars>() {
             @Override
             public void changed(
                     ObservableValue<? extends ComboBoxVars> observable, ComboBoxVars oldValue, ComboBoxVars newValue) {
                 if (newValue != null) {
-                    variablesItems.clear();
-                    variablesList = performDataBase.loadAllVariblesByCriteria(botJobLoad.getId(), newValue.getVarId());
-                    reloadComboVars();
-                    comboBoxVars.getSelectionModel().selectFirst();
-                    if (comboBoxVars.getValue() != null) {
-                        defineTextFlow(comboBoxInstruc.getValue().getValue());
+                    if (!firstLoad) {
+                        reloadComboVars(newValue.getInstructionId());
+                        comboBoxVars.getSelectionModel().selectFirst();
+                        recallMessages(comboBoxInstruc.getValue().getValue());
                     }
                 }
             }
@@ -1534,44 +1151,463 @@ public class ARNewCommandPane extends ARPane {
                         rowMoveDTO,
                         //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionId(),
                         //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionName()
-                        comboBoxWebPage.getValue().getVarId(),
-                        comboBoxWebPage.getValue().getText(),
-                        comboBoxWebPage.getValue().getValue(),
+                        comboBoxWebFields.getValue().getInstructionId(),
+                        comboBoxWebFields.getValue().getText(),
+                        comboBoxWebFields.getValue().getValue(),
                         comboBoxInstruc.getValue().getValue());
                 elementValueScene.showModal();
-                variablesItems.clear();
-                this.variablesList = performDataBase.loadAllVariblesByCriteria(
-                        this.botJobLoad.getId(), comboBoxWebPage.getValue().getVarId());
-                reloadComboVars();
+                reloadComboVars(comboBoxWebFields.getValue().getInstructionId());
                 // Set ComboBox to first item
                 comboBoxVars.getSelectionModel().selectFirst();
-                if (comboBoxVars.getValue() != null) {
-                    defineTextFlow(comboBoxInstruc.getValue().getValue());
+                if (!firstLoad) {
+                    recallMessages(comboBoxInstruc.getValue().getValue());
                 }
 
             } else {
                 ARLogger.getInstance(ARNewCommandPane.class)
                         .info("creating variable for instruction Name "
-                                + comboBoxWebPage.getValue().getText());
+                                + comboBoxWebFields.getValue().getText());
                 ARElementValueScene elementValueScene = new ARElementValueScene(
                         rowMoveDTO,
-                        comboBoxWebPage.getValue().getVarId(),
-                        comboBoxWebPage.getValue().getText(),
-                        comboBoxWebPage.getValue().getValue(),
+                        comboBoxWebFields.getValue().getInstructionId(),
+                        comboBoxWebFields.getValue().getText(),
+                        comboBoxWebFields.getValue().getValue(),
                         comboBoxInstruc.getValue().getValue());
                 elementValueScene.showModal();
             }
-
-            variablesItems.clear();
-            this.variablesList = performDataBase.loadAllVariblesByCriteria(
-                    this.botJobLoad.getId(), comboBoxWebPage.getValue().getVarId());
-            reloadComboVars();
+            reloadComboVars(comboBoxWebFields.getValue().getInstructionId());
             // Set ComboBox to first item
             comboBoxVars.getSelectionModel().selectFirst();
             if (comboBoxVars.getValue() != null) {
-                defineTextFlow(comboBoxInstruc.getValue().getValue());
+                recallMessages(comboBoxInstruc.getValue().getValue());
             }
         });
+
+        // Add a listener to comboBoxInstruc to handle selection changes
+        comboBoxInstruc.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (!firstLoad) {
+                    recallMessages(comboBoxInstruc.getValue().getValue());
+                }
+            }
+        });
+
+        // Add a listener to comboBoxVars to handle selection changes
+        comboBoxVars.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (!firstLoad) {
+                    recallMessages(comboBoxInstruc.getValue().getValue());
+                }
+            }
+        });
+
+        // Add a listener to comboBoxBlocks to handle selection changes
+        comboBoxBlocks.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (!firstLoad) {
+                    recallMessages(comboBoxInstruc.getValue().getValue());
+                }
+            }
+        });
+
+        // Add a listener to comboBoxVars to handle selection changes
+        comboBoxOperator.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (!firstLoad) {
+                    recallMessages(comboBoxInstruc.getValue().getValue());
+                }
+            }
+        });
+
+        // Add a listener to comboBoxVars to handle selection changes
+        comboBoxTimes.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (!firstLoad) {
+                    recallMessages(comboBoxInstruc.getValue().getValue());
+                }
+            }
+        });
+
+        // Add a listener to comboBoxVars to handle selection changes
+        comboBoxLoops.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                if (!firstLoad) {
+                    recallMessages(comboBoxInstruc.getValue().getValue());
+                }
+            }
+        });
+    }
+
+    private void recallMessages(String valueEdit) {
+
+        // Set the visibility of comboBoxOperator based on the selected value
+        if (ARConstants.CHECK_VALUE.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            //                    botJobVarsLabel.setText("Bot-Job Variable");
+            botJobVarsLabel.setVisible(true);
+            webPageLabel.setVisible(true);
+            comboBoxOperator.setVisible(true);
+            comboBoxWebFields.setVisible(true);
+            comboBoxAllBlocks.setVisible(true);
+
+            variableButton.setVisible(true);
+
+            comboBoxVars.setVisible(true);
+            comboBoxVars.setPrefWidth(buttonWidth);
+            comboBoxBlocks.setVisible(false);
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(false);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
+
+                variableButtonRow = new HBox(10, variableButton, comboBoxOperator, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                System.out.println(ex.getMessage());
+            }
+
+        } else if (ARConstants.GOTO.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            //                    botJobVarsLabel.setText("Block Destination");
+            botJobVarsLabel.setVisible(true);
+            webPageLabel.setVisible(false);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(false);
+            comboBoxAllBlocks.setVisible(true);
+
+            variableButton.setVisible(false);
+
+            comboBoxVars.setVisible(false);
+            comboBoxBlocks.setVisible(true);
+            comboBoxBlocks.setPrefWidth(buttonWidth);
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(true);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox, blocksBox);
+
+                variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                System.out.println(ex.getMessage());
+            }
+
+        } else if (ARConstants.REFRESH_ONLY.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            botJobVarsLabel.setVisible(false);
+            webPageLabel.setVisible(false);
+            comboBoxBlocks.setVisible(false);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(false);
+            comboBoxAllBlocks.setVisible(true);
+
+            variableButton.setVisible(false);
+            comboBoxVars.setVisible(false);
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(false);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox);
+
+                variableButtonRow = new HBox(10, blankText, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                System.out.println(ex.getMessage());
+            }
+
+        } else if (ARConstants.LOOP.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            //                    botJobVarsLabel.setText("Bot-Job Variable");
+            botJobVarsLabel.setVisible(false);
+            webPageLabel.setVisible(true);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(true);
+            comboBoxAllBlocks.setVisible(true);
+
+            variableButton.setVisible(false);
+
+            comboBoxVars.setVisible(false);
+            comboBoxVars.setPrefWidth(buttonWidth);
+            comboBoxBlocks.setVisible(false);
+
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(true);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel, webPageLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
+
+                variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                System.out.println(ex.getMessage());
+            }
+
+        } else if (ARConstants.REFRESH_LOOP.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            //                    botJobVarsLabel.setText("Bot-Job Variable");
+            botJobVarsLabel.setVisible(false);
+            webPageLabel.setVisible(true);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(true);
+            comboBoxAllBlocks.setVisible(true);
+
+            variableButton.setVisible(false);
+
+            comboBoxVars.setVisible(false);
+            comboBoxVars.setPrefWidth(buttonWidth);
+            comboBoxBlocks.setVisible(false);
+
+            comboBoxTimes.setVisible(true);
+            comboBoxLoops.setVisible(true);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel, webPageLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
+
+                variableButtonRow =
+                        new HBox(10, blankText, timesText, comboBoxTimes, loopText, comboBoxLoops, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                System.out.println(ex.getMessage());
+            }
+
+        } else if (ARConstants.IF.equalsIgnoreCase(valueEdit)) {
+            defineTextFlow(comboBoxInstruc.getValue().getValue());
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth + 100);
+
+            botJobVarsLabel.setVisible(false);
+            webPageLabel.setVisible(false);
+            comboBoxBlocks.setVisible(false);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(false);
+            comboBoxAllBlocks.setVisible(true);
+            variableButton.setVisible(false);
+            comboBoxVars.setVisible(false);
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(false);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox);
+
+                variableButtonRow = new HBox(10, blankText, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                System.out.println(ex.getMessage());
+            }
+
+        } else {
+            defineTextFlow(valueEdit);
+
+            textFlow.setVisible(true);
+            //                    textFlow.setPrefWidth(buttonWidth);
+
+            //                    botJobVarsLabel.setText("Bot-Job Variable");
+            botJobVarsLabel.setVisible(true);
+            webPageLabel.setVisible(true);
+            comboBoxOperator.setVisible(false);
+            comboBoxWebFields.setVisible(true);
+            comboBoxAllBlocks.setVisible(true);
+            variableButton.setVisible(true);
+
+            comboBoxVars.setVisible(true);
+            comboBoxVars.setPrefWidth(buttonWidth);
+            comboBoxBlocks.setVisible(false);
+
+            comboBoxTimes.setVisible(false);
+            comboBoxLoops.setVisible(false);
+
+            try {
+                variableButtonRow.getChildren().clear();
+                vboxAll.getChildren().clear();
+
+                // labelRow.getChildren().clear();
+                // labelRow.getChildren().addAll(commandLabel, botJobVarsLabel, webPageLabel);
+                // labelRow.setAlignment(Pos.BASELINE_LEFT);
+
+                comboBoxesRow.getChildren().clear();
+                comboBoxesRow.getChildren().addAll(commandBox, varsBox, webFieldsBox);
+
+                variableButtonRow = new HBox(10, variableButton, textFlow);
+
+                vboxAll.getChildren()
+                        .addAll(
+                                operationSelected,
+                                // labelRow, // Web Page Label row
+                                comboBoxesRow, // ComboBoxes row
+                                variableButtonRow, // Variable Button row
+                                buttonBox, // Button Box (addWaitButton30, addWaitButton15, etc.)
+                                addNewsBox,
+                                instructionButtonsRow // Add Instruction and Cancel Buttons row
+                                );
+
+                // labelRow.requestLayout();
+                vboxAll.requestLayout();
+                mainPane.requestLayout();
+
+            } catch (Exception ex) {
+                System.out.println(ex.getMessage());
+            }
+        }
     }
 
     private void defineTextFlow(String newValue) {
@@ -1586,10 +1622,10 @@ public class ARNewCommandPane extends ARPane {
 
         String webFieldName = "NO WEB FIELD";
         if (comboBoxVars != null && comboBoxVars.getValue() != null) {
-            webFieldName = comboBoxWebPage.getValue().getText();
+            webFieldName = comboBoxWebFields.getValue().getText();
         }
 
-        if (comboBoxWebPage != null && comboBoxWebPage.getValue() != null) {
+        if (comboBoxWebFields != null && comboBoxWebFields.getValue() != null) {
             // Switch based on newValue and update variableText1 accordingly
             switch (newValue.toUpperCase()) {
                 case ARConstants.EXTRACT_FIELD:
@@ -1617,7 +1653,7 @@ public class ARNewCommandPane extends ARPane {
                     regularText1.setText(" GET Web field: ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText1.setText(comboBoxWebPage.getValue().getText());
+                    variableText1.setText(comboBoxWebFields.getValue().getText());
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
                     regularText2.setText(" and PUT on Variable: ");
@@ -1877,19 +1913,24 @@ public class ARNewCommandPane extends ARPane {
         }
     }
 
-    private void reloadComboVars() {
+    private void reloadComboVars(int instructionId) {
+        variablesItems.clear();
+        variablesList = performDataBase.loadAllVariblesByCriteria(botJobLoad.getId(), instructionId);
+
         if (variablesList != null && variablesList.size() > 0) {
             List<ComboBoxVars> variablesNames = variablesList.stream()
                     .map(variable -> new ComboBoxVars(
                             variable.getType().substring(0, 1) + variable.getName(),
                             variable.getValue(),
+                            -1,
+                            -1,
+                            variable.getParentId(),
                             variable.getId(),
-                            variable.getInstructionId(),
                             null))
                     .collect(Collectors.toList());
             variablesItems.addAll(variablesNames);
         } else {
-            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, null));
+            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null));
         }
     }
 
@@ -1923,6 +1964,8 @@ public class ARNewCommandPane extends ARPane {
                             block.getName(),
                             block.getBlockOrderNumber(),
                             block.getId(),
+                            -1,
+                            -1,
                             null));
             }
         }
@@ -1931,7 +1974,7 @@ public class ARNewCommandPane extends ARPane {
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         allBlocksItems.clear();
         if (blockLoadDTOList.size() > 1) {
-            allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1, null));
+            allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1, -1, -1, null));
         }
         for (BlockLoadDTO block : blockLoadDTOList) {
             allBlocksItems.add(new ComboBoxVars(
@@ -1939,6 +1982,8 @@ public class ARNewCommandPane extends ARPane {
                     block.getName().trim(),
                     block.getBlockOrderNumber(),
                     block.getId(),
+                    -1,
+                    -1,
                     null));
         }
     }
@@ -1994,7 +2039,7 @@ public class ARNewCommandPane extends ARPane {
             Integer instructionId,
             RowMoveDTO rowMoveDTO) {
 
-        Integer blockId = comboBoxAllBlocks.getValue().getExtraId();
+        Integer blockId = comboBoxAllBlocks.getValue().getBlockId();
         String blockName = comboBoxAllBlocks.getValue().getText();
 
         if (!rowMoveDTO.getBlockId().equals(blockId)) {
@@ -2197,7 +2242,7 @@ public class ARNewCommandPane extends ARPane {
             }
         }
         //        }
-        defineTextFlow(comboBoxInstruc.getValue().getValue());
+        //        defineTextFlow(comboBoxInstruc.getValue().getValue());
     }
 
     //    private void runAddInstructionTask(
@@ -2398,5 +2443,100 @@ public class ARNewCommandPane extends ARPane {
                 System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
             }
         }
+    }
+
+    public void setSelectedIndexByValue(String instrValue, String[] operations) {
+        Platform.runLater(() -> {
+            int indexGeneric = -1;
+
+            for (int i = 0; i < itemsInstructions.size(); i++) {
+                if (itemsInstructions.get(i).getText().equals(instrValue)) {
+                    comboBoxInstruc.getSelectionModel().select(i);
+                    indexGeneric = i;
+                    break;
+                }
+            }
+
+            if (indexGeneric == -1) {
+                comboBoxInstruc.getSelectionModel().selectFirst();
+            }
+
+            indexGeneric = -1;
+            if ((instrValue.equals("GetValue")
+                            || instrValue.equals("SetValue")
+                            || instrValue.equals("CheckValue")
+                            || instrValue.equals("ExcelWrite"))
+                    && operations.length > 1) {
+
+                Integer instrunctionId = rowMoveDTO.getUpdatedRows().get(0).getParentId() != null
+                        ? rowMoveDTO.getUpdatedRows().get(0).getParentId()
+                        : -1;
+
+                Integer variableId = rowMoveDTO.getUpdatedRows().get(0).getVariableId() != null
+                        ? rowMoveDTO.getUpdatedRows().get(0).getVariableId()
+                        : -1;
+
+                String varValue = "";
+                String fieldValue = "";
+                String operValue = "";
+                if (instrValue.equals("SetValue") && operations.length == 2) {
+                    fieldValue = operations[0];
+                    varValue = operations[1];
+                } else if ((instrValue.equals("ExcelWrite") || instrValue.equals("GetValue"))
+                        && operations.length == 2) {
+                    fieldValue = operations[0];
+                    varValue = operations[1];
+                } else {
+                    varValue = operations[0];
+                    operValue = operations[1];
+                    fieldValue = operations[2];
+                }
+
+                indexGeneric = -1;
+                //                int variableId = -1;
+                // Always Must Have a WebField
+                for (int i = 0; i < filteredPageItems.size(); i++) {
+                    if (filteredPageItems.get(i).getInstructionId().equals(instrunctionId)) {
+                        comboBoxWebFields.getSelectionModel().select(i);
+                        //                        variableId = filteredPageItems.get(i).getInstructionId();
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                reloadComboVars(instrunctionId);
+
+                if (indexGeneric == -1) {
+                    comboBoxWebFields.getSelectionModel().selectFirst();
+                }
+
+                for (int i = 0; i < variablesItems.size(); i++) {
+                    if (variablesItems.get(i).getVarId().equals(variableId)) {
+                        comboBoxVars.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxVars.getSelectionModel().selectFirst();
+                }
+
+                indexGeneric = -1;
+                for (int i = 0; i < operatorsItems.size(); i++) {
+                    if (operatorsItems.get(i).getOperator().equals(operValue)) {
+                        comboBoxOperator.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxOperator.getSelectionModel().selectFirst();
+                }
+            }
+            firstLoad = false;
+            recallMessages(comboBoxInstruc.getValue().getValue());
+        });
     }
 }
