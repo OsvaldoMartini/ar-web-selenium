@@ -1619,10 +1619,10 @@ public class PerformActions {
                 : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
 
         if (ifClause || elseClause) {
-            return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
-            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return lastInstructionExecuted;
         }
     }
 
@@ -1660,10 +1660,10 @@ public class PerformActions {
                                 : "";
 
         if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
-            return "Failed to Execute Cmd: " + conditionalBlock + " -> " + lastInstructionExecuted;
+            return conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
-            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return lastInstructionExecuted;
         }
     }
 
@@ -1684,7 +1684,7 @@ public class PerformActions {
 
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
-        return "Failed to Execute Cmd: " + resultActions;
+        return resultActions;
     }
 
     public String parentValueIsNotDefinedEngine(String instructionName, String parentField, String resultActions) {
@@ -1704,7 +1704,7 @@ public class PerformActions {
 
         performMessage.errorMessage("Parent Id Error", msg1, msg2, msg3, null, 0);
 
-        return "Failed to Execute Cmd: " + resultActions;
+        return resultActions;
     }
 
     public String parentIdWrongBlockEngine(
@@ -1811,9 +1811,9 @@ public class PerformActions {
         }
 
         if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
-            return "Failed to Execute Cmd: " + conditionalBlock + " -> " + lastInstructionExecuted;
+            return conditionalBlock + " -> " + lastInstructionExecuted;
         } else {
-            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return lastInstructionExecuted;
         }
     }
 
@@ -1844,10 +1844,10 @@ public class PerformActions {
                 : elseClause ? "Closing Block { ELSE -> ENDIF }  -> " : "";
 
         if (ifClause || elseClause) {
-            return conditionalBlock + "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
-            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return lastInstructionExecuted;
         }
     }
 
@@ -1912,10 +1912,10 @@ public class PerformActions {
                                 : "";
 
         if (!conditionStatus.equals(ARConstants.ConditionStatus.NONE)) {
-            return "Failed to Execute Cmd: " + conditionalBlock + " -> " + lastInstructionExecuted;
+            return conditionalBlock + " -> " + lastInstructionExecuted;
 
         } else {
-            return "Failed to Execute Cmd: " + lastInstructionExecuted;
+            return lastInstructionExecuted;
         }
     }
 
@@ -2059,7 +2059,7 @@ public class PerformActions {
 
         switch (actions[0]) {
             case ARConstants.VISUALIZE:
-                return "Visualize action executed for " + msgInstruction.getKey();
+                return "Visualize " + msgInstruction.getKey();
             case ARConstants.OTHER:
                 return "Other Element --> " + msgInstruction.getKey();
             case ARConstants.OUTPUT:
@@ -2074,7 +2074,7 @@ public class PerformActions {
                     return "Insert action for  -> " + msgInstruction.getKey() + " = " + msgInstruction.getValue();
                 }
             case ARConstants.LIST_OPERATION:
-                return "List Operation performed for " + msgInstruction.getKey();
+                return "List Operation " + msgInstruction.getKey();
             case ARConstants.HOLD:
                 return "Hold executed ( " + msgInstruction.getKey() + " )";
             case ARConstants.PAUSE:

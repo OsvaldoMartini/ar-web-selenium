@@ -81,12 +81,7 @@ import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.openqa.selenium.*;
-import org.openqa.selenium.support.pagefactory.ByChained;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 @ClientEndpoint
@@ -2219,435 +2214,6 @@ public class ARScannedElementPane extends ARPane {
         performActions.getCurrentDriver().switchTo().defaultContent();
     }
 
-    private Set<WebElement> managePrioritiesCriteria() {
-
-        // Gets Always the Latest info form DB
-        databaseUserDto = loadUserData(homeBanking.getId());
-        ARPriorities.loadSearchElementsConfig(databaseUserDto.getSearchConfig());
-
-        Set<WebElement> elementsResponse = new HashSet<>();
-        if (ARPriorities.getSearchConfigList() == null) {
-            System.out.println("Is going to Search using \"searchConfigTemplate\"!  Please Add to the DB");
-            return null;
-        }
-        if (ARPriorities.getSearchConfigList().size() > 0) {
-
-            // Fetch the HTML content of the page
-            Document docJSoup = null;
-            docJSoup = JsoupConnect(homeBanking.getUrl());
-            Set<WebElementWrapper> uniqueWrapperElements = new HashSet<>();
-            List<WebElement> finalList = new ArrayList<>();
-            Set<WebElement> uniqueWebElements = new HashSet<>();
-            for (com.allinweb.ch.util.SearchConfig searchConfig : ARPriorities.getSearchConfigList()) {
-                PriorityTypeEnum priorityTypeEnum = null;
-                try {
-                    priorityTypeEnum = PriorityTypeEnum.getPriorityType(searchConfig.getSearchType());
-                } catch (Exception e) {
-                    System.out.println("The ENUM: was not defined!");
-                    continue;
-                }
-                if (priorityTypeEnum == null) {
-                    System.out.println("Define priorities!");
-                    return null;
-                }
-                switch (priorityTypeEnum) {
-                    case ByXPath -> {
-                        List<String> names = searchConfig.getName();
-                        Elements elementJSoup = null;
-                        // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
-                        for (String name : names) {
-                            try {
-                                List<WebElement> searchingElems =
-                                        performActions.getCurrentDriver().findElements((By.xpath(name)));
-                                uniqueWebElements.addAll(searchingElems);
-                                // Add elements from the first list to the set
-                                for (WebElement element : uniqueWebElements) {
-                                    String href = element.getAttribute("href");
-                                    String text = element.getText();
-                                    String uniqueKey = href + text;
-                                    WebElementWrapper wrapper = new WebElementWrapper(name, text, href, element);
-                                    if (uniqueWrapperElements.add(wrapper)) {
-                                        finalList.add(element);
-                                    }
-                                }
-                            } catch (Exception e) {
-                                System.out.printf("WebDriver cannot read this format: %s%n", name);
-                            }
-                            try {
-                                elementJSoup = docJSoup.select(name);
-                                for (Element element : elementJSoup) {
-                                    String href = element.absUrl("href");
-                                    String text = element.text();
-
-                                    // Print the URL and text
-                                    if (Strings.isNullOrEmpty(href)) {
-                                        href = element.attr("href");
-                                    }
-
-                                    // Check if the text is empty
-                                    if (element.text().isEmpty()) {
-                                        // Check for nested elements like SVG
-                                        Element svg = element.selectFirst("svg");
-                                        if (svg != null
-                                                && svg.selectFirst("use") != null
-                                                && svg.hasAttr("xlink:href")) {
-                                            String svgHref =
-                                                    svg.selectFirst("use").attr("xlink:href");
-                                            System.out.println("Found SVG with href: " + svgHref
-                                                    + " inside anchor with href: " + href);
-                                            text = svgHref;
-                                        } else if (svg != null) {
-                                            System.out.println(
-                                                    "Found anchor with href: " + href + " containing nested SVG.");
-                                            text = svg.toString();
-                                        } else {
-                                            System.out.println(
-                                                    "Anchor with href: " + href + " has no text and no nested SVG.");
-                                        }
-                                    }
-
-                                    WebElementWrapper bestMatch = null;
-                                    double highestSimilarity = 0.0;
-
-                                    for (WebElementWrapper wrapper : uniqueWrapperElements) {
-                                        double similarity = jaccardSimilarity(text, wrapper.getText());
-                                        if (similarity > highestSimilarity) {
-                                            highestSimilarity = similarity;
-                                            bestMatch = wrapper;
-                                        }
-                                    }
-
-                                    if (bestMatch == null
-                                            || highestSimilarity
-                                                    < 0.8) { // Threshold to add new elements if no close match is
-                                        // found
-                                        // Convert Jsoup Element to Selenium WebElement
-                                        //                WebElement webElement =
-                                        // driver.findElement(By.xpath("//a[contains(text(), '" + text + "')]"));
-                                        WebElementWrapper wrapper = new WebElementWrapper(name, text, href, null);
-                                        if (uniqueWrapperElements.add(wrapper)) {
-                                            finalList.add(wrapper.getWebElement());
-                                        }
-                                    } else {
-                                        finalList.add(bestMatch.getWebElement());
-                                    }
-                                }
-                            } catch (Exception e) {
-                                System.out.printf("Jsoup cannot read this format: %s%n", name);
-                            }
-
-                            //                                // Convert unique wrappers back to a list of
-                            // elementsResponse
-                            //                                for (WebElementWrapper wrapper : uniqueWrapperElements) {
-                            //                                    if (wrapper.getWebElement() != null) {
-                            //                                        finalList.add(wrapper.getWebElement());
-                            //                                    } else {
-                            //                                        // Handle Jsoup elements if necessary
-                            //                                    }
-                            //                                }
-                        }
-                        // Iterate over the selected links
-                        //                          savedReferences.put(text, url);
-                        elementsResponse.addAll(finalList);
-                        finalList.clear();
-                    }
-                    case ByTagName -> {
-                        List<String> names = searchConfig.getName();
-
-                        // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
-                        for (String name : names) {
-
-                            if (name.equalsIgnoreCase("label")) {
-                                try {
-                                    List<WebElement> searchingElems =
-                                            performActions.getCurrentDriver().findElements((By.tagName(name)));
-                                    uniqueWebElements.addAll(searchingElems);
-                                    // Add elements from the first list to the set
-                                    for (WebElement element : uniqueWebElements) {
-                                        String labelText = element.getText();
-                                        String associatedText = "";
-
-                                        // Get the value of the 'for' attribute
-                                        String forAttribute = element.getAttribute("for");
-                                        if (forAttribute != null) {
-                                            // Find the associated element using the 'for' attribute value
-                                            WebElement associatedElement = performActions
-                                                    .getCurrentDriver()
-                                                    .findElement(By.id(forAttribute));
-                                            associatedText = getElementText(associatedElement);
-                                        }
-                                        if (!Strings.isNullOrEmpty(associatedText)) {
-                                            labelText = labelText + "\n" + associatedText;
-                                        }
-                                        finalList.add(element);
-                                    }
-                                } catch (Exception e) {
-                                    System.out.printf("WebDriver cannot read this format: %s%n", name);
-                                }
-                            } else if (name.equalsIgnoreCase("input")) {
-                                try {
-                                    List<WebElement> searchingElems =
-                                            performActions.getCurrentDriver().findElements((By.tagName(name)));
-                                    uniqueWebElements.addAll(searchingElems);
-                                    // Add elements from the first list to the set
-                                    for (WebElement element : uniqueWebElements) {
-                                        String labelText = element.getText();
-
-                                        finalList.add(element);
-                                        try {
-                                            // Check if the input element has a placeholder attribute
-                                            String placeholder = element.getAttribute("placeholder");
-                                            if (placeholder != null && !placeholder.isEmpty()) {
-                                                // If the placeholder attribute exists, print its value
-                                                System.out.println("Placeholder: " + placeholder);
-                                            }
-                                        } catch (Exception e) {
-                                            System.out.printf("WebDriver cannot read this format: %s%n", name);
-                                        }
-                                    }
-                                } catch (Exception e) {
-                                    System.out.printf("WebDriver cannot read this format: %s%n", name);
-                                }
-                            }
-
-                            // JavaScfript Search
-                            if (name.equalsIgnoreCase("input")) {
-                                List<WebElement> searchingElems = searchAllInputs(performActions.getCurrentDriver());
-                                uniqueWebElements.addAll(searchingElems);
-                                if (searchingElems != null && searchingElems.size() > 0) {
-                                    finalList.addAll(searchingElems);
-                                }
-                            }
-                        }
-                        // Iterate over the selected links
-                        //                          savedReferences.put(text, url);
-                        elementsResponse.addAll(finalList);
-                        finalList.clear();
-                    }
-                    case ByAttribute -> {
-                        //                        String attributeValue =
-                        //                                element.getAttribute(priority.getName().get(0));
-                        //                        if (attributeValue != null && !attributeValue.isBlank()) {
-                        //                            savedReferences.put(priority.getName().get(0), attributeValue);
-                        //                        }
-
-                        List<String> names = searchConfig.getName();
-
-                        // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
-                        for (String name : names) {
-                            try {
-                                List<WebElement> searchingElems = performActions
-                                        .getCurrentDriver()
-                                        .findElements((By.cssSelector("[" + name + "]")));
-                                uniqueWebElements.addAll(searchingElems);
-                                //                                List<WebElement> elements2 = webElements =
-                                // arWebDriver
-                                //                                        .getDriver()
-                                //                                        .findElements(By.xpath("//*[@" +
-                                // searchConfig.getName() + "]"));
-
-                                // Add elements from the first list to the set
-                                for (WebElement element : uniqueWebElements) {
-                                    String testId = element.getAttribute(name);
-                                    String labelText = element.getText();
-                                    String associatedText = "";
-
-                                    if (Strings.isNullOrEmpty(labelText)) {
-                                        labelText = testId;
-                                    }
-                                    // Get the value of the 'for' attribute
-                                    String forAttribute = element.getAttribute("for");
-                                    if (forAttribute != null) {
-                                        // Find the associated element using the 'for' attribute value
-                                        WebElement associatedElement = performActions
-                                                .getCurrentDriver()
-                                                .findElement(By.id(forAttribute));
-                                        associatedText = getElementText(associatedElement);
-                                    }
-                                    if (!Strings.isNullOrEmpty(associatedText)) {
-                                        labelText = labelText + "\n" + associatedText;
-                                    }
-                                    finalList.add(element);
-                                }
-                            } catch (Exception e) {
-                                System.out.printf("WebDriver cannot read this format: %s%n", name);
-                            }
-
-                            //                            try {
-                            //                                searchingElems =
-                            //
-                            // performActions.getCurrentDriver().findElements((By.cssSelector("input[" + name + "]")));
-                            //                                //                                List<WebElement>
-                            // elements2 = webElements =
-                            //                                // arWebDriver
-                            //                                //                                        .getDriver()
-                            //                                //
-                            // .findElements(By.xpath("//*[@" +
-                            //                                // searchConfig.getName() + "]"));
-                            //
-                            //                                // Add elements from the first list to the set
-                            //                                for (WebElement element : uniqueWebElements) {
-                            //                                    String testId = element.getAttribute(name);
-                            //                                    String labelText = element.getText();
-                            //                                    String associatedText = "";
-                            //
-                            //                                    if (Strings.isNullOrEmpty(labelText)) {
-                            //                                        labelText = testId;
-                            //                                    }
-                            //
-                            //                                    // Get the value of the 'for' attribute
-                            //                                    String forAttribute = element.getAttribute("for");
-                            //                                    if (forAttribute != null) {
-                            //                                        // Find the associated element using the 'for'
-                            // attribute value
-                            //                                        WebElement associatedElement =
-                            //
-                            // performActions.getCurrentDriver().findElement(By.id(forAttribute));
-                            //                                        associatedText =
-                            // getElementText(associatedElement);
-                            //                                    }
-                            //                                    if (!Strings.isNullOrEmpty(associatedText)) {
-                            //                                        labelText = labelText + "\n" + associatedText;
-                            //                                    }
-                            //                                    finalList.add(element);
-                            //                                }
-                            //                            } catch (Exception e) {
-                            //                                System.out.println(String.format("WebDriver cannot read
-                            // this format: %s", name));
-                            //                            }
-                        }
-                        // Iterate over the selected links
-                        //                          savedReferences.put(text, url);
-                        elementsResponse.addAll(finalList);
-                        finalList.clear();
-
-                        //                        try {
-                        //                            webElements =
-                        // performActions.getCurrentDriver().findElements((By.cssSelector("[" +
-                        // searchConfig.getName() + "]"));
-                        //                            webElements = arWebDriver
-                        //                                    .getDriver()
-                        //                                    .findElements(By.xpath("//*[@" + searchConfig.getName() +
-                        // "]"));
-                        //                            // Add elements from the first list to the set
-                        //                            for (WebElement element : webElements) {
-                        //                                String attributeValue = element.getAttribute(
-                        //                                        searchConfig.getName().get(0));
-                        //                                if (attributeValue != null && !attributeValue.isBlank()) {
-                        //                                    savedReferences.put(searchConfig.getName().get(0),
-                        // attributeValue);
-                        //                                }
-                        //                            }
-                        //                        } catch (Exception e) {
-                        //                            System.out.println(
-                        //                                    String.format("WebDriver cannot read this format: %s",
-                        // searchConfig.getName()));
-                        //                        }
-                    }
-                    case ByChained -> {
-                        String input = String.join(",", searchConfig.getName());
-                        //                        String input = "By.tagName:input,By.id:id_Start,By.className:blabla";
-
-                        // Parse the input string and create By objects
-                        By[] locators = parseLocators(input);
-
-                        // TO DO  SEARCH VARIANTS AND DISTINCT BY THOSE WERE FOUND
-                        try {
-                            List<WebElement> searchingElems =
-                                    performActions.getCurrentDriver().findElements(new ByChained(locators));
-                            uniqueWebElements.addAll(searchingElems);
-                            for (WebElement element : uniqueWebElements) {
-                                String labelText = element.getText();
-                                String associatedText = "";
-
-                                // Get the value of the 'for' attribute
-                                String forAttribute = element.getAttribute("for");
-                                if (forAttribute != null) {
-                                    // Find the associated element using the 'for' attribute value
-                                    WebElement associatedElement =
-                                            performActions.getCurrentDriver().findElement(By.id(forAttribute));
-                                    associatedText = getElementText(associatedElement);
-                                }
-                                if (!Strings.isNullOrEmpty(associatedText)) {
-                                    labelText = labelText + "\n" + associatedText;
-                                }
-                                finalList.add(element);
-                            }
-                        } catch (Exception e) {
-                            System.out.println("WebDriver cannot read this format");
-                        }
-
-                        // Iterate over the selected links
-                        //                          savedReferences.put(text, url);
-                        elementsResponse.addAll(finalList);
-                        finalList.clear();
-
-                        //                        try {
-                        //                            webElements =
-                        // performActions.getCurrentDriver().findElements((By.cssSelector("[" +
-                        // searchConfig.getName() + "]"));
-                        //                            webElements = arWebDriver
-                        //                                    .getDriver()
-                        //                                    .findElements(By.xpath("//*[@" + searchConfig.getName() +
-                        // "]"));
-                        //                            // Add elements from the first list to the set
-                        //                            for (WebElement element : webElements) {
-                        //                                String attributeValue = element.getAttribute(
-                        //                                        searchConfig.getName().get(0));
-                        //                                if (attributeValue != null && !attributeValue.isBlank()) {
-                        //                                    savedReferences.put(searchConfig.getName().get(0),
-                        // attributeValue);
-                        //                                }
-                        //                            }
-                        //                        } catch (Exception e) {
-                        //                            System.out.println(
-                        //                                    String.format("WebDriver cannot read this format: %s",
-                        // searchConfig.getName()));
-                        //                        }
-                    }
-                    case xpath -> System.out.println("xpath case");
-                    case coordinates -> System.out.println("coordinates case");
-                    case ById -> System.out.println("ById case");
-                    case ByClassName -> System.out.println("Default case");
-                    case ByName -> System.out.println("Default case");
-                    case ByLabels -> System.out.println("Default case");
-                    case ByLinkText -> System.out.println("Default case");
-                    case ByPartialLinkText -> System.out.println("Default case");
-                    case ByCssSelector -> System.out.println("Default case"); //      ".nav-menu li";
-                    case ExecuteScript -> System.out.println(
-                            "Default case"); //      "return document.getElementById('search-top')");
-                    case createXPath -> System.out.println(
-                            "Default case"); //         Generates XPath Recursive tom the Elements Found
-                    case dynamic -> System.out.println(
-                            "Default case"); //         Generates Dynamic Action -> Click, Hover, Etc.
-                    case jsoup -> System.out.println("Default case");
-                        // OLD CASES
-                        //                    case attribute -> {
-                        //                        String attributeValue = element.getAttribute(priority.getName());
-                        //                        if (attributeValue != null && !attributeValue.isBlank()){
-                        //                            savedReferences.put(priority.getName(),attributeValue);
-                        //                            System.out.println("savedReferences size: " +
-                        // savedReferences.size());
-                        //                        }
-                        //                    }
-                        //                    case xpath -> {
-                        //                        savedReferences.put(priority.getName(),
-                        // ARWebUtil.extractWebElementXPath(element));
-                        //                        System.out.println("savedReferences size: " + savedReferences.size());
-                        //                    }
-                        //                    case coordinates -> {
-                        //                        Rectangle coordinates = element.getRect();
-                        //                        savedReferences.put(priority.getName(), (coordinates.getX() +
-                        // (coordinates.getWidth()/2)) + "," +
-                        //                                (coordinates.getY() + (coordinates.getHeight()/2)));
-                        //                        System.out.println("savedReferences size: " + savedReferences.size());
-                        //                    }
-                }
-            }
-        }
-        return elementsResponse;
-    }
-
     public static double jaccardSimilarity(String text1, String text2) {
         Set<Character> set1 = new HashSet<>();
         for (char c : text1.toCharArray()) {
@@ -2702,101 +2268,6 @@ public class ARScannedElementPane extends ARPane {
                                 + "}"
                                 + "return getElementXPath(arguments[0]);",
                         element);
-    }
-
-    //        return (String) driver.executeScript(
-    //                "function absoluteXPath(element) {" +
-    //                        "var comp, comps = [];" +
-    //                        "var parent = null;" +
-    //                        "var xpath = '';" +
-    //                        "var getPos = function(element) {" +
-    //                        "var position = 1, curNode;" +
-    //                        "if (element.nodeType == Node.ATTRIBUTE_NODE) {" +
-    //                        "return null;" +
-    //                        "}" +
-    //                        "for (curNode = element.previousSibling; curNode; curNode = curNode.previousSibling) {" +
-    //                        "if (curNode.nodeName == element.nodeName) {" +
-    //                        "++position;" +
-    //                        "}" +
-    //                        "}" +
-    //                        "return position;" +
-    //                        "};" +
-    //
-    //                        "if (element instanceof Document) {" +
-    //                        "return '/';" +
-    //                        "}" +
-    //
-    //                        "for (; element && !(element instanceof Document); element = element.nodeType ==
-    // Node.ATTRIBUTE_NODE ? element.ownerElement : element.parentNode) {" +
-    //                        "comp = comps[comps.length] = {};" +
-    //                        "switch (element.nodeType) {" +
-    //                        "case Node.TEXT_NODE:" +
-    //                        "comp.name = 'text()';" +
-    //                        "break;" +
-    //                        "case Node.ATTRIBUTE_NODE:" +
-    //                        "comp.name = '@' + element.nodeName;" +
-    //                        "break;" +
-    //                        "case Node.PROCESSING_INSTRUCTION_NODE:" +
-    //                        "comp.name = 'processing-instruction()';" +
-    //                        "break;" +
-    //                        "case Node.COMMENT_NODE:" +
-    //                        "comp.name = 'comment()';" +
-    //                        "break;" +
-    //                        "case Node.ELEMENT_NODE:" +
-    //                        "comp.name = element.nodeName;" +
-    //                        "break;" +
-    //                        "}" +
-    //                        "comp.position = getPos(element);" +
-    //                        "}" +
-    //
-    //                        "for (var i = comps.length - 1; i >= 0; i--) {" +
-    //                        "comp = comps[i];" +
-    //                        "xpath += '/' + comp.name.toLowerCase();" +
-    //                        "if (comp.position !== null) {" +
-    //                        "xpath += '[' + comp.position + ']';" +
-    //                        "}" +
-    //                        "}" +
-    //
-    //                        "return xpath;" +
-    //
-    //                        "} return absoluteXPath(arguments[0]);", element);
-
-    private Document JsoupConnect(String Url) {
-        try {
-            // Set up an all-trusting trust manager
-            TrustManager[] trustAllCerts = new TrustManager[] {
-                new X509TrustManager() {
-                    public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-                        return null;
-                    }
-
-                    public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
-
-                    public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
-                }
-            };
-
-            // Install the all-trusting trust manager
-            SSLContext sc = SSLContext.getInstance("SSL");
-            sc.init(null, trustAllCerts, new java.security.SecureRandom());
-            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
-
-            // Set up a hostname verifier that accepts all hostnames
-            HostnameVerifier allHostsValid = new HostnameVerifier() {
-                public boolean verify(String hostname, SSLSession session) {
-                    return true;
-                }
-            };
-
-            HttpsURLConnection.setDefaultHostnameVerifier(allHostsValid);
-
-            // Use Jsoup to connect to the URL
-            return Jsoup.connect(Url).get();
-
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-        }
-        return null;
     }
 
     // Helper method to get the text of an associated element
@@ -3347,11 +2818,6 @@ public class ARScannedElementPane extends ARPane {
         //        String browser = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BROWSER);
         //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
 
-        int botJobId = blocksLoaded.get(0).getBotJobId();
-
-        // Original BotJobDTO
-        //        BotJobDTO selectedJob = PerformDataBase..getEntityById(BotJobDTO.class, botJobId);
-
         String baseLogString = blocksLoaded.get(0).getBotJobName()
                 + ARConstants.FIELDS_SEPARATOR
                 + labelsValue.getProperty(Labels.START);
@@ -3371,8 +2837,6 @@ public class ARScannedElementPane extends ARPane {
 
         Set<String> mapIgnore = new HashSet<>();
 
-        //        boolean searchByJavaScript = checkJavaScript.isSelected();
-
         String mainMsg = "";
         boolean byPassNotFound = false;
         boolean byPassFlagLoop = false;
@@ -3381,11 +2845,13 @@ public class ARScannedElementPane extends ARPane {
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
         String resultActions = "No instruction executed yet";
+        String failedMessage = "";
         Map<String, String> dataExcel = null;
 
         clearFields();
 
         // Execute All Blocks starting from executeSpecificBlock if Defined
+        int botJobId = this.botJobLoad.getId();
         int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
 
         mapOperators = new HashMap<>();
@@ -3902,10 +3368,8 @@ public class ARScannedElementPane extends ARPane {
                             if (jumpGoto) {
 
                                 if (jumpGotoError) {
-                                    resultActions = "Failed " + resultActions;
-
                                     success = false;
-
+                                    failedMessage = "Failed: GO TO";
                                     resultActions = performActions.blockGotoFailed(resultActions);
                                 } else {
                                     if (!loopBlockActive.contains(msgInstruction.getKey())) {
@@ -3939,7 +3403,7 @@ public class ARScannedElementPane extends ARPane {
                                             success = true;
 
                                         } catch (Exception ex) {
-                                            resultActions = "Failed " + resultActions;
+                                            failedMessage = "Failed: GO TO";
 
                                             success = false;
 
@@ -3963,7 +3427,7 @@ public class ARScannedElementPane extends ARPane {
                                                 dataExcel,
                                                 writerReport,
                                                 mainMsg,
-                                                resultActions);
+                                                finalLogMessage(failedMessage, resultActions));
 
                                         if (success) {
                                             continue blockLoop;
@@ -4072,7 +3536,7 @@ public class ARScannedElementPane extends ARPane {
                                                 dataExcel,
                                                 writerReport,
                                                 mainMsg,
-                                                resultActions);
+                                                finalLogMessage(failedMessage, resultActions));
 
                                     } else {
                                         mapLoops.put(parentFieldLoop, repeat);
@@ -4140,11 +3604,8 @@ public class ARScannedElementPane extends ARPane {
 
                                 WebElement webElementFound = null;
                                 try {
-                                    webElementFound =
-                                            performActions.searchElement(currentInstruction, this.botJobLoad.getId());
+                                    webElementFound = performActions.searchElement(currentInstruction, botJobId);
                                 } catch (Exception ex) {
-                                    //                                    extraMsg = "Element not found. Please try
-                                    // rescanning.!";
                                     success = false;
                                 }
 
@@ -4193,7 +3654,8 @@ public class ARScannedElementPane extends ARPane {
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
                                 if (resultActions.contains("Error:") || webElementFound == null || !success) {
-                                    resultActions = "Failed: " + resultActions;
+                                    failedMessage = "Failed: Web Action";
+
                                     success = false;
                                 } else if (resultActions != null && success) {
                                     currentInstruction.setExecuted(true);
@@ -4256,7 +3718,7 @@ public class ARScannedElementPane extends ARPane {
                                         executedSuccess.add(currentInstruction.getId());
                                         success = true;
                                     } else {
-                                        resultActions = "Failed: " + resultActions;
+                                        failedMessage = "Failed: Operation (GetVaue / SetValue)";
                                         success = false;
                                     }
                                 }
@@ -4343,6 +3805,7 @@ public class ARScannedElementPane extends ARPane {
                                         executedSuccess.add(currentInstruction.getId());
                                         success = true;
                                     } else {
+                                        failedMessage = "Failed: Check Validation";
                                         resultActions = performActions.checkValidationFailed(
                                                 invalidValues,
                                                 parentField,
@@ -4431,7 +3894,7 @@ public class ARScannedElementPane extends ARPane {
                                         executedSuccess.add(currentInstruction.getId());
                                         success = true;
                                     } else {
-                                        resultActions = "Failed: " + resultActions;
+                                        failedMessage = "Failed: Generate File -> Excel/CSV";
                                         success = false;
                                     }
                                 }
@@ -4454,11 +3917,19 @@ public class ARScannedElementPane extends ARPane {
 
                             String msg3 = resultActions;
 
+                            if (Strings.isNullOrEmpty(failedMessage)) {
+                                failedMessage = "Failed: General Execution";
+                            }
+
                             performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
                             //                            throw new RuntimeException(t);
                         }
 
-                        printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
+                        printLog(
+                                generateTimestamp(),
+                                logFileForSingleExcel,
+                                finalLogMessage(failedMessage, resultActions),
+                                success);
 
                         // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
                         // of Execution
@@ -4484,7 +3955,7 @@ public class ARScannedElementPane extends ARPane {
                                 dataExcel,
                                 writerReport,
                                 mainMsg,
-                                resultActions);
+                                finalLogMessage(failedMessage, resultActions));
 
                         if (pauseOperation && respModal.equals(ARConstants.DialogModal.STOP)) {
 
@@ -4689,16 +4160,15 @@ public class ARScannedElementPane extends ARPane {
                                     dataExcel,
                                     writerReport,
                                     mainMsg,
-                                    resultActions);
+                                    finalLogMessage(failedMessage, resultActions));
 
                             continue;
                         }
 
                         WebElement webElementFound = null;
                         try {
-                            webElementFound = performActions.searchElement(currentInstruction, this.botJobLoad.getId());
+                            webElementFound = performActions.searchElement(currentInstruction, botJobId);
                         } catch (Exception ex) {
-                            //                            extraMsg = "Element not found. Please try rescanning.!";
                         }
 
                         success = performActions.performWebActions(
@@ -4718,7 +4188,8 @@ public class ARScannedElementPane extends ARPane {
                             currentInstruction.setExecuted(true);
                             success = true;
                         } else {
-                            resultActions = "Failed to Execute -> " + currentInstruction.getName();
+                            failedMessage = "Failed: Execution";
+                            resultActions = currentInstruction.getName();
                             success = false;
                         }
 
@@ -4735,11 +4206,13 @@ public class ARScannedElementPane extends ARPane {
                                 dataExcel,
                                 writerReport,
                                 mainMsg,
-                                resultActions);
+                                finalLogMessage(failedMessage, resultActions));
 
                     } catch (Throwable t) {
                         success = false;
                         currentInstruction.setExecuted(false);
+
+                        failedMessage = "Failed: ";
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -4754,11 +4227,15 @@ public class ARScannedElementPane extends ARPane {
                                 dataExcel,
                                 writerReport,
                                 mainMsg,
-                                resultActions);
+                                finalLogMessage(failedMessage, resultActions));
 
                         //                        throw new RuntimeException(t);
                     }
-                    printLog(generateTimestamp(), logFileForSingleExcel, resultActions, success);
+                    printLog(
+                            generateTimestamp(),
+                            logFileForSingleExcel,
+                            finalLogMessage(failedMessage, resultActions),
+                            success);
                 }
             }
         }
@@ -4806,14 +4283,19 @@ public class ARScannedElementPane extends ARPane {
                 performMessage.errorMessage(
                         "Failed finding element (5 attempts).",
                         "Use \"Force Coordinates\" in some cases.",
+                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
                         "Last Execution:",
                         resultActions,
-                        null,
                         350);
             } else {
 
                 performMessage.errorMessage(
-                        "Process Execution Terminated", "Last Execution:", resultActions, null, null, 350);
+                        "Process Execution Terminated",
+                        !Strings.isNullOrEmpty(failedMessage) ? failedMessage : "Failed:",
+                        "Last Execution:",
+                        resultActions,
+                        null,
+                        350);
             }
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
@@ -5473,5 +4955,12 @@ public class ARScannedElementPane extends ARPane {
             // Handle non-numeric values
             return -1; // Or throw an exception
         }
+    }
+
+    private String finalLogMessage(String failedMessage, String resultActions) {
+        if (!Strings.isNullOrEmpty(failedMessage)) {
+            return failedMessage + resultActions;
+        }
+        return resultActions;
     }
 }

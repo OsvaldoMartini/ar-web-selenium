@@ -773,7 +773,7 @@ public class ARNewCommandPane extends ARPane {
             } else {
                 comboBoxInstruc.getSelectionModel().selectFirst();
                 comboBoxWebFields.getSelectionModel().selectFirst();
-                //            reloadComboVars();
+                reloadComboVars(comboBoxWebFields.getValue().getInstructionId());
                 comboBoxVars.getSelectionModel().selectFirst();
                 comboBoxOperator.getSelectionModel().selectFirst();
                 comboBoxTimes.getSelectionModel().selectFirst();
@@ -783,7 +783,7 @@ public class ARNewCommandPane extends ARPane {
         } else {
             comboBoxInstruc.getSelectionModel().selectFirst();
             comboBoxWebFields.getSelectionModel().selectFirst();
-            //            reloadComboVars();
+            reloadComboVars(comboBoxWebFields.getValue().getInstructionId());
             comboBoxVars.getSelectionModel().selectFirst();
             comboBoxOperator.getSelectionModel().selectFirst();
             comboBoxTimes.getSelectionModel().selectFirst();
@@ -1066,9 +1066,7 @@ public class ARNewCommandPane extends ARPane {
                         "ExcelWrite",
                         ARConstants.EXTRACT_FIELD,
                         2,
-                        //                        comboBoxVars.getValue().getText().substring(1).toLowerCase() + ":"+
-                        // comboBoxVars.getValue().getText().toUpperCase(),
-                        comboBoxVars.getValue().getValue().toLowerCase() + ":"
+                        comboBoxWebFields.getValue().getValue() + ":"
                                 + comboBoxVars.getValue().getText().toUpperCase(),
                         comboBoxVars.getValue().getVarId(),
                         comboBoxVars.getValue().getParentId(),
