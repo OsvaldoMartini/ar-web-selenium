@@ -15,6 +15,9 @@ import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -52,6 +55,9 @@ public class ARScannedElementScene extends ARScene {
     private BotJobLoadDTO botJobLoadDTO;
     private BlockLoadDTO blockLoadDTO;
 
+    private ExecutorService executorWebSocket;
+    private ExecutorService executorServicePreLaunch;
+
     public ARScannedElementScene initialize(
             ARWebDriver arWebDriver,
             PerformDataBase performDataBase,
@@ -69,6 +75,8 @@ public class ARScannedElementScene extends ARScene {
         this.homeBankingLoadDTO = homeBankingLoadDTO;
         this.botJobLoadDTO = botJobLoadDTO;
         this.blockLoadDTO = blockLoadDTO;
+        this.executorWebSocket = Executors.newSingleThreadExecutor();
+        this.executorServicePreLaunch = Executors.newSingleThreadExecutor();
         return this;
     }
 
@@ -82,7 +90,9 @@ public class ARScannedElementScene extends ARScene {
                 performPreLoad,
                 homeBankingLoadDTO,
                 botJobLoadDTO,
-                blockLoadDTO);
+                blockLoadDTO,
+                executorWebSocket,
+                executorServicePreLaunch);
     }
 
     @Override
@@ -110,6 +120,9 @@ public class ARScannedElementScene extends ARScene {
                 arWebDriver.setCurrentDriver(null);
 
                 closeWebDrivers();
+                shutDownExecutorService(executorWebSocket);
+                shutDownExecutorService(executorServicePreLaunch);
+
                 System.out.println("WebDriver quit successfully.");
             } catch (Exception e) {
                 System.err.println("Error closing WebDriver: " + e.getMessage());
@@ -143,5 +156,22 @@ public class ARScannedElementScene extends ARScene {
     @Override
     public Double getSceneWidth() {
         return SCENE_WIDTH;
+    }
+
+    private void shutDownExecutorService(ExecutorService executorService) {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    System.err.println("ExecutorService did not terminate");
+                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
+                }
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+            ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + e.getMessage());
+        }
     }
 }

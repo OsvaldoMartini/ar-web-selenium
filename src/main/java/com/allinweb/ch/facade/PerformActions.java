@@ -439,7 +439,7 @@ public class PerformActions {
                 null,
                 true,
                 "Continue",
-                "Stop All",
+                "Stop all",
                 0);
     }
 

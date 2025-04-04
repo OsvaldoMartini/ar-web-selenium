@@ -52,6 +52,8 @@ import java.util.stream.Collectors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
@@ -788,9 +790,10 @@ public class ARScannedElementPane extends ARPane {
     private final WebElement currentElement = null;
 
     private Session session;
-    private static final ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
+    private ExecutorService executorWebSocket;
+    private ExecutorService executorServicePreLaunch;
+    private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
 
-    private ExecutorService executorService;
     private static final int SECONDS = 3; // Total seconds for the countdown
     private int remainingSeconds = SECONDS;
     private Timeline timeline;
@@ -841,7 +844,7 @@ public class ARScannedElementPane extends ARPane {
     private Button cloneToNewElement;
     private Button configureButton;
     private Button launchBotJobButton;
-    private Button recallJobButton;
+    private Button stopBotJobButton;
     private Button searchWebElementsButton;
     private Button leftButton;
     private Button rightButton;
@@ -914,6 +917,18 @@ public class ARScannedElementPane extends ARPane {
     private final boolean searchHiddenFields;
     private String xpathTextPrevious;
 
+    public BooleanProperty interceptBotJobProperty() {
+        return interceptBotJob;
+    }
+
+    public boolean isInterceptBotJob() {
+        return interceptBotJob.get();
+    }
+
+    public void setInterceptBotJob(boolean value) {
+        interceptBotJob.set(value);
+    }
+
     // Static block to initialize
     static {
         managerProps = ARPropertyManager.getInstance();
@@ -932,13 +947,18 @@ public class ARScannedElementPane extends ARPane {
             PerformPreLoad performPreLoad,
             HomeBankingLoadDTO homeBanking,
             BotJobLoadDTO botJobLoadDTO,
-            BlockLoadDTO blockLoadDTO) {
+            BlockLoadDTO blockLoadDTO,
+            ExecutorService executorWebSocket,
+            ExecutorService executorServicePreLaunch) {
         this.currentARWebDriver = currentARWebDriver;
         this.performDataBase = performDataBase;
         this.performActions = performActions;
         this.performMessage = performMessage;
         this.performPreLoad = performPreLoad;
         this.homeBanking = homeBanking;
+
+        this.executorWebSocket = executorWebSocket;
+        this.executorServicePreLaunch = executorServicePreLaunch;
 
         activeSessions = SimpleWebSocketServer.getAllSessions();
 
@@ -1167,8 +1187,10 @@ public class ARScannedElementPane extends ARPane {
 
         launchBotJobButton = componentBuilder.buildButton(
                 "Pre-Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
-        recallJobButton = componentBuilder.buildButton(
-                "Resume", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
+        stopBotJobButton = componentBuilder.buildButton(
+                "STOP", ARConstants.SPACE_ZERO, "/stop.png", ARConstants.SPACE_M, new Insets(5.0D));
+
+        stopBotJobButton.setPrefWidth(100);
 
         textFlowResult = new TextFlow();
 
@@ -1318,12 +1340,13 @@ public class ARScannedElementPane extends ARPane {
             verticalBox.setSpacing(10);
             verticalBox.setPadding(new Insets(10));
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
-            // Create an HBox to hold launchBotJobButton and recallJobButton
+
+            // Create an HBox to hold launchBotJobButton and stopBotJobButton
             HBox hBoxLaunchButon = new HBox();
             hBoxLaunchButon.setSpacing(10); // Optional: adjust spacing between buttons
 
             // Add buttons to the HBox
-            hBoxLaunchButon.getChildren().addAll(launchBotJobButton);
+            hBoxLaunchButon.getChildren().addAll(launchBotJobButton, stopBotJobButton);
 
             HBox boxName = new HBox();
             boxName.setSpacing(5);
@@ -1397,7 +1420,7 @@ public class ARScannedElementPane extends ARPane {
             hBoxLaunchButon.widthProperty().addListener((obs, oldVal, newVal) -> {
                 double totalWidth = newVal.doubleValue();
                 launchBotJobButton.setMaxWidth(totalWidth * 0.6);
-                recallJobButton.setMaxWidth(totalWidth * 0.7);
+                stopBotJobButton.setMaxWidth(totalWidth * 0.7);
             });
 
             HBox boxListViews = new HBox();
@@ -1569,10 +1592,12 @@ public class ARScannedElementPane extends ARPane {
 
     @Override
     public void initUIBehaviour() {
+        interceptBotJobProperty().addListener((obs, oldVal, newVal) -> {
+            System.out.println("interceptBotJob changed from " + oldVal + " to " + newVal);
+        });
+
         configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
         launchBotJobButton.setOnMouseClicked(e -> {
-            //                        loadBotJob(botJob);
-
             if (!lastBrowserTab()) {
                 return;
             }
@@ -1588,14 +1613,8 @@ public class ARScannedElementPane extends ARPane {
             recallJob();
         });
 
-        recallJobButton.setOnMouseClicked(e -> {
-            if (!lastBrowserTab()) {
-                return;
-            }
-
-            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobLoad.getId());
-            // loadBotJob(botJob);
-            recallJob();
+        stopBotJobButton.setOnMouseClicked(e -> {
+            setInterceptBotJob(true);
         });
 
         checkCloneElement.setOnMouseClicked(e -> {
@@ -1620,7 +1639,6 @@ public class ARScannedElementPane extends ARPane {
 
             Platform.runLater(() -> {
                 launchBotJobButton.setDisable(checkCloneElement.isSelected());
-                recallJobButton.setDisable(checkCloneElement.isSelected());
 
                 if (!checkCloneElement.isSelected()) {
                     defineNameField.clear();
@@ -2003,34 +2021,6 @@ public class ARScannedElementPane extends ARPane {
         //                performActions.getCurrentDriver().getCurrentUrl(),
         //                dataArray,
         //                finalPort));
-    }
-
-    private void revertCloneButtons() {
-        Platform.runLater(() -> {
-            launchBotJobButton.setDisable(true);
-            recallJobButton.setDisable(true);
-
-            if (!checkCloneElement.isSelected()) {
-                defineNameField.clear();
-            }
-        });
-    }
-
-    private void shutDownExecutorService() {
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
-                }
-            }
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-            ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + e.getMessage());
-        }
     }
 
     private void searchTermsBtn(String searchTerms) {
@@ -2655,35 +2645,23 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void recallJob() {
-        executeJob();
+        try {
+            if (executorServicePreLaunch == null || executorServicePreLaunch.isShutdown()) {
+                executorServicePreLaunch = Executors.newSingleThreadExecutor(); 
+            }
+            
+            executorServicePreLaunch.submit(() -> executeJob());
+        } catch (Exception ignore) {
+            ARLogger.getInstance(ARScannedElementPane.class)
+                    .severe("Error executorServicePreLaunch");
+
+        }
+        // Important: Remember to shutdown the executor when it's no longer needed
+        // executorServicePreLaunch.shutdown();
 
         if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
             performActions.updateWindowHandlesList();
             updateButtonState();
-        }
-
-        // Review if Has Not Executed Instructions
-        boolean hasUnexecutedInstructions = botJobLoadList.get(0).getBlockLoadDTOList().stream()
-                .flatMap(block -> block.getInstructionLoadDTOS().stream())
-                .anyMatch(instruction -> instruction.getExecuted() == null || !instruction.getExecuted());
-
-        if (hasUnexecutedInstructions) {
-            Text variableText1Styled = new Text("Recall the Executions for this page?");
-
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            combinedTextContainer.getChildren().add(variableText1Styled);
-
-            //            boolean result = performMessage.showAlertCombinedVBOX(
-            //                    Alert.AlertType.CONFIRMATION, "Recall Pre-Launch", "Recall Pre Test.", null,
-            // combinedTextContainer);
-            //
-            //            if (result) {
-            //                recallJob();
-            //            }
         }
     }
 
@@ -2772,33 +2750,6 @@ public class ARScannedElementPane extends ARPane {
 
         if (extractedData != null && extractedData.getErrorMessage() != null) {
 
-            //            Text variableText1Styled = new Text("Verify the Possible Errors:");
-            //            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-            //
-            //            Text variableText2Styled = new Text("1. Excel File is OPEN");
-            //            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            //
-            //            Text variableText3Styled = new Text("2. Column Names Different from INPUT names");
-            //            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            //
-            //            Text variableText4Styled = new Text("3. INPUTS names Not In Excel File");
-            //            variableText4Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            //
-            //            VBox combinedTextContainer = new VBox();
-            //            combinedTextContainer.setSpacing(5); // Add some sp
-            //
-            //            combinedTextContainer
-            //                    .getChildren()
-            //                    .addAll(variableText1Styled, variableText2Styled, variableText3Styled,
-            // variableText4Styled);
-            //
-            //            performMessage.showAlertCombinedVBOX(
-            //                    Alert.AlertType.ERROR,
-            //                    "Excel File Error",
-            //                    "Check All Excel Columns and Values!",
-            //                    null,
-            //                    combinedTextContainer);
-
             performMessage.errorMessage(
                     "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
 
@@ -2841,7 +2792,7 @@ public class ARScannedElementPane extends ARPane {
 
         String mainMsg = "";
         boolean byPassNotFound = false;
-        boolean byPassFlagLoop = false;
+        boolean byPassFlagLoop;
         boolean success = true;
         boolean stopAll = false;
         long botJobStartTime = System.nanoTime();
@@ -3067,6 +3018,12 @@ public class ARScannedElementPane extends ARPane {
                     instructionLoop:
                     while (currentIndex < instructionIds.length && !stopAll) {
                         // Resets the success
+
+                        stopAll = isInterceptBotJob();
+                        if (stopAll) {
+                            break;
+                        }
+
                         success = true;
                         webElementWork = false;
 
@@ -3285,7 +3242,7 @@ public class ARScannedElementPane extends ARPane {
                                     null,
                                     false,
                                     "Continue",
-                                    "stop all",
+                                    "Stop all",
                                     0);
                         }
 
@@ -4258,16 +4215,31 @@ public class ARScannedElementPane extends ARPane {
                     + ARConstants.FIELDS_SEPARATOR
                     + labelsValue.getProperty(Labels.OK);
 
-            performMessage.showCustomModalDialogDragWin11(
-                    "Bot-Job Finished - successfully",
-                    botJobName,
-                    "Last Execution:",
-                    resultActions,
-                    null,
-                    false,
-                    "OK",
-                    null,
-                    300);
+            if (!isInterceptBotJob()) {
+                performMessage.showCustomModalDialogDragWin11(
+                        "Bot-Job Finished - successfully",
+                        botJobName,
+                        "Last Execution:",
+                        resultActions,
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        300);
+            } else {
+                performMessage.showCustomModalDialogDragWin11(
+                        "Bot-Job Interrupted successfully",
+                        botJobName,
+                        "Last Execution:",
+                        resultActions,
+                        null,
+                        false,
+                        "OK",
+                        null,
+                        300);
+            }
+
+            setInterceptBotJob(false);
 
         } else {
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: red;");
@@ -4300,7 +4272,30 @@ public class ARScannedElementPane extends ARPane {
             }
         }
         printBaseLog(baseLogFile, generateTimestamp(), baseLogString);
+
+        shutDownExecutorService(executorServicePreLaunch);
+
         return true;
+    }
+
+    private void shutDownExecutorService(ExecutorService executorService) {
+        if (executorService == null || executorService.isShutdown()) {
+            return;
+        }
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+                    System.err.println("ExecutorService did not terminate");
+                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
+                }
+            }
+        } catch (InterruptedException error) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+            ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + error.getMessage());
+        }
     }
 
     private void clearFields() {
@@ -4630,17 +4625,17 @@ public class ARScannedElementPane extends ARPane {
     @Override
     public void stop() throws Exception {
         // Cleanup tasks when the application stops
-        executorService.shutdown();
+        executorServicePreLaunch.shutdown();
         try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+            if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
+                executorServicePreLaunch.shutdownNow();
+                if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
                     ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
-            executorService.shutdownNow();
+            executorServicePreLaunch.shutdownNow();
             Thread.currentThread().interrupt();
         }
     }
@@ -4651,51 +4646,6 @@ public class ARScannedElementPane extends ARPane {
             stage.close();
         });
     }
-
-    //    private int createBlock(BlockDTO blockDTO) {
-    //        // Generate a Unique-ID for the block
-    //        Integer nextId = loadNextIdBlockData() + 1;
-    //        Integer nextBlockOrder =
-    //                performDataBase.loadNextBlockOrderNumber(blockDTO.getBotJobDTO().getId()) + 1;
-    //
-    //        // Build the SQL insert query
-    //        String insertSQL = "INSERT INTO block(id, block_order_number, description, name, type_id, bot_job_id)
-    // VALUES ("
-    //                + nextId + ", "
-    //                + nextBlockOrder + ", " // block_order_number
-    //                + "'" + blockDTO.getDescription() + "', " // description
-    //                + "'" + blockDTO.getName() + "', " // name
-    //                + 1 + ", " // type_id
-    //                + blockDTO.getBotJobDTO().getId() + ")"; // bot_job_id, assuming BotJobDTO has an ID
-    //
-    //        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
-    //            stmt.executeUpdate(insertSQL);
-    //            ARLogger.getInstance(ARScannedElementPane.class).info("Block data saved successfully id: " +
-    // nextId);
-    //            return nextId;
-    //        } catch (SQLException e) {
-    //            ARLogger.getInstance(ARScannedElementPane.class).severe("saveBlock  \nError: " + e.getMessage());
-    //            return -1;
-    //        }
-    //    }
-
-    private Integer loadNextIdBlockData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM block";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARScannedElementPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
-    //    public void setBlockJob(BlockDTO blockLoadDTO) {
-    //        this.blockLoad = blockLoadDTO;
-    //    }
 
     private static void showAlertInfo(String title, String header, String content) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);

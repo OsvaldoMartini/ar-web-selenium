@@ -456,7 +456,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
                 null,
                 false,
                 "Continue",
-                "stop all",
+                "Stop all",
                 0);
             }
 
