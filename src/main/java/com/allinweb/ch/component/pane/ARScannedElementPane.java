@@ -11,6 +11,7 @@ import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -809,6 +810,7 @@ public class ARScannedElementPane extends ARPane {
 
     private BotJobLoadDTO botJobLoad;
     private final BlockLoadDTO blockLoad;
+    private List<VariableLoadDTO> variablesLoaded;
 
     private int currentBlockId;
     private String currentBlockName;
@@ -2856,7 +2858,7 @@ public class ARScannedElementPane extends ARPane {
 
         mapOperators = new HashMap<>();
         mapExport = new LinkedHashMap<>();
-
+        variablesLoaded = performDataBase.loadAllVariables(botJobId);
         Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
@@ -3120,7 +3122,6 @@ public class ARScannedElementPane extends ARPane {
                         //                        if (currentInstruction.getExecuted() == null ||
                         // !currentInstruction.getExecuted()) {
                         boolean execGetOrSet = false;
-                        boolean getAction = false;
                         boolean execCheckValue = false;
                         boolean excelWriteOperation = false;
                         boolean pauseOperation = false;
@@ -3128,6 +3129,7 @@ public class ARScannedElementPane extends ARPane {
                         String xPathOperation = null;
                         String parentField = null;
                         String parentFieldLoop = null;
+                        String variableField = null;
                         String fieldName = null;
                         int parentId = currentInstruction.getParentId();
 
@@ -3349,17 +3351,30 @@ public class ARScannedElementPane extends ARPane {
 
                             execGetOrSet = true;
 
-                            getAction = actions[0].equalsIgnoreCase(ARConstants.GET_VALUE);
-
                             xPathOperation = performActions.getXPathInstruction(currentInstruction, blockLoad);
                             parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+                            variableField =
+                                    performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                            if (variableField == null) {
+                                variableField = "Not Variable defined";
+                            }
 
                         } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
                             execCheckValue = true;
                             parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+                            variableField =
+                                    performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                            if (variableField == null) {
+                                variableField = "Not Variable defined";
+                            }
                         } else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
                             excelWriteOperation = true;
                             parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+                            variableField =
+                                    performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                            if (variableField == null) {
+                                variableField = "Not Variable defined";
+                            }
                         }
 
                         File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -3685,11 +3700,6 @@ public class ARScannedElementPane extends ARPane {
                                     resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
                                     success = false;
-                                } else if (!mapOperators.containsKey(parentField) && !getAction) {
-                                    resultActions = performActions.getValueIsNotDefined(
-                                            currentInstruction, resultActions, currentCondition);
-
-                                    success = false;
                                 } else {
 
                                     resultActions = performActions.performOperatorActions(
@@ -3699,6 +3709,7 @@ public class ARScannedElementPane extends ARPane {
                                             actions[0],
                                             operations,
                                             parentField,
+                                            variableField,
                                             mapOperators);
 
                                     if (resultActions != null) {
@@ -3726,41 +3737,32 @@ public class ARScannedElementPane extends ARPane {
                             } else if (execCheckValue) {
                                 // Check Validation Operator
 
-                                if (parentField != null) {
-                                    parentField = parentId + "-" + parentField;
-                                }
-
-                                if (parentField == null) {
-                                    resultActions = performActions.parentIdWrongBlock(
-                                            currentInstruction, blockLoad, resultActions, currentCondition);
-
+                                if (!mapOperators.containsKey(variableField)) {
                                     resultActions = performActions.getValueIsNotDefined(
-                                            currentInstruction, resultActions, currentCondition);
-
-                                    success = false;
-
-                                } else if (!mapOperators.containsKey(parentField)) {
-                                    resultActions = performActions.getValueIsNotDefined(
-                                            currentInstruction, resultActions, currentCondition);
+                                            actions[0],
+                                            currentInstruction,
+                                            resultActions,
+                                            currentCondition,
+                                            parentField,
+                                            variableField);
 
                                     success = false;
                                 } else {
                                     //                                    fieldName = parentField;
 
-                                    resultActions =
-                                            "CHECK_VALUE for (" + parentField + ")" + String.join(" ", operations);
+                                    resultActions = "Check Value for " + String.join(" ", operations);
                                     boolean isOperationValid = false;
                                     String invalidValues = null;
 
                                     if (operations[1].equalsIgnoreCase("=")) {
                                         isOperationValid = mapOperators
-                                                .get(parentField)
+                                                .get(variableField)
                                                 .trim()
                                                 .equalsIgnoreCase(operations[2]);
 
                                     } else if (operations[1].equalsIgnoreCase(">")) {
                                         int resp = handleGreaterThan(
-                                                mapOperators.get(parentField).trim(), operations[2]);
+                                                mapOperators.get(variableField).trim(), operations[2]);
                                         if (resp == 1) {
                                             isOperationValid = true;
                                         } else if (resp == 0) {
@@ -3771,12 +3773,12 @@ public class ARScannedElementPane extends ARPane {
                                         }
                                     } else if (operations[1].equalsIgnoreCase("!=")) {
                                         isOperationValid = !mapOperators
-                                                .get(parentField)
+                                                .get(variableField)
                                                 .trim()
                                                 .equalsIgnoreCase(operations[2]);
                                     } else if (operations[1].equalsIgnoreCase("<")) {
                                         int resp = handleLessThan(
-                                                mapOperators.get(parentField).trim(), operations[2]);
+                                                mapOperators.get(variableField).trim(), operations[2]);
                                         if (resp == 1) {
                                             isOperationValid = true;
                                         } else if (resp == 0) {
@@ -3809,7 +3811,7 @@ public class ARScannedElementPane extends ARPane {
                                         resultActions = performActions.checkValidationFailed(
                                                 invalidValues,
                                                 parentField,
-                                                mapOperators.get(parentField),
+                                                mapOperators.get(variableField),
                                                 resultActions,
                                                 operations,
                                                 currentCondition,
@@ -3819,24 +3821,23 @@ public class ARScannedElementPane extends ARPane {
                                     }
                                 }
 
-                            } else if (excelWriteOperation && operations.length == 2) {
+                            } else if (excelWriteOperation) {
                                 // Excel Write Operator
 
-                                if (parentField != null) {
-                                    fieldName = parentField;
-                                    parentField = parentId + "-" + parentField;
-                                }
-
                                 if (parentField == null) {
-
                                     resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
 
                                     success = false;
 
-                                } else if (!mapOperators.containsKey(parentField)) {
+                                } else if (!mapOperators.containsKey(variableField)) {
                                     resultActions = performActions.getValueIsNotDefined(
-                                            currentInstruction, resultActions, currentCondition);
+                                            actions[0],
+                                            currentInstruction,
+                                            resultActions,
+                                            currentCondition,
+                                            parentField,
+                                            variableField);
 
                                     success = false;
                                 } else {
@@ -3855,11 +3856,11 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (writerExport != null) {
 
-                                        resultActions = "insertValueFieldNameInExcel -> " + parentField + "-"
-                                                + mapOperators.get(parentField);
+                                        resultActions = "insertValueFieldNameInExcel -> " + variableField + "-"
+                                                + mapOperators.get(variableField);
                                     } else {
-                                        resultActions = "NO Export Excel File defined -> " + parentField + "-"
-                                                + mapOperators.get(parentField);
+                                        resultActions = "NO Export Excel File defined -> " + variableField + "-"
+                                                + mapOperators.get(variableField);
                                     }
 
                                     if (mapExport.size() == 0) {
@@ -3871,7 +3872,7 @@ public class ARScannedElementPane extends ARPane {
                                     // Insert the updated mapExport into the Excel after each instruction
                                     if (writerExport != null) {
                                         mapExport.put("KEY", "EXTERNAL");
-                                        mapExport.put(fieldName, mapOperators.get(parentField));
+                                        mapExport.put(parentField, mapOperators.get(variableField));
 
                                         writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
                                     }
@@ -4357,29 +4358,6 @@ public class ARScannedElementPane extends ARPane {
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
-    }
-
-    private String insertValueFieldNameInExcel(
-            String parentId, String innerHTMLValue, String action, String botJobName) {
-        //        String innerHTMLValue = element.getAttribute(WebElementAttributeEnum.INNER_HTML.getValue());
-
-        if (innerHTMLValue.contains("<div")) {
-            int lastIndexOfDiv = innerHTMLValue.lastIndexOf("<div");
-            innerHTMLValue = innerHTMLValue.substring(lastIndexOfDiv + 1);
-            int firstIndexOfOpenTag = innerHTMLValue.indexOf("<");
-            int firstIndexOfCloseTag = innerHTMLValue.indexOf(">");
-            innerHTMLValue = innerHTMLValue.substring(firstIndexOfCloseTag + 1, firstIndexOfOpenTag);
-        }
-        String fieldName = null;
-        String[] arr = UtilsMethods.splitIfContains(action, ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
-        if (arr.length > 1) {
-            fieldName = arr[1].split(ARConstants.PATH_FIELD_SUBSTITUTION)[0];
-        }
-
-        new ExcelWriter(botJobName, performActions.getCurrentDriver(), false)
-                .withPurpose("excel")
-                .insertValueFieldName(parentId + "-" + fieldName, innerHTMLValue);
-        return action + " fieldName " + fieldName;
     }
 
     public void quit(int status) {

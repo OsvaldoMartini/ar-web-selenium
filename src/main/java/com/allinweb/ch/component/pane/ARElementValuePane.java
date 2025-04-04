@@ -67,7 +67,7 @@ public class ARElementValuePane extends ARPane {
     @Override
     public void initUIComponents() {
 
-        this.variablesList = performDataBase.loadAllVariblesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+        this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
 
         // Create labels
         Label idLabel = new Label("ID:");
@@ -156,7 +156,7 @@ public class ARElementValuePane extends ARPane {
 
             performDataBase.saveUserData(user);
             this.variablesList.clear();
-            this.variablesList = performDataBase.loadAllVariblesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
         });
 
         // Create update button
@@ -171,7 +171,7 @@ public class ARElementValuePane extends ARPane {
             VariableUserDTO user = new VariableUserDTO(
                     id, selectedType, nameField.getText(), valueVar, rowMoveDTO.getBotJobId(), instructionId);
             performDataBase.updateUserData(id, user);
-            this.variablesList = performDataBase.loadAllVariblesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
         });
         updateButton.setDisable(true);
 
@@ -192,7 +192,7 @@ public class ARElementValuePane extends ARPane {
             }
 
             performDataBase.deleteUserData(id);
-            this.variablesList = performDataBase.loadAllVariblesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
+            this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
         });
         deleteButton.setDisable(true);
 

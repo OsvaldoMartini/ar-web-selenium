@@ -532,10 +532,10 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDataBase.rollBackBlocksRows("instructions", rollBackBlocksDTO);
+                    performDataBase.rollBackBlocksRows("instruction", rollBackBlocksDTO);
                     performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDataBase.rollBackBlocksRows("component_instructions", rollBackBlocksDTO);
+                    performDataBase.rollBackBlocksRows("component_instruction", rollBackBlocksDTO);
                     performDataBase.deleteCompNullBlocks(
                             rollBackBlocksDTO.getHomeBankingId(), rollBackBlocksDTO.getBotJobId());
                 }

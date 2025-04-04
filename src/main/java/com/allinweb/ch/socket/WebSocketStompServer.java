@@ -186,7 +186,7 @@ public class WebSocketStompServer {
             case "BLOCK_ROLLBACK":
                 RollBackBlocksDTO rollBackBlocksDTO = gson.fromJson(body, RollBackBlocksDTO.class);
 
-                performDataBase.rollBackBlocksRows("component_instructions", rollBackBlocksDTO);
+                performDataBase.rollBackBlocksRows("component_instruction", rollBackBlocksDTO);
                 performDataBase.deleteCompNullBlocks(
                         rollBackBlocksDTO.getHomeBankingId(), rollBackBlocksDTO.getBotJobId());
 

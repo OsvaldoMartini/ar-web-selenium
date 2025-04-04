@@ -171,7 +171,7 @@ public class ARViewBotJobPane extends ARPane {
         webPageItems = FXCollections.observableArrayList();
 
         Platform.runLater(
-                () -> this.variablesList = performDataBase.loadAllVariblesByCriteria(this.botJobLoad.getId(), -1));
+                () -> this.variablesList = performDataBase.loadAllVariablesByCriteria(this.botJobLoad.getId(), -1));
         Platform.runLater(() -> this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId()));
     }
 
