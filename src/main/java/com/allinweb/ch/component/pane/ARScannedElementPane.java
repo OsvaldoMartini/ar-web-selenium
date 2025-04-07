@@ -871,6 +871,7 @@ public class ARScannedElementPane extends ARPane {
     private Button launchBotJobButton;
     private Button stopBotJobButton;
     private Button searchWebElementsButton;
+    private Button refreshWebPageButton;
     private Button leftButton;
     private Button rightButton;
     private Button cleanListButton;
@@ -1178,10 +1179,13 @@ public class ARScannedElementPane extends ARPane {
         includeAllSelected.setStyle("-fx-background-color: green; -fx-text-fill: white;");
         includeAllSelected.setVisible(false);
 
+        refreshWebPageButton = componentBuilder.buildButton(
+                "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
+
         cleanListButton = componentBuilder.buildButton(
-                "Refresh Grid", // No text
+                "Clear Grid", // No text
                 25.0, // Smaller height
-                "/refresh.png", // Icon source
+                "/cross.png", // Icon source
                 16.0, // Smaller icon size
                 new Insets(2.0) // Reduced padding
                 );
@@ -1250,6 +1254,10 @@ public class ARScannedElementPane extends ARPane {
 
         leftButton.setOnAction(e -> switchToLeftTab());
         rightButton.setOnAction(e -> switchToRightTab());
+
+        refreshWebPageButton.setOnAction(e -> {
+            performActions.refreshPage();
+        });
 
         cleanListButton.setOnAction(e -> {
             if (webEngine != null) {
@@ -1460,7 +1468,14 @@ public class ARScannedElementPane extends ARPane {
             StackPane stackLabelOthers = new StackPane();
             HBox othersBox = new HBox();
             createSpacerHoriz();
-            othersBox.getChildren().addAll(labelOthers, createSpacerHoriz(), cleanListButton);
+            othersBox
+                    .getChildren()
+                    .addAll(
+                            labelOthers,
+                            createSpacerHoriz(),
+                            refreshWebPageButton,
+                            createSpacerHoriz(),
+                            cleanListButton);
             stackLabelOthers.getChildren().addAll(othersBox);
 
             stackLabelOthers.setAlignment(Pos.CENTER);
@@ -1774,6 +1789,11 @@ public class ARScannedElementPane extends ARPane {
 
             ElementDTO[] detailsArray = detailsList.toArray(new ElementDTO[0]);
             processDTO.setDetails(detailsArray);
+
+            for (int x = 0; x < detailsArray.length; x++) {
+                detailsArray[x].setTypeElement("tagName-Found");
+                detailsArray[x].setId(x + 1);
+            }
 
             sendMessageJson(homeBanking.getId(), "scannerGrid-" + homeBanking.getId(), gson.toJson(processDTO), null);
         }

@@ -238,7 +238,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
           while (currentIndex < instructionIds.length && !stopAll) {
             // Resets the success
 
-            stopAll = isInterceptBotJob();
+            //                            stopAll = isInterceptBotJob();
             if (stopAll) {
               break;
             }
@@ -826,15 +826,16 @@ if (extractedData.getNumberOfDataRows() > 0) {
                   currentInstruction.getCodified());
 
                 WebElement webElementFound = null;
+                boolean forceCoordinates = currentInstruction.getForceCoordinates() != null &&
+                  currentInstruction.getForceCoordinates();
                 try {
-                  webElementFound = performActions.searchElement(currentInstruction, botJobId);
+                  webElementFound = performActions.searchElement(
+                    currentInstruction, botJobId, forceCoordinates);
                 } catch (Exception ex) {
                   success = false;
                 }
 
-                if (webElementFound == null &&
-                  currentInstruction.getForceCoordinates() != null &&
-                  currentInstruction.getForceCoordinates()) {
+                if (webElementFound == null && forceCoordinates) {
 
                   Boolean pressEnterAfter = false;
                   if (actions[0].equals(ARConstants.INSERT) &&
@@ -877,7 +878,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
                 }
                 // Special Cases for Select Responses
                 // It could be Improved the case
-                if (resultActions.contains("Error:") || webElementFound == null || !success) {
+                if (resultActions.contains("Error:") || (webElementFound == null && !success)) {
                   failedMessage = "Failed: Web Action";
 
                   success = false;
@@ -973,7 +974,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
                   } else if (operations[1].equalsIgnoreCase(">")) {
                     int resp = handleGreaterThan(
-                      mapOperators.get(variableField).trim(), operations[2]);
+                      mapOperators
+                      .get(variableField)
+                      .trim(),
+                      operations[2]);
                     if (resp == 1) {
                       isOperationValid = true;
                     } else if (resp == 0) {
@@ -989,7 +993,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
                       .equalsIgnoreCase(operations[2]);
                   } else if (operations[1].equalsIgnoreCase("<")) {
                     int resp = handleLessThan(
-                      mapOperators.get(variableField).trim(), operations[2]);
+                      mapOperators
+                      .get(variableField)
+                      .trim(),
+                      operations[2]);
                     if (resp == 1) {
                       isOperationValid = true;
                     } else if (resp == 0) {
@@ -1096,8 +1103,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
                     // defined
                     if (currentInstruction != null &&
                       instructionsExecuted.stream()
-                      .noneMatch(
-                        instruction -> instruction.getInstructionOrderNumber() ==
+                      .noneMatch(instruction ->
+                        instruction.getInstructionOrderNumber() ==
                         currentInstruction
                         .getInstructionOrderNumber())) {
                       instructionsExecuted.add(currentInstruction);
@@ -1388,8 +1395,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
         }
 
         WebElement webElementFound = null;
+        boolean forceCoordinates = currentInstruction.getForceCoordinates() != null &&
+          currentInstruction.getForceCoordinates();
+
         try {
-          webElementFound = performActions.searchElement(currentInstruction, botJobId);
+          webElementFound =
+            performActions.searchElement(currentInstruction, botJobId, forceCoordinates);
         } catch (Exception ex) {}
 
         success = performActions.performWebActions(

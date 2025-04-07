@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ElementDTO {
+    private Integer id;
     private String typeElement;
     private String tagName;
     private String xPath;
@@ -29,6 +30,7 @@ public class ElementDTO {
 
     // Copy Constructor
     public ElementDTO(ElementDTO other) {
+        this.id = other.id;
         this.typeElement = other.typeElement;
         this.tagName = other.tagName;
         this.xPath = other.xPath;
@@ -54,6 +56,7 @@ public class ElementDTO {
 
     public ElementDTO deepCopy() {
         ElementDTO copy = new ElementDTO();
+        copy.setId(this.id);
         copy.setSomeText(this.someText);
         copy.setTypeElement(this.typeElement);
         copy.setTagName(this.tagName);

@@ -4,7 +4,6 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.model.AttributeData;
 import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
@@ -3122,89 +3121,6 @@ public class PerformActions {
                 script, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
     }
 
-    public List<ElementDTO> extractElementData(String[] iFrameElements) {
-        List<ElementDTO> elements = new ArrayList<>();
-
-        for (String line : iFrameElements) {
-            String typeElement = "";
-            String tagName = "";
-            String xPath = "";
-            String text = "";
-            String attribId = "";
-            String attribName = "";
-            String coords = "";
-            AttributeData[] attributeData = new AttributeData[0];
-            String customXPath = "";
-
-            // Split into key-value pairs based on ";"
-            String[] parts = line.split(";");
-            for (String part : parts) {
-                int colonIndex = part.indexOf(":");
-                if (colonIndex == -1) continue; // Skip invalid parts
-
-                String key = part.substring(0, colonIndex).trim();
-                String value = part.substring(colonIndex + 1).trim();
-
-                // Map key-value pairs to variables
-                switch (key) {
-                    case "clicked":
-                    case "tagName-Found":
-                    case "clicked-iFrame":
-                    case "iFrame-Found":
-                    case "iFrame-Child":
-                        typeElement = key;
-                        tagName = value;
-                        break;
-                    case "xpath":
-                        xPath = value;
-                        break;
-                    case "text":
-                        text = value;
-                        break;
-                    case "attribId":
-                        attribId = value;
-                        break;
-                    case "attribName":
-                        attribName = value;
-                        break;
-                    case "coords":
-                        coords = value;
-                        break;
-                    case "attributeData":
-                        //                        attributeData = value.split(",");
-                        attributeData = new AttributeData[0];
-                        break;
-                    case "customXPath":
-                        customXPath = value;
-                        break;
-                }
-            }
-
-            // Only add valid elements
-            if (!typeElement.isEmpty() && !tagName.isEmpty()) {
-                elements.add(new ElementDTO(
-                        typeElement,
-                        tagName,
-                        xPath,
-                        text,
-                        attribId,
-                        attribName,
-                        coords,
-                        attributeData,
-                        customXPath,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null));
-            }
-        }
-        return elements;
-    }
-
     public ElementDTO convertTargetToElementDTO(TargetElement targetElement) {
         if (targetElement == null) {
             return null;
@@ -3222,7 +3138,6 @@ public class PerformActions {
         elementDTO.setCustomXPath(targetElement.getCustomXPath());
         elementDTO.setIFrameXPath(targetElement.getIFrameXPath());
 
-        elementDTO.setTagName(targetElement.getTagName());
         elementDTO.setShadowHost(targetElement.getShadowHost());
         elementDTO.setShadowRoot(targetElement.getShadowRoot());
         elementDTO.setNestedShadow(targetElement.getNestedShadow());
@@ -3239,12 +3154,13 @@ public class PerformActions {
                 case ANCHOR:
                 case OPTION:
                 case MAT_SELECT:
-                    elementDTO.setTypeElement(
-                            "button"); // or "link", "option", depending on how you want to represent these
+                    elementDTO.setTypeElement("tagName-Found");
+                    elementDTO.setTagName("button");
                     break;
                 case INPUT:
                 case TEXT_AREA:
-                    elementDTO.setTypeElement("input");
+                    elementDTO.setTypeElement("tagName-Found");
+                    elementDTO.setTagName("input");
                     break;
                 case OUTPUT:
                 case PARAGRAPH:
@@ -3254,17 +3170,19 @@ public class PerformActions {
                 case DIV:
                 case STRONG:
                 case SPAN:
-                    elementDTO.setTypeElement("output");
+                    elementDTO.setTypeElement("tagName-Found");
+                    elementDTO.setTagName("output");
                     break;
                 case IFRAME:
                     elementDTO.setTypeElement("iframe");
+                    elementDTO.setTagName("iframe");
                     break;
                 default:
-                    elementDTO.setTypeElement(targetElement.getTagName()); // Default to tag name
+                    elementDTO.setTypeElement("tagName-Found"); // Default to tag name
                     break;
             }
         } else {
-            elementDTO.setTypeElement(targetElement.getTagName()); // Default to tag name if tagType is null
+            elementDTO.setTypeElement("tagName-Found"); // Default to tag name if tagType is null
         }
 
         return elementDTO;
