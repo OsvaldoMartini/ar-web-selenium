@@ -128,7 +128,7 @@ public class SimpleWebSocketServer {
 
     @OnMessage
     public void onMessage(String message, Session session) {
-        if (message == null || message.trim().isEmpty() || message.contains("CONNECT")) {
+        if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
             return;
         }
@@ -575,7 +575,7 @@ public class SimpleWebSocketServer {
         // Clean up session when it closes
         String sessionId = getSessionIdBySession(session);
         if (sessionId != null) {
-            removeSession(sessionId);
+            //            removeSession(sessionId);
             System.out.println("Connection closed: Session ID = " + sessionId);
         }
     }

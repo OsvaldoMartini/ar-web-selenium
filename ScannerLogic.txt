@@ -1,6 +1,6 @@
 String mainMsg = "";
 boolean byPassNotFound = false;
-boolean byPassFlagLoop = false;
+boolean byPassFlagLoop;
 boolean success = true;
 boolean stopAll = false;
 long botJobStartTime = System.nanoTime();
@@ -17,7 +17,7 @@ int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
 
 mapOperators = new HashMap < > ();
 mapExport = new LinkedHashMap < > ();
-
+variablesLoaded = performDataBase.loadAllVariables(botJobId);
 Map < String, String > mapSavedLocators = new HashMap < > ();
 
 Set < Integer > parentIdsForLoop = null;
@@ -30,7 +30,7 @@ Map < String, Integer > loopBlockLimits = new HashMap < > ();
 ARConstants.ConditionStatus currentCondition = ARConstants.ConditionStatus.NONE;
 ARConstants.ConditionStatus previousCondition;
 ARConstants.ConditionStatus progressCondition;
-ARConstants.DialogModal respModal = ARConstants.DialogModal.NONE;
+ARConstants.DialogModal respModal;
 
 int exportIndex = 1;
 boolean webElementWork = false;
@@ -236,6 +236,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
         instructionLoop:
           while (currentIndex < instructionIds.length && !stopAll) {
             // Resets the success
+
+            stopAll = isInterceptBotJob();
+            if (stopAll) {
+              break;
+            }
+
             success = true;
             webElementWork = false;
 
@@ -293,7 +299,6 @@ if (extractedData.getNumberOfDataRows() > 0) {
             //                        if (currentInstruction.getExecuted() == null ||
             // !currentInstruction.getExecuted()) {
             boolean execGetOrSet = false;
-            boolean getAction = false;
             boolean execCheckValue = false;
             boolean excelWriteOperation = false;
             boolean pauseOperation = false;
@@ -301,6 +306,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
             String xPathOperation = null;
             String parentField = null;
             String parentFieldLoop = null;
+            String variableField = null;
             String fieldName = null;
             int parentId = currentInstruction.getParentId();
 
@@ -522,16 +528,30 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
               execGetOrSet = true;
 
-              getAction = actions[0].equalsIgnoreCase(ARConstants.GET_VALUE);
-
               xPathOperation = performActions.getXPathInstruction(currentInstruction, blockLoad);
               parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+              variableField =
+                performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+              if (variableField == null) {
+                variableField = "Not Variable defined";
+              }
 
             } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
               execCheckValue = true;
               parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+              variableField =
+                performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+              if (variableField == null) {
+                variableField = "Not Variable defined";
+              }
             } else if (actions[0].equalsIgnoreCase(ARConstants.EXTRACT_FIELD)) {
               excelWriteOperation = true;
+              parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
+              variableField =
+                performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+              if (variableField == null) {
+                variableField = "Not Variable defined";
+              }
             }
 
             File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -869,11 +889,6 @@ if (extractedData.getNumberOfDataRows() > 0) {
                   resultActions = performActions.parentIdWrongBlock(
                     currentInstruction, blockLoad, resultActions, currentCondition);
                   success = false;
-                } else if (!mapOperators.containsKey(parentField) && !getAction) {
-                  resultActions = performActions.getValueIsNotDefined(
-                    currentInstruction, resultActions, currentCondition);
-
-                  success = false;
                 } else {
 
                   resultActions = performActions.performOperatorActions(
@@ -883,6 +898,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
                     actions[0],
                     operations,
                     parentField,
+                    variableField,
                     mapOperators);
 
                   if (resultActions != null) {
@@ -910,41 +926,32 @@ if (extractedData.getNumberOfDataRows() > 0) {
               } else if (execCheckValue) {
                 // Check Validation Operator
 
-                if (parentField != null) {
-                  parentField = parentId + "-" + parentField;
-                }
-
-                if (parentField == null) {
-                  resultActions = performActions.parentIdWrongBlock(
-                    currentInstruction, blockLoad, resultActions, currentCondition);
-
+                if (!mapOperators.containsKey(variableField)) {
                   resultActions = performActions.getValueIsNotDefined(
-                    currentInstruction, resultActions, currentCondition);
-
-                  success = false;
-
-                } else if (!mapOperators.containsKey(parentField)) {
-                  resultActions = performActions.getValueIsNotDefined(
-                    currentInstruction, resultActions, currentCondition);
+                    actions[0],
+                    currentInstruction,
+                    resultActions,
+                    currentCondition,
+                    parentField,
+                    variableField);
 
                   success = false;
                 } else {
                   //                                    fieldName = parentField;
 
-                  resultActions =
-                    "CHECK_VALUE for (" + parentField + ")" + String.join(" ", operations);
+                  resultActions = "Check Value for " + String.join(" ", operations);
                   boolean isOperationValid = false;
                   String invalidValues = null;
 
                   if (operations[1].equalsIgnoreCase("=")) {
                     isOperationValid = mapOperators
-                      .get(parentField)
+                      .get(variableField)
                       .trim()
                       .equalsIgnoreCase(operations[2]);
 
                   } else if (operations[1].equalsIgnoreCase(">")) {
                     int resp = handleGreaterThan(
-                      mapOperators.get(parentField).trim(), operations[2]);
+                      mapOperators.get(variableField).trim(), operations[2]);
                     if (resp == 1) {
                       isOperationValid = true;
                     } else if (resp == 0) {
@@ -955,12 +962,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
                     }
                   } else if (operations[1].equalsIgnoreCase("!=")) {
                     isOperationValid = !mapOperators
-                      .get(parentField)
+                      .get(variableField)
                       .trim()
                       .equalsIgnoreCase(operations[2]);
                   } else if (operations[1].equalsIgnoreCase("<")) {
                     int resp = handleLessThan(
-                      mapOperators.get(parentField).trim(), operations[2]);
+                      mapOperators.get(variableField).trim(), operations[2]);
                     if (resp == 1) {
                       isOperationValid = true;
                     } else if (resp == 0) {
@@ -993,7 +1000,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
                     resultActions = performActions.checkValidationFailed(
                       invalidValues,
                       parentField,
-                      mapOperators.get(parentField),
+                      mapOperators.get(variableField),
                       resultActions,
                       operations,
                       currentCondition,
@@ -1003,22 +1010,23 @@ if (extractedData.getNumberOfDataRows() > 0) {
                   }
                 }
 
-              } else if (excelWriteOperation && operations.length == 2) {
+              } else if (excelWriteOperation) {
                 // Excel Write Operator
 
-                fieldName = currentInstruction.getOperation();
-                parentField = currentInstruction.getVariableId() + "-" + fieldName;
-
                 if (parentField == null) {
-
                   resultActions = performActions.parentIdWrongBlock(
                     currentInstruction, blockLoad, resultActions, currentCondition);
 
                   success = false;
 
-                } else if (!mapOperators.containsKey(parentField)) {
+                } else if (!mapOperators.containsKey(variableField)) {
                   resultActions = performActions.getValueIsNotDefined(
-                    currentInstruction, resultActions, currentCondition);
+                    actions[0],
+                    currentInstruction,
+                    resultActions,
+                    currentCondition,
+                    parentField,
+                    variableField);
 
                   success = false;
                 } else {
@@ -1037,11 +1045,11 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
                   if (writerExport != null) {
 
-                    resultActions = "insertValueFieldNameInExcel -> " + parentField + "-" +
-                      mapOperators.get(parentField);
+                    resultActions = "insertValueFieldNameInExcel -> " + variableField + "-" +
+                      mapOperators.get(variableField);
                   } else {
-                    resultActions = "NO Export Excel File defined -> " + parentField + "-" +
-                      mapOperators.get(parentField);
+                    resultActions = "NO Export Excel File defined -> " + variableField + "-" +
+                      mapOperators.get(variableField);
                   }
 
                   if (mapExport.size() == 0) {
@@ -1053,7 +1061,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
                   // Insert the updated mapExport into the Excel after each instruction
                   if (writerExport != null) {
                     mapExport.put("KEY", "EXTERNAL");
-                    mapExport.put(fieldName, mapOperators.get(parentField));
+                    mapExport.put(parentField, mapOperators.get(variableField));
 
                     writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
                   }

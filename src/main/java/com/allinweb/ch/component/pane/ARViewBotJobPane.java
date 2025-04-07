@@ -214,7 +214,7 @@ public class ARViewBotJobPane extends ARPane {
 
         // Initialize WebSocket container
         wsContainer = WebSocketServerContainerInitializer.configureContext(context);
-        //        wsContainer.setDefaultMaxSessionIdleTimeout(600000);
+        wsContainer.setDefaultMaxSessionIdleTimeout(0);
         //        wsContainer.addEndpoint(WebSocketStompServer.class);
         wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register SimpleWebSocketServer
 
