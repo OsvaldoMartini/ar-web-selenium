@@ -1179,9 +1179,9 @@ public class ARScannedElementPane extends ARPane {
         includeAllSelected.setVisible(false);
 
         cleanListButton = componentBuilder.buildButton(
-                "", // No text
+                "Refresh Grid", // No text
                 25.0, // Smaller height
-                "/cross.png", // Icon source
+                "/refresh.png", // Icon source
                 16.0, // Smaller icon size
                 new Insets(2.0) // Reduced padding
                 );
