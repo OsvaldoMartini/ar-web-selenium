@@ -20,9 +20,13 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.AnchorPane;
@@ -56,10 +60,15 @@ public class ARExcelFilePane extends ARPane {
     // UI Components
     Label pathExportLabel;
     Label fileExportLabel;
+    Label fileTypeLabel;
 
     TextField pathExport;
     TextField fileExport;
 
+    ObservableList<String> filetypeList =
+            FXCollections.observableArrayList(ARConstants.FILE_FORMAT_EXCEL, ARConstants.FILE_FORMAT_CSV);
+    ChoiceBox<String> fileTypeChoiceBox = new ChoiceBox<>();
+    
     Button pathExportButton;
     Button pathDeleteButton;
 
@@ -125,38 +134,47 @@ public class ARExcelFilePane extends ARPane {
         fileExportLabel = new Label("File Name");
         fileExport = createPathTextField(fileName);
         //        AnchorPane exportGroup = new AnchorPane(pathExport, pathExportButton);
+        fileTypeLabel = new Label("File Type");
 
+        fileTypeChoiceBox.setItems(filetypeList);
+        fileTypeChoiceBox.getSelectionModel().selectFirst();
+        
         GridPane gridPaneExport = new GridPane();
         //        gridPaneLog.setVgap(10);
-        gridPaneExport.setHgap(10);
+        gridPaneExport.setHgap(5);
         // Set column constraints for pathLog (80%), sizeLog (15%), and pathLogButton (5%)
         ColumnConstraints colExp1 = new ColumnConstraints();
-        colExp1.setPercentWidth(60);
+        colExp1.setPercentWidth(50);
 
         ColumnConstraints colExp2 = new ColumnConstraints();
         colExp2.setPercentWidth(30);
 
         ColumnConstraints colExp3 = new ColumnConstraints();
-        colExp3.setPercentWidth(5);
+        colExp3.setPercentWidth(10);
 
         ColumnConstraints colExp4 = new ColumnConstraints();
         colExp4.setPercentWidth(5);
 
-        gridPaneExport.getColumnConstraints().addAll(colExp1, colExp2, colExp3, colExp4);
+        ColumnConstraints colExp5 = new ColumnConstraints();
+        colExp5.setPercentWidth(5);
 
-        // Add labels in the first row
+        gridPaneExport.getColumnConstraints().addAll(colExp1, colExp2, colExp3, colExp4, colExp5);
+
+        // Add LABELS in the first row
         gridPaneExport.add(pathExportLabel, 0, 0);
         gridPaneExport.add(fileExportLabel, 1, 0);
+        gridPaneExport.add(fileTypeLabel, 2, 0);
 
-        // Add text fields in the second row
+        // Add text FIELDS in the second row
         gridPaneExport.add(pathExport, 0, 1);
         gridPaneExport.add(fileExport, 1, 1);
+        gridPaneExport.add(fileTypeChoiceBox, 2, 1);
 
         // Add button in the second row, third column
-        gridPaneExport.add(pathExportButton, 2, 1);
+        gridPaneExport.add(pathExportButton, 3, 1);
 
         // Add button in the second row, fourth column
-        gridPaneExport.add(pathDeleteButton, 3, 1);
+        gridPaneExport.add(pathDeleteButton, 4, 1);
 
         // Set margin for pathLogButton to create spacing from right border
         GridPane.setMargin(pathExportButton, new Insets(0, 0, 0, 5));
@@ -177,10 +195,7 @@ public class ARExcelFilePane extends ARPane {
         ColumnConstraints col4Button = new ColumnConstraints();
         col4Button.setPercentWidth(20);
 
-        ColumnConstraints col5Button = new ColumnConstraints();
-        col5Button.setPercentWidth(20);
-
-        gridPaneButton.getColumnConstraints().addAll(col1Button, col2Button, col3Button, col4Button, col5Button);
+        gridPaneButton.getColumnConstraints().addAll(col1Button, col2Button, col3Button, col4Button);
 
         String css = getClass().getResource("/button.css").toExternalForm();
 
@@ -268,7 +283,7 @@ public class ARExcelFilePane extends ARPane {
                 fileName = fileName.substring(0, lastDotIndex);
             }
             // Append .xlsx extension
-            fileName += ".xlsx";
+            fileName += fileTypeChoiceBox.getValue();
             // Set the corrected file name back to the text field
             fileExport.setText(fileName);
 
