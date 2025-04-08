@@ -3771,8 +3771,12 @@ public class ARScannedElementPane extends ARPane {
                                     if (writerExport != null) {
                                         mapExport.put("KEY", "EXTERNAL");
                                         mapExport.put(parentField, mapOperators.get(variableField));
-
-                                        writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
+                                        if (excelFieldName != null
+                                                && excelFieldName.toLowerCase().endsWith(".csv")) {
+                                            writerExport.writeMapToCSV(mapExport, excelFieldName);
+                                        } else {
+                                            writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
+                                        }
                                     }
                                     performActions.onHoldForSeconds(null);
 

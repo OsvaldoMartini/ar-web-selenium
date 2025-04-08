@@ -20,7 +20,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -68,7 +67,7 @@ public class ARExcelFilePane extends ARPane {
     ObservableList<String> filetypeList =
             FXCollections.observableArrayList(ARConstants.FILE_FORMAT_EXCEL, ARConstants.FILE_FORMAT_CSV);
     ChoiceBox<String> fileTypeChoiceBox = new ChoiceBox<>();
-    
+
     Button pathExportButton;
     Button pathDeleteButton;
 
@@ -137,8 +136,13 @@ public class ARExcelFilePane extends ARPane {
         fileTypeLabel = new Label("File Type");
 
         fileTypeChoiceBox.setItems(filetypeList);
-        fileTypeChoiceBox.getSelectionModel().selectFirst();
-        
+
+        if (!fileName.toLowerCase().endsWith(".csv")) {
+            fileTypeChoiceBox.getSelectionModel().selectFirst();
+        } else {
+            fileTypeChoiceBox.getSelectionModel().selectLast();
+        }
+
         GridPane gridPaneExport = new GridPane();
         //        gridPaneLog.setVgap(10);
         gridPaneExport.setHgap(5);
