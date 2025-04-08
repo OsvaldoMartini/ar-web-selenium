@@ -912,10 +912,6 @@ public class ARScannedElementPane extends ARPane {
     private List<VariableLoadDTO> variablesLoaded;
 
     private static String[] lstAllPaths;
-    private final List<ElementDTO> elementsFound = new ArrayList<>();
-
-    List<InstructionLoadDTO> instructionsExecuted = new ArrayList<>();
-    List<Integer> executedSuccess = new ArrayList<>();
 
     // Very important sequence on initiation
     private static final ARPropertyManager managerProps;
@@ -1640,7 +1636,6 @@ public class ARScannedElementPane extends ARPane {
             }
 
             this.botJobLoadList = performDataBase.loadCompleteJobs(botJobLoad.getId());
-            instructionsExecuted.clear();
 
             // Set all instructions' executed field to false
             botJobLoadList.get(0).getBlockLoadDTOList().stream()
@@ -2036,7 +2031,6 @@ public class ARScannedElementPane extends ARPane {
 
         resultElementSearch = true;
 
-        elementsFound.clear();
         xpathTextPrevious = "";
         //        targetSelected = null;
 
@@ -2772,8 +2766,6 @@ public class ARScannedElementPane extends ARPane {
 
                 int parentBlockCondition = -1;
 
-                instructionsExecuted.clear();
-
                 BlockLoadDTO blockLoad = blocksLoaded.get(currentBlock);
 
                 String excelFieldName = blockLoad.getExportFile();
@@ -3301,17 +3293,6 @@ public class ARScannedElementPane extends ARPane {
                                             currentBlock = blockOrderNumber - 1;
                                             currentInstruction.setExecuted(true);
 
-                                            // Assuming currentInstruction and instructionsExecuted are already defined
-                                            if (currentInstruction != null
-                                                    && instructionsExecuted.stream()
-                                                            .noneMatch(instruction ->
-                                                                    instruction.getInstructionOrderNumber()
-                                                                            == currentInstruction
-                                                                                    .getInstructionOrderNumber())) {
-                                                instructionsExecuted.add(currentInstruction);
-                                            }
-
-                                            executedSuccess.add(currentInstruction.getId());
                                             success = true;
 
                                         } catch (Exception ex) {
@@ -3571,15 +3552,6 @@ public class ARScannedElementPane extends ARPane {
                                     success = false;
                                 } else if (resultActions != null && success) {
                                     currentInstruction.setExecuted(true);
-                                    // Assuming currentInstruction and instructionsExecuted are already defined
-                                    if (currentInstruction != null
-                                            && instructionsExecuted.stream()
-                                                    .noneMatch(instruction -> instruction.getInstructionOrderNumber()
-                                                            == currentInstruction.getInstructionOrderNumber())) {
-                                        instructionsExecuted.add(currentInstruction);
-                                    }
-
-                                    executedSuccess.add(currentInstruction.getId());
                                 }
 
                             } else if (execGetOrSet) {
@@ -3612,19 +3584,6 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (resultActions != null) {
                                         currentInstruction.setExecuted(true);
-
-                                        // Assuming currentInstruction and instructionsExecuted are already
-                                        // defined
-                                        if (currentInstruction != null
-                                                && instructionsExecuted.stream()
-                                                        .noneMatch(
-                                                                instruction -> instruction.getInstructionOrderNumber()
-                                                                        == currentInstruction
-                                                                                .getInstructionOrderNumber())) {
-                                            instructionsExecuted.add(currentInstruction);
-                                        }
-
-                                        executedSuccess.add(currentInstruction.getId());
                                         success = true;
                                     } else {
                                         failedMessage = "Failed: Operation (GetVaue / SetValue)";
@@ -3690,19 +3649,6 @@ public class ARScannedElementPane extends ARPane {
                                     if (isOperationValid) {
 
                                         currentInstruction.setExecuted(true);
-
-                                        // Assuming currentInstruction and instructionsExecuted are already
-                                        // defined
-                                        if (currentInstruction != null
-                                                && instructionsExecuted.stream()
-                                                        .noneMatch(
-                                                                instruction -> instruction.getInstructionOrderNumber()
-                                                                        == currentInstruction
-                                                                                .getInstructionOrderNumber())) {
-                                            instructionsExecuted.add(currentInstruction);
-                                        }
-
-                                        executedSuccess.add(currentInstruction.getId());
                                         success = true;
                                     } else {
                                         failedMessage = "Failed: Check Validation";
@@ -3782,19 +3728,6 @@ public class ARScannedElementPane extends ARPane {
 
                                     if (resultActions != null) {
                                         currentInstruction.setExecuted(true);
-
-                                        // Assuming currentInstruction and instructionsExecuted are already
-                                        // defined
-                                        if (currentInstruction != null
-                                                && instructionsExecuted.stream()
-                                                        .noneMatch(
-                                                                instruction -> instruction.getInstructionOrderNumber()
-                                                                        == currentInstruction
-                                                                                .getInstructionOrderNumber())) {
-                                            instructionsExecuted.add(currentInstruction);
-                                        }
-
-                                        executedSuccess.add(currentInstruction.getId());
                                         success = true;
                                     } else {
                                         failedMessage = "Failed: Generate File -> Excel/CSV";
@@ -3987,11 +3920,7 @@ public class ARScannedElementPane extends ARPane {
             Pair<String, String> dataDynamic = null;
             for (int j = 0; success && j < blocksLoaded.size(); j++) {
 
-                // Call the method to get the filtered list
-                List<InstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                        instructionsExecuted, blocksLoaded.get(j).getInstructionLoadDTOS());
-
-                for (InstructionLoadDTO currentInstruction : unexecutedInstructions) {
+                for (InstructionLoadDTO currentInstruction : blocksLoaded.get(j).getInstructionLoadDTOS()) {
                     if (currentInstruction.getDefaultValue() == null) {
                         String[] arr = UtilsMethods.splitIfContains(
                                 currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
@@ -4008,11 +3937,7 @@ public class ARScannedElementPane extends ARPane {
                 int blockOrder = blocksLoaded.get(j).getBlockOrderNumber();
                 String blockReportName = "#" + blockOrder + " " + blockName;
 
-                // Call the method to get the filtered list
-                List<InstructionLoadDTO> unexecutedInstructions = getUnexecutedInstructions(
-                        instructionsExecuted, blocksLoaded.get(j).getInstructionLoadDTOS());
-
-                for (InstructionLoadDTO currentInstruction : unexecutedInstructions) {
+                for (InstructionLoadDTO currentInstruction : blocksLoaded.get(j).getInstructionLoadDTOS()) {
 
                     long currentInstructionStartTime = System.nanoTime();
                     File logFileForSingleExcel = excelReader.createLogFile(excelPath);
