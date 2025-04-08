@@ -588,7 +588,7 @@ public class PerformCloneLoad {
                       function limitMapCharacters(elementInfoMap) {
                         elementInfoMap.forEach((value, key) => {
                           let modifiedValue = value;
-                          window.allElementInfo.push(modifiedValue);
+                          window.allElementInfo.push({ ...value, id: 1 }); // given '1' for  id
                         });
                       }
 
@@ -869,7 +869,7 @@ public class PerformCloneLoad {
                     //   "https://www.vpbank.com/",
                     //   ["*"],
                     //   false,
-                    //   63760,
+                    //   50562,
                     //   1
                     // );
 

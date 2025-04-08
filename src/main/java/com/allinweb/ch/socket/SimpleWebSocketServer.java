@@ -9,6 +9,7 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.ParentOperations;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
@@ -333,7 +334,25 @@ public class SimpleWebSocketServer {
 
                 if (rowUpdateDTO.getUpdatedRows().size() > 0) {
                     if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                        performDataBase.rowsUpdateName(rowUpdateDTO.getUpdatedRows());
+                        if (performDataBase.rowsUpdateName(rowUpdateDTO.getUpdatedRows())) {
+                            List<ParentOperations> listParents = performDataBase.loadAllParents(
+                                    rowUpdateDTO.getBotJobId(),
+                                    rowUpdateDTO.getUpdatedRows().get(0).getInstructionId());
+                            if (!listParents.isEmpty()) {
+                                for (ParentOperations parent : listParents) {
+                                    if ("GET".equals(parent.getActions())) {
+                                        List<String> operationsList = new ArrayList<>();
+                                        if (parent.getParentName() != null) {
+                                            String[] parts =
+                                                    parent.getOperations().split(":");
+                                            parent.setOperations(parent.getParentName() + ":" + parts[1]);
+                                        }
+                                    }
+                                }
+
+                                performDataBase.rowsGetUpdateName(listParents);
+                            }
+                        }
                     } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
                         performDataBase.rowsCompUpdateName(rowUpdateDTO.getUpdatedRows());
                     }

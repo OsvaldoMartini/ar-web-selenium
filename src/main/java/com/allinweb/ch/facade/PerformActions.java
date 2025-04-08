@@ -210,12 +210,14 @@ public class PerformActions {
                         return passed;
                     case ARConstants.OUTPUT:
                         String fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
-                        return getOutPutElement(
+                        String valueElem = getOutPutElement(
                                 byPassNotFound,
                                 instructionElement,
                                 fieldName,
                                 currentInstruction.getActions(),
                                 mapOperators);
+
+                        return !Strings.isNullOrEmpty(valueElem);
                     case ARConstants.CLICK:
                     case ARConstants.OTHER:
                         passed = clickElement(byPassNotFound, instructionElement);
@@ -315,6 +317,7 @@ public class PerformActions {
             boolean byPassNotFound,
             InstructionLoadDTO instruction,
             String targetXPath,
+            String[] parentOperations,
             String action,
             String[] operations,
             String parentField,
@@ -340,7 +343,17 @@ public class PerformActions {
                     if (mapOperators.containsKey(variableField)) {
                         valueElem = mapOperators.get(variableField);
                     } else {
-                        valueElem = getValueInElement(byPassNotFound, instructionElement);
+                        if (parentOperations[0].equals(ARConstants.OUTPUT)) {
+                            valueElem = getOutPutElement(
+                                    byPassNotFound,
+                                    instructionElement,
+                                    parentField,
+                                    instruction.getActions(),
+                                    mapOperators);
+                        } else {
+                            valueElem = getValueInElement(byPassNotFound, instructionElement);
+                        }
+
                         mapOperators.put(variableField, valueElem);
                     }
                     return "GET_VALUE from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueElem;
@@ -1399,7 +1412,7 @@ public class PerformActions {
         return true;
     }
 
-    private boolean getOutPutElement(
+    private String getOutPutElement(
             boolean byPassNotFound,
             WebElement element,
             String fieldName,
@@ -1419,7 +1432,7 @@ public class PerformActions {
             if (!byPassNotFound) {
                 performMessage.couldNotFindElement(fieldName);
             }
-            return false;
+            return null;
         }
 
         String textByhJS = "";
@@ -1501,7 +1514,7 @@ public class PerformActions {
                     .severe(String.format("Failed to retrieve text from element for: %s", fieldName));
         }
 
-        return true;
+        return finalText;
     }
 
     private void listOperation(boolean byPassNotFound, InstructionLoadDTO instructionDTO) {
@@ -1704,8 +1717,10 @@ public class PerformActions {
 
             if (action.equals(ARConstants.EXTRACT_FIELD) || action.equals(ARConstants.CHECK_VALUE)) {
                 msg1 = "The variable \"" + variableField + "\" has not been assigned.";
-                msg2 = "Please add a step for \"" + currentInstruction.getName() + "\" to assign this variable.";
-                msg3 = "Ensure that the variable \"" + variableField + "\" is properly defined before use.";
+                msg2 = "Please add a <span style='color: #000080; font-weight: bold;'>GET</span> step for \""
+                        + currentInstruction.getName() + "\" to assign this variable.";
+                msg3 = "Missing a <span style='color: #000080; font-weight: bold;'>GET</span> for variable \""
+                        + variableField + "\" .";
             } else {
                 msg1 = "No GET value has been defined for: \"" + currentInstruction.getName() + "\".";
                 msg2 = "Please add a GET step for instruction ID: " + currentInstruction.getParentId()
@@ -1936,11 +1951,11 @@ public class PerformActions {
 
             String msg1;
             if (operations[1].equals(">")) {
-                msg1 = "The Value of: \"" + expected + "\" is not <span style='color:#000080; font-weight: bold;'>( "
+                msg1 = "The Value of: \"" + expected + "\" is not <span style='color: #000080; font-weight: bold;'>( "
                         + operations[1] + " )</span> \"" + operations[2] + "\"";
             } else if (operations[1].equals("<")) {
                 msg1 = "The Value of: \"" + operations[2]
-                        + "\" is not <span style='color:#000080; font-weight: bold;'>( &lt; )</span> \"" + expected
+                        + "\" is not <span style='color: #000080; font-weight: bold;'>( &lt; )</span> \"" + expected
                         + "\"";
             } else {
                 msg1 = "The Value of: \"" + operations[2] + "\" is not " + operations[1] + " \""
@@ -2263,6 +2278,18 @@ public class PerformActions {
                     .findFirst()
                     .get()
                     .getName();
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    public String getInstructionParentActions(InstructionLoadDTO currentInstruction, BlockLoadDTO blockLoad) {
+        try {
+            return blockLoad.getInstructionLoadDTOS().stream()
+                    .filter(f -> f.getId().equals(currentInstruction.getParentId()))
+                    .findFirst()
+                    .get()
+                    .getActions();
         } catch (Exception ex) {
             return null;
         }
@@ -3243,6 +3270,7 @@ public class PerformActions {
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.TEXT_AREA.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.INPUT);
                 targetDefine.setIconType(WebElementIcon.INSERT);
+                targetDefine.setTagName("input");
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.PARAGRAPH.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.HEADER.getValue())
                     || elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.LABEL.getValue())
@@ -3254,12 +3282,14 @@ public class PerformActions {
                             .contains(elemenDTO.getTagName().toLowerCase())) {
                 targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
                 targetDefine.setIconType(WebElementIcon.OUTPUT);
+                targetDefine.setTagName("label");
             } else if (elemenDTO.getTagName().equalsIgnoreCase(WebElementTagNameEnum.IFRAME.getValue())) {
                 targetDefine.setTagType(WebElementTagNameEnum.IFRAME);
                 targetDefine.setIconType(WebElementIcon.IFRAME);
             } else {
-                targetDefine.setTagType(WebElementTagNameEnum.ALL);
+                targetDefine.setTagType(WebElementTagNameEnum.OUTPUT);
                 targetDefine.setIconType(WebElementIcon.TEXT);
+                targetDefine.setTagName("label");
             }
         }
         return targetDefine;

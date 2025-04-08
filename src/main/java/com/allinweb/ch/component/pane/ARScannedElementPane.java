@@ -323,7 +323,6 @@ public class ARScannedElementPane extends ARPane {
                 instruction.setCoordinates(targetInsert.getCoordinates());
                 instruction.setIFrameXPath(targetInsert.getIFrameXPath());
 
-                instruction.setTagName(targetInsert.getTagName());
                 instruction.setShadowHost(targetInsert.getShadowHost());
                 instruction.setShadowRoot(targetInsert.getShadowRoot());
                 instruction.setCssSelector(targetInsert.getCssSelector());
@@ -1261,21 +1260,20 @@ public class ARScannedElementPane extends ARPane {
 
         cleanListButton.setOnAction(e -> {
             if (webEngine != null) {
-                webEngine.reload();
-            }
+                //                webEngine.reload();
 
-            //            Platform.runLater(() -> {
-            //                var processDTO = new ElementSplitDTO();
-            //                processDTO.setHomeBankingId(homeBanking.getId());
-            //                processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
-            //                processDTO.setOperationId("searchTerms");
-            //                processDTO.setDetails(new ElementDTO[0]);
-            //                sendMessageJson(
-            //                        homeBanking.getId(), "scannerGrid-" + homeBanking.getId(),
-            // gson.toJson(processDTO), null);
-            //
-            //                countdownTextField.setText("Pre-Launch status: Ready");
-            //            });
+                var processDTO = new ElementSplitDTO();
+                processDTO.setHomeBankingId(homeBanking.getId());
+                processDTO.setSessionId("scannerGrid-" + homeBanking.getId());
+                processDTO.setOperationId("searchTerms");
+                processDTO.setDetails(new ElementDTO[0]);
+                sendMessageJson(
+                        homeBanking.getId(), "scannerGrid-" + homeBanking.getId(), gson.toJson(processDTO), null);
+
+                Platform.runLater(() -> {
+                    countdownTextField.setText("Pre-Launch status: Ready");
+                });
+            }
         });
 
         currentURL = new Text("");
@@ -1632,6 +1630,7 @@ public class ARScannedElementPane extends ARPane {
 
         configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
         launchBotJobButton.setOnMouseClicked(e -> {
+            launchBotJobButton.setDisable(true);
             performActions.setInterceptBotJob(false);
             setInterceptBotJob(false);
             isJobRunning.set(false);
@@ -1652,6 +1651,7 @@ public class ARScannedElementPane extends ARPane {
         });
 
         stopBotJobButton.setOnMouseClicked(e -> {
+            launchBotJobButton.setDisable(false);
             performActions.setInterceptBotJob(true);
             setInterceptBotJob(true);
             isJobRunning.set(false);
@@ -3009,10 +3009,12 @@ public class ARScannedElementPane extends ARPane {
                         // !currentInstruction.getExecuted()) {
                         boolean execGetOrSet = false;
                         boolean execCheckValue = false;
+                        boolean execOutPut = false;
                         boolean excelWriteOperation = false;
                         boolean pauseOperation = false;
 
                         String xPathOperation = null;
+                        String[] parentActions = null;
                         String parentField = null;
                         String parentFieldLoop = null;
                         String variableField = null;
@@ -3238,6 +3240,12 @@ public class ARScannedElementPane extends ARPane {
                             execGetOrSet = true;
 
                             xPathOperation = performActions.getXPathInstruction(currentInstruction, blockLoad);
+                            String actionsParent =
+                                    performActions.getInstructionParentActions(currentInstruction, blockLoad);
+                            parentActions = actionsParent != null
+                                    ? actionsParent.split(ARConstants.ACTION_SPECIFICATIONS_SPLITTER)
+                                    : null;
+
                             parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                             variableField =
                                     performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
@@ -3245,6 +3253,9 @@ public class ARScannedElementPane extends ARPane {
                                 variableField = "Not Variable defined";
                             }
 
+                        } else if (actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
+                            execOutPut = true;
+                            fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
                         } else if (actions[0].equalsIgnoreCase(ARConstants.CHECK_VALUE)) {
                             execCheckValue = true;
                             parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
@@ -3544,8 +3555,7 @@ public class ARScannedElementPane extends ARPane {
                                             webElementFound,
                                             actions);
 
-                                    if (actions[0].equalsIgnoreCase(ARConstants.OUTPUT)) {
-                                        fieldName = currentInstruction.getId() + "-" + currentInstruction.getName();
+                                    if (execOutPut) {
                                         if (mapOperators.containsKey(fieldName)) {
                                             msgInstruction = new Pair(fieldName, mapOperators.get(fieldName));
                                         } else {
@@ -3593,6 +3603,7 @@ public class ARScannedElementPane extends ARPane {
                                             byPassNotFound,
                                             currentInstruction,
                                             xPathOperation,
+                                            parentActions,
                                             actions[0],
                                             operations,
                                             parentField,
@@ -4131,6 +4142,7 @@ public class ARScannedElementPane extends ARPane {
                 }
             }
         }
+        launchBotJobButton.setDisable(false);
 
         totalExecutionTime = performActions.getTotalExecutionTime();
 
