@@ -331,7 +331,7 @@ public class PerformActions {
             throws Exception {
 
         WebElement instructionElement = null;
-
+        onHoldInSeconds(1);
         if (!StringUtils.isBlank(targetXPath)) {
             instructionElement =
                     locateTargetElement(byPassNotFound, targetXPath, instruction.getActionCustomMaxWaitSec());
