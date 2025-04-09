@@ -807,23 +807,23 @@ public class ARScannedElementPane extends ARPane {
                 //                    actionText12.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 //                }
 
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.COORD_MOVE_CLICK_RED,
-                        coordinates,
-                        fieldData,
-                        driverTestActions,
-                        true);
-                System.out.println(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText13 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
-
-                System.out.println(actionsTested);
+                //                result = performActions.sequenceOfCommands(
+                //                        targetTest.getElement(),
+                //                        ARConstants.COORD_MOVE_CLICK_RED,
+                //                        coordinates,
+                //                        fieldData,
+                //                        driverTestActions,
+                //                        true);
+                //                System.out.println(result);
+                //                actionsTested.append(result + System.lineSeparator());
+                //                actionText13 = new Text(result);
+                //                if (result.contains("Failed")) {
+                //                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                //                } else {
+                //                    actionText13.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                //                }
+                //
+                //                System.out.println(actionsTested);
 
                 //                VBox vertical = new VBox();
                 //                vertical.getChildren()
@@ -911,7 +911,6 @@ public class ARScannedElementPane extends ARPane {
         });
     }
 
-    private int currentTabIndex = 0; // Track the currently active tab index
     public WebDriver currentDriver;
     private Set<String> windowHandles;
     private final WebElement previousElement = null;
@@ -1091,7 +1090,7 @@ public class ARScannedElementPane extends ARPane {
 
         searchHiddenFields = false;
 
-        defaultSearch = new String[] {"input", "button", "a", "select", "label"};
+        defaultSearch = new String[] {"input", "textarea", "button", "a", "select", "label"};
 
         ARLogger.getInstance(ARWebDriver.class).fine("Calling ARScannedElementPane");
 
@@ -1637,12 +1636,15 @@ public class ARScannedElementPane extends ARPane {
 
     // Switch to the previous tab (left)
     private void switchToLeftTab() {
-        if (performActions.getCurrentDriver().getWindowHandles().size() > 1 && currentTabIndex > 0) {
+        if (performActions.getCurrentDriver().getWindowHandles().size() > 1 && performActions.currentTabIndex > 0) {
             // Decrease the index to move to the left
-            currentTabIndex--;
+            performActions.currentTabIndex--;
 
             // Switch to the previous tab
-            performActions.getCurrentDriver().switchTo().window(performActions.windowHandlesList.get(currentTabIndex));
+            performActions
+                    .getCurrentDriver()
+                    .switchTo()
+                    .window(performActions.windowHandlesList.get(performActions.currentTabIndex));
             updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
 
             // Disable the left button if we are at the first tab
@@ -1656,12 +1658,15 @@ public class ARScannedElementPane extends ARPane {
     // Switch to the next tab (right)
     private void switchToRightTab() {
         if (performActions.getCurrentDriver().getWindowHandles().size() > 1
-                && currentTabIndex < performActions.windowHandlesList.size() - 1) {
+                && performActions.currentTabIndex < performActions.windowHandlesList.size() - 1) {
             // Increase the index to move to the right
-            currentTabIndex++;
+            performActions.currentTabIndex++;
 
             // Switch to the next tab
-            performActions.getCurrentDriver().switchTo().window(performActions.windowHandlesList.get(currentTabIndex));
+            performActions
+                    .getCurrentDriver()
+                    .switchTo()
+                    .window(performActions.windowHandlesList.get(performActions.currentTabIndex));
             updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
 
             // Disable the right button if we are at the last tab
@@ -1682,8 +1687,11 @@ public class ARScannedElementPane extends ARPane {
             performActions.updateWindowHandlesList();
 
             // Switch to the last window (most recent tab)
-            currentTabIndex = performActions.windowHandlesList.size() - 1; // The last index in the list
-            performActions.getCurrentDriver().switchTo().window(performActions.windowHandlesList.get(currentTabIndex));
+            performActions.currentTabIndex = performActions.windowHandlesList.size() - 1; // The last index in the list
+            performActions
+                    .getCurrentDriver()
+                    .switchTo()
+                    .window(performActions.windowHandlesList.get(performActions.currentTabIndex));
 
             // Update the scene title with the current URL of the last tab
             updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
@@ -2172,7 +2180,7 @@ public class ARScannedElementPane extends ARPane {
         if (searchTerms != null && !searchTerms.trim().isEmpty()) {
             dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
         } else {
-            dataArray = new String[] {"input", "button", "a", "select", "label"}; // Default values
+            dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"}; // Default values
         }
 
         handleSearchTermClick(dataArray);
