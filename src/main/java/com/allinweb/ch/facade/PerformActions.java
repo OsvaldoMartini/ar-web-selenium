@@ -2456,85 +2456,6 @@ public class PerformActions {
                 element);
     }
 
-    public void executeActionsAtInstructionCoordinates(InstructionLoadDTO currentInstruction, Pair<String, String> data)
-            throws Exception {
-
-        List<Priority> priorityList = arPriorities.getAllPriorityList();
-        Optional<Priority> priority = priorityList.stream()
-                .filter(p -> p.getPriorityType().equals(PriorityTypeEnum.coordinates))
-                .findFirst();
-        if (priority.isPresent()) {
-            List<InstructionReferenceLoadDTO> instructionReferenceList =
-                    currentInstruction.getInstructionReferenceLoadDTOList();
-            Optional<InstructionReferenceLoadDTO> reference = instructionReferenceList.stream()
-                    .filter(ref -> ref.getReferenceType().equals(priority.get().getName()))
-                    .findFirst();
-            int x = 0;
-            int y = 0;
-            int xCoord = 0;
-            int yCoord = 0;
-            if (reference.isPresent()) {
-                String[] coordinates = reference.get().getValue().split(ARConstants.FIELDS_SEPARATOR);
-
-                double temp1 = Double.parseDouble(coordinates[0]);
-                double temp2 = Double.parseDouble(coordinates[1]);
-                x = (int) temp1;
-                y = (int) temp2;
-                int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
-                int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
-                int offsetY = y - maxHeight;
-                int offsetX = x - maxWidth;
-                xCoord = x > maxWidth ? x - offsetX : x;
-                yCoord = y > maxHeight ? y - offsetY : y;
-            }
-            String[] actions = currentInstruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
-            for (String action : actions) {
-                switch (String.valueOf(action.charAt(0))) {
-                    case ARConstants.VISUALIZE:
-                        scrollToCoordinates(x, y);
-                        break;
-                    case ARConstants.CLICK:
-                        scrollToCoordinates(x, y);
-                        onHoldForSeconds(null);
-                        clickAtCoordinates(xCoord, yCoord);
-                        break;
-                    case ARConstants.INSERT:
-                        scrollToCoordinates(x, y);
-                        onHoldForSeconds(null);
-                        clickAtCoordinates(xCoord, yCoord);
-                        onHoldForSeconds(null);
-                        typeCharacters(data);
-                        break;
-                }
-                onHoldForSeconds(null);
-            }
-        }
-    }
-
-    public Map<String, String> calculateCoordinates(String savedCoordinates) {
-        int x = 0;
-        int y = 0;
-        int xCoord = 0;
-        int yCoord = 0;
-        String[] coordinates = savedCoordinates.split(ARConstants.FIELDS_SEPARATOR);
-        double temp1 = Double.parseDouble(coordinates[0]);
-        double temp2 = Double.parseDouble(coordinates[1]);
-        x = (int) temp1;
-        y = (int) temp2;
-        int maxHeight = this.currentDriver.manage().window().getSize().getHeight();
-        int maxWidth = this.currentDriver.manage().window().getSize().getWidth();
-        int offsetY = y - maxHeight;
-        int offsetX = x - maxWidth;
-        xCoord = x > maxWidth ? x - offsetX : x;
-        yCoord = y > maxHeight ? y - offsetY : y;
-
-        Map<String, String> mapCoordinates = new HashMap<>();
-
-        mapCoordinates.put("ScrollTo", x + ":" + y);
-        mapCoordinates.put("ClickOn", xCoord + ":" + yCoord);
-        return mapCoordinates;
-    }
-
     public boolean executeActionsAtCoordinates(
             String savedCoordinates, Pair<String, String> data, String action, boolean pressEnterAfter) {
 
@@ -2571,8 +2492,7 @@ public class PerformActions {
                 onHoldForSeconds(null);
                 //                clickAtCoordinates(xCoord, yCoord);
                 //                onHoldForSeconds(null);
-                typeCharacters(data);
-
+                typeCharacters(savedCoordinates, data);
                 if (pressEnterAfter) {
                     boolean respAction = sendActionEnter(xCoord, yCoord);
                     if (!respAction) {
@@ -2586,7 +2506,7 @@ public class PerformActions {
                 onHoldForSeconds(null);
                 clickAtCoordinates(xCoord, yCoord);
                 onHoldForSeconds(null);
-                typeCharacters(data);
+                typeCharacters(savedCoordinates, data);
 
                 if (pressEnterAfter) {
                     boolean respAction = sendActionEnter(xCoord, yCoord);
@@ -2702,8 +2622,14 @@ public class PerformActions {
         ((JavascriptExecutor) driver).executeScript(script);
     }
 
-    private void typeCharacters(Pair<String, String> fieldData) {
-        new Actions(this.currentDriver).sendKeys(fieldData.getValue()).perform();
+    private void typeCharacters(String savedCoords, Pair<String, String> fieldData) {
+        clearValueAtCoordinates(savedCoords);
+        boolean passed = setValueAtCoordinates(savedCoords, fieldData.getValue().trim());
+        if (!passed) {
+            new Actions(this.currentDriver)
+                    .sendKeys(fieldData.getValue().trim())
+                    .perform();
+        }
     }
 
     private boolean sendActionEnter(int x, int y) {
@@ -2855,7 +2781,7 @@ public class PerformActions {
                     + "console.log('temp2', temp2);\n"
                     + "const elementAtPoint = document.elementFromPoint(temp1, temp2);\n"
                     + "if (elementAtPoint && (elementAtPoint.tagName === 'INPUT' || elementAtPoint.tagName === 'TEXTAREA')) {\n"
-                    + "\telementAtPoint.value = \"0001\";\n"
+                    + "\telementAtPoint.value = \"" + textToSet + "\";\n"
                     + "} else if (elementAtPoint && elementAtPoint.isContentEditable) {\n"
                     + "\telementAtPoint.textContent = arguments[2];\n"
                     + "} else {\n"

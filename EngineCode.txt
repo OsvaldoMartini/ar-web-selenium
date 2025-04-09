@@ -1029,10 +1029,13 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								mapExport.put("KEY", "EXTERNAL");
 								mapExport.put(parentField, mapOperators.get(variableField));
 								if (excelFieldName != null
-										&& excelFieldName.toLowerCase().endsWith(".csv")) {
+										&& excelFieldName
+												.toLowerCase()
+												.endsWith(".csv")) {
 									writerExport.writeMapToCSV(mapExport, excelFieldName);
 								} else {
-									writerExport.insertFieldNameAndValueLastColumn(mapExport, exportIndex - 1);
+									writerExport.insertFieldNameAndValueLastColumn(
+											mapExport, exportIndex - 1);
 								}
 							}
 							performActions.onHoldForSeconds(null);
@@ -1134,7 +1137,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				}
 
 				// It decides Here if ByPass as per Loop or Per IF-ELSEIF-ELSE-ENDIF blocks
-				if (!success && !byPassFlagLoop && currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
+				if (!success
+						&& !byPassFlagLoop
+						&& currentCondition.equals(ARConstants.ConditionStatus.NONE)) {
 					stopAll = true;
 					break;
 				}
@@ -1236,7 +1241,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 	Pair<String, String> dataDynamic = null;
 	for (int j = 0; success && j < blocksLoaded.size(); j++) {
 
-		for (InstructionLoadDTO currentInstruction : blocksLoaded.get(j).getInstructionLoadDTOS()) {
+		for (InstructionLoadDTO currentInstruction :
+				blocksLoaded.get(j).getInstructionLoadDTOS()) {
 			if (currentInstruction.getDefaultValue() == null) {
 				String[] arr = UtilsMethods.splitIfContains(
 						currentInstruction.getActions(), ARConstants.ACTION_SPECIFICATIONS_SPLITTER);
@@ -1253,7 +1259,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 		int blockOrder = blocksLoaded.get(j).getBlockOrderNumber();
 		String blockReportName = "#" + blockOrder + " " + blockName;
 
-		for (InstructionLoadDTO currentInstruction : blocksLoaded.get(j).getInstructionLoadDTOS()) {
+		for (InstructionLoadDTO currentInstruction :
+				blocksLoaded.get(j).getInstructionLoadDTOS()) {
 
 			long currentInstructionStartTime = System.nanoTime();
 			File logFileForSingleExcel = excelReader.createLogFile(excelPath);
@@ -1388,6 +1395,6 @@ if (extractedData.getNumberOfDataRows() > 0) {
 		}
 	}
 }
-launchBotJobButton.setDisable(false);
+//            launchBotJobButton.setDisable(false);
 
 totalExecutionTime = performActions.getTotalExecutionTime();
