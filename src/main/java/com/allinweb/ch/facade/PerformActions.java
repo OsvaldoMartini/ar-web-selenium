@@ -2760,6 +2760,13 @@ public class PerformActions {
             } else if (typeCommand.equals(ARConstants.CLEAR)) {
                 message = "clear()";
                 element.clear();
+                //                clearElement(element);
+                for (String coords : coordinates) {
+                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT,
+                    // pressEnterAfter);
+                    clearValueAtCoordinates(coords);
+                }
+
             } else if (typeCommand.equals(ARConstants.CLICK)) {
                 message = "click()";
                 element.click();
@@ -2783,7 +2790,9 @@ public class PerformActions {
             } else if (typeCommand.equals(ARConstants.COORD_CLICK)) {
                 message = "Coordinates Click";
                 for (String coords : coordinates) {
-                    executeActionsAtCoordinates(coords, fieldData, ARConstants.CLICK, pressEnterAfter);
+                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.CLICK,
+                    // pressEnterAfter);
+                    clickElementAtCoordinates(coords);
                 }
             } else if (typeCommand.equals(ARConstants.COORD_INSERT)) {
                 message = "Coordinates Insert";
@@ -2791,8 +2800,11 @@ public class PerformActions {
                     message = "Coordinates Insert with <ENTER>";
                 }
                 for (String coords : coordinates) {
-                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT, pressEnterAfter);
+                    //                    executeActionsAtCoordinates(coords, fieldData, ARConstants.INSERT,
+                    // pressEnterAfter);
+                    setValueAtCoordinates(coords, fieldData.getValue());
                 }
+                //                insertElement(element, fieldData.getValue());
             } else if (typeCommand.equals(ARConstants.COORD_MOVE_CLICK_RED)) {
                 message = "Coordinates Move Insert Red Circle";
                 for (String coords : coordinates) {
@@ -2811,6 +2823,110 @@ public class PerformActions {
 
         Actions actions = new Actions(driver);
         actions.moveToElement(element).perform();
+    }
+
+    private void clearElement(WebElement element) {
+        JavascriptExecutor js = (JavascriptExecutor) currentDriver;
+        js.executeScript("arguments[0].value='';", element);
+
+        Actions actions = new Actions(currentDriver);
+        actions.moveToElement(element).perform();
+    }
+
+    private void insertElement(WebElement element, String text) {
+        JavascriptExecutor js = (JavascriptExecutor) currentDriver;
+        js.executeScript("arguments[0].value=arguments[1];", element, text);
+
+        Actions actions = new Actions(currentDriver);
+        actions.moveToElement(element).perform();
+    }
+
+    public boolean setValueAtCoordinates(String savedCoords, String textToSet) {
+
+        try {
+            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            double temp1 = Double.parseDouble(coordinates[0]);
+            double temp2 = Double.parseDouble(coordinates[1]);
+
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
+
+            String script = "const temp1 = Number(arguments[0]);\n" + "const temp2 = Number(arguments[1]);\n"
+                    + "console.log('temp1', temp1);\n"
+                    + "console.log('temp2', temp2);\n"
+                    + "const elementAtPoint = document.elementFromPoint(temp1, temp2);\n"
+                    + "if (elementAtPoint && (elementAtPoint.tagName === 'INPUT' || elementAtPoint.tagName === 'TEXTAREA')) {\n"
+                    + "\telementAtPoint.value = \"0001\";\n"
+                    + "} else if (elementAtPoint && elementAtPoint.isContentEditable) {\n"
+                    + "\telementAtPoint.textContent = arguments[2];\n"
+                    + "} else {\n"
+                    + "\tconsole.log(\"No suitable element (input, textarea, or contenteditable) found at coordinates (\" + arguments[0] + \", \" + arguments[1] + \")\");\n"
+                    + "}";
+
+            jsExecutor.executeScript(script, temp1, temp2, textToSet);
+            return true;
+        } catch (Exception ignore) {
+            return false;
+        }
+    }
+
+    public boolean clearValueAtCoordinates(String savedCoords) {
+
+        try {
+            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            double temp1 = Double.parseDouble(coordinates[0]);
+            double temp2 = Double.parseDouble(coordinates[1]);
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
+
+            String script =
+                    """
+        function getElementAtCoordinates(x, y) {
+          return document.elementFromPoint(x, y);
+        }
+
+        const elementAtPoint = getElementAtCoordinates(arguments[0], arguments[1]);
+
+        if (elementAtPoint && (elementAtPoint.tagName === 'INPUT' || elementAtPoint.tagName === 'TEXTAREA')) {
+          elementAtPoint.value = '';
+        } else if (elementAtPoint && elementAtPoint.isContentEditable) {
+          elementAtPoint.textContent = '';
+        } else {
+          console.log("No suitable element (input, textarea, or contenteditable) found at coordinates (" + arguments[0] + ", " + arguments[1] + ")");
+        }
+    """;
+
+            jsExecutor.executeScript(script, temp1, temp2);
+            return true;
+        } catch (Exception ignore) {
+            return false;
+        }
+    }
+
+    public boolean clickElementAtCoordinates(String savedCoords) {
+        try {
+            String[] coordinates = savedCoords.split(ARConstants.FIELDS_SEPARATOR);
+            double temp1 = Double.parseDouble(coordinates[0]);
+            double temp2 = Double.parseDouble(coordinates[1]);
+            JavascriptExecutor jsExecutor = (JavascriptExecutor) currentDriver;
+            String script =
+                    """
+        function getElementAtCoordinates(x, y) {
+          return document.elementFromPoint(x, y);
+        }
+
+        const elementAtPoint = getElementAtCoordinates(arguments[0], arguments[1]);
+
+        if (elementAtPoint) {
+          elementAtPoint.click();
+        } else {
+          console.log("No element found at coordinates (" + arguments[0] + ", " + arguments[1] + ")");
+        }
+    """;
+
+            jsExecutor.executeScript(script, temp1, temp2);
+            return true;
+        } catch (Exception ignore) {
+            return false;
+        }
     }
 
     public void sendInputJS(int x, int y, String text, WebDriver driver) {
@@ -3774,6 +3890,7 @@ public class PerformActions {
 
             // webdriver
             savedReferences.put("coordinates", newCoordinates);
+            targetRefs.setCoordinates(newCoordinates);
         } catch (Exception coords) {
             System.err.println("Invalid coordinates from WebDriver Selenium");
         }

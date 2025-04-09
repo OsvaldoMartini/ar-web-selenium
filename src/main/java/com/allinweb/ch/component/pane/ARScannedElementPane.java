@@ -150,6 +150,7 @@ public class ARScannedElementPane extends ARPane {
             // Process the message based on its type
             switch (type) {
                 case "NEW_ELEMENT_DTO":
+                    checkRunningProcess();
                     // Extract the "body" field from the JsonObject
                     ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     targetSelected = extractPickClone(processDTO.getDetails()[0]);
@@ -157,16 +158,19 @@ public class ARScannedElementPane extends ARPane {
                     stepsInsertOneDTO(targetSelected);
                     break;
                 case "SEND_ALL_ELEMENTS_DTO":
+                    checkRunningProcess();
                     // Extract the "body" field from the JsonObject
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     stepsInsertManyDTO(processDTO);
                     break;
-                case "TEST_ELEMENT_DTO":
+                case "TEST_CLICK_DTO":
+                case "TEST_INPUT_DTO":
+                    checkRunningProcess();
                     // Extract the "body" field from the JsonObject
                     processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     targetSelected = extractPickClone(processDTO.getDetails()[0]);
                     itPrintsElementDTO(targetSelected);
-                    testingActions(targetSelected);
+                    testingActions(targetSelected, processDTO.getType());
                     break;
                 case "DEL_ELEMENT_DTO":
                 case "DETAILS_ELEMENT_DTO":
@@ -447,7 +451,7 @@ public class ARScannedElementPane extends ARPane {
         ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
     }
 
-    private void testingActions(TargetElement targetTest) {
+    private void testingActions(TargetElement targetTest, String testType) {
         try {
             if (targetTest.getElement() != null) {
 
@@ -473,23 +477,24 @@ public class ARScannedElementPane extends ARPane {
                 }
 
                 String mainCoordinates = targetTest.getCoordinates();
-                String savedCoordinates = targetTest.getSavedReferences().get("coordinates");
+                //                String savedCoordinates = targetTest.getSavedReferences().get("coordinates");
 
                 if (Strings.isNullOrEmpty(mainCoordinates)) {
                     mainCoordinates = targetTest.getCoordinates();
                 }
 
-                if (Strings.isNullOrEmpty(savedCoordinates)) {
-                    savedCoordinates = mainCoordinates;
-                }
+                //                if (Strings.isNullOrEmpty(savedCoordinates)) {
+                //                    savedCoordinates = mainCoordinates;
+                //                }
 
                 List<String> coordinatesList = new ArrayList<>();
                 if (!Strings.isNullOrEmpty(mainCoordinates)) {
                     coordinatesList.add(mainCoordinates);
                 }
-                if (!Strings.isNullOrEmpty(savedCoordinates) && !savedCoordinates.equals(mainCoordinates)) {
-                    coordinatesList.add(savedCoordinates);
-                }
+                //                if (!Strings.isNullOrEmpty(savedCoordinates) &&
+                // !savedCoordinates.equals(mainCoordinates)) {
+                //                    coordinatesList.add(savedCoordinates);
+                //                }
 
                 String[] coordinates = coordinatesList.toArray(new String[0]);
 
@@ -561,17 +566,23 @@ public class ARScannedElementPane extends ARPane {
                     actionText2.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 }
 
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(), ARConstants.CLICK, coordinates, fieldData, driverTestActions, false);
-                System.out.println(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText3 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                if (testType.equals("TEST_CLICK_DTO")) {
+                    result = performActions.sequenceOfCommands(
+                            targetTest.getElement(),
+                            ARConstants.CLICK,
+                            coordinates,
+                            fieldData,
+                            driverTestActions,
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText3 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
                 }
-
                 //                result = performActions.sequenceOfCommands(
                 //                        targetTest.getElement(),
                 //                        ARConstants.GET_VALUE,
@@ -588,26 +599,118 @@ public class ARScannedElementPane extends ARPane {
                 //                    actionText4.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 //                }
 
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(), ARConstants.CLEAR, coordinates, fieldData, driverTestActions, false);
-                System.out.println(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText5 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
+                if (testType.equals("TEST_INPUT_DTO")) {
+                    result = performActions.sequenceOfCommands(
+                            targetTest.getElement(),
+                            ARConstants.CLICK,
+                            coordinates,
+                            fieldData,
+                            driverTestActions,
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText3 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
 
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(), ARConstants.INSERT, coordinates, fieldData, driverTestActions, false);
-                System.out.println(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText6 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText6.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    result = performActions.sequenceOfCommands(
+                            targetTest.getElement(),
+                            ARConstants.CLEAR,
+                            coordinates,
+                            fieldData,
+                            driverTestActions,
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText5 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetTest.getElement(),
+                            ARConstants.INSERT,
+                            coordinates,
+                            fieldData,
+                            driverTestActions,
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText6 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText6.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetTest.getElement(),
+                            ARConstants.CLEAR,
+                            coordinates,
+                            fieldData,
+                            driverTestActions,
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText5 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetTest.getElement(),
+                            ARConstants.COORD_CLICK,
+                            coordinates,
+                            fieldData,
+                            driverTestActions,
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText5 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetTest.getElement(),
+                            ARConstants.COORD_INSERT,
+                            coordinates,
+                            fieldData,
+                            driverTestActions,
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText5 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
+
+                    result = performActions.sequenceOfCommands(
+                            targetTest.getElement(),
+                            ARConstants.CLEAR,
+                            coordinates,
+                            fieldData,
+                            driverTestActions,
+                            false);
+                    System.out.println(result);
+                    actionsTested.append(result + System.lineSeparator());
+                    actionText5 = new Text(result);
+                    if (result.contains("Failed")) {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                    } else {
+                        actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                    }
                 }
 
                 //                result = performActions.sequenceOfCommands(
@@ -654,39 +757,39 @@ public class ARScannedElementPane extends ARPane {
                 //                    actionText9.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                 //                }
 
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.COORD_CLICK,
-                        coordinates,
-                        fieldData,
-                        driverTestActions,
-                        false);
-                System.out.println(result);
-
-                actionsTested.append(result + System.lineSeparator());
-
-                actionText10 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText10.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText10.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
-
-                result = performActions.sequenceOfCommands(
-                        targetTest.getElement(),
-                        ARConstants.COORD_INSERT,
-                        coordinates,
-                        fieldData,
-                        driverTestActions,
-                        false);
-                System.out.println(result);
-                actionsTested.append(result + System.lineSeparator());
-                actionText11 = new Text(result);
-                if (result.contains("Failed")) {
-                    actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
-                } else {
-                    actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
-                }
+                //                result = performActions.sequenceOfCommands(
+                //                        targetTest.getElement(),
+                //                        ARConstants.COORD_CLICK,
+                //                        coordinates,
+                //                        fieldData,
+                //                        driverTestActions,
+                //                        false);
+                //                System.out.println(result);
+                //
+                //                actionsTested.append(result + System.lineSeparator());
+                //
+                //                actionText10 = new Text(result);
+                //                if (result.contains("Failed")) {
+                //                    actionText10.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                //                } else {
+                //                    actionText10.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                //                }
+                //
+                //                result = performActions.sequenceOfCommands(
+                //                        targetTest.getElement(),
+                //                        ARConstants.COORD_INSERT,
+                //                        coordinates,
+                //                        fieldData,
+                //                        driverTestActions,
+                //                        false);
+                //                System.out.println(result);
+                //                actionsTested.append(result + System.lineSeparator());
+                //                actionText11 = new Text(result);
+                //                if (result.contains("Failed")) {
+                //                    actionText11.setStyle("-fx-font-size: 12px; -fx-fill: red;");
+                //                } else {
+                //                    actionText11.setStyle("-fx-font-size: 12px; -fx-fill: green;");
+                //                }
 
                 //                result = performActions.sequenceOfCommands(
                 //                        targetTest.getElement(),
@@ -1658,6 +1761,7 @@ public class ARScannedElementPane extends ARPane {
             resultElementSearch = false;
 
             revertCloneInjections(performActions.getCurrentDriver());
+            revertHoverPickInjections(performActions.getCurrentDriver());
 
             if (checkCloneElement.isSelected()) {
                 String[] dataArrayClone = {"*"};
@@ -1668,8 +1772,6 @@ public class ARScannedElementPane extends ARPane {
                         dataArrayClone,
                         finalPort,
                         homeBanking.getId()));
-            } else {
-                revertHoverPickInjections(performActions.getCurrentDriver());
             }
 
             Platform.runLater(() -> {
@@ -4629,9 +4731,9 @@ public class ARScannedElementPane extends ARPane {
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         blocksItems.clear();
         if (blockLoadDTOList.size() > 0) {
-            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, -1, -1, null));
+            blocksItems.add(new ComboBoxVars("Execute All Blocks", "", -1, -1, -1, -1, null, -1));
         } else {
-            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null));
+            blocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null, -1));
         }
         for (BlockLoadDTO block : blockLoadDTOList) {
             blocksItems.add(new ComboBoxVars(
@@ -4641,7 +4743,8 @@ public class ARScannedElementPane extends ARPane {
                     block.getId(),
                     -1,
                     -1,
-                    null));
+                    null,
+                    -1));
         }
     }
 
@@ -4778,5 +4881,15 @@ public class ARScannedElementPane extends ARPane {
             return failedMessage + resultActions;
         }
         return resultActions;
+    }
+
+    private void checkRunningProcess() {
+        checkCloneElement.setSelected(false);
+        launchBotJobButton.setDisable(false);
+        revertCloneInjections(performActions.getCurrentDriver());
+        revertHoverPickInjections(performActions.getCurrentDriver());
+        if (isJobRunning.get()) {
+            setInterceptBotJob(true);
+        }
     }
 }

@@ -242,7 +242,8 @@ public class SimpleWebSocketServer {
             case "SEND_ALL_ELEMENTS_DTO":
             case "DEL_ELEMENT_DTO":
             case "DETAILS_ELEMENT_DTO":
-            case "TEST_ELEMENT_DTO":
+            case "TEST_CLICK_DTO":
+            case "TEST_INPUT_DTO":
                 // Extract the "body" field from the JsonObject
                 ElementSplitDTO processDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
 

@@ -180,6 +180,7 @@ public class ARNewCommandPane extends ARPane {
     private ObservableList<ComboBoxVars> loopsItems = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxImage> comboBoxWebFields;
+    private ObservableList<ComboBoxVars> webPageItems;
     private ObservableList<ComboBoxImage> filteredPageItems = FXCollections.observableArrayList();
 
     private ComboBox<ComboBoxVars> comboBoxAllBlocks;
@@ -210,7 +211,8 @@ public class ARNewCommandPane extends ARPane {
                         getImageForTagType(item.getTagType()),
                         item.getValue(),
                         item.getBlockId(),
-                        item.getInstructionId()))
+                        item.getInstructionId(),
+                        item.getOrderNumber()))
                 .toList());
 
         if (filteredPageItems.isEmpty()) {
@@ -223,30 +225,30 @@ public class ARNewCommandPane extends ARPane {
             //            itemsInstructions.add(
             //                    new ComboBoxImage("Select", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE));
             itemsInstructions.add(new ComboBoxImage(
-                    "SetValue", new Image(ARConstants.ICON_SET_VALUE_BTN), ARConstants.SET_VALUE, -1, -1));
+                    "SetValue", new Image(ARConstants.ICON_SET_VALUE_BTN), ARConstants.SET_VALUE, -1, -1, -1));
             itemsInstructions.add(new ComboBoxImage(
-                    "GetValue", new Image(ARConstants.ICON_GET_VALUE_BTN), ARConstants.GET_VALUE, -1, -1));
+                    "GetValue", new Image(ARConstants.ICON_GET_VALUE_BTN), ARConstants.GET_VALUE, -1, -1, -1));
             itemsInstructions.add(new ComboBoxImage(
-                    "CheckValue", new Image(ARConstants.ICON_CHECK), ARConstants.CHECK_VALUE, -1, -1));
+                    "CheckValue", new Image(ARConstants.ICON_CHECK), ARConstants.CHECK_VALUE, -1, -1, -1));
 
             // Add "IF" only if it does not meet the exclusion conditions
             if (rowMoveDTO.getIsBetween() != null && !rowMoveDTO.getIsBetween()) {
 
                 itemsInstructions.add(
-                        new ComboBoxImage("IF", new Image(ARConstants.ICON_IF_ELSE), ARConstants.IF, -1, -1));
+                        new ComboBoxImage("IF", new Image(ARConstants.ICON_IF_ELSE), ARConstants.IF, -1, -1, -1));
             }
 
             itemsInstructions.add(
-                    new ComboBoxImage("GO TO", new Image(ARConstants.ICON_GOTO), ARConstants.GOTO, -1, -1));
+                    new ComboBoxImage("GO TO", new Image(ARConstants.ICON_GOTO), ARConstants.GOTO, -1, -1, -1));
             itemsInstructions.add(new ComboBoxImage(
-                    "ExcelWrite", new Image(ARConstants.ICON_EXCEL), ARConstants.EXTRACT_FIELD, -1, -1));
+                    "ExcelWrite", new Image(ARConstants.ICON_EXCEL), ARConstants.EXTRACT_FIELD, -1, -1, -1));
 
             itemsInstructions.add(new ComboBoxImage(
-                    "Refresh", new Image(ARConstants.ICON_REFRESH_ONLY), ARConstants.REFRESH_ONLY, -1, -1));
+                    "Refresh", new Image(ARConstants.ICON_REFRESH_ONLY), ARConstants.REFRESH_ONLY, -1, -1, -1));
             itemsInstructions.add(
-                    new ComboBoxImage("Loop", new Image(ARConstants.ICON_REFRESH_LOOP), ARConstants.LOOP, -1, -1));
+                    new ComboBoxImage("Loop", new Image(ARConstants.ICON_REFRESH_LOOP), ARConstants.LOOP, -1, -1, -1));
             itemsInstructions.add(new ComboBoxImage(
-                    "Refresh Loop", new Image(ARConstants.ICON_REFRESH_LOOP), ARConstants.REFRESH_LOOP, -1, -1));
+                    "Refresh Loop", new Image(ARConstants.ICON_REFRESH_LOOP), ARConstants.REFRESH_LOOP, -1, -1, -1));
 
         } catch (Exception ex) {
             ARLogger.getInstance(ARNewCommandPane.class)
@@ -266,7 +268,7 @@ public class ARNewCommandPane extends ARPane {
 
         if (itemsInstructions.isEmpty() || itemsInstructions.size() == 0) {
             itemsInstructions.add(new ComboBoxImage(
-                    "No Instructions", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE, -1, -1));
+                    "No Instructions", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE, -1, -1, -1));
         }
         if (operatorsItems.size() == 0) {
             operatorsItems.add(
@@ -275,7 +277,7 @@ public class ARNewCommandPane extends ARPane {
 
         if (filteredPageItems.isEmpty()) {
             filteredPageItems.add(new ComboBoxImage(
-                    "No Web Fields", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE, -1, -1));
+                    "No Web Fields", new Image(ARConstants.ICON_BLANK), ARConstants.NO_VALUE, -1, -1, -1));
         }
 
         if (this.filteredPageItems != null && this.filteredPageItems.size() > 0) {
@@ -295,7 +297,7 @@ public class ARNewCommandPane extends ARPane {
             loadAllBlockItems(blockLoadList);
             //            }
         } else {
-            allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null));
+            allBlocksItems.add(new ComboBoxVars("#1 Default Block", "Default Block", 1, 1, -1, -1, null, -1));
         }
     }
 
@@ -431,13 +433,13 @@ public class ARNewCommandPane extends ARPane {
 
         textFlow.getChildren().addAll(regularText1, variableText1, variableText2, variableText3);
 
-        timesItems.add(new ComboBoxVars("5s", "5", -1, -1, -1, -1, null));
-        timesItems.add(new ComboBoxVars("10s", "10", -1, -1, -1, -1, null));
-        timesItems.add(new ComboBoxVars("20s", "20", -1, -1, -1, -1, null));
-        timesItems.add(new ComboBoxVars("30s", "30", -1, -1, -1, -1, null));
-        timesItems.add(new ComboBoxVars("40s", "40", -1, -1, -1, -1, null));
-        timesItems.add(new ComboBoxVars("50s", "50", -1, -1, -1, -1, null));
-        timesItems.add(new ComboBoxVars("60s", "60", -1, -1, -1, -1, null));
+        timesItems.add(new ComboBoxVars("5s", "5", -1, -1, -1, -1, null, -1));
+        timesItems.add(new ComboBoxVars("10s", "10", -1, -1, -1, -1, null, -1));
+        timesItems.add(new ComboBoxVars("20s", "20", -1, -1, -1, -1, null, -1));
+        timesItems.add(new ComboBoxVars("30s", "30", -1, -1, -1, -1, null, -1));
+        timesItems.add(new ComboBoxVars("40s", "40", -1, -1, -1, -1, null, -1));
+        timesItems.add(new ComboBoxVars("50s", "50", -1, -1, -1, -1, null, -1));
+        timesItems.add(new ComboBoxVars("60s", "60", -1, -1, -1, -1, null, -1));
 
         comboBoxTimes = new ComboBox<>(timesItems);
         comboBoxTimes.setPrefWidth(50);
@@ -475,10 +477,10 @@ public class ARNewCommandPane extends ARPane {
             }
         });
 
-        loopsItems.add(new ComboBoxVars("5 x", "5", -1, -1, -1, -1, null));
-        loopsItems.add(new ComboBoxVars("10 x", "10", -1, -1, -1, -1, null));
-        loopsItems.add(new ComboBoxVars("20 x", "20", -1, -1, -1, -1, null));
-        loopsItems.add(new ComboBoxVars("30 x", "30", -1, -1, -1, -1, null));
+        loopsItems.add(new ComboBoxVars("5 x", "5", -1, -1, -1, -1, null, -1));
+        loopsItems.add(new ComboBoxVars("10 x", "10", -1, -1, -1, -1, null, -1));
+        loopsItems.add(new ComboBoxVars("20 x", "20", -1, -1, -1, -1, null, -1));
+        loopsItems.add(new ComboBoxVars("30 x", "30", -1, -1, -1, -1, null, -1));
         comboBoxLoops = new ComboBox<>(loopsItems);
         comboBoxLoops.setPrefWidth(60);
         // Set cell factory to display images and text
@@ -642,7 +644,7 @@ public class ARNewCommandPane extends ARPane {
 
         comboBoxBlocks = new ComboBox<>(blocksItems);
         if (blocksItems.size() == 0) {
-            blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1, -1, -1, null));
+            blocksItems.add(new ComboBoxVars("no blocks added", "", -1, -1, -1, -1, null, -1));
         }
         comboBoxBlocks.setPrefWidth(buttonWidth);
         comboBoxBlocks.getSelectionModel().selectFirst();
@@ -975,28 +977,39 @@ public class ARNewCommandPane extends ARPane {
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)
                     && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_LOOP)
-                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.LOOP)) {
-                if (comboBoxVars.getValue() != null && comboBoxVars.getValue().getVarId() < 0) {
-                    performMessage.errorMessage(
-                            "Variables Not Defined!",
-                            "No variables have been created!",
-                            "Please define a variable for: \""
-                                    + comboBoxWebFields.getValue().getText() + "\".",
-                            null,
-                            null,
-                            0);
-                    return;
-                } else if (comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
-                    performMessage.errorMessage(
-                            "No Web Fields Defined",
-                            "Missing Web Fields (Web Elements)!",
-                            "Web Elements are required to insert operations.",
-                            null,
-                            null,
-                            0);
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.LOOP)
+                    && comboBoxVars.getValue() != null
+                    && comboBoxVars.getValue().getVarId() < 0) {
+                performMessage.errorMessage(
+                        "Variables Not Defined!",
+                        "No variables have been created!",
+                        "Please define a variable for: \""
+                                + comboBoxWebFields.getValue().getText() + "\".",
+                        null,
+                        null,
+                        0);
+                return;
+            }
 
-                    return;
-                } else if (comboBoxAllBlocks.getValue() != null
+            if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.IF)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)
+                    && comboBoxInstruc.getSelectionModel().getSelectedIndex() < 0) {
+                performMessage.errorMessage(
+                        "No Web Fields Defined",
+                        "Missing Web Fields (Web Elements)!",
+                        "Web Elements are required to insert operations.",
+                        null,
+                        null,
+                        0);
+
+                return;
+            }
+
+            if (!comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.IF)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.GOTO)
+                    && !comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_ONLY)) {
+                if (comboBoxAllBlocks.getValue() != null
                         && comboBoxWebFields.getValue() != null
                         && !comboBoxAllBlocks
                                 .getValue()
@@ -1030,6 +1043,26 @@ public class ARNewCommandPane extends ARPane {
                         "Error", "No Blocks Defined", "It must have ate least Two Blocks defined ", null, null, 0);
 
                 return;
+            }
+
+            if (rowMoveDTO.getUpdatedRows().get(0).getInstructionOrderNumber()
+                            <= comboBoxWebFields.getValue().getOrderNumber()
+                    && (comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.REFRESH_LOOP)
+                            || comboBoxInstruc.getValue().getValue().equalsIgnoreCase(ARConstants.LOOP))) {
+                // It Forces to LOOP or REFRESH_LOOP BE AFTER THE Instruction
+                if (rowMoveDTO.getType().equals("INSERT_AFTER")) {
+                    rowMoveDTO
+                            .getUpdatedRows()
+                            .get(0)
+                            .setInstructionOrderNumber(
+                                    comboBoxWebFields.getValue().getOrderNumber());
+                } else {
+                    rowMoveDTO
+                            .getUpdatedRows()
+                            .get(0)
+                            .setInstructionOrderNumber(
+                                    comboBoxWebFields.getValue().getOrderNumber() + 1);
+                }
             }
 
             if (comboBoxInstruc.getValue().getText().equalsIgnoreCase("SetValue")) {
@@ -1433,7 +1466,7 @@ public class ARNewCommandPane extends ARPane {
             comboBoxVars.setPrefWidth(buttonWidth);
             comboBoxBlocks.setVisible(false);
 
-            comboBoxTimes.setVisible(false);
+            comboBoxTimes.setVisible(true);
             comboBoxLoops.setVisible(true);
 
             try {
@@ -1447,7 +1480,8 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxesRow.getChildren().clear();
                 comboBoxesRow.getChildren().addAll(commandBox, webFieldsBox);
 
-                variableButtonRow = new HBox(10, blankText, loopText, comboBoxLoops, textFlow);
+                variableButtonRow =
+                        new HBox(10, blankText, timesText, comboBoxTimes, loopText, comboBoxLoops, textFlow);
 
                 vboxAll.getChildren()
                         .addAll(
@@ -1771,38 +1805,51 @@ public class ARNewCommandPane extends ARPane {
                     textFlow.requestLayout();
                     break;
                 case ARConstants.LOOP:
-                    regularText1.setText("Jump To Parent: ");
+                    regularText1.setText("Loop Parent: ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(webFieldName);
                     variableText1.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    regularText2.setText(" Limit: ");
+                    regularText2.setText(" Jump in: ");
                     regularText2.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
-                    variableText2.setText(comboBoxLoops.getValue().getText());
+                    variableText2.setText(comboBoxTimes.getValue().getText() + " ");
                     variableText2.setStyle("-fx-font-size: 14px; -fx-fill: red;");
 
-                    regularText3.setText(" Times");
+                    regularText3.setText(" Limit: ");
                     regularText3.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
+
+                    variableText3.setText(comboBoxLoops.getValue().getText() + " ");
+                    variableText3.setStyle("-fx-font-size: 14px; -fx-fill: red;");
+
+                    regularText4.setText(" Times");
+                    regularText4.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     regularText1.setVisible(true);
                     regularText2.setVisible(true);
                     regularText3.setVisible(true);
-                    regularText4.setVisible(false);
+                    regularText4.setVisible(true);
 
                     variableText1.setVisible(true);
                     variableText2.setVisible(true);
-                    variableText3.setVisible(false);
+                    variableText3.setVisible(true);
 
                     textFlow.getChildren().clear();
                     textFlow.getChildren()
-                            .addAll(regularText1, variableText1, regularText2, variableText2, regularText3);
+                            .addAll(
+                                    regularText1,
+                                    variableText1,
+                                    regularText2,
+                                    variableText2,
+                                    regularText3,
+                                    variableText3,
+                                    regularText4);
                     textFlow.requestLayout();
 
                     break;
                 case ARConstants.REFRESH_LOOP:
-                    regularText1.setText("Jump To Parent: ");
+                    regularText1.setText("Loop Parent: ");
                     regularText1.setStyle("-fx-font-size: 14px; -fx-fill: blue;");
 
                     variableText1.setText(webFieldName);
@@ -1943,15 +1990,31 @@ public class ARNewCommandPane extends ARPane {
                             -1,
                             variable.getParentId(),
                             variable.getId(),
-                            null))
+                            null,
+                            -1))
                     .collect(Collectors.toList());
             variablesItems.addAll(variablesNames);
         } else {
-            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null));
+            variablesItems.add(new ComboBoxVars("no variables added", "", -1, -1, -1, -1, null, -1));
         }
     }
 
-    private void updateFields() {}
+    private void updateFields() {
+        this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId());
+
+        this.filteredPageItems.clear();
+        this.filteredPageItems.addAll(this.webPageItems.stream()
+                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
+                .map(item -> new ComboBoxImage(
+                        item.getText(),
+                        getImageForTagType(item.getTagType()),
+                        item.getValue(),
+                        item.getBlockId(),
+                        item.getInstructionId(),
+                        item.getOrderNumber()))
+                .toList());
+        comboBoxWebFields.getSelectionModel().selectFirst();
+    }
 
     private void clearFields() {}
 
@@ -1983,7 +2046,8 @@ public class ARNewCommandPane extends ARPane {
                             block.getId(),
                             -1,
                             -1,
-                            null));
+                            null,
+                            -1));
             }
         }
     }
@@ -1991,7 +2055,7 @@ public class ARNewCommandPane extends ARPane {
     private void loadAllBlockItems(List<BlockLoadDTO> blockLoadDTOList) {
         allBlocksItems.clear();
         if (blockLoadDTOList.size() > 1) {
-            allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1, -1, -1, null));
+            allBlocksItems.add(new ComboBoxVars("Select the Block", "", -1, -1, -1, -1, null, -1));
         }
         for (BlockLoadDTO block : blockLoadDTOList) {
             allBlocksItems.add(new ComboBoxVars(
@@ -2001,7 +2065,8 @@ public class ARNewCommandPane extends ARPane {
                     block.getId(),
                     -1,
                     -1,
-                    null));
+                    null,
+                    -1));
         }
     }
 
@@ -2238,6 +2303,7 @@ public class ARNewCommandPane extends ARPane {
                 }
                 sendMessageJson(rowMoveDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
+                updateFields();
                 //                    showAlertTimer(
                 //                            Alert.AlertType.INFORMATION,
                 //                            "Add Instruction",

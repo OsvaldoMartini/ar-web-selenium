@@ -3469,6 +3469,7 @@ public class PerformDataBase {
                 String actions = rs.getString("actions").trim();
                 Integer blockId = rs.getInt("block_id");
                 String tagName = rs.getString("tag_name").trim();
+                Integer orderNumber = rs.getInt("instruction_order_number");
 
                 // Filter out "SET", "GET", "CK", adn "H"
                 if (actions != null
@@ -3476,7 +3477,8 @@ public class PerformDataBase {
                         && !actions.equalsIgnoreCase(ARConstants.GET_VALUE)
                         && !actions.equalsIgnoreCase(ARConstants.CHECK_VALUE)
                         && !actions.equalsIgnoreCase(ARConstants.HOLD)) {
-                    webPageItems.add(new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName));
+                    webPageItems.add(
+                            new ComboBoxVars("(" + id + ")" + name, name, id, blockId, -1, -1, tagName, orderNumber));
                 }
             }
         } catch (SQLException e) {
