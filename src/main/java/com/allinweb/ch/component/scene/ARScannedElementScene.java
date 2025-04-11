@@ -57,6 +57,11 @@ public class ARScannedElementScene extends ARScene {
 
     private ExecutorService executorWebSocket;
     private ExecutorService executorServicePreLaunch;
+    private static ARScannedElementPane arScannedElementPane;
+
+    static {
+        arScannedElementPane = ARScannedElementPane.getInstance();
+    }
 
     public ARScannedElementScene initialize(
             ARWebDriver arWebDriver,
@@ -82,7 +87,7 @@ public class ARScannedElementScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARScannedElementPane(
+        arScannedElementPane.initialize(
                 arWebDriver,
                 performDataBase,
                 performActions,
@@ -93,6 +98,7 @@ public class ARScannedElementScene extends ARScene {
                 blockLoadDTO,
                 executorWebSocket,
                 executorServicePreLaunch);
+        return arScannedElementPane;
     }
 
     @Override

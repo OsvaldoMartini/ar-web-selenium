@@ -11,7 +11,7 @@ public enum WebElementIcon {
     GET_VALUE("GetValue"),
     CHECK_VALUE("CheckValue"),
     IFRAME("iframe"),
-    GOTO("GO TO"),
+    GOTO("GOTO"),
     EXTRACT_FIELD("ExcelWrite"),
     REFRESH_ONLY("Refresh"),
     REFRESH_LOOP("Refresh Loop"),

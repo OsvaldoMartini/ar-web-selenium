@@ -87,13 +87,14 @@ public class SimpleWebSocketServer {
         return date + "-" + System.currentTimeMillis();
     }
 
+    private static ARNewCommandScene arNewCommandScene;
     private static final PerformDataBase performDataBase;
-    //    private static final PerformDBSavedBlock performDBSavedBlock;
     private static final PerformMessage performMessage;
+
     // Static block to initialize
     static {
+        arNewCommandScene = ARNewCommandScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
-        //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
         performMessage = PerformMessage.getInstance();
     }
 
@@ -771,9 +772,8 @@ public class SimpleWebSocketServer {
 
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
-                    ARNewCommandScene newCommandScene =
-                            new ARNewCommandScene(rowMoveDTO, botJobLoad, this.webPageItems, sessionId);
-                    newCommandScene.showModal();
+                    arNewCommandScene.initialize(rowMoveDTO, botJobLoad, this.webPageItems, sessionId);
+                    arNewCommandScene.showModal();
                 });
             } else {
 

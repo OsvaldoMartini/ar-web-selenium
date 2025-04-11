@@ -23,6 +23,7 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPickLoad;
 import com.allinweb.ch.facade.PerformPreLoad;
+import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -91,6 +92,20 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 @ClientEndpoint
 public class ARScannedElementPane extends ARPane {
+
+    // Static final variable to hold the singleton instance
+    protected static final SingletonSupplier<ARScannedElementPane> instance = () -> new ARScannedElementPane();
+
+    // Public method to access the singleton instance
+    public static ARScannedElementPane getInstance() {
+        return instance.get();
+    }
+
+    // Private constructor to prevent instantiation
+    public ARScannedElementPane() {
+        // Initialize if necessary
+    }
+
     private static Map<String, Session> activeSessions;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -926,7 +941,6 @@ public class ARScannedElementPane extends ARPane {
     private int remainingSeconds = SECONDS;
     private Timeline timeline;
     private Alert alertToShow;
-    public static Repository repository;
 
     private static TargetElement targetSelected = new TargetElement();
 
@@ -940,7 +954,7 @@ public class ARScannedElementPane extends ARPane {
     private DatabaseUserDTO databaseUserDto;
 
     private BotJobLoadDTO botJobLoad;
-    private final BlockLoadDTO blockLoad;
+    private BlockLoadDTO blockLoad;
 
     private int currentBlockId;
     private String currentBlockName;
@@ -949,7 +963,7 @@ public class ARScannedElementPane extends ARPane {
 
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-    private final HomeBankingLoadDTO homeBanking;
+    private HomeBankingLoadDTO homeBanking;
 
     private String jsonData;
     private String sessionIdFromJava;
@@ -1019,11 +1033,11 @@ public class ARScannedElementPane extends ARPane {
     private static final ARPropertyManager managerProps;
     private static final ARPriorities arPriorities;
 
-    private final PerformDataBase performDataBase;
-    private final PerformActions performActions;
-    private final PerformMessage performMessage;
-    private final PerformPreLoad performPreLoad;
-    private final ARWebDriver currentARWebDriver;
+    private PerformDataBase performDataBase;
+    private PerformActions performActions;
+    private PerformMessage performMessage;
+    private PerformPreLoad performPreLoad;
+    private ARWebDriver currentARWebDriver;
 
     private static final PerformCloneLoad performCloneLoad;
     private static final PerformPickLoad performPickLoad;
@@ -1032,8 +1046,8 @@ public class ARScannedElementPane extends ARPane {
     private static final IframeInputLocator iframeInputLocator;
     private int portSocket = 54525;
 
-    private final String[] defaultSearch;
-    private final boolean searchHiddenFields;
+    private String[] defaultSearch;
+    private boolean searchHiddenFields;
     private String xpathTextPrevious;
 
     public BooleanProperty interceptBotJobProperty() {
@@ -1058,7 +1072,7 @@ public class ARScannedElementPane extends ARPane {
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     }
 
-    public ARScannedElementPane(
+    public void initialize(
             ARWebDriver currentARWebDriver,
             PerformDataBase performDataBase,
             PerformActions performActions,
@@ -2709,9 +2723,6 @@ public class ARScannedElementPane extends ARPane {
                     performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(interactionTimeout)));
         }
 
-        //        if (repository == null) {
-        //            repository = new Repository(PerformDataBase..getSession());
-        //        }
         try {
             baseLogFile = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
                     + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
@@ -3733,11 +3744,11 @@ public class ARScannedElementPane extends ARPane {
                                         isOperationValid = mapOperators
                                                 .get(variableField)
                                                 .trim()
-                                                .equalsIgnoreCase(operations[2]);
+                                                .equalsIgnoreCase(operations[2].trim());
 
                                     } else if (operations[1].equalsIgnoreCase(">")) {
                                         int resp = handleGreaterThan(
-                                                mapOperators.get(variableField).trim(), operations[2]);
+                                                mapOperators.get(variableField).trim(), operations[2].trim());
                                         if (resp == 1) {
                                             isOperationValid = true;
                                         } else if (resp == 0) {
@@ -3750,10 +3761,10 @@ public class ARScannedElementPane extends ARPane {
                                         isOperationValid = !mapOperators
                                                 .get(variableField)
                                                 .trim()
-                                                .equalsIgnoreCase(operations[2]);
+                                                .equalsIgnoreCase(operations[2].trim());
                                     } else if (operations[1].equalsIgnoreCase("<")) {
                                         int resp = handleLessThan(
-                                                mapOperators.get(variableField).trim(), operations[2]);
+                                                mapOperators.get(variableField).trim(), operations[2].trim());
                                         if (resp == 1) {
                                             isOperationValid = true;
                                         } else if (resp == 0) {
@@ -3839,7 +3850,9 @@ public class ARScannedElementPane extends ARPane {
                                     // Insert the updated mapExport into the Excel after each instruction
                                     if (writerExport != null) {
                                         mapExport.put("KEY", "EXTERNAL");
-                                        mapExport.put(parentField, mapOperators.get(variableField));
+                                        mapExport.put(
+                                                parentField.trim(),
+                                                mapOperators.get(variableField).trim());
                                         if (excelFieldName != null
                                                 && excelFieldName.toLowerCase().endsWith(".csv")) {
                                             writerExport.writeMapToCSV(mapExport, excelFieldName);
