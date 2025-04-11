@@ -3407,6 +3407,7 @@ public class ARScannedElementPane extends ARPane {
 
                                         } catch (Exception ex) {
                                             failedMessage = "Failed: GO TO";
+                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
                                             success = false;
 
@@ -3656,9 +3657,10 @@ public class ARScannedElementPane extends ARPane {
                                 }
                                 // Special Cases for Select Responses
                                 // It could be Improved the case
-                                if (resultActions.contains("Error:") || (webElementFound == null && !success)) {
-                                    failedMessage = "Failed: Web Action";
-
+                                if (resultActions.contains("Error:")
+                                        || (webElementFound == null && !forceCoordinates)) {
+                                    failedMessage = "Failed execution Web Element";
+                                    msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                     success = false;
                                 } else if (resultActions != null && success) {
                                     currentInstruction.setExecuted(true);
@@ -3672,10 +3674,14 @@ public class ARScannedElementPane extends ARPane {
                                 }
                                 // Mandatory for GET_VALUE
                                 if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
+                                    failedMessage = "Parent Id in Wrong Block";
+                                    msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                     resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
                                     success = false;
                                 } else if (parentField == null) {
+                                    failedMessage = "Parent Id in Wrong Block";
+                                    msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                     resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
                                     success = false;
@@ -3692,12 +3698,12 @@ public class ARScannedElementPane extends ARPane {
                                             variableField,
                                             mapOperators);
 
-                                    if (resultActions != null) {
-                                        currentInstruction.setExecuted(true);
-                                        success = true;
-                                    } else {
-                                        failedMessage = "Failed: Operation (GetVaue / SetValue)";
+                                    if (resultActions.contains("Error:")) {
+                                        failedMessage = "Failed: Operation (GetValue / SetValue)";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         success = false;
+                                    } else {
+                                        success = true;
                                     }
                                 }
 
@@ -3705,6 +3711,8 @@ public class ARScannedElementPane extends ARPane {
                                 // Check Validation Operator
 
                                 if (!mapOperators.containsKey(variableField)) {
+                                    failedMessage = "Get Value Is Not Defined";
+                                    msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                     resultActions = performActions.getValueIsNotDefined(
                                             actions[0],
                                             currentInstruction,
@@ -3762,6 +3770,7 @@ public class ARScannedElementPane extends ARPane {
                                         success = true;
                                     } else {
                                         failedMessage = "Failed: Check Validation";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                         resultActions = performActions.checkValidationFailed(
                                                 invalidValues,
                                                 parentField,
@@ -3779,12 +3788,16 @@ public class ARScannedElementPane extends ARPane {
                                 // Excel Write Operator
 
                                 if (parentField == null) {
+                                    failedMessage = "Parent Id in Wrong Block";
+                                    msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                     resultActions = performActions.parentIdWrongBlock(
                                             currentInstruction, blockLoad, resultActions, currentCondition);
 
                                     success = false;
 
                                 } else if (!mapOperators.containsKey(variableField)) {
+                                    failedMessage = "Get Value Is Not Defined";
+                                    msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                                     resultActions = performActions.getValueIsNotDefined(
                                             actions[0],
                                             currentInstruction,
@@ -3841,6 +3854,8 @@ public class ARScannedElementPane extends ARPane {
                                         success = true;
                                     } else {
                                         failedMessage = "Failed: Generate File -> Excel/CSV";
+                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+
                                         success = false;
                                     }
                                 }
@@ -3865,6 +3880,7 @@ public class ARScannedElementPane extends ARPane {
 
                             if (Strings.isNullOrEmpty(failedMessage)) {
                                 failedMessage = "Failed: General Execution";
+                                msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
                             }
 
                             performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
@@ -4131,6 +4147,8 @@ public class ARScannedElementPane extends ARPane {
                             success = true;
                         } else {
                             failedMessage = "Failed: Execution";
+                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+
                             resultActions = currentInstruction.getName();
                             success = false;
                         }
@@ -4155,6 +4173,7 @@ public class ARScannedElementPane extends ARPane {
                         currentInstruction.setExecuted(false);
 
                         failedMessage = "Failed: ";
+                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
                         // Excel Report and Log
                         performActions.logAndReport(
@@ -4899,5 +4918,11 @@ public class ARScannedElementPane extends ARPane {
         if (isJobRunning.get()) {
             setInterceptBotJob(true);
         }
+    }
+
+    private Pair<String, String> updateMSGInstruction(Pair<String, String> msgInstruction, String failedMessage) {
+        String currentKey = msgInstruction.getKey();
+        String updatedKey = failedMessage + " - " + currentKey;
+        return new Pair<>(updatedKey, msgInstruction.getValue());
     }
 }

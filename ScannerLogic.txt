@@ -583,6 +583,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 								} catch (Exception ex) {
 									failedMessage = "Failed: GO TO";
+									msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 									success = false;
 
@@ -832,9 +833,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						}
 						// Special Cases for Select Responses
 						// It could be Improved the case
-						if (resultActions.contains("Error:") || (webElementFound == null && !success)) {
-							failedMessage = "Failed: Web Action";
-
+						if (resultActions.contains("Error:")
+								|| (webElementFound == null && !forceCoordinates)) {
+							failedMessage = "Failed execution Web Element";
+							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 							success = false;
 						} else if (resultActions != null && success) {
 							currentInstruction.setExecuted(true);
@@ -848,10 +850,14 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						}
 						// Mandatory for GET_VALUE
 						if (xPathOperation == null && actions[0].equalsIgnoreCase(ARConstants.GET_VALUE)) {
+							failedMessage = "Parent Id in Wrong Block";
+							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 							resultActions = performActions.parentIdWrongBlock(
 									currentInstruction, blockLoad, resultActions, currentCondition);
 							success = false;
 						} else if (parentField == null) {
+							failedMessage = "Parent Id in Wrong Block";
+							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 							resultActions = performActions.parentIdWrongBlock(
 									currentInstruction, blockLoad, resultActions, currentCondition);
 							success = false;
@@ -868,12 +874,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									variableField,
 									mapOperators);
 
-							if (resultActions != null) {
-								currentInstruction.setExecuted(true);
-								success = true;
-							} else {
-								failedMessage = "Failed: Operation (GetVaue / SetValue)";
+							if (resultActions.contains("Error:")) {
+								failedMessage = "Failed: Operation (GetValue / SetValue)";
+								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								success = false;
+							} else {
+								success = true;
 							}
 						}
 
@@ -881,6 +887,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						// Check Validation Operator
 
 						if (!mapOperators.containsKey(variableField)) {
+							failedMessage = "Get Value Is Not Defined";
+							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 							resultActions = performActions.getValueIsNotDefined(
 									actions[0],
 									currentInstruction,
@@ -938,6 +946,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								success = true;
 							} else {
 								failedMessage = "Failed: Check Validation";
+								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 								resultActions = performActions.checkValidationFailed(
 										invalidValues,
 										parentField,
@@ -955,12 +964,16 @@ if (extractedData.getNumberOfDataRows() > 0) {
 						// Excel Write Operator
 
 						if (parentField == null) {
+							failedMessage = "Parent Id in Wrong Block";
+							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 							resultActions = performActions.parentIdWrongBlock(
 									currentInstruction, blockLoad, resultActions, currentCondition);
 
 							success = false;
 
 						} else if (!mapOperators.containsKey(variableField)) {
+							failedMessage = "Get Value Is Not Defined";
+							msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 							resultActions = performActions.getValueIsNotDefined(
 									actions[0],
 									currentInstruction,
@@ -1017,6 +1030,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								success = true;
 							} else {
 								failedMessage = "Failed: Generate File -> Excel/CSV";
+								msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+
 								success = false;
 							}
 						}
@@ -1041,6 +1056,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 					if (Strings.isNullOrEmpty(failedMessage)) {
 						failedMessage = "Failed: General Execution";
+						msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 					}
 
 					performMessage.errorMessage(resultActions, msg1, msg2, msg3, null, 260);
@@ -1307,6 +1323,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					success = true;
 				} else {
 					failedMessage = "Failed: Execution";
+					msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+
 					resultActions = currentInstruction.getName();
 					success = false;
 				}
@@ -1331,6 +1349,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				currentInstruction.setExecuted(false);
 
 				failedMessage = "Failed: ";
+				msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
 
 				// Excel Report and Log
 				performActions.logAndReport(
