@@ -13,7 +13,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxImage;
 import com.allinweb.ch.util.ComboBoxOperator;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -49,7 +48,9 @@ import javafx.scene.text.TextFlow;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.websocket.Session;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARNewCommandPane extends ARPane {
 
     private static Map<String, Session> activeSessions;
@@ -251,8 +252,7 @@ public class ARNewCommandPane extends ARPane {
                     "Refresh Loop", new Image(ARConstants.ICON_REFRESH_LOOP), ARConstants.REFRESH_LOOP, -1, -1, -1));
 
         } catch (Exception ex) {
-            ARLogger.getInstance(ARNewCommandPane.class)
-                    .severe("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
+            log.error("Error creating \"DropBox Instructions\"\nError: " + ex.getMessage());
         }
 
         try {
@@ -262,8 +262,7 @@ public class ARNewCommandPane extends ARPane {
                     new ComboBoxOperator("Less", new Image(ARConstants.ICON_LESS), "<"),
                     new ComboBoxOperator("!=", new Image(ARConstants.ICON_DIFFERENT), "!="));
         } catch (Exception ex) {
-            ARLogger.getInstance(ARNewCommandPane.class)
-                    .severe("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
+            log.error("Error creating \"DropBox Operators\"\nError: " + ex.getMessage());
         }
 
         if (itemsInstructions.isEmpty() || itemsInstructions.size() == 0) {
@@ -1194,9 +1193,8 @@ public class ARNewCommandPane extends ARPane {
 
         variableButton.setOnAction(e -> {
             if (this.rowMoveDTO != null && !rowMoveDTO.getUpdatedRows().isEmpty()) {
-                ARLogger.getInstance(ARNewCommandPane.class)
-                        .info("creating variable for instruction Name "
-                                + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
+                log.info("creating variable for instruction Name "
+                        + rowMoveDTO.getUpdatedRows().get(0).getInstructionName());
                 ARElementValueScene elementValueScene = new ARElementValueScene(
                         rowMoveDTO,
                         //                        rowMoveDTO.getUpdatedRows().get(0).getInstructionId(),
@@ -1214,9 +1212,8 @@ public class ARNewCommandPane extends ARPane {
                 }
 
             } else {
-                ARLogger.getInstance(ARNewCommandPane.class)
-                        .info("creating variable for instruction Name "
-                                + comboBoxWebFields.getValue().getText());
+                log.info("creating variable for instruction Name "
+                        + comboBoxWebFields.getValue().getText());
                 ARElementValueScene elementValueScene = new ARElementValueScene(
                         rowMoveDTO,
                         comboBoxWebFields.getValue().getInstructionId(),
@@ -2415,8 +2412,8 @@ public class ARNewCommandPane extends ARPane {
     //                                "Error while saving instruction",
     //                                "Error Inserting Instruction \n" + instruction.getName() + "\"!");
     //
-    //                        ARLogger.getInstance(ARNewCommandPane.class)
-    //                                .severe(String.format("Error Adding new instruction.\nError: %s",
+    //                        log
+    //                                .error(String.format("Error Adding new instruction.\nError: %s",
     // e.getMessage()));
     //                    }
     //
@@ -2435,8 +2432,8 @@ public class ARNewCommandPane extends ARPane {
     //                        }
     //                    });
     //                } catch (Exception ex) {
-    //                    ARLogger.getInstance(ARNewCommandPane.class)
-    //                            .severe(String.format("Error Adding new instruction.\nError: %s", ex.getMessage()));
+    //                    log
+    //                            .error(String.format("Error Adding new instruction.\nError: %s", ex.getMessage()));
     //
     //                    performAction.showAlert(
     //                            Alert.AlertType.ERROR,
@@ -2460,8 +2457,8 @@ public class ARNewCommandPane extends ARPane {
     //                return rs.getInt("max_id");
     //            }
     //        } catch (SQLException e) {
-    //            ARLogger.getInstance(ARViewBotJobPane.class)
-    //                    .severe("loadNextIdBReferenceData  \nError: " + e.getMessage());
+    //            log
+    //                    .error("loadNextIdBReferenceData  \nError: " + e.getMessage());
     //        }
     //        return null;
     //    }

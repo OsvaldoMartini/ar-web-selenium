@@ -25,7 +25,7 @@
 // import javafx.scene.paint.Color;
 // import javafx.stage.Stage;
 //
-// public class ARComponentDetailsPane extends ARPane {
+// import lombok.extern.slf4j.Slf4j;   @Slf4j public class ARComponentDetailsPane extends ARPane {
 //
 //    private final ARComponentBuilder builder = new ARComponentBuilder();
 //    private ComponentBlockDTO componentBlockDTO;

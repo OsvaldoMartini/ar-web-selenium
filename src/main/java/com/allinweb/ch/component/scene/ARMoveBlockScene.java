@@ -5,7 +5,7 @@
 // import com.allinweb.ch.component.scene.base.ARScene;
 // import com.allinweb.ch.persistence.BlockDTO;
 //
-// public class ARMoveBlockScene extends ARScene {
+// import lombok.extern.slf4j.Slf4j;   @Slf4j public class ARMoveBlockScene extends ARScene {
 //    private static final Double SCENE_HEIGHT = 400D;
 //    private static final Double SCENE_WIDTH = 400D;
 //    private static String TITLE = "Move Block";

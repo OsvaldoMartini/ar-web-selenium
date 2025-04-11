@@ -12,14 +12,12 @@ import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.ParentOperations;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
@@ -43,7 +41,9 @@ import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @ServerEndpoint("/websocket")
 public class SimpleWebSocketServer {
 
@@ -800,10 +800,9 @@ public class SimpleWebSocketServer {
 
                     } catch (Exception e) {
 
-                        ARLogger.getInstance(ARScannedElementPane.class)
-                                .severe(String.format(
-                                        "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                                        ARConstants.ELSEIF, e.getMessage()));
+                        log.error(String.format(
+                                "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
+                                ARConstants.ELSEIF, e.getMessage()));
                     }
                 }
             }

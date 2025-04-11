@@ -5,7 +5,7 @@
 // import com.allinweb.ch.component.pane.base.IARPane;
 // import com.allinweb.ch.component.scene.base.ARScene;
 //
-// public class ARExportFilterScene extends ARScene {
+// import lombok.extern.slf4j.Slf4j;   @Slf4j public class ARExportFilterScene extends ARScene {
 //
 //    private static final Double SCENE_HEIGHT = 600D;
 //    private static final Double SCENE_WIDTH = 1000D;

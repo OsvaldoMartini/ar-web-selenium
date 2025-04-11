@@ -6,14 +6,12 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -29,7 +27,6 @@ import java.util.concurrent.Executors;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -44,7 +41,9 @@ import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.websocket.Session;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARSaveComponentPane extends ARPane {
 
     private static Map<String, Session> activeSessions;
@@ -207,8 +206,8 @@ public class ARSaveComponentPane extends ARPane {
                     //                            detailsDTO, componentBlockDTO);
 
                     // Debugging: Ensure originalLoopInstruction has the right data
-                    //                    ARLogger.getInstance(ARSaveComponentPane.class)
-                    //                            .fine("originalLoopInstruction Size: " +
+                    //                    log
+                    //                            .info("originalLoopInstruction Size: " +
                     // originalLoopInstruction.size());
 
                     boolean existName = savedBlockLoadList.stream().anyMatch(block -> block.getName()
@@ -225,8 +224,7 @@ public class ARSaveComponentPane extends ARPane {
                     }
 
                     // Debugging: Print statements to track data
-                    ARLogger.getInstance(ARSaveComponentPane.class)
-                            .fine("Saving New Component Block: " + blockDetailsDTO.getBlockName());
+                    log.info("Saving New Component Block: " + blockDetailsDTO.getBlockName());
 
                     try (Connection conn = performDataBase.getConnection()) {
                         String[] arrayTables = {
@@ -301,7 +299,7 @@ public class ARSaveComponentPane extends ARPane {
                     //                        //
                     // PerformDataBase..cacheEntitiesFromDB();
                     //
-                    //                        ARLogger.getInstance(Thread.class)
+                    //                        log
                     //                                .info(String.format(
                     //                                        "Created a new Block id %d for bot job Id %d",
                     //                                        savedCurrentBlockId,
@@ -313,8 +311,8 @@ public class ARSaveComponentPane extends ARPane {
                     //                                "Verify the Bot Job Name if have any",
                     //                                "Check if you already have a Bot Job Created!");
                     //
-                    //                        ARLogger.getInstance(Thread.class)
-                    //                                .severe(String.format(
+                    //                        log
+                    //                                .error(String.format(
                     //                                        "Error Creating a new Block for bot job Id %d\nCheck if
                     // you already have a Bot Job Created!",
                     //                                        detailsDTO.getNewBlock().getBotJobId()));
@@ -381,8 +379,8 @@ public class ARSaveComponentPane extends ARPane {
                     //                        });
                     //
                     //                        if (savedInstStatus && originalReferences.size() > 0) {
-                    //                            ARLogger.getInstance(ARSaveComponentPane.class)
-                    //                                    .fine("originalReferences Size: " +
+                    //                            log
+                    //                                    .info("originalReferences Size: " +
                     // originalReferences.size());
                     //
                     //                            boolean success = false;
@@ -391,8 +389,8 @@ public class ARSaveComponentPane extends ARPane {
                     //                                ComponentInstructionDTO InstructionLoadDTO =
                     // reference.getSavedBlockLoopInstructionLoadDTO();
                     //                                if (InstructionLoadDTO == null) {
-                    //                                    ARLogger.getInstance(ARViewBotJobPane.class)
-                    //                                            .warning("SavedBlockLoopInstructionLoadDTO is null for
+                    //                                    log
+                    //                                            .warn("SavedBlockLoopInstructionLoadDTO is null for
                     // reference: "
                     //                                                    + reference.getReferenceType());
                     //                                    continue;
@@ -443,7 +441,7 @@ public class ARSaveComponentPane extends ARPane {
                     //                                            "",
                     //                                            combinedTextContainer);
                     //
-                    //                                    ARLogger.getInstance(Thread.class)
+                    //                                    log
                     //                                            .info(String.format(
                     //                                                    "Created Web Component:\n" + "Added Block
                     // Name: %s"
@@ -469,8 +467,8 @@ public class ARSaveComponentPane extends ARPane {
                     //                                                    originalLoopInstruction.size(),
                     //                                                    originalReferences.size()));
                     //
-                    //                                    ARLogger.getInstance(Thread.class)
-                    //                                            .severe(String.format(
+                    //                                    log
+                    //                                            .error(String.format(
                     //                                                    "ERROR: Creating Web Components:\n"
                     //                                                            + "Block Name: %s\nWAS NOT INCLUDED"
                     //                                                            + "\nWAS NOT INCLUDED- %d
@@ -487,7 +485,7 @@ public class ARSaveComponentPane extends ARPane {
                     //                            });
                     //                        }
                     //                    } catch (Exception ex) {
-                    //                        ARLogger.getInstance(Task.class).severe("Error Adding Instruction
+                    //                        log.error("Error Adding Instruction
                     // elements");
                     //                    }
 
@@ -497,8 +495,7 @@ public class ARSaveComponentPane extends ARPane {
                 } catch (Exception error) {
                     // Handle the exception and display a warning message on the JavaFX Application Thread
 
-                    ARLogger.getInstance(Task.class)
-                            .severe("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
+                    log.error("Error: Unable to save the block. Please try again.\nError: " + error.getMessage());
 
                     showAlertTimer(
                             Alert.AlertType.ERROR,
@@ -572,8 +569,8 @@ public class ARSaveComponentPane extends ARPane {
     //
     //        } catch (SQLException e) {
     //
-    //            ARLogger.getInstance(ARViewBotJobPane.class)
-    //                    .severe(String.format(
+    //            log
+    //                    .error(String.format(
     //                            "Cannot Insert \"Component\" Instruction \"%s\"\nCannot be saved!\nError: %s",
     //                            savedInstruction.getName(), e.getMessage()));
     //        }
@@ -599,14 +596,14 @@ public class ARSaveComponentPane extends ARPane {
     //
     //            int rowsAffected = stmt.executeUpdate(insertSQL);
     //            if (rowsAffected > 0) {
-    //                ARLogger.getInstance(ARViewBotJobPane.class)
+    //                log
     //                        .info(String.format(
     //                                "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type:
     // %s\nValue: %s\nInstructionId: %d",
     //                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
     //            } else {
-    //                ARLogger.getInstance(ARViewBotJobPane.class)
-    //                        .warning(String.format(
+    //                log
+    //                        .warn(String.format(
     //                                "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue:
     // %s\nInstructionId: %d",
     //                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
@@ -614,8 +611,8 @@ public class ARSaveComponentPane extends ARPane {
     //
     //            return true;
     //        } catch (SQLException e) {
-    //            ARLogger.getInstance(ARViewBotJobPane.class)
-    //                    .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
+    //            log
+    //                    .error("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
     //            return false;
     //        }
     //    }
@@ -629,7 +626,7 @@ public class ARSaveComponentPane extends ARPane {
     //                return rs.getInt("max_id");
     //            }
     //        } catch (SQLException e) {
-    //            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " +
+    //            log.error("loadNextIdBReferenceData  \nError: " +
     // e.getMessage());
     //        }
     //        return null;
@@ -661,10 +658,10 @@ public class ARSaveComponentPane extends ARPane {
 
         try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
-            ARLogger.getInstance(ARViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
+            log.info("Block data saved successfully id: " + nextId);
             return nextId;
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("saveBlock  \nError: " + e.getMessage());
+            log.error("saveBlock  \nError: " + e.getMessage());
             return -1;
         }
     }
@@ -678,7 +675,7 @@ public class ARSaveComponentPane extends ARPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            log.error("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -692,7 +689,7 @@ public class ARSaveComponentPane extends ARPane {
                 return rs.getInt("max_id");
             }
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
+            log.error("loadNextIdBlockData  \nError: " + e.getMessage());
         }
         return null;
     }
@@ -743,14 +740,11 @@ public class ARSaveComponentPane extends ARPane {
                 instructions.add(instruction);
             }
 
-            ARLogger.getInstance(ARWebDriver.class)
-                    .info(String.format(
-                            "Fetched %d Saved instructions for Block ID %d:", instructions.size(), blockId));
+            log.info(String.format("Fetched %d Saved instructions for Block ID %d:", instructions.size(), blockId));
 
         } catch (SQLException e) {
-            ARLogger.getInstance(ARWebDriver.class)
-                    .severe(String.format(
-                            "Error fetching Saved instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
+            log.error(String.format(
+                    "Error fetching Saved instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
         }
 
         return instructions;

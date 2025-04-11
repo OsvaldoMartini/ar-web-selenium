@@ -2,7 +2,6 @@ package com.allinweb.ch.component.scene.base;
 
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -11,7 +10,9 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public abstract class ARScene implements IARScene {
 
     private Image icon;
@@ -46,13 +47,13 @@ public abstract class ARScene implements IARScene {
     }
 
     private void handleIllegalState(IllegalStateException e) {
-        ARLogger.getInstance(ARScene.class).severe("ARScene IllegalStateException\n" + e);
+        log.error("ARScene IllegalStateException\n" + e);
         Platform.runLater(() -> {
             try {
                 stage = new Stage(); // Retry stage creation if failed
                 setStageBehaviour(stage); // Ensure stage behavior is set
             } catch (IllegalStateException ex) {
-                ARLogger.getInstance(ARScene.class).severe("ARScene IllegalStateException\n" + ex);
+                log.error("ARScene IllegalStateException\n" + ex);
             }
         });
     }
@@ -61,7 +62,7 @@ public abstract class ARScene implements IARScene {
         try {
             icon = new Image(Objects.requireNonNull(getClass().getResourceAsStream(ARConstants.ICON_APPLICATION)));
         } catch (Exception e) {
-            ARLogger.getInstance(ARScene.class).severe("Error loading icon in ARScene\n" + e);
+            log.error("Error loading icon in ARScene\n" + e);
         }
     }
 
@@ -129,7 +130,7 @@ public abstract class ARScene implements IARScene {
     }
 
     private void handleWindowClose(WindowEvent event) {
-        ARLogger.getInstance(ARScene.class).info("X button clicked. Window is closing.");
+        log.info("X button clicked. Window is closing.");
         // Platform.exit();
         System.exit(0);
     }

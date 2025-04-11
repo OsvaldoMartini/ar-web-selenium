@@ -5,7 +5,7 @@
 // import com.allinweb.ch.component.scene.base.ARScene;
 // import com.allinweb.ch.persistence.ComponentBlockDTO;
 //
-// public class ARComponentDetailsScene extends ARScene {
+// import lombok.extern.slf4j.Slf4j;   @Slf4j public class ARComponentDetailsScene extends ARScene {
 //
 //    private static final Double SCENE_HEIGHT = 400D;
 //    private static final Double SCENE_WIDTH = 650D;

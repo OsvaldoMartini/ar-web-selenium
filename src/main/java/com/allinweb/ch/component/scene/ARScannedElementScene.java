@@ -3,7 +3,6 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -13,7 +12,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.facade.SingletonSupplier;
-import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -21,8 +19,10 @@ import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ARScannedElementScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 650D;
@@ -135,9 +135,9 @@ public class ARScannedElementScene extends ARScene {
         for (WebDriver driver : arWebDriver.getWebDriverList()) {
             try {
                 driver.quit();
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
@@ -165,13 +165,13 @@ public class ARScannedElementScene extends ARScene {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
+                    log.error("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + e.getMessage());
+            log.error("ExecutorService did not terminate\n" + e.getMessage());
         }
     }
 }

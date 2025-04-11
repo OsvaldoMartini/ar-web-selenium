@@ -4,7 +4,6 @@ import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -14,15 +13,16 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.facade.SingletonSupplier;
-import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ARViewBotJobScene extends ARScene {
 
     protected static final SingletonSupplier<ARViewBotJobScene> instance = () -> new ARViewBotJobScene();
@@ -101,9 +101,9 @@ public class ARViewBotJobScene extends ARScene {
         for (WebDriver driver : arWebDriver.getWebDriverList()) {
             try {
                 driver.quit();
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
@@ -118,8 +118,7 @@ public class ARViewBotJobScene extends ARScene {
 
         boolean updBotJobStatus = performDataBase.updateBotStatus();
         if (!updBotJobStatus) {
-            ARLogger.getInstance(ARViewBotJobScene.class)
-                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
+            log.info(String.format("Failed to Update ALL Bot Job Active = 1"));
         }
 
         this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
@@ -148,9 +147,7 @@ public class ARViewBotJobScene extends ARScene {
             newBlockDetails.setBotJobId(this.botLoadJob.getId());
 
             int newBlockId = performDataBase.createNewBlock(newBlockDetails);
-            ARLogger.getInstance(Thread.class)
-                    .info(String.format(
-                            "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
+            log.info(String.format("Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
         }
 
         return new ARViewBotJobPane(
@@ -274,8 +271,8 @@ public class ARViewBotJobScene extends ARScene {
     //                }
     //            }
     //        } catch (SQLException e) {
-    //            ARLogger.getInstance(Thread.class)
-    //                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId,
+    //            log
+    //                    .error(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId,
     // e.getMessage()));
     //        }
     //    }
@@ -375,8 +372,8 @@ public class ARViewBotJobScene extends ARScene {
     //                }
     //            }
     //        } catch (SQLException e) {
-    //            ARLogger.getInstance(Thread.class)
-    //                    .severe(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId,
+    //            log
+    //                    .error(String.format("Error loadBlockAll for botJobId %d\nError: %s", botJobId,
     // e.getMessage()));
     //        }
     //    }

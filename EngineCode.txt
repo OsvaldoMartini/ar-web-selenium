@@ -182,7 +182,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 		} catch (Exception ex) {
 			ARLogger.getInstance(Engine.class)
-					.severe(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+					.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
 		}
 
 		// Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on

@@ -10,13 +10,11 @@ import com.allinweb.ch.component.model.DeleteBlockDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.persistence.BotJobDTO;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -38,7 +36,9 @@ import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @ServerEndpoint(
         value = "/websocket",
         subprotocols = {"v12.stomp", "v11.stomp", "v10.stomp"}, // Supported STOMP subprotocols
@@ -206,11 +206,9 @@ public class WebSocketStompServer {
         // Check if the session is already in the sessions set before adding it
         if (!sessions.contains(session)) {
             sessions.add(session);
-            ARLogger.getInstance(WebSocketStompServer.class)
-                    .info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
+            log.info(String.format("Open Socket Connection - Session Id: %s", session.getId()));
         } else {
-            ARLogger.getInstance(WebSocketStompServer.class)
-                    .info(String.format("Reusing existing Socket Connection - Session Id: %s", session.getId()));
+            log.info(String.format("Reusing existing Socket Connection - Session Id: %s", session.getId()));
         }
     }
 
@@ -230,11 +228,9 @@ public class WebSocketStompServer {
             // Send a ping to keep the connection alive
             session.getAsyncRemote().sendPing(ByteBuffer.wrap(new byte[0]));
         } catch (IOException e) {
-            ARLogger.getInstance(WebSocketStompServer.class)
-                    .warning(String.format("onMessage - IO Error: %s", e.getMessage()));
+            log.warn(String.format("onMessage - IO Error: %s", e.getMessage()));
         } catch (Exception e) {
-            ARLogger.getInstance(WebSocketStompServer.class)
-                    .warning(String.format("onMessage - Error: %s", e.getMessage()));
+            log.warn(String.format("onMessage - Error: %s", e.getMessage()));
         }
     }
 
@@ -252,11 +248,9 @@ public class WebSocketStompServer {
                                 + message.length() + "\n\n" + message
                                 + "\u0000"; // Message body followed by null character
                         session.getBasicRemote().sendText(stompMessage);
-                        ARLogger.getInstance(WebSocketStompServer.class)
-                                .info(String.format("Sent message to session %s: %s", session.getId(), message));
+                        log.info(String.format("Sent message to session %s: %s", session.getId(), message));
                     } catch (IOException e) {
-                        ARLogger.getInstance(WebSocketStompServer.class)
-                                .warning(String.format("sendMessageToAll - IO Error: %s", e.getMessage()));
+                        log.warn(String.format("sendMessageToAll - IO Error: %s", e.getMessage()));
                     }
                 }
             }
@@ -265,23 +259,20 @@ public class WebSocketStompServer {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        ARLogger.getInstance(WebSocketStompServer.class)
-                .warning(String.format("WebSocket error: %s", throwable.getMessage()));
+        log.warn(String.format("WebSocket error: %s", throwable.getMessage()));
         try {
             if (session.isOpen()) {
                 session.close();
             }
         } catch (IOException e) {
-            ARLogger.getInstance(WebSocketStompServer.class)
-                    .warning(String.format("onError - IO Error: %s", e.getMessage()));
+            log.warn(String.format("onError - IO Error: %s", e.getMessage()));
         }
     }
 
     @OnClose
     public void onClose(Session session) {
         sessions.remove(session);
-        ARLogger.getInstance(WebSocketStompServer.class)
-                .info(String.format("Client disconnected: %s", session.getId()));
+        log.info(String.format("Client disconnected: %s", session.getId()));
     }
 
     private void excelFileBlock(BlockDetailsDTO blockExcelDTO) {
@@ -397,10 +388,9 @@ public class WebSocketStompServer {
 
                     } catch (Exception e) {
 
-                        ARLogger.getInstance(ARScannedElementPane.class)
-                                .severe(String.format(
-                                        "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                                        ARConstants.ELSEIF, e.getMessage()));
+                        log.error(String.format(
+                                "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
+                                ARConstants.ELSEIF, e.getMessage()));
                     }
                 }
             }

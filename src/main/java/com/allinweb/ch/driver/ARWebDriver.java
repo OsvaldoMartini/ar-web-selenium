@@ -6,7 +6,6 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -24,6 +23,7 @@ import java.util.stream.Collectors;
 import javafx.collections.ObservableList;
 import javax.swing.*;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Proxy;
@@ -40,6 +40,7 @@ import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+@Slf4j
 @Data
 public class ARWebDriver {
 
@@ -90,7 +91,7 @@ public class ARWebDriver {
                 }
             }
         } catch (IOException e) {
-            ARLogger.getInstance(ARWebDriver.class).info("Error getting Edge WebDriver version: " + e.getMessage());
+            log.info("Error getting Edge WebDriver version: " + e.getMessage());
         }
         return "unknown";
     }
@@ -100,7 +101,7 @@ public class ARWebDriver {
             Capabilities capabilities = ((RemoteWebDriver) driver).getCapabilities();
             return capabilities.getBrowserVersion();
         } catch (Exception e) {
-            ARLogger.getInstance(ARWebDriver.class).info("Error getting Edge browser version: " + e.getMessage());
+            log.info("Error getting Edge browser version: " + e.getMessage());
             return "unknown";
         }
     }
@@ -114,12 +115,12 @@ public class ARWebDriver {
                         addWebDriver(this.currentDriver);
                         this.edgeVersion =
                                 getEdgeBrowserVersion(this.currentDriver); // Detect version on driver creation
-                        ARLogger.getInstance(ARWebDriver.class).fine("Detected Edge Version: " + this.edgeVersion);
+                        log.info("Detected Edge Version: " + this.edgeVersion);
                     } else {
                         this.currentDriver = new EdgeDriver();
                         this.edgeVersion =
                                 getEdgeBrowserVersion(this.currentDriver); // Detect version on driver creation
-                        ARLogger.getInstance(ARWebDriver.class).fine("Detected Edge Version: " + this.edgeVersion);
+                        log.info("Detected Edge Version: " + this.edgeVersion);
                     }
                 }
             }
@@ -184,7 +185,7 @@ public class ARWebDriver {
         this.webDriverEdgeVersion = getEdgeWebDriverVersion(webDriverPath);
 
         if (Strings.isNullOrEmpty(url.trim())) {
-            ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
+            log.info("URL IS EMPTY");
 
             performMessage.errorMessage("URL IS EMPTY", "URL Web Browser is Empty", null, null, null, 0);
 
@@ -199,15 +200,15 @@ public class ARWebDriver {
 
             optionsConfigLines = optionsConfig.split(lineSeparator);
         } catch (Exception ex) {
-            ARLogger.getInstance(ARWebDriver.class).severe("Error WebDriver config Options : \n" + ex.getMessage());
+            log.error("Error WebDriver config Options : \n" + ex.getMessage());
         }
 
-        ARLogger.getInstance(ARWebDriver.class).fine("Going to call WebDriver for \n" + url);
+        log.info("Going to call WebDriver for \n" + url);
 
         ARPropertyManager managerProps = ARPropertyManager.getInstance();
 
         if (Strings.isNullOrEmpty(webDriverPath)) {
-            ARLogger.getInstance(ARWebDriver.class).fine("URL IS EMPTY");
+            log.info("URL IS EMPTY");
         }
 
         //        if (driver == null) {
@@ -217,7 +218,7 @@ public class ARWebDriver {
                 case ARConstants.CHROME -> {
                     //                        String driverPath = webDriverPath + "\\chrome.exe";
                     if (!(new File(webDriverPath)).exists()) {
-                        ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                        log.info("Web Driver NOT EXIST \n" + webDriverPath);
                     }
 
                     // "\\_chrome_browser.log");
@@ -238,7 +239,7 @@ public class ARWebDriver {
                 case ARConstants.EDGE -> {
                     //                        String driverPath = webDriverPath + "\\msedgedriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
-                        ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                        log.info("Web Driver NOT EXIST \n" + webDriverPath);
                     }
                     // Set path to Edge WebDriver executable
                     System.setProperty("webdriver.edge.driver", webDriverPath);
@@ -273,7 +274,7 @@ public class ARWebDriver {
                 case ARConstants.FIREFOX -> {
                     //                        String driverPath = webDriverPath + "\\geckodriver.exe";
                     if (!(new File(webDriverPath)).exists()) {
-                        ARLogger.getInstance(ARWebDriver.class).fine("Web Driver NOT EXIST \n" + webDriverPath);
+                        log.info("Web Driver NOT EXIST \n" + webDriverPath);
                     }
                     System.setProperty("webdriver.gecko.driver", webDriverPath);
                     FirefoxOptions options = new FirefoxOptions();
@@ -314,8 +315,7 @@ public class ARWebDriver {
         } catch (Exception e) {
 
             String errorMessage = e.getMessage();
-            ARLogger.getInstance(ARWebDriver.class)
-                    .fine("An error has occurred during driver.get(url) Load " + errorMessage);
+            log.info("An error has occurred during driver.get(url) Load " + errorMessage);
 
             // Split the message into chunks of 100 characters
             int maxLength = 100;
@@ -335,7 +335,7 @@ public class ARWebDriver {
 
             // Example: print or log the chunks if needed
             for (String chunk : messageChunks) {
-                ARLogger.getInstance(ARWebDriver.class).fine("Error chunk: " + chunk);
+                log.info("Error chunk: " + chunk);
             }
             return null;
         }
@@ -349,11 +349,11 @@ public class ARWebDriver {
                 + System.currentTimeMillis());
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
-                ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);
+                log.info("COMMENTED OPTIONS: " + line);
                 continue;
             }
 
-            ARLogger.getInstance(ARWebDriver.class).fine("WebDriver config: \n" + line);
+            log.info("WebDriver config: \n" + line);
             String[] config = line.split(":");
             if (config.length > 1) {
                 if (config[0].equalsIgnoreCase("proxy")) {
@@ -371,7 +371,7 @@ public class ARWebDriver {
 
                         optionsEdge.setProxy(proxy);
                     } else {
-                        ARLogger.getInstance(ARWebDriver.class).severe("Error Check Options Config for Proxy is wrong");
+                        log.error("Error Check Options Config for Proxy is wrong");
                     }
                 } else if (config[0].equalsIgnoreCase("browser_log")) {
 
@@ -409,11 +409,11 @@ public class ARWebDriver {
         // Options Config
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
-                ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);
+                log.info("COMMENTED OPTIONS: " + line);
                 continue;
             }
 
-            ARLogger.getInstance(ARWebDriver.class).fine("WebDriver config: \n" + line);
+            log.info("WebDriver config: \n" + line);
             String[] config = line.split(":");
             if (config.length > 1) {
                 if (config[0].equalsIgnoreCase("proxy")) {
@@ -431,7 +431,7 @@ public class ARWebDriver {
 
                         optionsChrome.setProxy(proxy);
                     } else {
-                        ARLogger.getInstance(ARWebDriver.class).severe("Error Check Options Config for Proxy is wrong");
+                        log.error("Error Check Options Config for Proxy is wrong");
                     }
                 } else if (config[0].equalsIgnoreCase("browser_log")) {
 

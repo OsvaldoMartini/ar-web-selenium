@@ -6,12 +6,6 @@ import java.util.List;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 
-/**
- * PerformActions.
- *
- * @author Osvaldo Martini
- * @version 1.0
- */
 public class PerformPreLoad {
 
     private static JavascriptExecutor jsExecutor;

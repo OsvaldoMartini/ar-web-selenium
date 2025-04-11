@@ -18,7 +18,6 @@ import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
@@ -68,10 +67,12 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import javax.websocket.Session;
 import javax.websocket.server.ServerContainer;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
+@Slf4j
 public class ARViewBotJobPane extends ARPane {
     // Set to hold all active WebSocket sessions
     private static Map<String, Session> activeSessions;
@@ -189,7 +190,7 @@ public class ARViewBotJobPane extends ARPane {
                     try {
                         startWebSocketServer(finalPort);
                     } catch (Exception e) {
-                        ARLogger.getInstance(ARViewBotJobPane.class).fine("Port already in Use: " + finalPort);
+                        log.info("Port already in Use: " + finalPort);
 
                         //                        performMessage.errorMessage(
                         //                                "Port Error", "Port %d already in Use!",
@@ -241,10 +242,10 @@ public class ARViewBotJobPane extends ARPane {
             try {
                 jettyServer.stop();
             } catch (Exception e) {
-                ARLogger.getInstance(ARViewBotJobPane.class).severe("stopWebSocketServer  \nError: " + e.getMessage());
+                log.error("stopWebSocketServer  \nError: " + e.getMessage());
             }
             jettyServer.destroy();
-            ARLogger.getInstance(ARViewBotJobPane.class).info("WebSocket server stopped.");
+            log.info("WebSocket server stopped.");
             //            System.out.println("WebSocket server stopped.");
         }
     }
@@ -562,7 +563,7 @@ public class ARViewBotJobPane extends ARPane {
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
+                    log.error("buildWebView  \nError: " + e.getMessage());
                 }
             }
         });
@@ -685,7 +686,7 @@ public class ARViewBotJobPane extends ARPane {
             if (!isScannerButtonClicked) { // Check if the button action was not already triggered
                 isScannerButtonClicked = true; // Set the flag to prevent further clicks
 
-                ARLogger.getInstance(ARViewBotJobPane.class).fine("Calling openScannerButton");
+                log.info("Calling openScannerButton");
 
                 arScene.startNewThread(() -> {
                     executeScannerTask();
@@ -1012,8 +1013,7 @@ public class ARViewBotJobPane extends ARPane {
 
     private void handleExceptionScan(Exception error) {
         // Log the exception
-        ARLogger.getInstance(ARViewBotJobPane.class)
-                .severe("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
+        log.error("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
 
         // Display the error message to the user
         if (error.getMessage().contains("no such window: target window already closed")
@@ -1064,7 +1064,7 @@ public class ARViewBotJobPane extends ARPane {
                     }
                 }
 
-                ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
+                log.error("Error Open URL: \n" + msg1 + "\n" + msg2);
 
                 performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
             }
@@ -1186,25 +1186,23 @@ public class ARViewBotJobPane extends ARPane {
 
                 int rowsAffected = stmt.executeUpdate(updateSQL);
                 if (rowsAffected > 0) {
-                    //                    ARLogger.getInstance(ARViewBotJobPane.class)
-                    //                            .warning(String.format(
+                    //                    log
+                    //                            .warn(String.format(
                     //                                    "preInsertStep - InstructionId: %s in BlockId: %s now has
                     // order number: %d",
                     //                                    instruction.getInstructionId(),
                     //                                    instruction.getBlockId(),
                     //                                    instruction.getInstructionOrderNumber() + 1));
                 } else {
-                    ARLogger.getInstance(ARViewBotJobPane.class)
-                            .info(String.format(
-                                    "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
-                                    instruction.getBlockId(), instruction.getInstructionId()));
+                    log.info(String.format(
+                            "preInsertStep - No matching record found for BlockId: %d and InstructionId: %d",
+                            instruction.getBlockId(), instruction.getInstructionId()));
                 }
             }
 
             return true;
         } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class)
-                    .severe(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
+            log.error(String.format("Error updating instruction order numbers.\nError: %s", e.getMessage()));
         }
         return false;
     }

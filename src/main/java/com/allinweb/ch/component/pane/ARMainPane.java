@@ -17,7 +17,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import java.io.File;
@@ -35,8 +34,10 @@ import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ARMainPane extends ARPane {
 
     private Stage stage; // Add stage variable
@@ -119,8 +120,7 @@ public class ARMainPane extends ARPane {
             if (!dbFile.exists()) {
                 performDataBase.initializeMainDatabaseAccess(dbUrl, dbFile);
             } else {
-                ARLogger.getInstance(ARMainPane.class)
-                        .info(String.format("Database '%s' already exists!", dbFile.getName()));
+                log.info(String.format("Database '%s' already exists!", dbFile.getName()));
             }
             //            performDataBase.updatePossibleMigrationColumnsTable(dbUrl, dbFile);
 
@@ -319,6 +319,9 @@ public class ARMainPane extends ARPane {
                     ProcessBuilder processBuilder = new ProcessBuilder(command);
                     processBuilder.directory(new File(ARConstants.CURRENT_PATH));
                     String logPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+                    if (logPath != null && !logPath.isBlank()) {
+                        System.setProperty("application.log.path", logPath);
+                    }
                     File output = new File(logPath + "\\engine_debug_log_output.log");
                     File error = new File(logPath + "\\engine_debug_log_error.log");
                     File input = new File(logPath + "\\engine_debug_log_input.log");
@@ -331,7 +334,7 @@ public class ARMainPane extends ARPane {
                             try {
                                 file.createNewFile();
                             } catch (IOException ex) {
-                                ARLogger.getInstance(ARScannedElementPane.class).fine("Error : " + ex);
+                                log.info("Error : " + ex);
                             }
                         }
                     }
@@ -341,7 +344,7 @@ public class ARMainPane extends ARPane {
                     try {
                         processBuilder.start();
                     } catch (IOException ex) {
-                        ARLogger.getInstance(ARScannedElementPane.class).fine("Error : " + ex);
+                        log.info("Error : " + ex);
                     }
                 } else {
                     performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
@@ -357,9 +360,9 @@ public class ARMainPane extends ARPane {
             try {
                 Platform.runLater(() -> arWebDriver.getWebDriverList().remove(driver));
                 Platform.runLater(driver::quit);
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> {

@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import javafx.util.Pair;
 import javax.imageio.ImageIO;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Font;
@@ -26,6 +27,7 @@ import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ExcelWriter {
     private static final int INSTRUCTION_FIELDS_ROW_INDEX = 1;
     private static final int EXECUTION_TIMES_COLUMN_INDEX = 11;
@@ -50,8 +52,7 @@ public class ExcelWriter {
             managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist, isFullPath));
             managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));
         } catch (Exception ex) {
-            ARLogger.getInstance(ExcelWriter.class)
-                    .severe(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
+            log.error(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
         }
     }
 
@@ -70,10 +71,9 @@ public class ExcelWriter {
                         .insertValueAfterLastColumnOfRow(value, INSTRUCTION_FIELDS_ROW_INDEX + 1);
                 managedExcel.save();
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
+                log.error(String.format(
+                        "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                        botJobName, ex.getMessage()));
             }
         }
 
@@ -109,10 +109,9 @@ public class ExcelWriter {
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                                botJobName, ex.getMessage()));
+                log.error(String.format(
+                        "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
+                        botJobName, ex.getMessage()));
             }
         }
 
@@ -341,9 +340,8 @@ public class ExcelWriter {
                 managedExcel.save();
                 return true;
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "InsertInstructionResult ( %s ) Error: %s ", msgLoop.getKey(), ex.getMessage()));
+                log.error(
+                        String.format("InsertInstructionResult ( %s ) Error: %s ", msgLoop.getKey(), ex.getMessage()));
                 return false;
             }
         }
@@ -535,9 +533,7 @@ public class ExcelWriter {
                 // Save the Excel after modification
 
             } catch (Exception ex) {
-                ARLogger.getInstance(ExcelWriter.class)
-                        .severe(String.format(
-                                "Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
+                log.error(String.format("Excel Writer insertFieldNameAndValueLastColumn: \nError", ex.getMessage()));
             }
         }
 

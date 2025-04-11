@@ -3,14 +3,15 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.util.ARLogger;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ARMainScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 600D;
@@ -69,9 +70,9 @@ public class ARMainScene extends ARScene {
             try {
                 Platform.runLater(() -> webDriverList.remove(driver));
                 Platform.runLater(driver::quit);
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                log.info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                log.warn("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> {

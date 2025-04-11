@@ -66,7 +66,7 @@ the projects.
 Right now for communication there is the class Repository which has 
 various generics methods to read and write to the database:
 ```java
-public class Repository {
+import lombok.extern.slf4j.Slf4j;   @Slf4j public class Repository {
     ...
     public <T> void write(T obj)
     ...
@@ -90,7 +90,7 @@ that would void the explicitly declared functions.
 @Entity
 @Table(name = "bot_job")
 //@SequenceGenerator(initialValue = 1, name = "idgen", sequenceName = "botJobSeq", allocationSize = 1)
-public class BotJobDTO extends BaseDTO implements Serializable {
+import lombok.extern.slf4j.Slf4j;   @Slf4j public class BotJobDTO extends BaseDTO implements Serializable {
 
     @Column(name = "name")
     private String name;
@@ -119,7 +119,7 @@ the user sees.
 
 Scene class example:
 ```java
-public class ARMainScene extends ARScene {
+import lombok.extern.slf4j.Slf4j;   @Slf4j public class ARMainScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 30D;
     private static final Double SCENE_WIDTH = 300D;
@@ -134,7 +134,7 @@ public class ARMainScene extends ARScene {
 
 Pane class example:
 ```java
-public class ARMainPane extends ARPane {
+import lombok.extern.slf4j.Slf4j;   @Slf4j public class ARMainPane extends ARPane {
 
     private static final ARComponentBuilder builder = new ARComponentBuilder();
 

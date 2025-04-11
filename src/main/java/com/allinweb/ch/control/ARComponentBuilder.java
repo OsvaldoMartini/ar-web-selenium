@@ -1,8 +1,6 @@
 package com.allinweb.ch.control;
 
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import java.util.Objects;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -10,7 +8,9 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARComponentBuilder {
 
     public HBox createTopPanel(Double topPanelHeight, Double edgeSpace) {
@@ -65,8 +65,7 @@ public class ARComponentBuilder {
             image.setPreserveRatio(true);
             return image;
         } catch (Exception e) {
-            ARLogger.getInstance(ARWebDriver.class)
-                    .severe(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
+            log.error(String.format("BuildImageView source: %s size %d \n%s", source, size, e.getMessage()));
         }
         return null;
     }

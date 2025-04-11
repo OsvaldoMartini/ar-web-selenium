@@ -11,6 +11,7 @@ import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.TargetElement;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
@@ -77,7 +78,6 @@ import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Pair;
-import javax.net.ssl.*;
 import javax.websocket.ClientEndpoint;
 import javax.websocket.ContainerProvider;
 import javax.websocket.OnClose;
@@ -86,9 +86,11 @@ import javax.websocket.OnMessage;
 import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+@Slf4j
 @ClientEndpoint
 public class ARScannedElementPane extends ARPane {
     private static Map<String, Session> activeSessions;
@@ -303,7 +305,7 @@ public class ARScannedElementPane extends ARPane {
         Task<Void> handleEvent = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                ARLogger.getInstance(Task.class).finer("THREAD: instruction list size " + nextInstOrderNumber);
+                log.error("THREAD: instruction list size " + nextInstOrderNumber);
 
                 String actionReq = checkClickElement.isSelected()
                         ? ARConstants.CLICK
@@ -439,16 +441,16 @@ public class ARScannedElementPane extends ARPane {
                         }
                     });
                 } catch (Exception ex) {
-                    ARLogger.getInstance(Task.class).severe("Error Adding Instruction elements");
+                    log.error("Error Adding Instruction elements");
                 }
                 //                                        });
                 return null;
             }
         };
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Thread created");
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Before thread execution");
+        log.info("Thread created");
+        log.info("Before thread execution");
         new Thread(handleEvent).start();
-        ARLogger.getInstance(ARScannedElementPane.class).fine("After thread execution");
+        log.info("After thread execution");
     }
 
     private void testingActions(TargetElement targetTest, String testType) {
@@ -926,7 +928,6 @@ public class ARScannedElementPane extends ARPane {
     private int remainingSeconds = SECONDS;
     private Timeline timeline;
     private Alert alertToShow;
-    public static Repository repository;
 
     private static TargetElement targetSelected = new TargetElement();
 
@@ -1092,7 +1093,7 @@ public class ARScannedElementPane extends ARPane {
 
         defaultSearch = new String[] {"input", "textarea", "button", "a", "select", "label"};
 
-        ARLogger.getInstance(ARWebDriver.class).fine("Calling ARScannedElementPane");
+        log.info("Calling ARScannedElementPane");
 
         // Ensure botJob and arPriorities are not null before accessing their methods
         if (this.botJobLoad != null && arPriorities != null) {
@@ -1253,7 +1254,7 @@ public class ARScannedElementPane extends ARPane {
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
                             + botJobId + ", '" + botJobName + "' ) }, 1000)");
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARViewBotJobPane.class).severe("buildWebView  \nError: " + e.getMessage());
+                    log.error("buildWebView  \nError: " + e.getMessage());
                 }
             }
         });
@@ -1603,7 +1604,7 @@ public class ARScannedElementPane extends ARPane {
             AnchorPane.setRightAnchor(topPane, 0.0);
 
         } catch (Exception ex) {
-            ARLogger.getInstance(ARScannedElementPane.class).fine("Error using Separator line\n" + ex);
+            log.info("Error using Separator line\n" + ex);
         }
     }
 
@@ -2042,9 +2043,7 @@ public class ARScannedElementPane extends ARPane {
                     }
 
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+                    log.warn(String.format("Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
                 }
             } else if (elementValid == null) {
                 try {
@@ -2055,9 +2054,8 @@ public class ARScannedElementPane extends ARPane {
                                 ARConstants.REGULAR_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
+                    log.warn(String.format(
+                            "Cannot locate a Web Element with Regular XPath\n%s", target.getCurrentXPath()));
                 }
             } else if (elementValid == null) {
                 try {
@@ -2068,9 +2066,8 @@ public class ARScannedElementPane extends ARPane {
                                 ARConstants.CUSTOM_XPATH); // BECAUSE OS LIMITATION OF ACCESS DB 255 CHARACTER
                     }
                 } catch (Exception e) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .warning(String.format(
-                                    "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
+                    log.warn(String.format(
+                            "Cannot locate a Web Element with Absolut XPath\n%s", target.getAttributeData()));
                 }
             } else {
                 if (elementValid == null) {
@@ -2085,9 +2082,7 @@ public class ARScannedElementPane extends ARPane {
                                 target.setAttributeValue(target.getAttribId());
                             }
                         } catch (Exception e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .warning(String.format(
-                                            "Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
+                            log.warn(String.format("Cannot locate a Web Element with ID: \n%s", target.getAttribId()));
                         }
                     }
                 } else if (elementValid == null) {
@@ -2102,9 +2097,8 @@ public class ARScannedElementPane extends ARPane {
                                 target.setXPathWorkedFirst(ARConstants.ATTRIBUTE_NAME);
                             }
                         } catch (Exception e) {
-                            ARLogger.getInstance(ARScannedElementPane.class)
-                                    .warning(String.format(
-                                            "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
+                            log.warn(String.format(
+                                    "Cannot locate a Web Element with Name: \n%s", target.getAttribName()));
                         }
                     }
                 }
@@ -2575,7 +2569,7 @@ public class ARScannedElementPane extends ARPane {
         List<WebElement> inputElements = (List<WebElement>) ((JavascriptExecutor) driver).executeScript(script);
 
         // Print the number of input elements found
-        ARLogger.getInstance(ARScannedElementPane.class).fine("Number of input elements: " + inputElements.size());
+        log.info("Number of input elements: " + inputElements.size());
         return inputElements;
     }
 
@@ -2680,15 +2674,13 @@ public class ARScannedElementPane extends ARPane {
                 });
             } catch (Exception ignore) {
                 // Log the error properly instead of ignoring
-                ARLogger.getInstance(ARScannedElementPane.class)
-                        .severe("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
+                log.error("Error submitting to executorServicePreLaunch: " + ignore.getMessage());
                 isJobRunning.set(false); // Ensure flag is reset on submission failure
             }
         } else {
             // Optionally log that a new execution was requested but is already running
             System.out.println("recallJob() requested, but executeJob() is already running.");
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .info("recallJob() requested while executeJob() was running.");
+            log.info("recallJob() requested while executeJob() was running.");
         }
 
         if (performActions.getCurrentDriver().getWindowHandles().size() != performActions.windowHandlesList.size()) {
@@ -3006,8 +2998,7 @@ public class ARScannedElementPane extends ARPane {
                             String.format("Block: \"%s\" Wait %s Seconds: ", blockName, blockWait));
 
                 } catch (Exception ex) {
-                    ARLogger.getInstance(ARScannedElementPane.class)
-                            .severe(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
+                    log.error(String.format("Error Wait Block for :\"%s\"", blockLoad.getName()));
                 }
 
                 // Step 1: Get all ParentIds For LOOPs Filter rows where actions = "REFRESH_LOOP" or "LOOP" on current
@@ -3457,11 +3448,10 @@ public class ARScannedElementPane extends ARPane {
                                     if (repeat > 0) {
                                         mapLoops.put(parentFieldLoop, repeat);
 
-                                        ARLogger.getInstance(ARScannedElementPane.class)
-                                                .info(String.format(
-                                                        "Loop to Parent :\"%s\" - %d Times",
-                                                        parts[0] + "-(" + parts[1] + ") " + parts[2],
-                                                        mapLoops.get(parentFieldLoop)));
+                                        log.info(String.format(
+                                                "Loop to Parent :\"%s\" - %d Times",
+                                                parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                mapLoops.get(parentFieldLoop)));
 
                                         if (refreshLoop) {
 
@@ -3552,11 +3542,10 @@ public class ARScannedElementPane extends ARPane {
                                     if (repeat > 0) {
                                         continue instructionLoop;
                                     } else {
-                                        ARLogger.getInstance(ARScannedElementPane.class)
-                                                .info(String.format(
-                                                        "IGNORING Loop to Parent :\"%s\" - %d Times",
-                                                        parts[0] + "-(" + parts[1] + ") " + parts[2],
-                                                        mapLoops.get(parentFieldLoop)));
+                                        log.info(String.format(
+                                                "IGNORING Loop to Parent :\"%s\" - %d Times",
+                                                parts[0] + "-(" + parts[1] + ") " + parts[2],
+                                                mapLoops.get(parentFieldLoop)));
                                         continue;
                                     }
 
@@ -4307,13 +4296,13 @@ public class ARScannedElementPane extends ARPane {
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
+                    log.error("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException error) {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
-            ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + error.getMessage());
+            log.error("ExecutorService did not terminate\n" + error.getMessage());
         }
     }
 
@@ -4636,7 +4625,7 @@ public class ARScannedElementPane extends ARPane {
 
     @Override
     public void start(Stage stage) throws Exception {
-        ARLogger.getInstance(ARWebDriver.class).severe("start from ARScannedElementPane");
+        log.error("start from ARScannedElementPane");
     }
 
     @Override
@@ -4648,7 +4637,7 @@ public class ARScannedElementPane extends ARPane {
                 executorServicePreLaunch.shutdownNow();
                 if (!executorServicePreLaunch.awaitTermination(5, TimeUnit.SECONDS)) {
                     System.err.println("ExecutorService did not terminate");
-                    ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate");
+                    log.error("ExecutorService did not terminate");
                 }
             }
         } catch (InterruptedException e) {
@@ -4745,10 +4734,9 @@ public class ARScannedElementPane extends ARPane {
 
         } catch (Exception e) {
 
-            ARLogger.getInstance(ARScannedElementPane.class)
-                    .severe(String.format(
-                            "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
-                            instructionLoadDTO.getName(), e.getMessage()));
+            log.error(String.format(
+                    "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
+                    instructionLoadDTO.getName(), e.getMessage()));
 
             return -1;
         }

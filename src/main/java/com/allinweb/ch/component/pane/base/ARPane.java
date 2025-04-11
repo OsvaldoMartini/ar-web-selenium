@@ -1,13 +1,13 @@
 package com.allinweb.ch.component.pane.base;
 
-import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.util.ARLogger;
 import javafx.application.Application;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public abstract class ARPane extends Application implements IARPane {
 
     private Pane pane;
@@ -66,6 +66,6 @@ public abstract class ARPane extends Application implements IARPane {
 
     @Override
     public void start(Stage stage) throws Exception {
-        ARLogger.getInstance(ARWebDriver.class).severe("start from ARPane");
+        log.error("start from ARPane");
     }
 }

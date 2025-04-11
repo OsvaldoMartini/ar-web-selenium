@@ -10,7 +10,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.google.common.base.Strings;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -29,8 +28,10 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
+import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
+@Slf4j
 public class ARNewBotJobPane extends ARPane {
 
     // UI components
@@ -247,7 +248,7 @@ public class ARNewBotJobPane extends ARPane {
                     currentStage.close();
                 }
             } else {
-                ARLogger.getInstance(Thread.class).severe("Error creating BotJobDTO. Check the Block Creation!");
+                log.error("Error creating BotJobDTO. Check the Block Creation!");
             }
         });
     }

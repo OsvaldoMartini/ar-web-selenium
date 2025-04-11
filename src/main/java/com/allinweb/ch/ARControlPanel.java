@@ -5,7 +5,6 @@ import com.allinweb.ch.component.scene.ARMainScene;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.licence.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import java.io.IOException;
@@ -18,7 +17,9 @@ import javafx.scene.control.Alert;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARControlPanel extends Application {
 
     private static final PerformMessage performMessage;
@@ -45,11 +46,11 @@ public class ARControlPanel extends Application {
             String configurationValue = arguments.get(configurationValueIndex);
             ARPropertyManager.setConfigurationFileName(configurationValue);
             arPropertyManager.loadProperties();
-            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
+            log.info("Configuration file path: " + configurationFileName);
         } else {
             ARPropertyManager.setConfigurationFileName(configurationFileName);
             arPropertyManager.loadProperties();
-            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
+            log.info("Configuration file path: " + configurationFileName);
         }
 
         try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
@@ -95,7 +96,7 @@ public class ARControlPanel extends Application {
                         "Validation Failed",
                         null,
                         combinedTextContainer));
-                ARLogger.getInstance(ARControlPanel.class).fine(e.getMessage());
+                log.info(e.getMessage());
             }
         } else {
             // If the license is disabled, directly proceed with the main application

@@ -10,7 +10,7 @@
 // import com.allinweb.ch.facade.PerformDataBase;
 // import com.allinweb.ch.util.ARConstants;
 // import java.util.ArrayList;
-// import java.util.List;
+// import java.util.List; import lombok.extern.slf4j.Slf4j;
 // import java.util.stream.Collectors;
 // import javafx.collections.FXCollections;
 // import javafx.collections.ObservableList;
@@ -20,7 +20,7 @@
 // import javafx.scene.control.ListView;
 // import javafx.scene.layout.*;
 //
-// public class ARExportFilterPane extends ARPane {
+// import lombok.extern.slf4j.Slf4j;   @Slf4j public class ARExportFilterPane extends ARPane {
 //
 //    private static final PerformDataBase performDataBase;
 //    // Static block to initialize

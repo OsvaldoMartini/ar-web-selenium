@@ -6,7 +6,6 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
-import com.allinweb.ch.util.ARLogger;
 import com.google.common.base.Strings;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -23,7 +22,9 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARNewHomeBankingPane extends ARPane {
 
     private static final PerformMessage performMessage;
@@ -621,15 +622,15 @@ public class ARNewHomeBankingPane extends ARPane {
             try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(deleteSQL);
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(Thread.class).finer("Data deleted successfully.\n " + Id);
+                    log.error("Data deleted successfully.\n " + Id);
                 } else {
-                    ARLogger.getInstance(Thread.class).finer("Data NOT deleted successfully.\n " + Id);
+                    log.error("Data NOT deleted successfully.\n " + Id);
                 }
             } catch (SQLException e) {
-                ARLogger.getInstance(Thread.class).finer("Error Deleting\n " + Id);
+                log.error("Error Deleting\n " + Id);
             }
         } catch (NumberFormatException e) {
-            ARLogger.getInstance(Thread.class).finer("Invalid Format ID:\n " + Id);
+            log.error("Invalid Format ID:\n " + Id);
         }
     }
 

@@ -30,12 +30,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javax.swing.*;
 
-/**
- * PerformMessage.
- *
- * @author Osvaldo Martini
- * @version 1.0
- */
 public class PerformMessage {
     // Static final variable to hold the singleton instance
     protected static final SingletonSupplier<PerformMessage> instance = () -> new PerformMessage();

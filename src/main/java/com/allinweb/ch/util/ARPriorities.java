@@ -10,7 +10,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
 import javax.swing.*;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARPriorities {
 
     private static String searchConfigTemplate =
@@ -49,7 +51,7 @@ public class ARPriorities {
                             + ARConstants.FILE_NAME_PRIORITIES,
                     "Priority configuration folder not set",
                     JOptionPane.WARNING_MESSAGE);
-            ARLogger.getInstance(ARPriorities.class).warning("Priority configuration folder not set");
+            log.warn("Priority configuration folder not set");
             throw new RuntimeException("Priority configuration not set");
         }
         String prioritiesFileName = priorityPath + ARConstants.FILE_NAME_PRIORITIES;
@@ -62,15 +64,14 @@ public class ARPriorities {
                             + "set correctly or create the file: " + prioritiesFileName,
                     "Priority configuration file missing",
                     JOptionPane.WARNING_MESSAGE);
-            ARLogger.getInstance(ARPriorities.class)
-                    .warning("Priority configuration file missing" + prioritiesFileName);
+            log.warn("Priority configuration file missing" + prioritiesFileName);
             throw new RuntimeException("Priority configuration file missing");
         }
         try (FileInputStream priorities = new FileInputStream(prioritiesFile)) {
             properties = new Properties();
             properties.load(priorities);
             if (properties.size() == 0) {
-                ARLogger.getInstance(ARPriorities.class).warning("The file " + prioritiesFileName + "is empty");
+                log.warn("The file " + prioritiesFileName + "is empty");
             }
             properties.keySet().forEach(keyObj -> {
                 String[] params = String.valueOf(keyObj).split(ARConstants.FIELDS_SEPARATOR);

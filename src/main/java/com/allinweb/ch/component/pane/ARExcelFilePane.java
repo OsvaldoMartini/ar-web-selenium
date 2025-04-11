@@ -9,7 +9,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
-import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
@@ -39,7 +38,9 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javax.websocket.Session;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class ARExcelFilePane extends ARPane {
 
     private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
@@ -117,14 +118,14 @@ public class ARExcelFilePane extends ARPane {
                     fileName = "";
                 }
 
-                ARLogger.getInstance(ARScannedElementPane.class).info("Identified Directory: " + directory);
-                ARLogger.getInstance(ARScannedElementPane.class).info("Identified File Name: " + fileName);
+                log.info("Identified Directory: " + directory);
+                log.info("Identified File Name: " + fileName);
             } catch (Exception ex) {
-                ARLogger.getInstance(ARScannedElementPane.class).severe("Excel Path  \nError: " + ex.getMessage());
+                log.error("Excel Path  \nError: " + ex.getMessage());
             }
 
         } else {
-            ARLogger.getInstance(ARScannedElementPane.class).info("No export file path provided.");
+            log.info("No export file path provided.");
         }
 
         pathExport = createPathTextField(directory);

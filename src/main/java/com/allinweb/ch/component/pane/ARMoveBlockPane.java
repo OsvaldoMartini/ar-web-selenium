@@ -21,7 +21,7 @@
 // import javafx.scene.layout.VBox;
 // import javafx.stage.Stage;
 //
-// public class ARMoveBlockPane extends ARPane {
+// import lombok.extern.slf4j.Slf4j;   @Slf4j public class ARMoveBlockPane extends ARPane {
 //
 //    private final ARComponentBuilder builder = new ARComponentBuilder();
 //    private BlockDTO block;
