@@ -853,7 +853,8 @@ public class PerformActions {
                     priorityTypeEnum = PriorityTypeEnum.getPriorityType(
                             priority.getPriorityType().toString());
                 } catch (Exception e) {
-                    System.out.println(String.format("The ENUM: was not defined!"));
+                    System.out.println(String.format(
+                            "The ENUM: \"" + priority.getPriorityType().toString() + "\" was not defined!"));
                     continue;
                 }
 
@@ -920,8 +921,10 @@ public class PerformActions {
                                     instructionReference.get().getValue());
                             isAttributeID = true;
                         }
-                        case coordinates, allAttributes -> {
+                        case coordinates, js_coordinates, cp_coordinates, allAttributes -> {
                             // These cases are placeholders and do not need additional handling
+                            System.out.println(
+                                    String.format("Locate by \"coordinates, js_coordinates, cp_coordinates\" "));
                         }
 
                         case ExecuteScript, createXPath, dynamic, jsoup -> {
