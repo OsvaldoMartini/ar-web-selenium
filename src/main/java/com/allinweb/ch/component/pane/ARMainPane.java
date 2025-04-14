@@ -345,7 +345,6 @@ public class ARMainPane extends ARPane {
                     }
                 } else {
                     performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
-                    return;
                 }
             }
         });

@@ -1,5 +1,6 @@
 package com.allinweb.ch.licence;
 
+import com.allinweb.ch.facade.PerformMessage;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.KnownFolders;
@@ -23,6 +24,11 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
+    private static PerformMessage performMessage;
+
+    static {
+        performMessage = PerformMessage.getInstance();
+    }
 
     public static void generateRequestFile(String ownerLicence) throws Exception {
         String encryptedRequest = encrypt(ownerLicence + "|" + SystemDetails.getSystemDetails(), KEY);
@@ -49,7 +55,13 @@ public class LicenseManager {
             System.out.println("File saved to: " + newFile.getAbsolutePath());
         } catch (IOException e) {
             System.err.println("Error writing to file: " + e.getMessage());
-            e.printStackTrace();
+            performMessage.errorMessage(
+                    "Error writing to the file!",
+                    "File Name:",
+                    "ARWeb 1.1.0.request",
+                    "Please verify that you have permission to read/write to the Desktop.",
+                    null,
+                    0);
         }
     }
 
@@ -93,11 +105,23 @@ public class LicenseManager {
     }
 
     public static String decrypt(String encryptedData, String key) throws Exception {
-        Key aesKey = new SecretKeySpec(key.getBytes(), "AES");
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.DECRYPT_MODE, aesKey);
-        byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
-        return new String(decrypted);
+        try {
+
+            Key aesKey = new SecretKeySpec(key.getBytes(), "AES");
+            Cipher cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.DECRYPT_MODE, aesKey);
+            byte[] decrypted = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+            return new String(decrypted);
+        } catch (Exception error) {
+            performMessage.errorMessage(
+                    "An error occurred while decrypting the license file.",
+                    "File Name:",
+                    "ARWeb.lic",
+                    "Please verify if the file is corrupted or tampered.",
+                    null,
+                    0);
+        }
+        return null;
     }
 
     public static void showAlert(Alert.AlertType type, String message) {
@@ -120,6 +144,15 @@ public class LicenseManager {
 
     public static String getDecryptedResponseFile(String requestFile) throws Exception {
         Path licPath = Paths.get(requestFile);
+
+        String fileName = licPath.getFileName().toString(); //
+
+        if (!fileName.endsWith(".request")) {
+            performMessage.errorMessage(
+                    "Invalid file selected!", "Must have a '.request' extension.", "File selected:", fileName, null, 0);
+            return "Invalid file selected";
+        }
+
         if (!Files.exists(licPath)) {
             return "noFileFound"; // File is absent
         } else {
@@ -150,7 +183,7 @@ public class LicenseManager {
         return LicenceVal.VALID; // License is valid
     }
 
-    public void genereteResponseFile(String decryptedContent, int numDays) throws Exception {
+    public String genereteResponseFile(String decryptedContent, int numDays) {
         // Suppose the decrypted content is formatted as "PCID|expiryDate" (e.g., "PC12345|2025-12-31")
         try {
             String[] parts = decryptedContent.split("\\|");
@@ -164,10 +197,50 @@ public class LicenseManager {
             expiryDate = expiryDate.plusDays(numDays);
 
             String encryptedResponse = encrypt(pcID + "|" + domainName + "|" + userName + "|" + expiryDate, KEY);
-            Files.writeString(
-                    Paths.get(System.getProperty("user.home") + "/Desktop/ARWeb 1.1.0.response"), encryptedResponse);
-        } catch (Exception e1) {
-            e1.printStackTrace();
+
+            // Use SHGetKnownFolderPath to get Desktop path
+            PointerByReference ppszPath = new PointerByReference();
+            if (Shell32.INSTANCE
+                            .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
+                            .intValue()
+                    != 0) {
+                throw new IOException("Failed to get desktop directory.");
+            }
+
+            // Convert pointer to string
+            String desktopPath = ppszPath.getValue().getWideString(0);
+            Native.free(Pointer.nativeValue(ppszPath.getValue()));
+
+            // Create the file in the desktop directory
+            File newFile = new File(desktopPath, "ARWeb 1.1.0.response");
+
+            // Write the encrypted data to the file
+            try (FileWriter writer = new FileWriter(newFile)) {
+                writer.write(encryptedResponse);
+                System.out.println("File saved to: " + newFile.getAbsolutePath());
+                return "File creation success";
+            } catch (IOException e) {
+                System.err.println("Error writing to file: " + e.getMessage());
+                performMessage.errorMessage(
+                        "Error writing to the file!",
+                        "File Name:",
+                        "ARWeb 1.1.0.response",
+                        "Please verify that you have permission to read/write to the Desktop.",
+                        null,
+                        0);
+                return "Denied permission to read/write";
+            }
+
+        } catch (Exception error) {
+            performMessage.errorMessage(
+                    "Error generating Response  file!",
+                    "Please verify that you have permission to read/write to the Desktop.",
+                    "Please verify if the file is corrupted or tampered.",
+                    null,
+                    null,
+                    0);
+
+            return "file is corrupted or tampered.";
         }
     }
 }

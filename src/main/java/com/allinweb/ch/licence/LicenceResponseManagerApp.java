@@ -1,11 +1,18 @@
 package com.allinweb.ch.licence;
 
+import com.allinweb.ch.facade.PerformMessage;
+import com.google.common.base.Strings;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
+import com.sun.jna.platform.win32.KnownFolders;
+import com.sun.jna.platform.win32.Shell32;
+import com.sun.jna.ptr.PointerByReference;
+import java.io.File;
+import java.io.IOException;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -16,6 +23,12 @@ import javafx.stage.Stage;
 import javafx.util.converter.IntegerStringConverter;
 
 public class LicenceResponseManagerApp extends Application {
+
+    private static PerformMessage performMessage;
+
+    static {
+        performMessage = PerformMessage.getInstance();
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -50,14 +63,54 @@ public class LicenceResponseManagerApp extends Application {
             FileChooser fileChooser = new FileChooser();
             fileChooser.setTitle("Open Request AR Web File");
             fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("All Files", "*.*"));
+
+            // Set initial directory to Desktop
+            try {
+                // Use SHGetKnownFolderPath to get Desktop path
+                PointerByReference ppszPath = new PointerByReference();
+                if (Shell32.INSTANCE
+                                .SHGetKnownFolderPath(KnownFolders.FOLDERID_Desktop, 0, null, ppszPath)
+                                .intValue()
+                        != 0) {
+                    throw new IOException("Failed to get desktop directory.");
+                }
+
+                // Convert pointer to string
+                String desktopPath = ppszPath.getValue().getWideString(0);
+                Native.free(Pointer.nativeValue(ppszPath.getValue()));
+
+                File desktopDir = new File(desktopPath);
+                if (desktopDir.exists() && desktopDir.isDirectory()) {
+                    fileChooser.setInitialDirectory(desktopDir);
+                }
+
+            } catch (Exception ex) {
+                ex.printStackTrace(); // fallback to default if desktop not available
+            }
+
             var file = fileChooser.showOpenDialog(primaryStage);
             if (file != null) {
                 filePathField.setText(file.getAbsolutePath());
             }
+
+            if (file != null) {
+                if (file.getName().endsWith(".request")) {
+                    filePathField.setText(file.getAbsolutePath());
+                } else {
+                    performMessage.errorMessage(
+                            "Invalid file selected!",
+                            "Must have a '.request' extension.",
+                            "File selected:",
+                            file.getName(),
+                            null,
+                            0);
+                }
+            }
         });
+
         grid.add(uploadButton, 2, 0);
 
-        Label daysLabel = new Label("Numero di giorni concessi:");
+        Label daysLabel = new Label("Number of days granted:");
         grid.add(daysLabel, 0, 1);
 
         TextField daysField = new TextField();
@@ -71,19 +124,43 @@ public class LicenceResponseManagerApp extends Application {
         Button generateButton = new Button("Generate");
         generateButton.setOnAction(e -> {
             try {
+
+                if (Strings.isNullOrEmpty(filePathField.getText().trim())) {
+                    performMessage.errorMessage(
+                            "Error reading the file!", "You have not selected any file!", null, null, null, 0);
+                    return;
+                }
+
+                if (Strings.isNullOrEmpty(daysField.getText().trim())) {
+                    performMessage.errorMessage(
+                            "Field empty!", "You must provide the quantity of the Days!!", null, null, null, 0);
+                    return;
+                }
+
                 String decryptedContent = LicenseManager.getDecryptedResponseFile(filePathField.getText());
-                new LicenseManager().genereteResponseFile(decryptedContent, Integer.parseInt(daysField.getText()));
-                new Alert(
-                                Alert.AlertType.INFORMATION,
-                                "File ARWeb 1.1.0.response generato con successo.",
-                                ButtonType.OK)
-                        .showAndWait();
+                if (decryptedContent.equals("Invalid file selected")) {
+                    return;
+                }
+                String response = new LicenseManager()
+                        .genereteResponseFile(decryptedContent, Integer.parseInt(daysField.getText()));
+                if (response.equals("File creation success")) {
+
+                    performMessage.errorMessage(
+                            "File was Generated successfully!",
+                            "File Name:",
+                            "ARWeb 1.1.0.response",
+                            "Generated successfully.",
+                            null,
+                            0);
+                }
             } catch (Exception ex) {
-                new Alert(
-                                Alert.AlertType.ERROR,
-                                "Errore durante la generazione del file: " + ex.getMessage(),
-                                ButtonType.OK)
-                        .showAndWait();
+                performMessage.errorMessage(
+                        "Error writing to the file!",
+                        "File Name:",
+                        "ARWeb 1.1.0.response",
+                        "Please verify that you have permission to read/write to the Desktop.",
+                        null,
+                        0);
             }
         });
         grid.add(generateButton, 1, 2);
