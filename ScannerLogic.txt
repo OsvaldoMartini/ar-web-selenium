@@ -893,7 +893,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									actions[0],
 									currentInstruction,
 									resultActions,
-									currentCondition,
+									ARConstants.ConditionStatus.NONE, // NOT  currentCondition to Force Message,
 									parentField,
 									variableField);
 
@@ -978,7 +978,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									actions[0],
 									currentInstruction,
 									resultActions,
-									currentCondition,
+									ARConstants.ConditionStatus.NONE, // NOT  currentCondition to Force Message,
 									parentField,
 									variableField);
 

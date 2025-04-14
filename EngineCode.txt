@@ -912,7 +912,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									actions[0],
 									currentInstruction,
 									resultActions,
-									currentCondition,
+									ARConstants.ConditionStatus
+											.NONE, // NOT  currentCondition to Force Message,
 									parentField,
 									variableField);
 
@@ -932,7 +933,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 							} else if (operations[1].equalsIgnoreCase(">")) {
 								int resp = handleGreaterThan(
-										mapOperators.get(variableField).trim(), operations[2].trim());
+										mapOperators
+												.get(variableField)
+												.trim(),
+										operations[2].trim());
 								if (resp == 1) {
 									isOperationValid = true;
 								} else if (resp == 0) {
@@ -948,7 +952,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 										.equalsIgnoreCase(operations[2].trim());
 							} else if (operations[1].equalsIgnoreCase("<")) {
 								int resp = handleLessThan(
-										mapOperators.get(variableField).trim(), operations[2].trim());
+										mapOperators
+												.get(variableField)
+												.trim(),
+										operations[2].trim());
 								if (resp == 1) {
 									isOperationValid = true;
 								} else if (resp == 0) {
@@ -997,7 +1004,8 @@ if (extractedData.getNumberOfDataRows() > 0) {
 									actions[0],
 									currentInstruction,
 									resultActions,
-									currentCondition,
+									ARConstants.ConditionStatus
+											.NONE, // NOT  currentCondition to Force Message,
 									parentField,
 									variableField);
 
@@ -1036,7 +1044,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								mapExport.put("KEY", "EXTERNAL");
 								mapExport.put(
 										parentField.trim(),
-										mapOperators.get(variableField).trim());
+										mapOperators
+												.get(variableField)
+												.trim());
 								if (excelFieldName != null
 										&& excelFieldName
 												.toLowerCase()
