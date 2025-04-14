@@ -164,15 +164,10 @@ public class ARScannedElementPane extends ARPane {
 
             // Process the message based on its type
             switch (type) {
-                case "HOVERED_ROW":
-                    // Extract the "body" field from the JsonObject
-                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
-                    hoveredRow(processDTO.getDetails()[0]);
-                    break;
                 case "NEW_ELEMENT_DTO":
                     checkRunningProcess();
                     // Extract the "body" field from the JsonObject
-                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     targetSelected = extractPickClone(processDTO.getDetails()[0]);
                     itPrintsElementDTO(targetSelected);
                     stepsInsertOneDTO(targetSelected);
@@ -205,10 +200,6 @@ public class ARScannedElementPane extends ARPane {
         } catch (Exception error) {
             System.err.println("Error processing message: " + error.getMessage());
         }
-    }
-
-    private void hoveredRow(ElementDTO currentElementDTO) {
-        performActions.hoverAndStyle(currentElementDTO);
     }
 
     private void stepsInsertOneDTO(TargetElement targetInsertOne) {
@@ -3739,7 +3730,7 @@ public class ARScannedElementPane extends ARPane {
                                             actions[0],
                                             currentInstruction,
                                             resultActions,
-                                            currentCondition,
+                                            ARConstants.ConditionStatus.NONE, // NOT  currentCondition to Force Message,
                                             parentField,
                                             variableField);
 
@@ -3824,7 +3815,7 @@ public class ARScannedElementPane extends ARPane {
                                             actions[0],
                                             currentInstruction,
                                             resultActions,
-                                            currentCondition,
+                                            ARConstants.ConditionStatus.NONE, // NOT  currentCondition to Force Message,
                                             parentField,
                                             variableField);
 

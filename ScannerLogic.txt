@@ -909,11 +909,11 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								isOperationValid = mapOperators
 										.get(variableField)
 										.trim()
-										.equalsIgnoreCase(operations[2]);
+										.equalsIgnoreCase(operations[2].trim());
 
 							} else if (operations[1].equalsIgnoreCase(">")) {
 								int resp = handleGreaterThan(
-										mapOperators.get(variableField).trim(), operations[2]);
+										mapOperators.get(variableField).trim(), operations[2].trim());
 								if (resp == 1) {
 									isOperationValid = true;
 								} else if (resp == 0) {
@@ -926,10 +926,10 @@ if (extractedData.getNumberOfDataRows() > 0) {
 								isOperationValid = !mapOperators
 										.get(variableField)
 										.trim()
-										.equalsIgnoreCase(operations[2]);
+										.equalsIgnoreCase(operations[2].trim());
 							} else if (operations[1].equalsIgnoreCase("<")) {
 								int resp = handleLessThan(
-										mapOperators.get(variableField).trim(), operations[2]);
+										mapOperators.get(variableField).trim(), operations[2].trim());
 								if (resp == 1) {
 									isOperationValid = true;
 								} else if (resp == 0) {
@@ -1015,7 +1015,9 @@ if (extractedData.getNumberOfDataRows() > 0) {
 							// Insert the updated mapExport into the Excel after each instruction
 							if (writerExport != null) {
 								mapExport.put("KEY", "EXTERNAL");
-								mapExport.put(parentField, mapOperators.get(variableField));
+								mapExport.put(
+										parentField.trim(),
+										mapOperators.get(variableField).trim());
 								if (excelFieldName != null
 										&& excelFieldName.toLowerCase().endsWith(".csv")) {
 									writerExport.writeMapToCSV(mapExport, excelFieldName);

@@ -110,18 +110,18 @@ public class PerformCloneLoad {
 
                       function connectWebSocket() {
                         if (attempts >= maxAttempts) {
-                          console.error("Reached maximum reconnection attempts. Stopping.");
+                          //console.error("Reached maximum reconnection attempts. Stopping.");
                           return;
                         }
 
                         try {
-                          console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
+                          //console.log(`Attempt ${attempts + 1} to connect to WebSocket...`);
                           wSocket = new WebSocket(
                             `ws://localhost:${socketPort}/websocket?sessionId=${window.sessionId}`
                           );
 
                           wSocket.onopen = () => {
-                            console.log(`WebSocket connected for session: ${window.sessionId}`);
+                            //console.log(`WebSocket connected for session: ${window.sessionId}`);
                             attempts = 0; // Reset attempts on successful connection
 
                             try {
@@ -138,11 +138,11 @@ public class PerformCloneLoad {
                               // Convert the buffer to a Base64 string
                               wSocket.send(base64Message);
                               // wSocket.send(JSON.stringify(message));
-                              console.log("Sent SEARCH_TOOL:", subscriptionMessage);
-                              console.log("Sent ENCODED Length:", base64Message.length);
-                              console.log("Sent ENCODED:", base64Message);
+                              //console.log("Sent SEARCH_TOOL:", subscriptionMessage);
+                              //console.log("Sent ENCODED Length:", base64Message.length);
+                              //console.log("Sent ENCODED:", base64Message);
                             } catch (sendError) {
-                              console.error("Failed to send subscription message:", sendError);
+                              //console.error("Failed to send subscription message:", sendError);
                             }
 
                             // Call startCollectingElements AFTER WebSocket is open
@@ -159,7 +159,7 @@ public class PerformCloneLoad {
                             if (receivedMessage) {
                               try {
                                 const parsedMessage = JSON.parse(receivedMessage);
-                                console.log("WebSocket message received:", parsedMessage);
+                                //console.log("WebSocket message received:", parsedMessage);
 
                                 const bodyData =
                                   typeof parsedMessage.body === "string"
@@ -172,7 +172,7 @@ public class PerformCloneLoad {
                                       ? bodyData.details
                                       : [];
 
-                                    console.log("detailsData", detailsData[0]);
+                                    //console.log("detailsData", detailsData[0]);
 
                                     var hoveredElement = getElementByCoordinates(
                                       detailsData[0].coordinates
@@ -228,38 +228,36 @@ public class PerformCloneLoad {
                           };
 
                           wSocket.onerror = (error) => {
-                            console.error("WebSocket error:", error);
+                            //console.error("WebSocket error:", error);
                           };
 
                           wSocket.onclose = () => {
-                            console.log("WebSocket connection closed");
+                            //console.log("WebSocket connection closed");
 
                             if (attempts < maxAttempts) {
                               attempts++;
-                              console.log(`Reconnecting attempt ${attempts}...`);
+                              //console.log(`Reconnecting attempt ${attempts}...`);
                               if (!alreadySent) {
                                 connectWebSocket(); // Retry connection
                               }
                             } else {
-                              console.log(
-                                `${maxAttempts} Attempts to Reconnect with the WebSocket.`
-                              );
+                              //console.log(`${maxAttempts} Attempts to Reconnect with the WebSocket.`);
                             }
                           };
                         } catch (initError) {
-                          console.error("Failed to initialize WebSocket:", initError);
+                          //console.error("Failed to initialize WebSocket:", initError);
                         }
                       }
 
                       // Optionally, expose a cleanup function
                       window.cleanupWebSocket = () => {
                         try {
-                          console.log("Cleaning up WebSocket...");
+                          //console.log("Cleaning up WebSocket...");
                           if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                             wSocket.close();
                           }
                         } catch (cleanupError) {
-                          console.error("Error during WebSocket cleanup:", cleanupError);
+                          //console.error("Error during WebSocket cleanup:", cleanupError);
                         }
                       };
 
@@ -275,7 +273,7 @@ public class PerformCloneLoad {
                         console.log("All element info stored in Map:", window.allElementInfo);
 
                         if (wSocket && wSocket.readyState) {
-                          console.log("WebSocket readyState:", wSocket.readyState);
+                          //console.log("WebSocket readyState:", wSocket.readyState);
                         }
 
                         if (wSocket && wSocket.readyState === WebSocket.OPEN) {
@@ -295,9 +293,9 @@ public class PerformCloneLoad {
                             // Convert the buffer to a Base64 string
                             wSocket.send(base64Message);
                             // wSocket.send(JSON.stringify(message));
-                            console.log("Sent SEARCH_TOOL:", message);
-                            console.log("Sent ENCODED Length:", base64Message.length);
-                            console.log("Sent ENCODED:", base64Message);
+                            //console.log("Sent SEARCH_TOOL:", message);
+                            //console.log("Sent ENCODED Length:", base64Message.length);
+                            //console.log("Sent ENCODED:", base64Message);
                             window.elementInfoMap.clear();
                           }
                         } else {
@@ -320,9 +318,9 @@ public class PerformCloneLoad {
                                 unescape(encodeURIComponent(JSON.stringify(pingMessage)))
                               );
                               wSocket.send(encodedPing);
-                              console.log("Ping sent:", pingMessage);
+                              //console.log("Ping sent:", pingMessage);
                             } catch (pingError) {
-                              console.error("Ping error:", pingError);
+                              //console.error("Ping error:", pingError);
                             }
                           }
                         }, 30000); // 30 seconds
@@ -341,7 +339,7 @@ public class PerformCloneLoad {
                         }
 
                         const element = document.elementFromPoint(x, y);
-                        console.log("Element found at", x, y, "=>", element);
+                        //console.log("Element found at", x, y, "=>", element);
                         return element;
                       }
 
@@ -1071,7 +1069,7 @@ public class PerformCloneLoad {
                       window.revertHoverPickInjections = function () {
                         document.removeEventListener("mousemove", showMartiniTooltip);
                         document.removeEventListener("click", handleMartiniClick);
-                        console.log("revertHoverPickInjections");
+                        //console.log("revertHoverPickInjections");
 
                         // Remove the tooltip from the page and delete the reference after 5 seconds
                         setTimeout(() => {
@@ -1101,7 +1099,7 @@ public class PerformCloneLoad {
                         if (coordinatesElement) {
                           coordinatesElement.remove(); // Completely remove the tooltip from the DOM
                           coordinatesElement = null; // Clear the reference to free memory
-                          console.log("coordinatesElement completely removed.");
+                          //console.log("coordinatesElement completely removed.");
                         }
                       }
 
@@ -1112,7 +1110,7 @@ public class PerformCloneLoad {
 
                       window.addEventListener("message", function (event) {
                         if (event.origin !== trustedOriginURL) return; // check the origin
-                        console.log(event.data);
+                        //console.log(event.data);
                       });
 
                       // window.cloneTerms = null; // Invalidating the function
