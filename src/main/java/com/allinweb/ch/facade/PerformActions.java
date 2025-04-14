@@ -30,9 +30,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -76,6 +78,10 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  * @version 1.0
  */
 public class PerformActions {
+
+    private final Deque<ElementDTO> hoveredElements = new ArrayDeque<>();
+
+    private final int MAX_HISTORY = 5;
 
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
@@ -3991,5 +3997,54 @@ public class PerformActions {
             performMessage.couldNotFindElement("Could not find element with CSS Selector: " + cssSelector);
         }
         return element;
+    }
+
+    public void hoverAndStyle(ElementDTO elementDTO) {
+        try {
+            // Find the element by xPath or cssSelector
+            WebElement element = findElement(elementDTO);
+            if (element == null) return;
+
+            // Restore styles for previous elements
+            for (ElementDTO prevDTO : hoveredElements) {
+                WebElement prevElement = findElement(prevDTO);
+                if (prevElement != null) {
+                    resetStyle(prevElement);
+                }
+            }
+
+            // Clear and keep track of the last MAX_HISTORY elements
+            hoveredElements.addLast(elementDTO);
+            while (hoveredElements.size() > MAX_HISTORY) {
+                hoveredElements.removeFirst();
+            }
+
+            // Apply red border to the current element
+            highlightElement(element);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private WebElement findElement(ElementDTO dto) {
+        try {
+            if (dto.getXPath() != null && !dto.getXPath().isEmpty()) {
+                return currentDriver.findElement(By.xpath(dto.getXPath()));
+            } else if (dto.getCssSelector() != null && !dto.getCssSelector().isEmpty()) {
+                return currentDriver.findElement(By.cssSelector(dto.getCssSelector()));
+            }
+        } catch (Exception e) {
+            System.out.println("Element not found: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private void highlightElement(WebElement element) {
+        ((JavascriptExecutor) currentDriver).executeScript("arguments[0].style.border='2px solid red'", element);
+    }
+
+    private void resetStyle(WebElement element) {
+        ((JavascriptExecutor) currentDriver).executeScript("arguments[0].style.border=''", element);
     }
 }

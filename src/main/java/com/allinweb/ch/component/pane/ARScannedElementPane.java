@@ -120,7 +120,7 @@ public class ARScannedElementPane extends ARPane {
                 () -> {
                     try {
                         if (session != null && session.isOpen()) {
-                            session.getBasicRemote().sendText("ping"); // Or a specific keep-alive message
+                            session.getBasicRemote().sendText("ping-scanner"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
                         System.err.println("Error sending ping: " + e.getMessage());
@@ -164,10 +164,15 @@ public class ARScannedElementPane extends ARPane {
 
             // Process the message based on its type
             switch (type) {
+                case "HOVERED_ROW":
+                    // Extract the "body" field from the JsonObject
+                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    hoveredRow(processDTO.getDetails()[0]);
+                    break;
                 case "NEW_ELEMENT_DTO":
                     checkRunningProcess();
                     // Extract the "body" field from the JsonObject
-                    ElementSplitDTO processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
+                    processDTO = gson.fromJson(jsonObjMSG, ElementSplitDTO.class);
                     targetSelected = extractPickClone(processDTO.getDetails()[0]);
                     itPrintsElementDTO(targetSelected);
                     stepsInsertOneDTO(targetSelected);
@@ -200,6 +205,10 @@ public class ARScannedElementPane extends ARPane {
         } catch (Exception error) {
             System.err.println("Error processing message: " + error.getMessage());
         }
+    }
+
+    private void hoveredRow(ElementDTO currentElementDTO) {
+        performActions.hoverAndStyle(currentElementDTO);
     }
 
     private void stepsInsertOneDTO(TargetElement targetInsertOne) {
