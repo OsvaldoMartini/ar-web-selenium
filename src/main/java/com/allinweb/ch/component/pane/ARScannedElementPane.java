@@ -1795,14 +1795,19 @@ public class ARScannedElementPane extends ARPane {
             revertHoverPickInjections(performActions.getCurrentDriver());
 
             if (checkCloneElement.isSelected()) {
-                String[] dataArrayClone = {"*"};
+                // String[] dataArrayClone = {"*"};
                 int finalPort = portSocket;
+                String socketSessionId = "scannerTool";
+                String destinationId = "scannerGrid-" + homeBanking.getId();
                 Platform.runLater(() -> periodicPickOneCloneThread(
                         performActions.getCurrentDriver(),
-                        performActions.getCurrentDriver().getCurrentUrl(),
-                        dataArrayClone,
+                        false,
                         finalPort,
-                        homeBanking.getId()));
+                        socketSessionId,
+                        destinationId,
+                        "addPickOne",
+                        homeBanking.getId(),
+                        performActions.getCurrentDriver().getCurrentUrl()));
             }
 
             Platform.runLater(() -> {
@@ -2176,7 +2181,6 @@ public class ARScannedElementPane extends ARPane {
 
         periodicSearchThread(
                 performActions.getCurrentDriver(),
-                performActions.getCurrentDriver().getCurrentUrl(),
                 dataArray,
                 finalPort,
                 socketSessionId,
@@ -2467,10 +2471,17 @@ public class ARScannedElementPane extends ARPane {
     //    }
 
     private void periodicPickOneCloneThread(
-            WebDriver driver, String currentUrl, String[] dataArray, int port, int homeBankingId) {
+            WebDriver driver,
+            boolean searchHiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            String currentUrl) {
 
         ErrorMessage errorMessage = performCloneLoad.dynamicPickOneCloneElementsDTO(
-                driver, currentUrl, dataArray, searchHiddenFields, port, homeBankingId);
+                driver, searchHiddenFields, port, sessionId, destination, operationId, homeBankingId, currentUrl);
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");
@@ -2516,7 +2527,6 @@ public class ARScannedElementPane extends ARPane {
 
     private void periodicSearchThread(
             WebDriver driver,
-            String currentUrl,
             String[] dataArray,
             int port,
             String sessionId,
@@ -2525,15 +2535,7 @@ public class ARScannedElementPane extends ARPane {
             int homeBankingId) {
         // "scannerTool", "scannerGrid", "searchTerms"
         ErrorMessage errorMessage = performPreLoad.dynamicLoadElementsDTO(
-                driver,
-                currentUrl,
-                dataArray,
-                searchHiddenFields,
-                port,
-                sessionId,
-                destinationId,
-                operationId,
-                homeBankingId);
+                driver, dataArray, searchHiddenFields, port, sessionId, destinationId, operationId, homeBankingId);
 
         if (errorMessage != null) {
             String[] lines = errorMessage.getErrorMessage().split("\n");

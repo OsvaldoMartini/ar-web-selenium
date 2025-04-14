@@ -354,9 +354,9 @@ public class PerformActions {
                     case "SET":
                         msgReturn = "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- "
                                 + operations[1];
-
                         insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
                         mapOperators.put(variableField.trim(), operations[1].trim());
+                        break;
                     case "GET":
                         String valueElem;
                         msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField;
@@ -372,22 +372,20 @@ public class PerformActions {
                         } else {
                             valueElem = getValueInElement(byPassNotFound, instructionElement);
                         }
-
-                        mapOperators.put(variableField.trim(), valueElem.trim());
-
-                        msgReturn = "GET_VALUE from (Parent: " + parentField + ") Var" + variableField + " <-- "
-                                + valueElem;
-                        //                    case "CK":
-                        //                        if (operator.equalsIgnoreCase("=")) {
-                        //                            result = "Equals -> "
-                        //                                    + String.valueOf(getValueInElement(instructionElement)
-                        //                                            .equalsIgnoreCase(valueOperator));
-                        //                        } else if (operator.equalsIgnoreCase(">")) {
-                        //                            result = "Greater -> "
-                        //                                    + String.valueOf(getValueInElement(instructionElement)
-                        //                                            .equalsIgnoreCase(valueOperator));
-                        //                        }
-                        //                        break;
+                        if (!Strings.isNullOrEmpty(valueElem)) {
+                            msgReturn += " <-- " + valueElem;
+                        }
+                        break;
+                    case "CopyVar":
+                        String valueVar;
+                        if (mapOperators.containsKey(variableField)) {
+                            valueVar = mapOperators.get(variableField);
+                        } else {
+                            valueVar = "";
+                        }
+                        msgReturn =
+                                "COPY_VAR from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueVar;
+                        break;
                 }
                 onHoldForSeconds(null);
 

@@ -31,7 +31,6 @@ public class PerformPreLoad {
     // "scannerTool", "scannerGrid", "searchTerms"
     public ErrorMessage dynamicLoadElementsDTO(
             WebDriver driver,
-            String currentUrl,
             String[] dataArray,
             boolean searchHiddenFields,
             int port,
@@ -1743,6 +1742,9 @@ public class PerformPreLoad {
                         });
                         originalStyles.clear(); // Clear the stored styles
                       }
+
+                      // Set up the interval to call the function every 15 seconds (15000 milliseconds)
+                      setInterval(restoreOriginalStyles, 15000);
 
                       // startCollectingElements(window.searchTerms);
                       // init("Initiate");

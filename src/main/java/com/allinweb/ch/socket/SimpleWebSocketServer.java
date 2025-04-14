@@ -162,6 +162,12 @@ public class SimpleWebSocketServer {
             String sessionId =
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
 
+            // After Decoding
+            if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
+                // Ignore null or empty messages
+                return;
+            }
+
             // if Not have Session and does not Exist into the activeSessions
             // Is Going to Handle the Control
             if (Strings.isNullOrEmpty(sessionId)) {
