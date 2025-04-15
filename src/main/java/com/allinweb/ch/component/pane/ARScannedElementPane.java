@@ -630,6 +630,7 @@ public class ARScannedElementPane extends ARPane {
                     } else {
                         actionText3.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                     }
+                    performActions.onHoldInSeconds(1);
 
                     result = performActions.sequenceOfCommands(
                             targetTest.getElement(),
@@ -663,6 +664,7 @@ public class ARScannedElementPane extends ARPane {
                         actionText6.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                     }
 
+                    performActions.onHoldInSeconds(1);
                     result = performActions.sequenceOfCommands(
                             targetTest.getElement(),
                             ARConstants.CLEAR,
@@ -710,6 +712,8 @@ public class ARScannedElementPane extends ARPane {
                     } else {
                         actionText5.setStyle("-fx-font-size: 12px; -fx-fill: green;");
                     }
+
+                    performActions.onHoldInSeconds(1);
 
                     result = performActions.sequenceOfCommands(
                             targetTest.getElement(),

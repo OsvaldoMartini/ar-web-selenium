@@ -140,13 +140,13 @@ public class SimpleWebSocketServer {
             byte[] decodedBytes = Base64.getDecoder().decode(message);
             message = new String(decodedBytes, "UTF-8");
 
-            System.out.println("Decoded Received Data: " + message);
+            //            System.out.println("Decoded Received Data: " + message);
 
             // Process the message as needed...
         } catch (IllegalArgumentException e) {
-            System.err.println("Invalid Base64 message received: " + message);
+            //            System.err.println("Invalid Base64 message received: " + message);
         } catch (Exception e) {
-            e.printStackTrace();
+            //            e.printStackTrace();
         }
 
         String type = null;
