@@ -3162,9 +3162,8 @@ public class ARScannedElementPane extends ARPane {
                             jsonStatus = gson.toJson(rowStatus);
                             sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
                             try {
-                                performActions.onHoldInSeconds(1);
+                                Thread.sleep(300);
                             } catch (Exception e) {
-                                throw new RuntimeException(e);
                             }
                             // Current
                             rowStatus.setInstructionId(currentInstruction.getId());
