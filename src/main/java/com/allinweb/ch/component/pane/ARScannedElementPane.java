@@ -11,6 +11,7 @@ import com.allinweb.ch.component.model.ElementSplitDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.InstructionReferenceLoadDTO;
+import com.allinweb.ch.component.model.RowStatus;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
@@ -971,6 +972,10 @@ public class ARScannedElementPane extends ARPane {
 
     private String jsonData;
     private String sessionIdFromJava;
+
+    private String sessionRowStatus;
+    private String jsonStatus;
+    private RowStatus rowStatus = new RowStatus();
 
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
@@ -2855,6 +2860,7 @@ public class ARScannedElementPane extends ARPane {
         // Execute All Blocks starting from executeSpecificBlock if Defined
         int botJobId = this.botJobLoad.getId();
         int executeSpecificBlock = comboBoxBlocks.getValue().getInstructionId();
+        sessionRowStatus = "botJobTasks-" + botJobId;
 
         mapOperators = new HashMap<>();
         mapExport = new LinkedHashMap<>();
@@ -3142,6 +3148,29 @@ public class ARScannedElementPane extends ARPane {
 
                         if (mapIgnore.contains(currentInstruction.getId() + "-" + currentInstruction.getName())) {
                             continue;
+                        }
+
+                        // sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2)
+                        if (rowStatus.getInstructionId() == null) {
+                            rowStatus.setInstructionId(currentInstruction.getId());
+                            rowStatus.setColor("#fcba03"); // deep carmine yellow
+                            jsonStatus = gson.toJson(rowStatus);
+                            sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                        } else {
+                            // Previous
+                            rowStatus.setColor("#1d9c06"); // green
+                            jsonStatus = gson.toJson(rowStatus);
+                            sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+                            try {
+                                performActions.onHoldInSeconds(1);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                            // Current
+                            rowStatus.setInstructionId(currentInstruction.getId());
+                            rowStatus.setColor("#fcba03"); // deep carmine green
+                            jsonStatus = gson.toJson(rowStatus);
+                            sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
                         }
 
                         //                        String[] operation =
@@ -4239,6 +4268,10 @@ public class ARScannedElementPane extends ARPane {
                     + labelsValue.getProperty(Labels.OK);
 
             if (!isInterceptBotJob()) {
+                rowStatus.setColor("#1d9c06"); // deep carmine yellow
+                jsonStatus = gson.toJson(rowStatus);
+                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Finished - successfully",
                         botJobName,
@@ -4250,6 +4283,10 @@ public class ARScannedElementPane extends ARPane {
                         null,
                         300);
             } else {
+                rowStatus.setColor("#fcba03"); // deep carmine yellow
+                jsonStatus = gson.toJson(rowStatus);
+                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
                         botJobName,
@@ -4278,6 +4315,10 @@ public class ARScannedElementPane extends ARPane {
                     + resultActions;
 
             if (isInterceptBotJob()) {
+                rowStatus.setColor("#fcba03"); // deep carmine yellow
+                jsonStatus = gson.toJson(rowStatus);
+                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+
                 performMessage.showCustomModalDialogDragWin11(
                         "Bot-Job Interrupted successfully",
                         botJobName,
@@ -4289,6 +4330,11 @@ public class ARScannedElementPane extends ARPane {
                         null,
                         300);
             } else if (webElementWork) {
+
+                rowStatus.setColor("#FF3131"); // deep carmine yellow
+                jsonStatus = gson.toJson(rowStatus);
+                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+
                 performMessage.errorMessage(
                         "Failed finding element (5 attempts).",
                         "Use \"Force Coordinates\" in some cases.",
@@ -4297,6 +4343,10 @@ public class ARScannedElementPane extends ARPane {
                         resultActions,
                         350);
             } else {
+
+                rowStatus.setColor("#FF3131"); // deep carmine yellow
+                jsonStatus = gson.toJson(rowStatus);
+                sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
                 performMessage.errorMessage(
                         "Process Execution Terminated",
