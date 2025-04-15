@@ -13,6 +13,7 @@ Map<String, String> dataExcel = null;
 
 // Execute All Blocks starting from executeSpecificBlock if Defined
 // int executeSpecificBlock = comboBoxBlocks.getValue().getVarId();
+sessionRowStatus = "botJobTasks-" + botJobId;
 
 mapOperators = new HashMap<>();
 mapExport = new LinkedHashMap<>();
@@ -304,6 +305,28 @@ if (extractedData.getNumberOfDataRows() > 0) {
 
 				if (mapIgnore.contains(currentInstruction.getId() + "-" + currentInstruction.getName())) {
 					continue;
+				}
+
+				// sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2)
+				if (rowStatus.getInstructionId() == null) {
+					rowStatus.setInstructionId(currentInstruction.getId());
+					rowStatus.setColor("#fcba03"); // deep carmine yellow
+					jsonStatus = gson.toJson(rowStatus);
+					sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+				} else {
+					// Previous
+					rowStatus.setColor("#1d9c06"); // green
+					jsonStatus = gson.toJson(rowStatus);
+					sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
+					try {
+						Thread.sleep(300);
+					} catch (Exception e) {
+					}
+					// Current
+					rowStatus.setInstructionId(currentInstruction.getId());
+					rowStatus.setColor("#fcba03"); // deep carmine green
+					jsonStatus = gson.toJson(rowStatus);
+					sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 				}
 
 				//                        String[] operation =

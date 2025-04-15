@@ -970,13 +970,6 @@ public class ARScannedElementPane extends ARPane {
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
     private HomeBankingLoadDTO homeBanking;
 
-    private String jsonData;
-    private String sessionIdFromJava;
-
-    private String sessionRowStatus;
-    private String jsonStatus;
-    private RowStatus rowStatus = new RowStatus();
-
     private ComboBox<ComboBoxVars> comboBoxBlocks;
     private final ObservableList<ComboBoxVars> blocksItems = FXCollections.observableArrayList();
 
@@ -1035,6 +1028,13 @@ public class ARScannedElementPane extends ARPane {
     private Map<String, String> mapOperators;
     private Map<String, String> mapExport;
     private List<VariableLoadDTO> variablesLoaded;
+
+    private String jsonData;
+    private String sessionIdFromJava;
+
+    private String sessionRowStatus;
+    private String jsonStatus;
+    private RowStatus rowStatus = new RowStatus();
 
     private static String[] lstAllPaths;
 
