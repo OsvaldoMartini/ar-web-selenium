@@ -10,7 +10,7 @@
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{FCAB3B94-1D80-4E7A-B6C1-AE04B18224F1}
+AppId={{6B19A0CE-E1EA-467B-BA64-FDDBA8B22CC0}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -20,16 +20,8 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
-UninstallDisplayIcon={app}\{#MyAppExeName}
-; "ArchitecturesAllowed=x64compatible" specifies that Setup cannot run
-; on anything but x64 and Windows 11 on Arm.
-ArchitecturesAllowed=x64compatible
-; "ArchitecturesInstallIn64BitMode=x64compatible" requests that the
-; install be done in "64-bit mode" on x64 or Windows 11 on Arm,
-; meaning it should use the native 64-bit Program Files directory and
-; the 64-bit view of the registry.
-ArchitecturesInstallIn64BitMode=x64compatible
-DisableProgramGroupPage=yes
+DefaultGroupName={#MyAppName} v{#MyAppVersion}
+AllowNoIcons=yes
 LicenseFile=C:\ARWeb\ARWeb-Scanner\ARWeb.lic
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
@@ -70,9 +62,68 @@ Source: "C:\ARWeb\ARWeb\Export\*"; DestDir: "{app}\ARWeb\Export\"; Flags: ignore
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
-Filename: "{app}\{#MyAppExeName}"; Description: "Launch ARWeb"; Flags: shellexec postinstall skipifsilent
+[Code]
+// Replaces all occurrences of "C\:\\ARWeb\\" in the config with the selected {app} path
+function MyStringReplace(const S, OldPattern, NewPattern: string): string;
+var
+  P: Integer;
+  ResultStr: string;
+begin
+  ResultStr := S;
+  P := Pos(OldPattern, ResultStr);
+  while P > 0 do
+  begin
+    Delete(ResultStr, P, Length(OldPattern));
+    Insert(NewPattern, ResultStr, P);
+    P := Pos(OldPattern, ResultStr);
+  end;
+  Result := ResultStr;
+end;
+
+
+procedure UpdateConfigFile(NewBasePath: String);
+var
+  ConfigFile: String;
+  AppNewPath: String;
+  Lines: TArrayOfString;
+  i: Integer;
+begin
+  ConfigFile := ExpandConstant('{app}\ARWeb\ARWeb.config');
+  AppNewPath := ExpandConstant('{app}');
+  AppNewPath := MyStringReplace(AppNewPath, '\', '|');
+  AppNewPath := MyStringReplace(AppNewPath, '|', '\\');
+  AppNewPath := MyStringReplace(AppNewPath, ':', '|');
+  AppNewPath := MyStringReplace(AppNewPath, '|', '\:') + '\\';
+  if LoadStringsFromFile(ConfigFile, Lines) then
+  begin
+    for i := 0 to GetArrayLength(Lines) - 1 do
+    begin
+      Log('Before: ' + Lines[i]);
+      Lines[i] := MyStringReplace(Lines[i], 'C\:\\ARWeb\\', AppNewPath);
+      Log('After: ' + Lines[i]);
+    end;
+    SaveStringsToFile(ConfigFile, Lines, False);
+    MsgBox('The File : "' + ConfigFile + '" has been updated', mbInformation, MB_OK); 
+  end
+  else
+  begin
+    MsgBox('Failed to load ARWeb.config from ' + ConfigFile, mbError, MB_OK);
+  end;
+end;
+
+// Automatically called after files are installed
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+  begin
+    // Escape backslashes: C:\MyPath → C:\\MyPath\\
+    // EscapedAppPath := StringChangeEx(ExpandConstant('{app}'), '\', '\\', True) + '\\';
+    // EscapedAppPath := MyStringReplace(ExpandConstant('{app}'), '\', '\\') + '\\';
+    UpdateConfigFile(ExpandConstant('{app}\ARWeb\ARWeb.config'));
+  end;
+end;

@@ -54,6 +54,9 @@ public class ARControlPanel extends Application {
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
         }
 
+        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "ARS Web v4.0f Beta Test");
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 16-04-2025");
+
         try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
             int availablePort = serverSocket.getLocalPort();
             System.out.println("Available port: " + availablePort);
@@ -95,7 +98,8 @@ public class ARControlPanel extends Application {
                                         "File Name:",
                                         "ARWeb.lic",
                                         "Please contact support to renew your license.",
-                                        null,
+                                        "Expiration Date: \"" + arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION)
+                                                + "\"",
                                         0);
                             }
                         } catch (Exception e) {

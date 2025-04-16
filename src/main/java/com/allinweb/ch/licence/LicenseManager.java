@@ -1,6 +1,8 @@
 package com.allinweb.ch.licence;
 
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.KnownFolders;
@@ -25,9 +27,11 @@ import javax.crypto.spec.SecretKeySpec;
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
     private static PerformMessage performMessage;
+    private static ARPropertyManager arPropertyManager;
 
     static {
         performMessage = PerformMessage.getInstance();
+        arPropertyManager = ARPropertyManager.getInstance();
     }
 
     public static void generateRequestFile(String ownerLicence) throws Exception {
@@ -173,6 +177,9 @@ public class LicenseManager {
         String domainName = parts[1];
         String userName = parts[2];
         LocalDate expiryDate = LocalDate.parse(parts[3], DateTimeFormatter.ISO_LOCAL_DATE);
+        String formatted = expiryDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), formatted);
+
         // System.out.println(" expiryDate is " + expiryDate);
         // Check if the PC ID matches and the current date is before the expiry date
         if (LocalDate.now().isAfter(expiryDate)) return LicenceVal.EXPIRED; // date has expired
