@@ -6,6 +6,7 @@
 #define MyAppPublisher "Allinweb AG"
 #define MyAppURL "https://www.allinweb.ch/"
 #define MyAppExeName "ARWeb-Scanner\exec_launcher.bat"
+#define MyAppDefaultDir "C:\ARWeb"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -19,7 +20,7 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName=C:\ARWeb
+DefaultDirName={#MyAppDefaultDir}
 ; DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName} v{#MyAppVersion}
 AllowNoIcons=yes
@@ -87,15 +88,13 @@ begin
 end;
 
 
-procedure UpdateConfigFile(NewBasePath: String);
+procedure UpdateConfigFile(NewBasePath: String; AppNewPath: String);
 var
   ConfigFile: String;
-  AppNewPath: String;
   Lines: TArrayOfString;
   i: Integer;
 begin
   ConfigFile := ExpandConstant('{app}\ARWeb\ARWeb.config');
-  AppNewPath := ExpandConstant('{app}');
   AppNewPath := MyStringReplace(AppNewPath, '\', '|');
   AppNewPath := MyStringReplace(AppNewPath, '|', '\\');
   AppNewPath := MyStringReplace(AppNewPath, ':', '|');
@@ -119,12 +118,20 @@ end;
 
 // Automatically called after files are installed
 procedure CurStepChanged(CurStep: TSetupStep);
+  var
+    AppNewPath,
+    ExpectedPath: String;
 begin
   if CurStep = ssPostInstall then
   begin
     // Escape backslashes: C:\MyPath → C:\\MyPath\\
     // EscapedAppPath := StringChangeEx(ExpandConstant('{app}'), '\', '\\', True) + '\\';
     // EscapedAppPath := MyStringReplace(ExpandConstant('{app}'), '\', '\\') + '\\';
-    UpdateConfigFile(ExpandConstant('{app}\ARWeb\ARWeb.config'));
+    AppNewPath := ExpandConstant('{app}');
+    ExpectedPath := ExpandConstant('{#MyAppDefaultDir}');
+    if SameText(AppNewPath, ExpectedPath) then
+      // MsgBox('Paths match!', mbInformation, MB_OK)
+    else
+      UpdateConfigFile(ExpandConstant('{app}\ARWeb\ARWeb.config'), AppNewPath);
   end;
 end;
