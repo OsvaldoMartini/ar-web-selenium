@@ -1172,7 +1172,8 @@ public class ARNewCommandPane extends ARPane {
                         "LOOP",
                         ARConstants.LOOP,
                         2,
-                        comboBoxLoops.getValue().getValue(),
+                        comboBoxTimes.getValue().getValue() + ":"
+                                + comboBoxLoops.getValue().getValue(),
                         null,
                         comboBoxWebFields.getValue().getInstructionId(),
                         this.rowMoveDTO);
