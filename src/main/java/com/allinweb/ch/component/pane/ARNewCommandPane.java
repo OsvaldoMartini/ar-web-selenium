@@ -220,7 +220,7 @@ public class ARNewCommandPane extends ARPane {
 
         this.filteredPageItems.clear();
         this.filteredPageItems.addAll(webPageItems.stream()
-                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
+                //                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
                 .map(item -> new ComboBoxImage(
                         item.getText(),
                         getImageForTagType(item.getTagType()),
@@ -2047,7 +2047,7 @@ public class ARNewCommandPane extends ARPane {
 
         this.filteredPageItems.clear();
         this.filteredPageItems.addAll(this.webPageItems.stream()
-                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
+                //                .filter(item -> !"button".equals(item.getTagType()) && !"a".equals(item.getTagType()))
                 .map(item -> new ComboBoxImage(
                         item.getText(),
                         getImageForTagType(item.getTagType()),
