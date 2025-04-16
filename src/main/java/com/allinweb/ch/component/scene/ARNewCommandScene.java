@@ -33,7 +33,7 @@ public class ARNewCommandScene extends ARScene {
     }
 
     private static final Double SCENE_HEIGHT = 300D;
-    private static final Double SCENE_WIDTH = 700D;
+    private static final Double SCENE_WIDTH = 800D;
     private static final String TITLE = "Add Command";
     private RowMoveDTO rowMoveDTO;
     private BotJobLoadDTO botJobLoad;

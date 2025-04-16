@@ -1717,6 +1717,9 @@ public class ARNewCommandPane extends ARPane {
         String webFieldName = "NO WEB FIELD";
         if (comboBoxVars != null && comboBoxVars.getValue() != null) {
             webFieldName = comboBoxWebFields.getValue().getText();
+        } else if (comboBoxWebFields.getValue() != null
+                && !Strings.isNullOrEmpty(comboBoxWebFields.getValue().getText())) {
+            webFieldName = comboBoxWebFields.getValue().getText();
         }
 
         if (comboBoxWebFields != null && comboBoxWebFields.getValue() != null) {
@@ -2480,6 +2483,33 @@ public class ARNewCommandPane extends ARPane {
                 comboBoxOperator.getSelectionModel().selectFirst();
             }
             //            }
+            if (instrValue.equals("LOOP") || instrValue.equals("REFRESH_LOOP")) {
+
+                for (int i = 0; i < timesItems.size(); i++) {
+                    if (timesItems.get(i).getValue().equals(operations[0])) {
+                        comboBoxTimes.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxTimes.getSelectionModel().selectFirst();
+                }
+
+                for (int i = 0; i < loopsItems.size(); i++) {
+                    if (loopsItems.get(i).getValue().equals(operations[1])) {
+                        comboBoxLoops.getSelectionModel().select(i);
+                        indexGeneric = i;
+                        break;
+                    }
+                }
+
+                if (indexGeneric == -1) {
+                    comboBoxLoops.getSelectionModel().selectFirst();
+                }
+            }
+
             firstLoad = false;
             recallMessages(comboBoxInstruc.getValue().getValue());
         });
@@ -2490,6 +2520,10 @@ public class ARNewCommandPane extends ARPane {
             return new Image(ARConstants.ICON_INSERT);
         } else if ("label".equals(tagType)) {
             return new Image(ARConstants.ICON_OUTPUT);
+        } else if ("button".equals(tagType)) {
+            return new Image(ARConstants.ICON_CLICK);
+        } else if ("a".equals(tagType)) {
+            return new Image(ARConstants.ICON_LINK);
         }
         return null; // Default case if tagType is neither "input" nor "output"
     }
