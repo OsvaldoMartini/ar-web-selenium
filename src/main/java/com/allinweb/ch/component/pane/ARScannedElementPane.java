@@ -3153,12 +3153,12 @@ public class ARScannedElementPane extends ARPane {
                         // sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2)
                         if (rowStatus.getInstructionId() == null) {
                             rowStatus.setInstructionId(currentInstruction.getId());
-                            rowStatus.setColor("#fcba03"); // deep carmine yellow
+                            rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                             jsonStatus = gson.toJson(rowStatus);
                             sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
                         } else {
                             // Previous
-                            rowStatus.setColor("#1d9c06"); // green
+                            rowStatus.setColor("green"); // #1d9c06 green
                             jsonStatus = gson.toJson(rowStatus);
                             sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
                             try {
@@ -3167,7 +3167,7 @@ public class ARScannedElementPane extends ARPane {
                             }
                             // Current
                             rowStatus.setInstructionId(currentInstruction.getId());
-                            rowStatus.setColor("#fcba03"); // deep carmine green
+                            rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                             jsonStatus = gson.toJson(rowStatus);
                             sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
                         }
@@ -4274,7 +4274,7 @@ public class ARScannedElementPane extends ARPane {
                     + labelsValue.getProperty(Labels.OK);
 
             if (!isInterceptBotJob()) {
-                rowStatus.setColor("#1d9c06"); // deep carmine yellow
+                rowStatus.setColor("green"); // #1d9c06 deep carmine green
                 jsonStatus = gson.toJson(rowStatus);
                 sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
@@ -4289,7 +4289,7 @@ public class ARScannedElementPane extends ARPane {
                         null,
                         300);
             } else {
-                rowStatus.setColor("#fcba03"); // deep carmine yellow
+                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                 jsonStatus = gson.toJson(rowStatus);
                 sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
@@ -4321,7 +4321,7 @@ public class ARScannedElementPane extends ARPane {
                     + resultActions;
 
             if (isInterceptBotJob()) {
-                rowStatus.setColor("#fcba03"); // deep carmine yellow
+                rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
                 jsonStatus = gson.toJson(rowStatus);
                 sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
@@ -4337,7 +4337,7 @@ public class ARScannedElementPane extends ARPane {
                         300);
             } else if (webElementWork) {
 
-                rowStatus.setColor("#FF3131"); // deep carmine yellow
+                rowStatus.setColor("red"); // #FF3131 deep carmine red
                 jsonStatus = gson.toJson(rowStatus);
                 sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
@@ -4350,7 +4350,7 @@ public class ARScannedElementPane extends ARPane {
                         350);
             } else {
 
-                rowStatus.setColor("#FF3131"); // deep carmine yellow
+                rowStatus.setColor("red"); // #FF3131 deep carmine red
                 jsonStatus = gson.toJson(rowStatus);
                 sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 
