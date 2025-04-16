@@ -4,6 +4,7 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARElementValuePane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.util.ARLogger;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -19,6 +20,15 @@ public class ARElementValueScene extends ARScene {
     private String varName;
     private String instructionType;
 
+    private Stage modalStage;
+    private Scene modalScene;
+
+    private static ARElementValuePane arElementValuePane;
+
+    static {
+        arElementValuePane = ARElementValuePane.getInstance();
+    }
+
     public ARElementValueScene(
             RowMoveDTO rowMoveDTO, int instructionId, String instructionName, String varName, String instructionType) {
         super();
@@ -31,7 +41,8 @@ public class ARElementValueScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-        return new ARElementValuePane(rowMoveDTO, instructionId, instructionName, varName, instructionType);
+        arElementValuePane.initialize(rowMoveDTO, instructionId, instructionName, varName, instructionType);
+        return arElementValuePane;
     }
 
     @Override
@@ -50,14 +61,25 @@ public class ARElementValueScene extends ARScene {
     }
 
     public void showModal() {
-        Stage modalStage = new Stage();
-        IARPane pane = buildPane();
-        if (pane != null) {
-            Scene scene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-            modalStage.setScene(scene);
-            modalStage.setTitle(getTitle());
-            modalStage.initModality(Modality.APPLICATION_MODAL); // Make it modal
-            modalStage.showAndWait(); // Block until this window is closed
+        if (modalStage == null) {
+            modalStage = new Stage();
+            IARPane pane = buildPane();
+            if (pane != null) {
+                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+                modalStage.setScene(modalScene);
+                modalStage.setTitle(getTitle());
+                modalStage.initModality(Modality.NONE); // Changed to NONE
+                modalStage.setAlwaysOnTop(true); // Set always on top
+            } else {
+                // Handle the case where pane creation failed
+                ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
+                return;
+            }
+        } else {
+            arElementValuePane.initialize(rowMoveDTO, instructionId, instructionName, varName, instructionType);
+            modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
+        modalStage.show(); // Block until this window is closed
+        //        modalStage.showAndWait(); // Block until this window is closed
     }
 }
