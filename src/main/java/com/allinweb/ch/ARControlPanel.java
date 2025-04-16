@@ -93,14 +93,7 @@ public class ARControlPanel extends Application {
                                 ARMainScene primaryStage = new ARMainScene();
                                 primaryStage.show();
                             } else {
-                                performMessage.errorMessage(
-                                        "The license has expired.",
-                                        "File Name:",
-                                        "ARWeb.lic",
-                                        "Please contact support to renew your license.",
-                                        "Expiration Date: \"" + arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION)
-                                                + "\"",
-                                        0);
+                                licenseMessages(license.get());
                             }
                         } catch (Exception e) {
                             performMessage.errorMessage(
@@ -119,13 +112,7 @@ public class ARControlPanel extends Application {
                         ARMainScene primaryStage = new ARMainScene();
                         primaryStage.show();
                     } else {
-                        performMessage.errorMessage(
-                                "The license has expired.",
-                                "File Name:",
-                                "ARWeb.lic",
-                                "Please contact support to renew your license.",
-                                null,
-                                0);
+                        licenseMessages(license.get());
                     }
                 }
             } catch (Exception e) {
@@ -150,5 +137,19 @@ public class ARControlPanel extends Application {
             // Ensure launch(args) is only called once: JavaFX does not allow calling Application.launch() twice.
             launch();
         }
+    }
+
+    private static void licenseMessages(LicenceVal licenceVal) {
+        performMessage.showCustomModalDialogDragWin11(
+                "The license not valid!",
+                "License Status:",
+                "<span style='color: #000080; font-weight: bold;'>" + licenceVal.toString() + "</span>",
+                "Please contact support to renew your license.",
+                "Expiration :<span style='color: #000080; font-weight: bold;'>"
+                        + arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION) + "</span>",
+                true,
+                "OK",
+                null,
+                0);
     }
 }

@@ -17,25 +17,25 @@ public enum LicenceVal {
     public String toString() {
         switch (this) {
             case VALID:
-                return "Licenza valida";
+                return "Valid license";
             case EXPIRED:
-                return "Licenza scaduta";
+                return "Expired license";
             case REVOKED:
-                return "Licenza revocata";
+                return "Revoked license";
             case PENDING_ACTIVATION:
-                return "Licenza in attesa di attivazione";
+                return "License pending activation";
             case MISSING:
-                return "Licenza mancante";
+                return "Missing license";
             case PCMISSMATCH:
-                return "Licenza non valida per tale PC";
+                return "License not valid for this PC";
             case PCNOTMATCH:
-                return "Licenza non valida per tale PC";
+                return "License not valid for this PC";
             case DOMAINNOTMATCH:
-                return "Licenza no valida per il dominio di questo PC";
+                return "License not valid for the domain of this PC";
             case USRNOTMATCH:
-                return "Licenza non valida per tale utente su questo PC";
+                return "License not valid for this user on this PC";
             default:
-                return "Stato della licenza non definito";
+                return "License status undefined";
         }
     }
 
