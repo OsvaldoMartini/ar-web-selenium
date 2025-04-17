@@ -131,7 +131,7 @@ public class ARLicensePane extends ARPane {
         cbAgree.setPadding(new Insets(10));
 
         // Button to proceed
-        btnProceed = builder.buildButton("Procedere");
+        btnProceed = builder.buildButton("Proceed");
         btnProceed.setDisable(true);
 
         btnClose = builder.buildButton("Close");

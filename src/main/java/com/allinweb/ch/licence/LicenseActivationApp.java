@@ -66,7 +66,7 @@ public class LicenseActivationApp extends Application {
         cbAgree.setPadding(new Insets(10));
 
         // Button to proceed
-        Button btnProceed = new Button("Procedere");
+        Button btnProceed = new Button("Proceed");
         btnProceed.setDisable(true); // Initially disabled
 
         // Enable the proceed button only if the checkbox is checked
