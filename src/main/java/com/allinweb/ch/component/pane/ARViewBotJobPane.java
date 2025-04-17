@@ -838,6 +838,24 @@ public class ARViewBotJobPane extends ARPane {
                 return;
             }
 
+            String version = System.getProperty("java.version");
+            System.out.println("Detected Java Version: " + version);
+
+            int majorVersion = getMajorJavaVersion(version);
+
+            if (majorVersion >= 17) {
+                System.out.println("✅ Java 17 or higher is installed.");
+            } else {
+                performMessage.errorMessage(
+                        "Missing Excel File",
+                        "<span style='color: #000080; font-weight: bold;'>Java version is lower than 17.</span> ❌",
+                        "<span style='color: #000080; font-weight: bold;'>I will try to execute the Engine</span>",
+                        null,
+                        null,
+                        0);
+            }
+
+            //    ".\\java\\bin\\java.exe",
             String[] command = new String[] {
                 "cmd.exe",
                 "/c",
@@ -1315,5 +1333,16 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         return missingPropertiesList;
+    }
+
+    private static int getMajorJavaVersion(String version) {
+        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
+        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
+        if (version.startsWith("1.")) {
+            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
+        } else {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
     }
 }

@@ -313,6 +313,36 @@ public class ARMainPane extends ARPane {
                         return;
                     }
 
+                    //                    Type	Emoji/Icon	Example Code
+                    //                    Success	✅	System.out.println("✅ Java version is valid.");
+                    //                    Info	ℹ️	System.out.println("ℹ️ Running version check...");
+                    //                    Warning	⚠️	System.out.println("⚠️ Java version might be outdated.");
+                    //                    Error	❌	System.out.println("❌ Java version is too old.");
+                    //                    Stop	🛑	System.out.println("🛑 Application cannot continue.");
+                    //                    Bug/Debug	🐛	System.out.println("🐛 Debug mode enabled.");
+                    //                    Time	⏱️	System.out.println("⏱️ Checking environment...");
+                    //                    Rocket/Start	🚀	System.out.println("🚀 Starting process...");
+                    //                    Lock	🔒	System.out.println("🔒 Secure mode enabled.");
+                    //                    Folder	📂	System.out.println("📂 Loading files...");
+                    //                    Checkmark	✔️	System.out.println("✔️ All checks passed.");
+
+                    String version = System.getProperty("java.version");
+                    System.out.println("Detected Java Version: " + version);
+
+                    int majorVersion = getMajorJavaVersion(version);
+                    if (majorVersion >= 17) {
+                        System.out.println("✅ Java 17 or higher is installed.");
+                    } else {
+                        performMessage.errorMessage(
+                                "Missing Excel File",
+                                "<span style='color: #000080; font-weight: bold;'>Java version is lower than 17.</span> ❌",
+                                "<span style='color: #000080; font-weight: bold;'>I will try to execute the Engine</span>",
+                                null,
+                                null,
+                                0);
+                    }
+
+                    //    ".\\java\\bin\\java.exe",
                     String[] command = new String[] {
                         "cmd.exe",
                         "/c",
@@ -449,5 +479,16 @@ public class ARMainPane extends ARPane {
     @Override
     public Pane getPaneReference() {
         return new AnchorPane(panelPane);
+    }
+
+    private static int getMajorJavaVersion(String version) {
+        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
+        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
+        if (version.startsWith("1.")) {
+            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
+        } else {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
     }
 }

@@ -54,8 +54,8 @@ public class ARControlPanel extends Application {
             ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
         }
 
-        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "ARS Web v4.0f Beta Test");
-        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 16-04-2025");
+        arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "ARS Web v4.1f Beta Test");
+        arPropertyManager.setProperty(ARPropertyEnum.BUILD.getValue(), "Build: 17-04-2025");
 
         try (ServerSocket serverSocket = new ServerSocket(0)) { // Port 0 = auto-assign
             int availablePort = serverSocket.getLocalPort();

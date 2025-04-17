@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "ARWeb"
-#define MyAppVersion "4.0"
+#define MyAppVersion "4.1"
 #define MyAppPublisher "Allinweb AG"
 #define MyAppURL "https://www.allinweb.ch/"
 #define MyAppExeName "ARWeb-Scanner\exec_launcher.bat"
@@ -28,10 +28,11 @@ LicenseFile=C:\ARWeb\ARWeb-Scanner\ARWeb.lic
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputBaseFilename=INSTALL
+OutputBaseFilename=INSTALL-v4.1
 OutputDir=C:\ARWeb
 SolidCompression=yes
 WizardStyle=modern
+UninstallDisplayName=uninstall-ARWeb-v4.1
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -42,12 +43,15 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Engine.jar"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\ARWeb.lic"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
+; Source: "C:\ARWeb\ARWeb-Scanner\ARWeb.lic"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\exec_launcher.bat"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\edgedriver-versions\*"; DestDir: "{app}\ARWeb-Scanner\edgedriver-versions\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\java\*"; DestDir: "{app}\ARWeb-Scanner\java\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\java\lib\*"; DestDir: "{app}\ARWeb-Scanner\java\lib\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\java\bin\*"; DestDir: "{app}\ARWeb-Scanner\java\bin\"; Flags: ignoreversion
+; Source: "C:\ARWeb\ARWeb-Scanner\edgedriver-versions\*"; DestDir: "{app}\ARWeb-Scanner\edgedriver-versions\"; Flags: ignoreversion
+; Source: "C:\ARWeb\ARWeb-Scanner\java\*"; DestDir: "{app}\ARWeb-Scanner\java\"; Flags: ignoreversion
+; Source: "C:\ARWeb\ARWeb-Scanner\java\lib\*"; DestDir: "{app}\ARWeb-Scanner\java\lib\"; Flags: ignoreversion
+; Source: "C:\ARWeb\ARWeb-Scanner\java\bin\*"; DestDir: "{app}\ARWeb-Scanner\java\bin\"; Flags: ignoreversion
+; Source: "C:\ARWeb\ARWeb-Scanner\java\conf\*"; DestDir: "{app}\ARWeb-Scanner\java\conf\"; Flags: ignoreversion
+; Source: "C:\ARWeb\ARWeb-Scanner\java\include\*"; DestDir: "{app}\ARWeb-Scanner\java\include\"; Flags: ignoreversion
+; Source: "C:\ARWeb\ARWeb-Scanner\java\jmods\*"; DestDir: "{app}\ARWeb-Scanner\java\jmods\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\javaFX\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\javaFX\bin\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\bin\"; Flags: ignoreversion
 Source: "C:\ARWeb\ARWeb-Scanner\javaFX\lib\*"; DestDir: "{app}\ARWeb-Scanner\javaFX\lib\"; Flags: ignoreversion
