@@ -822,17 +822,26 @@ public class ARViewBotJobPane extends ARPane {
             String excelPath = managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
             excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
             if (!(new File(excelPath)).exists()) {
-                new ARAlertScene(
-                        AlertType.WARNING,
-                        "Missing file excel",
-                        "Please generate and compile the data of the file excel first before launching the bot job",
-                        new ButtonType[] {ButtonType.OK});
+                //                new ARAlertScene(
+                //                        AlertType.WARNING,
+                //                        "Missing file excel",
+                //                        "Please generate and compile the data of the file excel first before launching
+                // the bot job",
+                //                        new ButtonType[] {ButtonType.OK});
+                performMessage.errorMessage(
+                        "Missing Excel File",
+                        "<span style='color: #000080; font-weight: bold;'>• Please generate and compile the Excel data *first*.</span>",
+                        "<span style='color: #000080; font-weight: bold;'>Then, you can launch the bot job.</span>",
+                        null,
+                        null,
+                        0);
+                return;
             }
 
             String[] command = new String[] {
                 "cmd.exe",
                 "/c",
-                ".\\java\\bin\\java.exe",
+                "java.exe",
                 "-jar",
                 "\"" + enginePath + "\"",
                 "execute/j",
