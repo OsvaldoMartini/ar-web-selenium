@@ -40,7 +40,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import org.hibernate.Session;
@@ -2962,11 +2961,12 @@ public class PerformDataBase {
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .warning(String.format(
-                            "Instruction NOT SAVED\nid: %d Name: %s Actions: %s Operations: %s",
+                            "Instruction NOT SAVED id: %d Name: %s Actions: %s Operations: %s",
                             instructionLoad.getId(),
                             instructionLoad.getName(),
                             instructionLoad.getActions(),
                             instructionLoad.getOperation()));
+            ARLogger.getInstance(PerformDataBase.class).warning(error.getMessage());
             return -1;
         }
     }
@@ -3341,23 +3341,21 @@ public class PerformDataBase {
             }
 
             int finalResponse = response;
-            Platform.runLater(() -> {
-                if (isShowAlert) {
-                    if (finalResponse > -1) {
+            if (isShowAlert) {
+                if (finalResponse > -1) {
 
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .info(String.format(
-                                        "\"Component\" Instruction: \"%s\"\nhas been added successfully!",
-                                        instruction.getName()));
-                    } else {
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .info(String.format(
+                                    "\"Component\" Instruction: \"%s\" has been added successfully!",
+                                    instruction.getName()));
+                } else {
 
-                        ARLogger.getInstance(PerformDataBase.class)
-                                .severe(String.format(
-                                        "Error Add New \"Component\" Instruction: \"%s\"\nCannot be saved!",
-                                        instruction.getName()));
-                    }
+                    ARLogger.getInstance(PerformDataBase.class)
+                            .severe(String.format(
+                                    "Error Add New \"Component\" Instruction: \"%s\" Cannot be saved!",
+                                    instruction.getName()));
                 }
-            });
+            }
 
             if (response > -1) {
                 return response;

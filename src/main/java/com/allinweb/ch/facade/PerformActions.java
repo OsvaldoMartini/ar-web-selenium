@@ -244,7 +244,7 @@ public class PerformActions {
 
                             instructionElement.clear();
                             clearElement(instructionElement);
-                            clearValueAtCoordinates(savedCoordinates);
+                            //                            clearValueAtCoordinates(savedCoordinates);
 
                             passed = insertInElement(
                                     byPassNotFound,
