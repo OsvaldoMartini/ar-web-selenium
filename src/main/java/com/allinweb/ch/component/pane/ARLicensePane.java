@@ -55,7 +55,7 @@ public class ARLicensePane extends ARPane {
                 SOFTWARE LICENSE AGREEMENT
 
                 Important - Read Carefully: This License Agreement ("Agreement") is a legal contract between you
-                (an individual or a legal entity) and [Your Company Name] ("Licensor") for the software that accompanies
+                (an individual or a legal entity) and Allinweb SA. ("Licensor") for the software that accompanies
                 this agreement, which includes associated software and media material, whether printed, electronic, or online ("Software").
 
                 1. License Grant:

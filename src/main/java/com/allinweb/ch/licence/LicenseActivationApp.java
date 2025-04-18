@@ -38,7 +38,7 @@ public class LicenseActivationApp extends Application {
         // TextArea for the License Agreement
         TextArea taLicenseAgreement = new TextArea(
                 "SOFTWARE LICENSE AGREEMENT\n\n"
-                        + "Important - Read Carefully: This License Agreement (\"Agreement\") is a legal contract between you (an individual or a legal entity) and [Your Company Name] (\"Licensor\") for the software that accompanies this agreement, which includes associated software and media material, whether printed, electronic, or online (\"Software\").\n\n"
+                        + "Important - Read Carefully: This License Agreement (\"Agreement\") is a legal contract between you (an individual or a legal entity) and Allinweb SA. (\"Licensor\") for the software that accompanies this agreement, which includes associated software and media material, whether printed, electronic, or online (\"Software\").\n\n"
                         + "1. License Grant: Subject to the terms of this Agreement, the Licensor grants you a non-exclusive, non-transferable license to use the Software for internal purposes according to the following limitations and in compliance with the provided documentation.\n\n"
                         + "2. Restrictions: You are not authorized to:\n"
                         + "   - Modify, translate, adapt, or create derivative works from the Software.\n"

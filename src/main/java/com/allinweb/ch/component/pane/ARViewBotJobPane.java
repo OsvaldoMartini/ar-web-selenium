@@ -821,20 +821,15 @@ public class ARViewBotJobPane extends ARPane {
             String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
             String excelPath = managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
             excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
-            if (!(new File(excelPath)).exists()) {
-                //                new ARAlertScene(
-                //                        AlertType.WARNING,
-                //                        "Missing file excel",
-                //                        "Please generate and compile the data of the file excel first before launching
-                // the bot job",
-                //                        new ButtonType[] {ButtonType.OK});
+            if (!new File(excelPath).exists()) {
                 performMessage.errorMessage(
-                        "Missing Excel File",
-                        "<span style='color: #000080; font-weight: bold;'>• Please generate and compile the Excel data *first*.</span>",
-                        "<span style='color: #000080; font-weight: bold;'>Then, you can launch the bot job.</span>",
-                        null,
+                        "Action Required: Prepare Excel Data",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                        "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
                         null,
                         0);
+
                 return;
             }
 
@@ -842,17 +837,27 @@ public class ARViewBotJobPane extends ARPane {
             System.out.println("Detected Java Version: " + version);
 
             int majorVersion = getMajorJavaVersion(version);
-
             if (majorVersion >= 17) {
                 System.out.println("✅ Java 17 or higher is installed.");
             } else {
                 performMessage.errorMessage(
-                        "Missing Excel File",
-                        "<span style='color: #000080; font-weight: bold;'>Java version is lower than 17.</span> ❌",
-                        "<span style='color: #000080; font-weight: bold;'>I will try to execute the Engine</span>",
-                        null,
+                        "Compatibility Issue: Incompatible Java Version",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
+                        "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
                         null,
                         0);
+            }
+            String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+            if (!(new File(webDriverPath)).exists()) {
+                performMessage.errorMessage(
+                        "Action Required: Missing WebDriver",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
+                        "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
+                        "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
+                        null,
+                        0);
+                return;
             }
 
             //    ".\\java\\bin\\java.exe",

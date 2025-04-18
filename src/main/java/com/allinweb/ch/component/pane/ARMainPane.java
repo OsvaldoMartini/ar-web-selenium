@@ -296,35 +296,16 @@ public class ARMainPane extends ARPane {
                     String excelPath = managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
                     excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
                     if (!new File(excelPath).exists()) {
-                        //                        new ARAlertScene(
-                        //                                Alert.AlertType.WARNING,
-                        //                                "Missing file excel",
-                        //                                "Please generate and compile the data of the file excel first
-                        // before launching the bot job",
-                        //                                ButtonType.OK);
                         performMessage.errorMessage(
-                                "Missing Excel File",
-                                "<span style='color: #000080; font-weight: bold;'>• Please generate and compile the Excel data *first*.</span>",
-                                "<span style='color: #000080; font-weight: bold;'>Then, you can launch the bot job.</span>",
-                                null,
+                                "Action Required: Prepare Excel Data",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                                "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                                "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
                                 null,
                                 0);
 
                         return;
                     }
-
-                    //                    Type	Emoji/Icon	Example Code
-                    //                    Success	✅	System.out.println("✅ Java version is valid.");
-                    //                    Info	ℹ️	System.out.println("ℹ️ Running version check...");
-                    //                    Warning	⚠️	System.out.println("⚠️ Java version might be outdated.");
-                    //                    Error	❌	System.out.println("❌ Java version is too old.");
-                    //                    Stop	🛑	System.out.println("🛑 Application cannot continue.");
-                    //                    Bug/Debug	🐛	System.out.println("🐛 Debug mode enabled.");
-                    //                    Time	⏱️	System.out.println("⏱️ Checking environment...");
-                    //                    Rocket/Start	🚀	System.out.println("🚀 Starting process...");
-                    //                    Lock	🔒	System.out.println("🔒 Secure mode enabled.");
-                    //                    Folder	📂	System.out.println("📂 Loading files...");
-                    //                    Checkmark	✔️	System.out.println("✔️ All checks passed.");
 
                     String version = System.getProperty("java.version");
                     System.out.println("Detected Java Version: " + version);
@@ -334,12 +315,23 @@ public class ARMainPane extends ARPane {
                         System.out.println("✅ Java 17 or higher is installed.");
                     } else {
                         performMessage.errorMessage(
-                                "Missing Excel File",
-                                "<span style='color: #000080; font-weight: bold;'>Java version is lower than 17.</span> ❌",
-                                "<span style='color: #000080; font-weight: bold;'>I will try to execute the Engine</span>",
-                                null,
+                                "Compatibility Issue: Incompatible Java Version",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
+                                "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
+                                "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
                                 null,
                                 0);
+                    }
+                    String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+                    if (!(new File(webDriverPath)).exists()) {
+                        performMessage.errorMessage(
+                                "Action Required: Missing WebDriver",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
+                                "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
+                                "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
+                                null,
+                                0);
+                        return;
                     }
 
                     //    ".\\java\\bin\\java.exe",

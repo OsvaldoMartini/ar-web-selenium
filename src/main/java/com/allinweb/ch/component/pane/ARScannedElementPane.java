@@ -1220,9 +1220,33 @@ public class ARScannedElementPane extends ARPane {
             currentARWebDriver.setCurrentDriver(null);
         }
 
-        String browserType = managerProps.getProperty(ARPropertyEnum.BROWSER);
-        String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        String version = System.getProperty("java.version");
+        System.out.println("Detected Java Version: " + version);
 
+        int majorVersion = getMajorJavaVersion(version);
+        if (majorVersion >= 17) {
+            System.out.println("✅ Java 17 or higher is installed.");
+        } else {
+            performMessage.errorMessage(
+                    "Compatibility Issue: Incompatible Java Version",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
+                    "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
+                    null,
+                    0);
+        }
+        String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        if (!(new File(webDriverPath)).exists()) {
+            performMessage.errorMessage(
+                    "Action Required: Missing WebDriver",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
+                    "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
+                    null,
+                    0);
+            return;
+        }
+        String browserType = managerProps.getProperty(ARPropertyEnum.BROWSER);
         currentARWebDriver.openDriver(
                 browserType,
                 webDriverPath,
@@ -2780,17 +2804,28 @@ public class ARScannedElementPane extends ARPane {
                 .map(InstructionLoadDTO::getActions) // Extract the actions
                 .collect(Collectors.toList()); // Collect all actions into a List
 
+        if (!new File(excelPath).exists()) {
+            performMessage.errorMessage(
+                    "Action Required: Prepare Excel Data",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
+                    "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
+                    "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
+                    null,
+                    0);
+
+            return false;
+        }
+
         ExcelReader excelReader = new ExcelReader();
         ExtractedData extractedData = null;
         try {
             extractedData = excelReader.extractData(excelPath, allActions);
         } catch (Exception e) {
-
             performMessage.errorMessage(
-                    "Excel Error",
-                    "Could Not Execute Excel File",
-                    "Check All Excel Columns and Values!",
-                    null,
+                    "Error Processing Excel File",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
+                    "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
+                    "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
                     null,
                     0);
 
@@ -4999,5 +5034,16 @@ public class ARScannedElementPane extends ARPane {
         String currentKey = msgInstruction.getKey();
         String updatedKey = failedMessage + " - " + currentKey;
         return new Pair<>(updatedKey, msgInstruction.getValue());
+    }
+
+    private static int getMajorJavaVersion(String version) {
+        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
+        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
+        if (version.startsWith("1.")) {
+            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
+        } else {
+            String[] parts = version.split("\\.");
+            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
+        }
     }
 }

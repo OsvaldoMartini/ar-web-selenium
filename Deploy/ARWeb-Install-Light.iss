@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "ARWeb"
-#define MyAppVersion "4.1"
+#define MyAppVersion "4.0"
 #define MyAppPublisher "Allinweb AG"
 #define MyAppURL "https://www.allinweb.ch/"
 #define MyAppExeName "ARWeb-Scanner\exec_launcher.bat"
@@ -24,15 +24,15 @@ DefaultDirName={#MyAppDefaultDir}
 ; DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName} v{#MyAppVersion}
 AllowNoIcons=yes
-LicenseFile=C:\ARWeb\ARWeb-Scanner\ARWeb.lic
+LicenseFile=C:\ARWeb\ARWeb-Scanner\license.txt
 ; Uncomment the following line to run in non administrative install mode (install for current user only).
 ;PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputBaseFilename=INSTALL-v4.1
+OutputBaseFilename=INSTALL-v4.0
 OutputDir=C:\ARWeb
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayName=uninstall-ARWeb-v4.1
+UninstallDisplayName=uninstall-ARWeb-v4.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
