@@ -47,19 +47,22 @@ import javax.websocket.server.ServerEndpoint;
 @ServerEndpoint("/websocket")
 public class SimpleWebSocketServer {
 
-    //    // Static final variable to hold the singleton instance
-    //    protected static final SingletonSupplier<SimpleWebSocketServer> instance = () -> new SimpleWebSocketServer();
+    //    protected static volatile  SimpleWebSocketServer instance;
     //
     //    // Private constructor to prevent instantiation
     //    private SimpleWebSocketServer() {
     //        // Initialize if necessary
     //    }
     //
-    //    public void initializeSimpleWebSocketServer() {}
-    //
-    //    // Public method to access the singleton instance
     //    public static SimpleWebSocketServer getInstance() {
-    //        return instance.get();
+    //        if (instance == null) {
+    //            synchronized (SimpleWebSocketServer.class) {
+    //                if (instance == null) {
+    //                    instance = new SimpleWebSocketServer();
+    //                }
+    //            }
+    //        }
+    //        return instance;
     //    }
 
     private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();

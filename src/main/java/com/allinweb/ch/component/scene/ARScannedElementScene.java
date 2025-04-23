@@ -12,7 +12,6 @@ import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
-import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
@@ -25,25 +24,30 @@ import org.openqa.selenium.WebDriver;
 
 public class ARScannedElementScene extends ARScene {
 
+    protected static volatile ARScannedElementScene instance;
+
+    // Private constructor to prevent instantiation
+    private ARScannedElementScene() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARScannedElementScene getInstance() {
+        if (instance == null) {
+            synchronized (ARScannedElementScene.class) {
+                if (instance == null) {
+                    instance = new ARScannedElementScene();
+                }
+            }
+        }
+        return instance;
+    }
+
     private static final Double SCENE_HEIGHT = 650D;
     private static final Double SCENE_WIDTH = 1100D;
     private static final String TITLE = "AR Web Factory";
 
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<ARScannedElementScene> instance = () -> new ARScannedElementScene();
-
-    // Public method to access the singleton instance
-    public static ARScannedElementScene getInstance() {
-        return instance.get();
-    }
-
-    // Private constructor to prevent instantiation
-    public ARScannedElementScene() {
-        // Initialize if necessary
-        super();
-    }
 
     private ARWebDriver arWebDriver;
     private PerformDataBase performDataBase;

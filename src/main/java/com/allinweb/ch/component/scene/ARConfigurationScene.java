@@ -3,7 +3,6 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARConfigurationPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.facade.SingletonSupplier;
 import java.time.format.DateTimeFormatter;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -11,23 +10,31 @@ import javafx.stage.Stage;
 
 public class ARConfigurationScene extends ARScene {
 
-    private static final Double SCENE_HEIGHT = 700D;
-    private static final Double SCENE_WIDTH = 800D;
-    private static final String TITLE = "Configuration";
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<ARConfigurationScene> instance = () -> new ARConfigurationScene();
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-    // Private constructor to prevent instantiation
+    protected static volatile ARConfigurationScene instance;
 
-    public ARConfigurationScene() {
+    // Private constructor to prevent instantiation
+    private ARConfigurationScene() {
         // Initialize if necessary
         super();
     }
 
-    // Public method to access the singleton instance
     public static ARConfigurationScene getInstance() {
-        return instance.get();
+        if (instance == null) {
+            synchronized (ARConfigurationScene.class) {
+                if (instance == null) {
+                    instance = new ARConfigurationScene();
+                }
+            }
+        }
+        return instance;
     }
+
+    private static final Double SCENE_HEIGHT = 700D;
+    private static final Double SCENE_WIDTH = 800D;
+    private static final String TITLE = "Configuration";
+    // Static final variable to hold the singleton instance
+    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    // Private constructor to prevent instantiation
 
     @Override
     public IARPane buildPane() {

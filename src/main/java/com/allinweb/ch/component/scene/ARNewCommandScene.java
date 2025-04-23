@@ -5,7 +5,6 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
 import javafx.collections.ObservableList;
@@ -15,22 +14,27 @@ import javafx.stage.Stage;
 
 public class ARNewCommandScene extends ARScene {
 
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<ARNewCommandScene> instance = () -> new ARNewCommandScene();
-
-    private Stage modalStage;
-    private Scene modalScene;
-
-    // Public method to access the singleton instance
-    public static ARNewCommandScene getInstance() {
-        return instance.get();
-    }
+    protected static volatile ARNewCommandScene instance;
 
     // Private constructor to prevent instantiation
-    public ARNewCommandScene() {
+    private ARNewCommandScene() {
         // Initialize if necessary
         super();
     }
+
+    public static ARNewCommandScene getInstance() {
+        if (instance == null) {
+            synchronized (ARNewCommandScene.class) {
+                if (instance == null) {
+                    instance = new ARNewCommandScene();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private Stage modalStage;
+    private Scene modalScene;
 
     private static final Double SCENE_HEIGHT = 300D;
     private static final Double SCENE_WIDTH = 800D;

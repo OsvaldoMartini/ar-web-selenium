@@ -9,7 +9,6 @@ import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
-import com.allinweb.ch.facade.SingletonSupplier;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -18,18 +17,23 @@ import org.openqa.selenium.WebDriver;
 
 public class ARNewBotJobScene extends ARScene {
 
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<ARNewBotJobScene> instance = () -> new ARNewBotJobScene();
-
-    // Public method to access the singleton instance
-    public static ARNewBotJobScene getInstance() {
-        return instance.get();
-    }
+    protected static volatile ARNewBotJobScene instance;
 
     // Private constructor to prevent instantiation
-    public ARNewBotJobScene() {
+    private ARNewBotJobScene() {
         // Initialize if necessary
         super();
+    }
+
+    public static ARNewBotJobScene getInstance() {
+        if (instance == null) {
+            synchronized (ARNewBotJobScene.class) {
+                if (instance == null) {
+                    instance = new ARNewBotJobScene();
+                }
+            }
+        }
+        return instance;
     }
 
     private static final Double SCENE_HEIGHT = 400D;

@@ -24,7 +24,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPickLoad;
 import com.allinweb.ch.facade.PerformPreLoad;
-import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -94,17 +93,22 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 @ClientEndpoint
 public class ARScannedElementPane extends ARPane {
 
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<ARScannedElementPane> instance = () -> new ARScannedElementPane();
-
-    // Public method to access the singleton instance
-    public static ARScannedElementPane getInstance() {
-        return instance.get();
-    }
+    protected static volatile ARScannedElementPane instance;
 
     // Private constructor to prevent instantiation
-    public ARScannedElementPane() {
+    private ARScannedElementPane() {
         // Initialize if necessary
+    }
+
+    public static ARScannedElementPane getInstance() {
+        if (instance == null) {
+            synchronized (ARScannedElementPane.class) {
+                if (instance == null) {
+                    instance = new ARScannedElementPane();
+                }
+            }
+        }
+        return instance;
     }
 
     private static Map<String, Session> activeSessions;

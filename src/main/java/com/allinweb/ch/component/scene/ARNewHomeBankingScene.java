@@ -4,31 +4,37 @@ import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.ARNewHomeBankingPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.facade.SingletonSupplier;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 public class ARNewHomeBankingScene extends ARScene {
-    private static final Double SCENE_HEIGHT = 750D;
-    private static final Double SCENE_WIDTH = 1200D;
-    private static final String TITLE = "New Url";
 
-    protected static final SingletonSupplier<ARNewHomeBankingScene> instance = () -> new ARNewHomeBankingScene();
-
-    private ObservableList<HomeBankingLoadDTO> homeBankingList;
+    protected static volatile ARNewHomeBankingScene instance;
 
     // Private constructor to prevent instantiation
-    public ARNewHomeBankingScene() {
+    private ARNewHomeBankingScene() {
         // Initialize if necessary
         super();
     }
 
-    // Public method to access the singleton instance
     public static ARNewHomeBankingScene getInstance() {
-        return instance.get();
+        if (instance == null) {
+            synchronized (ARNewHomeBankingScene.class) {
+                if (instance == null) {
+                    instance = new ARNewHomeBankingScene();
+                }
+            }
+        }
+        return instance;
     }
+
+    private static final Double SCENE_HEIGHT = 750D;
+    private static final Double SCENE_WIDTH = 1200D;
+    private static final String TITLE = "New Url";
+
+    private ObservableList<HomeBankingLoadDTO> homeBankingList;
 
     public void initialize(ObservableList<HomeBankingLoadDTO> homeBankingList) {
         this.homeBankingList = homeBankingList;

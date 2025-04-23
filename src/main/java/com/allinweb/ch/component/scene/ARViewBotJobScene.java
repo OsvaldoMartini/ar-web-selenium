@@ -13,7 +13,6 @@ import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
-import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,14 +24,26 @@ import org.openqa.selenium.WebDriver;
 
 public class ARViewBotJobScene extends ARScene {
 
-    protected static final SingletonSupplier<ARViewBotJobScene> instance = () -> new ARViewBotJobScene();
+    protected static volatile ARViewBotJobScene instance;
+
+    // Private constructor to prevent instantiation
+    private ARViewBotJobScene() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARViewBotJobScene getInstance() {
+        if (instance == null) {
+            synchronized (ARViewBotJobScene.class) {
+                if (instance == null) {
+                    instance = new ARViewBotJobScene();
+                }
+            }
+        }
+        return instance;
+    }
 
     private ObservableList<BotJobLoadDTO> botJobList;
-
-    // Public method to access the singleton instance
-    public static ARViewBotJobScene getInstance() {
-        return instance.get();
-    }
 
     private ARScene currentScene;
     private ARWebDriver arWebDriver;
@@ -59,12 +70,6 @@ public class ARViewBotJobScene extends ARScene {
         this.botJobList = botJobList;
 
         this.currentScene = currentScene;
-    }
-
-    public ARViewBotJobScene() {
-        super();
-        //        this.botJobLoad = botJobLoad;
-        //        this.currentScene = currentScene;
     }
 
     private BotJobLoadDTO botLoadJob = null;

@@ -5,7 +5,6 @@ import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.SingletonSupplier;
 import com.google.common.base.Strings;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -20,16 +19,22 @@ import javafx.scene.layout.*;
 
 public class ARElementValuePane extends ARPane {
 
-    protected static final SingletonSupplier<ARElementValuePane> instance = () -> new ARElementValuePane();
-
-    // Public method to access the singleton instance
-    public static ARElementValuePane getInstance() {
-        return instance.get();
-    }
+    protected static volatile ARElementValuePane instance;
 
     // Private constructor to prevent instantiation
-    public ARElementValuePane() {
+    private ARElementValuePane() {
         // Initialize if necessary
+    }
+
+    public static ARElementValuePane getInstance() {
+        if (instance == null) {
+            synchronized (ARElementValuePane.class) {
+                if (instance == null) {
+                    instance = new ARElementValuePane();
+                }
+            }
+        }
+        return instance;
     }
 
     // Postgres

@@ -11,7 +11,6 @@ import com.allinweb.ch.component.scene.ARElementValueScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.SingletonSupplier;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -53,17 +52,22 @@ import javax.websocket.Session;
 
 public class ARNewCommandPane extends ARPane {
 
-    // Static final variable to hold the singleton instance
-    protected static final SingletonSupplier<ARNewCommandPane> instance = () -> new ARNewCommandPane();
-
-    // Public method to access the singleton instance
-    public static ARNewCommandPane getInstance() {
-        return instance.get();
-    }
+    protected static volatile ARNewCommandPane instance;
 
     // Private constructor to prevent instantiation
-    public ARNewCommandPane() {
+    private ARNewCommandPane() {
         // Initialize if necessary
+    }
+
+    public static ARNewCommandPane getInstance() {
+        if (instance == null) {
+            synchronized (ARNewCommandPane.class) {
+                if (instance == null) {
+                    instance = new ARNewCommandPane();
+                }
+            }
+        }
+        return instance;
     }
 
     private static Map<String, Session> activeSessions;
