@@ -12,7 +12,7 @@ import com.allinweb.ch.component.scene.ARSaveCloneScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformDB;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
@@ -45,8 +45,8 @@ public class ARMainPane extends ARPane {
     //    private static final ARSharedResources dbResource;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
-    private static final PerformDB performDB;
     private static final PerformMessage performMessage;
+    private static final PerformActions performActions;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewBotJobScene arNewBotJobScene;
@@ -70,8 +70,8 @@ public class ARMainPane extends ARPane {
         arPropertyManager = ARPropertyManager.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
-        performDB = PerformDB.getInstance();
         performMessage = PerformMessage.getInstance();
+        performActions = PerformActions.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
@@ -176,11 +176,26 @@ public class ARMainPane extends ARPane {
 
         //        ObservableList<BotJobLoadDTO> botJobList =
         // PerformDataBase..getEntityList(BotJobDTO.class);
-        botJobList.addAll(performDB.loadAllBotJobs());
+        botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
-        viewBotJobListView.setCellFactory(new ARCellFactory<>(BotJobListCell.class, botJobList, webDriverList)::call);
-
-        arNewBotJobScene.initialize(botJobList, webDriverList);
+        viewBotJobListView.setCellFactory(new ARCellFactory<>(
+                BotJobListCell.class,
+                arViewBotJobScene,
+                arWebDriver,
+                performDataBase,
+                performActions,
+                performMessage,
+                performPreLoad,
+                botJobList,
+                webDriverList)::call);
+        arNewBotJobScene.initialize(
+                arViewBotJobScene,
+                arWebDriver,
+                performDataBase,
+                performActions,
+                performMessage,
+                botJobList,
+                webDriverList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
 
         arWebDriver.initialize(webDriverList, performMessage, performPreLoad);
@@ -199,19 +214,26 @@ public class ARMainPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         newBotJobButton.setOnMouseClicked(e -> {
-            arNewBotJobScene.initialize(botJobList, webDriverList);
+            arNewBotJobScene.initialize(
+                    arViewBotJobScene,
+                    arWebDriver,
+                    performDataBase,
+                    performActions,
+                    performMessage,
+                    botJobList,
+                    webDriverList);
             arNewBotJobScene.showModal();
             botJobList.clear();
-            botJobList.addAll(performDB.loadAllBotJobs());
+            botJobList.addAll(performDataBase.loadAllBotJobs());
             viewBotJobListView.setItems(botJobList);
         });
 
         cloneBotJobButton.setOnMouseClicked(e -> {
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
-                new ARSaveCloneScene(selecBotJobDTO, performDB.loadAllBotJobs()).showModal();
+                new ARSaveCloneScene(selecBotJobDTO, performDataBase.loadAllBotJobs()).showModal();
                 ObservableList<BotJobLoadDTO> botJobList =
-                        FXCollections.observableArrayList(performDB.loadAllBotJobs());
+                        FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
                 viewBotJobListView.setItems(botJobList);
                 viewBotJobListView.refresh();
 
@@ -224,7 +246,8 @@ public class ARMainPane extends ARPane {
         configureButton.setOnMouseClicked(e -> {
             arConfigurationScene.showModal();
             performDataBase.changeDbConnection();
-            ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDB.loadAllBotJobs());
+            ObservableList<BotJobLoadDTO> botJobList =
+                    FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
             viewBotJobListView.setItems(botJobList);
         });
         infoButton.setOnMouseClicked(e -> new ARInfoScene().showModal());
@@ -242,7 +265,14 @@ public class ARMainPane extends ARPane {
                     Platform.runLater(() -> {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
 
-                        arViewBotJobScene.initialize(selecBotJobDTO, botJobList);
+                        arViewBotJobScene.initialize(
+                                arWebDriver,
+                                performDataBase,
+                                performActions,
+                                performMessage,
+                                performPreLoad,
+                                selecBotJobDTO,
+                                botJobList);
                         arViewBotJobScene.show();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();

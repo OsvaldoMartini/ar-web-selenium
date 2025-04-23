@@ -7,8 +7,6 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ComboBoxVars;
-import java.util.List;
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -43,7 +41,7 @@ public class ARNewCommandScene extends ARScene {
     private static final String TITLE = "Add Command";
     private RowMoveDTO rowMoveDTO;
     private BotJobLoadDTO botJobLoad;
-    private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
+    private ObservableList<ComboBoxVars> webPageItems;
     private String sessionId;
 
     private static ARNewCommandPane arNewCommandPane;
@@ -53,12 +51,14 @@ public class ARNewCommandScene extends ARScene {
     }
 
     public void initialize(
-            RowMoveDTO rowMoveDTO, BotJobLoadDTO botJobLoad, List<ComboBoxVars> webPageItems, String sessionId) {
+            RowMoveDTO rowMoveDTO,
+            BotJobLoadDTO botJobLoad,
+            ObservableList<ComboBoxVars> webPageItems,
+            String sessionId) {
 
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
-        this.webPageItems.clear();
-        this.webPageItems.addAll(webPageItems);
+        this.webPageItems = webPageItems;
         this.sessionId = sessionId;
     }
 

@@ -7,7 +7,6 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDB;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
@@ -25,12 +24,12 @@ public class ARViewBotJobListPane extends ARPane {
     private final GridPane header = new GridPane();
     private ListView<BotJobLoadDTO> uiBotJobList;
 
-    private static final PerformDB performDB;
+    private final ARViewBotJobScene arViewBotJobScene;
+    private final ARWebDriver arWebDriver;
+    private final PerformDataBase performDataBase;
+    private final PerformActions performActions;
+    private final PerformMessage performMessage;
     ObservableList<WebDriver> webDriverList;
-
-    static {
-        performDB = PerformDB.getInstance();
-    }
 
     // Constructor for Dependency Injection
     public ARViewBotJobListPane(
@@ -40,6 +39,11 @@ public class ARViewBotJobListPane extends ARPane {
             PerformActions performActions,
             PerformMessage performMessage,
             ObservableList<WebDriver> webDriverList) {
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
+        this.performDataBase = performDataBase;
+        this.performActions = performActions;
+        this.performMessage = performMessage;
         this.webDriverList = webDriverList;
         initUIComponents();
     }
@@ -51,12 +55,19 @@ public class ARViewBotJobListPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDB.loadAllBotJobs());
+        ObservableList<BotJobLoadDTO> botJobList = FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
         uiBotJobList = new ListView<>(botJobList);
 
         // Setting the cell factory correctly
         uiBotJobList.setCellFactory(new ARCellFactory<>(
-                BotJobListCell.class, (ObservableList<BotJobLoadDTO>) botJobList, webDriverList)::call);
+                BotJobListCell.class,
+                arViewBotJobScene,
+                arWebDriver,
+                performDataBase,
+                performActions,
+                performMessage,
+                (ObservableList<BotJobLoadDTO>) botJobList,
+                webDriverList)::call);
 
         // Anchor positioning
         AnchorPane.setTopAnchor(uiBotJobList, ARConstants.SPACE_M * 2);

@@ -9,7 +9,6 @@ import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARElementValueScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.facade.PerformDB;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
@@ -77,7 +76,6 @@ public class ARNewCommandPane extends ARPane {
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformDataBase performDataBase;
-    private static final PerformDB performDB;
     private static final PerformMessage performMessage;
 
     // Static block to initialize
@@ -85,7 +83,6 @@ public class ARNewCommandPane extends ARPane {
         //        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
-        performDB = PerformDB.getInstance();
     }
 
     private List<String> allowedActions = Arrays.asList(
@@ -308,7 +305,7 @@ public class ARNewCommandPane extends ARPane {
                     this.botJobLoad.getId(), filteredPageItems.get(0).getInstructionId());
         }
 
-        this.blockLoadList = performDB.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
 
         if (this.blockLoadList != null && !this.blockLoadList.isEmpty()) {
             //            for (BotJobLoadDTO botJobLoadDTO : this.botJobLoadList) {
@@ -2331,7 +2328,7 @@ public class ARNewCommandPane extends ARPane {
             boolean isShowAlert = added == 1;
 
             // Run the instruction add in a separate Task
-            int newRowId = performDB.preFillInstruction(
+            int newRowId = performDataBase.preFillInstruction(
                     nextAction == null ? name : nextAction,
                     nextAction == null ? description : nextAction,
                     nextAction == null ? actions : nextAction,
@@ -2348,10 +2345,10 @@ public class ARNewCommandPane extends ARPane {
 
             if (newRowId > 0) {
 
-                this.botJobLoadList = performDB.loadCompleteJobs(rowMoveDTO.getBotJobId());
+                this.botJobLoadList = performDataBase.loadCompleteJobs(rowMoveDTO.getBotJobId());
                 String jsonData = "[]";
                 if (botJobLoadList.size() > 0) {
-                    List<InstructionLoadDTO> blockLoopInstructions = performDB.buildJsonViewData(botJobLoadList);
+                    List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                     jsonData = gson.toJson(blockLoopInstructions);
                 }
                 sendMessageJson(rowMoveDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");

@@ -9,9 +9,10 @@ import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformDB;
-import com.allinweb.ch.facade.PerformDBActions;
+import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.util.ARLogger;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,20 +46,26 @@ public class ARViewBotJobScene extends ARScene {
     private ObservableList<BotJobLoadDTO> botJobList;
 
     private ARScene currentScene;
-    private static final ARWebDriver arWebDriver;
-    private static final PerformDataBase performDataBase;
-    private static final PerformDB performDB;
-    private static final PerformDBActions performDBActions;
+    private ARWebDriver arWebDriver;
+    private PerformDataBase performDataBase;
+    private PerformActions performActions;
+    private PerformMessage performMessage;
+    private PerformPreLoad performPreLoad;
     private BotJobLoadDTO botJobLoad;
 
-    static {
-        performDataBase = PerformDataBase.getInstance();
-        performDB = PerformDB.getInstance();
-        performDBActions = PerformDBActions.getInstance();
-        arWebDriver = ARWebDriver.getInstance();
-    }
-
-    public void initialize(BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
+    public void initialize(
+            ARWebDriver arWebDriver,
+            PerformDataBase performDataBase,
+            PerformActions performActions,
+            PerformMessage performMessage,
+            PerformPreLoad performPreLoad,
+            BotJobLoadDTO botJobLoad,
+            ObservableList<BotJobLoadDTO> botJobList) {
+        this.arWebDriver = arWebDriver;
+        this.performDataBase = performDataBase;
+        this.performActions = performActions;
+        this.performMessage = performMessage;
+        this.performPreLoad = performPreLoad;
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
 
@@ -120,10 +127,10 @@ public class ARViewBotJobScene extends ARScene {
                     .info(String.format("Failed to Update ALL Bot Job Active = 1"));
         }
 
-        this.blockLoadList = performDB.loadBlocksByBotJobId(this.botJobLoad.getId());
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
-        this.botLoadJob = performDB.loadBotJobById(this.botJobLoad.getId());
-        this.homeBankingLoadDTO = performDB.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        this.botLoadJob = performDataBase.loadBotJobById(this.botJobLoad.getId());
+        this.homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
         if (homeBankingLoadDTO != null) {
             this.botLoadJob.setHomeBankingLoadDTO(homeBankingLoadDTO);
         }
@@ -145,13 +152,21 @@ public class ARViewBotJobScene extends ARScene {
 
             newBlockDetails.setBotJobId(this.botLoadJob.getId());
 
-            int newBlockId = performDB.createNewBlock(newBlockDetails);
+            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
             ARLogger.getInstance(Thread.class)
                     .info(String.format(
                             "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
         }
 
-        return new ARViewBotJobPane(this, this.botLoadJob, botJobList);
+        return new ARViewBotJobPane(
+                this,
+                arWebDriver,
+                performDataBase,
+                performActions,
+                performMessage,
+                performPreLoad,
+                this.botLoadJob,
+                botJobList);
     }
 
     @Override
@@ -188,7 +203,7 @@ public class ARViewBotJobScene extends ARScene {
     //                + " where bot_job_id = " + botJobId
     //                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
     //
-    //        try (Statement stmt = performDataBase.getConnection().createStatement();
+    //        try (Statement stmt = PerformDataBase.getConnection().createStatement();
     //                ResultSet rs = stmt.executeQuery(query)) {
     //
     //            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
@@ -289,7 +304,7 @@ public class ARViewBotJobScene extends ARScene {
     //                + " where bot_job_id = " + botJobId
     //                + "  ORDER BY bj.id, b.block_order_number, bli.instruction_order_number, irl.id ASC";
     //
-    //        try (Statement stmt = performDataBase.getConnection().createStatement();
+    //        try (Statement stmt = PerformDataBase.getConnection().createStatement();
     //                ResultSet rs = stmt.executeQuery(query)) {
     //
     //            Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();

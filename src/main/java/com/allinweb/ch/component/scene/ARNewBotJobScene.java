@@ -49,7 +49,20 @@ public class ARNewBotJobScene extends ARScene {
     private ObservableList<BotJobLoadDTO> botJobList;
     private ObservableList<WebDriver> webDriverList;
 
-    public void initialize(ObservableList<BotJobLoadDTO> botJobList, ObservableList<WebDriver> webDriverList) {
+    public void initialize(
+            ARViewBotJobScene arViewBotJobScene,
+            ARWebDriver arWebDriver,
+            PerformDataBase performDataBase,
+            PerformActions performActions,
+            PerformMessage performMessage,
+            ObservableList<BotJobLoadDTO> botJobList,
+            ObservableList<WebDriver> webDriverList) {
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
+        this.performDataBase = performDataBase;
+        this.performMessage = performMessage;
+        this.performActions = performActions;
+        this.performPreLoad = performPreLoad;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
     }
@@ -57,7 +70,15 @@ public class ARNewBotJobScene extends ARScene {
     @Override
     public IARPane buildPane() {
         // Create ARNewBotJobPane without passing ListView here
-        return new ARNewBotJobPane(botJobList, webDriverList);
+        return new ARNewBotJobPane(
+                arViewBotJobScene,
+                arWebDriver,
+                performDataBase,
+                performActions,
+                performMessage,
+                performPreLoad,
+                botJobList,
+                webDriverList);
     }
 
     @Override

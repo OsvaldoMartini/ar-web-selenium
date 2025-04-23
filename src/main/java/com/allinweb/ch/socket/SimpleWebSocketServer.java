@@ -16,7 +16,7 @@ import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
-import com.allinweb.ch.facade.PerformDB;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -89,19 +91,19 @@ public class SimpleWebSocketServer {
     }
 
     private static ARNewCommandScene arNewCommandScene;
-    private static final PerformDB performDB;
+    private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
 
     // Static block to initialize
     static {
         arNewCommandScene = ARNewCommandScene.getInstance();
-        performDB = PerformDB.getInstance();
+        performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
     }
 
     // Store all connected sessions
     private final Gson gson = new Gson();
-    private List<ComboBoxVars> webPageItems = new ArrayList<>();
+    private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
 
@@ -359,8 +361,8 @@ public class SimpleWebSocketServer {
 
                 if (rowUpdateDTO.getUpdatedRows().size() > 0) {
                     if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                        if (performDB.rowsUpdateName(rowUpdateDTO.getUpdatedRows())) {
-                            List<ParentOperations> listParents = performDB.loadAllParents(
+                        if (performDataBase.rowsUpdateName(rowUpdateDTO.getUpdatedRows())) {
+                            List<ParentOperations> listParents = performDataBase.loadAllParents(
                                     rowUpdateDTO.getBotJobId(),
                                     rowUpdateDTO.getUpdatedRows().get(0).getInstructionId());
                             if (!listParents.isEmpty()) {
@@ -375,11 +377,11 @@ public class SimpleWebSocketServer {
                                     }
                                 }
 
-                                performDB.rowsGetUpdateName(listParents);
+                                performDataBase.rowsGetUpdateName(listParents);
                             }
                         }
                     } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                        performDB.rowsCompUpdateName(rowUpdateDTO.getUpdatedRows());
+                        performDataBase.rowsCompUpdateName(rowUpdateDTO.getUpdatedRows());
                     }
                 }
 
@@ -395,25 +397,26 @@ public class SimpleWebSocketServer {
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
 
-                    if (performDB.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
+                    if (performDataBase.updateMoveRowsOrder(rowMoveDTO.getUpdatedRows())
                             && rowMoveDTO.getDeleteBlockId() != null
                             && rowMoveDTO.getDeleteBlockId() > -1) {
 
-                        performDB.deleteBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+                        performDataBase.deleteBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
 
-                        performDB.updateBlockOrderNumber(performDB.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
+                        performDataBase.updateBlockOrderNumber(
+                                performDataBase.selectAllBlocks(rowMoveDTO.getBotJobId()), true);
                     }
 
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
 
-                    if (performDB.updateCompMoveRowsOrder(rowMoveDTO.getUpdatedRows())
+                    if (performDataBase.updateCompMoveRowsOrder(rowMoveDTO.getUpdatedRows())
                             && rowMoveDTO.getDeleteBlockId() != null
                             && rowMoveDTO.getDeleteBlockId() > -1) {
 
-                        performDB.deleteCompBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
+                        performDataBase.deleteCompBlockDirect(rowMoveDTO.getBotJobId(), rowMoveDTO.getDeleteBlockId());
 
-                        performDB.updateCompBlockOrderNumber(
-                                performDB.selectCompAllBlocks(rowMoveDTO.getBotJobId()), true);
+                        performDataBase.updateCompBlockOrderNumber(
+                                performDataBase.selectCompAllBlocks(rowMoveDTO.getBotJobId()), true);
                     }
                 }
 
@@ -457,11 +460,11 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
 
                     if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                        performDB.updateBlockOrderNumber(
-                                performDB.selectAllBlocks(
+                        performDataBase.updateBlockOrderNumber(
+                                performDataBase.selectAllBlocks(
                                         blockReorder.getUpdatedBlocks().get(0).getBotJobId()),
                                 true);
-                        performDB.deleteNullBlocks(
+                        performDataBase.deleteNullBlocks(
                                 blockReorder.getUpdatedBlocks().get(0).getBotJobId());
 
                     } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
@@ -478,9 +481,9 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDB.updateInstructionStatus(InstructionLoadDTO);
+                    performDataBase.updateInstructionStatus(InstructionLoadDTO);
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDB.updateCompInstructionStatus(InstructionLoadDTO);
+                    performDataBase.updateCompInstructionStatus(InstructionLoadDTO);
                 }
                 break;
             case "BLOCK_STATUS":
@@ -493,24 +496,24 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDB.updateBlockStatus(
+                    performDataBase.updateBlockStatus(
                             blockStateDTO.getBotJobId(),
                             blockStateDTO.getBlockId(),
                             blockStateDTO.getBlockName(),
                             blockStateDTO.getBlockActive(),
                             3); // Block wait time Default 3 seconds per block
 
-                    performDB.updateInstructionStatusByBlock(
+                    performDataBase.updateInstructionStatusByBlock(
                             blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDB.updateCompBlockStatus(
+                    performDataBase.updateCompBlockStatus(
                             blockStateDTO.getBotJobId(),
                             blockStateDTO.getBlockId(),
                             blockStateDTO.getBlockName(),
                             blockStateDTO.getBlockActive(),
                             3); // Block wait time Default 3 seconds per block
 
-                    performDB.updateCompInstructionStatusByBlock(
+                    performDataBase.updateCompInstructionStatusByBlock(
                             blockStateDTO.getBotJobId(), blockStateDTO.getBlockId(), blockStateDTO.getBlockActive());
                 }
 
@@ -525,10 +528,10 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDB.updateBlockName(
+                    performDataBase.updateBlockName(
                             blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDB.updateCompBlockName(
+                    performDataBase.updateCompBlockName(
                             blockUpdateDTO.getBotJobId(), blockUpdateDTO.getBlockId(), blockUpdateDTO.getBlockName());
                 }
 
@@ -543,9 +546,9 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDB.deleteInstruction(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO);
+                    performDataBase.deleteInstruction(deleteInstructionLoadDTO.getBotJobId(), deleteInstructionLoadDTO);
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDB.deleteComponent(deleteInstructionLoadDTO);
+                    performDataBase.deleteComponent(deleteInstructionLoadDTO);
                 }
 
                 break;
@@ -559,9 +562,9 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDB.deleteBlock(deleteBlockDTO);
+                    performDataBase.deleteBlock(deleteBlockDTO);
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDB.deleteCompBlock(deleteBlockDTO);
+                    performDataBase.deleteCompBlock(deleteBlockDTO);
                 }
 
                 break;
@@ -575,11 +578,11 @@ public class SimpleWebSocketServer {
                 alreadySentMgsSocket = false;
 
                 if ((sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-                    performDB.rollBackBlocksRows("instruction", rollBackBlocksDTO);
-                    performDB.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
+                    performDataBase.rollBackBlocksRows("instruction", rollBackBlocksDTO);
+                    performDataBase.deleteNullBlocks(rollBackBlocksDTO.getBotJobId());
                 } else if ((sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-                    performDB.rollBackBlocksRows("component_instruction", rollBackBlocksDTO);
-                    performDB.deleteCompNullBlocks(
+                    performDataBase.rollBackBlocksRows("component_instruction", rollBackBlocksDTO);
+                    performDataBase.deleteCompNullBlocks(
                             rollBackBlocksDTO.getHomeBankingId(), rollBackBlocksDTO.getBotJobId());
                 }
 
@@ -591,20 +594,20 @@ public class SimpleWebSocketServer {
         }
 
         if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
-            this.botJobLoadList = performDB.loadCompleteJobs(botJobIdTask);
+            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobIdTask);
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDB.buildJsonViewData(botJobLoadList);
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "updateInstructions");
 
         } else if (!alreadySentMgsSocket
                 && (sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
-            this.botJobLoadList = performDB.loadComponentsComplete(homeBankingId);
+            this.botJobLoadList = performDataBase.loadComponentsComplete(homeBankingId);
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDB.buildJsonViewData(botJobLoadList);
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
 
@@ -762,13 +765,13 @@ public class SimpleWebSocketServer {
         System.out.println("Updated Block: " + updatedBlock.size());
         newBlock.setForceOrder(true);
 
-        int newBlockId = performDB.createNewBlock(newBlock);
-        if (performDB.updateInstructionsSplitter(
+        int newBlockId = performDataBase.createNewBlock(newBlock);
+        if (performDataBase.updateInstructionsSplitter(
                 newBlock.getInstructions(), (int) originalBlock.getBlockId(), newBlockId)) {
             if (updatedBlock.size() > 0) {
-                performDB.updateBlockOrderNumber(updatedBlock, false);
-                //                performDB.updateBlockOrderNumber(
-                //                        performDB.selectAllBlocks(updatedBlock.get(0).getBotJobId()), true);
+                performDataBase.updateBlockOrderNumber(updatedBlock, false);
+                //                performDataBase.updateBlockOrderNumber(
+                //                        performDataBase.selectAllBlocks(updatedBlock.get(0).getBotJobId()), true);
             }
         }
     }
@@ -776,7 +779,7 @@ public class SimpleWebSocketServer {
     // Handle BLOCK_MOVE message
     private void moveBlock(BlockMoveDTO blockMoveDTO) {
         List<BlockOrderDetailDTO> updatedBlocks = blockMoveDTO.getUpdatedBlocks();
-        performDB.updateBlockOrderNumber(updatedBlocks, false);
+        performDataBase.updateBlockOrderNumber(updatedBlocks, false);
     }
 
     private void injectStepAfterOrBefore(String sessionId, RowMoveDTO rowMoveDTO) {
@@ -784,13 +787,13 @@ public class SimpleWebSocketServer {
         if (rowMoveDTO.getUpdatedRows().size() > 0) {
 
             //            List<BotJobLoadDTO> botJobLoadList =
-            // performDB.loadBotJobComplete(rowMoveDTO.getBotJobId());
-            BotJobLoadDTO botJobLoad = performDB.loadBotJobById(rowMoveDTO.getBotJobId());
+            // performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
+            BotJobLoadDTO botJobLoad = performDataBase.loadBotJobById(rowMoveDTO.getBotJobId());
 
             if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
                     && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
 
-                this.webPageItems = performDB.loadWebPageFields(rowMoveDTO.getBotJobId());
+                this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
                 Platform.runLater(() -> {
@@ -805,7 +808,7 @@ public class SimpleWebSocketServer {
                     try {
                         // Run the instruction add in a separate Task
 
-                        int newRowId = performDB.preFillInstruction(
+                        int newRowId = performDataBase.preFillInstruction(
                                 "ELSEIF",
                                 "ELSEIF",
                                 ARConstants.ELSEIF,
@@ -864,13 +867,13 @@ public class SimpleWebSocketServer {
         blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
         blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
 
-        ErrorMessage errorMessage = performDB.injectNewComponent(blockDetailsDTO);
+        ErrorMessage errorMessage = performDataBase.injectNewComponent(blockDetailsDTO);
         if (errorMessage == null) {
-            List<BotJobLoadDTO> botJobLoadList = performDB.loadCompleteJobs(blockDetailsDTO.getBotJobId());
+            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadCompleteJobs(blockDetailsDTO.getBotJobId());
 
             String jsonData = "[]";
             if (botJobLoadList.size() > 0) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDB.buildJsonViewData(botJobLoadList);
+                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             sendMessageJson(

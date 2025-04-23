@@ -3,8 +3,11 @@ package com.allinweb.ch.component.listCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.facade.PerformDB;
+import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PerformActions;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ARConstants;
 import java.util.*;
@@ -21,20 +24,30 @@ import org.openqa.selenium.WebDriver;
 
 public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
-    private static final ARViewBotJobScene arViewBotJobScene;
-    private static final PerformMessage performMessage;
-    private static final PerformDB performDB;
-
-    static {
-        arViewBotJobScene = ARViewBotJobScene.getInstance();
-        performMessage = PerformMessage.getInstance();
-        performDB = PerformDB.getInstance();
-    }
-
+    private ARViewBotJobScene arViewBotJobScene;
+    private ARWebDriver arWebDriver;
+    private PerformDataBase performDataBase;
+    private PerformActions performActions;
+    private PerformMessage performMessage;
+    private PerformPreLoad performPreLoad;
     private ObservableList<BotJobLoadDTO> botJobList;
     private ObservableList<WebDriver> webDriverList;
 
-    public BotJobListCell(ObservableList<BotJobLoadDTO> botJobList, ObservableList<WebDriver> webDriverList) {
+    public BotJobListCell(
+            ARViewBotJobScene arViewBotJobScene,
+            ARWebDriver arWebDriver,
+            PerformDataBase performDataBase,
+            PerformActions performActions,
+            PerformMessage performMessage,
+            PerformPreLoad performPreLoad,
+            ObservableList<BotJobLoadDTO> botJobList,
+            ObservableList<WebDriver> webDriverList) {
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
+        this.performDataBase = performDataBase;
+        this.performActions = performActions;
+        this.performMessage = performMessage;
+        this.performPreLoad = performPreLoad;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
     }
@@ -159,7 +172,14 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(item, botJobList);
+                    arViewBotJobScene.initialize(
+                            arWebDriver,
+                            performDataBase,
+                            performActions,
+                            performMessage,
+                            performPreLoad,
+                            item,
+                            botJobList);
                     arViewBotJobScene.show();
                 }
             });
@@ -194,7 +214,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     }
 
     private void deleteBotJob(BotJobLoadDTO botJob) {
-        int rowsAffected = performDB.deleteBotJob(botJob.getId());
+        int rowsAffected = performDataBase.deleteBotJob(botJob.getId());
 
         if (rowsAffected == 0) {
             performMessage.showCustomModalDialogDragWin11(
@@ -215,7 +235,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
                     null,
                     null,
                     0);
-            performDB.updateStatusBotJob(botJob.getId(), 0);
+            performDataBase.updateStatusBotJob(botJob.getId(), 0);
         }
     }
 }
