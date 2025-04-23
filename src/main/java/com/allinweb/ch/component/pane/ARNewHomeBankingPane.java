@@ -3,7 +3,7 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.model.BankingDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformDB;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.util.ARLogger;
@@ -27,11 +27,11 @@ import javafx.scene.layout.*;
 public class ARNewHomeBankingPane extends ARPane {
 
     private static final PerformMessage performMessage;
-    private static final PerformDataBase performDataBase;
+    private static final PerformDB performDB;
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+        performDB = PerformDB.getInstance();
     }
 
     // Postgres
@@ -140,7 +140,7 @@ public class ARNewHomeBankingPane extends ARPane {
                 return;
             }
 
-            saveUserData(user);
+            performDB.saveUserData(user);
             loadAllHomeBankingBotJob();
             updateHomeBankList(databaseList);
         });
@@ -464,7 +464,7 @@ public class ARNewHomeBankingPane extends ARPane {
                         + " FROM home_banking bank "
                         + " left join bot_job bot on bot.home_banking_id = bank.id "
                         + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+        try (Statement stmt = performDB.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
@@ -519,50 +519,9 @@ public class ARNewHomeBankingPane extends ARPane {
         //        loadBotJobData();
     }
 
-    private Integer loadNexIdData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM home_banking";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-        return null;
-    }
-
-    private void saveUserData(DatabaseUserDTO user) {
-        // Generate a Unique-ID
-        Integer hashCode = loadNexIdData() + 1;
-        //        AlterSeq(hashCode);
-        //        Integer hashCode = generateID();
-        String priority = Strings.isNullOrEmpty(user.getPriority()) ? "" : user.getPriority();
-        String searchConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getSearchConfig();
-        String optionsConfig = Strings.isNullOrEmpty(user.getSearchConfig()) ? "" : user.getOptionsConfig();
-
-        String insertSQL =
-                "INSERT INTO home_banking (ID, Name, Url, priority, search_config, options_config, username, password) VALUES ( "
-                        + hashCode + ","
-                        + "'" + user.getName() + "', "
-                        + "'" + user.getUrl() + "', "
-                        + "'" + priority + "', "
-                        + "'" + searchConfig + "', "
-                        + "'" + optionsConfig + "', "
-                        + "'" + user.getUsername() + "', "
-                        + "'" + user.getPassword() + "')";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            System.out.println("Data saved successfully.");
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-    }
-
     private void updateUserData(String id, DatabaseUserDTO user) {
 
-        try (Connection conn = performDataBase.getConnection()) {
+        try (Connection conn = performDB.getConnection()) {
 
             int userId = Integer.parseInt(id);
 
@@ -618,7 +577,7 @@ public class ARNewHomeBankingPane extends ARPane {
         try {
             int honeBankingId = Integer.parseInt(Id);
             String deleteSQL = "DELETE FROM home_banking WHERE ID = " + honeBankingId;
-            try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
+            try (Statement stmt = performDB.getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(deleteSQL);
                 if (rowsAffected > 0) {
                     ARLogger.getInstance(Thread.class).finer("Data deleted successfully.\n " + Id);

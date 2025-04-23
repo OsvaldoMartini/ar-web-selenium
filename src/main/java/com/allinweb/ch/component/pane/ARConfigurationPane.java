@@ -9,7 +9,7 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformDB;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -53,13 +53,13 @@ public class ARConfigurationPane extends ARPane {
     private static final ARPropertyManager arPropertyManager;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final PerformMessage performMessage;
-    private static final PerformDataBase performDataBase;
+    private static final PerformDB performDB;
 
     // Static block to initialize
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+        performDB = PerformDB.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     }
 
@@ -183,7 +183,7 @@ public class ARConfigurationPane extends ARPane {
         //        ObservableList<HomeBankingDTO> homeBankingList =
         //                PerformDataBase..getEntityList(HomeBankingDTO.class);
 
-        homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());
+        homeBankingList.addAll(performDB.loadAllHomeBanking());
         homeBankingListView = new ListView<>(homeBankingList);
         homeBankingListView.setCellFactory(new ARCellFactory<>(HomeBankingListCell.class)::call);
 
@@ -429,14 +429,14 @@ public class ARConfigurationPane extends ARPane {
     @Override
     public void initUIBehaviour() {
 
-        try (Connection conn = performDataBase.getConnection()) {
-            List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
+        try (Connection conn = performDB.getConnection()) {
+            List<BotJobLoadDTO> botJobLoadList = performDB.loadAllBotJobs();
 
             List<InstructionLoadDTO> instList = null;
 
             for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
 
-                instList = performDataBase.instructionsToDuplicate(
+                instList = performDB.instructionsToDuplicate(
                         conn,
                         botJobLoadDTO.getHomeBankingId(),
                         botJobLoadDTO.getId(),
@@ -505,8 +505,8 @@ public class ARConfigurationPane extends ARPane {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.YES) {
 
-            try (Connection conn = performDataBase.getConnection()) {
-                List<BotJobLoadDTO> botJobLoadList = performDataBase.loadAllBotJobs();
+            try (Connection conn = performDB.getConnection()) {
+                List<BotJobLoadDTO> botJobLoadList = performDB.loadAllBotJobs();
 
                 String[] tablesMigration = {
                     "block", "block_loop_instruction", "instruction", "instruction_reference", "reference", "variable"
@@ -515,7 +515,7 @@ public class ARConfigurationPane extends ARPane {
                 for (BotJobLoadDTO botJobLoadDTO : botJobLoadList) {
                     // tablesMigration = {"block", "block_loop_instruction", "instruction", "instruction_reference",
                     // "reference"};
-                    //                    errorMessage = performDataBase.migration2_6f(
+                    //                    errorMessage = performDB.migration2_6f(
                     //                            conn, botJobLoadDTO.getId(), botJobLoadDTO.getId(), tablesMigration);
                     //
                     //                    if (errorMessage != null) {
@@ -523,7 +523,7 @@ public class ARConfigurationPane extends ARPane {
                     //                    }
                 }
 
-                performDataBase.dropTablesMigrationScriptsv2_7f();
+                //                performDB.dropTablesMigrationScriptsv2_7f();
 
                 if (errorMessage == null) {
                     showAlertTimer(
@@ -560,7 +560,7 @@ public class ARConfigurationPane extends ARPane {
                 System.out.println(ex.getMessage());
             }
 
-            //            int rowsAffected = performDataBase.migrationScriptsv2_6f();
+            //            int rowsAffected = performDB.migrationScriptsv2_6f();
             //            if (rowsAffected < 0) {
             //                performMessage.errorMessage(
             //                        "Migration DB Scripts error",
@@ -661,10 +661,10 @@ public class ARConfigurationPane extends ARPane {
                     .setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
 
             homeBankingList.clear();
-            homeBankingList.addAll(PerformDataBase.loadAllHomeBanking());
+            homeBankingList.addAll(performDB.loadAllHomeBanking());
             homeBankingListView = new ListView<>(homeBankingList);
 
-            performDataBase.changeDbConnection();
+            performDB.changeDbConnection();
 
             new ARAlertScene(
                     Alert.AlertType.INFORMATION,
@@ -687,7 +687,7 @@ public class ARConfigurationPane extends ARPane {
 
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.YES) {
-            if (performDataBase.deleteAllJobDetails(dataBaseType)) {
+            if (performDB.deleteAllJobDetails(dataBaseType)) {
                 // PerformDataBase..changeDbConnection();
                 new ARAlertScene(
                         Alert.AlertType.INFORMATION,

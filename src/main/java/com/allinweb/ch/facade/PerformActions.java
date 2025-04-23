@@ -4,7 +4,6 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.model.BlockDetailsDTO;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.ComplexInstructionLoadDTO;
 import com.allinweb.ch.component.model.ElementDTO;
@@ -97,7 +96,7 @@ public class PerformActions {
     }
 
     private static final PerformMessage performMessage;
-    private static final PerformDataBase performDataBase;
+    private static final PerformDBActions performDBActions;
     private static final IframeInputLocator iframeInputLocator;
     private static final ARPropertyManager arPropertyManager;
     private BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
@@ -105,7 +104,7 @@ public class PerformActions {
     static {
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+        performDBActions = PerformDBActions.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
     }
 
@@ -3894,39 +3893,6 @@ public class PerformActions {
         } catch (NumberFormatException e) {
             System.err.println("Invalid coordinates from Javascript code: " + targetRefs.getCoordinates());
         }
-    }
-
-    public int createBlockIfNone(String blockName, int botJobId) {
-
-        // It Prevents Start without blocks
-        List<BlockLoadDTO> blockLoadList = performDataBase.loadBlocksByBotJobId(botJobId);
-        if (blockLoadList.isEmpty()) {
-
-            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName(blockName);
-            newBlockDetails.setBlockDescription("  description");
-            newBlockDetails.setTypeId(1);
-            newBlockDetails.setActive(true);
-            newBlockDetails.setWait(3);
-
-            newBlockDetails.setBotJobId(botJobId);
-
-            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
-
-            if (newBlockId < 0) {
-                performMessage.errorMessage(
-                        "Error Creating new Block",
-                        "Verify the Bot Job Name if have any",
-                        "Check if you already have a Bot Job Created!",
-                        null,
-                        null,
-                        0);
-                return -1;
-            } else {
-                return newBlockId;
-            }
-        }
-        return -1;
     }
 
     public WebElement findWebElement(TargetElement targetFind) {

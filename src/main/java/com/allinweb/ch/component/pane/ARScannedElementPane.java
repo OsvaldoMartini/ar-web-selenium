@@ -20,6 +20,8 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.IframeInputLocator;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformCloneLoad;
+import com.allinweb.ch.facade.PerformDB;
+import com.allinweb.ch.facade.PerformDBActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPickLoad;
@@ -213,8 +215,7 @@ public class ARScannedElementPane extends ARPane {
 
             //            preTestCoordinates(targetInsertOne);
 
-            List<InstructionLoadDTO> listInstr =
-                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
+            List<InstructionLoadDTO> listInstr = performDB.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
 
             int nextOrder = listInstr.size() + 1;
 
@@ -232,8 +233,7 @@ public class ARScannedElementPane extends ARPane {
     private void stepsInsertManyDTO(ElementSplitDTO processDTO) {
         validateBlockDB("Default Block", this.botJobLoad.getId());
         if (currentBlockId > 0) {
-            List<InstructionLoadDTO> listInstr =
-                    performDataBase.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
+            List<InstructionLoadDTO> listInstr = performDB.getInstructionsByBlockId(botJobLoad.getId(), currentBlockId);
 
             int nextOrder = listInstr.size() + 1;
 
@@ -274,7 +274,7 @@ public class ARScannedElementPane extends ARPane {
 
     private void validateBlockDB(String blockName, int botJobId) {
 
-        int newBlockID = performActions.createBlockIfNone(blockName, botJobId);
+        int newBlockID = performDB.createBlockIfNone(blockName, botJobId);
         if (newBlockID > 0) {
             Platform.runLater(() -> {
                 refreshBlocks(true);
@@ -430,14 +430,14 @@ public class ARScannedElementPane extends ARPane {
                 try {
 
                     Platform.runLater(() -> {
-                        boolean saved = performDataBase.insertReferences(queue, instruction.getId());
+                        boolean saved = performDB.insertReferences(queue, instruction.getId());
                         if (saved) {
 
-                            botJobLoadList = performDataBase.loadCompleteJobs(currentBotJobId);
+                            botJobLoadList = performDB.loadCompleteJobs(currentBotJobId);
                             String jsonData = "[]";
                             if (!botJobLoadList.isEmpty()) {
                                 List<InstructionLoadDTO> blockLoopInstructions =
-                                        performDataBase.buildJsonViewData(botJobLoadList);
+                                        performDB.buildJsonViewData(botJobLoadList);
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
                             sendMessageJson(
@@ -1047,10 +1047,12 @@ public class ARScannedElementPane extends ARPane {
     private static final ARPropertyManager arPropertyManager;
     private static final ARPriorities arPriorities;
 
-    private PerformDataBase performDataBase;
-    private PerformActions performActions;
-    private PerformMessage performMessage;
-    private PerformPreLoad performPreLoad;
+    private static final PerformDataBase performDataBase;
+    private static final PerformDB performDB;
+    private static final PerformDBActions performDBActions;
+    private static final PerformActions performActions;
+    private static final PerformMessage performMessage;
+    private static final PerformPreLoad performPreLoad;
     private ARWebDriver currentARWebDriver;
 
     private static final PerformCloneLoad performCloneLoad;
@@ -1079,6 +1081,13 @@ public class ARScannedElementPane extends ARPane {
     // Static block to initialize
     static {
         arPropertyManager = ARPropertyManager.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performDB = PerformDB.getInstance();
+        performDBActions = PerformDBActions.getInstance();
+        performActions = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
+        performPreLoad = PerformPreLoad.getInstance();
+
         iframeInputLocator = IframeInputLocator.getInstance();
         performCloneLoad = PerformCloneLoad.getInstance();
         performPickLoad = PerformPickLoad.getInstance();
@@ -1088,20 +1097,12 @@ public class ARScannedElementPane extends ARPane {
 
     public void initialize(
             ARWebDriver currentARWebDriver,
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
-            PerformPreLoad performPreLoad,
             HomeBankingLoadDTO homeBanking,
             BotJobLoadDTO botJobLoadDTO,
             BlockLoadDTO blockLoadDTO,
             ExecutorService executorWebSocket,
             ExecutorService executorServicePreLaunch) {
         this.currentARWebDriver = currentARWebDriver;
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
-        this.performPreLoad = performPreLoad;
         this.homeBanking = homeBanking;
 
         this.executorWebSocket = executorWebSocket;
@@ -1432,7 +1433,7 @@ public class ARScannedElementPane extends ARPane {
 
         updateSceneTitleWithCurrentURL(homeBanking.getUrl());
 
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
+        this.blockLoadList = performDB.loadBlocksByBotJobId(this.botJobLoad.getId());
         loadAllBlockItems(this.blockLoadList);
 
         refreshBlocksButton = createPathButton();
@@ -1660,7 +1661,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void refreshBlocks(boolean secondItem) {
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
+        this.blockLoadList = performDB.loadBlocksByBotJobId(this.botJobLoad.getId());
         loadAllBlockItems(this.blockLoadList);
 
         if (!secondItem) {
@@ -1798,7 +1799,7 @@ public class ARScannedElementPane extends ARPane {
                 return;
             }
 
-            this.botJobLoadList = performDataBase.loadCompleteJobs(botJobLoad.getId());
+            this.botJobLoadList = performDB.loadCompleteJobs(botJobLoad.getId());
 
             // Set all instructions' executed field to false
             botJobLoadList.get(0).getBlockLoadDTOList().stream()
@@ -2695,7 +2696,7 @@ public class ARScannedElementPane extends ARPane {
                         + "                         left join bot_job bot on bot.active = 1 and bot.home_banking_id = bank.id "
                         + " WHERE bank.id = " + bankId
                         + "                         group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+        try (Statement stmt = performDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
@@ -4851,9 +4852,9 @@ public class ARScannedElementPane extends ARPane {
 
         try {
             if (!updateRow) {
-                newId = performDataBase.insertInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
+                newId = performDB.insertInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
             } else {
-                newId = performDataBase.updateInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
+                newId = performDB.updateInstruction(instructionLoadDTO, currentBotJobId, currentBlockId);
             }
 
         } catch (Exception e) {

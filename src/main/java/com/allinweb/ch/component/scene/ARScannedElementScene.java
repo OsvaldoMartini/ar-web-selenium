@@ -68,19 +68,7 @@ public class ARScannedElementScene extends ARScene {
     }
 
     public ARScannedElementScene initialize(
-            ARWebDriver arWebDriver,
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
-            PerformPreLoad performPreLoad,
-            HomeBankingLoadDTO homeBankingLoadDTO,
-            BotJobLoadDTO botJobLoadDTO,
-            BlockLoadDTO blockLoadDTO) {
-        this.arWebDriver = arWebDriver;
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
-        this.performPreLoad = performPreLoad;
+            HomeBankingLoadDTO homeBankingLoadDTO, BotJobLoadDTO botJobLoadDTO, BlockLoadDTO blockLoadDTO) {
         this.homeBankingLoadDTO = homeBankingLoadDTO;
         this.botJobLoadDTO = botJobLoadDTO;
         this.blockLoadDTO = blockLoadDTO;
@@ -93,10 +81,6 @@ public class ARScannedElementScene extends ARScene {
     public IARPane buildPane() {
         arScannedElementPane.initialize(
                 arWebDriver,
-                performDataBase,
-                performActions,
-                performMessage,
-                performPreLoad,
                 homeBankingLoadDTO,
                 botJobLoadDTO,
                 blockLoadDTO,

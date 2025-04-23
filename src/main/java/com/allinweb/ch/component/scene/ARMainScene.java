@@ -69,9 +69,9 @@ public class ARMainScene extends ARScene {
             try {
                 Platform.runLater(() -> webDriverList.remove(driver));
                 Platform.runLater(driver::quit);
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                ARLogger.getInstance(ARMainScene.class).info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                ARLogger.getInstance(ARMainScene.class).warning("Error closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> {

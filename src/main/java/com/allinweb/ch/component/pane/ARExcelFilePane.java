@@ -5,7 +5,8 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformDB;
+import com.allinweb.ch.facade.PerformDBActions;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
@@ -47,12 +48,14 @@ public class ARExcelFilePane extends ARPane {
     private final Gson gson = new Gson();
 
     private static final ARPropertyManager arPropertyManager;
-    private static final PerformDataBase performDataBase;
+    private static final PerformDBActions performDBActions;
+    private static final PerformDB performDB;
     private static final PerformMessage performMessage;
     // Static block to initialize
     static {
         arPropertyManager = ARPropertyManager.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+        performDBActions = PerformDBActions.getInstance();
+        performDB = PerformDB.getInstance();
         performMessage = PerformMessage.getInstance();
     }
 
@@ -303,25 +306,25 @@ public class ARExcelFilePane extends ARPane {
             tableTarget = "component_block";
         }
 
-        boolean updateBlock = performDataBase.updateBlockExportFile(
+        boolean updateBlock = performDBActions.updateBlockExportFile(
                 tableTarget, blockExcelDTO.getBotJobId(), blockExcelDTO.getBlockId(), exportFile);
 
         List<BotJobLoadDTO> botJobLoadList;
         if ((sessionId != null && sessionId.matches(".*botJobTasks.*"))) {
-            botJobLoadList = performDataBase.loadCompleteJobs(blockExcelDTO.getBotJobId());
+            botJobLoadList = performDB.loadCompleteJobs(blockExcelDTO.getBotJobId());
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                List<InstructionLoadDTO> blockLoopInstructions = performDB.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             SimpleWebSocketServer.sendMessageJson(
                     blockExcelDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
         } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
-            botJobLoadList = performDataBase.loadComponentsComplete(blockExcelDTO.getHomeBankingId());
+            botJobLoadList = performDB.loadComponentsComplete(blockExcelDTO.getHomeBankingId());
             String jsonData = "[]";
             if (!botJobLoadList.isEmpty()) {
-                List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
+                List<InstructionLoadDTO> blockLoopInstructions = performDB.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             //            SimpleWebSocketServer.sendMessageJson(sessionId, jsonData, "componentsUpdate");

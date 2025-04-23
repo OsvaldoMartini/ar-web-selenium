@@ -2,7 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformDB;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -38,12 +38,12 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 public class ARSaveClonePane extends ARPane {
 
     private static final PerformMessage performMessage;
-    private static final PerformDataBase performDataBase;
+    private static final PerformDB performDB;
 
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+        performDB = PerformDB.getInstance();
     }
 
     private static final int SECONDS = 3; // Total seconds for the countdown
@@ -174,45 +174,57 @@ public class ARSaveClonePane extends ARPane {
 
             int homeBankId = botJobList.get(0).getHomeBankingId();
 
-            try (Connection conn = performDataBase.getConnection()) {
-                int newBotJobId = performDataBase.getMaxId(conn, "bot_job") + 1;
+            try (Connection conn = performDB.getConnection()) {
+                int newBotJobId = performDB.getMaxId(conn, "bot_job") + 1;
 
-                String[] arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
-                ErrorMessage errorMessage = performDataBase.duplicateBotJobById(
-                        conn,
-                        homeBankId,
-                        selecBotJobDTO.getId(),
-                        newBotJobId,
-                        newBotJobName,
-                        newDescription,
-                        arrayTables);
+                if (newBotJobId > -1) {
 
-                if (errorMessage == null) {
-                    showAlertTimer(
-                            Alert.AlertType.INFORMATION,
-                            "Success",
-                            "Bot Job Duplication",
-                            "The bot job has been successfully duplicated!",
-                            String.format("Bot Job (ID: %d) Name '%s' ", newBotJobId, newBotJobName),
+                    String[] arrayTables = {"block", "instruction", "reference", "complex_instruction", "variable"};
+                    ErrorMessage errorMessage = performDB.duplicateBotJobById(
+                            conn,
+                            homeBankId,
+                            selecBotJobDTO.getId(),
+                            newBotJobId,
+                            newBotJobName,
                             newDescription,
-                            null);
+                            arrayTables);
 
+                    if (errorMessage == null) {
+                        performMessage.showCustomModalDialogDragWin11(
+                                "Success: Bot Job Duplicated",
+                                "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Bot Job Duplication Successful!</span> ✅",
+                                "<span style='color: #1976D2;'>New Bot Job Details:</span>",
+                                "<span style='font-weight: bold;'>ID:</span> " + newBotJobId + "<br>"
+                                        + "<span style='font-weight: bold;'>Name:</span> '" + newBotJobName + "'",
+                                "<span style='font-style: italic;'>Description: " + newDescription + "</span>",
+                                false,
+                                "OK",
+                                null,
+                                0);
+
+                    } else {
+
+                        String errorType = "Database error";
+                        String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
+
+                        performMessage.errorMessage(
+                                "Error Encountered",
+                                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span> ❌",
+                                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span> " + errorType,
+                                "<span style='font-style: italic;'>Detail:</span> " + errorDetail,
+                                null,
+                                0);
+                    }
                 } else {
-                    String[] lines = errorMessage.getErrorMessage().split("\n");
-
-                    String errorType = "Database error";
-                    String errorDetail = "Verify  [INSERT] or [UPDATE] or [SELECT]";
-
-                    String detailedMessage = "Type: " + errorType + "\nDetail: " + errorDetail;
-                    showAlertTimer(
-                            Alert.AlertType.ERROR,
-                            "Error",
-                            errorMessage.getErrorTitle(),
-                            errorMessage.getErrorHeader(),
-                            detailedMessage,
-                            null,
-                            null);
+                    performMessage.errorMessage(
+                            "Access Denied",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Access Denied!</span> 🔒",
+                            "<span style='color: #E65100;'>Cannot access the file.</span>",
+                            "<span style='font-style: italic;'>Verify if the file is currently open in another application.</span>",
+                            "<span style='font-style: italic;'>Please close the file in other applications and try again.</span>",
+                            0);
                 }
+
                 Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
                 stage.close();
             } catch (SQLException ex) {

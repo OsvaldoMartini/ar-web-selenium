@@ -6,9 +6,8 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.facade.PerformDB;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
@@ -18,9 +17,7 @@ import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -65,13 +62,13 @@ public class ARSaveComponentPane extends ARPane {
 
     private static final PerformMessage performMessage;
     private static final PerformActions performAction;
-    private static final PerformDataBase performDataBase;
+    private static final PerformDB performDB;
     //    private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
         performAction = PerformActions.getInstance();
-        performDataBase = PerformDataBase.getInstance();
+        performDB = PerformDB.getInstance();
         //        performDBSavedBlock = PerformDBSavedBlock.getInstance();
     }
 
@@ -199,8 +196,7 @@ public class ARSaveComponentPane extends ARPane {
                     blockDetailsDTO.setBlockDescription(
                             descriptionTextField.getText().trim());
 
-                    this.savedBlockLoadList =
-                            performDataBase.loadSavedBlocksForBotJob(blockDetailsDTO.getHomeBankingId());
+                    this.savedBlockLoadList = performDB.loadSavedBlocksForBotJob(blockDetailsDTO.getHomeBankingId());
 
                     //                    originalLoopInstruction =
                     // performDBSavedBlock.createSavedBlockLoopInstructionsFromBlocksDTO(
@@ -228,7 +224,7 @@ public class ARSaveComponentPane extends ARPane {
                     ARLogger.getInstance(ARSaveComponentPane.class)
                             .fine("Saving New Component Block: " + blockDetailsDTO.getBlockName());
 
-                    try (Connection conn = performDataBase.getConnection()) {
+                    try (Connection conn = performDB.getConnection()) {
                         String[] arrayTables = {
                             "block", // 0
                             "component_block", // 1
@@ -243,17 +239,17 @@ public class ARSaveComponentPane extends ARPane {
                         };
                         // Now you can proceed with duplicating the related tables
                         ErrorMessage errorMessage =
-                                performDataBase.saveNewComponent(conn, blockDetailsDTO, false, arrayTables);
+                                performDB.saveNewComponent(conn, blockDetailsDTO, false, arrayTables);
 
                         if (errorMessage == null) {
 
                             List<BotJobLoadDTO> botJobLoadList =
-                                    performDataBase.loadComponentsComplete(blockDetailsDTO.getHomeBankingId());
+                                    performDB.loadComponentsComplete(blockDetailsDTO.getHomeBankingId());
 
                             String jsonData = "[]";
                             if (botJobLoadList.size() > 0) {
                                 List<InstructionLoadDTO> blockLoopInstructions =
-                                        performDataBase.buildJsonViewData(botJobLoadList);
+                                        performDB.buildJsonViewData(botJobLoadList);
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
                             // SimpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
@@ -525,116 +521,6 @@ public class ARSaveComponentPane extends ARPane {
         closeButton.setOnAction(e -> Close());
     }
 
-    //    private int preFillSavedInstruction(
-    //            String name,
-    //            String description,
-    //            String actions,
-    //            String operation,
-    //            Integer onHold,
-    //            Integer varId,
-    //            Integer instructionOrderNumber,
-    //            boolean exportToAR,
-    //            String xPath,
-    //            Integer savedCurrentBotJobId,
-    //            Integer savedCurrentBlockId) {
-    //
-    //        ComponentInstructionDTO savedInstruction = new ComponentInstructionDTO();
-    //
-    //        savedInstruction.setName(name);
-    //        savedInstruction.setActive(true);
-    //
-    //        savedInstruction.setCodified(false);
-    //        savedInstruction.setExportToAR(true);
-    //
-    //        savedInstruction.setInstructionOrderNumber(instructionOrderNumber);
-    //
-    //        savedInstruction.setOptional(false);
-    //
-    //        savedInstruction.setOperation(operation);
-    //        savedInstruction.setActions(actions);
-    //        savedInstruction.setDescription(description);
-    //
-    //        savedInstruction.setVariableId(varId);
-    //
-    //        savedInstruction.setActionCustomMaxWaitSec(30);
-    //        savedInstruction.setOnHoldSeconds(onHold);
-    //        //        savedInstruction.setBlock(savedBlockDTO);
-    //        savedInstruction.setExportToAR(exportToAR);
-    //
-    //        savedInstruction.setPath(xPath);
-    //
-    //        // Wrap the persistence in a try-catch block
-    //        int newId = -1;
-    //
-    //        try {
-    //            newId = performDBSavedBlock.insertSavedInstruction(
-    //                    savedInstruction, savedCurrentBotJobId, savedCurrentBlockId);
-    //
-    //        } catch (SQLException e) {
-    //
-    //            ARLogger.getInstance(ARViewBotJobPane.class)
-    //                    .severe(String.format(
-    //                            "Cannot Insert \"Component\" Instruction \"%s\"\nCannot be saved!\nError: %s",
-    //                            savedInstruction.getName(), e.getMessage()));
-    //        }
-    //        return newId;
-    //    }
-
-    //    private boolean insertComponentReferences(ComponentReferenceDTO referenceDTO, int instructionId) {
-    //
-    //        // Generate a Unique-ID for the block
-    //        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
-    //
-    //            // Fetch instructionId from savedBlockLoopInstructionLoadDTO
-    //
-    //            Integer nextId = loadNextIdBReferenceData() + 1;
-    //
-    //            // Build the SQL insert query
-    //            String insertSQL = "INSERT INTO component_reference(id, reference_type, value, instruction_id) VALUES
-    // ("
-    //                    + nextId + ", "
-    //                    + "'" + referenceDTO.getReferenceType() + "', "
-    //                    + "'" + referenceDTO.getValue() + "', " // name
-    //                    + instructionId + ")"; // bot_job_id, assuming BotJobDTO has an ID
-    //
-    //            int rowsAffected = stmt.executeUpdate(insertSQL);
-    //            if (rowsAffected > 0) {
-    //                ARLogger.getInstance(ARViewBotJobPane.class)
-    //                        .info(String.format(
-    //                                "\"COMPONENT\" Instruction Reference SAVED SUCCESSFULLY\nid: %d\nRef Type:
-    // %s\nValue: %s\nInstructionId: %d",
-    //                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
-    //            } else {
-    //                ARLogger.getInstance(ARViewBotJobPane.class)
-    //                        .warning(String.format(
-    //                                "\"COMPONENT\" Instruction Reference NOT SAVED\nid: %d\nRef Type: %s\nValue:
-    // %s\nInstructionId: %d",
-    //                                nextId, referenceDTO.getReferenceType(), referenceDTO.getValue(), instructionId));
-    //            }
-    //
-    //            return true;
-    //        } catch (SQLException e) {
-    //            ARLogger.getInstance(ARViewBotJobPane.class)
-    //                    .severe("Cannot Insert \"COMPONENT\" References\nError " + e.getMessage());
-    //            return false;
-    //        }
-    //    }
-
-    //    private Integer loadNextIdBReferenceData() {
-    //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-    //        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_reference";
-    //        try (Statement stmt = PerformDataBase.getConnection().createStatement();
-    //                ResultSet rs = stmt.executeQuery(selectSQL)) {
-    //            while (rs.next()) {
-    //                return rs.getInt("max_id");
-    //            }
-    //        } catch (SQLException e) {
-    //            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBReferenceData  \nError: " +
-    // e.getMessage());
-    //        }
-    //        return null;
-    //    }
-
     private void Close() {
         Platform.runLater(() -> {
             Stage stage = (Stage) mainPane.getScene().getWindow();
@@ -642,119 +528,93 @@ public class ARSaveComponentPane extends ARPane {
         });
     }
 
-    private int createSavedBlock(BlockLoadDTO blockDTO) {
-        // Generate a Unique-ID for the block
-        Integer nextId = loadNextIdSavedBlockData() + 1;
-        Integer nextBlockOrder = loadNextSavedBlockOrderNumber(blockDTO.getBotJobId()) + 1;
+    //    private int createSavedBlock(BlockLoadDTO blockDTO) {
+    //        // Generate a Unique-ID for the block
+    //        Integer nextId = loadNextIdSavedBlockData() + 1;
+    //        Integer nextBlockOrder = loadNextSavedBlockOrderNumber(blockDTO.getBotJobId()) + 1;
+    //
+    //        // Build the SQL insert query
+    //        String insertSQL =
+    //                "INSERT INTO component_block(id, block_order_number, description, name, type_id, bot_job_id,
+    // active) VALUES ("
+    //                        + nextId + ", "
+    //                        + nextBlockOrder + ", " // block_order_number
+    //                        + "'" + blockDTO.getDescription() + "', " // description
+    //                        + "'" + blockDTO.getName() + "', " // name
+    //                        + 1 + ", " // type_id
+    //                        + blockDTO.getBotJobId() + ", " // bot_job_id, assuming BotJobDTO has an ID
+    //                        + (blockDTO.getActive() ? 1 : 0) + ", " // active
+    //                        + ")";
+    //
+    //        try (Statement stmt = performDataBase.getConnection().createStatement()) {
+    //            stmt.executeUpdate(insertSQL);
+    //            ARLogger.getInstance(ARViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
+    //            return nextId;
+    //        } catch (SQLException e) {
+    //            ARLogger.getInstance(ARViewBotJobPane.class).severe("saveBlock  \nError: " + e.getMessage());
+    //            return -1;
+    //        }
+    //    }
 
-        // Build the SQL insert query
-        String insertSQL =
-                "INSERT INTO component_block(id, block_order_number, description, name, type_id, bot_job_id, active) VALUES ("
-                        + nextId + ", "
-                        + nextBlockOrder + ", " // block_order_number
-                        + "'" + blockDTO.getDescription() + "', " // description
-                        + "'" + blockDTO.getName() + "', " // name
-                        + 1 + ", " // type_id
-                        + blockDTO.getBotJobId() + ", " // bot_job_id, assuming BotJobDTO has an ID
-                        + (blockDTO.getActive() ? 1 : 0) + ", " // active
-                        + ")";
-
-        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
-            stmt.executeUpdate(insertSQL);
-            ARLogger.getInstance(ARViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
-            return nextId;
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("saveBlock  \nError: " + e.getMessage());
-            return -1;
-        }
-    }
-
-    private Integer loadNextIdSavedBlockData() {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private Integer loadNextSavedBlockOrderNumber(int botJobId) {
-        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
-        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block where bot_job_id = " + botJobId;
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(selectSQL)) {
-            while (rs.next()) {
-                return rs.getInt("max_id");
-            }
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARViewBotJobPane.class).severe("loadNextIdBlockData  \nError: " + e.getMessage());
-        }
-        return null;
-    }
-
-    public List<InstructionLoadDTO> getSavedInstructionsByBlockId(int botJobId, int blockId) {
-        // List to store the fetched instructions
-        List<InstructionLoadDTO> instructions = new ArrayList<>();
-
-        // Build the SQL query statement
-        String querySQL = "SELECT * FROM component_instruction WHERE block_id = " + blockId
-                + " order by instruction_order_number ASC";
-
-        // Execute the query and process the result set
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
-                ResultSet rs = stmt.executeQuery(querySQL)) {
-
-            while (rs.next()) {
-                // Assuming you have an Instruction class, populate it with data from the ResultSet
-                InstructionLoadDTO instruction = new InstructionLoadDTO();
-                instruction.setInstructionId(rs.getInt("id"));
-                instruction.setHomeBankingId(rs.getInt("home_banking_id"));
-                instruction.setInstructionName(rs.getString("name"));
-                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
-                instruction.setBlockId(rs.getInt("block_id"));
-                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
-                instruction.setBotJobId(botJobId);
-
-                instruction.setActions(rs.getString("actions"));
-                instruction.setXpath(rs.getString("xpath"));
-                instruction.setCoordinates(rs.getString("coordinates"));
-                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
-                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
-
-                instruction.setTagName(rs.getString("tag_name"));
-                instruction.setShadowHost(rs.getString("shadow_host"));
-                instruction.setShadowRoot(rs.getString("shadow_root"));
-                instruction.setCssSelector(rs.getString("css_selector"));
-
-                instruction.setDescription(rs.getString("description"));
-                instruction.setOptional(rs.getBoolean("optional"));
-                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
-                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
-                instruction.setCodified(rs.getBoolean("codified"));
-                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
-                instruction.setInstructionActive(rs.getBoolean("active"));
-
-                // Add the instruction to the list
-                instructions.add(instruction);
-            }
-
-            ARLogger.getInstance(ARWebDriver.class)
-                    .info(String.format(
-                            "Fetched %d Saved instructions for Block ID %d:", instructions.size(), blockId));
-
-        } catch (SQLException e) {
-            ARLogger.getInstance(ARWebDriver.class)
-                    .severe(String.format(
-                            "Error fetching Saved instructions for Block ID %d. Error: %s: ", blockId, e.getMessage()));
-        }
-
-        return instructions;
-    }
+    //    public List<InstructionLoadDTO> getSavedInstructionsByBlockId(int botJobId, int blockId) {
+    //        // List to store the fetched instructions
+    //        List<InstructionLoadDTO> instructions = new ArrayList<>();
+    //
+    //        // Build the SQL query statement
+    //        String querySQL = "SELECT * FROM component_instruction WHERE block_id = " + blockId
+    //                + " order by instruction_order_number ASC";
+    //
+    //        // Execute the query and process the result set
+    //        try (Statement stmt = performDataBase.getConnection().createStatement();
+    //                ResultSet rs = stmt.executeQuery(querySQL)) {
+    //
+    //            while (rs.next()) {
+    //                // Assuming you have an Instruction class, populate it with data from the ResultSet
+    //                InstructionLoadDTO instruction = new InstructionLoadDTO();
+    //                instruction.setInstructionId(rs.getInt("id"));
+    //                instruction.setHomeBankingId(rs.getInt("home_banking_id"));
+    //                instruction.setInstructionName(rs.getString("name"));
+    //                instruction.setInstructionOrderNumber(rs.getInt("instruction_order_number"));
+    //                instruction.setBlockId(rs.getInt("block_id"));
+    //                instruction.setBlockOrderNumber(instruction.getBlockOrderNumber());
+    //                instruction.setBotJobId(botJobId);
+    //
+    //                instruction.setActions(rs.getString("actions"));
+    //                instruction.setXpath(rs.getString("xpath"));
+    //                instruction.setCoordinates(rs.getString("coordinates"));
+    //                instruction.setForceCoordinates(rs.getBoolean("force_coordinates"));
+    //                instruction.setIFrameXPath(rs.getString("iframe_xpath"));
+    //
+    //                instruction.setTagName(rs.getString("tag_name"));
+    //                instruction.setShadowHost(rs.getString("shadow_host"));
+    //                instruction.setShadowRoot(rs.getString("shadow_root"));
+    //                instruction.setCssSelector(rs.getString("css_selector"));
+    //
+    //                instruction.setDescription(rs.getString("description"));
+    //                instruction.setOptional(rs.getBoolean("optional"));
+    //                instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
+    //                instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));
+    //                instruction.setCodified(rs.getBoolean("codified"));
+    //                instruction.setExportToABR(rs.getBoolean("export_to_abr"));
+    //                instruction.setInstructionActive(rs.getBoolean("active"));
+    //
+    //                // Add the instruction to the list
+    //                instructions.add(instruction);
+    //            }
+    //
+    //            ARLogger.getInstance(ARWebDriver.class)
+    //                    .info(String.format(
+    //                            "Fetched %d Saved instructions for Block ID %d:", instructions.size(), blockId));
+    //
+    //        } catch (SQLException e) {
+    //            ARLogger.getInstance(ARWebDriver.class)
+    //                    .severe(String.format(
+    //                            "Error fetching Saved instructions for Block ID %d. Error: %s: ", blockId,
+    // e.getMessage()));
+    //        }
+    //
+    //        return instructions;
+    //    }
 
     private void warningMSG(String msg) {
         Platform.runLater(() -> {

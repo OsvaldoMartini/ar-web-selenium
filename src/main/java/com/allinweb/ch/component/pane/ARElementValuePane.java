@@ -3,6 +3,7 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
+import com.allinweb.ch.facade.PerformDB;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
@@ -61,10 +62,12 @@ public class ARElementValuePane extends ARPane {
     Button deleteButton;
 
     private static final PerformDataBase performDataBase;
+    private static final PerformDB performDB;
     private static final PerformMessage performMessage;
     // Static block to initialize
     static {
         performDataBase = PerformDataBase.getInstance();
+        performDB = PerformDB.getInstance();
         performMessage = PerformMessage.getInstance();
     }
 
@@ -172,7 +175,7 @@ public class ARElementValuePane extends ARPane {
                 return;
             }
 
-            performDataBase.saveUserData(user);
+            performDB.saveUserData(user);
             this.variablesList.clear();
             this.variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
         });
