@@ -43,6 +43,7 @@ public class ARMainPane extends ARPane {
     private boolean isCloseHandlerSet = false;
 
     //    private static final ARSharedResources dbResource;
+    private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final PerformActions performActions;
@@ -66,6 +67,7 @@ public class ARMainPane extends ARPane {
     // Static block to initialize
     static {
         //        dbResource = PerformDataBase.;
+        arPropertyManager = ARPropertyManager.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
@@ -97,9 +99,9 @@ public class ARMainPane extends ARPane {
 
     public ARMainPane(ObservableList<WebDriver> webDriverList) {
         this.webDriverList = webDriverList;
-        String pathDB = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
-        performDataBase.initialize(performMessage, dataBaseType);
+        String pathDB = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+        performDataBase.initialize(dataBaseType);
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
             POSTGRES_DB = true;
@@ -112,7 +114,7 @@ public class ARMainPane extends ARPane {
         }
 
         if (!POSTGRES_DB) {
-            String dbPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
             String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
@@ -291,9 +293,9 @@ public class ARMainPane extends ARPane {
             {
                 var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
                 if (selecBotJobDTO != null) {
-                    ARPropertyManager managerProps = ARPropertyManager.getInstance();
-                    String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
-                    String excelPath = managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+                    String enginePath =
+                            arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
+                    String excelPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
                     excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
                     if (!new File(excelPath).exists()) {
                         performMessage.errorMessage(
@@ -322,7 +324,7 @@ public class ARMainPane extends ARPane {
                                 null,
                                 0);
                     }
-                    String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+                    String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
                     if (!(new File(webDriverPath)).exists()) {
                         performMessage.errorMessage(
                                 "Action Required: Missing WebDriver",
@@ -346,11 +348,11 @@ public class ARMainPane extends ARPane {
                         String.valueOf(selecBotJobDTO.getId()),
                         "\"" + excelPath + "\"",
                         "-c",
-                        ARPropertyManager.getConfigurationFileName()
+                        arPropertyManager.getConfigurationFileName()
                     };
                     ProcessBuilder processBuilder = new ProcessBuilder(command);
                     processBuilder.directory(new File(ARConstants.CURRENT_PATH));
-                    String logPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+                    String logPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
                     File output = new File(logPath + "\\engine_debug_log_output.log");
                     File error = new File(logPath + "\\engine_debug_log_error.log");
                     File input = new File(logPath + "\\engine_debug_log_input.log");

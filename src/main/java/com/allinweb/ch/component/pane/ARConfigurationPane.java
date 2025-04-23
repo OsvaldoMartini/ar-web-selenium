@@ -50,11 +50,14 @@ public class ARConfigurationPane extends ARPane {
 
     public ARConfigurationPane() {}
 
+    private static final ARPropertyManager arPropertyManager;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
+
     // Static block to initialize
     static {
+        arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
@@ -475,12 +478,12 @@ public class ARConfigurationPane extends ARPane {
         pathJavaFXButton.setOnMouseClicked(e -> openChooserFor(pathJavaFX, true));
         pathEngineButton.setOnMouseClicked(e -> openChooserFor(pathEngine, true));
         pathWebDriverButton.setOnMouseClicked(e -> openChooserFor(pathWebDriver, false));
-        browserChoiceBox.setValue(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BROWSER));
+        browserChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.BROWSER));
 
-        if (ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE) == null) {
+        if (arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE) == null) {
             databaseChoiceBox.setValue("Access");
         } else {
-            databaseChoiceBox.setValue(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE));
+            databaseChoiceBox.setValue(arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE));
         }
 
         reloadDBButton.setOnMouseClicked(e -> saveConfigurations());
@@ -489,7 +492,7 @@ public class ARConfigurationPane extends ARPane {
     }
 
     private void runMigrateScripts() {
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         Label newInstruction =
                 new Label("DB MIGRATION\nDatabase Selected: \"" + dataBaseType + "\" \nRelease : \"v2.6f Beta Test\"");
@@ -638,22 +641,22 @@ public class ARConfigurationPane extends ARPane {
 
         if (validfields) {
 
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
+            arPropertyManager.setProperty(ARPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
+            arPropertyManager.setProperty(ARPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.FOLDER_PATH_EXCEL.getValue(), pathExcel.getText());
 
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
+            arPropertyManager.setProperty(ARPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(), pathJavaFX.getText());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
+            arPropertyManager.setProperty(ARPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY.getValue(), pathPriority.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.FOLDER_PATH_REPORT.getValue(), pathReport.getText());
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), pathEngine.getText());
+            arPropertyManager.setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), pathEngine.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());
 
@@ -672,7 +675,7 @@ public class ARConfigurationPane extends ARPane {
     }
 
     private void deleteAllDB() {
-        String dataBaseType = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.DATABASE_TYPE);
+        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         Label newInstruction = new Label("DELETE ALL JOB DETAILS\nDatabase Selected: \"" + dataBaseType + "\"");
         newInstruction.setStyle("-fx-font-size: 18px; -fx-text-fill: red;");
@@ -711,7 +714,7 @@ public class ARConfigurationPane extends ARPane {
 
     private TextField createPathTextField(ARPropertyEnum property) {
         TextField textField = new TextField();
-        textField.setText(ARPropertyManager.getInstance().getProperty(property));
+        textField.setText(arPropertyManager.getProperty(property));
         AnchorPane.setTopAnchor(textField, ARConstants.SPACE_ZERO);
         AnchorPane.setBottomAnchor(textField, ARConstants.SPACE_ZERO);
         AnchorPane.setRightAnchor(textField, ARConstants.SPACE_XL);

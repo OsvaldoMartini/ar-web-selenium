@@ -94,6 +94,7 @@ public class ARViewBotJobPane extends ARPane {
     private List<BlockLoadDTO> blockLoadList;
 
     //    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final ARPropertyManager arPropertyManager;
     private static final ARScannedElementScene arScannedElementScene;
     private ARWebDriver arWebDriver;
     private PerformDataBase performDataBase;
@@ -102,6 +103,7 @@ public class ARViewBotJobPane extends ARPane {
     private PerformPreLoad performPreLoad;
 
     static {
+        arPropertyManager = ARPropertyManager.getInstance();
         arScannedElementScene = ARScannedElementScene.getInstance();
     }
 
@@ -178,7 +180,7 @@ public class ARViewBotJobPane extends ARPane {
     public void initUIComponents() {
         portInitial = 54525;
 
-        String portSocket = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
+        String portSocket = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (portSocket != null) {
             portInitial = Integer.parseInt(portSocket);
         }
@@ -502,7 +504,7 @@ public class ARViewBotJobPane extends ARPane {
 
             List<String> allActions = performDataBase.loadAllActionsPerBlock(blocksLoaded);
 
-            String excelFolderPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+            String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
             String fileName =
                     String.format("%s/%s%s", excelFolderPath, botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
 
@@ -661,8 +663,7 @@ public class ARViewBotJobPane extends ARPane {
             this.botJobList.addAll(performDataBase.loadAllBotJobs());
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
-            List<String> missingProperties =
-                    checkProperties(ARPropertyManager.getInstance().getProperties());
+            List<String> missingProperties = checkProperties(arPropertyManager.getProperties());
 
             if (!missingProperties.isEmpty()) {
 
@@ -817,7 +818,7 @@ public class ARViewBotJobPane extends ARPane {
             }
         });
         this.launchBotJobButton.setOnMouseClicked((e) -> {
-            ARPropertyManager managerProps = ARPropertyManager.getInstance();
+            ARPropertyManager managerProps = arPropertyManager;
             String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
             String excelPath = managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
             excelPath = excelPath + "\\" + this.botJobLoad.getName() + ".xlsx";
@@ -872,11 +873,11 @@ public class ARViewBotJobPane extends ARPane {
                 String.valueOf(this.botJobLoad.getId()),
                 "\"" + excelPath + "\"",
                 "-c",
-                ARPropertyManager.getConfigurationFileName()
+                arPropertyManager.getConfigurationFileName()
             };
             ProcessBuilder processBuilder = new ProcessBuilder(command);
             processBuilder.directory(new File(ARConstants.CURRENT_PATH));
-            String logPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+            String logPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
             File output = new File(logPath + "\\engine_debug_log_output.log");
             File error = new File(logPath + "\\engine_debug_log_error.log");
             File input = new File(logPath + "\\engine_debug_log_input.log");
@@ -914,7 +915,7 @@ public class ARViewBotJobPane extends ARPane {
             stage.close();
         });
         this.openExcelFileButton.setOnMouseClicked((e) -> {
-            String excelFolderPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+            String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
             String fileName =
                     String.format("%s/%s%s", excelFolderPath, this.botJobLoad.getName(), ARConstants.FILE_FORMAT_EXCEL);
 
@@ -942,8 +943,7 @@ public class ARViewBotJobPane extends ARPane {
             } else {
 
                 try {
-                    String excelFilePath =
-                            ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+                    String excelFilePath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
                     excelFilePath = excelFilePath + "\\" + this.botJobLoad.getName() + ".xlsx";
                     File file = new File(excelFilePath);
                     Desktop.getDesktop().open(file);

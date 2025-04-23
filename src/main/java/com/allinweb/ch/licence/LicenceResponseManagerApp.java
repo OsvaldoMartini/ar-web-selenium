@@ -24,7 +24,7 @@ import javafx.util.converter.IntegerStringConverter;
 
 public class LicenceResponseManagerApp extends Application {
 
-    private static PerformMessage performMessage;
+    private static final PerformMessage performMessage;
 
     static {
         performMessage = PerformMessage.getInstance();

@@ -27,6 +27,12 @@ import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 
 public class ExcelWriter {
+    private static final ARPropertyManager arPropertyManager;
+
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+    }
+
     private static final int INSTRUCTION_FIELDS_ROW_INDEX = 1;
     private static final int EXECUTION_TIMES_COLUMN_INDEX = 11;
 
@@ -394,7 +400,7 @@ public class ExcelWriter {
 
             if (!isFullPath) {
                 fileNamePath = "\\" + fileName + ARConstants.FILE_FORMAT_EXCEL;
-                fullPath = ARPropertyManager.getInstance().getProperty(property) + fileNamePath;
+                fullPath = arPropertyManager.getProperty(property) + fileNamePath;
             } else {
                 fullPath = fileName;
             }

@@ -38,12 +38,15 @@ public class ExcelUtils {
     private List<BotJobLoadDTO> botLoadJobs = new ArrayList<>();
     private static List<BlockLoadDTO> blocksLoaded;
     private ExtractedData extractedData;
+
+    private static final ARPropertyManager arPropertyManager;
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
 
     // Static block to initialize
     static {
         performMessage = PerformMessage.getInstance();
+        arPropertyManager = ARPropertyManager.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
 
@@ -54,7 +57,7 @@ public class ExcelUtils {
         //        this.blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
         this.extractedData = extractedData;
 
-        File excelFolder = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL));
+        File excelFolder = new File(arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL));
         if (!excelFolder.exists()) {
             excelFolder.mkdirs();
         }
@@ -75,8 +78,8 @@ public class ExcelUtils {
     }
 
     private void generateUnfilteredCSVFile(BotJobDTO botJob) {
-        String fileName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJob.getName() + ARConstants.FILE_FORMAT_CSV;
+        String fileName = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL) + "/" + botJob.getName()
+                + ARConstants.FILE_FORMAT_CSV;
 
         BufferedWriter bufferedWriter = null;
         File file = new File(fileName);
@@ -158,8 +161,8 @@ public class ExcelUtils {
 
     private File generateUnfilteredExcelFile(
             BotJobLoadDTO botJobLoad, List<String> allActions, ExtractedData extractedData) {
-        String fileName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL) + "/"
-                + botJobLoad.getName() + ARConstants.FILE_FORMAT_EXCEL;
+        String fileName = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL) + "/" + botJobLoad.getName()
+                + ARConstants.FILE_FORMAT_EXCEL;
 
         File file = new File(fileName);
         try {
@@ -304,7 +307,7 @@ public class ExcelUtils {
 
     public static ExtractedData isFileExists(String botJobName, List<String> allActions) {
 
-        String excelFolderPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+        String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
         String fileName = String.format("%s/%s%s", excelFolderPath, botJobName, ARConstants.FILE_FORMAT_EXCEL);
 
         // Create a File object

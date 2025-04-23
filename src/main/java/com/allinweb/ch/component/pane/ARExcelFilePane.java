@@ -46,10 +46,12 @@ public class ARExcelFilePane extends ARPane {
 
     private final Gson gson = new Gson();
 
+    private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     // Static block to initialize
     static {
+        arPropertyManager = ARPropertyManager.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
     }
@@ -342,7 +344,7 @@ public class ARExcelFilePane extends ARPane {
 
     private TextField createPathTextField(ARPropertyEnum property) {
         TextField textField = new TextField();
-        textField.setText(ARPropertyManager.getInstance().getProperty(property));
+        textField.setText(arPropertyManager.getProperty(property));
         AnchorPane.setTopAnchor(textField, ARConstants.SPACE_ZERO);
         AnchorPane.setBottomAnchor(textField, ARConstants.SPACE_ZERO);
         AnchorPane.setRightAnchor(textField, ARConstants.SPACE_XL);

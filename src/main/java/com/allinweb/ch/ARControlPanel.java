@@ -25,7 +25,7 @@ public class ARControlPanel extends Application {
 
     private static final PerformMessage performMessage;
     private static final ARPropertyManager arPropertyManager;
-    private static String configurationFileName = ARConstants.CURRENT_PATH + ARConstants.FILE_NAME_CONFIGURATION;
+    private static String defaultConfigurationFileName = ARConstants.CURRENT_PATH + ARConstants.FILE_NAME_CONFIGURATION;
 
     static {
         performMessage = PerformMessage.getInstance();
@@ -45,13 +45,25 @@ public class ARControlPanel extends Application {
         if (arguments.contains("-c")) {
             int configurationValueIndex = arguments.indexOf("-c") + 1;
             String configurationValue = arguments.get(configurationValueIndex);
-            ARPropertyManager.setConfigurationFileName(configurationValue);
+            try {
+                System.setProperty("ARWebConfig", configurationValue);
+            } catch (Exception ignore) {
+
+            }
+            // Prevention if  System.setProperty(...) has no permission access
+            arPropertyManager.setConfigurationFileName(configurationValue);
             arPropertyManager.loadProperties();
-            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
+            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationValue);
         } else {
-            ARPropertyManager.setConfigurationFileName(configurationFileName);
+            try {
+                System.setProperty("ARWebConfig", defaultConfigurationFileName);
+            } catch (Exception ignore) {
+
+            }
+            ;
+            arPropertyManager.setConfigurationFileName(defaultConfigurationFileName);
             arPropertyManager.loadProperties();
-            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + configurationFileName);
+            ARLogger.getInstance(ARControlPanel.class).fine("Configuration file path: " + defaultConfigurationFileName);
         }
 
         arPropertyManager.setProperty(ARPropertyEnum.VERSION.getValue(), "ARS Web v4.0f Beta Test");
@@ -64,7 +76,7 @@ public class ARControlPanel extends Application {
                     .setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(availablePort));
         } catch (IOException e) {
             System.out.println("Fixed Port : " + 54525);
-            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(54525));
+            arPropertyManager.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), String.valueOf(54525));
         }
 
         if (isEnabledLicence) {

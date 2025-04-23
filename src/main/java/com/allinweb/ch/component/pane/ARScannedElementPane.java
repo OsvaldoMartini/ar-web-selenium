@@ -1039,7 +1039,7 @@ public class ARScannedElementPane extends ARPane {
     private static String[] lstAllPaths;
 
     // Very important sequence on initiation
-    private static final ARPropertyManager managerProps;
+    private static final ARPropertyManager arPropertyManager;
     private static final ARPriorities arPriorities;
 
     private PerformDataBase performDataBase;
@@ -1073,7 +1073,7 @@ public class ARScannedElementPane extends ARPane {
 
     // Static block to initialize
     static {
-        managerProps = ARPropertyManager.getInstance();
+        arPropertyManager = ARPropertyManager.getInstance();
         iframeInputLocator = IframeInputLocator.getInstance();
         performCloneLoad = PerformCloneLoad.getInstance();
         performPickLoad = PerformPickLoad.getInstance();
@@ -1104,7 +1104,7 @@ public class ARScannedElementPane extends ARPane {
 
         activeSessions = SimpleWebSocketServer.getAllSessions();
 
-        String port = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PORT_SOCKET);
+        String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
             portSocket = Integer.parseInt(port);
         }
@@ -1235,7 +1235,7 @@ public class ARScannedElementPane extends ARPane {
                     null,
                     0);
         }
-        String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
         if (!(new File(webDriverPath)).exists()) {
             performMessage.errorMessage(
                     "Action Required: Missing WebDriver",
@@ -1246,7 +1246,7 @@ public class ARScannedElementPane extends ARPane {
                     0);
             return;
         }
-        String browserType = managerProps.getProperty(ARPropertyEnum.BROWSER);
+        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
         currentARWebDriver.openDriver(
                 browserType,
                 webDriverPath,
@@ -2748,10 +2748,8 @@ public class ARScannedElementPane extends ARPane {
 
     private boolean executeJob() {
         if (PerformActions.waitForPage == null) {
-            String updateTimeout =
-                    ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
-            String interactionTimeout =
-                    ARPropertyManager.getInstance().getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+            String updateTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
+            String interactionTimeout = arPropertyManager.getProperty(ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC);
             PerformActions.waitForPage = new WebDriverWait(
                     performActions.getCurrentDriver(), Duration.ofSeconds(Integer.parseInt(updateTimeout)));
             PerformActions.waitForAction = new WebDriverWait(
@@ -2759,7 +2757,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         try {
-            baseLogFile = new File(ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
+            baseLogFile = new File(arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
                     + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
         } catch (Exception e) {
             System.out.println(e.getMessage());
@@ -2769,7 +2767,7 @@ public class ARScannedElementPane extends ARPane {
         String botJobName = botJobLoadList.get(0).getName();
 
         //        ARPropertyManager managerProps = ARPropertyManager.getInstance();
-        String excelPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+        String excelPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
         excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobName() + ".xlsx";
         if (!(new File(excelPath)).exists()) {
 
@@ -2857,7 +2855,7 @@ public class ARScannedElementPane extends ARPane {
         //                .filter(action -> action.contains(ARConstants.CLICK))
         //                .collect(Collectors.toSet());
 
-        //        String browser = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.BROWSER);
+        //        String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
         //            WebPage webPage = new WebPage(browser, homeBankingDTO.getUrl());
 
         String baseLogString = blocksLoaded.get(0).getBotJobName()

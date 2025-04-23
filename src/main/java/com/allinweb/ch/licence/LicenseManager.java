@@ -26,8 +26,8 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class LicenseManager {
     private static final String KEY = "0123456789abcdef"; // 16-byte key for AES-128
-    private static PerformMessage performMessage;
-    private static ARPropertyManager arPropertyManager;
+    private static final PerformMessage performMessage;
+    private static final ARPropertyManager arPropertyManager;
 
     static {
         performMessage = PerformMessage.getInstance();
