@@ -396,7 +396,7 @@ public class ARViewBotJobPane extends ARPane {
         // Load blocks based on the BotJobLoadDTO instead of blockDTOObservableList
         if (this.botJobLoadList.size() > 0) {
             List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
-            performMessage.outputJson(blockLoopInstructions, "botJobTasks-" + this.botJobLoad.getId());
+            performMessage.outputJson(blockLoopInstructions, "botJobTasks-" + this.botJobLoad.getId(), false);
             jsonData = gson.toJson(blockLoopInstructions);
 
         } else {
@@ -431,7 +431,7 @@ public class ARViewBotJobPane extends ARPane {
         this.botJobLoadComp = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
         if (this.botJobLoadComp.size() > 0) {
             List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadComp);
-            performMessage.outputJson(blockLoopInstructions, "componentTasks-" + this.botJobLoad.getId());
+            performMessage.outputJson(blockLoopInstructions, "componentTasks-" + this.botJobLoad.getId(), false);
             jsonData = gson.toJson(blockLoopInstructions);
         } else {
             jsonData = "[]";

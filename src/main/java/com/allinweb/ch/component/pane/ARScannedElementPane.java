@@ -400,12 +400,12 @@ public class ARScannedElementPane extends ARPane {
                         false);
 
                 if (newId < 0) {
-
                     performMessage.errorMessage(
-                            "Error Add New \"Component\" Instruction",
-                            "Not possible to insert new Operation",
-                            "Instruction Name:",
-                            instruction.getName(),
+                            "Error Adding New Component Instruction",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to insert new Operation!</span> ❌",
+                            "<span style='color: #E65100; font-weight: bold;'>Instruction Name:</span> <span style='font-weight: bold;'>"
+                                    + instruction.getName() + "</span>",
+                            "<span style='font-style: italic;'>This operation could not be added. Please review the application state and any related processes.</span>",
                             null,
                             0);
 
@@ -449,12 +449,13 @@ public class ARScannedElementPane extends ARPane {
                         } else {
 
                             performMessage.errorMessage(
-                                    "Web Instruction Warning",
-                                    "Potential Issue with Web Instruction",
-                                    "The instruction \"" + instruction.getName() + "\" was added with " + queue.size()
-                                            + " reference locators.",
-                                    "However, the engine may not process this element correctly",
-                                    "due to insufficient identifiable attributes.",
+                                    "Web Instruction Analysis",
+                                    "<span style='color: #FFA000; font-weight: bold; font-size: 1.1em;'>Potential Issue with Web Instruction</span> ⚠️",
+                                    "<span style='color: #E65100;'>Instruction:</span> <span style='font-weight: bold;'>\""
+                                            + instruction.getName() + "\"</span>",
+                                    "<span style='color: #757575;'>Added with " + queue.size()
+                                            + " reference locators.</span>",
+                                    "<span style='font-style: italic;'>Warning: The engine might not process this element correctly due to insufficient identifiable attributes. Consider adding more specific locators.</span>",
                                     0);
                         }
                     });
