@@ -6,7 +6,7 @@
 #define MyAppPublisher "Allinweb AG"
 #define MyAppURL "https://www.allinweb.ch/"
 #define MyAppExeName "ARWeb-Scanner\exec_launcher.bat"
-#define MyAppDefaultDir "C:\ARWeb"
+#define MyAppDefaultDir "C:\ARWeb\ARWeb-Scanner"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -38,11 +38,11 @@ UninstallDisplayName=uninstall-ARWeb-v4.0
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+; You might have other tasks here, keep them if needed.
 
 [Files]
-Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Engine.jar"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
-Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
+Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Engine.jar"; DestDir: "{app}\"; Flags: ignoreversion
+Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\ARWeb.lic"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\exec_launcher.bat"; DestDir: "{app}\ARWeb-Scanner\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\edgedriver-versions\*"; DestDir: "{app}\ARWeb-Scanner\edgedriver-versions\"; Flags: ignoreversion
@@ -68,4 +68,4 @@ Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\ARWeb-Scann
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+; Name: "{autodesktop}\{#MyAppName} v{#MyAppVersion}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
