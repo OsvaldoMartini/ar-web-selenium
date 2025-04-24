@@ -74,13 +74,13 @@ public class ARNewCommandPane extends ARPane {
 
     private String sessionId;
 
-    //    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
 
     // Static block to initialize
     static {
-        //        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
+        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         performMessage = PerformMessage.getInstance();
         performDataBase = PerformDataBase.getInstance();
     }
@@ -216,7 +216,7 @@ public class ARNewCommandPane extends ARPane {
             ObservableList<ComboBoxVars> webPageItems,
             String sessionId) {
 
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+        activeSessions = simpleWebSocketServer.getAllSessions();
 
         this.rowMoveDTO = rowMoveDTO;
         this.botJobLoad = botJobLoad;
@@ -2370,7 +2370,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+        activeSessions = simpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {

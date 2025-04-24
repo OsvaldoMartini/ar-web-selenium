@@ -47,37 +47,37 @@ import javax.websocket.server.ServerEndpoint;
 @ServerEndpoint("/websocket")
 public class SimpleWebSocketServer {
 
-    //    protected static volatile  SimpleWebSocketServer instance;
-    //
-    //    // Private constructor to prevent instantiation
-    //    private SimpleWebSocketServer() {
-    //        // Initialize if necessary
-    //    }
-    //
-    //    public static SimpleWebSocketServer getInstance() {
-    //        if (instance == null) {
-    //            synchronized (SimpleWebSocketServer.class) {
-    //                if (instance == null) {
-    //                    instance = new SimpleWebSocketServer();
-    //                }
-    //            }
-    //        }
-    //        return instance;
-    //    }
+    protected static volatile SimpleWebSocketServer instance;
+
+    // Private constructor to prevent instantiation
+    public SimpleWebSocketServer() {
+        // Initialize if necessary
+    }
+
+    public static SimpleWebSocketServer getInstance() {
+        if (instance == null) {
+            synchronized (SimpleWebSocketServer.class) {
+                if (instance == null) {
+                    instance = new SimpleWebSocketServer();
+                }
+            }
+        }
+        return instance;
+    }
 
     private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
 
     // Store active sessions when a new connection is established
-    public static void addSession(String sessionId, Session session) {
+    public void addSession(String sessionId, Session session) {
         activeSessions.put(sessionId, session);
     }
 
     // Remove session when disconnected
-    public static void removeSession(String sessionId) {
+    public void removeSession(String sessionId) {
         activeSessions.remove(sessionId);
     }
 
-    public static Map<String, Session> getAllSessions() {
+    public Map<String, Session> getAllSessions() {
         return activeSessions;
     }
 
@@ -647,7 +647,7 @@ public class SimpleWebSocketServer {
         }
     }
 
-    public static void broadcastMessageToAll(int homeBankingId, String broadTo, String body, String operationId) {
+    public void broadcastMessageToAll(int homeBankingId, String broadTo, String body, String operationId) {
         for (Map.Entry<String, Session> entry : activeSessions.entrySet()) {
             String sessionKey = entry.getKey();
             Session session = entry.getValue();
@@ -665,7 +665,7 @@ public class SimpleWebSocketServer {
     }
 
     private void broadcastMessageToAll(int homeBankingId, String message) {
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+        activeSessions = getAllSessions();
 
         for (Session session : activeSessions.values()) { // Looping correctly
             if (session.isOpen()) {
@@ -683,8 +683,8 @@ public class SimpleWebSocketServer {
     }
 
     // Method to send a message to a specific session ID
-    public static void sendMessageJson(String sessionId, String message) {
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+    public void sendMessageJson(String sessionId, String message) {
+        activeSessions = getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {
@@ -699,8 +699,8 @@ public class SimpleWebSocketServer {
     }
 
     // Method to send a message to a specific session ID
-    public static void sendMessageJson(int homeBankingId, String sessionId, String body, String operationId) {
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+    public void sendMessageJson(int homeBankingId, String sessionId, String body, String operationId) {
+        activeSessions = getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {
@@ -742,7 +742,7 @@ public class SimpleWebSocketServer {
     }
 
     // Method to extract the type field from a JSON string
-    public static String extractType(String json) {
+    public String extractType(String json) {
         try {
             JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
             if (jsonObject.has("type")) {

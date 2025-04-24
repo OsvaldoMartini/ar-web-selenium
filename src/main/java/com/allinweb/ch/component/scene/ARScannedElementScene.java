@@ -8,10 +8,6 @@ import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformActions;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.util.ARLogger;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ExecutorService;
@@ -49,38 +45,23 @@ public class ARScannedElementScene extends ARScene {
 
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-    private ARWebDriver arWebDriver;
-    private PerformDataBase performDataBase;
-    private PerformActions performActions;
-    private PerformMessage performMessage;
-    private PerformPreLoad performPreLoad;
-
     private HomeBankingLoadDTO homeBankingLoadDTO;
     private BotJobLoadDTO botJobLoadDTO;
     private BlockLoadDTO blockLoadDTO;
 
     private ExecutorService executorWebSocket;
     private ExecutorService executorServicePreLaunch;
-    private static ARScannedElementPane arScannedElementPane;
+
+    private static final ARScannedElementPane arScannedElementPane;
+    private static final ARWebDriver arWebDriver;
 
     static {
         arScannedElementPane = ARScannedElementPane.getInstance();
+        arWebDriver = ARWebDriver.getInstance();
     }
 
     public ARScannedElementScene initialize(
-            ARWebDriver arWebDriver,
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
-            PerformPreLoad performPreLoad,
-            HomeBankingLoadDTO homeBankingLoadDTO,
-            BotJobLoadDTO botJobLoadDTO,
-            BlockLoadDTO blockLoadDTO) {
-        this.arWebDriver = arWebDriver;
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
-        this.performPreLoad = performPreLoad;
+            HomeBankingLoadDTO homeBankingLoadDTO, BotJobLoadDTO botJobLoadDTO, BlockLoadDTO blockLoadDTO) {
         this.homeBankingLoadDTO = homeBankingLoadDTO;
         this.botJobLoadDTO = botJobLoadDTO;
         this.blockLoadDTO = blockLoadDTO;
@@ -93,10 +74,6 @@ public class ARScannedElementScene extends ARScene {
     public IARPane buildPane() {
         arScannedElementPane.initialize(
                 arWebDriver,
-                performDataBase,
-                performActions,
-                performMessage,
-                performPreLoad,
                 homeBankingLoadDTO,
                 botJobLoadDTO,
                 blockLoadDTO,
@@ -125,11 +102,12 @@ public class ARScannedElementScene extends ARScene {
         // Close WebDriver if it's initialized
         if (arWebDriver != null) {
             try {
+                closeWebDrivers();
+
                 //                arWebDriver.closeDriver(); // Quit WebDriver
                 arWebDriver.getCurrentDriver().quit(); // Quit WebDriver
                 arWebDriver.setCurrentDriver(null);
 
-                closeWebDrivers();
                 shutDownExecutorService(executorWebSocket);
                 shutDownExecutorService(executorServicePreLaunch);
 

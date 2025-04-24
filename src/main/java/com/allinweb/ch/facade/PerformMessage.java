@@ -964,7 +964,7 @@ public class PerformMessage {
 
     public void outputJsonElementDTO(ElementDTO[] elementDTO) {
         // Get the directory path from ARPropertyManager
-        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+        String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
 
         // Define Gson ExclusionStrategy to ignore specific fields
         ExclusionStrategy strategy = new ExclusionStrategy() {

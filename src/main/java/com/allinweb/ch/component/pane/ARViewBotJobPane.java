@@ -11,10 +11,8 @@ import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.ComponentBlockDTO;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
 import com.allinweb.ch.util.ARConstants;
@@ -28,7 +26,6 @@ import com.google.gson.Gson;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -67,10 +64,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javax.websocket.Session;
-import javax.websocket.server.ServerContainer;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
 public class ARViewBotJobPane extends ARPane {
     // Set to hold all active WebSocket sessions
@@ -93,18 +86,20 @@ public class ARViewBotJobPane extends ARPane {
     private BlockLoadDTO blockLoad;
     private List<BlockLoadDTO> blockLoadList;
 
-    //    private static final SimpleWebSocketServer simpleWebSocketServer;
+    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final ARPropertyManager arPropertyManager;
     private static final ARScannedElementScene arScannedElementScene;
-    private ARWebDriver arWebDriver;
-    private PerformDataBase performDataBase;
-    private PerformActions performActions;
-    private PerformMessage performMessage;
-    private PerformPreLoad performPreLoad;
+    private static final ARWebDriver arWebDriver;
+    private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
 
     static {
+        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         arScannedElementScene = ARScannedElementScene.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
+        arWebDriver = ARWebDriver.getInstance();
     }
 
     private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
@@ -135,8 +130,7 @@ public class ARViewBotJobPane extends ARPane {
     private Timeline timeline;
     private ExecutorService executorService;
     private Alert alertToShow;
-    private Server jettyServer;
-    private ServerContainer wsContainer;
+
     private HBox componentBox;
 
     Button componentButton;
@@ -150,21 +144,8 @@ public class ARViewBotJobPane extends ARPane {
     private ARScene arScene;
     private final ObservableList<BotJobLoadDTO> botJobList;
 
-    public ARViewBotJobPane(
-            ARScene arScene,
-            ARWebDriver arWebDriver,
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
-            PerformPreLoad performPreLoad,
-            BotJobLoadDTO botJobLoad,
-            ObservableList<BotJobLoadDTO> botJobList) {
+    public ARViewBotJobPane(ARScene arScene, BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
         this.arScene = arScene;
-        this.arWebDriver = arWebDriver;
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
-        this.performPreLoad = performPreLoad;
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
 
@@ -178,77 +159,11 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void initUIComponents() {
-        portInitial = 54525;
-
         String portSocket = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (portSocket != null) {
             portInitial = Integer.parseInt(portSocket);
         }
-
-        // Start WebSocket server in a background thread
-        int finalPort = portInitial;
-        new Thread(() -> {
-                    try {
-                        startWebSocketServer(finalPort);
-                    } catch (Exception e) {
-                        ARLogger.getInstance(ARViewBotJobPane.class).fine("Port already in Use: " + finalPort);
-
-                        //                        performMessage.errorMessage(
-                        //                                "Port Error", "Port %d already in Use!",
-                        // String.valueOf(finalPort), null, null, 350);
-                    }
-                })
-                .start();
-        buidUIComponents(finalPort);
-    }
-
-    public void startWebSocketServer(int port) throws Exception {
-        // Check if the port is available
-        if (isPortInUse(port)) {
-            throw new Exception("Port " + port + " is already in use.");
-        }
-
-        // Set up Jetty server to run WebSocket endpoint
-        jettyServer = new Server(port); // Server listens on port 8080
-        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.setContextPath("/");
-        jettyServer.setHandler(context);
-
-        // Initialize WebSocket container
-        wsContainer = WebSocketServerContainerInitializer.configureContext(context);
-        wsContainer.setDefaultMaxSessionIdleTimeout(0);
-        //        wsContainer.addEndpoint(WebSocketStompServer.class);
-        wsContainer.addEndpoint(SimpleWebSocketServer.class); // Register SimpleWebSocketServer
-
-        // Start Jetty server
-        jettyServer.start();
-        System.out.println("WebSocket server started at ws://localhost:" + port + "/websocket");
-
-        // Example: Retrieve all active sessions
-        activeSessions = SimpleWebSocketServer.getAllSessions();
-        System.out.println("Active WebSocket sessions: " + activeSessions.size());
-    }
-
-    // Method to check if the port is already in use
-    private boolean isPortInUse(int port) {
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            return false; // Port is available
-        } catch (IOException e) {
-            return true; // Port is already in use
-        }
-    }
-
-    public void stopWebSocketServer() {
-        if (jettyServer != null && jettyServer.isStarted()) {
-            try {
-                jettyServer.stop();
-            } catch (Exception e) {
-                ARLogger.getInstance(ARViewBotJobPane.class).severe("stopWebSocketServer  \nError: " + e.getMessage());
-            }
-            jettyServer.destroy();
-            ARLogger.getInstance(ARViewBotJobPane.class).info("WebSocket server stopped.");
-            //            System.out.println("WebSocket server stopped.");
-        }
+        buidUIComponents(portInitial);
     }
 
     public void buidUIComponents(int finalPort) {
@@ -593,7 +508,7 @@ public class ARViewBotJobPane extends ARPane {
             //            componentBox.requestLayout();
             //            botJobContainer.requestLayout();
 
-            SimpleWebSocketServer.sendMessageJson(
+            simpleWebSocketServer.sendMessageJson(
                     this.botJobLoad.getHomeBankingId(), sessionTasks, jsonData, "updateInstructions");
 
             this.botJobLoadList = performDataBase.loadComponentsComplete(this.botJobLoad.getHomeBankingId());
@@ -603,7 +518,7 @@ public class ARViewBotJobPane extends ARPane {
                 jsonData = gson.toJson(blockLoopInstructions);
             }
 
-            SimpleWebSocketServer.broadcastMessageToAll(
+            simpleWebSocketServer.broadcastMessageToAll(
                     this.botJobLoad.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
 
@@ -910,7 +825,7 @@ public class ARViewBotJobPane extends ARPane {
             }
         });
         this.closeBotJobButton.setOnMouseClicked((e) -> {
-            stopWebSocketServer();
+            //            stopWebSocketServer();
             Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
             stage.close();
         });
@@ -1020,17 +935,10 @@ public class ARViewBotJobPane extends ARPane {
             Platform.runLater(() -> {
                 try {
 
-                    activeSessions = SimpleWebSocketServer.getAllSessions();
+                    activeSessions = simpleWebSocketServer.getAllSessions();
                     // Call the ARScannedElementScene here
-                    ARScannedElementScene scene = arScannedElementScene.initialize(
-                            arWebDriver,
-                            performDataBase,
-                            performActions,
-                            performMessage,
-                            performPreLoad,
-                            homeBankingLoadDTO,
-                            this.botJobLoad,
-                            this.blockLoad);
+                    ARScannedElementScene scene =
+                            arScannedElementScene.initialize(homeBankingLoadDTO, this.botJobLoad, this.blockLoad);
 
                     scene.show(); // Make sure the scene is shown
                 } catch (Exception ex) {

@@ -17,12 +17,10 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.IframeInputLocator;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformCloneLoad;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.PerformPickLoad;
 import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
@@ -72,7 +70,6 @@ import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
-import javafx.scene.text.TextFlow;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
@@ -1018,7 +1015,7 @@ public class ARScannedElementPane extends ARPane {
     private Text iFrameText;
 
     private VBox textFieldVBox;
-    private TextFlow textFlowResult;
+    //    private TextFlow textFlowResult;
     private TextArea countdownTextField;
 
     private TextField searchTermsField;
@@ -1046,18 +1043,32 @@ public class ARScannedElementPane extends ARPane {
     // Very important sequence on initiation
     private static final ARPropertyManager arPropertyManager;
     private static final ARPriorities arPriorities;
+    private static final SimpleWebSocketServer simpleWebSocketServer;
 
-    private PerformDataBase performDataBase;
-    private PerformActions performActions;
-    private PerformMessage performMessage;
-    private PerformPreLoad performPreLoad;
     private ARWebDriver currentARWebDriver;
 
     private static final PerformCloneLoad performCloneLoad;
-    private static final PerformPickLoad performPickLoad;
+    private static final PerformDataBase performDataBase;
+    private static final PerformActions performActions;
+    private static final PerformMessage performMessage;
+    private static final PerformPreLoad performPreLoad;
 
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
-    private static final IframeInputLocator iframeInputLocator;
+
+    // Static block to initialize
+    static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performActions = PerformActions.getInstance();
+        performMessage = PerformMessage.getInstance();
+        performPreLoad = PerformPreLoad.getInstance();
+
+        performCloneLoad = PerformCloneLoad.getInstance();
+        arPriorities = ARPriorities.getInstance();
+        arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    }
+
     private int portSocket = 54525;
 
     private String[] defaultSearch;
@@ -1076,38 +1087,20 @@ public class ARScannedElementPane extends ARPane {
         interceptBotJob.set(value);
     }
 
-    // Static block to initialize
-    static {
-        arPropertyManager = ARPropertyManager.getInstance();
-        iframeInputLocator = IframeInputLocator.getInstance();
-        performCloneLoad = PerformCloneLoad.getInstance();
-        performPickLoad = PerformPickLoad.getInstance();
-        arPriorities = ARPriorities.getInstance();
-        arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
-    }
-
     public void initialize(
             ARWebDriver currentARWebDriver,
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
-            PerformPreLoad performPreLoad,
             HomeBankingLoadDTO homeBanking,
             BotJobLoadDTO botJobLoadDTO,
             BlockLoadDTO blockLoadDTO,
             ExecutorService executorWebSocket,
             ExecutorService executorServicePreLaunch) {
         this.currentARWebDriver = currentARWebDriver;
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
-        this.performPreLoad = performPreLoad;
         this.homeBanking = homeBanking;
 
         this.executorWebSocket = executorWebSocket;
         this.executorServicePreLaunch = executorServicePreLaunch;
 
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+        activeSessions = simpleWebSocketServer.getAllSessions();
 
         String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
@@ -1364,7 +1357,7 @@ public class ARScannedElementPane extends ARPane {
 
         stopBotJobButton.setPrefWidth(100);
 
-        textFlowResult = new TextFlow();
+        //        textFlowResult = new TextFlow();
 
         countdownTextField = new TextArea("Pre-Launch status: Ready");
         countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
@@ -2535,23 +2528,6 @@ public class ARScannedElementPane extends ARPane {
         }
 
         return someText.substring(0, limit) + "...";
-    }
-
-    private void periodicHoverPickThread(WebDriver driver, String currentUrl, String[] dataArray, int port) {
-        ErrorMessage errorMessage =
-                performPickLoad.dynamicHoverPickElementsDTO(driver, currentUrl, dataArray, searchHiddenFields, port);
-
-        if (errorMessage != null) {
-            String[] lines = errorMessage.getErrorMessage().split("\n");
-
-            performMessage.errorMessage(
-                    errorMessage.getErrorTitle(),
-                    errorMessage.getErrorHeader(),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[0] : null),
-                    (!Strings.isNullOrEmpty(lines[0]) ? lines[1] : null),
-                    null,
-                    0);
-        }
     }
 
     private void periodicSearchThread(
@@ -4907,7 +4883,7 @@ public class ARScannedElementPane extends ARPane {
     //    }
 
     private void broadcastMessageToAll(String message) {
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+        activeSessions = simpleWebSocketServer.getAllSessions();
 
         for (Session session : activeSessions.values()) { // Looping correctly
             if (session.isOpen()) {
@@ -4917,7 +4893,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+        activeSessions = simpleWebSocketServer.getAllSessions();
         Session session = activeSessions.get(sessionId);
 
         if (session != null && session.isOpen()) {

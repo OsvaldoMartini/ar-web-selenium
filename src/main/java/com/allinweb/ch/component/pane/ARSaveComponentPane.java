@@ -63,12 +63,14 @@ public class ARSaveComponentPane extends ARPane {
     private List<ComponentInstructionDTO> originalLoopInstruction;
     private List<ComponentReferenceDTO> originalReferences;
 
+    private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformMessage performMessage;
     private static final PerformActions performAction;
     private static final PerformDataBase performDataBase;
     //    private static final PerformDBSavedBlock performDBSavedBlock;
     // Static block to initialize
     static {
+        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         performMessage = PerformMessage.getInstance();
         performAction = PerformActions.getInstance();
         performDataBase = PerformDataBase.getInstance();
@@ -256,9 +258,9 @@ public class ARSaveComponentPane extends ARPane {
                                         performDataBase.buildJsonViewData(botJobLoadList);
                                 jsonData = gson.toJson(blockLoopInstructions);
                             }
-                            // SimpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
+                            // simpleWebSocketServer.sendMessageJson(blockDetailsDTO.getSessionId(), jsonData,
                             // "componentsUpdate");
-                            SimpleWebSocketServer.broadcastMessageToAll(
+                            simpleWebSocketServer.broadcastMessageToAll(
                                     blockDetailsDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
 
                             //                            showAlertTimer(
@@ -838,7 +840,7 @@ public class ARSaveComponentPane extends ARPane {
 
     //    // Method to send a message to a specific session ID
     //    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
-    //        activeSessions = SimpleWebSocketServer.getAllSessions();
+    //        activeSessions = simpleWebSocketServer.getAllSessions();
     //        Session session = activeSessions.get(sessionId);
     //
     //        if (session != null && session.isOpen()) {

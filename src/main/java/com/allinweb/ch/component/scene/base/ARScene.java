@@ -46,13 +46,12 @@ public abstract class ARScene implements IARScene {
     }
 
     private void handleIllegalState(IllegalStateException e) {
-        ARLogger.getInstance(ARScene.class).severe("ARScene IllegalStateException\n" + e);
         Platform.runLater(() -> {
             try {
                 stage = new Stage(); // Retry stage creation if failed
                 setStageBehaviour(stage); // Ensure stage behavior is set
             } catch (IllegalStateException ex) {
-                ARLogger.getInstance(ARScene.class).severe("ARScene IllegalStateException\n" + ex);
+                ARLogger.getInstance(ARScene.class).severe("ARScene IllegalStateException: " + ex);
             }
         });
     }

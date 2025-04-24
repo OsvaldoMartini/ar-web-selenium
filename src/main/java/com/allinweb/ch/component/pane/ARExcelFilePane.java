@@ -49,9 +49,12 @@ public class ARExcelFilePane extends ARPane {
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
+    private static final SimpleWebSocketServer simpleWebSocketServer;
+
     // Static block to initialize
     static {
         arPropertyManager = ARPropertyManager.getInstance();
+        simpleWebSocketServer = SimpleWebSocketServer.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
     }
@@ -86,7 +89,7 @@ public class ARExcelFilePane extends ARPane {
     private String sessionId;
 
     public ARExcelFilePane(String sessionId, BlockDetailsDTO blockExcelDTO) {
-        activeSessions = SimpleWebSocketServer.getAllSessions();
+        activeSessions = simpleWebSocketServer.getAllSessions();
         this.sessionId = sessionId;
         this.blockExcelDTO = blockExcelDTO;
     }
@@ -314,7 +317,7 @@ public class ARExcelFilePane extends ARPane {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            SimpleWebSocketServer.sendMessageJson(
+            simpleWebSocketServer.sendMessageJson(
                     blockExcelDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
 
         } else if ((sessionId != null && sessionId.matches(".*componentTasks.*"))) {
@@ -324,9 +327,9 @@ public class ARExcelFilePane extends ARPane {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
             }
-            //            SimpleWebSocketServer.sendMessageJson(sessionId, jsonData, "componentsUpdate");
+            //            simpleWebSocketServer.sendMessageJson(sessionId, jsonData, "componentsUpdate");
 
-            SimpleWebSocketServer.broadcastMessageToAll(
+            simpleWebSocketServer.broadcastMessageToAll(
                     blockExcelDTO.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
         }
 
@@ -400,7 +403,7 @@ public class ARExcelFilePane extends ARPane {
 
     //    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
     //
-    //        activeSessions = SimpleWebSocketServer.getAllSessions();
+    //        activeSessions = simpleWebSocketServer.getAllSessions();
     //        Session session = activeSessions.get(sessionId);
     //
     //        if (session != null && session.isOpen()) {
