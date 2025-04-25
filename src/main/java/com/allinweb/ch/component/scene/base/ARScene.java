@@ -121,8 +121,22 @@ public abstract class ARScene implements IARScene {
         }
     }
 
-    public void startNewThread(Runnable task) {
+    private void cleanUpFinishedThreads() {
+        threadList.removeIf(thread -> !thread.isAlive());
+    }
+
+    public void startNewThread(String threadName, Runnable task) {
+        cleanUpFinishedThreads();
+        for (Thread existingThread : threadList) {
+            if (existingThread.getName().equals(threadName) && existingThread.isAlive()) {
+                ARLogger.getInstance(ARScene.class).info("Thread with name '" + threadName + "' is already running.");
+                return;
+            }
+        }
+
+        // Create and start a new named thread
         Thread thread = new Thread(task);
+        thread.setName(threadName);
         threadList.add(thread);
         thread.start();
     }

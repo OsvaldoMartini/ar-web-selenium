@@ -918,11 +918,24 @@ public class ARViewBotJobPane extends ARPane {
 
             ARLogger.getInstance(ARViewBotJobPane.class).fine("Calling openScannerButton");
 
-            arScene.startNewThread(() -> {
+            String threadName = "botJob-" + this.botJobLoad.getId();
+            arScene.startNewThread(threadName, () -> {
                 executeScannerTask();
                 isScannerButtonClicked = false; // Reset the flag after task completes
             });
         }
+    }
+
+    // Method where you start the thread (e.g., in a button's event handler)
+    private void handleStartScanner() {
+        String threadName = "botJob-" + this.botJobLoad.getId(); // Use the ID for the thread name
+        arScene.startNewThread(threadName, () -> {
+            executeScannerTask();
+            Platform.runLater(() -> {
+                // Update UI here, if needed
+                System.out.println("Scanner task completed for " + threadName);
+            });
+        });
     }
 
     private void executeScannerTask() {
