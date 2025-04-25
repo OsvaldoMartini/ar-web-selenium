@@ -12,7 +12,6 @@ import com.allinweb.ch.component.model.InstructionLoadDTO;
 import com.allinweb.ch.component.model.ParentOperations;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
-import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
@@ -825,7 +824,7 @@ public class SimpleWebSocketServer {
 
                     } catch (Exception e) {
 
-                        ARLogger.getInstance(ARScannedElementPane.class)
+                        ARLogger.getInstance(SimpleWebSocketServer.class)
                                 .severe(String.format(
                                         "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
                                         ARConstants.ELSEIF, e.getMessage()));

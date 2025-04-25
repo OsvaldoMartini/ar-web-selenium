@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import lombok.Getter;
 import org.openqa.selenium.WebDriver;
 
 public class ARScannedElementScene extends ARScene {
@@ -46,7 +47,10 @@ public class ARScannedElementScene extends ARScene {
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     private HomeBankingLoadDTO homeBankingLoadDTO;
+
+    @Getter
     private BotJobLoadDTO botJobLoadDTO;
+
     private BlockLoadDTO blockLoadDTO;
 
     private ExecutorService executorWebSocket;

@@ -121,11 +121,11 @@ public class ARViewBotJobScene extends ARScene {
 
         //        BotJobDTO botJobDTO = PerformDataBase..getEntityById(BotJobDTO.class, this.botJobId);
 
-        boolean updBotJobStatus = performDataBase.updateBotStatus();
-        if (!updBotJobStatus) {
-            ARLogger.getInstance(ARViewBotJobScene.class)
-                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
-        }
+        //        boolean updBotJobStatus = performDataBase.updateBotStatus();
+        //        if (!updBotJobStatus) {
+        //            ARLogger.getInstance(ARViewBotJobScene.class)
+        //                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
+        //        }
 
         this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
         //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);

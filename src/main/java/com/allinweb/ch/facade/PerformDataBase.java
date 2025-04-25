@@ -278,12 +278,14 @@ public class PerformDataBase {
             }
         }
 
-        if (deleteVariable(botJobId, deleteInstructionLoadDTO.getInstructionId()))
-            if (deleteReferences(botJobId, deleteInstructionLoadDTO.getInstructionId()))
-                if (deleteRow(deleteInstructionLoadDTO)) {
-                    deleteNullBlocks(botJobId);
-                    updateBlockOrderNumber(selectAllBlocks(deleteInstructionLoadDTO.getBlockId()), true);
-                }
+        if (deleteInstructionLoadDTO.getInstructionId() > 0) {
+            if (deleteVariable(botJobId, deleteInstructionLoadDTO.getInstructionId()))
+                if (deleteReferences(botJobId, deleteInstructionLoadDTO.getInstructionId()))
+                    if (deleteRow(deleteInstructionLoadDTO)) {
+                        deleteNullBlocks(botJobId);
+                        updateBlockOrderNumber(selectAllBlocks(deleteInstructionLoadDTO.getBlockId()), true);
+                    }
+        }
     }
 
     private static boolean deleteVariable(int bot_job_id, int instructionId) {
@@ -567,13 +569,13 @@ public class PerformDataBase {
             }
             return true;
 
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
                     .severe(String.format(
                             "Error deleting instruction ID %d from block ID %d. Error: %s",
                             deleteInstructionLoadDTO.getInstructionId(),
                             deleteInstructionLoadDTO.getBlockId(),
-                            e.getMessage()));
+                            error.getMessage()));
         }
         return false;
     }
@@ -750,15 +752,18 @@ public class PerformDataBase {
                 int rowsAffected = stmt.executeUpdate(updateSQL);
 
                 if (rowsAffected > 0) {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .info(String.format(
-                                    "Block Order Number updated blockId: %s, newBlockOrderNumber: %s",
-                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
+                    //                    ARLogger.getInstance(PerformDataBase.class)
+                    //                            .info(String.format(
+                    //                                    "Block Order Number updated blockId: %s, newBlockOrderNumber:
+                    // %s",
+                    //                                    blockOrderDetailDTO.getBlockId(), newOrderNumber));
                 } else {
-                    ARLogger.getInstance(PerformDataBase.class)
-                            .warning(String.format(
-                                    "UpdateBlockOrderNumber - No matching record found to update botJobId: %d blockId: %d",
-                                    blockOrderDetailDTO.getBotJobId(), blockOrderDetailDTO.getBlockId()));
+                    //                    ARLogger.getInstance(PerformDataBase.class)
+                    //                            .warning(String.format(
+                    //                                    "UpdateBlockOrderNumber - No matching record found to update
+                    // botJobId: %d blockId: %d",
+                    //                                    blockOrderDetailDTO.getBotJobId(),
+                    // blockOrderDetailDTO.getBlockId()));
                 }
 
                 newOrderNumber++; // Increment the new order number for the next block
@@ -2700,7 +2705,7 @@ public class PerformDataBase {
 
     public boolean updateBotStatus() {
         // SQL query to get the blocks for a specific bot job
-        String query = "update bot_job set active = 1";
+        String query = "update bot_job set active = ";
 
         // Initialize the necessary data structures
 
@@ -2709,9 +2714,9 @@ public class PerformDataBase {
                 ResultSet rs = stmt.executeQuery(query)) {
             return true;
 
-        } catch (SQLException e) {
+        } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class)
-                    .severe(String.format("Error updating Active = 1 all botjobs\nError: %s", e.getMessage()));
+                    .severe(String.format("Error updating Active = 1 all botjobs,  Error: %s", error.getMessage()));
         }
 
         return false;

@@ -156,6 +156,11 @@ public class ARViewBotJobPane extends ARPane {
         Platform.runLater(
                 () -> this.variablesList = performDataBase.loadAllVariablesByCriteria(this.botJobLoad.getId(), -1));
         Platform.runLater(() -> this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId()));
+
+        if (arScannedElementScene.getBotJobLoadDTO() != null
+                && !arScannedElementScene.getBotJobLoadDTO().getId().equals(this.botJobLoad.getId())) {
+            callScannerTool();
+        }
     }
 
     public void initUIComponents() {
@@ -578,36 +583,7 @@ public class ARViewBotJobPane extends ARPane {
             this.botJobList.addAll(performDataBase.loadAllBotJobs());
         });
         this.openScannerButton.setOnMouseClicked((e) -> {
-            List<String> missingProperties = checkProperties(arPropertyManager.getProperties());
-
-            if (!missingProperties.isEmpty()) {
-
-                int totalMissing = missingProperties.size();
-                int partSize = (int) Math.ceil((double) totalMissing / 3); // Divide into 3 parts
-
-                String part1 = String.join(", ", missingProperties.subList(0, Math.min(partSize, totalMissing)));
-                String part2 = totalMissing > partSize
-                        ? String.join(", ", missingProperties.subList(partSize, Math.min(2 * partSize, totalMissing)))
-                        : "";
-                String part3 = totalMissing > 2 * partSize
-                        ? String.join(", ", missingProperties.subList(2 * partSize, totalMissing))
-                        : "";
-
-                performMessage.errorMessage(
-                        "I cannot Execute Web Scanner", "Missing required properties: ", part1, part2, part3, 0);
-                return;
-            }
-
-            if (!isScannerButtonClicked) { // Check if the button action was not already triggered
-                isScannerButtonClicked = true; // Set the flag to prevent further clicks
-
-                ARLogger.getInstance(ARViewBotJobPane.class).fine("Calling openScannerButton");
-
-                arScene.startNewThread(() -> {
-                    executeScannerTask();
-                    isScannerButtonClicked = false; // Reset the flag after task completes
-                });
-            }
+            callScannerTool();
         });
 
         this.generateExcelButton.setOnMouseClicked((e) -> {
@@ -914,6 +890,39 @@ public class ARViewBotJobPane extends ARPane {
             }
             isComponentBoxVisible = !isComponentBoxVisible;
         });
+    }
+
+    private void callScannerTool() {
+        List<String> missingProperties = checkProperties(arPropertyManager.getProperties());
+
+        if (!missingProperties.isEmpty()) {
+
+            int totalMissing = missingProperties.size();
+            int partSize = (int) Math.ceil((double) totalMissing / 3); // Divide into 3 parts
+
+            String part1 = String.join(", ", missingProperties.subList(0, Math.min(partSize, totalMissing)));
+            String part2 = totalMissing > partSize
+                    ? String.join(", ", missingProperties.subList(partSize, Math.min(2 * partSize, totalMissing)))
+                    : "";
+            String part3 = totalMissing > 2 * partSize
+                    ? String.join(", ", missingProperties.subList(2 * partSize, totalMissing))
+                    : "";
+
+            performMessage.errorMessage(
+                    "I cannot Execute Web Scanner", "Missing required properties: ", part1, part2, part3, 0);
+            return;
+        }
+
+        if (!isScannerButtonClicked) { // Check if the button action was not already triggered
+            isScannerButtonClicked = true; // Set the flag to prevent further clicks
+
+            ARLogger.getInstance(ARViewBotJobPane.class).fine("Calling openScannerButton");
+
+            arScene.startNewThread(() -> {
+                executeScannerTask();
+                isScannerButtonClicked = false; // Reset the flag after task completes
+            });
+        }
     }
 
     private void executeScannerTask() {
