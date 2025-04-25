@@ -16,9 +16,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.scene.control.Alert;
-import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 public class ARControlPanel extends Application {
@@ -128,20 +125,16 @@ public class ARControlPanel extends Application {
                     }
                 }
             } catch (Exception error) {
-                Text variableText1Styled = new Text("The license file is corrupted.");
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                Text variableText2Styled = new Text("Please contact the system administrator for assistance!");
-                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-                VBox combinedTextContainer = new VBox();
-                combinedTextContainer.setSpacing(5); // Add some space
-                combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
+                String pathDB = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+                performMessage.errorMessage(
+                        "Access Database Error",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to open or access the database!</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Database path:</span> <span style='font-weight: bold;'>"
+                                + pathDB + "</span>",
+                        "<span style='font-style: italic;'>Please ensure the file exists and the application has the necessary read/write permissions.</span>",
+                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
+                        0);
 
-                Platform.runLater(() -> performMessage.showAlertCombinedVBOX(
-                        Alert.AlertType.ERROR,
-                        "License Validation!",
-                        "Validation Failed",
-                        null,
-                        combinedTextContainer));
                 ARLogger.getInstance(ARControlPanel.class).fine(error.getMessage());
             }
         } else {
