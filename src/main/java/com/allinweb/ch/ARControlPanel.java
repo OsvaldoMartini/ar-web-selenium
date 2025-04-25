@@ -127,7 +127,7 @@ public class ARControlPanel extends Application {
                         licenseMessages(license.get());
                     }
                 }
-            } catch (Exception e) {
+            } catch (Exception error) {
                 Text variableText1Styled = new Text("The license file is corrupted.");
                 variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
                 Text variableText2Styled = new Text("Please contact the system administrator for assistance!");
@@ -142,7 +142,7 @@ public class ARControlPanel extends Application {
                         "Validation Failed",
                         null,
                         combinedTextContainer));
-                ARLogger.getInstance(ARControlPanel.class).fine(e.getMessage());
+                ARLogger.getInstance(ARControlPanel.class).fine(error.getMessage());
             }
         } else {
             // If the license is disabled, directly proceed with the main application
