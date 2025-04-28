@@ -22,7 +22,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -179,25 +178,15 @@ public class ARNewBotJobPane extends ARPane {
                     .equalsIgnoreCase(botJobName.getText().trim()));
 
             if (existName) {
-
-                Text variableText1Styled = new Text("Name: ");
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                Text variableText2Styled = new Text(botJobName.getText().trim());
-                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                VBox combinedTextContainer = new VBox();
-                combinedTextContainer.setSpacing(5);
-
-                combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
-
-                performMessage.showAlertCombinedVBOX(
-                        Alert.AlertType.WARNING,
+                performMessage.errorMessage(
                         "Duplicate Name",
-                        "The name already exists!",
+                        "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Bot Job Name already exists</span>",
+                        "<span style='color: #000080; font-weight: bold;'>"
+                                + botJobName.getText().trim() + "</span>",
                         null,
-                        combinedTextContainer);
-                //                viewBotJobListView.refresh(); // Refresh the ListView to update any UI changes
+                        null,
+                        0);
+
                 return;
             }
 

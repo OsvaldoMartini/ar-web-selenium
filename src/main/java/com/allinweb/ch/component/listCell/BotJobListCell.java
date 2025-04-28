@@ -178,17 +178,35 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
     }
 
     private void handleDelete(BotJobLoadDTO item) {
-        VBox confirmationBox = new VBox(
-                5,
-                createStyledText("Are you sure you want to delete the bot job selected?", "blue"),
-                createStyledText(String.format("Bot Job: \"(%s)%s\"", item.getId(), item.getName()), "blue"),
-                createStyledText("THIS ACTION IS GOING TO REMOVE ALL JOB DATA!!!", "red"),
-                createStyledText("INCLUDING SAVED COMPONENTS FOR THIS JOB!!!", "red"));
+        //        VBox confirmationBox = new VBox(
+        //                5,
+        //                createStyledText("Are you sure you want to delete the bot job selected?", "blue"),
+        //                createStyledText(String.format("Bot Job: \"(%s)%s\"", item.getId(), item.getName()), "blue"),
+        //                createStyledText("THIS ACTION IS GOING TO REMOVE ALL JOB DATA!!!", "red"),
+        //                createStyledText("INCLUDING SAVED COMPONENTS FOR THIS JOB!!!", "red"));
+        //
+        //        boolean confirmed = performMessage.showAlertCombinedVBOX(
+        //                Alert.AlertType.CONFIRMATION, "Bot Job Deletion", "Remove All Details Bot Job", null,
+        // confirmationBox);
+        //
+        //        if (confirmed) {
+        //            deleteBotJob(item);
+        //            Platform.runLater(() -> getListView().getItems().remove(item));
+        //        }
 
-        boolean confirmed = performMessage.showAlertCombinedVBOX(
-                Alert.AlertType.CONFIRMATION, "Bot Job Deletion", "Remove All Details Bot Job", null, confirmationBox);
+        ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                "Bot Job Deletion",
+                "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Are you sure you want to delete the bot job selected?</span>",
+                "<span style='color: #000080; font-weight: bold;'>"
+                        + String.format("Bot Job: \"(%s)%s\"", item.getId(), item.getName()) + "</span>",
+                "<span style='color: red; font-weight: bold;'>THIS ACTION IS GOING TO REMOVE ALL JOB DATA!!!</span>",
+                "<span style='color: red; font-weight: bold;'>INCLUDING SAVED COMPONENTS FOR THIS JOB!!!</span>",
+                true,
+                "OK",
+                "Cancel",
+                0);
 
-        if (confirmed) {
+        if (!respModal.equals(ARConstants.DialogModal.STOP)) {
             deleteBotJob(item);
             Platform.runLater(() -> getListView().getItems().remove(item));
         }

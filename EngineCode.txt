@@ -390,7 +390,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				}
 
 				// Case for Inputs
-				String valueInsert = "No Data Found";
+				String valueInsert = "CHANGE ME";
 				if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
 					String reference = actions[2];
 					valueInsert = dataExcel.get(reference);
@@ -1325,7 +1325,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					currentInstruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
 
 			// Case for Inputs
-			String valueInsert = "No Data Found";
+			String valueInsert = "CHANGE ME";
 			if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
 				String reference = actions[2];
 				valueInsert = dataExcel.get(reference);

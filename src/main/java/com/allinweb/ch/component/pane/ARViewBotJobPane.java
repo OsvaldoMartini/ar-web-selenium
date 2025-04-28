@@ -57,7 +57,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
-import javafx.scene.text.Text;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Modality;
@@ -473,16 +472,13 @@ public class ARViewBotJobPane extends ARPane {
             }
         } else {
 
-            Text variableText1Styled = new Text("Not Able to Create a Excel File");
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            combinedTextContainer.getChildren().add(variableText1Styled);
-
-            performMessage.showAlertCombinedVBOX(
-                    Alert.AlertType.WARNING, "Not Bot Job", "Bot-Job List is empty!", null, combinedTextContainer);
+            performMessage.errorMessage(
+                    "Not Able to Create a Excel File",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create a excel file!</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>Not Bot Job Found</span>",
+                    "<span style='font-style: italic;'>Bot-Job List is empty!</span>",
+                    null,
+                    0);
         }
     }
 
@@ -578,25 +574,15 @@ public class ARViewBotJobPane extends ARPane {
 
             // PerformDataBase..changeDbConnection();
 
-            Text variableText1Styled = new Text(String.format("Bot Job \"%s\" Updated", this.botJobLoad.getName()));
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            String msgBotJob = botJobUpdate ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!";
 
-            if (!botJobUpdate) {
-                variableText1Styled = new Text(String.format("Bot Job \"%s\" NOT Updated!", this.botJobLoad.getName()));
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            }
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            combinedTextContainer.getChildren().add(variableText1Styled);
-
-            performMessage.showAlertCombinedVBOX(
-                    botJobUpdate ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING,
+            performMessage.errorMessage(
                     "Update Bot-Job",
-                    botJobUpdate ? "Bot-Job Updated successfully!" : "Bot-Job NOT Update!\"",
+                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>" + msgBotJob + "</span>",
+                    "<span style='color: #000080; font-weight: bold;'>" + this.botJobLoad.getName() + "</span>",
                     null,
-                    combinedTextContainer);
+                    null,
+                    0);
 
             // Refresh the ListView after adding the new bot job
             this.botJobList.clear();
@@ -626,37 +612,6 @@ public class ARViewBotJobPane extends ARPane {
             //                                    .stream()) // Flatten all BlockLoopInstructionLoadDTOs from each block
             //                    .anyMatch(instruction -> instruction.getActions() != null
             //                            && instruction.getActions().startsWith("I:"));
-
-            Text variableText1Styled =
-                    new Text("File name: " + this.botJobLoad.getName() + ARConstants.FILE_FORMAT_EXCEL);
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: green;");
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            //            if (!hasInputFields) {
-            //                Text variableText2Styled = new Text("Use Web Scanner Tool First to create the:");
-            //                variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-            //
-            //                variableText1Styled =
-            //                        new Text("Excel Data File: " + this.botJobLoad.getName() +
-            // ARConstants.FILE_FORMAT_EXCEL);
-            //                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-            //
-            //                combinedTextContainer.getChildren().addAll(variableText2Styled, variableText1Styled);
-            //
-            //                performMessage.showAlertCombinedVBOX(
-            //                        AlertType.ERROR,
-            //                        "Error: No \"INPUT\" Web Elements",
-            //                        "Error: Don't Have Any Web Element as INPUT", // No header text
-            //                        null,
-            //                        combinedTextContainer);
-            //                return;
-            //            }
-
-            // Create an HBox to hold the individual text elements
-
-            combinedTextContainer.getChildren().add(variableText1Styled);
 
             if (botJobLoadList.size() > 0) {
 
@@ -688,43 +643,48 @@ public class ARViewBotJobPane extends ARPane {
                         return null;
                     }
                 };
+                String excelFile = this.botJobLoad.getName() + ARConstants.FILE_FORMAT_EXCEL;
 
                 if (extractedData != null) {
 
                     // Prepare the combined text container for the dialog
                     // You can add more content to the combinedTextContainer if needed
 
-                    // Show confirmation dialog
-                    boolean confirmed = performMessage.showAlertCombinedVBOX(
-                            AlertType.CONFIRMATION,
+                    ARConstants.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
                             "Warning: Excel File Already Exists",
-                            "The Excel file already exists. Would you like to overwrite it?",
-                            null,
-                            combinedTextContainer);
+                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>An Excel file with this name already exists. Do you want to overwrite it?</span>",
+                            "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
+                            "<span style='color: red; font-weight: bold;'>OVERWRITING WILL DELETE ANY DATA NOT PRESENT IN THE CURRENT JOB.</span>",
+                            "<span style='color: red; font-weight: bold;'>NEW COLUMNS WILL BE ADDED AND VALUE SET AS \"CHANGE ME\".</span>",
+                            true,
+                            "Overwrite",
+                            "Cancel",
+                            0);
 
-                    if (confirmed) {
+                    if (!respModal.equals(ARConstants.DialogModal.STOP)) {
 
                         new Thread(excelTask).start();
 
-                        performMessage.showAlertCombinedVBOX(
-                                AlertType.INFORMATION,
+                        performMessage.errorMessage(
                                 "Warning: Excel File Already Exists",
-                                "Success Excel File Override.", // No header text
+                                "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Override.</span>",
+                                "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
                                 null,
-                                combinedTextContainer);
+                                null,
+                                0);
                     }
                 } else {
                     // If file does not exist, start the Excel generation task directly
 
                     new Thread(excelTask).start();
 
-                    // Show confirmation dialog
-                    performMessage.showAlertCombinedVBOX(
-                            AlertType.INFORMATION,
+                    performMessage.errorMessage(
                             "Warning: New Excel File Created!",
-                            "Success Excel File Generated.", // No header text
+                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Generated.</span>",
+                            "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
                             null,
-                            combinedTextContainer);
+                            null,
+                            0);
                 }
             }
         });
@@ -835,22 +795,15 @@ public class ARViewBotJobPane extends ARPane {
             // Create a File object
             File fileCheck = new File(fileName);
             if (!fileCheck.exists() && !fileCheck.isDirectory()) {
-                Text variableText1Styled = new Text("File Excel Does not Exist");
-                variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+                performMessage.errorMessage(
+                        "File Not Found",
+                        "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File does not exist:</span>",
+                        "<span style='color: #000080; font-weight: bold;'>" + fileName
+                                + "</span>", // Added fileName here
+                        "<span style='font-style: italic;'>Details:</span>",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please ensure the file path is correct and the file is present.</span>",
+                        0);
 
-                fileName = fileName.replace("/", "\\");
-                Text variableText3Styled = new Text(fileName);
-                variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                VBox combinedTextContainer = new VBox();
-                combinedTextContainer.setSpacing(5); // Add some sp
-
-                combinedTextContainer.getChildren().addAll(variableText1Styled, variableText3Styled);
-
-                performMessage.showAlertCombinedVBOX(
-                        Alert.AlertType.ERROR, "Excel File Error", "File Not Exist!", null, combinedTextContainer);
-                return;
-                //            Platform.exit();
             } else {
 
                 try {
@@ -862,28 +815,14 @@ public class ARViewBotJobPane extends ARPane {
                     // excelFilePath);
                 } catch (IOException var3) {
 
-                    Text variableText1Styled = new Text("Verify the Possible Errors:");
-                    variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-                    Text variableText2Styled = new Text("Error load the Excel Rows");
-                    variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                    Text variableText3Styled = new Text("Maybe is Better to Re-Generate the File");
-                    variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-                    VBox combinedTextContainer = new VBox();
-                    combinedTextContainer.setSpacing(5); // Add some sp
-
-                    combinedTextContainer
-                            .getChildren()
-                            .addAll(variableText1Styled, variableText2Styled, variableText3Styled);
-
-                    performMessage.showAlertCombinedVBOX(
-                            Alert.AlertType.ERROR,
+                    performMessage.errorMessage(
                             "Excel File Error",
-                            "Check All Excel Columns and Values!",
-                            null,
-                            combinedTextContainer);
+                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Check All Excel Columns and Values!</span>",
+                            "<span style='color: #000080; font-weight: bold;'></span>",
+                            "<span style='font-style: italic;'>Details:</span>",
+                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows.  Maybe it is better to re-generate the file.</span>",
+                            0);
+
                     return;
                 }
             }

@@ -2827,22 +2827,14 @@ public class ARScannedElementPane extends ARPane {
         excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobName() + ".xlsx";
         if (!(new File(excelPath)).exists()) {
 
-            Text variableText1Styled = new Text("File Excel Does not Exist");
-            variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
+            performMessage.errorMessage(
+                    "Duplicate Name",
+                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File Excel Does not Exist</span>",
+                    "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Excel file: </span>",
+                    "<span style='color: #000080; font-weight: bold;'>" + excelPath + "</span>",
+                    "<span style='color: red; font-weight: bold;'>IS MANDATORY TO HAVE EXCEL FILE FOR TESTS!!!</span>",
+                    0);
 
-            Text variableText2Styled = new Text("IS MANDATORY TO HAVE EXCEL FILE FOR TESTS!");
-            variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-            Text variableText3Styled = new Text(excelPath);
-            variableText3Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-            VBox combinedTextContainer = new VBox();
-            combinedTextContainer.setSpacing(5); // Add some sp
-
-            combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled, variableText3Styled);
-
-            performMessage.showAlertCombinedVBOX(
-                    Alert.AlertType.WARNING, "Missing file excel", "File Not Exist!", null, combinedTextContainer);
             return false;
         }
 
@@ -3316,7 +3308,7 @@ public class ARScannedElementPane extends ARPane {
                         }
 
                         // Case for Inputs
-                        String valueInsert = "No Data Found";
+                        String valueInsert = "CHANGE ME";
                         if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
                             String reference = actions[2];
                             valueInsert = dataExcel.get(reference);
@@ -4214,7 +4206,7 @@ public class ARScannedElementPane extends ARPane {
                     String[] actions = currentInstruction.getActions().split(ARConstants.ACTIONS_AND_PATHS_SPLITTER);
 
                     // Case for Inputs
-                    String valueInsert = "No Data Found";
+                    String valueInsert = "CHANGE ME";
                     if (actions[0].equals(ARConstants.INSERT) && actions[1].equals(ARConstants.ENTER)) {
                         String reference = actions[2];
                         valueInsert = dataExcel.get(reference);
