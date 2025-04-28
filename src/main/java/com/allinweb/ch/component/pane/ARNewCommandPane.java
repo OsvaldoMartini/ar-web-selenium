@@ -1235,8 +1235,11 @@ public class ARNewCommandPane extends ARPane {
         });
 
         cancelButton.setOnMouseClicked((e) -> {
-            Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-            stage.close();
+            ARLogger.getInstance(ARNewCommandPane.class).finer("ARNewCommandPane Close()");
+            Platform.runLater(() -> {
+                Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
+                stage.close();
+            });
         });
 
         variableButton.setOnAction(e -> {

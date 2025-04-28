@@ -5,6 +5,7 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
@@ -225,8 +226,11 @@ public class ARSaveClonePane extends ARPane {
                             0);
                 }
 
-                Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-                stage.close();
+                ARLogger.getInstance(ARSaveClonePane.class).finer("ARSaveClonePane Close()");
+                Platform.runLater(() -> {
+                    Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
+                    stage.close();
+                });
             } catch (SQLException ex) {
                 System.out.println(ex.getMessage());
             }

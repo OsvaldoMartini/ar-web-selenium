@@ -20,6 +20,7 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -262,8 +263,11 @@ public class ARExcelFilePane extends ARPane {
 
         saveButton.setOnMouseClicked(e -> saveConfigurations());
         cancelButton.setOnMouseClicked((e) -> {
-            Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-            stage.close();
+            ARLogger.getInstance(ARExcelFilePane.class).finer("ARExcelFilePane cancelButton");
+            Platform.runLater(() -> {
+                Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
+                stage.close();
+            });
         });
     }
 

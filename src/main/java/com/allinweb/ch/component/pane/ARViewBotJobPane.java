@@ -782,8 +782,11 @@ public class ARViewBotJobPane extends ARPane {
         });
         this.closeBotJobButton.setOnMouseClicked((e) -> {
             //            stopWebSocketServer();
-            Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-            stage.close();
+            ARLogger.getInstance(ARScannedElementScene.class).finer("Close Bot Job Button");
+            Platform.runLater(() -> {
+                Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
+                stage.close();
+            });
         });
         this.openExcelFileButton.setOnMouseClicked((e) -> {
             String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);

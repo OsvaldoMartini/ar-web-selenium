@@ -4,6 +4,8 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.licence.LicenseManager;
 import com.allinweb.ch.util.ARConstants;
+import com.allinweb.ch.util.ARLogger;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
@@ -164,8 +166,11 @@ public class ARLicensePane extends ARPane {
         cbAgree.setOnAction(event -> btnProceed.setDisable(!cbAgree.isSelected()));
 
         btnClose.setOnAction(event -> {
-            Stage stage = (Stage) btnClose.getScene().getWindow();
-            stage.close();
+            ARLogger.getInstance(ARLicensePane.class).finer("ARLicensePane close()");
+            Platform.runLater(() -> {
+                Stage stage = (Stage) btnClose.getScene().getWindow();
+                stage.close();
+            });
         });
 
         // Actions for Proceed button

@@ -217,10 +217,13 @@ public class ARNewBotJobPane extends ARPane {
                 arViewBotJobScene.show();
 
                 // Close the current window
-                Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();
-                if (currentStage != null) {
-                    currentStage.close();
-                }
+                ARLogger.getInstance(ARNewBotJobPane.class).finer("ARNewBotJobPane CurrentStage close()");
+                Platform.runLater(() -> {
+                    Stage currentStage = (Stage) createBotJobButton.getScene().getWindow();
+                    if (currentStage != null) {
+                        currentStage.close();
+                    }
+                });
             } else {
                 ARLogger.getInstance(Thread.class).severe("Error creating BotJobDTO. Check the Block Creation!");
             }

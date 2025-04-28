@@ -49,7 +49,13 @@ public abstract class ARPane extends Application implements IARPane {
 
     @Override
     public void clearPane(Pane panel) {
-        panel.getChildren().clear();
+        try {
+            if (panel.getChildren() != null) {
+                panel.getChildren().clear();
+            }
+        } catch (Exception ignore) {
+
+        }
     }
 
     @Override

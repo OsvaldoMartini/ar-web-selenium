@@ -189,21 +189,25 @@ public class ARScannedElementPane extends ARPane {
             // Process the message based on its type
             switch (type) {
                 case "CLOSE_BROWSER":
-                    if (this.launchBotJobButton != null && !performActions.isJustCalledRefreshPage()) {
-                        Platform.runLater(() -> {
-                            Stage stage = (Stage) launchBotJobButton.getScene().getWindow();
-                            if (stage != null) {
-                                stage.close(); // <-- actually closes the Stage
-                            }
+                    if (!isJobRunning.get()) {
+                        if (this.launchBotJobButton != null && !performActions.isJustCalledRefreshPage()) {
+                            ARLogger.getInstance(ARScannedElementPane.class).finer("CLOSE_BROWSER");
+                            Platform.runLater(() -> {
+                                Stage stage =
+                                        (Stage) launchBotJobButton.getScene().getWindow();
+                                if (stage != null) {
+                                    stage.close(); // <-- actually closes the Stage
+                                }
 
-                            // Clean ARScannedElementPane singleton instance
-                            ARScannedElementPane.getInstance().destroy();
-                            ARScannedElementScene.getInstance().destroyPanel(); //
-                        });
-                    }
+                                // Clean ARScannedElementPane singleton instance
+                                ARScannedElementPane.getInstance().destroy();
+                                ARScannedElementScene.getInstance().destroyPanel(); //
+                            });
+                        }
 
-                    if (performActions.isJustCalledRefreshPage()) {
-                        performActions.setJustCalledRefreshPage(false);
+                        if (performActions.isJustCalledRefreshPage()) {
+                            performActions.setJustCalledRefreshPage(false);
+                        }
                     }
 
                     break;
@@ -1309,8 +1313,7 @@ public class ARScannedElementPane extends ARPane {
 
         try {
             performActions.onHoldInSeconds(3);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Exception ignore) {
         }
         // "scannerTool", "scannerGrid", "searchTerms"
         //        performPreLoad.dynamicLoadElementsDTO(
@@ -1323,13 +1326,15 @@ public class ARScannedElementPane extends ARPane {
         //                "scannerGrid",
         //                "searchTerms");
 
-        performCloseBrowser.dynamicCloseBrowser(
-                performActions.getCurrentDriver(),
-                portSocket,
-                "closeBrowser",
-                "scannerGrid",
-                "closeBrowser",
-                homeBanking.getId());
+        Platform.runLater(() -> {
+            performCloseBrowser.dynamicCloseBrowser(
+                    performActions.getCurrentDriver(),
+                    portSocket,
+                    "closeBrowser",
+                    "scannerGrid",
+                    "closeBrowser",
+                    homeBanking.getId());
+        });
 
         performActions.getIframeElementsMap();
 
@@ -1461,6 +1466,22 @@ public class ARScannedElementPane extends ARPane {
             }
 
             performActions.refreshPage();
+
+            try {
+                performActions.onHoldInSeconds(2);
+            } catch (Exception ignore) {
+
+            }
+
+            Platform.runLater(() -> {
+                performCloseBrowser.dynamicCloseBrowser(
+                        performActions.getCurrentDriver(),
+                        portSocket,
+                        "closeBrowser",
+                        "scannerGrid",
+                        "closeBrowser",
+                        homeBanking.getId());
+            });
         });
 
         cleanListButton.setOnAction(e -> {
@@ -4814,6 +4835,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void Close() {
+        ARLogger.getInstance(ARScannedElementPane.class).finer("ARScannedElementPane Close()");
         Platform.runLater(() -> {
             Stage stage = (Stage) contentPane.getScene().getWindow();
             stage.close();

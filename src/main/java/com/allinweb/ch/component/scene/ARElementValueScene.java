@@ -69,7 +69,7 @@ public class ARElementValueScene extends ARScene {
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
                 if (getTitle().equalsIgnoreCase("New Variables")) {
-                    modalStage.initModality(Modality.APPLICATION_MODAL); // Changed to NONE
+                    modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
                 } else {
                     modalStage.initModality(Modality.NONE);
                 }
@@ -83,7 +83,7 @@ public class ARElementValueScene extends ARScene {
             arElementValuePane.initialize(rowMoveDTO, instructionId, instructionName, varName, instructionType);
             modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
-        modalStage.show(); // Block until this window is closed
-        //        modalStage.showAndWait(); // Block until this window is closed
+        //        modalStage.show(); // Block until this window is closed
+        modalStage.showAndWait(); // Block until this window is closed
     }
 }

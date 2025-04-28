@@ -79,7 +79,16 @@ public abstract class ARScene implements IARScene {
                 stage.setTitle(getTitle());
                 stage.getIcons().add(icon);
                 stage.setScene(scene);
+                stage.setAlwaysOnTop(true);
                 stage.show(); // Show the stage
+                stage.toFront();
+                // Reset alwaysOnTop after showing so it behaves normally afterward
+                stage.setAlwaysOnTop(false);
+
+                // Once shown, reset AlwaysOnTop to false so it behaves normally
+                stage.setOnShown(event -> {
+                    Platform.runLater(() -> stage.setAlwaysOnTop(false));
+                });
 
                 if (stage.getTitle().equalsIgnoreCase("AR Web Scanner")) {
                     handleCloseApp(stage);

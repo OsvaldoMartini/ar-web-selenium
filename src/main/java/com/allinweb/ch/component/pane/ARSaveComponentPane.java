@@ -283,9 +283,12 @@ public class ARSaveComponentPane extends ARPane {
                                     null,
                                     0);
                         }
-                        Stage stage =
-                                (Stage) ((Button) e.getSource()).getScene().getWindow();
-                        stage.close();
+                        ARLogger.getInstance(ARSaveComponentPane.class).finer("ARSaveComponentPane Close()");
+                        Platform.runLater(() -> {
+                            Stage stage =
+                                    (Stage) ((Button) e.getSource()).getScene().getWindow();
+                            stage.close();
+                        });
                     } catch (SQLException error) {
                         System.out.println(error.getMessage());
                     }
@@ -638,6 +641,7 @@ public class ARSaveComponentPane extends ARPane {
     //    }
 
     private void Close() {
+        ARLogger.getInstance(ARSaveClonePane.class).finer("ARSaveClonePane Close()");
         Platform.runLater(() -> {
             Stage stage = (Stage) mainPane.getScene().getWindow();
             stage.close();
