@@ -152,6 +152,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         String type = null;
+        String body = null;
         int homeBankingId = -1;
         try {
             // Parse the incoming message (assuming JSON format)
@@ -160,12 +161,31 @@ public class ARScannedElementPane extends ARPane {
                     ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
                     : -1;
 
-            type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
+            body = jsonObjMSG.has("body") ? jsonObjMSG.get("body").getAsString() : "unknown";
+            if (!body.equalsIgnoreCase("unknown")) {
+                JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
+                if (objSecond.has("type") && objSecond.get("type").getAsString().equalsIgnoreCase("CLOSE_BROWSER")) {
+                    type = "CLOSE_BROWSER";
+                } else {
+                    type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
+                }
+            } else {
+                type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
+            }
+
             String sessionId =
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
 
             // Process the message based on its type
             switch (type) {
+                case "CLOSE_BROWSER":
+                    if (this.launchBotJobButton != null) {
+                        Platform.runLater(() -> {
+                            Stage stage = (Stage) launchBotJobButton.getScene().getWindow();
+                            stage.close();
+                        });
+                    }
+                    break;
                 case "NEW_ELEMENT_DTO":
                     checkRunningProcess();
                     // Extract the "body" field from the JsonObject
@@ -1782,14 +1802,14 @@ public class ARScannedElementPane extends ARPane {
 
         configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
         launchBotJobButton.setOnMouseClicked(e -> {
+            if (!lastBrowserTab()) {
+                return;
+            }
+
             launchBotJobButton.setDisable(true);
             performActions.setInterceptBotJob(false);
             setInterceptBotJob(false);
             isJobRunning.set(false);
-
-            if (!lastBrowserTab()) {
-                return;
-            }
 
             this.botJobLoadList = performDataBase.loadCompleteJobs(botJobLoad.getId());
 
@@ -1809,6 +1829,10 @@ public class ARScannedElementPane extends ARPane {
         });
 
         checkCloneElement.setOnMouseClicked(e -> {
+            if (!lastBrowserTab()) {
+                return;
+            }
+
             performActions.getCurrentDriver().switchTo().defaultContent();
             targetSelected = null;
             resultElementSearch = false;
@@ -2218,6 +2242,11 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void searchTermsBtn(String searchTerms) {
+
+        if (!lastBrowserTab()) {
+            return;
+        }
+
         String[] dataArray;
 
         //        String[] dataArray = {"with id"};
@@ -4955,19 +4984,16 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void browserNotAttached() {
-        Text variableText1Styled = new Text("The Browser attached with this Web Scanner is Not Active");
-        variableText1Styled.setStyle("-fx-font-size: 18px; -fx-fill: blue;");
-
-        Text variableText2Styled = new Text("Close and Re-open this Scanner Screen");
-        variableText2Styled.setStyle("-fx-font-size: 18px; -fx-fill: red;");
-
-        VBox combinedTextContainer = new VBox();
-        combinedTextContainer.setSpacing(5); // Add some sp
-
-        combinedTextContainer.getChildren().addAll(variableText1Styled, variableText2Styled);
-
-        performMessage.showAlertCombinedVBOX(
-                Alert.AlertType.WARNING, "Missing Web Browser", "Browser Not Active!", null, combinedTextContainer);
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        performMessage.errorMessage(
+                "The Browser attached with this Web Scanner is Not Active",
+                "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
+                "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                        + webDriverPath + "</span>",
+                "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
+                        + "</span>",
+                0);
     }
 
     private int handleGreaterThan(String value1, String value2) {

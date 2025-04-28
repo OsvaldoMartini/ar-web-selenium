@@ -228,9 +228,25 @@ public class SimpleWebSocketServer {
         boolean alreadySentMgsSocket = false;
 
         switch (type) {
-            case "HOVERED_ROW":
+            case "CLOSE_BROWSER":
                 // Extract the "body" field from the JsonObject
                 ElementSplitDTO elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
+
+                homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
+                sessionIdToSend = elementSplitDTO.getSessionId();
+
+                if (sessionIdToSend.equals("scannerReceiver-" + homeBankingId)) {
+                    elementSplitDTO.setOperationId("closeBrowser");
+                    String jsonData = gson.toJson(elementSplitDTO);
+                    sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "closeBrowser");
+                }
+
+                alreadySentMgsSocket = true;
+
+                break;
+            case "HOVERED_ROW":
+                // Extract the "body" field from the JsonObject
+                elementSplitDTO = gson.fromJson(jsonEntry, ElementSplitDTO.class);
 
                 homeBankingId = elementSplitDTO.getHomeBankingId() != null ? elementSplitDTO.getHomeBankingId() : -1;
                 sessionIdToSend = elementSplitDTO.getSessionId();

@@ -1028,7 +1028,30 @@ public class ARViewBotJobPane extends ARPane {
 
                 ARLogger.getInstance(ARViewBotJobPane.class).severe("Error Open URL: \n" + msg1 + "\n" + msg2);
 
-                performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
+                //                performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
+                String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+                if (error.getMessage().contains("session deleted as the browser has closed the connection")
+                        || error.getMessage().contains("Expected condition failed: waiting for com")) {
+                    performMessage.errorMessage(
+                            "Interruption Calling SCAN",
+                            "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                                    + webDriverPath + "</span>",
+                            "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
+                            "<span style='font-style: italic;'>Details: "
+                                    + "Web Browser was closed before the Scanner Tool" + "</span>",
+                            0);
+                } else {
+                    performMessage.errorMessage(
+                            "Access WebDriver",
+                            "<span style='font-style: italic;'>The WebDriver data directory is probably already in use.</span>",
+                            "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
+                                    + webDriverPath + "</span>",
+                            "<span style='font-style: italic;'>Please close all instances of the installer first.</span>",
+                            "<span style='font-style: italic;'>Details: "
+                                    + "Please close all possible Browser Instances" + "</span>",
+                            0);
+                }
             }
         }
 
