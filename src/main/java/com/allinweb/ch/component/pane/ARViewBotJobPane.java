@@ -1160,7 +1160,7 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         // Build the SQL update statement
-        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
+        try (Statement stmt = performDataBase.getConnection().createStatement()) {
             // Loop through each instruction in the rowList
             for (InstructionLoadDTO instruction : rowList) {
                 // Increment the instructionOrderNumber by 1 for each instruction

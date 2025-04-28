@@ -585,7 +585,7 @@ public class ARSaveComponentPane extends ARPane {
     //    private boolean insertComponentReferences(ComponentReferenceDTO referenceDTO, int instructionId) {
     //
     //        // Generate a Unique-ID for the block
-    //        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
+    //        try (Statement stmt = performDataBase.getConnection().createStatement()) {
     //
     //            // Fetch instructionId from savedBlockLoopInstructionLoadDTO
     //
@@ -625,7 +625,7 @@ public class ARSaveComponentPane extends ARPane {
     //    private Integer loadNextIdBReferenceData() {
     //        //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
     //        String selectSQL = "SELECT MAX(ID) AS max_id FROM component_reference";
-    //        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+    //        try (Statement stmt = performDataBase.getConnection().createStatement();
     //                ResultSet rs = stmt.executeQuery(selectSQL)) {
     //            while (rs.next()) {
     //                return rs.getInt("max_id");
@@ -661,7 +661,7 @@ public class ARSaveComponentPane extends ARPane {
                         + (blockDTO.getActive() ? 1 : 0) + ", " // active
                         + ")";
 
-        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
+        try (Statement stmt = performDataBase.getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             ARLogger.getInstance(ARViewBotJobPane.class).info("Block data saved successfully id: " + nextId);
             return nextId;
@@ -674,7 +674,7 @@ public class ARSaveComponentPane extends ARPane {
     private Integer loadNextIdSavedBlockData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+        try (Statement stmt = performDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -688,7 +688,7 @@ public class ARSaveComponentPane extends ARPane {
     private Integer loadNextSavedBlockOrderNumber(int botJobId) {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM component_block where bot_job_id = " + botJobId;
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+        try (Statement stmt = performDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -708,7 +708,7 @@ public class ARSaveComponentPane extends ARPane {
                 + " order by instruction_order_number ASC";
 
         // Execute the query and process the result set
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+        try (Statement stmt = performDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(querySQL)) {
 
             while (rs.next()) {

@@ -464,7 +464,7 @@ public class ARNewHomeBankingPane extends ARPane {
                         + " FROM home_banking bank "
                         + " left join bot_job bot on bot.home_banking_id = bank.id "
                         + " group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+        try (Statement stmt = performDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
@@ -522,7 +522,7 @@ public class ARNewHomeBankingPane extends ARPane {
     private Integer loadNexIdData() {
         //        String selectSQL = "SELECT NEXT_VAL fROM homeBankingSeq";
         String selectSQL = "SELECT MAX(ID) AS max_id FROM home_banking";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+        try (Statement stmt = performDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 return rs.getInt("max_id");
@@ -552,7 +552,7 @@ public class ARNewHomeBankingPane extends ARPane {
                         + "'" + optionsConfig + "', "
                         + "'" + user.getUsername() + "', "
                         + "'" + user.getPassword() + "')";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
+        try (Statement stmt = performDataBase.getConnection().createStatement()) {
             stmt.executeUpdate(insertSQL);
             System.out.println("Data saved successfully.");
         } catch (SQLException e) {
@@ -618,7 +618,7 @@ public class ARNewHomeBankingPane extends ARPane {
         try {
             int honeBankingId = Integer.parseInt(Id);
             String deleteSQL = "DELETE FROM home_banking WHERE ID = " + honeBankingId;
-            try (Statement stmt = PerformDataBase.getConnection().createStatement()) {
+            try (Statement stmt = performDataBase.getConnection().createStatement()) {
                 int rowsAffected = stmt.executeUpdate(deleteSQL);
                 if (rowsAffected > 0) {
                     ARLogger.getInstance(Thread.class).finer("Data deleted successfully.\n " + Id);

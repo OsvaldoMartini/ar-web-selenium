@@ -2700,7 +2700,7 @@ public class ARScannedElementPane extends ARPane {
                         + "                         left join bot_job bot on bot.active = 1 and bot.home_banking_id = bank.id "
                         + " WHERE bank.id = " + bankId
                         + "                         group by bank.ID, bank.Name, bank.Url, bank.priority, bank.search_config, bank.options_config, bank.username, bank.password ";
-        try (Statement stmt = PerformDataBase.getConnection().createStatement();
+        try (Statement stmt = performDataBase.getConnection().createStatement();
                 ResultSet rs = stmt.executeQuery(selectSQL)) {
             while (rs.next()) {
                 String id = rs.getString("ID");
