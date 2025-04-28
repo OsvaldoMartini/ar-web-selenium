@@ -4,10 +4,8 @@ import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
-import com.allinweb.ch.facade.PerformPreLoad;
 import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.util.ARConstants;
 import java.util.*;
@@ -26,28 +24,24 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
     private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
-    private PerformDataBase performDataBase;
-    private PerformActions performActions;
-    private PerformMessage performMessage;
-    private PerformPreLoad performPreLoad;
     private ObservableList<BotJobLoadDTO> botJobList;
     private ObservableList<WebDriver> webDriverList;
+
+    private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
+
+    static {
+        performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
 
     public BotJobListCell(
             ARViewBotJobScene arViewBotJobScene,
             ARWebDriver arWebDriver,
-            PerformDataBase performDataBase,
-            PerformActions performActions,
-            PerformMessage performMessage,
-            PerformPreLoad performPreLoad,
             ObservableList<BotJobLoadDTO> botJobList,
             ObservableList<WebDriver> webDriverList) {
         this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
-        this.performDataBase = performDataBase;
-        this.performActions = performActions;
-        this.performMessage = performMessage;
-        this.performPreLoad = performPreLoad;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
     }
@@ -172,14 +166,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(
-                            arWebDriver,
-                            performDataBase,
-                            performActions,
-                            performMessage,
-                            performPreLoad,
-                            item,
-                            botJobList);
+                    arViewBotJobScene.initialize(arWebDriver, item, botJobList);
                     arViewBotJobScene.show();
                 }
             });

@@ -3,7 +3,6 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
-import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -127,9 +126,9 @@ public class ARScannedElementScene extends ARScene {
         for (WebDriver driver : arWebDriver.getWebDriverList()) {
             try {
                 driver.quit();
-                ARLogger.getInstance(ARMainPane.class).info("WebDriver closed.");
+                ARLogger.getInstance(ARScannedElementPane.class).info("WebDriver closed.");
             } catch (Exception e) {
-                ARLogger.getInstance(ARMainPane.class).warning("Error closing WebDriver: " + e.getMessage());
+                ARLogger.getInstance(ARScannedElementPane.class).warning("Closing WebDriver: " + e.getMessage());
             }
         }
         Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
@@ -165,5 +164,9 @@ public class ARScannedElementScene extends ARScene {
             Thread.currentThread().interrupt();
             ARLogger.getInstance(ARWebDriver.class).severe("ExecutorService did not terminate\n" + e.getMessage());
         }
+    }
+
+    public void destroyPanel() {
+        arScannedElementPane.destroy();
     }
 }

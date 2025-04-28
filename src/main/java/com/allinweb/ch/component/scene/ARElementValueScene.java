@@ -68,7 +68,11 @@ public class ARElementValueScene extends ARScene {
                 modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
                 modalStage.setScene(modalScene);
                 modalStage.setTitle(getTitle());
-                modalStage.initModality(Modality.NONE); // Changed to NONE
+                if (getTitle().equalsIgnoreCase("New Variables")) {
+                    modalStage.initModality(Modality.APPLICATION_MODAL); // Changed to NONE
+                } else {
+                    modalStage.initModality(Modality.NONE);
+                }
                 modalStage.setAlwaysOnTop(true); // Set always on top
             } else {
                 // Handle the case where pane creation failed

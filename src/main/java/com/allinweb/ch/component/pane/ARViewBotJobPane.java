@@ -66,6 +66,26 @@ import javafx.util.Duration;
 import javax.websocket.Session;
 
 public class ARViewBotJobPane extends ARPane {
+
+    protected static volatile ARViewBotJobPane instance;
+
+    // Private constructor to prevent instantiation
+    private ARViewBotJobPane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARViewBotJobPane getInstance() {
+        if (instance == null) {
+            synchronized (ARViewBotJobPane.class) {
+                if (instance == null) {
+                    instance = new ARViewBotJobPane();
+                }
+            }
+        }
+        return instance;
+    }
+
     // Set to hold all active WebSocket sessions
     private static Map<String, Session> activeSessions;
     private int portInitial;
@@ -142,9 +162,9 @@ public class ARViewBotJobPane extends ARPane {
     private WebView webViewComp = new WebView();
     private WebEngine webEngineComp;
     private ARScene arScene;
-    private final ObservableList<BotJobLoadDTO> botJobList;
+    private ObservableList<BotJobLoadDTO> botJobList;
 
-    public ARViewBotJobPane(ARScene arScene, BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
+    public void initialize(ARScene arScene, BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
         this.arScene = arScene;
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
@@ -1302,5 +1322,12 @@ public class ARViewBotJobPane extends ARPane {
             String[] parts = version.split("\\.");
             return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
         }
+    }
+
+    public void destroy() {
+        clearPane(getPaneReference());
+        pane = null;
+        scene = null;
+        instance = null;
     }
 }

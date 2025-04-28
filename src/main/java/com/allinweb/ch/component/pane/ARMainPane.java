@@ -33,14 +33,10 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.*;
-import javafx.stage.Stage;
 import lombok.Getter;
 import org.openqa.selenium.WebDriver;
 
 public class ARMainPane extends ARPane {
-
-    private Stage stage; // Add stage variable
-    private boolean isCloseHandlerSet = false;
 
     //    private static final ARSharedResources dbResource;
     private static final ARPropertyManager arPropertyManager;
@@ -179,26 +175,11 @@ public class ARMainPane extends ARPane {
         botJobList.addAll(performDataBase.loadAllBotJobs());
         viewBotJobListView.setItems(botJobList);
         viewBotJobListView.setCellFactory(new ARCellFactory<>(
-                BotJobListCell.class,
-                arViewBotJobScene,
-                arWebDriver,
-                performDataBase,
-                performActions,
-                performMessage,
-                performPreLoad,
-                botJobList,
-                webDriverList)::call);
-        arNewBotJobScene.initialize(
-                arViewBotJobScene,
-                arWebDriver,
-                performDataBase,
-                performActions,
-                performMessage,
-                botJobList,
-                webDriverList);
+                BotJobListCell.class, arViewBotJobScene, arWebDriver, botJobList, webDriverList)::call);
+        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
         //        viewBotJobListView.setMaxSize(800D, 580D);
 
-        arWebDriver.initialize(webDriverList, performMessage, performPreLoad);
+        arWebDriver.initialize(webDriverList);
 
         panelPane = new VBox(buttonPane, header, viewBotJobListView);
         VBox.setMargin(viewBotJobListView, new Insets(0, 10D, 10D, 10D));
@@ -214,14 +195,7 @@ public class ARMainPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         newBotJobButton.setOnMouseClicked(e -> {
-            arNewBotJobScene.initialize(
-                    arViewBotJobScene,
-                    arWebDriver,
-                    performDataBase,
-                    performActions,
-                    performMessage,
-                    botJobList,
-                    webDriverList);
+            arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
             arNewBotJobScene.showModal();
             botJobList.clear();
             botJobList.addAll(performDataBase.loadAllBotJobs());
@@ -264,15 +238,7 @@ public class ARMainPane extends ARPane {
                 try {
                     Platform.runLater(() -> {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
-
-                        arViewBotJobScene.initialize(
-                                arWebDriver,
-                                performDataBase,
-                                performActions,
-                                performMessage,
-                                performPreLoad,
-                                selecBotJobDTO,
-                                botJobList);
+                        arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, botJobList);
                         arViewBotJobScene.show();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();

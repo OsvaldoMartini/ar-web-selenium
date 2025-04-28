@@ -15,10 +15,12 @@ import com.allinweb.ch.component.model.RowStatus;
 import com.allinweb.ch.component.model.VariableLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
+import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformCloneLoad;
+import com.allinweb.ch.facade.PerformCloseBrowser;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PerformPreLoad;
@@ -109,7 +111,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private static Map<String, Session> activeSessions;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     private final Gson gson = new Gson();
 
@@ -130,7 +132,7 @@ public class ARScannedElementPane extends ARPane {
                     }
                 },
                 0,
-                30,
+                15,
                 TimeUnit.SECONDS); // Adjust interval as needed
     }
 
@@ -148,6 +150,7 @@ public class ARScannedElementPane extends ARPane {
         System.out.println("Received: " + message);
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
+            System.out.println("Ping message: " + message);
             return;
         }
 
@@ -173,18 +176,36 @@ public class ARScannedElementPane extends ARPane {
                 type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
             }
 
+            // After Decoding
+            if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
+                // Ignore null or empty messages
+                System.out.println("Ping message: " + type);
+                return;
+            }
+
             String sessionId =
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
 
             // Process the message based on its type
             switch (type) {
                 case "CLOSE_BROWSER":
-                    if (this.launchBotJobButton != null) {
+                    if (this.launchBotJobButton != null && !performActions.isJustCalledRefreshPage()) {
                         Platform.runLater(() -> {
                             Stage stage = (Stage) launchBotJobButton.getScene().getWindow();
-                            stage.close();
+                            if (stage != null) {
+                                stage.close(); // <-- actually closes the Stage
+                            }
+
+                            // Clean ARScannedElementPane singleton instance
+                            ARScannedElementPane.getInstance().destroy();
+                            ARScannedElementScene.getInstance().destroyPanel(); //
                         });
                     }
+
+                    if (performActions.isJustCalledRefreshPage()) {
+                        performActions.setJustCalledRefreshPage(false);
+                    }
+
                     break;
                 case "NEW_ELEMENT_DTO":
                     checkRunningProcess();
@@ -220,7 +241,7 @@ public class ARScannedElementPane extends ARPane {
                     break;
             }
         } catch (Exception error) {
-            System.err.println("Error processing message: " + error.getMessage());
+            System.err.println("Closed processing message: " + error.getMessage());
         }
     }
 
@@ -244,6 +265,13 @@ public class ARScannedElementPane extends ARPane {
 
             insertNewElementDTO(currentBlockId, nextOrder, targetInsertOne);
         }
+    }
+
+    public void destroy() {
+        clearPane(getPaneReference());
+        pane = null;
+        scene = null;
+        instance = null;
     }
 
     private void stepsInsertManyDTO(ElementSplitDTO processDTO) {
@@ -1072,6 +1100,7 @@ public class ARScannedElementPane extends ARPane {
     private static final PerformActions performActions;
     private static final PerformMessage performMessage;
     private static final PerformPreLoad performPreLoad;
+    private static final PerformCloseBrowser performCloseBrowser;
 
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
 
@@ -1083,6 +1112,7 @@ public class ARScannedElementPane extends ARPane {
         performActions = PerformActions.getInstance();
         performMessage = PerformMessage.getInstance();
         performPreLoad = PerformPreLoad.getInstance();
+        performCloseBrowser = PerformCloseBrowser.getInstance();
 
         performCloneLoad = PerformCloneLoad.getInstance();
         arPriorities = ARPriorities.getInstance();
@@ -1293,6 +1323,14 @@ public class ARScannedElementPane extends ARPane {
         //                "scannerGrid",
         //                "searchTerms");
 
+        performCloseBrowser.dynamicCloseBrowser(
+                performActions.getCurrentDriver(),
+                portSocket,
+                "closeBrowser",
+                "scannerGrid",
+                "closeBrowser",
+                homeBanking.getId());
+
         performActions.getIframeElementsMap();
 
         handleWindowHandlesChange();
@@ -1418,6 +1456,10 @@ public class ARScannedElementPane extends ARPane {
         rightButton.setOnAction(e -> switchToRightTab());
 
         refreshWebPageButton.setOnAction(e -> {
+            if (!lastBrowserTab()) {
+                return;
+            }
+
             performActions.refreshPage();
         });
 
@@ -1826,6 +1868,10 @@ public class ARScannedElementPane extends ARPane {
             performActions.setInterceptBotJob(true);
             setInterceptBotJob(true);
             isJobRunning.set(false);
+
+            if (!lastBrowserTab()) {
+                return;
+            }
         });
 
         checkCloneElement.setOnMouseClicked(e -> {

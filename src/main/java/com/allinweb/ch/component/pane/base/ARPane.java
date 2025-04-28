@@ -10,8 +10,8 @@ import javafx.stage.Stage;
 
 public abstract class ARPane extends Application implements IARPane {
 
-    private Pane pane;
-    private Scene scene;
+    protected Pane pane;
+    protected Scene scene;
 
     public Scene getScene() {
         return scene;
@@ -50,6 +50,15 @@ public abstract class ARPane extends Application implements IARPane {
     @Override
     public void clearPane(Pane panel) {
         panel.getChildren().clear();
+    }
+
+    @Override
+    public void clear() {
+        if (pane != null) {
+            clearPane(pane);
+            pane = null;
+        }
+        scene = null;
     }
 
     @Override

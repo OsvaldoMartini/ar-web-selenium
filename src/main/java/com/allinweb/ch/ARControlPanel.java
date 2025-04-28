@@ -118,8 +118,10 @@ public class ARControlPanel extends Application {
                 } else {
                     license.set(LicenseManager.checkLicenseFile());
                     if (license.get().isActive()) {
-                        ARMainScene primaryStage = new ARMainScene();
-                        primaryStage.show();
+                        Platform.runLater(() -> {
+                            ARMainScene primaryStage = new ARMainScene();
+                            primaryStage.show();
+                        });
                     } else {
                         licenseMessages(license.get());
                     }

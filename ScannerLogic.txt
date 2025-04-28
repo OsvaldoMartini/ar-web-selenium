@@ -307,12 +307,12 @@ if (extractedData.getNumberOfDataRows() > 0) {
 				// sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2)
 				if (rowStatus.getInstructionId() == null) {
 					rowStatus.setInstructionId(currentInstruction.getId());
-					rowStatus.setColor("#fcba03"); // deep carmine yellow
+					rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
 					jsonStatus = gson.toJson(rowStatus);
 					sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 				} else {
 					// Previous
-					rowStatus.setColor("#1d9c06"); // green
+					rowStatus.setColor("green"); // #1d9c06 green
 					jsonStatus = gson.toJson(rowStatus);
 					sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 					try {
@@ -321,7 +321,7 @@ if (extractedData.getNumberOfDataRows() > 0) {
 					}
 					// Current
 					rowStatus.setInstructionId(currentInstruction.getId());
-					rowStatus.setColor("#fcba03"); // deep carmine green
+					rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
 					jsonStatus = gson.toJson(rowStatus);
 					sendMessageJson(homeBanking.getId(), sessionRowStatus, jsonStatus, "rowStatus");
 				}

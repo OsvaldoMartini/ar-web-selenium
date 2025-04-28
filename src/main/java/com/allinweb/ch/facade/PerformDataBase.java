@@ -21,7 +21,6 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
-import com.google.gson.Gson;
 import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -42,16 +41,15 @@ import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import org.hibernate.Session;
-import org.hibernate.SessionFactory;
-import org.hibernate.cfg.Configuration;
+import lombok.Getter;
+import lombok.Setter;
 
 public class PerformDataBase {
 
     // Static final variable to hold the singleton instance
     protected static volatile PerformDataBase instance;
 
-    private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    public final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     // Private constructor to prevent instantiation
     private PerformDataBase() {
         // Initialize if necessary
@@ -69,70 +67,79 @@ public class PerformDataBase {
         return instance;
     }
 
-    private static final ARPropertyManager arPropertyManager;
-    private static final PerformMessage performMessage;
+    public static final ARPropertyManager arPropertyManager;
+    public static final PerformMessage performMessage;
 
     static {
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
-    private static String previousDB;
+    public String previousDB;
 
-    private static Connection conn = null;
+    @Getter
+    @Setter
+    public Connection conn = null;
 
-    private static final String CONNECTION_TYPE = "jdbc:ucanaccess://";
-    private static final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
+    // Open connection counter
+    public int openConnections = 0;
+
+    public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
+    public final String CONNECTION_PARAMETERS = ";memory=false;newDatabaseVersion=V2010";
 
     // Postgres
-    private static boolean POSTGRES_DB = false;
-    private static final String CONNECTION_POSTGRES = "jdbc:postgresql://";
-    private static final String DB_HOST = "localhost"; // or your PostgreSQL server address
-    private static final String DB_PORT = "5432"; // default PostgreSQL port
-    private static final String DB_NAME = "abr_web"; // your database name
-    private static final String USERNAME = "postgres"; // your database username
-    private static final String PASSWORD = "martini"; // your database password
-
-    private static SessionFactory sessionFactory = null;
-    private static Session session = null;
+    public boolean POSTGRES_DB = false;
+    public final String CONNECTION_POSTGRES = "jdbc:postgresql://";
+    public final String DB_HOST = "localhost"; // or your PostgreSQL server address
+    public final String DB_PORT = "5432"; // default PostgreSQL port
+    public final String DB_NAME = "abr_web"; // your database name
+    public final String USERNAME = "postgres"; // your database username
+    public final String PASSWORD = "martini"; // your database password
 
     private ObservableList<VariableUserDTO> variablesList = FXCollections.observableArrayList();
     private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
 
-    private BotJobLoadDTO botJobLoadDTO;
-
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
-
-    private Gson gson = new Gson();
 
     public void initialize(String databaseType) {
         this.previousDB = databaseType;
     }
 
-    public static Connection getConn() {
-        return conn;
-    }
-
-    public static void setConn(Connection conn) {
-        PerformDataBase.conn = conn;
-    }
-
-    public static void closeConnection() {
+    public void closeConnection() {
         if (conn != null) {
             try {
                 conn.close();
                 conn = null; // Reset the connection to null after closing
+                decrementOpenConnections();
             } catch (SQLException e) {
                 System.out.println(e.getMessage()); // Handle the exception, log it or rethrow it as needed
             }
         }
     }
 
-    public static void changeDbConnection() {
+    // Increment open connections counter
+    public synchronized void incrementOpenConnections() {
+        openConnections++;
+        System.out.println("Open connections: " + openConnections);
+    }
+
+    // Decrement open connections counter
+    public synchronized void decrementOpenConnections() {
+        openConnections--;
+        System.out.println("Open connections: " + openConnections);
+    }
+
+    // Get the current open connections count
+    public int getOpenConnectionsCount() {
+        return openConnections;
+    }
+
+    public void changeDbConnection() {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         //        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
         closeConnection();
+
         previousDB = dataBaseType;
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
@@ -160,62 +167,9 @@ public class PerformDataBase {
         //        }
     }
 
-    public static void changeDbConnectionHibernate() {
-        String priorityPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY);
-        String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
+    public Connection getConnection() {
+        ARLogger.getInstance(PerformDataBase.class).info("Open Connections Count() : " + getOpenConnectionsCount());
 
-        if (Strings.isNullOrEmpty(previousDB) || (previousDB != null && !previousDB.equals(dataBaseType))) {
-            closeConnection();
-            previousDB = dataBaseType;
-
-            if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
-                POSTGRES_DB = true;
-            } else {
-                POSTGRES_DB = false;
-            }
-
-            if (priorityPath != null) {
-
-                //            if (priorityPath != null && !priorityPath.isBlank()) {
-                //                arPriorities.loadPriorities();
-                //            }
-
-                if (POSTGRES_DB) {
-                    String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
-                    sessionFactory = new Configuration()
-                            .configure()
-                            .setProperty("hibernate.connection.url", dbUrl)
-                            .setProperty("hibernate.connection.username", USERNAME)
-                            .setProperty("hibernate.connection.password", PASSWORD)
-                            .setProperty("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect")
-                            .setProperty("hibernate.connection.driver_class", "org.postgresql.Driver")
-                            .buildSessionFactory();
-                    session = sessionFactory.openSession();
-                    //                cacheEntitiesFromDB();
-                } else {
-
-                    try {
-                        String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
-                        if (!dbPath.isBlank()) {
-                            File dbFolder = new File(dbPath);
-                            dbFolder.mkdirs();
-                            String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
-                            sessionFactory = new Configuration()
-                                    .configure()
-                                    .setProperty("hibernate.connection.url", dbUrl)
-                                    .buildSessionFactory();
-                            session = sessionFactory.openSession();
-                            //                    cacheEntitiesFromDB();
-                        }
-                    } catch (Exception error) {
-
-                    }
-                }
-            }
-        }
-    }
-
-    public static Connection getConnection() {
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
         if (dataBaseType != null && dataBaseType.equalsIgnoreCase("POSTGRES")) {
@@ -225,19 +179,33 @@ public class PerformDataBase {
         }
 
         try {
+
+            // Close previous connection if already exists and is open
+            //            if (conn != null && !conn.isClosed()) {
+            //                closeConnection(); // Close previous connection before establishing a new one
+            //            }
+
             if (conn == null || conn.isClosed()) {
                 if (!POSTGRES_DB) {
                     String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
                     String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
                     ARLogger.getInstance(PerformDataBase.class).info("ACCESS connection URL: " + dbUrl);
                     conn = DriverManager.getConnection(dbUrl);
+                    conn.setReadOnly(false);
                 } else {
                     String dbUrl = CONNECTION_POSTGRES + DB_HOST + ":" + DB_PORT + "/" + DB_NAME;
                     String userDB = USERNAME + " - " + PASSWORD;
                     ARLogger.getInstance(PerformDataBase.class).info("POSTGRES connection URL: " + dbUrl);
                     ARLogger.getInstance(PerformDataBase.class).info("User Details: " + userDB);
                     conn = DriverManager.getConnection(dbUrl, USERNAME, PASSWORD);
+                    conn.setReadOnly(false);
                 }
+                // Increment the open connection counter
+                if (getOpenConnectionsCount() > 10) {
+                    this.openConnections = 0;
+                }
+
+                incrementOpenConnections();
             }
         } catch (SQLException error) {
             ARLogger.getInstance(PerformDataBase.class).severe("getConnection Error: " + error.getMessage());
@@ -249,7 +217,7 @@ public class PerformDataBase {
     }
 
     // Handle DELETE_INSTRUCTION message
-    public static void deleteInstruction(int botJobId, InstructionLoadDTO deleteInstructionLoadDTO) {
+    public void deleteInstruction(int botJobId, InstructionLoadDTO deleteInstructionLoadDTO) {
 
         if (deleteInstructionLoadDTO.getParentId() != null) {
             List<ParentOperations> listParents = loadParents(
@@ -288,7 +256,7 @@ public class PerformDataBase {
         }
     }
 
-    private static boolean deleteVariable(int bot_job_id, int instructionId) {
+    public boolean deleteVariable(int bot_job_id, int instructionId) {
         // Build the SQL delete statement
 
         try (Statement stmt = getConnection().createStatement()) {
@@ -323,7 +291,7 @@ public class PerformDataBase {
         return false;
     }
 
-    public static List<ParentOperations> loadAllParents(int bot_job_id, int instructionId) {
+    public List<ParentOperations> loadAllParents(int bot_job_id, int instructionId) {
         List<ParentOperations> parentList = new ArrayList<>();
 
         try (Statement stmt = getConnection().createStatement()) {
@@ -378,7 +346,7 @@ public class PerformDataBase {
         return parentList;
     }
 
-    private static List<ParentOperations> loadParents(int bot_job_id, int instructionId, int parentId) {
+    public List<ParentOperations> loadParents(int bot_job_id, int instructionId, int parentId) {
         List<ParentOperations> parentList = new ArrayList<>();
 
         try (Statement stmt = getConnection().createStatement()) {
@@ -432,7 +400,7 @@ public class PerformDataBase {
         return parentList;
     }
 
-    private static boolean deleteCompVariable(InstructionLoadDTO deleteInstructionLoadDTO) {
+    public boolean deleteCompVariable(InstructionLoadDTO deleteInstructionLoadDTO) {
         // Validate input
         if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getInstructionId() <= 0) {
             ARLogger.getInstance(PerformDataBase.class)
@@ -472,7 +440,7 @@ public class PerformDataBase {
         return false;
     }
 
-    private static boolean deleteReferences(int botJobId, int instructionId) {
+    public boolean deleteReferences(int botJobId, int instructionId) {
         String deleteSQL =
                 "DELETE FROM reference WHERE " + " bot_job_id = " + botJobId + " instruction_id = " + instructionId;
 
@@ -490,7 +458,7 @@ public class PerformDataBase {
         }
     }
 
-    private static boolean deleteCompReferences(InstructionLoadDTO deleteInstructionLoadDTO) {
+    public boolean deleteCompReferences(InstructionLoadDTO deleteInstructionLoadDTO) {
         // Validate input
         if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getInstructionId() <= 0) {
             ARLogger.getInstance(PerformDataBase.class)
@@ -530,7 +498,7 @@ public class PerformDataBase {
         return false;
     }
 
-    private static boolean deleteRow(InstructionLoadDTO deleteInstructionLoadDTO) {
+    public boolean deleteRow(InstructionLoadDTO deleteInstructionLoadDTO) {
         // Build the SQL delete statement
         try (Statement stmt = getConnection().createStatement()) {
 
@@ -580,7 +548,7 @@ public class PerformDataBase {
         return false;
     }
 
-    private static boolean deleteRowParents(int botJobId, int parentId) {
+    public boolean deleteRowParents(int botJobId, int parentId) {
         // Build the SQL delete statement
         String deleteSQL = MessageFormat.format(
                 """
@@ -609,7 +577,7 @@ public class PerformDataBase {
         return false;
     }
 
-    private static boolean deleteCompInstruction(InstructionLoadDTO deleteInstructionLoadDTO) {
+    public boolean deleteCompInstruction(InstructionLoadDTO deleteInstructionLoadDTO) {
         // Validate input
         if (deleteInstructionLoadDTO == null || deleteInstructionLoadDTO.getInstructionId() <= 0) {
             ARLogger.getInstance(PerformDataBase.class)
@@ -668,7 +636,7 @@ public class PerformDataBase {
         return false;
     }
 
-    public static void deleteNullBlocks(int botJobId) {
+    public void deleteNullBlocks(int botJobId) {
         // Build the SQL delete statement
         try (Statement stmt = getConnection().createStatement()) {
 
@@ -695,7 +663,7 @@ public class PerformDataBase {
         }
     }
 
-    public static void deleteCompNullBlocks(int homeBanking, int botJobId) {
+    public void deleteCompNullBlocks(int homeBanking, int botJobId) {
         // Validate input
         if (homeBanking <= 0) {
             ARLogger.getInstance(PerformDataBase.class)
@@ -734,7 +702,7 @@ public class PerformDataBase {
         }
     }
 
-    public static void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
+    public void updateBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
         //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
         blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
 
@@ -775,8 +743,7 @@ public class PerformDataBase {
         }
     }
 
-    public static void updateCompBlockOrderNumber(
-            List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
+    public void updateCompBlockOrderNumber(List<BlockOrderDetailDTO> blockOrderDetailDTOList, boolean reorderAll) {
         //         Sort the blockOrderDetailDTOList based on the previous blockOrderNumber in ascending order
         blockOrderDetailDTOList.sort(Comparator.comparingInt(BlockOrderDetailDTO::getBlockOrderNumber));
 
@@ -814,7 +781,7 @@ public class PerformDataBase {
         }
     }
 
-    public static List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
+    public List<BlockOrderDetailDTO> selectAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
         try (Statement stmt = getConnection().createStatement()) {
 
@@ -850,7 +817,7 @@ public class PerformDataBase {
         return blockOrderDetails;
     }
 
-    public static List<BlockOrderDetailDTO> selectCompAllBlocks(int botJobId) {
+    public List<BlockOrderDetailDTO> selectCompAllBlocks(int botJobId) {
         List<BlockOrderDetailDTO> blockOrderDetails = new ArrayList<>();
         try (Statement stmt = getConnection().createStatement()) {
 
@@ -1394,7 +1361,7 @@ public class PerformDataBase {
         }
     }
 
-    public static List<InstructionLoadDTO> getBlockLoopInstructionIdsWithNullBlock(int botJobId) {
+    public List<InstructionLoadDTO> getBlockLoopInstructionIdsWithNullBlock(int botJobId) {
         // List to store IDs of block loop instructions where block_id is null
         List<InstructionLoadDTO> instructions = new ArrayList<>();
 
@@ -1796,7 +1763,7 @@ public class PerformDataBase {
         return botJobLoadList;
     }
 
-    //    public static List<BotJobLoadDTO> loadBlockAll(int botJobId) {
+    //    public  List<BotJobLoadDTO> loadBlockAll(int botJobId) {
     //        String query = "SELECT bj.id AS bot_job_id, bj.name AS bot_job_name, "
     //                + " b.id AS block_id, b.block_order_number, b.name AS block_name, "
     //                + " b.description AS block_description, b.type_id, "
@@ -2705,7 +2672,7 @@ public class PerformDataBase {
 
     public boolean updateBotStatus() {
         // SQL query to get the blocks for a specific bot job
-        String query = "update bot_job set active = ";
+        String query = "update bot_job set active = 1";
 
         // Initialize the necessary data structures
 
@@ -3210,7 +3177,7 @@ public class PerformDataBase {
             boolean updateRow,
             boolean blockIdChanged) {
 
-        this.botJobLoadDTO = loadBotJobById(rowMoveDTO.getBotJobId());
+        //        this.botJobLoadDTO = loadBotJobById(rowMoveDTO.getBotJobId());
 
         if (!updateRow || blockIdChanged) {
             List<InstructionLoadDTO> rowList =
@@ -3384,7 +3351,7 @@ public class PerformDataBase {
         return -1;
     }
 
-    public static List<HomeBankingLoadDTO> loadAllHomeBanking() {
+    public List<HomeBankingLoadDTO> loadAllHomeBanking() {
         List<HomeBankingLoadDTO> homeBankingList = new ArrayList<>();
 
         try (Statement stmt = getConnection().createStatement()) {
@@ -3421,7 +3388,7 @@ public class PerformDataBase {
         return homeBankingList;
     }
 
-    public static HomeBankingLoadDTO loadHomeBanking(int homeBankingId) {
+    public HomeBankingLoadDTO loadHomeBanking(int homeBankingId) {
         HomeBankingLoadDTO homeBanking = null;
 
         try (Statement stmt = getConnection().createStatement()) {
@@ -4959,7 +4926,7 @@ public class PerformDataBase {
         }
     }
 
-    public static List<InstructionLoadDTO> filterInstructions(List<InstructionLoadDTO> instructionList) {
+    public List<InstructionLoadDTO> filterInstructions(List<InstructionLoadDTO> instructionList) {
         return instructionList.stream()
                 .filter(instruction -> !ARConstants.EXTRACT_FIELD.equals(instruction.getActions())
                         && !ARConstants.SET_VALUE.equals(instruction.getActions())
@@ -5231,7 +5198,7 @@ public class PerformDataBase {
     }
 
     // Handle DELETE_INSTRUCTION message
-    public static void deleteComponent(InstructionLoadDTO deleteInstructionLoad) {
+    public void deleteComponent(InstructionLoadDTO deleteInstructionLoad) {
         if (deleteCompVariable(deleteInstructionLoad))
             if (deleteCompReferences(deleteInstructionLoad))
                 if (deleteCompInstruction(deleteInstructionLoad)) {
@@ -5241,7 +5208,7 @@ public class PerformDataBase {
                 }
     }
 
-    public static void initializeMainDatabaseAccess(String dbUrl, File dbFile) {
+    public void initializeMainDatabaseAccess(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {
             try (Statement stmt = conn.createStatement()) {
@@ -5490,7 +5457,7 @@ public class PerformDataBase {
         }
     }
 
-    public static boolean doesInstructionTableExist() {
+    public boolean doesInstructionTableExist() {
         try (Connection conn = getConnection()) {
             try (ResultSet rs = conn.getMetaData().getTables(null, null, "instruction", null)) {
                 return rs.next(); // Returns true if the table exists
@@ -5501,7 +5468,7 @@ public class PerformDataBase {
         return false; // Default return if an exception occurs or the table does not exist
     }
 
-    public static void createTableOpenAIVector() {
+    public void createTableOpenAIVector() {
 
         try (Connection conn = getConnection()) {
             try (Statement stmt = conn.createStatement()) {
@@ -5523,7 +5490,7 @@ public class PerformDataBase {
         }
     }
 
-    public static void initializeMainDatabasePostgres() {
+    public void initializeMainDatabasePostgres() {
 
         try (Connection conn = getConnection()) {
             try (Statement stmt = conn.createStatement()) {
@@ -5996,7 +5963,7 @@ public class PerformDataBase {
         }
     }
 
-    public static void dataBaseInUse(String errorMessage) {
+    public void dataBaseInUse(String errorMessage) {
         if (errorMessage.contains("UCAExc:::5.0.1") && errorMessage.contains("The table data is read only")) {
 
             performMessage.errorMessage(

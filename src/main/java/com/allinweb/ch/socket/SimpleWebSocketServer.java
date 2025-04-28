@@ -134,6 +134,7 @@ public class SimpleWebSocketServer {
     public void onMessage(String message, Session session) {
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
+            System.out.println("Ping message: " + message);
             return;
         }
 
@@ -167,6 +168,7 @@ public class SimpleWebSocketServer {
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
+                System.out.println("Ping message: " + type);
                 return;
             }
 
@@ -210,11 +212,11 @@ public class SimpleWebSocketServer {
                     break;
             }
         } catch (Exception error) {
-            System.err.println("Error processing message: " + error.getMessage());
+            System.err.println("Closed processing message: " + error.getMessage());
             if (type != null) {
                 sendMessageJson(homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
             } else {
-                sendMessageJson(homeBankingId, session, type, "Error processing message", "No \"type\" definition");
+                sendMessageJson(homeBankingId, session, type, "Closed processing message", "No \"type\" definition");
             }
         }
     }
@@ -709,6 +711,7 @@ public class SimpleWebSocketServer {
                 System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
         } else {
+            removeSession(sessionId);
             System.err.println("Session " + sessionId + " not found or closed.");
         }
     }

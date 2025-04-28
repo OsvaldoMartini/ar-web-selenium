@@ -65,6 +65,9 @@ public class ARNewHomeBankingPane extends ARPane {
     public ARNewHomeBankingPane(ObservableList<HomeBankingLoadDTO> homeBankingList) {
         super();
         this.homeBankingList = homeBankingList;
+        if (this.homeBankingList == null) {
+            this.homeBankingList = FXCollections.observableArrayList();
+        }
     }
 
     @Override

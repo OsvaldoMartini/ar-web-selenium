@@ -21,6 +21,8 @@ public interface IARPane {
         // Default implementation
     }
 
+    void clear();
+
     default void removeNodesFromPane(Pane panel, Node... toRemove) {
         // Default implementation
     }
