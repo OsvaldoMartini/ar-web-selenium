@@ -150,7 +150,8 @@ public class ARScannedElementPane extends ARPane {
         System.out.println("Received: " + message);
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
-            System.out.println("Ping message: " + message);
+            message = message.replaceAll("ping-", "");
+            System.out.println("Active : " + message);
             return;
         }
 
@@ -179,7 +180,8 @@ public class ARScannedElementPane extends ARPane {
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
-                System.out.println("Ping message: " + type);
+                type = type.replaceAll("ping-", "");
+                System.out.println("Active : " + type);
                 return;
             }
 
@@ -250,8 +252,8 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void stepsInsertOneDTO(TargetElement targetInsertOne) {
-        validateBlockDB("Default Block", this.botJobLoad.getId());
-        if (currentBlockId > 0) {
+        int blockExist = validateBlockDB("Default Block", this.botJobLoad.getId());
+        if (blockExist > 0 && currentBlockId > 0) {
 
             //            preTestCoordinates(targetInsertOne);
 
@@ -321,7 +323,7 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void validateBlockDB(String blockName, int botJobId) {
+    private int validateBlockDB(String blockName, int botJobId) {
 
         int newBlockID = performActions.createBlockIfNone(blockName, botJobId);
         if (newBlockID > 0) {
@@ -357,6 +359,7 @@ public class ARScannedElementPane extends ARPane {
                         300);
             }
         }
+        return newBlockID;
     }
 
     private void insertNewElementDTO(int currentBlockId, int nextInstOrderNumber, TargetElement targetInsert) {

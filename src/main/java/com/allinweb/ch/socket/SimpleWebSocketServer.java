@@ -134,7 +134,8 @@ public class SimpleWebSocketServer {
     public void onMessage(String message, Session session) {
         if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
-            System.out.println("Ping message: " + message);
+            message = message.replaceAll("ping-", "");
+            System.out.println("Active : " + message);
             return;
         }
 
@@ -168,7 +169,8 @@ public class SimpleWebSocketServer {
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
                 // Ignore null or empty messages
-                System.out.println("Ping message: " + type);
+                type = type.replaceAll("ping-", "");
+                System.out.println("Active : " + type);
                 return;
             }
 

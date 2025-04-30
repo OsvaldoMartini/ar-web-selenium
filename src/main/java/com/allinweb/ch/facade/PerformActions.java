@@ -3918,9 +3918,9 @@ public class PerformActions {
 
             if (newBlockId < 0) {
                 performMessage.errorMessage(
-                        "Error Creating new Block",
-                        "Verify the Bot Job Name if have any",
-                        "Check if you already have a Bot Job Created!",
+                        "Creating new Block Error",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Verify the Bot Job Name if you have any</span>",
+                        "<span style='color: #E65100; font-weight: bold;'>Check if you already have a Bot Job Created!</span>",
                         null,
                         null,
                         0);

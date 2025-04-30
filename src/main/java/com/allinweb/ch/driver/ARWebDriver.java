@@ -358,15 +358,15 @@ public class ARWebDriver {
                         "<span style='font-style: italic;'>The WebDriver data directory is probably already in use.</span>",
                         "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
                                 + webDriverPath + "</span>",
-                        "<span style='font-style: italic;'>Please close all instances of the installer first.</span>",
                         "<span style='font-style: italic;'>Details: " + "Please close all possible Browser Instances"
                                 + "</span>",
+                        "<span style='font-style: italic;'>Check/close all instances of the installer first.</span>",
                         0);
             }
 
             // Example: print or log the chunks if needed
             for (String chunk : messageChunks) {
-                ARLogger.getInstance(ARWebDriver.class).fine("Error chunk: " + chunk);
+                System.out.println("Browser response : " + chunk);
             }
             return null;
         }

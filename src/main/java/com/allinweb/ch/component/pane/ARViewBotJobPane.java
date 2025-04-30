@@ -5,6 +5,7 @@ import com.allinweb.ch.component.model.BlockLoadDTO;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.model.HomeBankingLoadDTO;
 import com.allinweb.ch.component.model.InstructionLoadDTO;
+import com.allinweb.ch.component.model.PayloadJson;
 import com.allinweb.ch.component.model.VariableUserDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
@@ -340,15 +341,15 @@ public class ARViewBotJobPane extends ARPane {
 
         } else {
 
-            //            BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-            //            botJobDTO.setId(this.botJobLoad.getId());
-            //            botJobDTO.setName(this.botJobLoad.getName());
-            //            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-            //            this.botJobLoadList.add(botJobDTO);
+            BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+            botJobDTO.setId(this.botJobLoad.getId());
+            botJobDTO.setName(this.botJobLoad.getName());
+            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+            this.botJobLoadList.add(botJobDTO);
 
-            //            PayloadJson payload = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
-            //            // Convert the object to JSON using Gson
-            //            jsonData = gson.toJson(payload);
+            PayloadJson payload = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
+            // Convert the object to JSON using Gson
+            jsonData = gson.toJson(payload);
         }
 
         webEngineTasks = webViewTasks.getEngine();
@@ -373,7 +374,15 @@ public class ARViewBotJobPane extends ARPane {
             performMessage.outputJson(blockLoopInstructions, "componentTasks-" + this.botJobLoad.getId(), false);
             jsonData = gson.toJson(blockLoopInstructions);
         } else {
-            jsonData = "[]";
+            BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+            botJobDTO.setId(this.botJobLoad.getId());
+            botJobDTO.setName(this.botJobLoad.getName());
+            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+            this.botJobLoadList.add(botJobDTO);
+
+            PayloadJson payload = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
+            // Convert the object to JSON using Gson
+            jsonData = gson.toJson(payload);
         }
 
         webEngineComp = webViewComp.getEngine();
@@ -1009,9 +1018,9 @@ public class ARViewBotJobPane extends ARPane {
                             "<span style='font-style: italic;'>The WebDriver data directory is probably already in use.</span>",
                             "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
                                     + webDriverPath + "</span>",
-                            "<span style='font-style: italic;'>Please close all instances of the installer first.</span>",
                             "<span style='font-style: italic;'>Details: "
                                     + "Please close all possible Browser Instances" + "</span>",
+                            "<span style='font-style: italic;'>Check/close all instances of the installer first.</span>",
                             0);
                 }
             }
