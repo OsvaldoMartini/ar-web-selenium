@@ -331,7 +331,7 @@ public class ARMainPane extends ARPane {
                             try {
                                 file.createNewFile();
                             } catch (IOException ex) {
-                                ARLogger.getInstance(ARScannedElementPane.class).fine("Error : " + ex);
+                                ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
                             }
                         }
                     }
@@ -341,7 +341,7 @@ public class ARMainPane extends ARPane {
                     try {
                         processBuilder.start();
                     } catch (IOException ex) {
-                        ARLogger.getInstance(ARScannedElementPane.class).fine("Error : " + ex);
+                        ARLogger.getInstance(ARMainPane.class).fine("Error : " + ex);
                     }
                 } else {
                     performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);
