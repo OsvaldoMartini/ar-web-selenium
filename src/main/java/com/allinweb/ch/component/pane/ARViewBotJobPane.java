@@ -103,6 +103,8 @@ public class ARViewBotJobPane extends ARPane {
     private List<BotJobLoadDTO> botJobLoadList;
     private List<BotJobLoadDTO> botJobLoadComp;
 
+    private PayloadJson payloadEmpty;
+
     private BlockLoadDTO blockLoad;
     private List<BlockLoadDTO> blockLoadList;
 
@@ -169,6 +171,8 @@ public class ARViewBotJobPane extends ARPane {
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
 
+        setPayloadEmpty();
+
         // Initialize database IF IS ACCESS TO BE USED
         variablesList = FXCollections.observableArrayList();
         webPageItems = FXCollections.observableArrayList();
@@ -188,6 +192,7 @@ public class ARViewBotJobPane extends ARPane {
         if (portSocket != null) {
             portInitial = Integer.parseInt(portSocket);
         }
+
         buidUIComponents(portInitial);
     }
 
@@ -340,16 +345,8 @@ public class ARViewBotJobPane extends ARPane {
             jsonData = gson.toJson(blockLoopInstructions);
 
         } else {
-
-            BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-            botJobDTO.setId(this.botJobLoad.getId());
-            botJobDTO.setName(this.botJobLoad.getName());
-            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-            this.botJobLoadList.add(botJobDTO);
-
-            PayloadJson payload = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
             // Convert the object to JSON using Gson
-            jsonData = gson.toJson(payload);
+            jsonData = gson.toJson(payloadEmpty);
         }
 
         webEngineTasks = webViewTasks.getEngine();
@@ -374,15 +371,8 @@ public class ARViewBotJobPane extends ARPane {
             performMessage.outputJson(blockLoopInstructions, "componentTasks-" + this.botJobLoad.getId(), false);
             jsonData = gson.toJson(blockLoopInstructions);
         } else {
-            BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
-            botJobDTO.setId(this.botJobLoad.getId());
-            botJobDTO.setName(this.botJobLoad.getName());
-            botJobDTO.setBlockLoadDTOList(new ArrayList<>());
-            this.botJobLoadList.add(botJobDTO);
-
-            PayloadJson payload = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
             // Convert the object to JSON using Gson
-            jsonData = gson.toJson(payload);
+            jsonData = gson.toJson(payloadEmpty);
         }
 
         webEngineComp = webViewComp.getEngine();
@@ -519,10 +509,14 @@ public class ARViewBotJobPane extends ARPane {
         refreshButton.setOnMouseClicked(e -> {
             this.botJobLoadList = performDataBase.loadCompleteJobs(this.botJobLoad.getId());
             String jsonData = "[]";
-            if (botJobLoadList.size() > 0) {
+            if (this.botJobLoadList.size() > 0) {
                 List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                 jsonData = gson.toJson(blockLoopInstructions);
+            } else {
+                // Convert the object to JSON using Gson
+                jsonData = gson.toJson(payloadEmpty);
             }
+
             String sessionTasks = "botJobTasks-" + this.botJobLoad.getId();
             buildWebView(
                     webEngineTasks,
@@ -622,7 +616,7 @@ public class ARViewBotJobPane extends ARPane {
             //                    .anyMatch(instruction -> instruction.getActions() != null
             //                            && instruction.getActions().startsWith("I:"));
 
-            if (botJobLoadList.size() > 0) {
+            if (this.botJobLoadList.size() > 0) {
 
                 List<BlockLoadDTO> blocksLoaded = botJobLoadList.get(0).getBlockLoadDTOList();
 
@@ -1280,5 +1274,16 @@ public class ARViewBotJobPane extends ARPane {
         pane = null;
         scene = null;
         instance = null;
+    }
+
+    private void setPayloadEmpty() {
+        this.botJobLoadList = new ArrayList<>();
+        BotJobLoadDTO botJobDTO = new BotJobLoadDTO();
+        botJobDTO.setId(this.botJobLoad.getId() != null ? this.botJobLoad.getId() : 0);
+        botJobDTO.setName(this.botJobLoad.getName() != null ? this.botJobLoad.getName() : "Bot Job Name Default");
+        botJobDTO.setBlockLoadDTOList(new ArrayList<>());
+        this.botJobLoadList.add(botJobDTO);
+
+        this.payloadEmpty = new PayloadJson(this.botJobLoad.getId(), this.botJobLoad.getName(), 0);
     }
 }
