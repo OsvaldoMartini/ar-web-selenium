@@ -376,8 +376,11 @@ public class ARWebDriver {
     private EdgeOptions buildOptionsEdge(String[] optionsConfigLines, String logFolder) {
         EdgeOptions optionsEdge = new EdgeOptions();
         // Options Config
-        optionsEdge.addArguments("--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
-                + System.currentTimeMillis());
+        optionsEdge.addArguments(
+                "--user-data-dir=" + System.getProperty("java.io.tmpdir") + "/edge-profile-"
+                        + System.currentTimeMillis(),
+                "--ignore-certificate-errors");
+
         for (String line : optionsConfigLines) {
             if (line.startsWith("#")) {
                 ARLogger.getInstance(ARWebDriver.class).fine("COMMENTED OPTIONS: " + line);
