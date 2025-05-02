@@ -123,14 +123,14 @@ public class ARExcelFilePane extends ARPane {
                     fileName = "";
                 }
 
-                ARLogger.getInstance(ARScannedElementPane.class).info("Identified Directory: " + directory);
-                ARLogger.getInstance(ARScannedElementPane.class).info("Identified File Name: " + fileName);
+                ARLogger.getInstance(ARExcelFilePane.class).info("Identified Directory: " + directory);
+                ARLogger.getInstance(ARExcelFilePane.class).info("Identified File Name: " + fileName);
             } catch (Exception ex) {
-                ARLogger.getInstance(ARScannedElementPane.class).severe("Excel Path  \nError: " + ex.getMessage());
+                ARLogger.getInstance(ARExcelFilePane.class).severe("Excel Path  \nError: " + ex.getMessage());
             }
 
         } else {
-            ARLogger.getInstance(ARScannedElementPane.class).info("No export file path provided.");
+            ARLogger.getInstance(ARExcelFilePane.class).info("No export file path provided.");
         }
 
         pathExport = createPathTextField(directory);
