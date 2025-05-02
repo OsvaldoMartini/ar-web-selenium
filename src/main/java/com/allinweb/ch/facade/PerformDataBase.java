@@ -168,7 +168,8 @@ public class PerformDataBase {
     }
 
     public Connection getConnection() {
-        ARLogger.getInstance(PerformDataBase.class).info("Open Connections Count() : " + getOpenConnectionsCount());
+        //        ARLogger.getInstance(PerformDataBase.class).info("Open Connections Count() : " +
+        // getOpenConnectionsCount());
 
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
 
@@ -651,9 +652,10 @@ public class PerformDataBase {
             // Execute the update statement and check if any rows were affected
             int rowsAffected = stmt.executeUpdate(deleteSQL);
             if (rowsAffected > 0) {
-                ARLogger.getInstance(PerformDataBase.class)
-                        .info(String.format(
-                                "The %d Nulls Blocks successfully deleted from botJobId %d.", rowsAffected, botJobId));
+                //                ARLogger.getInstance(PerformDataBase.class)
+                //                        .info(String.format(
+                //                                "The %d Nulls Blocks successfully deleted from botJobId %d.",
+                // rowsAffected, botJobId));
             }
 
         } catch (SQLException e) {
