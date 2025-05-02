@@ -13,29 +13,24 @@ import com.allinweb.ch.component.model.ParentOperations;
 import com.allinweb.ch.component.model.RollBackBlocksDTO;
 import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ComboBoxVars;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import javax.websocket.CloseReason;
 import javax.websocket.OnClose;
 import javax.websocket.OnError;
 import javax.websocket.OnMessage;
@@ -43,6 +38,7 @@ import javax.websocket.OnOpen;
 import javax.websocket.Session;
 import javax.websocket.server.ServerEndpoint;
 
+// Simple WebSocket server endpoint (for demonstration)
 @ServerEndpoint("/websocket")
 public class SimpleWebSocketServer {
 
@@ -64,7 +60,22 @@ public class SimpleWebSocketServer {
         return instance;
     }
 
-    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+    //    private static ARNewCommandScene arNewCommandScene;
+    private static final PerformDataBase performDataBase;
+    private static final PerformMessage performMessage;
+
+    // Static block to initialize
+    static {
+        //        arNewCommandScene = ARNewCommandScene.getInstance();
+        performDataBase = PerformDataBase.getInstance();
+        performMessage = PerformMessage.getInstance();
+    }
+
+    private final Gson gson = new Gson();
+    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
+
+    private static final ConcurrentHashMap<String, Session> activeSessions = new ConcurrentHashMap<>();
+    //    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
 
     // Store active sessions when a new connection is established
     public void addSession(String sessionId, Session session) {
@@ -76,35 +87,9 @@ public class SimpleWebSocketServer {
         activeSessions.remove(sessionId);
     }
 
-    public Map<String, Session> getAllSessions() {
+    public ConcurrentHashMap<String, Session> getAllSessions() {
         return activeSessions;
     }
-
-    private String generateCustomSessionId(Session session) {
-        // Get the current date in yyyyMMdd format
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
-        String date = dateFormat.format(new Date());
-
-        // Generate custom session ID with the date and timestamp
-        return date + "-" + System.currentTimeMillis();
-    }
-
-    private static ARNewCommandScene arNewCommandScene;
-    private static final PerformDataBase performDataBase;
-    private static final PerformMessage performMessage;
-
-    // Static block to initialize
-    static {
-        arNewCommandScene = ARNewCommandScene.getInstance();
-        performDataBase = PerformDataBase.getInstance();
-        performMessage = PerformMessage.getInstance();
-    }
-
-    // Store all connected sessions
-    private final Gson gson = new Gson();
-    private ObservableList<ComboBoxVars> webPageItems = FXCollections.observableArrayList();
-
-    private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
 
     @OnOpen
     public void onOpen(Session session) {
@@ -132,7 +117,7 @@ public class SimpleWebSocketServer {
 
     @OnMessage
     public void onMessage(String message, Session session) {
-        if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
+        if (message == null || message.contains("CONNECT") || message.contains("ping")) {
             // Ignore null or empty messages
             message = message.replaceAll("ping-", "");
             System.out.println("Active : " + message);
@@ -206,7 +191,7 @@ public class SimpleWebSocketServer {
                     sendMessageJson(
                             homeBankingId,
                             sessionId,
-                            "Echo: " + jsonObjMSG.get("body").getAsString(),
+                            "echo: " + jsonObjMSG.get("body").getAsString(),
                             "sessionId: " + sessionId);
                     break;
                 default:
@@ -220,6 +205,18 @@ public class SimpleWebSocketServer {
             } else {
                 sendMessageJson(homeBankingId, session, type, "Closed processing message", "No \"type\" definition");
             }
+        }
+    }
+
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        System.err.println("Error in session " + session.getId() + ": " + throwable.getMessage());
+        try {
+            if (session.isOpen()) {
+                session.close();
+            }
+        } catch (IOException e) {
+            System.err.println("Error closing session: " + e.getMessage());
         }
     }
 
@@ -636,12 +633,12 @@ public class SimpleWebSocketServer {
     }
 
     @OnClose
-    public void onClose(Session session) {
+    public void onClose(Session session, CloseReason closeReason) {
         // Clean up session when it closes
         String sessionId = getSessionIdBySession(session);
         if (sessionId != null) {
-            //            removeSession(sessionId);
             System.out.println("Connection closed: Session ID = " + sessionId);
+            activeSessions.remove(sessionId);
         }
     }
 
@@ -654,15 +651,11 @@ public class SimpleWebSocketServer {
                 .orElse(null);
     }
 
-    @OnError
-    public void onError(Session session, Throwable throwable) {
-        System.err.println("Error in session " + session.getId() + ": " + throwable.getMessage());
-        try {
+    private void broadcastMessageToAll(int homeBankingId, String message) {
+        for (Session session : getAllSessions().values()) { // Looping correctly
             if (session.isOpen()) {
-                session.close();
+                sendMessageJson(homeBankingId, session, "Broad-All", message, null);
             }
-        } catch (IOException e) {
-            System.err.println("Error closing session: " + e.getMessage());
         }
     }
 
@@ -683,28 +676,9 @@ public class SimpleWebSocketServer {
         }
     }
 
-    private void broadcastMessageToAll(int homeBankingId, String message) {
-        activeSessions = getAllSessions();
-
-        for (Session session : activeSessions.values()) { // Looping correctly
-            if (session.isOpen()) {
-                sendMessageJson(homeBankingId, session, "Broad-All", message, null);
-            }
-        }
-    }
-
-    private void sendMessage(Session session, String message) {
-        try {
-            session.getBasicRemote().sendText(message);
-        } catch (IOException e) {
-            System.err.println("Error sending message to session " + session.getId() + ": " + e.getMessage());
-        }
-    }
-
     // Method to send a message to a specific session ID
     public void sendMessageJson(String sessionId, String message) {
-        activeSessions = getAllSessions();
-        Session session = activeSessions.get(sessionId);
+        Session session = getAllSessions().get(sessionId);
 
         if (session != null && session.isOpen()) {
             try {
@@ -714,29 +688,6 @@ public class SimpleWebSocketServer {
             }
         } else {
             removeSession(sessionId);
-            System.err.println("Session " + sessionId + " not found or closed.");
-        }
-    }
-
-    // Method to send a message to a specific session ID
-    public void sendMessageJson(int homeBankingId, String sessionId, String body, String operationId) {
-        activeSessions = getAllSessions();
-        Session session = activeSessions.get(sessionId);
-
-        if (session != null && session.isOpen()) {
-            try {
-                JsonObject jsonMessage = new JsonObject();
-                jsonMessage.addProperty("body", body);
-                jsonMessage.addProperty("sessionId", sessionId);
-                jsonMessage.addProperty("homeBankingId", homeBankingId);
-                if (operationId != null && !operationId.isEmpty()) {
-                    jsonMessage.addProperty("operationId", operationId);
-                }
-                session.getBasicRemote().sendText(jsonMessage.toString());
-            } catch (IOException e) {
-                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-            }
-        } else {
             System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
@@ -761,17 +712,25 @@ public class SimpleWebSocketServer {
         }
     }
 
-    // Method to extract the type field from a JSON string
-    public String extractType(String json) {
-        try {
-            JsonObject jsonObject = JsonParser.parseString(json).getAsJsonObject();
-            if (jsonObject.has("type")) {
-                return jsonObject.get("type").getAsString();
-            } else {
-                return "Unknown type";
+    // Method to send a message to a specific session ID
+    public void sendMessageJson(int homeBankingId, String sessionId, String body, String operationId) {
+        Session session = getAllSessions().get(sessionId);
+
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("body", body);
+                jsonMessage.addProperty("sessionId", sessionId);
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
+                if (operationId != null && !operationId.isEmpty()) {
+                    jsonMessage.addProperty("operationId", operationId);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
-        } catch (Exception e) {
-            return "Invalid JSON";
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
         }
     }
 
@@ -808,18 +767,22 @@ public class SimpleWebSocketServer {
 
             //            List<BotJobLoadDTO> botJobLoadList =
             // performDataBase.loadBotJobComplete(rowMoveDTO.getBotJobId());
-            BotJobLoadDTO botJobLoad = performDataBase.loadBotJobById(rowMoveDTO.getBotJobId());
+            //            BotJobLoadDTO botJobLoad = performDataBase.loadBotJobById(rowMoveDTO.getBotJobId());
 
             if (!rowMoveDTO.getType().equals("INSERT_BEFORE_ELSEIF")
                     && !rowMoveDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
 
-                this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
+                sendMessageJson(
+                        "new-command-scene-" + rowMoveDTO.getBotJobId(), gson.toJson(rowMoveDTO)); // Sending as details
+
+                //                this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 
                 // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-                Platform.runLater(() -> {
-                    arNewCommandScene.initialize(rowMoveDTO, botJobLoad, this.webPageItems, sessionId);
-                    arNewCommandScene.showModal();
-                });
+                //                Platform.runLater(() -> {
+                //                    arNewCommandScene.initialize(rowMoveDTO, botJobLoad, this.webPageItems,
+                // sessionId);
+                //                    arNewCommandScene.showModal();
+                //                });
             } else {
 
                 if (!rowMoveDTO.getUpdatedRows().isEmpty()) {
@@ -838,7 +801,6 @@ public class SimpleWebSocketServer {
                                 null,
                                 parentId,
                                 rowMoveDTO,
-                                botJobLoad,
                                 false,
                                 false,
                                 false);

@@ -10,15 +10,42 @@ import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.socket.WebSocketTestClient;
 import com.allinweb.ch.util.ARLogger;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.google.common.base.Strings;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import javax.websocket.ClientEndpoint;
+import javax.websocket.ContainerProvider;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.OnOpen;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 import org.openqa.selenium.WebDriver;
 
+@ClientEndpoint
 public class ARViewBotJobScene extends ARScene {
 
     protected static volatile ARViewBotJobScene instance;
@@ -40,17 +67,28 @@ public class ARViewBotJobScene extends ARScene {
         return instance;
     }
 
+    private int portSocket = 54525;
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private static final CountDownLatch latch = new CountDownLatch(1);
+    private Session session;
+
+    private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
+
     private ObservableList<BotJobLoadDTO> botJobList;
 
     private ARScene currentScene;
     private ARWebDriver arWebDriver;
     private BotJobLoadDTO botJobLoad;
 
+    private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
+    private static ARNewCommandScene arNewCommandScene;
     private static final ARViewBotJobPane arViewBotJobPane;
 
     static {
+        arPropertyManager = ARPropertyManager.getInstance();
         performDataBase = PerformDataBase.getInstance();
+        arNewCommandScene = ARNewCommandScene.getInstance();
         arViewBotJobPane = ARViewBotJobPane.getInstance();
     }
 
@@ -61,6 +99,15 @@ public class ARViewBotJobScene extends ARScene {
         this.botJobList = botJobList;
 
         this.currentScene = currentScene;
+
+        String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+        if (!Strings.isNullOrEmpty(port)) {
+            portSocket = Integer.parseInt(port);
+        }
+
+        arNewCommandScene.connectWebSocketClient(portSocket, "new-command-scene-" + botJobLoad.getId());
+
+        connectWebSocketClient(portSocket, "bot-job-scene-" + botJobLoad.getId());
     }
 
     private BotJobLoadDTO botLoadJob = null;
@@ -168,12 +215,127 @@ public class ARViewBotJobScene extends ARScene {
         return TITLE;
     }
 
-    // Now you can access currentScene anywhere in this class
-    public ARScene getCurrentScene() {
-        return currentScene;
-    }
-
     public void destroyPanel() {
         arViewBotJobPane.destroy();
+    }
+
+    private void stopKeepAlivePings() {
+        scheduler.shutdownNow();
+    }
+
+    private void startKeepAlivePings() {
+        scheduler.scheduleAtFixedRate(
+                () -> {
+                    try {
+                        if (session != null && session.isOpen()) {
+                            session.getBasicRemote().sendText("ping-bot-job-scene"); // Or a specific keep-alive message
+                        }
+                    } catch (IOException e) {
+                        System.err.println("Error sending ping: " + e.getMessage());
+                        // Handle potential disconnection
+                    }
+                },
+                0,
+                15,
+                TimeUnit.SECONDS); // Adjust interval as needed
+    }
+
+    @OnMessage
+    public void onMessage(String message) {
+        System.out.println("Received: " + message);
+        if (message == null || message.trim().isEmpty() || message.contains("CONNECT") || message.contains("ping")) {
+            // Ignore null or empty messages
+            message = message.replaceAll("ping-", "");
+            System.out.println("Active : " + message);
+            return;
+        }
+    }
+
+    @OnOpen
+    public void onOpen(Session session) {
+        this.session = session;
+        latch.countDown(); // Release the latch after connection is established
+        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+        // Sending an initial message
+        sendMessage("Hello from JavaFX WebSocket client!");
+    }
+
+    @OnClose
+    public void onClose(Session session) {
+        System.out.println("Connection closed.");
+        stopKeepAlivePings();
+    }
+
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        System.out.println("Error: " + throwable.getMessage());
+        stopKeepAlivePings();
+    }
+
+    // Method to send a message
+    public void sendMessage(String message) {
+        executorWebSocket.submit(() -> {
+            //            if (session != null && session.isOpen()) {
+            //                try {
+            //                    session.getBasicRemote().sendText(message);
+            //                } catch (Exception e) {
+            //                    e.printStackTrace();
+            //                }
+            //            }
+        });
+    }
+
+    public void connectWebSocketClient(int portSocket, String sessionId) {
+        executorWebSocket.submit(() -> {
+            String uri = "wss://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
+            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+
+            try {
+                // Load keystore from resources and copy to a temp file
+                String keystorePassword = "Martini!383940";
+                File keystoreTempFile = copyResourceToTempFile("keystore.jks", "keystore", ".jks");
+                System.setProperty("javax.net.ssl.keyStore", keystoreTempFile.getAbsolutePath());
+                System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
+
+                // Load truststore from resources and copy to a temp file
+                String truststorePassword = "Martini!383940";
+                File truststoreTempFile = copyResourceToTempFile("truststore.jks", "truststore", ".jks");
+                System.setProperty("javax.net.ssl.trustStore", truststoreTempFile.getAbsolutePath());
+                System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
+            } catch (Exception erroTemp) {
+
+            }
+
+            try {
+                container.connectToServer(this, new URI(uri));
+                latch.await();
+                startKeepAlivePings();
+            } catch (Exception e) {
+                System.err.println("WebSocket connection failed: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private static File copyResourceToTempFile(String resourceName, String prefix, String suffix) throws IOException {
+        URL resourceUrl = WebSocketTestClient.class.getClassLoader().getResource(resourceName);
+        if (resourceUrl == null) {
+            throw new FileNotFoundException("Resource not found: " + resourceName);
+        }
+
+        File tempFile = Files.createTempFile(prefix, suffix).toFile();
+        tempFile.deleteOnExit();
+
+        try (InputStream in = resourceUrl.openStream();
+                OutputStream out = new FileOutputStream(tempFile)) {
+
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+        }
+
+        return tempFile;
     }
 }

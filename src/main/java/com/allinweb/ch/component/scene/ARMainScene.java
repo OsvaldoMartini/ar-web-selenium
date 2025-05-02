@@ -4,19 +4,29 @@ import com.allinweb.ch.component.pane.ARMainPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
+import com.allinweb.ch.socket.WebSocketServer;
 import com.allinweb.ch.util.ARLogger;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.server.ServerContainer;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 import org.openqa.selenium.WebDriver;
 
@@ -119,7 +129,12 @@ public class ARMainScene extends ARScene {
         }
 
         // Set up Jetty server to run WebSocket endpoint
-        jettyServer = new Server(port); // Server listens on port 8080
+        jettyServer = new Server();
+
+        // Add a connector that uses SSL
+        ServerConnector sslConnector = createSslConnector(jettyServer, port);
+        jettyServer.addConnector(sslConnector);
+
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         jettyServer.setHandler(context);
@@ -132,12 +147,39 @@ public class ARMainScene extends ARScene {
 
         // Start Jetty server
         jettyServer.start();
-        System.out.println("Server started at ws://localhost:" + port + "/websocket");
+        System.out.println("WebSocket server started at wss://localhost:" + port + "/websocket");
 
-        //        // Example: Retrieve all active sessions
-        //        activeSessions = simpleWebSocketServer.getAllSessions();
+        // Keep server running
+        jettyServer.join();
+
         System.out.println(
                 "Active sessions: " + simpleWebSocketServer.getAllSessions().size());
+    }
+
+    private static ServerConnector createSslConnector(Server server, int port) throws Exception {
+        // Load keystore from resources and copy to temp file
+        InputStream keyStoreStream = WebSocketServer.class.getResourceAsStream("/keystore.jks");
+        if (keyStoreStream == null) {
+            throw new FileNotFoundException("Keystore not found in classpath at /keystore.jks");
+        }
+
+        File tempKeyStore = File.createTempFile("keystore", ".jks");
+        Files.copy(keyStoreStream, tempKeyStore.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        tempKeyStore.deleteOnExit();
+
+        SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+        sslContextFactory.setKeyStorePath(tempKeyStore.getAbsolutePath());
+        sslContextFactory.setKeyStorePassword("Martini!383940");
+        sslContextFactory.setKeyStoreType("JKS");
+        sslContextFactory.setWantClientAuth(false);
+        sslContextFactory.setProtocol("TLSv1.2");
+
+        ServerConnector sslConnector = new ServerConnector(
+                server, new SslConnectionFactory(sslContextFactory, "http/1.1"), new HttpConnectionFactory());
+        sslConnector.setPort(port);
+        sslConnector.setIdleTimeout(30000);
+
+        return sslConnector;
     }
 
     // Method to check if the port is already in use

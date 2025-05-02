@@ -26,7 +26,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -69,10 +68,6 @@ public class ARNewCommandPane extends ARPane {
         }
         return instance;
     }
-
-    private static Map<String, Session> activeSessions;
-
-    private String sessionId;
 
     private static final SimpleWebSocketServer simpleWebSocketServer;
     private static final PerformDataBase performDataBase;
@@ -179,7 +174,6 @@ public class ARNewCommandPane extends ARPane {
     Button addNewInstructionButton;
     Button cancelButton;
 
-    private BotJobLoadDTO botJobLoad;
     private List<BotJobLoadDTO> botJobLoadList = new ArrayList<>();
     private List<BlockLoadDTO> blockLoadList = new ArrayList<>();
 
@@ -210,17 +204,10 @@ public class ARNewCommandPane extends ARPane {
     private ComboBox<ComboBoxOperator> comboBoxOperator;
     private ObservableList<ComboBoxOperator> operatorsItems = FXCollections.observableArrayList();
 
-    public void initialize(
-            RowMoveDTO rowMoveDTO,
-            BotJobLoadDTO botJobLoad,
-            ObservableList<ComboBoxVars> webPageItems,
-            String sessionId) {
-
-        activeSessions = simpleWebSocketServer.getAllSessions();
+    public void initialize(RowMoveDTO rowMoveDTO) {
+        this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 
         this.rowMoveDTO = rowMoveDTO;
-        this.botJobLoad = botJobLoad;
-        this.sessionId = sessionId;
 
         this.filteredPageItems.clear();
         this.filteredPageItems.addAll(webPageItems.stream()
@@ -302,7 +289,7 @@ public class ARNewCommandPane extends ARPane {
         if (this.filteredPageItems != null && this.filteredPageItems.size() > 0) {
             variablesItems.clear();
             this.variablesList = performDataBase.loadAllVariablesByCriteria(
-                    this.botJobLoad.getId(), filteredPageItems.get(0).getInstructionId());
+                    rowMoveDTO.getBotJobId(), filteredPageItems.get(0).getInstructionId());
         }
 
         this.blockLoadList = performDataBase.loadBlocksByBotJobId(rowMoveDTO.getBotJobId());
@@ -2032,7 +2019,7 @@ public class ARNewCommandPane extends ARPane {
 
     private void reloadComboVars(int instructionId) {
         variablesItems.clear();
-        variablesList = performDataBase.loadAllVariablesByCriteria(botJobLoad.getId(), instructionId);
+        variablesList = performDataBase.loadAllVariablesByCriteria(rowMoveDTO.getBotJobId(), instructionId);
 
         if (variablesList != null && variablesList.size() > 0) {
             List<ComboBoxVars> variablesNames = variablesList.stream()
@@ -2053,7 +2040,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     private void updateFields() {
-        this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId());
+        this.webPageItems = performDataBase.loadWebPageFields(rowMoveDTO.getBotJobId());
 
         this.filteredPageItems.clear();
         this.filteredPageItems.addAll(this.webPageItems.stream()
@@ -2341,7 +2328,6 @@ public class ARNewCommandPane extends ARPane {
                     instructionId,
                     nextAction == null ? -1 : parentId,
                     rowMoveDTO,
-                    botJobLoad,
                     isShowAlert,
                     rowMoveDTO.getType().equals("EDIT_OPERATION"),
                     blockIdChanged);
@@ -2354,7 +2340,8 @@ public class ARNewCommandPane extends ARPane {
                     List<InstructionLoadDTO> blockLoopInstructions = performDataBase.buildJsonViewData(botJobLoadList);
                     jsonData = gson.toJson(blockLoopInstructions);
                 }
-                sendMessageJson(rowMoveDTO.getHomeBankingId(), sessionId, jsonData, "updateInstructions");
+                sendMessageJson(
+                        rowMoveDTO.getHomeBankingId(), rowMoveDTO.getSessionId(), jsonData, "updateInstructions");
 
                 if (!rowMoveDTO.getType().equals("EDIT_OPERATION")) {
                     updateFields();
@@ -2373,8 +2360,7 @@ public class ARNewCommandPane extends ARPane {
     }
 
     public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
-        activeSessions = simpleWebSocketServer.getAllSessions();
-        Session session = activeSessions.get(sessionId);
+        Session session = simpleWebSocketServer.getAllSessions().get(sessionId);
 
         if (session != null && session.isOpen()) {
             try {

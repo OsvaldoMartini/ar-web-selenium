@@ -5,13 +5,41 @@ import com.allinweb.ch.component.model.RowMoveDTO;
 import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.PerformDataBase;
+import com.allinweb.ch.socket.WebSocketTestClient;
 import com.allinweb.ch.util.ARLogger;
-import com.allinweb.ch.util.ComboBoxVars;
-import javafx.collections.ObservableList;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.URL;
+import java.nio.file.Files;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javax.websocket.ClientEndpoint;
+import javax.websocket.ContainerProvider;
+import javax.websocket.OnClose;
+import javax.websocket.OnError;
+import javax.websocket.OnMessage;
+import javax.websocket.OnOpen;
+import javax.websocket.Session;
+import javax.websocket.WebSocketContainer;
 
+@ClientEndpoint
 public class ARNewCommandScene extends ARScene {
 
     protected static volatile ARNewCommandScene instance;
@@ -33,6 +61,121 @@ public class ARNewCommandScene extends ARScene {
         return instance;
     }
 
+    private final Gson gson = new Gson();
+
+    private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private static final CountDownLatch latch = new CountDownLatch(1);
+    private Session session;
+
+    private void stopKeepAlivePings() {
+        scheduler.shutdownNow();
+    }
+
+    private void startKeepAlivePings() {
+        scheduler.scheduleAtFixedRate(
+                () -> {
+                    try {
+                        if (session != null && session.isOpen()) {
+                            session.getBasicRemote()
+                                    .sendText("ping-new-command-scene"); // Or a specific keep-alive message
+                        }
+                    } catch (IOException e) {
+                        System.err.println("Error sending ping: " + e.getMessage());
+                        // Handle potential disconnection
+                    }
+                },
+                0,
+                15,
+                TimeUnit.SECONDS); // Adjust interval as needed
+    }
+
+    @OnMessage
+    public void onMessage(String message, Session session) {
+        if (message == null || message.contains("CONNECT") || message.contains("ping")) {
+            // Ignore null or empty messages
+            message = message.replaceAll("ping-", "");
+            System.out.println("Active : " + message);
+            return;
+        }
+        String type = null;
+        int homeBankingId = -1;
+        try {
+            // Parse the incoming message (assuming JSON format)
+            JsonObject jsonObjMSG = JsonParser.parseString(message).getAsJsonObject();
+            homeBankingId = jsonObjMSG.has("homeBankingId")
+                    ? Integer.parseInt(jsonObjMSG.get("homeBankingId").getAsString())
+                    : -1;
+
+            type = jsonObjMSG.has("type") ? jsonObjMSG.get("type").getAsString() : "unknown";
+            String sessionId =
+                    jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
+
+            // After Decoding
+            if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
+                // Ignore null or empty messages
+                type = type.replaceAll("ping-", "");
+                System.out.println("Active : " + type);
+                return;
+            }
+
+            try {
+
+                RowMoveDTO rowUpdateDTO = gson.fromJson(jsonObjMSG, RowMoveDTO.class);
+                //                this.webPageItems = performDataBase.loadWebPageFields(rowUpdateDTO.getBotJobId());
+
+                // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+                initialize(rowUpdateDTO);
+                Platform.runLater(() -> showModal());
+            } catch (Exception error) {
+                ARLogger.getInstance(ARNewCommandScene.class).finer("Cannot Missing Value from  RowMoveDTO");
+            }
+            //                });
+
+        } catch (Exception error) {
+            System.err.println("Closed processing message: " + error.getMessage());
+            if (type != null) {
+                sendMessageJson(homeBankingId, session, type, "Action type : \"" + type + "\"", "cannot be processed");
+            } else {
+                sendMessageJson(homeBankingId, session, type, "Closed processing message", "No \"type\" definition");
+            }
+        }
+    }
+
+    @OnOpen
+    public void onOpen(Session session) {
+        this.session = session;
+        latch.countDown(); // Release the latch after connection is established
+        System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
+        // Sending an initial message
+        sendMessage("Hello from JavaFX ARNewCommandScene WebSocket client!");
+    }
+
+    @OnClose
+    public void onClose(Session session) {
+        System.out.println("Connection closed.");
+        stopKeepAlivePings();
+    }
+
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        System.out.println("Error: " + throwable.getMessage());
+        stopKeepAlivePings();
+    }
+
+    // Method to send a message
+    public void sendMessage(String message) {
+        executorWebSocket.submit(() -> {
+            //            if (session != null && session.isOpen()) {
+            //                try {
+            //                    session.getBasicRemote().sendText(message);
+            //                } catch (Exception e) {
+            //                    e.printStackTrace();
+            //                }
+            //            }
+        });
+    }
+
     private Stage modalStage;
     private Scene modalScene;
 
@@ -41,30 +184,25 @@ public class ARNewCommandScene extends ARScene {
     private static final String TITLE = "Add Command";
     private RowMoveDTO rowMoveDTO;
     private BotJobLoadDTO botJobLoad;
-    private ObservableList<ComboBoxVars> webPageItems;
     private String sessionId;
 
-    private static ARNewCommandPane arNewCommandPane;
+    private static final ARNewCommandPane arNewCommandPane;
+    private static final PerformDataBase performDataBase;
+    private static final ARPropertyManager arPropertyManager;
 
     static {
+        arPropertyManager = ARPropertyManager.getInstance();
+        performDataBase = PerformDataBase.getInstance();
         arNewCommandPane = ARNewCommandPane.getInstance();
     }
 
-    public void initialize(
-            RowMoveDTO rowMoveDTO,
-            BotJobLoadDTO botJobLoad,
-            ObservableList<ComboBoxVars> webPageItems,
-            String sessionId) {
-
+    public void initialize(RowMoveDTO rowMoveDTO) {
         this.rowMoveDTO = rowMoveDTO;
-        this.botJobLoad = botJobLoad;
-        this.webPageItems = webPageItems;
-        this.sessionId = sessionId;
     }
 
     @Override
     public IARPane buildPane() {
-        arNewCommandPane.initialize(rowMoveDTO, botJobLoad, webPageItems, sessionId);
+        arNewCommandPane.initialize(rowMoveDTO);
         return arNewCommandPane;
     }
 
@@ -80,7 +218,7 @@ public class ARNewCommandScene extends ARScene {
 
     @Override
     public String getTitle() {
-        String titleMsg = createDescriptionString(rowMoveDTO, webPageItems);
+        String titleMsg = createDescriptionString(rowMoveDTO);
         if (titleMsg != null) {
             return titleMsg;
         } else {
@@ -104,7 +242,7 @@ public class ARNewCommandScene extends ARScene {
                 return;
             }
         } else {
-            arNewCommandPane.initialize(rowMoveDTO, botJobLoad, webPageItems, sessionId);
+            arNewCommandPane.initialize(rowMoveDTO);
             modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
         modalStage.show(); // Block until this window is closed
@@ -117,7 +255,7 @@ public class ARNewCommandScene extends ARScene {
         }
     }
 
-    public String createDescriptionString(RowMoveDTO rowMoveDTO, ObservableList<ComboBoxVars> webPageItems) {
+    public String createDescriptionString(RowMoveDTO rowMoveDTO) {
         // Ensure there are updatedRows to work with
         if (rowMoveDTO.getUpdatedRows() == null || rowMoveDTO.getUpdatedRows().isEmpty()) {
             return "No updated rows available";
@@ -128,5 +266,79 @@ public class ARNewCommandScene extends ARScene {
                 " " + rowMoveDTO.getType().replace("_", " ") + " -> Block Selected: " + rowMoveDTO.getBlockName();
 
         return result;
+    }
+
+    public void connectWebSocketClient(int portSocket, String sessionId) {
+        executorWebSocket.submit(() -> {
+            String uri = "wss://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
+            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+
+            try {
+                // Load keystore from resources and copy to a temp file
+                String keystorePassword = "Martini!383940";
+                File keystoreTempFile = copyResourceToTempFile("keystore.jks", "keystore", ".jks");
+                System.setProperty("javax.net.ssl.keyStore", keystoreTempFile.getAbsolutePath());
+                System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
+
+                // Load truststore from resources and copy to a temp file
+                String truststorePassword = "Martini!383940";
+                File truststoreTempFile = copyResourceToTempFile("truststore.jks", "truststore", ".jks");
+                System.setProperty("javax.net.ssl.trustStore", truststoreTempFile.getAbsolutePath());
+                System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
+            } catch (Exception erroTemp) {
+
+            }
+
+            try {
+                container.connectToServer(this, new URI(uri));
+                latch.await();
+                startKeepAlivePings();
+            } catch (Exception e) {
+                System.err.println("WebSocket connection failed: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private static File copyResourceToTempFile(String resourceName, String prefix, String suffix) throws IOException {
+        URL resourceUrl = WebSocketTestClient.class.getClassLoader().getResource(resourceName);
+        if (resourceUrl == null) {
+            throw new FileNotFoundException("Resource not found: " + resourceName);
+        }
+
+        File tempFile = Files.createTempFile(prefix, suffix).toFile();
+        tempFile.deleteOnExit();
+
+        try (InputStream in = resourceUrl.openStream();
+                OutputStream out = new FileOutputStream(tempFile)) {
+
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+        }
+
+        return tempFile;
+    }
+
+    private static void sendMessageJson(
+            int homeBankingId, Session session, String sessionId, String body, String operationId) {
+        if (session != null && session.isOpen()) {
+            try {
+                JsonObject jsonMessage = new JsonObject();
+                jsonMessage.addProperty("homeBankingId", homeBankingId);
+                jsonMessage.addProperty("sessionId", sessionId);
+                jsonMessage.addProperty("body", body);
+                if (operationId != null && !operationId.isEmpty()) {
+                    jsonMessage.addProperty("operationId", operationId);
+                }
+                session.getBasicRemote().sendText(jsonMessage.toString());
+            } catch (IOException e) {
+                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
+            }
+        } else {
+            System.err.println("Session " + sessionId + " not found or closed.");
+        }
     }
 }

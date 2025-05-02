@@ -8,6 +8,8 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.persistence.DatabaseUserDTO;
 import com.allinweb.ch.util.ARLogger;
 import com.google.common.base.Strings;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,6 +18,8 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -34,33 +38,20 @@ public class ARNewHomeBankingPane extends ARPane {
         performDataBase = PerformDataBase.getInstance();
     }
 
-    // Postgres
-    private static boolean POSTGRES_DB = false;
+    // Regular expression for a basic URL validation (improved)
+    private static final String URL_REGEX =
+            "^((https?|ftp|file)://)?([\\da-z.-]+)\\.([a-z.]{2,6})(:\\d+)?(/\\w .-]*)?/?$";
 
-    //    private static final String FILE_NAME =
-    //            "D:\\Projects\\ar-web-selenium\\ar-web-selenium-files\\ARWeb\\user_data.mdb";
-    //    private static final String FILE_NAME2 =
-    //            "D:\\Projects\\ar-web-selenium\\ar-web-selenium-files\\ARWeb\\database.mdb";
-    //    private static final String DB_URL_1 =
-    //            "jdbc:ucanaccess:////D:\\Projects\\ar-web-selenium\\ar-web-selenium-files\\ARWeb\\user_data.mdb";
-    //    //    private static final String DB_URL_BANKING =
-    //    //
-    // "jdbc:ucanaccess://D:\\Projects\\ar-web-selenium\\ar-web-selenium-files\\ARWeb\\database.mdb;memory=false;newDatabaseVersion=V2010";
-    //    private static final String DB_URL_2 =
-    //            "jdbc:ucanaccess://D:\\Projects\\ar-web-selenium\\ar-web-selenium-files\\ARWeb\\database.mdb";
+    private static final Pattern URL_PATTERN = Pattern.compile(URL_REGEX, Pattern.CASE_INSENSITIVE);
 
     private Connection conn = null;
     private ObservableList<DatabaseUserDTO> databaseList = FXCollections.observableArrayList();
-    //    private ObservableList<JobUserDTO> jobUserList = FXCollections.observableArrayList();
     private TableView<DatabaseUserDTO> tableView = new TableView<>();
 
     private List<BankingDTO> dtoList;
-    private int currentIndex = 0;
 
     private Pane mainPane;
     private ObservableList<HomeBankingLoadDTO> homeBankingList;
-
-    private boolean isNewState = false;
 
     public ARNewHomeBankingPane(ObservableList<HomeBankingLoadDTO> homeBankingList) {
         super();
@@ -119,6 +110,18 @@ public class ARNewHomeBankingPane extends ARPane {
         // Create submit button
         Button submitButton = new Button("Insert");
         submitButton.setOnAction(event -> {
+            if (!isValidUrl(urlField.getText().trim())) {
+                performMessage.errorMessage(
+                        "Invalid URL",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'> URL Validation Failed</span>",
+                        "<span style='font-weight: bold;'>The provided URL is not valid</span>.",
+                        "<span style='color: #E65100; font-weight: bold;'>"
+                                + urlField.getText().trim() + "</span>",
+                        "<span style='font-style: italic;'>Details: Please check the format and try again.</span>",
+                        0);
+                return;
+            }
+
             DatabaseUserDTO user = new DatabaseUserDTO(
                     null,
                     nameField.getText().trim(),
@@ -151,6 +154,18 @@ public class ARNewHomeBankingPane extends ARPane {
         // Create update button
         Button updateButton = new Button("Update");
         updateButton.setOnAction(event -> {
+            if (!isValidUrl(urlField.getText().trim())) {
+                performMessage.errorMessage(
+                        "Invalid URL",
+                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'> URL Validation Failed</span>",
+                        "<span style='font-weight: bold;'>The provided URL is not valid</span>.",
+                        "<span style='color: #E65100; font-weight: bold;'>"
+                                + urlField.getText().trim() + "</span>",
+                        "<span style='font-style: italic;'>Details: Please check the format and try again.</span>",
+                        0);
+                return;
+            }
+
             String id = idField.getText();
             DatabaseUserDTO user = new DatabaseUserDTO(
                     id,
@@ -644,6 +659,42 @@ public class ARNewHomeBankingPane extends ARPane {
             } catch (SQLException e) {
                 System.out.println(e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Validates a URL using a regular expression and checks for a valid protocol.
+     *
+     * @param urlStr The URL string to validate.
+     * @return true if the URL is valid, false otherwise.
+     */
+    public static boolean isValidUrl(String urlStr) {
+        if (urlStr == null || urlStr.trim().isEmpty()) {
+            return false;
+        }
+
+        String trimmedUrl = urlStr.trim();
+        // Check for basic syntax using regex
+        Matcher matcher = URL_PATTERN.matcher(trimmedUrl);
+        if (!matcher.matches()) {
+            return false;
+        }
+
+        // Further check using java.net.URL for protocol and general validity
+        try {
+            URL url = new URL(trimmedUrl);
+            // Check if the protocol is valid.
+            String protocol = url.getProtocol();
+            if (protocol == null
+                    || (!protocol.equals("http")
+                            && !protocol.equals("https")
+                            && !protocol.equals("ftp")
+                            && !protocol.equals("file"))) {
+                return false;
+            }
+            return true;
+        } catch (MalformedURLException e) {
+            return false; // Invalid URL
         }
     }
 }

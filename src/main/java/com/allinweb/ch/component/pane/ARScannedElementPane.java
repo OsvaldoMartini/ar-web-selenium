@@ -28,22 +28,29 @@ import com.allinweb.ch.persistence.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.SimpleWebSocketServer;
+import com.allinweb.ch.socket.WebSocketTestClient;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -110,8 +117,8 @@ public class ARScannedElementPane extends ARPane {
         return instance;
     }
 
-    private static Map<String, Session> activeSessions;
-    private ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
 
     private final Gson gson = new Gson();
 
@@ -124,7 +131,8 @@ public class ARScannedElementPane extends ARPane {
                 () -> {
                     try {
                         if (session != null && session.isOpen()) {
-                            session.getBasicRemote().sendText("ping-scanner"); // Or a specific keep-alive message
+                            session.getBasicRemote()
+                                    .sendText("ping-scanner-element-pane"); // Or a specific keep-alive message
                         }
                     } catch (IOException e) {
                         System.err.println("Error sending ping: " + e.getMessage());
@@ -139,11 +147,126 @@ public class ARScannedElementPane extends ARPane {
     @OnOpen
     public void onOpen(Session session) {
         this.session = session;
-        startKeepAlivePings();
+        latch.countDown(); // Release the latch after connection is established
         System.out.println("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
         sendMessage("Hello from JavaFX WebSocket client!");
     }
+
+    @OnClose
+    public void onClose(Session session) {
+        System.out.println("Connection closed.");
+        stopKeepAlivePings();
+    }
+
+    @OnError
+    public void onError(Session session, Throwable throwable) {
+        System.out.println("Error: " + throwable.getMessage());
+        stopKeepAlivePings();
+    }
+
+    // Method to send a message
+    public void sendMessage(String message) {
+        executorWebSocket.submit(() -> {
+            //            if (session != null && session.isOpen()) {
+            //                try {
+            //                    session.getBasicRemote().sendText(message);
+            //                } catch (Exception e) {
+            //                    e.printStackTrace();
+            //                }
+            //            }
+        });
+    }
+
+    public void connectWebSocketClient(int portSocket, String sessionId) {
+        executorWebSocket.submit(() -> {
+            String uri = "wss://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
+            WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+
+            try {
+                // Load keystore from resources and copy to a temp file
+                String keystorePassword = "Martini!383940";
+                File keystoreTempFile = copyResourceToTempFile("keystore.jks", "keystore", ".jks");
+                System.setProperty("javax.net.ssl.keyStore", keystoreTempFile.getAbsolutePath());
+                System.setProperty("javax.net.ssl.keyStorePassword", keystorePassword);
+
+                // Load truststore from resources and copy to a temp file
+                String truststorePassword = "Martini!383940";
+                File truststoreTempFile = copyResourceToTempFile("truststore.jks", "truststore", ".jks");
+                System.setProperty("javax.net.ssl.trustStore", truststoreTempFile.getAbsolutePath());
+                System.setProperty("javax.net.ssl.trustStorePassword", truststorePassword);
+            } catch (Exception erroTemp) {
+
+            }
+
+            try {
+                container.connectToServer(this, new URI(uri));
+                latch.await();
+                startKeepAlivePings();
+            } catch (Exception e) {
+                System.err.println("WebSocket connection failed: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private static File copyResourceToTempFile(String resourceName, String prefix, String suffix) throws IOException {
+        URL resourceUrl = WebSocketTestClient.class.getClassLoader().getResource(resourceName);
+        if (resourceUrl == null) {
+            throw new FileNotFoundException("Resource not found: " + resourceName);
+        }
+
+        File tempFile = Files.createTempFile(prefix, suffix).toFile();
+        tempFile.deleteOnExit();
+
+        try (InputStream in = resourceUrl.openStream();
+                OutputStream out = new FileOutputStream(tempFile)) {
+
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+        }
+
+        return tempFile;
+    }
+    //
+    //    private SSLContext createSSLContext() {
+    //        try {
+    //            String keystorePassword = "Martini!383940";
+    //            String truststorePassword = "changeit";
+    //
+    //            // Load keystore
+    //            KeyStore keyStore = KeyStore.getInstance("JKS");
+    //            try (InputStream keyStoreStream = getClass().getClassLoader().getResourceAsStream("keystore.jks")) {
+    //                if (keyStoreStream == null) throw new RuntimeException("Cannot find keystore.jks");
+    //                keyStore.load(keyStoreStream, keystorePassword.toCharArray());
+    //            }
+    //
+    //            // Load truststore
+    //            KeyStore trustStore = KeyStore.getInstance("JKS");
+    //            try (InputStream trustStoreStream = getClass().getClassLoader().getResourceAsStream("cacerts")) {
+    //                if (trustStoreStream == null) throw new RuntimeException("Cannot find cacerts");
+    //                trustStore.load(trustStoreStream, truststorePassword.toCharArray());
+    //            }
+    //
+    //            // Init managers
+    //            TrustManagerFactory trustFactory =
+    //                    TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+    //            trustFactory.init(trustStore);
+    //
+    //            KeyManagerFactory keyFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+    //            keyFactory.init(keyStore, keystorePassword.toCharArray());
+    //
+    //            SSLContext sslContext = SSLContext.getInstance("TLS");
+    //            sslContext.init(keyFactory.getKeyManagers(), trustFactory.getTrustManagers(), new SecureRandom());
+    //
+    //            return sslContext;
+    //        } catch (Exception e) {
+    //            throw new RuntimeException("Failed to initialize SSLContext: " + e.getMessage(), e);
+    //        }
+    //    }
 
     @OnMessage
     public void onMessage(String message) {
@@ -357,6 +480,8 @@ public class ARScannedElementPane extends ARPane {
                         "OK",
                         null,
                         300);
+            } else {
+                return currentBlockId;
             }
         }
         return newBlockID;
@@ -951,49 +1076,12 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    @OnClose
-    public void onClose(Session session) {
-        System.out.println("Connection closed.");
-        stopKeepAlivePings();
-    }
-
-    @OnError
-    public void onError(Session session, Throwable throwable) {
-        System.out.println("Error: " + throwable.getMessage());
-        stopKeepAlivePings();
-    }
-
-    // Method to send a message
-    public void sendMessage(String message) {
-        executorWebSocket.submit(() -> {
-            //            if (session != null && session.isOpen()) {
-            //                try {
-            //                    session.getBasicRemote().sendText(message);
-            //                } catch (Exception e) {
-            //                    e.printStackTrace();
-            //                }
-            //            }
-        });
-    }
-
-    private void connectWebSocketClient(int portSocket, String sessionId) {
-        String serverUri = "ws://localhost:" + portSocket + "/websocket?sessionId=" + sessionId;
-        executorWebSocket.submit(() -> {
-            try {
-                WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-                container.connectToServer(this, new URI(serverUri));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
     public WebDriver currentDriver;
     private Set<String> windowHandles;
-    private final WebElement previousElement = null;
-    private final WebElement currentElement = null;
 
+    private static final CountDownLatch latch = new CountDownLatch(1);
     private Session session;
+
     private ExecutorService executorWebSocket;
     private ExecutorService executorServicePreLaunch;
     private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
@@ -1080,11 +1168,15 @@ public class ARScannedElementPane extends ARPane {
     private TextField searchAttribValueField;
     private TextField coordsTextField;
 
-    private Boolean resultElementSearch = false;
-
     private Map<String, String> mapOperators;
     private Map<String, String> mapExport;
     private List<VariableLoadDTO> variablesLoaded;
+
+    private int portSocket = 54525;
+
+    private String[] defaultSearch;
+    private boolean searchHiddenFields;
+    private String xpathTextPrevious;
 
     private String jsonData;
     private String sessionIdFromJava;
@@ -1126,12 +1218,6 @@ public class ARScannedElementPane extends ARPane {
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
     }
 
-    private int portSocket = 54525;
-
-    private String[] defaultSearch;
-    private boolean searchHiddenFields;
-    private String xpathTextPrevious;
-
     public BooleanProperty interceptBotJobProperty() {
         return interceptBotJob;
     }
@@ -1156,8 +1242,6 @@ public class ARScannedElementPane extends ARPane {
 
         this.executorWebSocket = executorWebSocket;
         this.executorServicePreLaunch = executorServicePreLaunch;
-
-        activeSessions = simpleWebSocketServer.getAllSessions();
 
         String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
         if (!Strings.isNullOrEmpty(port)) {
@@ -1336,7 +1420,8 @@ public class ARScannedElementPane extends ARPane {
                     "closeBrowser",
                     "scannerGrid",
                     "closeBrowser",
-                    homeBanking.getId());
+                    homeBanking.getId(),
+                    homeBanking.getUrl());
         });
 
         performActions.getIframeElementsMap();
@@ -1483,7 +1568,8 @@ public class ARScannedElementPane extends ARPane {
                         "closeBrowser",
                         "scannerGrid",
                         "closeBrowser",
-                        homeBanking.getId());
+                        homeBanking.getId(),
+                        homeBanking.getUrl());
             });
         });
 
@@ -1905,7 +1991,6 @@ public class ARScannedElementPane extends ARPane {
 
             performActions.getCurrentDriver().switchTo().defaultContent();
             targetSelected = null;
-            resultElementSearch = false;
 
             revertCloneInjections(performActions.getCurrentDriver());
             revertHoverPickInjections(performActions.getCurrentDriver());
@@ -2282,8 +2367,6 @@ public class ARScannedElementPane extends ARPane {
         //        webElementObservableList1.clear();
 
         performActions.getCurrentDriver().switchTo().defaultContent();
-
-        resultElementSearch = true;
 
         xpathTextPrevious = "";
         //        targetSelected = null;
@@ -4853,14 +4936,6 @@ public class ARScannedElementPane extends ARPane {
         alert.showAndWait();
     }
 
-    private void showAlert(Alert.AlertType alertType, String title, String header, String content) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
     private int preFillAddInstruction(
             String name,
             String description,
@@ -4975,9 +5050,7 @@ public class ARScannedElementPane extends ARPane {
     //    }
 
     private void broadcastMessageToAll(String message) {
-        activeSessions = simpleWebSocketServer.getAllSessions();
-
-        for (Session session : activeSessions.values()) { // Looping correctly
+        for (Session session : simpleWebSocketServer.getAllSessions().values()) { // Looping correctly
             if (session.isOpen()) {
                 sendMessageJson(session, message, null);
             }
@@ -4985,8 +5058,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public static void sendMessageJson(int homeBankingId, String sessionId, String msg1, String msg2) {
-        activeSessions = simpleWebSocketServer.getAllSessions();
-        Session session = activeSessions.get(sessionId);
+        Session session = simpleWebSocketServer.getAllSessions().get(sessionId);
 
         if (session != null && session.isOpen()) {
             try {

@@ -179,7 +179,9 @@ public class ARViewBotJobPane extends ARPane {
 
         Platform.runLater(
                 () -> this.variablesList = performDataBase.loadAllVariablesByCriteria(this.botJobLoad.getId(), -1));
-        Platform.runLater(() -> this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId()));
+        Platform.runLater(() -> {
+            this.webPageItems = performDataBase.loadWebPageFields(this.botJobLoad.getId());
+        });
 
         if (arScannedElementScene.getBotJobLoadDTO() != null
                 && !arScannedElementScene.getBotJobLoadDTO().getId().equals(this.botJobLoad.getId())) {
