@@ -65,6 +65,11 @@ public class ARExcelFilePane extends ARPane {
     public void initialize(String sessionId, BlockDetailsDTO blockExcelDTO) {
         this.sessionId = sessionId;
         this.blockExcelDTO = blockExcelDTO;
+
+        if (titleLabel != null) {
+            titleLabel.setText("Block name: #" + this.blockExcelDTO.getBlockOrderNumber() + "-"
+                    + this.blockExcelDTO.getBlockName());
+        }
     }
 
     private final Gson gson = new Gson();
@@ -85,6 +90,7 @@ public class ARExcelFilePane extends ARPane {
     private static final ARComponentBuilder builder = new ARComponentBuilder();
 
     // UI Components
+    Label titleLabel; // New label for the title
     Label pathExportLabel;
     Label fileExportLabel;
     Label fileTypeLabel;
@@ -115,6 +121,10 @@ public class ARExcelFilePane extends ARPane {
 
     @Override
     public void initUIComponents() {
+        // Create the title label
+        titleLabel = new Label(
+                "Block name: #" + this.blockExcelDTO.getBlockOrderNumber() + "-" + this.blockExcelDTO.getBlockName());
+        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;"); // Basic styling
 
         pathExportLabel = new Label("Export Path:");
 
@@ -240,6 +250,7 @@ public class ARExcelFilePane extends ARPane {
         VBox vbox = new VBox(20);
         vbox.getChildren()
                 .addAll(
+                        titleLabel, // Add the title label at the top
                         pathGroup, // ComboBoxes row
                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                         );
