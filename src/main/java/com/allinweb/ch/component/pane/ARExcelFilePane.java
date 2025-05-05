@@ -18,8 +18,6 @@ import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -39,11 +37,35 @@ import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javax.websocket.Session;
 
 public class ARExcelFilePane extends ARPane {
 
-    private static Map<String, Session> activeSessions = new ConcurrentHashMap<>();
+    protected static volatile ARExcelFilePane instance;
+
+    // Private constructor to prevent instantiation
+    private ARExcelFilePane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARExcelFilePane getInstance() {
+        if (instance == null) {
+            synchronized (ARExcelFilePane.class) {
+                if (instance == null) {
+                    instance = new ARExcelFilePane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private BlockDetailsDTO blockExcelDTO;
+    private String sessionId;
+
+    public void initialize(String sessionId, BlockDetailsDTO blockExcelDTO) {
+        this.sessionId = sessionId;
+        this.blockExcelDTO = blockExcelDTO;
+    }
 
     private final Gson gson = new Gson();
 
@@ -85,15 +107,6 @@ public class ARExcelFilePane extends ARPane {
     AnchorPane mainPane;
 
     double buttonWidth = 200;
-
-    private BlockDetailsDTO blockExcelDTO;
-    private String sessionId;
-
-    public ARExcelFilePane(String sessionId, BlockDetailsDTO blockExcelDTO) {
-        activeSessions = simpleWebSocketServer.getAllSessions();
-        this.sessionId = sessionId;
-        this.blockExcelDTO = blockExcelDTO;
-    }
 
     @Override
     public Pane getPaneReference() {
@@ -222,12 +235,6 @@ public class ARExcelFilePane extends ARPane {
         instructionButtonsRow.setAlignment(Pos.BASELINE_RIGHT); // Align buttons to the right
 
         pathGroup = new VBox(gridPaneExport, gridPaneButton);
-
-        //        AnchorPane.setTopAnchor(pathGroup, ARConstants.SPACE_L + ARConstants.SPACE_M);
-        //        AnchorPane.setLeftAnchor(pathGroup, ARConstants.SPACE_M);
-        //        AnchorPane.setRightAnchor(pathGroup, ARConstants.SPACE_M);
-
-        //        mainPane = new AnchorPane(title, pathGroup, instructionButtonsRow);
 
         // Combine all HBoxes into a VBox for vertical alignment
         VBox vbox = new VBox(20);
@@ -404,26 +411,4 @@ public class ARExcelFilePane extends ARPane {
         File chosenPath = chooser.showOpenDialog(new Stage());
         return chosenPath.getAbsolutePath();
     }
-
-    //    public static void sendMessageJson(String sessionId, String msg1, String msg2) {
-    //
-    //        activeSessions = simpleWebSocketServer.getAllSessions();
-    //        Session session = activeSessions.get(sessionId);
-    //
-    //        if (session != null && session.isOpen()) {
-    //            try {
-    //                JsonObject jsonMessage = new JsonObject();
-    //                jsonMessage.addProperty("body", msg1);
-    //                jsonMessage.addProperty("homeBankingId", homeBankingId);
-    //                if (msg2 != null && !msg2.isEmpty()) {
-    //                    jsonMessage.addProperty("operationId", msg2);
-    //                }
-    //                session.getBasicRemote().sendText(jsonMessage.toString());
-    //            } catch (IOException e) {
-    //                System.err.println("Error sending message to session " + sessionId + ": " + e.getMessage());
-    //            }
-    //        } else {
-    //            System.err.println("Session " + sessionId + " not found or closed.");
-    //        }
-    //    }
 }
