@@ -26,9 +26,39 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
-import org.openqa.selenium.WebDriver;
 
 public class ARNewBotJobPane extends ARPane {
+
+    protected static volatile ARNewBotJobPane instance;
+
+    // Private constructor to prevent instantiation
+    private ARNewBotJobPane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARNewBotJobPane getInstance() {
+        if (instance == null) {
+            synchronized (ARNewBotJobPane.class) {
+                if (instance == null) {
+                    instance = new ARNewBotJobPane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private ObservableList<HomeBankingLoadDTO> homeBankingList = FXCollections.observableArrayList();
+    private ObservableList<BotJobLoadDTO> botJobList;
+    //    private final ListView<BotJobLoadDTO> viewBotJobListView;
+    public void initialize(
+            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<BotJobLoadDTO> botJobList) {
+        //        this.viewBotJobListView = viewBotJobListView;
+        this.arViewBotJobScene = arViewBotJobScene;
+        this.arWebDriver = arWebDriver;
+        this.botJobList = botJobList; // FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
+        //        this.viewBotJobListView.setItems(botJobList);
+    }
 
     // UI components
     private Label labelBotJobName;
@@ -41,11 +71,6 @@ public class ARNewBotJobPane extends ARPane {
     private Button createBotJobButton;
 
     private VBox container;
-
-    private ObservableList<HomeBankingLoadDTO> homeBankingList = FXCollections.observableArrayList();
-    private final ObservableList<BotJobLoadDTO> botJobList;
-    private ObservableList<WebDriver> webDriverList;
-    //    private final ListView<BotJobLoadDTO> viewBotJobListView;
 
     private ChoiceBox<HomeBankingLoadDTO> homeBankingChoiceBox;
 
@@ -62,19 +87,6 @@ public class ARNewBotJobPane extends ARPane {
     static {
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
-    }
-
-    public ARNewBotJobPane(
-            ARViewBotJobScene arViewBotJobScene,
-            ARWebDriver arWebDriver,
-            ObservableList<BotJobLoadDTO> botJobList,
-            ObservableList<WebDriver> webDriverList) {
-        //        this.viewBotJobListView = viewBotJobListView;
-        this.arViewBotJobScene = arViewBotJobScene;
-        this.arWebDriver = arWebDriver;
-        this.botJobList = botJobList; // FXCollections.observableArrayList(performDataBase.loadAllBotJobs());
-        this.webDriverList = webDriverList;
-        //        this.viewBotJobListView.setItems(botJobList);
     }
 
     @Override
@@ -98,7 +110,7 @@ public class ARNewBotJobPane extends ARPane {
         alertToShow.setTitle("Title");
         alertToShow.setHeaderText("Header Message");
         alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        alertToShow.initModality(Modality.WINDOW_MODAL);
         alertToShow.getDialogPane().setContent(stackPane);
 
         // Create a timeline to update the countdown
@@ -214,7 +226,7 @@ public class ARNewBotJobPane extends ARPane {
                 //                viewBotJobListView.refresh(); // Explicitly refresh the ListView
 
                 arViewBotJobScene.initialize(arWebDriver, createdBotJob, botJobList);
-                arViewBotJobScene.show();
+                arViewBotJobScene.showModal();
 
                 // Close the current window
                 ARLogger.getInstance(ARNewBotJobPane.class).finer("ARNewBotJobPane CurrentStage close()");

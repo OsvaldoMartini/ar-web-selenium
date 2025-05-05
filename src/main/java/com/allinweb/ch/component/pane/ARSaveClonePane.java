@@ -93,7 +93,7 @@ public class ARSaveClonePane extends ARPane {
         alertToShow.setTitle("Title");
         alertToShow.setHeaderText("Header Message");
         alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        alertToShow.initModality(Modality.WINDOW_MODAL);
         // Set the content of the alert
         alertToShow.getDialogPane().setContent(stackPane);
         // Create a timeline to update the countdown
@@ -156,7 +156,7 @@ public class ARSaveClonePane extends ARPane {
             }
 
             ARPropertyManager managerProps = ARPropertyManager.getInstance();
-            String excelPath = managerProps.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+            String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
             String originalFilePath =
                     excelPath + "\\" + selecBotJobDTO.getName().trim() + ".xlsx";
             String newFilePath = excelPath + "\\" + newBotJobName + ".xlsx";

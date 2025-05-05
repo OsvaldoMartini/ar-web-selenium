@@ -33,6 +33,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
+import javafx.scene.Scene;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.ClientEndpoint;
@@ -67,18 +69,8 @@ public class ARViewBotJobScene extends ARScene {
         return instance;
     }
 
-    private int portSocket = 54525;
-    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private static final CountDownLatch latch = new CountDownLatch(1);
-    private Session session;
-
-    private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
-
-    private ObservableList<BotJobLoadDTO> botJobList;
-
-    private ARScene currentScene;
-    private ARWebDriver arWebDriver;
-    private BotJobLoadDTO botJobLoad;
+    private Stage modalStage;
+    private Scene modalScene;
 
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
@@ -92,11 +84,26 @@ public class ARViewBotJobScene extends ARScene {
         arViewBotJobPane = ARViewBotJobPane.getInstance();
     }
 
+    private int portSocket = 54525;
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private static final CountDownLatch latch = new CountDownLatch(1);
+    private Session session;
+
+    private ExecutorService executorWebSocket = Executors.newSingleThreadExecutor();
+
+    private ObservableList<BotJobLoadDTO> botJobList;
+
+    private ARScene currentScene;
+    private ARWebDriver arWebDriver;
+    private BotJobLoadDTO botJobLoad;
+
     public void initialize(
             ARWebDriver arWebDriver, BotJobLoadDTO botJobLoad, ObservableList<BotJobLoadDTO> botJobList) {
         this.arWebDriver = arWebDriver;
         this.botJobLoad = botJobLoad;
         this.botJobList = botJobList;
+
+        reloadList();
 
         this.currentScene = currentScene;
 
@@ -108,6 +115,49 @@ public class ARViewBotJobScene extends ARScene {
         arNewCommandScene.connectWebSocketClient(portSocket, "new-command-scene-" + botJobLoad.getId());
 
         connectWebSocketClient(portSocket, "bot-job-scene-" + botJobLoad.getId());
+    }
+
+    private void reloadList() {
+        //        PerformDataBase..cacheEntitiesFromDB();
+
+        //        BotJobDTO botJobDTO = PerformDataBase..getEntityById(BotJobDTO.class, this.botJobId);
+
+        //        boolean updBotJobStatus = performDataBase.updateBotStatus();
+        //        if (!updBotJobStatus) {
+        //            ARLogger.getInstance(ARViewBotJobScene.class)
+        //                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
+        //        }
+
+        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
+        //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
+        this.botLoadJob = performDataBase.loadBotJobById(this.botJobLoad.getId());
+        this.homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
+        if (homeBankingLoadDTO != null) {
+            this.botLoadJob.setHomeBankingLoadDTO(homeBankingLoadDTO);
+        }
+
+        if (this.botLoadJob.getBlockLoadDTOList() == null) {
+            this.botLoadJob.setBlockLoadDTOList(this.blockLoadList);
+        }
+        // It Prevents Start without blocks
+        if (this.botLoadJob != null && blockLoadList.isEmpty()) {
+
+            // It Prevents Start without blocks
+            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
+            newBlockDetails.setBlockName(this.botLoadJob.getName() + " default block");
+            newBlockDetails.setBlockDescription(this.botLoadJob.getName() + " block description");
+            newBlockDetails.setTypeId(1);
+            newBlockDetails.setActive(true);
+            newBlockDetails.setWait(3);
+            newBlockDetails.setBlockOrderNumber(1);
+
+            newBlockDetails.setBotJobId(this.botLoadJob.getId());
+
+            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
+            ARLogger.getInstance(Thread.class)
+                    .info(String.format(
+                            "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
+        }
     }
 
     private BotJobLoadDTO botLoadJob = null;
@@ -154,49 +204,8 @@ public class ARViewBotJobScene extends ARScene {
 
     @Override
     public IARPane buildPane() {
-
-        //        PerformDataBase..cacheEntitiesFromDB();
-
-        //        BotJobDTO botJobDTO = PerformDataBase..getEntityById(BotJobDTO.class, this.botJobId);
-
-        //        boolean updBotJobStatus = performDataBase.updateBotStatus();
-        //        if (!updBotJobStatus) {
-        //            ARLogger.getInstance(ARViewBotJobScene.class)
-        //                    .info(String.format("Failed to Update ALL Bot Job Active = 1"));
-        //        }
-
-        this.blockLoadList = performDataBase.loadBlocksByBotJobId(this.botJobLoad.getId());
-        //        this.botLoadJobs = performDataBase.loadBotJobWithBlock(this.botJobId);
-        this.botLoadJob = performDataBase.loadBotJobById(this.botJobLoad.getId());
-        this.homeBankingLoadDTO = performDataBase.loadHomeBanking(this.botJobLoad.getHomeBankingId());
-        if (homeBankingLoadDTO != null) {
-            this.botLoadJob.setHomeBankingLoadDTO(homeBankingLoadDTO);
-        }
-
-        if (this.botLoadJob.getBlockLoadDTOList() == null) {
-            this.botLoadJob.setBlockLoadDTOList(this.blockLoadList);
-        }
-        // It Prevents Start without blocks
-        if (this.botLoadJob != null && blockLoadList.isEmpty()) {
-
-            // It Prevents Start without blocks
-            BlockDetailsDTO newBlockDetails = new BlockDetailsDTO();
-            newBlockDetails.setBlockName(this.botLoadJob.getName() + " default block");
-            newBlockDetails.setBlockDescription(this.botLoadJob.getName() + " block description");
-            newBlockDetails.setTypeId(1);
-            newBlockDetails.setActive(true);
-            newBlockDetails.setWait(3);
-            newBlockDetails.setBlockOrderNumber(1);
-
-            newBlockDetails.setBotJobId(this.botLoadJob.getId());
-
-            int newBlockId = performDataBase.createNewBlock(newBlockDetails);
-            ARLogger.getInstance(Thread.class)
-                    .info(String.format(
-                            "Created a new Block id %d for bot job Id %d", newBlockId, this.botLoadJob.getId()));
-        }
-
         arViewBotJobPane.initialize(this, this.botLoadJob, botJobList);
+
         return arViewBotJobPane;
     }
 
@@ -212,7 +221,34 @@ public class ARViewBotJobScene extends ARScene {
 
     @Override
     public String getTitle() {
+        if (this.botLoadJob.getId() != null) {
+            return TITLE + " WebSite Id: " + this.botLoadJob.getHomeBankingId() + " Id: " + this.botLoadJob.getId();
+        }
+
         return TITLE;
+    }
+
+    public void showModal() {
+        if (modalStage == null) {
+            modalStage = new Stage();
+            IARPane pane = buildPane();
+            if (pane != null) {
+                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+                modalStage.setScene(modalScene);
+                modalStage.setTitle(getTitle());
+                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                modalStage.setAlwaysOnTop(true); // Set always on top
+            } else {
+                // Handle the case where pane creation failed
+                ARLogger.getInstance(ARViewBotJobScene.class).severe("Failed to build pane for modal.");
+                return;
+            }
+        } else {
+            arViewBotJobPane.initialize(this, this.botLoadJob, botJobList);
+            modalStage.setTitle(getTitle()); // Update title if it might have changed
+        }
+        //        modalStage.show(); // Block until this window is closed
+        modalStage.showAndWait(); // Block until this window is closed
     }
 
     public void destroyPanel() {

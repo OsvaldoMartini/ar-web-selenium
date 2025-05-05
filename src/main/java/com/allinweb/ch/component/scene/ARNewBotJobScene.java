@@ -5,6 +5,7 @@ import com.allinweb.ch.component.pane.ARNewBotJobPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.util.ARLogger;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -32,6 +33,15 @@ public class ARNewBotJobScene extends ARScene {
         return instance;
     }
 
+    private Stage modalStage;
+    private Scene modalScene;
+
+    private static ARNewBotJobPane arNewBotJobPane;
+
+    static {
+        arNewBotJobPane = ARNewBotJobPane.getInstance();
+    }
+
     private static final Double SCENE_HEIGHT = 400D;
     private static final Double SCENE_WIDTH = 300D;
     private static final String TITLE = "New Bot Job";
@@ -55,7 +65,8 @@ public class ARNewBotJobScene extends ARScene {
     @Override
     public IARPane buildPane() {
         // Create ARNewBotJobPane without passing ListView here
-        return new ARNewBotJobPane(arViewBotJobScene, arWebDriver, botJobList, webDriverList);
+        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
+        return arNewBotJobPane;
     }
 
     @Override
@@ -74,14 +85,25 @@ public class ARNewBotJobScene extends ARScene {
     }
 
     public void showModal() {
-        Stage modalStage = new Stage();
-        IARPane pane = buildPane();
-        if (pane != null) {
-            Scene scene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-            modalStage.setScene(scene);
-            modalStage.setTitle(getTitle());
-            modalStage.initModality(Modality.APPLICATION_MODAL); // Make it modal
-            modalStage.showAndWait(); // Block until this window is closed
+        if (modalStage == null) {
+            modalStage = new Stage();
+            IARPane pane = buildPane();
+            if (pane != null) {
+                modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
+                modalStage.setScene(modalScene);
+                modalStage.setTitle(getTitle());
+                modalStage.initModality(Modality.WINDOW_MODAL); // Changed to NONE
+                modalStage.setAlwaysOnTop(true); // Set always on top
+            } else {
+                // Handle the case where pane creation failed
+                ARLogger.getInstance(ARNewCommandScene.class).severe("Failed to build pane for modal.");
+                return;
+            }
+        } else {
+            arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
+            modalStage.setTitle(getTitle()); // Update title if it might have changed
         }
+        //        modalStage.show(); // Block until this window is closed
+        modalStage.showAndWait(); // Block until this window is closed
     }
 }

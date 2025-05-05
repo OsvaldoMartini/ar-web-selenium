@@ -1309,7 +1309,7 @@ public class ARScannedElementPane extends ARPane {
         alertToShow = new Alert(Alert.AlertType.INFORMATION);
         alertToShow.setTitle("Countdown Alert");
         alertToShow.setHeaderText("Count Down");
-        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        alertToShow.initModality(Modality.WINDOW_MODAL);
         // Set the content of the alert
         alertToShow.getDialogPane().setContent(stackPane);
         // Create a timeline to update the countdown
@@ -2920,8 +2920,8 @@ public class ARScannedElementPane extends ARPane {
         }
 
         try {
-            baseLogFile = new File(arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG)
-                    + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
+            baseLogFile = new File(
+                    arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG) + ARConstants.FILE_NAME_SCANNER_BASE_LOG);
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
@@ -2930,7 +2930,7 @@ public class ARScannedElementPane extends ARPane {
         String botJobName = botJobLoadList.get(0).getName();
 
         //        ARPropertyManager managerProps = ARPropertyManager.getInstance();
-        String excelPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+        String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
         excelPath = excelPath + "\\" + blocksLoaded.get(0).getBotJobName() + ".xlsx";
         if (!(new File(excelPath)).exists()) {
 

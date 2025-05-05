@@ -30,6 +30,34 @@ import javafx.scene.layout.*;
 
 public class ARNewHomeBankingPane extends ARPane {
 
+    protected static volatile ARNewHomeBankingPane instance;
+
+    // Private constructor to prevent instantiation
+    private ARNewHomeBankingPane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARNewHomeBankingPane getInstance() {
+        if (instance == null) {
+            synchronized (ARNewHomeBankingPane.class) {
+                if (instance == null) {
+                    instance = new ARNewHomeBankingPane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    private ObservableList<HomeBankingLoadDTO> homeBankingList;
+
+    public void initialize(ObservableList<HomeBankingLoadDTO> homeBankingList) {
+        this.homeBankingList = homeBankingList;
+        if (this.homeBankingList == null) {
+            this.homeBankingList = FXCollections.observableArrayList();
+        }
+    }
+
     private static final PerformMessage performMessage;
     private static final PerformDataBase performDataBase;
     // Static block to initialize
@@ -51,15 +79,6 @@ public class ARNewHomeBankingPane extends ARPane {
     private List<BankingDTO> dtoList;
 
     private Pane mainPane;
-    private ObservableList<HomeBankingLoadDTO> homeBankingList;
-
-    public ARNewHomeBankingPane(ObservableList<HomeBankingLoadDTO> homeBankingList) {
-        super();
-        this.homeBankingList = homeBankingList;
-        if (this.homeBankingList == null) {
-            this.homeBankingList = FXCollections.observableArrayList();
-        }
-    }
 
     @Override
     public Pane getPaneReference() {

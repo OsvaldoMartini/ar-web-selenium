@@ -40,6 +40,27 @@ import javafx.stage.Stage;
 
 public class ARConfigurationPane extends ARPane {
 
+    protected static volatile ARConfigurationPane instance;
+
+    // Private constructor to prevent instantiation
+    private ARConfigurationPane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARConfigurationPane getInstance() {
+        if (instance == null) {
+            synchronized (ARConfigurationPane.class) {
+                if (instance == null) {
+                    instance = new ARConfigurationPane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize() {}
+
     private static final ARComponentBuilder builder = new ARComponentBuilder();
 
     private static final int SECONDS = 3; // Total seconds for the countdown
@@ -47,8 +68,6 @@ public class ARConfigurationPane extends ARPane {
     private Timeline timeline;
     private ExecutorService executorService;
     private Alert alertToShow;
-
-    public ARConfigurationPane() {}
 
     private static final ARPropertyManager arPropertyManager;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
@@ -154,7 +173,7 @@ public class ARConfigurationPane extends ARPane {
         alertToShow.setTitle("Title");
         alertToShow.setHeaderText("Header Message");
         alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        alertToShow.initModality(Modality.WINDOW_MODAL);
         // Set the content of the alert
         alertToShow.getDialogPane().setContent(stackPane);
         // Create a timeline to update the countdown
@@ -195,12 +214,12 @@ public class ARConfigurationPane extends ARPane {
         //        homeBankingContainer.setSpacing(2); // O
 
         pathExcelLabel = new Label("Excel Path:");
-        pathExcel = createPathTextField(ARPropertyEnum.FOLDER_PATH_EXCEL);
+        pathExcel = createPathTextField(ARPropertyEnum.PATH_EXCEL);
         pathExcelButton = createPathButton();
         AnchorPane excelGroup = new AnchorPane(pathExcel, pathExcelButton);
 
         //        pathExportLabel = new Label("Export Path:");
-        //        pathExport = createPathTextField(ARPropertyEnum.FOLDER_PATH_EXPORT);
+        //        pathExport = createPathTextField(ARPropertyEnum.PATH_EXPORT);
         //        pathExportButton = createPathButton();
         //        fileExportLabel = new Label("File Name");
         //        fileExport = createPathTextField(ARPropertyEnum.FILE_NAME_EXPORT);
@@ -237,7 +256,7 @@ public class ARConfigurationPane extends ARPane {
 
         // LOGs
         pathLogLabel = new Label("Log Path:");
-        pathLog = createPathTextField(ARPropertyEnum.FOLDER_PATH_LOG);
+        pathLog = createPathTextField(ARPropertyEnum.PATH_LOG);
         pathLogButton = createPathButton();
 
         GridPane gridPaneLog = new GridPane();
@@ -265,7 +284,7 @@ public class ARConfigurationPane extends ARPane {
 
         // DB Type
         pathDBLabel = new Label("Database Path:");
-        pathDB = createPathTextField(ARPropertyEnum.FOLDER_PATH_DB);
+        pathDB = createPathTextField(ARPropertyEnum.PATH_DB);
         pathDBButton = createPathButton();
 
         GridPane gridPaneDB = new GridPane();
@@ -369,22 +388,22 @@ public class ARConfigurationPane extends ARPane {
 
         //        AnchorPane logGroup = new AnchorPane(pathLog, sizeLog, pathLogButton);
         pathJavaLabel = new Label("Java Path:");
-        pathJava = createPathTextField(ARPropertyEnum.FOLDER_PATH_JAVA);
+        pathJava = createPathTextField(ARPropertyEnum.PATH_JAVA);
         pathJavaButton = createPathButton();
         AnchorPane javaGroup = new AnchorPane(pathJava, pathJavaButton);
 
         pathReportLabel = new Label("Report Path:");
-        pathReport = createPathTextField(ARPropertyEnum.FOLDER_PATH_REPORT);
+        pathReport = createPathTextField(ARPropertyEnum.PATH_REPORT);
         pathReportButton = createPathButton();
         AnchorPane reportGroup = new AnchorPane(pathReport, pathReportButton);
 
         pathPriorityLabel = new Label("Priority Path:");
-        pathPriority = createPathTextField(ARPropertyEnum.FOLDER_PATH_PRIORITY);
+        pathPriority = createPathTextField(ARPropertyEnum.PATH_PRIORITY);
         pathPriorityButton = createPathButton();
         AnchorPane priorityGroup = new AnchorPane(pathPriority, pathPriorityButton);
 
         pathJavaFXLabel = new Label("JavaFX Path:");
-        pathJavaFX = createPathTextField(ARPropertyEnum.FOLDER_PATH_JAVA_FX);
+        pathJavaFX = createPathTextField(ARPropertyEnum.PATH_JAVA_FX);
         pathJavaFXButton = createPathButton();
         AnchorPane javaFXGroup = new AnchorPane(pathJavaFX, pathJavaFXButton);
 
@@ -644,18 +663,15 @@ public class ARConfigurationPane extends ARPane {
             arPropertyManager.setProperty(ARPropertyEnum.BROWSER.getValue(), browserChoiceBox.getValue());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), databaseChoiceBox.getValue());
-            arPropertyManager.setProperty(ARPropertyEnum.FOLDER_PATH_DB.getValue(), pathDB.getText());
-            ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.FOLDER_PATH_EXCEL.getValue(), pathExcel.getText());
+            arPropertyManager.setProperty(ARPropertyEnum.PATH_DB.getValue(), pathDB.getText());
+            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PATH_EXCEL.getValue(), pathExcel.getText());
 
-            arPropertyManager.setProperty(ARPropertyEnum.FOLDER_PATH_JAVA.getValue(), pathJava.getText());
+            arPropertyManager.setProperty(ARPropertyEnum.PATH_JAVA.getValue(), pathJava.getText());
+            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PATH_JAVA_FX.getValue(), pathJavaFX.getText());
+            arPropertyManager.setProperty(ARPropertyEnum.PATH_LOG.getValue(), pathLog.getText());
             ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.FOLDER_PATH_JAVA_FX.getValue(), pathJavaFX.getText());
-            arPropertyManager.setProperty(ARPropertyEnum.FOLDER_PATH_LOG.getValue(), pathLog.getText());
-            ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.FOLDER_PATH_PRIORITY.getValue(), pathPriority.getText());
-            ARPropertyManager.getInstance()
-                    .setProperty(ARPropertyEnum.FOLDER_PATH_REPORT.getValue(), pathReport.getText());
+                    .setProperty(ARPropertyEnum.PATH_PRIORITY.getValue(), pathPriority.getText());
+            ARPropertyManager.getInstance().setProperty(ARPropertyEnum.PATH_REPORT.getValue(), pathReport.getText());
             arPropertyManager.setProperty(ARPropertyEnum.PATH_ENGINE.getValue(), pathEngine.getText());
             ARPropertyManager.getInstance()
                     .setProperty(ARPropertyEnum.PATH_WEBDRIVER.getValue(), pathWebDriver.getText());

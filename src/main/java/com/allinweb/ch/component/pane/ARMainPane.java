@@ -4,7 +4,6 @@ import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.model.BotJobLoadDTO;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARInfoScene;
 import com.allinweb.ch.component.scene.ARNewBotJobScene;
@@ -95,7 +94,7 @@ public class ARMainPane extends ARPane {
 
     public ARMainPane(ObservableList<WebDriver> webDriverList) {
         this.webDriverList = webDriverList;
-        String pathDB = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+        String pathDB = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
         String dataBaseType = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         performDataBase.initialize(dataBaseType);
 
@@ -110,7 +109,7 @@ public class ARMainPane extends ARPane {
         }
 
         if (!POSTGRES_DB) {
-            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_DB);
+            String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
             String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_DB + CONNECTION_PARAMETERS;
 
             File dbFile = new File(dbPath + ARConstants.FILE_NAME_DB);
@@ -125,16 +124,18 @@ public class ARMainPane extends ARPane {
         }
 
         //        dbResource.setPreviousDB(previousDB);
-        arConfigurationScene.initialize();
 
-        if (pathDB == null || pathDB.isBlank()) {
-            arConfigurationScene.show();
-            new ARAlertScene(
-                    Alert.AlertType.WARNING,
-                    "Configuration Needed",
-                    "Please configure the application before use.",
-                    ButtonType.OK);
-        }
+        //        if (pathDB == null || pathDB.isBlank()) {
+        //            arConfigurationScene.showModal();
+        //            performMessage.errorMessage(
+        //                    "Configuration Needed", // Using configurationFileName as the title
+        //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Set the path
+        // for the Database!</span>",
+        //                    "<span style='color: #2E7D32; font-weight: bold;'>The Path for Database is Blank!</span>",
+        //                    "<span style='font-weight: bold;'>Please configure the application before use.</span>.",
+        //                    null,
+        //                    0);
+        //        }
     }
 
     @Override
@@ -239,7 +240,7 @@ public class ARMainPane extends ARPane {
                     Platform.runLater(() -> {
                         // new ARViewBotJobScene(selecBotJobDTO).showModal();
                         arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, botJobList);
-                        arViewBotJobScene.show();
+                        arViewBotJobScene.showModal();
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
                     });
@@ -261,7 +262,7 @@ public class ARMainPane extends ARPane {
                 if (selecBotJobDTO != null) {
                     String enginePath =
                             arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE) + "\\AR_Web_Engine.jar";
-                    String excelPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_EXCEL);
+                    String excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
                     excelPath = excelPath + "\\" + selecBotJobDTO.getName() + ".xlsx";
                     if (!new File(excelPath).exists()) {
                         performMessage.errorMessage(
@@ -317,8 +318,8 @@ public class ARMainPane extends ARPane {
                         arPropertyManager.getConfigurationFileName()
                     };
                     ProcessBuilder processBuilder = new ProcessBuilder(command);
-                    processBuilder.directory(new File(ARConstants.CURRENT_PATH));
-                    String logPath = arPropertyManager.getProperty(ARPropertyEnum.FOLDER_PATH_LOG);
+                    processBuilder.directory(new File(ARConstants.USER_PATH));
+                    String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
                     File output = new File(logPath + "\\engine_debug_log_output.log");
                     File error = new File(logPath + "\\engine_debug_log_error.log");
                     File input = new File(logPath + "\\engine_debug_log_input.log");

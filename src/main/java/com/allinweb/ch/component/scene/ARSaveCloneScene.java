@@ -50,7 +50,7 @@ public class ARSaveCloneScene extends ARScene {
             Scene scene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
             modalStage.setScene(scene);
             modalStage.setTitle(getTitle());
-            modalStage.initModality(Modality.APPLICATION_MODAL); // Make it modal
+            modalStage.initModality(Modality.WINDOW_MODAL); // Make it modal
             modalStage.showAndWait(); // Block until this window is closed
         }
     }

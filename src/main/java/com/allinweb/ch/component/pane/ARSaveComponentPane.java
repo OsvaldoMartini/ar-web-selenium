@@ -47,6 +47,29 @@ import javax.websocket.Session;
 
 public class ARSaveComponentPane extends ARPane {
 
+    protected static volatile ARSaveComponentPane instance;
+
+    // Private constructor to prevent instantiation
+    private ARSaveComponentPane() {
+        // Initialize if necessary
+        super();
+    }
+
+    public static ARSaveComponentPane getInstance() {
+        if (instance == null) {
+            synchronized (ARSaveComponentPane.class) {
+                if (instance == null) {
+                    instance = new ARSaveComponentPane();
+                }
+            }
+        }
+        return instance;
+    }
+
+    public void initialize(BlockDetailsDTO blockDetailsDTO) {
+        this.blockDetailsDTO = blockDetailsDTO;
+    }
+
     private static Map<String, Session> activeSessions;
     private Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
@@ -91,10 +114,6 @@ public class ARSaveComponentPane extends ARPane {
 
     private AnchorPane mainPane;
 
-    public ARSaveComponentPane(BlockDetailsDTO blockDetailsDTO) {
-        this.blockDetailsDTO = blockDetailsDTO;
-    }
-
     @Override
     public Pane getPaneReference() {
         return mainPane;
@@ -116,7 +135,7 @@ public class ARSaveComponentPane extends ARPane {
         alertToShow.setTitle("Title");
         alertToShow.setHeaderText("Header Message");
         alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        alertToShow.initModality(Modality.WINDOW_MODAL);
         // Set the content of the alert
         alertToShow.getDialogPane().setContent(stackPane);
         // Create a timeline to update the countdown

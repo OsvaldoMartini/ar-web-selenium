@@ -90,7 +90,8 @@ public class ARExcelFilePane extends ARPane {
     private static final ARComponentBuilder builder = new ARComponentBuilder();
 
     // UI Components
-    Label titleLabel; // New label for the title
+    Label titleLabel;
+    Label blockNameLabel;
     Label pathExportLabel;
     Label fileExportLabel;
     Label fileTypeLabel;
@@ -122,9 +123,17 @@ public class ARExcelFilePane extends ARPane {
     @Override
     public void initUIComponents() {
         // Create the title label
-        titleLabel = new Label(
-                "Block name: #" + this.blockExcelDTO.getBlockOrderNumber() + "-" + this.blockExcelDTO.getBlockName());
-        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;"); // Basic styling
+        // Create the "Block Name :" label
+        blockNameLabel = new Label("Block Name :");
+        blockNameLabel.setStyle("-fx-font-size: 18px; -fx-text-fill: blue;"); // Blue font color
+
+        // Create the title label
+        titleLabel =
+                new Label("#" + this.blockExcelDTO.getBlockOrderNumber() + "-" + this.blockExcelDTO.getBlockName());
+        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: darkgreen;"); // Green dark
+
+        HBox titleBox = new HBox(10, blockNameLabel, titleLabel); // Put labels in an HBox
+        titleBox.setAlignment(Pos.CENTER); // Align the labels in the center of the HBox
 
         pathExportLabel = new Label("Export Path:");
 
@@ -250,7 +259,7 @@ public class ARExcelFilePane extends ARPane {
         VBox vbox = new VBox(20);
         vbox.getChildren()
                 .addAll(
-                        titleLabel, // Add the title label at the top
+                        titleBox, // Add the title label at the top
                         pathGroup, // ComboBoxes row
                         instructionButtonsRow // Add Instruction and Cancel Buttons row
                         );

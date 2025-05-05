@@ -334,7 +334,7 @@ public class ARNewCommandPane extends ARPane {
         alertToShow.setTitle("Title");
         alertToShow.setHeaderText("Header Message");
         alertToShow.setContentText("Main Message");
-        alertToShow.initModality(Modality.APPLICATION_MODAL);
+        alertToShow.initModality(Modality.WINDOW_MODAL);
         // Set the content of the alert
         alertToShow.getDialogPane().setContent(stackPane);
         // Create a timeline to update the countdown
