@@ -397,8 +397,8 @@ public class ARViewBotJobPane extends ARPane {
         HBox.setHgrow(this.componentContainer, Priority.NEVER);
 
         // Create the BAT Website vs Bot Job
-        HBox batCreate = new HBox(10, webSiteInfoLabel, createBATButton); // Put labels in an HBox
-        batCreate.setAlignment(Pos.CENTER); // Align the labels in the center of the HBox
+        HBox batCreate = new HBox(10, createBATButton, webSiteInfoLabel); // Put labels in an HBox
+        //        batCreate.setAlignment(Pos.CENTER); // Align the labels in the center of the HBox
 
         // Create botJobContainer AFTER defining compBox
         this.botJobContainer =
